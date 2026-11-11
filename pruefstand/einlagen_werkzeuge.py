@@ -40,11 +40,11 @@ with sync_playwright() as p:
     pruefe(len(z) == 4 and z[0][0] == "Bohrer 8" and all(x[3] and x[4] and x[5] for x in z), "4 Werkzeuge einzeln gespeichert: %s" % [x[:3] for x in z])
     pruefe("Bohrer 8" in pg.inner_text("#einlagen-stand"), "Stand nennt das Werkzeug: " + pg.inner_text("#einlagen-stand"))
     n0 = f().evaluate("scanState().result.tools[0].outer.length")
-    # Kontur ändern: gespeichertes Werkzeug zieht nach
+    # Kontur ändern: gespeichertes Werkzeug bleibt, wie es gespeichert wurde (seit 1.486.0, Wunsch Patrick 11. November 2026)
     f().evaluate("st.edit.sel = {ti:0, ri:0, pi:3}; deletePoint(); st.edit.sel = {ti:0, ri:0, pi:3}; deletePoint();")
     pg.wait_for_timeout(2500)
     z = pg.evaluate("TEST.daten.einlagen_werkzeuge.find(x => x.name === 'Bohrer 8').daten.polys[0].outer.length")
-    pruefe(z == n0 - 2, "Änderung an der Kontur in der App nachgeführt: %s → %s" % (n0, z))
+    pruefe(z == n0, "Änderung am Foto ändert das gespeicherte Werkzeug nicht von selbst: %s → %s" % (n0, z))
     # Weiter zur Einlage, zurück, weiter ändern, wieder zur Einlage
     f().click("#toLayoutBtn"); pg.wait_for_timeout(500)
     f().click("#pickAll"); f().click("#pickOk"); pg.wait_for_timeout(800)
@@ -76,7 +76,14 @@ with sync_playwright() as p:
     pg.click("#einlagen-wz-fenster .einlagen__wz >> nth=0 >> [data-wz=kontur]"); pg.wait_for_timeout(2500)
     s = f().evaluate("[scanState().sample, scanState().result.tools.length, document.getElementById('scanMode').hidden]")
     pruefe(s == [False, 4, False], "Kontur bearbeiten öffnet Foto und Kontur: %s" % s)
-    pruefe("Werkzeug" in pg.inner_text("#einlagen-stand"), "verknüpft: " + pg.inner_text("#einlagen-stand"))
+    pruefe("wird bearbeitet" in pg.inner_text("#einlagen-stand"), "verknüpft: " + pg.inner_text("#einlagen-stand"))
+    # Beim Bearbeiten zieht nur das geöffnete Werkzeug nach, die anderen dieses Fotos bleiben
+    vorher = pg.evaluate("TEST.daten.einlagen_werkzeuge.map(x => [x.id, x.daten.polys[0].outer.length])")
+    f().evaluate("st.edit.sel = {ti:0, ri:0, pi:3}; deletePoint(); st.edit.sel = {ti:1, ri:0, pi:3}; deletePoint();")
+    pg.wait_for_timeout(2500)
+    nachher = dict(pg.evaluate("TEST.daten.einlagen_werkzeuge.map(x => [x.id, x.daten.polys[0].outer.length])"))
+    geaendert = [i for i, n in vorher if nachher[i] != n]
+    pruefe(len(geaendert) == 1, "beim Bearbeiten ändert sich nur das geöffnete Werkzeug: %s" % geaendert)
     pg.click("#einlagen-werkzeuge"); pg.wait_for_selector("#einlagen-wz-fenster .einlagen__wz")
     pg.click("#einlagen-wz-fenster .einlagen__wz >> nth=1 >> .einlagen__weg"); pg.wait_for_timeout(300)
     pg.click(".dialog [data-ja]"); pg.wait_for_timeout(800)

@@ -1,5 +1,6 @@
-# Einlagen Generator 1.485.0 (Wunsch Patrick 11. November 2026): automatische Erkennung
+# Einlagen Generator 1.485.0 / 1.486.0 (Wunsch Patrick 11. November 2026): automatische Erkennung
 # ausschaltbar, Werkzeug selber nachzeichnen, Ecke runden mit zwei Linien, Zoom mit Mausrad.
+# 1.486.0: Rechteck und Kreis im Nachzeichnen, Ecken bleiben spitz (Radius nur mit „Ecke runden“), Radtaste verschiebt.
 import os, time, math
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -61,7 +62,10 @@ with sync_playwright() as p:
     if BILD: pg.screenshot(path=BILD + "-punkte.png")
     klick(60, 80); pg.wait_for_timeout(1500)
     t = f.evaluate("(() => { const r = scanState().result; if (!r.tools.length) return null; const b = bbox(r.tools[0].outer); return [r.tools.length, b[2]-b[0], b[3]-b[1]]; })()")
-    pruefe(t and t[0] == 1 and 61 < t[1] < 63.5 and 41 < t[2] < 43.5, "nachgezeichnetes Werkzeug mit Spaltmass: %s" % t)
+    sp = f.evaluate("+$('offset').value")
+    pruefe(t and t[0] == 1 and abs(t[1] - (60 + 2 * sp)) < 0.05 and abs(t[2] - (40 + 2 * sp)) < 0.05, "nachgezeichnetes Werkzeug mit Spaltmass %s mm: %s" % (sp, t))
+    o = f.evaluate("scanState().result.tools[0].outer")
+    pruefe(len(o) == 4 and min(math.hypot(x - (60 - sp), y - (80 - sp)) for x, y in o) < 0.05, "Ecken bleiben spitz, kein Radius von selbst: %d Punkte" % len(o))
     # Ecke runden: obere und rechte Linie anklicken, R 10
     f.click("#traceFillet"); f.fill("#traceR", "10")
     klick(100, 80); klick(120, 105); pg.wait_for_timeout(1500)
@@ -84,6 +88,28 @@ with sync_playwright() as p:
     for x, y in [(20, 30), (50, 30)]: klick(x, y)
     a, b = schirm(35, 60); pg.mouse.dblclick(a, b); pg.wait_for_timeout(1500)
     pruefe(f.evaluate("!st.edit.poly && st.edit.strokes.length === 2 && st.edit.strokes[1].poly.length === 3"), "Doppelklick schliesst das Dreieck")
+    # Rechteck und Kreis im Nachzeichnen
+    f.click("#traceRect"); klick(140, 30); a, b = schirm(170, 50); pg.mouse.move(a, b); pg.wait_for_timeout(200)
+    if BILD: pg.screenshot(path=BILD + "-rechteck.png")
+    klick(170, 50); pg.wait_for_timeout(1500)
+    r = f.evaluate("(() => { const s = st.edit.strokes[st.edit.strokes.length - 1]; const b = bbox(s.poly); return [s.trace, s.poly.length, b[2]-b[0], b[3]-b[1], st.edit.strokes.length]; })()")
+    pruefe(r[0] and r[1] == 4 and abs(r[2] - 30) < 0.5 and abs(r[3] - 20) < 0.5 and r[4] == 3, "Rechteck mit zwei Ecken: %s" % r)
+    f.click("#traceCirc"); klick(150, 100); klick(160, 100); pg.wait_for_timeout(1500)
+    c = f.evaluate("(() => { const s = st.edit.strokes[st.edit.strokes.length - 1]; const b = bbox(s.poly); return [s.trace, b[2]-b[0], b[3]-b[1]]; })()")
+    pruefe(c[0] and abs(c[1] - 20) < 0.3 and abs(c[2] - 20) < 0.3, "Kreis Mitte + Rand: Ø %.1f" % c[1])
+    nt = f.evaluate("scanState().result.tools.length")
+    pruefe(nt == 4, "4 nachgezeichnete Werkzeuge: %d" % nt)
+    pruefe(f.evaluate("$('traceCirc').getAttribute('aria-pressed')") == "true", "Knopf Kreis gedrückt")
+    # Radtaste gedrückt ziehen verschiebt die Ansicht
+    f.evaluate("setZoom(4)"); pg.wait_for_timeout(400)
+    s0 = f.evaluate("[$('viewer').scrollLeft, $('viewer').scrollTop]")
+    vb = f.evaluate("(() => { const r = $('viewer').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()")
+    bx = pg.frames[1].frame_element().bounding_box(); mx, my = bx["x"] + vb[0], bx["y"] + vb[1]
+    pg.mouse.move(mx, my); pg.mouse.down(button="middle"); pg.mouse.move(mx - 120, my - 80, steps=6); pg.mouse.up(button="middle"); pg.wait_for_timeout(200)
+    s1 = f.evaluate("[$('viewer').scrollLeft, $('viewer').scrollTop]")
+    pruefe(abs(s1[0] - s0[0] - 120) < 3 and abs(s1[1] - s0[1] - 80) < 3, "Radtaste verschiebt: %s → %s" % (s0, s1))
+    pruefe(f.evaluate("st.edit.strokes.length") == 4, "Verschieben setzt keinen Punkt")
+    f.evaluate("setZoom(1)"); pg.wait_for_timeout(300)
     # wieder einschalten: Fotoerkennung kommt dazu
     f.check("#auto"); pg.wait_for_timeout(1800)
     pruefe(f.evaluate("scanState().result.tools.length") >= n0, "Erkennung wieder an: Werkzeuge wieder da")

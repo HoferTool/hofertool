@@ -430,7 +430,7 @@ header.bar { align-items: center; }
         </div>
         <div class="drawtools" id="traceTools" hidden>
           <div class="drawrow">
-            <div class="seg" role="group" aria-label="Nachzeichnen"><button class="tool flat" type="button" id="traceDraw" aria-pressed="true">Punkte setzen</button><button class="tool flat" type="button" id="traceFillet" aria-pressed="false">Ecke runden</button></div>
+            <div class="seg" role="group" aria-label="Nachzeichnen"><button class="tool flat" type="button" id="traceDraw" aria-pressed="true">Punkte setzen</button><button class="tool flat" type="button" id="traceRect" aria-pressed="false">Rechteck</button><button class="tool flat" type="button" id="traceCirc" aria-pressed="false">Kreis</button><button class="tool flat" type="button" id="traceFillet" aria-pressed="false">Ecke runden</button></div>
             <label>Radius <input id="traceR" type="number" min="0" max="500" step="0.5" value="3"> mm</label>
             <button class="btn small" id="traceClose" type="button" disabled>Form schliessen</button>
             <button class="btn small" id="traceBack" type="button" disabled>Letzten Punkt weg</button>
@@ -1004,6 +1004,28 @@ function doWarp() {
 }
 
 // ---------- 3. Kontur ----------
+// Umlaufsinn, den Marching Squares für Aussenkonturen liefert (aus einem kleinen Quadrat bestimmt)
+const MARSCH_SINN = (() => { const g = new Float32Array(36); for (const i of [14, 15, 20, 21]) g[i] = 1; const l = marching(g, 6, 6)[0]; return l ? Math.sign(area(l)) || 1 : 1; })();
+// Linienzug um d mm nach aussen versetzen, Ecken spitz (Gehrung); nur sehr spitze Ecken werden gekappt, damit nichts weit hinaussticht
+function spitzVersetzt(poly, d) {
+  let q = [];
+  for (const pt of poly) if (!q.length || dist(q[q.length - 1], pt) > 1e-4) q.push(pt);
+  if (q.length > 2 && dist(q[0], q[q.length - 1]) < 1e-4) q.pop();
+  if (q.length < 3 || !d) return q;
+  if (area(q) < 0) q = q.slice().reverse();
+  const n = q.length, nor = [];
+  for (let i = 0; i < n; i++) { const a = q[i], b = q[(i + 1) % n], L = dist(a, b) || 1; nor.push([(b[1] - a[1]) / L, -(b[0] - a[0]) / L]); }
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const n1 = nor[(i - 1 + n) % n], n2 = nor[i], p0 = q[i], c = n1[0] * n2[0] + n1[1] * n2[1];
+    if (c > 0.9999) { out.push([p0[0] + d * n2[0], p0[1] + d * n2[1]]); continue; }
+    const f = d / (1 + c), m = [p0[0] + f * (n1[0] + n2[0]), p0[1] + f * (n1[1] + n2[1])];
+    const konvex = (n1[0] * n2[1] - n1[1] * n2[0]) * d < 0;
+    if (konvex && Math.sqrt(2 / (1 + c)) > 4) { out.push([p0[0] + d * n1[0], p0[1] + d * n1[1]], [p0[0] + d * n2[0], p0[1] + d * n2[1]]); }
+    else out.push(m);
+  }
+  return out;
+}
 function doSegment() {
   const w = st.warp, p = P(), { ow: W, oh: H, ppm, score, mpx } = w, n = W * H;
   const hist = new Uint32Array(256); let tot = 0;
@@ -1013,7 +1035,7 @@ function doSegment() {
   let m = new Uint8Array(n); if (p.auto) for (let i = 0; i < n; i++) m[i] = score[i] > T ? 1 : 0;
   const r = Math.round(p.noise * ppm);
   if (r > 0 && p.auto) { m = morph(m, W, H, r, false); m = morph(m, W, H, r, true); m = morph(m, W, H, r, true); m = morph(m, W, H, r, false); }
-  for (const sk of st.edit.strokes) if (!(sk.poly && !sk.add)) paintStroke(m, W, H, sk, ppm);
+  for (const sk of st.edit.strokes) if (!(sk.poly && !sk.add) && !sk.trace) paintStroke(m, W, H, sk, ppm);
   let lb = label(m, W, H, 1); const minA = p.minArea * ppm * ppm;
   for (let i = 0; i < n; i++) if (m[i] && lb.areas[lb.lab[i]] < minA) m[i] = 0;
   lb = label(m, W, H, 0); const holeA = Math.PI * (p.minHole / 2) ** 2 * ppm * ppm;
@@ -1043,8 +1065,18 @@ function doSegment() {
     if (k !== 1) q = q.map(([x, y]) => [cam[0] + (x - cam[0]) * k, cam[1] + (y - cam[1]) * k]);
     return { pts: q, a: area(q) };
   }).filter(l => Math.abs(l.a) > 1 && l.pts.length >= 3);
-  let outerSign = 1, big = 0;
+  let outerSign = MARSCH_SINN, big = 0;
   for (const l of loops) if (Math.abs(l.a) > big) { big = Math.abs(l.a); outerSign = Math.sign(l.a); }
+  // Nachgezeichnete Formen gehen nicht durchs Raster (Spaltmass und Glättung runden dort jede Ecke), sondern direkt als Linienzug
+  // mit spitz versetzten Ecken; Radien gibt es nur, wo „Ecke runden“ sie setzt (Wunsch Patrick 11. November 2026)
+  for (const sk of st.edit.strokes) {
+    if (!sk.trace || !sk.poly || !sk.add || sk.poly.length < 3) continue;
+    let q = spitzVersetzt(sk.poly, p.offset);
+    if (k !== 1) q = q.map(([x, y]) => [cam[0] + (x - cam[0]) * k, cam[1] + (y - cam[1]) * k]);
+    if (q.length < 3) continue;
+    let a = area(q); if (Math.sign(a) !== outerSign) { q = q.slice().reverse(); a = -a; }
+    if (Math.abs(a) > 1) loops.push({ pts: q, a });
+  }
   const outers = loops.filter(l => Math.sign(l.a) === outerSign), holes = loops.filter(l => Math.sign(l.a) !== outerSign);
   const tools = outers.map(o => ({ outer: o.pts, area: Math.abs(o.a), holes: [], holeArea: 0, bb: bbox(o.pts) }));
   for (const h of holes) {
@@ -1080,7 +1112,7 @@ function setSource(drawable, w, h, sample, opts) {
   c.width = Math.round(w * f); c.height = Math.round(h * f);
   const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(drawable, 0, 0, c.width, c.height);
   st.srcCanvas = c; st.srcData = g.getImageData(0, 0, c.width, c.height); st.sw = c.width; st.sh = c.height; st.sample = sample;
-  Object.assign(st.edit, { strokes: [], cur: null, sel: null, dragPt: false, undo: [], pointEdits: 0, hover: null, grips: [], gsel: null, gdrag: null, smoothing: false, multi: new Set(), rect: null, lineA: null, poly: null, ssel: null });
+  Object.assign(st.edit, { strokes: [], cur: null, sel: null, dragPt: false, undo: [], pointEdits: 0, hover: null, grips: [], gsel: null, gdrag: null, smoothing: false, multi: new Set(), rect: null, lineA: null, poly: null, ssel: null, tform: null });
   st.zoom = 1; $("zoomFit").textContent = "100 %";
   work(() => {
     const det = opts.corners || detectPaper();
@@ -1183,6 +1215,13 @@ function drawEditOverlay(g, px, accent, contour, hole) {
     const seg = (h, col, w) => { const q = h && e.strokes[h.si] && e.strokes[h.si].poly; if (!q || !q[h.k]) return; const a = q[h.k], b = q[(h.k + 1) % q.length]; g.save(); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineWidth = w * px; g.strokeStyle = col; g.lineCap = "round"; g.stroke(); g.restore(); };
     if (e.fillet && e.hoverSeg) seg(e.hoverSeg, "rgba(255,138,0,.55)", 6);
     if (e.fillet && e.fA) seg(e.fA, "#ff8a00", 5);
+    if (e.tform && e.hover) {
+      const a = e.tform.a, b = e.hover, q = formPunkte(e.traceArt, a, b); g.save(); g.beginPath(); q.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath();
+      g.globalAlpha = 0.18; g.fillStyle = accent; g.fill(); g.globalAlpha = 1; g.lineWidth = 2 * px; g.strokeStyle = accent; g.stroke();
+      const t = e.traceArt === "rechteck" ? `${de(Math.abs(b[0] - a[0]))} × ${de(Math.abs(b[1] - a[1]))} mm` : `Ø ${de(2 * dist(a, b))} mm`;
+      g.font = `600 ${11 * px}px system-ui, sans-serif`; const w = g.measureText(t).width, tx = b[0], ty = b[1] - 14 * px;
+      g.fillStyle = "rgba(255,255,255,.93)"; g.fillRect(tx - w / 2 - 3 * px, ty - 8 * px, w + 6 * px, 14 * px); g.fillStyle = "#17201C"; g.fillText(t, tx - w / 2, ty + 3 * px); g.restore();
+    } else if (e.tform) { const a = e.tform.a, h = 4 * px; g.save(); g.fillStyle = accent; g.fillRect(a[0] - h, a[1] - h, 2 * h, 2 * h); g.restore(); }
   }
   if ((e.tool === "area" || e.tool === "trace") && e.ssel != null && e.strokes[e.ssel] && e.strokes[e.ssel].poly) {
     const sp = e.strokes[e.ssel].poly; g.save(); g.beginPath(); sp.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath();
@@ -1566,9 +1605,28 @@ function filletTap(mm, e) {
   pushUndo(); ed.strokes[h.si] = { ...sk, poly: r.pts }; runSegment(true);
   toast(R > 0 ? `Ecke mit R ${de(R)} mm gerundet.` : "Spitze Ecke gesetzt.");
 }
+// Rechteck: zwei gegenüberliegende Ecken antippen. Kreis: Mitte, dann einen Punkt auf dem Rand.
+function formPunkte(art, a, b) {
+  if (art === "rechteck") { const x0 = Math.min(a[0], b[0]), x1 = Math.max(a[0], b[0]), y0 = Math.min(a[1], b[1]), y1 = Math.max(a[1], b[1]); return [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]; }
+  const r = dist(a, b), n = Math.max(24, Math.min(180, Math.ceil(r * 4))), pts = [];
+  for (let k = 0; k < n; k++) { const f = 2 * Math.PI * k / n; pts.push([a[0] + r * Math.cos(f), a[1] + r * Math.sin(f)]); }
+  return pts;
+}
+function formTap(mm, e) {
+  const ed = st.edit;
+  if (!ed.tform) {
+    const hit = shapeAt(mm, e);
+    if (hit != null) { ed.ssel = hit === ed.ssel ? null : hit; render(); updateEditUI(); return; }
+    ed.ssel = null; ed.tform = { a: mm }; ed.hover = mm; render(); updateEditUI(); return;
+  }
+  const a = ed.tform.a, rechteck = ed.traceArt === "rechteck";
+  if (rechteck ? Math.min(Math.abs(mm[0] - a[0]), Math.abs(mm[1] - a[1])) < 0.5 : dist(a, mm) < 0.5) return;
+  ed.tform = null; pushUndo(); ed.strokes.push({ add: true, poly: formPunkte(ed.traceArt, a, mm), trace: true }); ed.hover = null; runSegment(true);
+}
 function areaTap(mm, e) {
   const ed = st.edit;
   if (ed.tool === "trace" && ed.fillet) { filletTap(mm, e); return; }
+  if (ed.tool === "trace" && (ed.traceArt === "rechteck" || ed.traceArt === "kreis")) { formTap(mm, e); return; }
   // Noch keine Linie angefangen: Tipp auf eine gezeichnete Form wählt sie, Tipp daneben hebt die Wahl auf
   if (!ed.poly || !ed.poly.pts.length) {
     const hit = shapeAt(mm, e);
@@ -1630,7 +1688,7 @@ function drawCirc() {
 }
 function areaClose() {
   const ed = st.edit, pl = ed.poly; if (!pl || pl.pts.length < 3) return;
-  pushUndo(); ed.strokes.push({ add: !pl.cut, poly: pl.pts }); ed.poly = null; ed.hover = null; runSegment(true);
+  pushUndo(); ed.strokes.push(ed.tool === "trace" ? { add: true, poly: pl.pts, trace: true } : { add: !pl.cut, poly: pl.pts }); ed.poly = null; ed.hover = null; runSegment(true);
 }
 function areaBack() {
   const ed = st.edit, pl = ed.poly; if (!pl) return;
@@ -1705,7 +1763,7 @@ function updateEditUI() {
   $("gripTools").hidden = e.tool !== "grip";
   $("areaTools").hidden = e.tool !== "area";
   $("traceTools").hidden = e.tool !== "trace";
-  $("traceDraw").setAttribute("aria-pressed", String(!e.fillet)); $("traceFillet").setAttribute("aria-pressed", String(!!e.fillet));
+  const ta = e.fillet ? "radius" : (e.traceArt || "punkte"); [["traceDraw", "punkte"], ["traceRect", "rechteck"], ["traceCirc", "kreis"], ["traceFillet", "radius"]].forEach(([id, a]) => $(id).setAttribute("aria-pressed", String(ta === a)));
   $("clearBrushBtn").hidden = !(brush || e.tool === "area" || e.tool === "trace");
   const npoly = e.poly ? e.poly.pts.length : 0;
   if (e.ssel != null && !(e.strokes[e.ssel] && e.strokes[e.ssel].poly)) e.ssel = null;
@@ -1741,10 +1799,13 @@ $("viewer").addEventListener("wheel", e => {
 }, { passive: false });
 {
   let pn = null; const vw = $("viewer");
-  vw.addEventListener("pointerdown", e => { if (e.pointerType === "mouse" && (e.button === 1 || e.button === 2) && st.view === "contour") { pn = { x: e.clientX, y: e.clientY, l: vw.scrollLeft, t: vw.scrollTop }; vw.setPointerCapture(e.pointerId); e.preventDefault(); e.stopPropagation(); } }, true);
+  vw.addEventListener("pointerdown", e => { if (e.pointerType === "mouse" && (e.button === 1 || (e.button === 2 && st.view === "contour"))) { pn = { x: e.clientX, y: e.clientY, l: vw.scrollLeft, t: vw.scrollTop }; vw.setPointerCapture(e.pointerId); vw.style.cursor = "grabbing"; e.preventDefault(); e.stopPropagation(); } }, true);
   vw.addEventListener("pointermove", e => { if (!pn) return; vw.scrollLeft = pn.l - (e.clientX - pn.x); vw.scrollTop = pn.t - (e.clientY - pn.y); });
-  const aus = () => { pn = null; }; vw.addEventListener("pointerup", aus); vw.addEventListener("pointercancel", aus);
+  const aus = () => { if (pn) vw.style.cursor = ""; pn = null; }; vw.addEventListener("pointerup", aus); vw.addEventListener("pointercancel", aus);
   vw.addEventListener("contextmenu", e => { if (st.view === "contour") e.preventDefault(); });
+  // Chrome und Edge starten bei gedrückter Radtaste sonst das Auto-Scrollen statt des Verschiebens
+  vw.addEventListener("mousedown", e => { if (e.button === 1) e.preventDefault(); }, true);
+  vw.addEventListener("auxclick", e => { if (e.button === 1) e.preventDefault(); }, true);
 }
 function toImg(e) { const r = $("view").getBoundingClientRect(); return [(e.clientX - r.left) / st.viewScale, (e.clientY - r.top) / st.viewScale]; }
 function toMM(e) { const p = toImg(e); return [p[0] / st.warp.ppm, p[1] / st.warp.ppm]; }
@@ -1800,7 +1861,7 @@ cvEl.addEventListener("pointermove", e => {
     ed.gmoved = true; if (d.mode !== "move") syncGripInputs(); render(); return;
   }
   if (ed.cur) { const last = ed.cur.pts[ed.cur.pts.length - 1]; if (dist(last, mm) > ed.cur.r * 0.25) ed.cur.pts.push(mm); ed.hover = mm; render(); return; }
-  if ((ed.tool === "add" || ed.tool === "erase" || ed.tool === "smooth" || (ed.tool === "line" && ed.lineA) || ((ed.tool === "area" || ed.tool === "trace") && ed.poly)) && e.pointerType === "mouse") { ed.hover = mm; render(); }
+  if ((ed.tool === "add" || ed.tool === "erase" || ed.tool === "smooth" || (ed.tool === "line" && ed.lineA) || ((ed.tool === "area" || ed.tool === "trace") && (ed.poly || ed.tform))) && e.pointerType === "mouse") { ed.hover = mm; render(); }
   else if (ed.tool === "trace" && ed.fillet && e.pointerType === "mouse") { const h = shapeSegAt(mm, e); if ((h && h.si) !== (ed.hoverSeg && ed.hoverSeg.si) || (h && h.k) !== (ed.hoverSeg && ed.hoverSeg.k)) { ed.hoverSeg = h; render(); } }
 });
 function endPointer(e) {
@@ -3618,8 +3679,11 @@ document.querySelectorAll(".tool[data-tool]").forEach(b => b.addEventListener("c
 // Schwelle und Lochsuche brauchen nur, wer automatisch erkennt
 function autoUI() { const on = $("auto").checked; $("thr").disabled = !on; $("autoHelp").hidden = on; }
 autoUI();
-$("traceDraw").addEventListener("click", () => { st.edit.fillet = false; st.edit.fA = null; updateEditUI(); render(); });
-$("traceFillet").addEventListener("click", () => { if (st.edit.poly && st.edit.poly.pts.length >= 3) areaClose(); st.edit.fillet = true; st.edit.fA = null; st.edit.ssel = null; updateEditUI(); render(); });
+const traceArtSetzen = art => { const ed = st.edit; if (art !== "punkte" && ed.poly && ed.poly.pts.length >= 3) areaClose(); else if (art !== "punkte") ed.poly = null; ed.traceArt = art; ed.fillet = false; ed.fA = null; ed.tform = null; updateEditUI(); render(); };
+$("traceDraw").addEventListener("click", () => traceArtSetzen("punkte"));
+$("traceRect").addEventListener("click", () => traceArtSetzen("rechteck"));
+$("traceCirc").addEventListener("click", () => traceArtSetzen("kreis"));
+$("traceFillet").addEventListener("click", () => { if (st.edit.poly && st.edit.poly.pts.length >= 3) areaClose(); st.edit.fillet = true; st.edit.fA = null; st.edit.tform = null; st.edit.ssel = null; updateEditUI(); render(); });
 $("traceClose").addEventListener("click", areaClose);
 $("traceBack").addEventListener("click", areaBack);
 $("traceCancel").addEventListener("click", areaCancel);
@@ -3665,7 +3729,7 @@ document.addEventListener("keydown", e => {
   else if ((e.key === "Delete" || e.key === "Backspace") && (st.edit.sel || st.edit.multi.size)) { e.preventDefault(); deletePoint(); }
   else if (e.key === "Enter" && st.edit.poly) { e.preventDefault(); areaClose(); }
   else if ((e.key === "Delete" || e.key === "Backspace") && st.edit.tool === "trace" && st.edit.poly && st.edit.poly.pts.length) { e.preventDefault(); areaBack(); }
-  else if (e.key === "Escape") { st.edit.poly = null; st.edit.lineA = null; st.edit.fA = null; st.edit.multi = new Set(); st.edit.sel = null; render(); updateEditUI(); }
+  else if (e.key === "Escape") { st.edit.poly = null; st.edit.lineA = null; st.edit.fA = null; st.edit.tform = null; st.edit.multi = new Set(); st.edit.sel = null; render(); updateEditUI(); }
 });
 setView("contour", true);
 blankSheet(true);
