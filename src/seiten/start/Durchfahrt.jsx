@@ -27,6 +27,11 @@
 //  so bleibt es auch mit über tausend Bällen flüssig. In der Gestaltung
 //  und auf der Startseite verschwinden die Bälle weiter, damit man dort
 //  die Dokumente sieht. Neues Laden der Anzeige leert die Tafel.
+//  Seit 1.481.0 (11. November 2026: „wenn es bis unter den Kalender
+//  gefüllt ist, sollen die Tennisbälle abfliessen und neu füllen“) läuft
+//  nichts mehr oben über: reicht der Haufen bis an die Unterkante des
+//  Bands mit Geburtstagen und Terminen, öffnet sich der Boden, alle Bälle
+//  rinnen von unten her aus der Tafel, und danach füllt sie sich neu.
 //  Alles in einer Schleife mit requestAnimationFrame statt React-Zustand,
 //  damit die Seite dafür nie neu zeichnet.
 // =================================================================
@@ -363,7 +368,10 @@ function haufenAnlegen(raum) {
   const gf = fest.getContext("2d"), gl = los.getContext("2d");
   let w = 0, h = 0, q = 1, sprite = null, D = 0, zelle = 1;
   const fliegt = [], gitter = new Map();
-  let liegen = 0, raus = 0, voll = false;
+  let liegen = 0, raus = 0, voll = false, runden = 0;
+  // Beim Abfliessen fallen alle liegenden Bälle durch den offenen Boden,
+  // die untersten zuerst; danach füllt sich die Tafel wieder
+  let abfluss = [], grenze = 0, grenzeAm = 0;
   const schluessel = (x, y) => (Math.floor(x / zelle) + 1000) * 100000 + Math.floor(y / zelle) + 1000;
 
   const vorbereiten = () => {
@@ -383,14 +391,40 @@ function haufenAnlegen(raum) {
     g.drawImage(sprite.bild, -s / 2, -s / 2, s, s);
     g.restore();
   };
+  // Bis wohin der Haufen wachsen darf: Unterkante des Bands mit
+  // Geburtstagen und Terminen (wächst mit seinen Einträgen, darum alle
+  // paar Sekunden neu gemessen); ohne Band 622 von 1920 Punkten
+  const grenzeMessen = () => {
+    const jetzt = performance.now();
+    if (grenze && jetzt - grenzeAm < 3000) return grenze;
+    grenzeAm = jetzt;
+    const band = raum.parentElement && raum.parentElement.querySelector('[data-ib="band"]');
+    const r = raum.getBoundingClientRect(), k = r.width / w || 1;
+    const unten = band ? (band.getBoundingClientRect().bottom - r.top) / k : 0;
+    grenze = unten > 0 && unten < h * .8 ? unten : h * 622 / 1920;
+    return grenze;
+  };
+  const abfliessen = () => {
+    voll = true; runden++;
+    abfluss = [];
+    for (const l of gitter.values()) for (const b of l) {
+      // Untere Bälle starten früher und sind darum immer schneller als
+      // die darüber: so rinnt der Haufen von unten weg, ohne Gedränge
+      b.warte = (h - b.y) / h * 1.6 + Math.random() * .12;
+      b.vx = (Math.random() - .5) * 40; b.vy = 0;
+      abfluss.push(b);
+    }
+    gitter.clear(); liegen = 0;
+    gf.clearRect(0, 0, w, h);
+  };
   const hinlegen = (b) => {
     const k = schluessel(b.x, b.y);
     const l = gitter.get(k);
     if (l) l.push(b); else gitter.set(k, [b]);
     liegen++;
     zeichne(gf, b);
-    // Oben angekommen: ab jetzt läuft es über
-    if (b.y - b.d / 2 < D * .35) voll = true;
+    // Bis unter den Kalender gefüllt: am Ende des Schritts abfliessen
+    if (!voll && b.y - b.d / 2 < grenzeMessen()) b.oben = true;
   };
 
   const neu = (x, y, d, ziel, vx, vy, g) => {
@@ -424,7 +458,8 @@ function haufenAnlegen(raum) {
   };
 
   const schritt = (dt) => {
-    if (!fliegt.length || !D) return;
+    if ((!fliegt.length && !abfluss.length) || !D) return;
+    let oben = false;
     const n = 3, t = dt / n;
     for (let s = 0; s < n; s++) {
       for (let i = fliegt.length - 1; i >= 0; i--) {
@@ -434,12 +469,11 @@ function haufenAnlegen(raum) {
         b.vy += b.g * t;
         b.x += b.vx * t; b.y += b.vy * t;
         b.auf = false;
-        // Wände nur innerhalb der Tafel; ist sie voll, oben offen
-        const wand = !voll || b.y > 0;
-        if (wand && b.x < r) { b.x = r; b.vx = Math.abs(b.vx) * .5; }
-        if (wand && b.x > w - r) { b.x = w - r; b.vx = -Math.abs(b.vx) * .5; }
-        if (!voll && b.y < r) { b.y = r; b.vy = Math.abs(b.vy) * .6; }
-        if (b.y > h - r) {
+        if (b.x < r) { b.x = r; b.vx = Math.abs(b.vx) * .5; }
+        if (b.x > w - r) { b.x = w - r; b.vx = -Math.abs(b.vx) * .5; }
+        if (b.y < r) { b.y = r; b.vy = Math.abs(b.vy) * .6; }
+        // Beim Abfliessen ist der Boden offen
+        if (!voll && b.y > h - r) {
           b.y = h - r; b.vy = -Math.abs(b.vy) * .35; b.auf = true;
           if (Math.abs(b.vy) < 40) b.vy = 0;
         }
@@ -468,16 +502,13 @@ function haufenAnlegen(raum) {
         if (ny > .25) b.auf = true; else if (ny < -.25) a.auf = true;
       }
     }
-    // Rollen bremst, auf einer Kuppe kippt er zur Seite, über dem Rand
-    // rollt er nach aussen; wer ruhig liegt, bleibt liegen
+    // Rollen bremst, auf einer Kuppe kippt er zur Seite; wer ruhig
+    // liegt, bleibt liegen
     for (let i = fliegt.length - 1; i >= 0; i--) {
       const b = fliegt[i];
       if (b.auf) {
-        if (voll && b.y < D * .3) b.vx += Math.sign(b.x - w / 2 || 1) * 1500 * dt;
-        else {
-          b.vx *= Math.max(0, 1 - 2.2 * dt);
-          if (Math.abs(b.vx) < 4) b.vx += (Math.random() - .5) * 30;
-        }
+        b.vx *= Math.max(0, 1 - 2.2 * dt);
+        if (Math.abs(b.vx) < 4) b.vx += (Math.random() - .5) * 30;
       }
       b.dreh += b.vx * dt / (b.d / 2);
       // Sicherung: wer nach 20 Sekunden noch nicht liegt, verschwindet
@@ -485,22 +516,39 @@ function haufenAnlegen(raum) {
       if (b.alt > 20) { fliegt.splice(i, 1); continue; }
       // Zur Ruhe gekommen = liegt auf etwas und ist in 0.4 s kaum vom
       // Fleck gekommen (zwischen vielen Bällen zittert er sonst ewig)
-      const frei = b.auf && b.d >= b.ziel * .99 && !(voll && b.y < 0);
+      const frei = b.auf && b.d >= b.ziel * .99 && !voll;
       if (!frei) { b.ruhe = 0; b.rx = b.x; b.ry = b.y; }
       else {
         if (!b.ruhe) { b.rx = b.x; b.ry = b.y; }
         b.ruhe += dt;
         if (b.ruhe > .4) {
-          if (Math.hypot(b.x - b.rx, b.y - b.ry) < D * .15) { fliegt.splice(i, 1); hinlegen(b); continue; }
+          if (Math.hypot(b.x - b.rx, b.y - b.ry) < D * .15) {
+            fliegt.splice(i, 1); hinlegen(b);
+            if (b.oben) oben = true;
+            continue;
+          }
           b.ruhe = 0;
         }
       }
     }
+    if (oben) abfliessen();
+    // Der abfliessende Haufen: ohne Stösse, jeder fällt für sich
+    for (let i = abfluss.length - 1; i >= 0; i--) {
+      const b = abfluss[i];
+      if (b.warte > 0) { b.warte -= dt; continue; }
+      b.vy += b.g * dt; b.x += b.vx * dt; b.y += b.vy * dt;
+      b.dreh += b.vx * dt / (b.d / 2);
+      if (b.y > h + b.d) { abfluss.splice(i, 1); raus++; }
+    }
+    // Alles abgeflossen: Boden zu, die Tafel füllt sich wieder
+    if (voll && !abfluss.length) voll = false;
     gl.clearRect(0, 0, w, h);
+    for (const b of abfluss) zeichne(gl, b);
     for (const b of fliegt) zeichne(gl, b);
   };
 
-  const haufen = { fliegt, neu, schritt, durchmesser, voll: () => voll, liegen: () => liegen, raus: () => raus };
+  const haufen = { fliegt, neu, schritt, durchmesser, voll: () => voll, liegen: () => liegen, raus: () => raus,
+    runden: () => runden, grenze: () => grenzeMessen(), abfluss: () => abfluss.length };
   // Für den Prüfstand: viele Bälle auf einmal oben einwerfen
   if (window.TEST) window.TEST.tennis = Object.assign(haufen, {
     regen: (anzahl) => {

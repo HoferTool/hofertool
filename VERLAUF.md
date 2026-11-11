@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.481.0** (11. November 2026): Infoboard-Anzeige: die Tennisbälle laufen nicht mehr oben über. Reicht der Haufen bis unter das Band mit Geburtstagen und Terminen, öffnet sich der Boden, alle Bälle rinnen von unten her aus der Tafel (die untersten zuerst, ohne Stösse), danach füllt sie sich neu (Wunsch Patrick: „wenn es bis unter den Kalender gefüllt ist, sollen die Tennisbälle abfliessen und neu füllen“; `abfliessen`, `grenzeMessen` in `Durchfahrt.jsx`; Prüfstand `tennis_haufen.py`).
 - **1.477.0** (10. November 2026): Infoboard-Anzeige: die Tennisbälle der Kanone verschwinden nicht mehr, sie bleiben liegen und stapeln sich, bis die Tafel voll ist; danach rollen neue Bälle oben über den Haufen und fallen seitlich hinaus. Gezeichnet auf zwei Leinwänden, flüssig auch mit rund 1'300 Bällen. Gestaltung und Startseite wie bisher. Wunsch Patrick.
 - **1.476.0** (10. November 2026): QMS: Prozesslandkarte im Stil der Anmeldung (Firmenblau, weisse Ringe, Hofer-Logo im Kern, weisse Kärtchen) mit ruhiger Bewegung (fliessende Bahn, Wellen aus dem Kern). Wunsch Patrick.
 - **1.475.0** (10. November 2026): QMS: Prozesslandkarte neu gestaltet, passend zum HoferTool (helle Blautöne, blaue Mitte, Kärtchen mit blauer Kante, Prozessablauf als Bahn mit Pfeilen, Legende). Wunsch Patrick.
