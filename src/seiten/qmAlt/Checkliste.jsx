@@ -18,7 +18,7 @@ import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import {
   CK_BEWERTUNG, checklisteFuer, fragenFuerRunde, checklisteAuswerten, fragenZuText, fragenAusText, eintragSpeichern, textSpeichern,
-  auditBereiche, heute, plusTageIso, vorpunkteFuer, VP_BEWERTUNG,
+  auditBereiche, heute, plusTageIso, vorpunkteFuer, VP_BEWERTUNG, abwTyp,
 } from "../../daten/qmAlt.js";
 import { berichtDateiAblegen, berichtZeigen } from "./AuditPlan.jsx";
 import { DiktatKnopf } from "../../teile/Diktat.jsx";
@@ -135,7 +135,7 @@ function CkFenster({ e, vorlage, alle, neu, zu }) {
       let liste = [...alle];
       for (const f of neueF) {
         const id = await eintragSpeichern("abweichung", null, {
-          quelle: "audit", datum: k.datum || heute(), titel: f.text, termin: plusTageIso(heute(), 30),
+          quelle: "audit", typ: f.art === "a" ? "abweichung" : "verbesserung", datum: k.datum || heute(), titel: f.text, termin: plusTageIso(heute(), 30),
           partner: k.auditor || null, herkunft: e.id }, "offen", liste);
         liste = [...liste, { art: "abweichung", nr: Math.max(0, ...liste.filter((x) => x.art === "abweichung").map((x) => x.nr || 0)) + 1, id }];
       }
@@ -143,7 +143,7 @@ function CkFenster({ e, vorlage, alle, neu, zu }) {
       for (const p of vpNeu) {
         const x = vpa[p.id] || {};
         const id = await eintragSpeichern("abweichung", null, {
-          quelle: "audit", datum: k.datum || heute(), titel: "Offen aus " + p.audit + ": " + p.text, termin: plusTageIso(heute(), 30),
+          quelle: "audit", typ: abwTyp({ daten: { titel: p.text, quelle: "audit" } }), datum: k.datum || heute(), titel: "Offen aus " + p.audit + ": " + p.text, termin: plusTageIso(heute(), 30),
           partner: k.auditor || null, herkunft: e.id, wirksamkeit: String(x.text || "").trim() || null }, "offen", liste);
         liste = [...liste, { art: "abweichung", nr: Math.max(0, ...liste.filter((y) => y.art === "abweichung").map((y) => y.nr || 0)) + 1, id }];
       }

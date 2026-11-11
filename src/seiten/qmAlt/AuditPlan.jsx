@@ -17,6 +17,7 @@ import {
   checklisteFuer,
 } from "../../daten/qmAlt.js";
 import { checklisteOeffnen, checklistenVerwalten } from "./Checkliste.jsx";
+import { externVerarbeiten } from "./berichtVerarbeiten.js";
 
 const EXTERN = "Extern (SSC, Kunden)";
 const ART_KURZ = { zert: "SSC", kunde: "Kunde", as: "AS", lieferant: "Lief." };
@@ -216,10 +217,11 @@ async function berichteZuordnen(alle, neu) {
   });
   if (!ok || !gefunden.length) return;
   let n = 0;
+  const texte = [];
   for (const x of gefunden) {
-    try { await berichtAblegen(x.e, x.d, alle); n++; } catch (f) { alt.meldung(x.d.name + ": " + alt.fehlertext(f), "fehler"); }
+    try { const t = await berichtAblegen(x.e, x.d, alle); if (t) texte.push(t); n++; } catch (f) { alt.meldung(x.d.name + ": " + alt.fehlertext(f), "fehler"); }
   }
-  alt.meldung(n + " Bericht(e) hinterlegt.", n ? "gut" : "fehler");
+  alt.meldung(n + " Bericht(e) hinterlegt." + (texte.length ? " " + texte.join(" ") : ""), n ? "gut" : "fehler");
   neu();
 }
 
@@ -248,8 +250,8 @@ export async function berichtHochladen(e, alle, neu) {
   });
   if (!datei) return;
   try {
-    await berichtAblegen(e, datei, alle);
-    alt.meldung("Bericht hinterlegt.", "gut"); neu();
+    const t = await berichtAblegen(e, datei, alle);
+    alt.meldung("Bericht hinterlegt." + (t ? " " + t : ""), "gut"); neu();
   } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
 }
 
@@ -263,7 +265,11 @@ export async function berichtDateiAblegen(e, datei) {
   return { bericht_url: url, bericht_pfad: pfad, bericht_name: datei.name };
 }
 
+// Seit 1.482.0 liest die App einen externen Bericht gleich mit
+// (berichtVerarbeiten.js); gibt den Text dazu zurück, sonst leer.
 async function berichtAblegen(e, datei, alle) {
   const b = await berichtDateiAblegen(e, datei);
-  await eintragSpeichern("audit", e, { ...e.daten, ...b }, e.status, alle);
+  const v = await externVerarbeiten(e, { ...e.daten, ...b }, datei, alle);
+  await eintragSpeichern("audit", e, v ? v.daten : { ...e.daten, ...b }, v ? v.status : e.status, alle);
+  return v ? v.text : "";
 }

@@ -12923,3 +12923,11 @@ body.dunkel .qma-ellipse .qma-ebene { color: rgba(255, 255, 255, .55) !important
 .qma-ellipse .qma-wellen i { animation-name: qmaWelleKern; }
 @keyframes qmaWelleKern { 0% { transform: scale(1); opacity: .45; } 100% { transform: scale(1.6); opacity: 0; } }
 .qma-ellipse .qma-ring--3 { left: 10%; top: 13%; width: 80%; height: 74%; }
+
+/* QMS: Liste Abweichungen mit Typ und Herkunft (seit 1.482.0, Wunsch Patrick
+   11. November 2026: woher bzw. aus welchem Modul, Abweichung, Feststellung
+   oder Verbesserung) */
+.qma-herkunft { display: flex; flex-direction: column; gap: 1px; min-width: 9em; max-width: 16em; }
+.qma-herkunft b { font-weight: 600; }
+.qma-herkunft .klein { opacity: .75; line-height: 1.25; }
+[data-qmatyp] { white-space: nowrap; }

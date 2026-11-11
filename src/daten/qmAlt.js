@@ -178,6 +178,43 @@ export function berichteZuteilen(namen, audits) {
 
 export const auditExtern = (e) => ["zert", "kunde"].includes((e.daten || {}).art) && !auditBereicheVonEintrag(e).length;
 
+// ---------- Typ und Herkunft eines Eintrags der Liste Abweichungen ----------
+// Seit 1.482.0 (Wunsch Patrick 11. November 2026: „ersichtlich sein, ob es
+// eine Abweichung, eine Feststellung oder eine Verbesserung ist“, „woher bzw.
+// aus welchem Modul“). Ältere Einträge ohne Typ bekommen ihn aus dem Text
+// („Empfehlung …“, „Verbesserung …“, „Hinweis …“) oder der Art.
+export const ABW_TYPEN = [["abweichung", "Abweichung"], ["feststellung", "Feststellung / Hinweis"], ["verbesserung", "Verbesserung / Empfehlung"]];
+export function abwTyp(e) {
+  const d = (e && e.daten) || {};
+  if (ABW_TYPEN.some((t) => t[0] === d.typ)) return d.typ;
+  const t = String(d.titel || (e && e.titel) || "").trim();
+  if (/^(Empfehlung|Verbesserung|Verbesserungspotenzial)\b/i.test(t)) return "verbesserung";
+  if (/^(Hinweis|Feststellung|Beobachtung|Offen aus)\b/i.test(t)) return "feststellung";
+  if (/^(Kritische )?Abweichung\b/i.test(t)) return "abweichung";
+  if (d.quelle === "idee" || d.quelle === "bewertung") return "verbesserung";
+  // Offene Punkte aus Auditberichten ohne Vermerk sind Feststellungen
+  if (d.quelle === "risiko" || d.quelle === "audit") return "feststellung";
+  return "abweichung";
+}
+const AUDIT_ART_TEXT = { intern: "Internes Audit", as: "Arbeitssicherheit", zert: "Zertifizierungsaudit", kunde: "Kundenaudit", lieferant: "Lieferantenaudit" };
+// Woher: das Audit, die Managementbewertung oder das Risiko, aus dem der
+// Eintrag kam, sonst die Art (Kundenreklamation, Lieferantenfehler …)
+export function abwHerkunft(e, alle) {
+  const d = (e && e.daten) || {};
+  const von = d.herkunft && (alle || []).find((x) => x.id === d.herkunft);
+  const dat = (iso) => (iso ? " " + String(iso).slice(0, 10).split("-").reverse().join(".") : "");
+  if (von && von.art === "audit") {
+    const a = von.daten || {};
+    return { modul: AUDIT_ART_TEXT[a.art] || "Audit", text: (von.titel || "") + dat(a.datum), id: von.id };
+  }
+  if (von && von.art === "bewertung") return { modul: "Managementbewertung", text: (von.titel || "") + (von.daten && von.daten.jahr ? " " + von.daten.jahr : ""), id: von.id };
+  if (von && von.art === "risiko") return { modul: "Kontext und Risiken", text: von.titel || "", id: von.id };
+  if (von) return { modul: (ARTEN[von.art] && ARTEN[von.art].einzeln) || von.art, text: von.titel || "", id: von.id };
+  const q = { kunde: "Kundenreklamation", lieferant: "Lieferantenfehler", intern: "Interner Fehler", audit: "Audit", idee: "Verbesserungsidee",
+    risiko: "Kontext und Risiken", bewertung: "Managementbewertung" }[d.quelle] || "Interner Fehler";
+  return { modul: q, text: d.quelle_text || "", id: null };
+}
+
 // ---------- Listen ----------
 // Je Art: Felder für das Fenster, Spalten für die Tabelle, Status und wann
 // etwas fällig ist. offen(e) = gehört noch auf das Cockpit.
@@ -190,6 +227,7 @@ export const ARTEN = {
     felder: [
       { k: "quelle", text: "Art", auswahl: [["kunde", "Kundenreklamation"], ["lieferant", "Lieferantenfehler"], ["intern", "Interner Fehler"],
         ["audit", "Auditfeststellung"], ["idee", "Verbesserungsidee"], ["risiko", "Aus Risiko / Chance"], ["bewertung", "Aus Managementbewertung"]], vorgabe: "intern" },
+      { k: "typ", text: "Typ", auswahl: ABW_TYPEN, vorgabe: "abweichung" },
       { k: "datum", text: "Datum", typ: "date", vorgabe: () => heute() },
       { k: "titel", text: "Was ist passiert / Idee", pflicht: true },
       { k: "hoco", text: "HOCO Nr. / FA Nr.", platzhalter: "falls ein Teil betroffen ist" },
@@ -208,7 +246,7 @@ export const ARTEN = {
       S("wirksam", "Wirksam, abgeschlossen", "gruen"), S("unwirksam", "Nicht wirksam", "rot"), S("keine", "Keine Massnahme nötig", "grau")],
     zu: ["wirksam", "keine"],
     faellig: (d, s) => s === "umgesetzt" ? (d.pruef_am || plusTageIso(d.termin || heute(), 30)) : (["offen", "laeuft", "unwirksam"].includes(s) ? d.termin || null : null),
-    spalten: [["nr", "Nr."], ["datum", "Datum"], ["quelle", "Art"], ["titel", "Was"], ["massnahme", "Massnahme"], ["wer", "Wer"], ["faellig", "Fällig"], ["status", "Status"]],
+    spalten: [["nr", "Nr."], ["datum", "Datum"], ["typ", "Typ"], ["herkunft", "Herkunft"], ["titel", "Was"], ["massnahme", "Massnahme"], ["wer", "Wer"], ["faellig", "Fällig"], ["status", "Status"]],
   },
   ziel: {
     titel: "Qualitätsziele", einzeln: "Ziel", norm: "6.2",

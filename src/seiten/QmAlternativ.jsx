@@ -20,6 +20,7 @@ import { teilMerken } from "../teile/wiederherstellen.js";
 import {
   ARTEN, qmaLaden, fehltQma, statusVon, istZu, auswahlText, auswahlVon, risikoWert, risikoErst, risikoTon, hatNeu, parteiListe, lieferantNote,
   faelligTon, eintragSpeichern, eintragLoeschen, normPruefen, heute, plusTageIso, checklisteFuer,
+  abwTyp, abwHerkunft,
 } from "../daten/qmAlt.js";
 import Handbuch from "./qmAlt/Handbuch.jsx";
 import Kompetenz from "./qmAlt/Kompetenz.jsx";
@@ -200,7 +201,7 @@ export function Liste({ art, daten, neu }) {
                 {art === "risiko" && !partei && (i === 0 || gruppeNr(zeigen[i - 1]) !== gruppeNr(e)) &&
                   <tr className="qma-gruppenzeile"><td colSpan={cfg.spalten.length + 1}>{e.daten.partei || "Intern / Prozesse"}</td></tr>}
                 <tr key={e.id} data-qmaeintrag={e.id} className="qm-zeile" onClick={() => eintragDialog(art, e, daten.eintraege, neu)}>
-                  {cfg.spalten.map(([k]) => <td key={k}><Zelle art={art} e={e} k={k} /></td>)}
+                  {cfg.spalten.map(([k]) => <td key={k}><Zelle art={art} e={e} k={k} alle={daten.eintraege} /></td>)}
                   <td className="qm-nowrap" onClick={(ev) => ev.stopPropagation()}>
                     {cfg.schnell && <button className="knopf knopf--klein" data-qmaschnell={e.id}
                       onClick={() => schnell(art, e, daten.eintraege, neu)}>{cfg.schnell.text}</button>}
@@ -222,13 +223,22 @@ export function Liste({ art, daten, neu }) {
   );
 }
 
-function Zelle({ art, e, k }) {
+function Zelle({ art, e, k, alle }) {
   const d = e.daten || {};
   if (k === "nr") return <span>{e.nr}</span>;
+  if (art === "abweichung" && k === "typ") {
+    const t = abwTyp(e);
+    return <Schild ton={{ abweichung: "rot", feststellung: "gelb", verbesserung: "blau" }[t]} data-qmatyp={t}>
+      {{ abweichung: "Abweichung", feststellung: "Feststellung", verbesserung: "Verbesserung" }[t]}</Schild>;
+  }
+  if (art === "abweichung" && k === "herkunft") {
+    const h = abwHerkunft(e, alle);
+    return <span className="qma-herkunft" data-qmaherkunft={h.id || d.quelle || ""}><b>{h.modul}</b>{h.text ? <span className="klein">{h.text}</span> : null}</span>;
+  }
   if (k === "status") { const s = statusVon(art, e.status); return <Schild ton={s.ton} data-status={e.status}>{s.text}</Schild>; }
   if (k === "faellig") {
     const ton = faelligTon(e);
-    return e.faellig ? <span className={ton === "rot" ? "qm-spaet" : ton === "gelb" ? "qma-bald" : ""}>{datum(e.faellig)}</span> : null;
+    return e.faellig ? <span className={"qm-nowrap " + (ton === "rot" ? "qm-spaet" : ton === "gelb" ? "qma-bald" : "")}>{datum(e.faellig)}</span> : null;
   }
   if (k === "erst") {
     const w = risikoErst(d);
@@ -321,7 +331,7 @@ async function feststellungenUebertragen(e, alle, neu) {
     let liste = [...alle];
     for (const z of zeilen) {
       const id = await eintragSpeichern("abweichung", null, {
-        quelle: "audit", datum: e.daten.datum || heute(), titel: z, termin: plusTageIso(heute(), 30),
+        quelle: "audit", typ: abwTyp({ daten: { titel: z, quelle: "audit" } }), datum: e.daten.datum || heute(), titel: z, termin: plusTageIso(heute(), 30),
         partner: e.daten.auditor || null, herkunft: e.id }, "offen", liste);
       liste = [...liste, { art: "abweichung", nr: Math.max(0, ...liste.filter((x) => x.art === "abweichung").map((x) => x.nr || 0)) + 1, id }];
     }
