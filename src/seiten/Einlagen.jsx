@@ -54,13 +54,19 @@ const uhr = (iso) => {
     ? p(d.getHours()) + ":" + p(d.getMinutes()) : alt.datumZeitKurz(iso);
 };
 
+// Text oben: welche Werkzeuge dieses Fotos gespeichert sind, und welches gerade mit „Kontur bearbeiten“ offen ist
+function wzStandVon(v) {
+  const b = v.bearbeiten && v.zeilen.find((x) => x.id === v.bearbeiten);
+  return { namen: v.zeilen.map((x) => x.name), am: v.am, text: "", bearbeitet: b ? b.name : null };
+}
+
 export default function Einlagen() {
   const rahmen = useRef(null);
   const zustand = useRef({ w: null, gespeichert: null, still: false, takt: null, laeuft: null,
     scanTakt: null, scanSig: null, scanLaeuft: null });
   const [wzStand, setWzStand] = useState(() => {
     const v = verknuepftLesen();
-    return v && v.zeilen && v.zeilen.length ? { namen: v.zeilen.map((x) => x.name), am: v.am, text: "" } : null;
+    return v && v.zeilen && v.zeilen.length ? wzStandVon(v) : null;
   });
   const [stand, setStand] = useState(() => {
     const a = aktuellLesen();
@@ -234,9 +240,12 @@ export default function Einlagen() {
     z.scanLaeuft = (async () => {
       await scanAblegen({ ...projektOhneFoto(w), image: foto(w) });
       const v = verknuepftLesen();
-      if (v && v.scanId === st.scanId && v.zeilen.length) {
+      // Ein gespeichertes Werkzeug ändert seine Kontur nur, solange es mit „Kontur bearbeiten“ offen ist,
+      // nie von selbst durch andere Änderungen am Foto (Wunsch Patrick 11. November 2026)
+      if (v && v.scanId === st.scanId && v.bearbeiten && v.zeilen.some((x) => x.id === v.bearbeiten)) {
         const projekt = projektOhneFoto(w), schon = new Set();
         for (const x of v.zeilen) {
+          if (x.id !== v.bearbeiten) { const j = finden(w, x.mitte, schon); if (j >= 0) schon.add(j); continue; }
           const i = finden(w, x.mitte, schon);
           if (i < 0) continue;
           schon.add(i);
@@ -248,7 +257,7 @@ export default function Einlagen() {
           x.mitte = daten.mitte; v.am = data.geaendert_am;
         }
         verknuepftSetzen(v);
-        setWzStand({ namen: v.zeilen.map((x) => x.name), am: v.am, text: "" });
+        setWzStand(wzStandVon(v));
       }
       z.scanSig = sig;
     })();
@@ -307,7 +316,7 @@ export default function Einlagen() {
       v.am = antwort.data.geaendert_am;
     }
     verknuepftSetzen(v);
-    setWzStand({ namen: v.zeilen.map((x) => x.name), am: v.am, text: "" });
+    setWzStand(wzStandVon(v));
     z.scanSig = null; scanSichern();
     alt.meldung(idx.length > 1 ? idx.length + " Werkzeuge gespeichert." : "Werkzeug „" + namen["n" + idx[0]] + "“ gespeichert.", "gut");
     if (listeOffen.current === "werkzeuge") werkzeugeLaden();
@@ -358,9 +367,9 @@ export default function Einlagen() {
     w.setMode("scan");
     w.projApply({ ...data.projekt, image: data.foto }, "„" + x.name + "“ geöffnet.", () => {
       const st = w.scanState();
-      const v = { scanId: st.scanId, zeilen, am: x.geaendert_am };
+      const v = { scanId: st.scanId, zeilen, am: x.geaendert_am, bearbeiten: x.id };
       verknuepftSetzen(v);
-      setWzStand({ namen: zeilen.map((y) => y.name), am: v.am, text: "" });
+      setWzStand(wzStandVon(v));
       z.scanSig = signatur(w);
       scanAblegen({ ...projektOhneFoto(w), image: data.foto });
     });
@@ -373,8 +382,9 @@ export default function Einlagen() {
     const v = verknuepftLesen();
     if (v) {
       v.zeilen = v.zeilen.filter((y) => y.id !== x.id);
+      if (v.bearbeiten === x.id) v.bearbeiten = null;
       verknuepftSetzen(v.zeilen.length ? v : null);
-      setWzStand(v.zeilen.length ? { namen: v.zeilen.map((y) => y.name), am: v.am, text: "" } : null);
+      setWzStand(v.zeilen.length ? wzStandVon(v) : null);
     }
     werkzeugeLaden();
   }
@@ -437,7 +447,9 @@ export default function Einlagen() {
             : "Wird in der App gespeichert, sobald ein Werkzeug in der Einlage ist.")}
           {wzStand && (wzStand.text
             ? <span className="einlagen__stand--fehler"> · {wzStand.text}</span>
-            : <> · Werkzeug {wzStand.namen.map((n) => "„" + n + "“").join(", ")} gespeichert{wzStand.am ? ", " + uhr(wzStand.am) : ""}</>)}
+            : wzStand.bearbeitet
+              ? <> · „{wzStand.bearbeitet}“ wird bearbeitet, Änderungen gespeichert{wzStand.am ? ", " + uhr(wzStand.am) : ""}</>
+              : <> · Werkzeug {wzStand.namen.map((n) => "„" + n + "“").join(", ")} gespeichert{wzStand.am ? ", " + uhr(wzStand.am) : ""}</>)}
         </span>
       </div>
       {offen === "einlagen" && (
