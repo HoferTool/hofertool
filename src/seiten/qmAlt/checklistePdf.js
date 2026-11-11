@@ -70,7 +70,7 @@ export function berichtHtml(audit, ck, fragen) {
 const STIL = `
 .ckpdf{font:9.5pt/1.35 Arial,Helvetica,sans-serif;color:#111;background:#fff}
 .ckpdf .ck-titel{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #123d6b;padding-bottom:4px;margin-bottom:8px}
-.ckpdf h1{font-size:18pt;margin:0;color:#123d6b}.ckpdf .ck-unter{color:#555}.ckpdf .ck-firma{text-align:right;font-weight:bold;color:#123d6b}
+.ckpdf h1{font-size:18pt;margin:0;color:#123d6b}.ckpdf .ck-unter{color:#555}.ckpdf .ck-firma{text-align:right;font-weight:bold;color:#123d6b}.ckpdf .ck-logo{display:block;height:15mm;width:auto;margin-left:auto}
 .ckpdf h2{font-size:12pt;margin:14px 0 4px;padding:4px 6px;background:#e8eef5;color:#123d6b}
 .ckpdf h3{font-size:10pt;margin:8px 0 2px}.ckpdf p{margin:2px 0 6px}
 .ckpdf table{border-collapse:collapse;width:100%;margin:4px 0 8px}
@@ -97,6 +97,8 @@ export async function berichtPdf(audit, ck, fragen) {
 }
 
 // Auch für die Managementbewertung (seit 1.483.0): HTML mit dem Stil oben als A4 hoch
+const FIRMA = "<div class='ck-firma'><img class='ck-logo' src='./logo-empfang.png' alt='Hofer + Co'></div>";
+
 export async function pdfAusHtml(html, fuss) {
   const breite = (BREITE - 2 * RAND) * MM;
   const seite = (HOEHE - 2 * RAND - 6) * MM;
@@ -107,11 +109,15 @@ export async function pdfAusHtml(html, fuss) {
   const blatt = document.createElement("div");
   blatt.className = "ckpdf";
   blatt.style.cssText = "width:" + breite + "px";
-  blatt.innerHTML = "<style>" + STIL + "</style>" + html;
+  // Seit 1.485.0 oben rechts das Hofer-Logo statt „Hofer + Co Präzisionsdrehteile“
+  // als Text, in allen PDF, die hier gezeichnet werden (Wunsch Patrick 11. November 2026)
+  blatt.innerHTML = "<style>" + STIL + "</style>" + String(html).replace(/<div class='ck-firma'>[^<]*<br>[^<]*<\/div>/g, FIRMA);
   huelle.appendChild(blatt);
   document.body.appendChild(huelle);
   try {
     try { await document.fonts.ready; } catch (f) { /* dann so */ }
+    await Promise.all([...blatt.querySelectorAll("img")].map((b) => b.complete ? null
+      : new Promise((ok) => { b.onload = ok; b.onerror = ok; setTimeout(ok, 5000); })));
     const gesamt = Math.max(1, blatt.offsetHeight);
     const stellen = trennstellen(blatt);
     const enden = [];
