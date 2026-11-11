@@ -12931,3 +12931,93 @@ body.dunkel .qma-ellipse .qma-ebene { color: rgba(255, 255, 255, .55) !important
 .qma-herkunft b { font-weight: 600; }
 .qma-herkunft .klein { opacity: .75; line-height: 1.25; }
 [data-qmatyp] { white-space: nowrap; }
+
+/* ---------- QMS: Managementbewertung wie ein Audit (seit 1.483.0) ---------- */
+.qma-mb__sprung { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 12px; }
+.qma-mb__chip { font: inherit; font-size: 13px; min-width: 34px; min-height: 32px; padding: 3px 8px; border-radius: 16px; cursor: pointer;
+  border: 1px solid #c4ccd6; background: #fff; color: #234; }
+body.dunkel .qma-mb__chip { background: #222b36; border-color: #3d4a5a; }
+.qma-mb__chip--gut { background: #2e9e4f; border-color: #2e9e4f; color: #fff !important; }
+.qma-mb__chip--handlung { background: #e5b300; border-color: #e5b300; color: #111 !important; }
+.qma-mb__chip--kritisch { background: #d33; border-color: #d33; color: #fff !important; }
+.qma-mb__kapitel { margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--linie, #d5dde6); border-left: 5px solid #c4ccd6; border-radius: 8px;
+  display: flex; flex-direction: column; gap: 8px; scroll-margin-top: 8px; }
+.qma-mb__kapitel h3 { margin: 0; font-size: 16px; overflow-wrap: anywhere; }
+.qma-mb__kapitel--gut { border-left-color: #2e9e4f; }
+.qma-mb__kapitel--handlung { border-left-color: #e5b300; }
+.qma-mb__kapitel--kritisch { border-left-color: #d33; }
+.qma-mb__auto { background: #f3f7fb; border-radius: 6px; padding: 6px 8px; }
+body.dunkel .qma-mb__auto { background: #1b2430; }
+.qma-mb__auto table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.qma-mb__auto td { padding: 3px 6px; border-top: 1px solid var(--linie, #e1e7ee); vertical-align: top; overflow-wrap: anywhere; }
+.qma-mb__auto td:nth-child(2) { white-space: nowrap; }
+.qma-mb__frage { display: flex; flex-direction: column; gap: 4px; font-size: 14px; font-weight: 600; min-width: 0; }
+.qma-mb__frage textarea, .qma-mb__frage input { font: inherit; font-weight: 400; padding: 6px 8px; border: 1px solid var(--linie, #c9d2dc);
+  border-radius: 6px; box-sizing: border-box; min-width: 0; resize: vertical; }
+.qma-mb__frage--zahl { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 12px; }
+.qma-mb__zahl { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-weight: 400; justify-content: flex-end; }
+.qma-mb__zahl input { width: 9em; text-align: right; }
+.qma-mb__vor { font-weight: 400; opacity: .8; }
+.qma-mb__zahl .qma-mb__vor { flex-basis: 100%; text-align: right; }
+.qma-mb__wertung { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 14px; }
+.qma-mb__wertung .qma-ck__wahl { justify-content: flex-start; align-items: center; }
+.qma-mb__b--gruen.qma-ck__b--an { background: #2e9e4f; border-color: #2e9e4f; color: #fff !important; }
+.qma-mb__b--gelb.qma-ck__b--an { background: #e5b300; border-color: #e5b300; color: #111 !important; }
+.qma-mb__b--rot.qma-ck__b--an { background: #d33; border-color: #d33; color: #fff !important; }
+.qma-mb__liste { display: flex; flex-direction: column; gap: 4px; margin: 2px 0 8px; }
+.qma-mb__zeile { display: grid; gap: 4px; align-items: center; }
+.qma-mb__zeile input { font: inherit; padding: 5px 7px; border: 1px solid var(--linie, #c9d2dc); border-radius: 6px; min-width: 0; width: 100%; box-sizing: border-box; }
+.qma-mb__liste > .knopf { align-self: flex-start; }
+.qma-mb__uebersicht { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; margin: 8px 0; }
+.qma-mb__ue { padding: 6px 9px; border-radius: 6px; border: 1px solid var(--linie, #d5dde6); border-left: 5px solid #c4ccd6; font-size: 13px; overflow-wrap: anywhere; }
+.qma-mb__ue--gruen { border-left-color: #2e9e4f; }
+.qma-mb__ue--gelb { border-left-color: #e5b300; }
+.qma-mb__ue--rot { border-left-color: #d33; }
+@media (max-width: 640px) {
+  .qma-mb__frage--zahl { grid-template-columns: 1fr; }
+  .qma-mb__zahl { justify-content: flex-start; }
+  .qma-mb__zahl .qma-mb__vor { text-align: left; }
+  .qma-mb__zeile { grid-template-columns: 1fr auto !important; }
+  .qma-mb__zeile > :not(:first-child):not(:last-child) { grid-column: 1 / 2; }
+}
+
+/* ---------- QMS: Lieferantenbewertung je Jahr (seit 1.483.0) ---------- */
+.qma-lb__grafik { margin: 6px 0 12px; }
+.qma-lb__grafik svg { width: 100%; max-width: 860px; height: auto; display: block; }
+.qma-lb__achse { stroke: #c9d2dc; stroke-width: 1; }
+.qma-lb__txt { font-size: 12px; fill: #5b6775; }
+body.dunkel .qma-lb__achse { stroke: #3d4a5a; }
+body.dunkel .qma-lb__txt { fill: #b9c4d0; }
+.qma-lb__legende { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 6px; }
+.qma-lb__leg { font: inherit; font-size: 12px; display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 12px;
+  border: 1px solid #d5dde6; background: #fff; color: #234; cursor: pointer; }
+.qma-lb__leg i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.qma-lb__leg--an { border-color: #234; }
+body.dunkel .qma-lb__leg { background: #222b36; border-color: #3d4a5a; }
+.qma-lb__jahr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 8px 0 6px; }
+.qma-lb__knoepfe { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+.qma-lb__k { text-align: center; }
+.qma-lb__tabelle td.qma-lb__k { font-size: 18px; line-height: 1; }
+.qma-lb__bem { min-width: 14em; overflow-wrap: anywhere; }
+.qma-lb__s1 { background: #fde2e2; } .qma-lb__s2 { background: #fdebd7; } .qma-lb__s3 { background: #fff4c2; }
+.qma-lb__s4 { background: #e0f3e4; } .qma-lb__s5 { background: #c8ead1; }
+body.dunkel .qma-lb__s1 { background: #4a2222; } body.dunkel .qma-lb__s2 { background: #4a3420; } body.dunkel .qma-lb__s3 { background: #4a4220; }
+body.dunkel .qma-lb__s4 { background: #1f3b27; } body.dunkel .qma-lb__s5 { background: #1a4a2a; }
+.qma-lb__mittel { margin-top: 10px; }
+.qma-lb__mittel td:not(:first-child), .qma-lb__mittel th:not(:first-child) { text-align: center; }
+.qma-lb-wahl { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.qma-lb-wahl label { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 6px 2px;
+  border-bottom: 1px solid var(--linie, #e1e7ee); cursor: pointer; }
+.qma-lb-wahl input { width: 20px; height: 20px; }
+.qma-lb-wahl__name { overflow-wrap: anywhere; }
+.qma-lb-karte { margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--linie, #d5dde6); border-left: 5px solid #c4ccd6; border-radius: 8px;
+  display: flex; flex-direction: column; gap: 8px; }
+.qma-lb-karte h3 { margin: 0; font-size: 16px; overflow-wrap: anywhere; }
+.qma-lb-karte--gruen { border-left-color: #2e9e4f; } .qma-lb-karte--gelb { border-left-color: #e5b300; } .qma-lb-karte--rot { border-left-color: #d33; }
+.qma-lb-karte__k { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 6px 14px; }
+.qma-lb-krit { display: flex; flex-direction: column; gap: 3px; font-size: 13px; font-weight: 600; }
+.qma-lb-smileys { display: flex; gap: 3px; }
+.qma-lb-smiley { font-size: 20px; line-height: 1; min-width: 36px; min-height: 36px; border-radius: 8px; border: 2px solid transparent;
+  cursor: pointer; opacity: .45; filter: grayscale(.5); padding: 0; }
+.qma-lb-smiley--an { opacity: 1; filter: none; border-color: #234; }
+body.dunkel .qma-lb-smiley--an { border-color: #fff; }

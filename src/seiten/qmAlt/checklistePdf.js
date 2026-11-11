@@ -93,6 +93,11 @@ function trennstellen(blatt) {
 }
 
 export async function berichtPdf(audit, ck, fragen) {
+  return pdfAusHtml(berichtHtml(audit, ck, fragen), "Auditbericht " + (ck.bereich || "") + " · " + datum((ck.kopf || {}).datum));
+}
+
+// Auch für die Managementbewertung (seit 1.483.0): HTML mit dem Stil oben als A4 hoch
+export async function pdfAusHtml(html, fuss) {
   const breite = (BREITE - 2 * RAND) * MM;
   const seite = (HOEHE - 2 * RAND - 6) * MM;
   const huelle = document.createElement("div");
@@ -102,7 +107,7 @@ export async function berichtPdf(audit, ck, fragen) {
   const blatt = document.createElement("div");
   blatt.className = "ckpdf";
   blatt.style.cssText = "width:" + breite + "px";
-  blatt.innerHTML = "<style>" + STIL + "</style>" + berichtHtml(audit, ck, fragen);
+  blatt.innerHTML = "<style>" + STIL + "</style>" + html;
   huelle.appendChild(blatt);
   document.body.appendChild(huelle);
   try {
@@ -120,7 +125,6 @@ export async function berichtPdf(audit, ck, fragen) {
       ab = ende;
     }
     const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
-    const fuss = "Auditbericht " + (ck.bereich || "") + " · " + datum((ck.kopf || {}).datum);
     for (let n = 0; n < enden.length; n++) {
       const [von, bis] = enden[n];
       const h = Math.max(1, bis - von);

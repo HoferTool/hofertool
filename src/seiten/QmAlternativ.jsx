@@ -25,6 +25,7 @@ import {
 import Handbuch from "./qmAlt/Handbuch.jsx";
 import Kompetenz from "./qmAlt/Kompetenz.jsx";
 import Bewertung from "./qmAlt/Bewertung.jsx";
+import Lieferanten from "./qmAlt/Lieferanten.jsx";
 import { Schild } from "./qmAlt/Schild.jsx";
 import AuditPlan, { berichtHochladen } from "./qmAlt/AuditPlan.jsx";
 import { checklisteOeffnen } from "./qmAlt/Checkliste.jsx";
@@ -69,6 +70,10 @@ export default function QmAlternativ({ auffrischen }) {
   else if (reiter === "handbuch") inhalt = <Handbuch daten={d.daten} neu={d.neu} gehe={gehe} />;
   else if (reiter === "kompetenz") inhalt = <Kompetenz daten={d.daten} neu={d.neu} liste={<Liste art="schulung" daten={d.daten} neu={d.neu} />} />;
   else if (reiter === "bewertung") inhalt = <Bewertung daten={d.daten} neu={d.neu} eintragDialog={eintragDialog} />;
+  else if (reiter === "lieferant") inhalt = <>
+    <Lieferanten daten={d.daten} neu={d.neu} />
+    <Liste key={reiter} art={reiter} daten={d.daten} neu={d.neu} />
+  </>;
   else if (reiter === "audit") inhalt = <>
     <AuditPlan daten={d.daten} neu={d.neu} eintragDialog={eintragDialog} />
     <Liste key={reiter} art={reiter} daten={d.daten} neu={d.neu} />
@@ -251,7 +256,11 @@ function Zelle({ art, e, k, alle }) {
   }
   if (art === "risiko" && k === "typ") return <b className={d.typ === "chance" ? "qma-rc qma-rc--c" : "qma-rc"}>{{ chance: "C", beides: "R/C" }[d.typ] || "R"}</b>;
   if (k === "fortschritt") return d.fortschritt ? <span className="qm-nowrap">{d.fortschritt} %</span> : null;
-  if (k === "note") { const n = lieferantNote(d); return n ? <Schild ton={{ A: "gruen", B: "gelb", C: "rot" }[n]}>{n}</Schild> : null; }
+  if (k === "note") {
+    const n = lieferantNote(d);
+    if (!n) return null;
+    return <Schild ton={{ A: "gruen", B: "gelb", C: "rot" }[n]}>{Number(d.punkte) > 0 ? d.punkte : n}</Schild>;
+  }
   const f = ARTEN[art].felder.find((x) => x.k === k);
   const w = k === "titel" ? e.titel : d[k];
   if (f && f.auswahl) return <span>{auswahlText(art, k, w)}</span>;

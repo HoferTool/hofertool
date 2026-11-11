@@ -315,22 +315,20 @@ export const ARTEN = {
   },
   lieferant: {
     titel: "Lieferantenbewertung", einzeln: "Lieferant", norm: "8.4",
-    hinweis: "Nur Lieferanten mit Einfluss auf die Qualität der Teile (Material, Werkzeug, Härten, Beschichten, Messen). Einmal im Jahr: Qualität, Termin, Zusammenarbeit je 1 (schlecht) bis 3 (gut). A = gut, B = beobachten, C = Gespräch oder Wechsel.",
+    hinweis: "Einmal im Jahr wie auf dem Gewatec-Blatt: Termintreue, Preis, Beratungskompetenz, Qualität und Reklamationsmanagement je 1–5, Punktzahl 20–100. 20–60 Lieferant sperren, 60–80 Massnahme erforderlich, 80–100 keine Massnahme. Die Auswahl kommt aus der Gewatec-Liste (Seite 1) oben.",
     felder: [
       { k: "titel", text: "Lieferant", pflicht: true, liste: "lieferanten" },
+      { k: "nr", text: "Kreditor-Nr. (Gewatec)" },
       { k: "was", text: "Liefert", platzhalter: "Stangenmaterial V2A" },
-      { k: "letzte", text: "Bewertet am", typ: "date", vorgabe: () => heute() },
-      { k: "q", text: "Qualität 1–3", auswahl: [["3", "3 gut"], ["2", "2 genügend"], ["1", "1 schlecht"]], vorgabe: "3" },
-      { k: "t", text: "Termintreue 1–3", auswahl: [["3", "3 gut"], ["2", "2 genügend"], ["1", "1 schlecht"]], vorgabe: "3" },
-      { k: "z", text: "Zusammenarbeit / Preis 1–3", auswahl: [["3", "3 gut"], ["2", "2 genügend"], ["1", "1 schlecht"]], vorgabe: "3" },
+      { k: "letzte", text: "Zuletzt bewertet am", typ: "date" },
+      { k: "punkte", text: "Letzte Punktzahl (20–100)", typ: "number" },
       { k: "zeugnis", text: "Werkstoffzeugnisse / Zertifikat", auswahl: [["", "–"], ["ja", "Liegen vor"], ["nein", "Fehlen"]], vorgabe: "" },
-      { k: "bemerkung", text: "Bemerkung / Massnahme", typ: "textarea" },
+      { k: "bemerkung", text: "Notiz", typ: "textarea" },
     ],
-    status: [S("freigegeben", "Freigegeben", "gruen"), S("beobachten", "Beobachten", "gelb"), S("gesperrt", "Gesperrt", "rot")],
+    status: [S("freigegeben", "Freigegeben", "gruen"), S("beobachten", "Massnahme", "gelb"), S("gesperrt", "Gesperrt", "rot")],
     zu: ["gesperrt"],
     faellig: (d) => plusMonate(d.letzte || null, 12) || heute(),
-    spalten: [["titel", "Lieferant"], ["was", "Liefert"], ["note", "Note"], ["letzte", "Bewertet"], ["faellig", "Nächste"], ["status", "Status"]],
-    schnell: { text: "Neu bewerten", dialog: true },
+    spalten: [["titel", "Lieferant"], ["note", "Punkte"], ["letzte", "Bewertet"], ["faellig", "Nächste"], ["status", "Status"]],
   },
   schulung: {
     titel: "Schulungen und Unterweisungen", einzeln: "Schulung", norm: "7.2 · 7.3",
@@ -392,6 +390,8 @@ export const risikoWert = (d) => (hatNeu(d) ? Number(d.neu_w) * Number(d.neu_a) 
 // Ampel wie im Kontext-Blatt: grün kein Handlungsbedarf, gelb beobachten, rot Handlungsbedarf
 export const risikoTon = (w) => (w >= 10 ? "rot" : w >= 5 ? "gelb" : "gruen");
 export function lieferantNote(d) {
+  // Seit 1.483.0 Punktzahl wie im Gewatec (A ab 80, B 60–79, C darunter)
+  if (Number(d.punkte) > 0) return d.punkte >= 80 ? "A" : d.punkte >= 60 ? "B" : "C";
   const n = [d.q, d.t, d.z].map(Number).filter((x) => x > 0);
   if (!n.length) return "";
   if (n.includes(1)) return "C";
