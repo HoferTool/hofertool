@@ -1885,12 +1885,18 @@ $("viewer").addEventListener("wheel", e => {
 }, { passive: false });
 {
   let pn = null; const vw = $("viewer");
-  vw.addEventListener("pointerdown", e => { if (e.pointerType === "mouse" && (e.button === 1 || (e.button === 2 && st.view === "contour"))) { pn = { x: e.clientX, y: e.clientY, l: vw.scrollLeft, t: vw.scrollTop }; vw.setPointerCapture(e.pointerId); vw.style.cursor = "grabbing"; e.preventDefault(); e.stopPropagation(); } }, true);
-  vw.addEventListener("pointermove", e => { if (!pn) return; vw.scrollLeft = pn.l - (e.clientX - pn.x); vw.scrollTop = pn.t - (e.clientY - pn.y); });
-  const aus = () => { if (pn) vw.style.cursor = ""; pn = null; }; vw.addEventListener("pointerup", aus); vw.addEventListener("pointercancel", aus);
+  // Neuere Chrome (158) melden die Radtaste nicht immer als pointerdown oder
+  // verlieren die Zeiger-Erfassung; darum beginnt das Verschieben auch mit
+  // mousedown und folgt der Maus am ganzen Fenster, nicht nur am Bild.
+  const los = e => { if (pn) return; pn = { x: e.clientX, y: e.clientY, l: vw.scrollLeft, t: vw.scrollTop }; vw.style.cursor = "grabbing"; };
+  const zieh = e => { if (!pn) return; vw.scrollLeft = pn.l - (e.clientX - pn.x); vw.scrollTop = pn.t - (e.clientY - pn.y); };
+  vw.addEventListener("pointerdown", e => { if (e.pointerType === "mouse" && (e.button === 1 || (e.button === 2 && st.view === "contour"))) { los(e); try { vw.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); e.stopPropagation(); } }, true);
+  window.addEventListener("pointermove", zieh); window.addEventListener("mousemove", zieh);
+  const aus = () => { if (pn) vw.style.cursor = ""; pn = null; };
+  window.addEventListener("pointerup", aus); window.addEventListener("mouseup", aus); vw.addEventListener("pointercancel", aus);
   vw.addEventListener("contextmenu", e => { if (st.view === "contour") e.preventDefault(); });
   // Chrome und Edge starten bei gedrückter Radtaste sonst das Auto-Scrollen statt des Verschiebens
-  vw.addEventListener("mousedown", e => { if (e.button === 1) e.preventDefault(); }, true);
+  vw.addEventListener("mousedown", e => { if (e.button === 1 || (e.button === 2 && st.view === "contour")) { los(e); e.preventDefault(); e.stopPropagation(); } }, true);
   vw.addEventListener("auxclick", e => { if (e.button === 1) e.preventDefault(); }, true);
 }
 function toImg(e) { const r = $("view").getBoundingClientRect(); return [(e.clientX - r.left) / st.viewScale, (e.clientY - r.top) / st.viewScale]; }

@@ -105,9 +105,12 @@ with sync_playwright() as p:
     s0 = f.evaluate("[$('viewer').scrollLeft, $('viewer').scrollTop]")
     vb = f.evaluate("(() => { const r = $('viewer').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()")
     bx = pg.frames[1].frame_element().bounding_box(); mx, my = bx["x"] + vb[0], bx["y"] + vb[1]
+    # Ereignisse mitzählen: fällt die Probe durch, zeigt die Meldung, was der Browser geschickt hat
+    f.evaluate("""() => { window.__rad = {}; for (const n of ['pointerdown','mousedown','pointermove','mousemove','pointerup','mouseup','lostpointercapture'])
+      window.addEventListener(n, e => { const k = n + ':' + e.button + '/' + e.buttons; window.__rad[k] = (window.__rad[k] || 0) + 1; }, true); }""")
     pg.mouse.move(mx, my); pg.mouse.down(button="middle"); pg.mouse.move(mx - 120, my - 80, steps=6); pg.mouse.up(button="middle"); pg.wait_for_timeout(200)
     s1 = f.evaluate("[$('viewer').scrollLeft, $('viewer').scrollTop]")
-    pruefe(abs(s1[0] - s0[0] - 120) < 3 and abs(s1[1] - s0[1] - 80) < 3, "Radtaste verschiebt: %s → %s" % (s0, s1))
+    pruefe(abs(s1[0] - s0[0] - 120) < 3 and abs(s1[1] - s0[1] - 80) < 3, "Radtaste verschiebt: %s → %s %s" % (s0, s1, f.evaluate("JSON.stringify(window.__rad)") if abs(s1[0] - s0[0] - 120) >= 3 else ""))
     pruefe(f.evaluate("st.edit.strokes.length") == 4, "Verschieben setzt keinen Punkt")
     f.evaluate("setZoom(1)"); pg.wait_for_timeout(300)
     # wieder einschalten: Fotoerkennung kommt dazu
