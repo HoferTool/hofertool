@@ -498,7 +498,7 @@ header.bar { align-items: center; }
         <summary>Erweitert</summary>
         <div class="secbody">
           <div class="row"><label for="paper">Referenzblatt</label>
-            <select id="paper"><option value="A4">A4 · 210 × 297</option><option value="A3">A3 · 297 × 420</option><option value="A5">A5 · 148 × 210</option><option value="Letter">Letter · 216 × 279</option></select></div>
+            <select id="paper"><option value="A4">A4 · 210 × 297</option><option value="A3">A3 · 297 × 420</option><option value="A5">A5 · 148 × 210</option><option value="A6">A6 quer · 148 × 105</option><option value="Letter">Letter · 216 × 279</option></select></div>
           <div class="row"><label for="res">Auflösung</label>
             <select id="res"><option value="4">4 px/mm</option><option value="6" selected>6 px/mm</option><option value="8">8 px/mm</option><option value="10">10 px/mm</option></select></div>
           <div class="row"><label for="margin">Blattrand ignorieren</label>
@@ -687,7 +687,11 @@ header.bar { align-items: center; }
 <script src="earcut.min.js"></script>
 <script>
 "use strict";
-const PAPERS = { A4: [210, 297], A3: [297, 420], A5: [148, 210], Letter: [215.9, 279.4] };
+const PAPERS = { A4: [210, 297], A3: [297, 420], A5: [148, 210], A6: [105, 148], Letter: [215.9, 279.4] };
+// Wunsch Patrick 11. November 2026: „neues Vorlage Format für das Papier 148 × 105 mm“.
+// Beim Foto entscheidet die Lage der Ecken über hoch/quer (paperDims); das leere
+// Blatt dieser Formate kommt gleich quer.
+const PAPER_QUER = { A6: true };
 const $ = id => document.getElementById(id);
 const st = { srcCanvas: null, srcData: null, sw: 0, sh: 0, corners: null, autoCorners: null, detected: false,
   sample: false, warp: null, result: null, view: "contour", drag: -1, loupe: null, viewScale: 1, zoom: 1, dpr: 1,
@@ -2008,7 +2012,8 @@ $("projInput").addEventListener("change", e => { loadProject(e.target.files[0]);
 // sein, wenn man selber zeichnen will“. Das Blatt ist schon entzerrt (Ecken =
 // Bildecken), erkannt wird darauf nichts; Formen kommen mit „Zeichnen“ dazu.
 function blankSheet(still) {
-  const [a, b] = PAPERS[P().paper] || PAPERS.A4, k = 4, c = document.createElement("canvas");
+  let [a, b] = PAPERS[P().paper] || PAPERS.A4; if (PAPER_QUER[P().paper]) [a, b] = [b, a];
+  const k = 4, c = document.createElement("canvas");
   c.width = Math.round(a * k); c.height = Math.round(b * k);
   const g = c.getContext("2d"); g.fillStyle = "#ffffff"; g.fillRect(0, 0, c.width, c.height);
   st.afterLoad = still ? null : () => { st.edit.tool = "area"; updateEditUI(); render(); toast("Leeres Blatt: mit „Zeichnen“ Linien, Bögen, Rechtecke und Kreise mit Massen einzeichnen."); };
@@ -3660,7 +3665,12 @@ $("tabContour").addEventListener("click", () => setView("contour"));
 $("redetectBtn").addEventListener("click", () => { if (!st.autoCorners) return; st.corners = st.autoCorners.map(p => p.slice()); render(); runWarp(); });
 $("rotateBtn").addEventListener("click", () => { if (!st.corners) return; const c = st.corners; st.corners = [c[3], c[0], c[1], c[2]]; render(); runWarp(); });
 let segT = 0;
-["paper", "res", "margin"].forEach(id => $(id).addEventListener("change", () => { saveSettings(); runWarp(); }));
+["paper", "res", "margin"].forEach(id => $(id).addEventListener("change", () => {
+  saveSettings();
+  // Leeres Blatt ohne Gezeichnetes: neu in der Grösse des Formats (A6 quer), sonst entzerren wie bisher.
+  if (id === "paper" && st.leer && !st.edit.strokes.length) { blankSheet(true); return; }
+  runWarp();
+}));
 ["auto", "thr", "noise", "minArea", "inner", "minHole", "offset", "blur", "smooth", "toolH", "camD"].forEach(id =>
   $(id).addEventListener(id === "thr" ? "input" : "change", () => {
     saveSettings(); if (id === "thr") $("thrVal").textContent = (P().thr > 0 ? "+" : "") + P().thr;
