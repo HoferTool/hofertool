@@ -7,7 +7,7 @@
 // =================================================================
 import { useState } from "react";
 import { alt } from "../../bruecke.jsx";
-import { eintragSpeichern, eintragLoeschen, statusVon, heute } from "../../daten/qmAlt.js";
+import { qmDatum, eintragSpeichern, eintragLoeschen, statusVon, heute } from "../../daten/qmAlt.js";
 import { MB_KAPITEL, mbBewertung, mbFragenVon, mbStand } from "../../daten/mbKatalog.js";
 import { mbOeffnen } from "./MbFenster.jsx";
 import { Schild } from "./Schild.jsx";
@@ -91,7 +91,7 @@ function Blatt({ b, daten, neu }) {
     <div className={"qma-bew" + (frei ? " qm-gesperrt" : "")} data-qmabewblatt={d.jahr}>
       <div className="qm-bew-kopf">
         <h2>Managementbewertung {d.jahr}</h2>
-        <Schild ton={frei ? "gruen" : "gelb"} id="qma-bew-status">{frei ? "freigegeben " + alt.kurzDatum(String(d.freigegeben_am || "").slice(0, 10)) + (d.freigegeben_von ? " · " + d.freigegeben_von : "") : "Entwurf"}</Schild>
+        <Schild ton={frei ? "gruen" : "gelb"} id="qma-bew-status">{frei ? "freigegeben " + qmDatum(String(d.freigegeben_am || "").slice(0, 10)) + (d.freigegeben_von ? " · " + d.freigegeben_von : "") : "Entwurf"}</Schild>
         <div className="qm-bew-knoepfe">
           {!frei && <button className="knopf knopf--haupt" id="qma-bew-durchfuehren" onClick={() => mbOeffnen(b, daten.texte, daten.eintraege, neu)}>
             {mb.kapitel ? "Bewertung weiterführen" : "Bewertung durchführen"}</button>}
@@ -113,7 +113,7 @@ function Blatt({ b, daten, neu }) {
       </div>
       <p className="klein">{st.kapitel} von {MB_KAPITEL.length} Kapiteln bewertet · {st.fragen} von {fragen.length} Fragen beantwortet</p>
       {!!ausBew.length && <><h3>Aus dieser Bewertung</h3>
-        <ul className="klein">{ausBew.map((e) => <li key={e.id}>{e.art === "ziel" ? "Ziel " + (e.daten.jahr || "") + ": " : "Massnahme: "}{e.titel}{e.daten.wer ? " · " + e.daten.wer : ""}{e.daten.termin ? " · bis " + alt.kurzDatum(e.daten.termin) : ""}: {statusVon(e.art, e.status).text}</li>)}</ul></>}
+        <ul className="klein">{ausBew.map((e) => <li key={e.id}>{e.art === "ziel" ? "Ziel " + (e.daten.jahr || "") + ": " : "Massnahme: "}{e.titel}{e.daten.wer ? " · " + e.daten.wer : ""}{e.daten.termin ? " · bis " + qmDatum(e.daten.termin) : ""}: {statusVon(e.art, e.status).text}</li>)}</ul></>}
       {alt_ && <><h3>Frühere Eingaben</h3><div className="qm-spalten">{EINGABEN.concat(ERGEBNISSE).filter(([k]) => String(d[k] || "").trim()).map(([k, t, n]) =>
         <Text key={k} k={k} text={t} norm={n} d={d} frei={true} feld={() => {}} />)}</div></>}
     </div>

@@ -7,7 +7,7 @@
 //  Nachweis, Kennzahl, Risiken, mitgeltende Dokumente), Text in qma_texte.
 // =================================================================
 import { alt } from "../../bruecke.jsx";
-import {
+import { qmDatum, qmDatumZeit,
   ABSCHNITTE, PROZESS_GRUPPEN, PROZESS_FELDER, QM_SYSTEM, PARTEIEN_VORGABE, textSpeichern, textLoeschen,
   ebeneVon, prozessNr, prozesseSortiert, normPruefen, deckt, risikoWert, risikoTon,
 } from "../../daten/qmAlt.js";
@@ -51,7 +51,7 @@ export default function Handbuch({ daten, neu, gehe }) {
         </div>
       </div>
       <p className="hinweis">Prozess antippen zeigt seinen Ablauf als Grafik, dort „Bearbeiten“ öffnet das Prozessblatt. Ebene 03 führt zum passenden Reiter.
-        {stand ? " Zuletzt geändert " + alt.datumZeitKurz(stand) + "." : ""}</p>
+        {stand ? " Zuletzt geändert " + qmDatumZeit(stand) + "." : ""}</p>
       <div className="qma-legende" aria-label="Ebenen von innen nach aussen">
         {[["1", "01", "Führung"], ["2", "02", "Prozesse"], ["3", "03", "QM-System"], ["4", "04", "Hofer + Co im Kontext"]].map(([k, nr, text]) => (
           <span key={k} className="qma-legende__punkt"><i className={"qma-legende__farbe qma-legende__farbe--" + k} /><b>{nr}</b> {text}</span>))}
@@ -268,7 +268,7 @@ async function prozessDialog(p, prozesse, neu) {
 
 function handbuchDrucken(texte, prozesse) {
   const e = alt.esc;
-  let h = `<h1>Managementhandbuch Hofer + Co</h1><div class="kopf">ISO 9001 · Stand ${e(alt.kurzDatum(new Date()))} · aus dem HoferTool</div>`;
+  let h = `<h1>Managementhandbuch Hofer + Co</h1><div class="kopf">ISO 9001 · Stand ${e(qmDatum(new Date()))} · aus dem HoferTool</div>`;
   for (const a of ABSCHNITTE) {
     h += `<h2>${e(a.titel)} <span class="norm">ISO ${e(a.norm)}</span></h2>${absatz(texte[a.k] && texte[a.k].inhalt)}`;
   }

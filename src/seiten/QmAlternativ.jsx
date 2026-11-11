@@ -17,7 +17,7 @@ import { alt, useDaten, useGemerkt } from "../bruecke.jsx";
 import { Reiter } from "../teile/Reiter.jsx";
 import { useSeitenSuche } from "../teile/seitenSuche.js";
 import { teilMerken } from "../teile/wiederherstellen.js";
-import {
+import { qmDatum,
   ARTEN, qmaLaden, fehltQma, statusVon, istZu, auswahlText, auswahlVon, risikoWert, risikoErst, risikoTon, hatNeu, parteiListe, lieferantNote,
   faelligTon, eintragSpeichern, eintragLoeschen, normPruefen, heute, plusTageIso, checklisteFuer,
   abwTyp, abwHerkunft,
@@ -89,7 +89,7 @@ export default function QmAlternativ({ auffrischen }) {
 }
 
 // ---------- Kleinteile ----------
-const datum = (x) => (x ? alt.kurzDatum(x) : "");
+const datum = (x) => (x ? qmDatum(x) : "");
 
 // ---------- Cockpit ----------
 const STAND = { ok: ["gruen", "erfüllt"], warn: ["gelb", "prüfen"], fehlt: ["rot", "fehlt"], na: ["grau", "nicht anwendbar"] };

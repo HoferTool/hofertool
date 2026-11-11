@@ -757,3 +757,22 @@ export function ablaufSchritte(text) {
     return { kopf, kette, punkte: punkte.map((p) => { const x = kopfVon(p); return { name: x.kopf, text: x.rest.replace(/\.$/, "") }; }) };
   });
 }
+
+// Im QMS steht bei jedem Datum das Jahr dabei (Wunsch Patrick 11. November 2026:
+// „bei Datumsangaben im QMS immer auch das Jahr“), anders als alt.kurzDatum.
+export function qmDatum(x) {
+  if (!x) return "";
+  const s = x instanceof Date ? "" : String(x);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s.slice(8, 10) + "." + s.slice(5, 7) + "." + s.slice(0, 4);
+  const d = x instanceof Date ? x : new Date(s);
+  if (isNaN(d)) return s;
+  const p = (n) => String(n).padStart(2, "0");
+  return p(d.getDate()) + "." + p(d.getMonth() + 1) + "." + d.getFullYear();
+}
+export function qmDatumZeit(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d)) return String(iso);
+  const p = (n) => String(n).padStart(2, "0");
+  return qmDatum(d) + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+}

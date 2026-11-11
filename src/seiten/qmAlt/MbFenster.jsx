@@ -16,7 +16,7 @@ import { useEffect, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { DiktatKnopf } from "../../teile/Diktat.jsx";
-import { eintragSpeichern, textSpeichern, jahresBild, heute } from "../../daten/qmAlt.js";
+import { qmDatum, eintragSpeichern, textSpeichern, jahresBild, heute } from "../../daten/qmAlt.js";
 import {
   MB_KAPITEL, MB_BEWERTUNG, autoZeilen, mbFragenVon, mbFragenZuText, mbFragenAusText, wertText, vergleich, vorjahrWert, mbStand,
 } from "../../daten/mbKatalog.js";
@@ -188,7 +188,7 @@ function MbFenster({ b, texte, alle, neu, zu }) {
       </div>
       <div className="qma-ck__rolle">
         {gesperrt && <div className="qma-ck__fertig" id="qma-mb-fertig">
-          ✓ Abgeschlossen am {alt.kurzDatum(mb.abgeschlossen_am.slice(0, 10))}
+          ✓ Abgeschlossen am {qmDatum(mb.abgeschlossen_am.slice(0, 10))}
           {d0.bericht_url && <button className="knopf knopf--klein" onClick={() => alt.betrachter(d0.bericht_url, "Managementbewertung " + jahr, true)}>📄 Bericht</button>}
           <span className="klein">„Wieder bearbeiten“ im Reiter Managementbewertung, danach nochmals abschliessen.</span>
         </div>}

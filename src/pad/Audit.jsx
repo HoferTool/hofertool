@@ -9,7 +9,7 @@
 // =================================================================
 import { useState } from "react";
 import { alt } from "../bruecke.jsx";
-import { qmaLaden, checklisteFuer, auditQuartal, statusVon, heute, vorpunkteFuer } from "../daten/qmAlt.js";
+import { qmDatum, qmaLaden, checklisteFuer, auditQuartal, statusVon, heute, vorpunkteFuer } from "../daten/qmAlt.js";
 import { checklisteOeffnen } from "../seiten/qmAlt/Checkliste.jsx";
 import { berichtZeigen } from "../seiten/qmAlt/AuditPlan.jsx";
 
@@ -18,7 +18,7 @@ export async function auditLaden() {
   return { art: "audit", texte: d.texte, eintraege: d.eintraege };
 }
 
-const wann = (e) => (e.daten.datum ? alt.kurzDatum(e.daten.datum) : (auditQuartal(e) || "").replace("-", " "));
+const wann = (e) => (e.daten.datum ? qmDatum(e.daten.datum) : (auditQuartal(e) || "").replace("-", " "));
 
 export default function PadAudit({ d, Kopf, neu }) {
   const mitCk = d.eintraege.filter((e) => e.art === "audit" && checklisteFuer(d.texte, e));

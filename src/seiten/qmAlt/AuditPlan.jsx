@@ -12,7 +12,7 @@
 // =================================================================
 import { useEffect, useState } from "react";
 import { alt } from "../../bruecke.jsx";
-import {
+import { qmDatum,
   auditBereiche, auditQuartal, auditBereicheVonEintrag, auditExtern, berichteZuteilen, statusVon, textSpeichern, eintragSpeichern, heute,
   checklisteFuer,
 } from "../../daten/qmAlt.js";
@@ -96,7 +96,7 @@ export default function AuditPlan({ daten, neu, eintragDialog }) {
       {/* Seit 1.473.0 hat jeder Bereich eine Checkliste: oben nur die drei
           nächsten (angefangene zuerst), der Rest aufklappbar */}
       {naechste.slice(0, alleNaechsten ? naechste.length : 3).map(({ b, e }) => {
-        const q = e.daten.datum ? alt.kurzDatum(e.daten.datum) : (auditQuartal(e) || "").replace("-", " ");
+        const q = e.daten.datum ? qmDatum(e.daten.datum) : (auditQuartal(e) || "").replace("-", " ");
         const spaet = e.faellig && e.faellig < heute();
         const angefangen = e.daten.checkliste && !e.daten.checkliste.abgeschlossen_am;
         return (
@@ -161,10 +161,10 @@ function Kaertchen({ e, oeffnen }) {
   const s = statusVon("audit", e.status);
   const spaet = e.status !== "durchgefuehrt" && e.faellig && e.faellig < heute();
   const kurz = ART_KURZ[d.art];
-  const titel = (e.titel || "") + " · " + s.text + (d.datum ? " · " + alt.kurzDatum(d.datum) : "") + (spaet ? " · überfällig" : "");
+  const titel = (e.titel || "") + " · " + s.text + (d.datum ? " · " + qmDatum(d.datum) : "") + (spaet ? " · überfällig" : "");
   const inhalt = <>
     {e.status === "durchgefuehrt" ? "✓" : e.status === "geplant" ? "◷" : "●"}
-    {d.datum ? <span> {d.datum.slice(8, 10)}.{d.datum.slice(5, 7)}.</span> : null}
+    {d.datum ? <span> {qmDatum(d.datum)}</span> : null}
     {kurz ? <b> {kurz}</b> : null}
   </>;
   const klasse = "qma-ap-karte qma-ap-karte--" + e.status + (spaet ? " qma-ap-karte--spaet" : "");
@@ -184,7 +184,7 @@ function Kaertchen({ e, oeffnen }) {
 
 export function berichtZeigen(e) {
   const url = e.daten.bericht_url;
-  alt.betrachter(url, "Auditbericht " + (e.titel || "") + (e.daten.datum ? " " + alt.kurzDatum(e.daten.datum) : ""), !/\.(png|jpe?g|webp|gif)$/i.test(url));
+  alt.betrachter(url, "Auditbericht " + (e.titel || "") + (e.daten.datum ? " " + qmDatum(e.daten.datum) : ""), !/\.(png|jpe?g|webp|gif)$/i.test(url));
 }
 
 // Mehrere Berichte auf einmal: die App ordnet jede Datei ihrem Audit zu
@@ -203,7 +203,7 @@ async function berichteZuordnen(alle, neu) {
   const zu = berichteZuteilen(dateien.map((d) => d.name), audits);
   const gefunden = dateien.map((d, i) => ({ d, e: zu[i] })).filter((x) => x.e);
   const ohne = dateien.filter((d, i) => !zu[i]);
-  const zeile = (x) => "• " + x.d.name + " → " + (x.e.titel || "") + (x.e.daten.datum ? " (" + alt.kurzDatum(x.e.daten.datum) + ")" : "") +
+  const zeile = (x) => "• " + x.d.name + " → " + (x.e.titel || "") + (x.e.daten.datum ? " (" + qmDatum(x.e.daten.datum) + ")" : "") +
     (x.e.daten.bericht_url ? " · ersetzt den bisherigen Bericht" : "");
   const ok = await alt.nachfragen({
     titel: "Berichte zuordnen",

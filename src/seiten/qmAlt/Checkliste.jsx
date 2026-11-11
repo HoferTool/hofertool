@@ -16,7 +16,7 @@
 import { useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
-import {
+import { qmDatum,
   CK_BEWERTUNG, checklisteFuer, fragenFuerRunde, checklisteAuswerten, fragenZuText, fragenAusText, eintragSpeichern, textSpeichern,
   auditBereiche, heute, plusTageIso, vorpunkteFuer, VP_BEWERTUNG, abwTyp,
 } from "../../daten/qmAlt.js";
@@ -197,7 +197,7 @@ function CkFenster({ e, vorlage, alle, neu, zu }) {
       </div>
       <div className="qma-ck__rolle">
         {gesperrt && <div className="qma-ck__fertig" id="qma-ck-fertig">
-          ✓ Abgeschlossen am {alt.kurzDatum(ck.abgeschlossen_am.slice(0, 10))}
+          ✓ Abgeschlossen am {qmDatum(ck.abgeschlossen_am.slice(0, 10))}
           {d.bericht_url && <button className="knopf knopf--klein" onClick={() => berichtZeigen({ ...e, daten: d })}>📄 Bericht</button>}
           <button className="knopf knopf--klein" id="qma-ck-wieder" onClick={wiederBearbeiten}>Wieder bearbeiten</button>
           <span className="klein">Nach dem Bearbeiten nochmals abschliessen, dann kommt ein neuer Bericht.</span>
