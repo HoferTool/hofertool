@@ -29,6 +29,7 @@ import Lieferanten from "./qmAlt/Lieferanten.jsx";
 import { Schild } from "./qmAlt/Schild.jsx";
 import AuditPlan, { berichtHochladen } from "./qmAlt/AuditPlan.jsx";
 import { checklisteOeffnen } from "./qmAlt/Checkliste.jsx";
+import Notfallplan from "./qmAlt/Notfallplan.jsx";
 
 const REITER = [["cockpit", "Cockpit"], ["handbuch", "Handbuch"], ["ziel", "Ziele"], ["abweichung", "Abweichungen"],
   ["risiko", "Kontext und Risiken"], ["pruefmittel", "Prüfmittel"], ["lieferant", "Lieferanten"], ["kompetenz", "Kompetenzen"],
@@ -156,6 +157,7 @@ function Cockpit({ daten, neu, gehe }) {
         </tbody>
       </table></div>
     </section>
+    <Notfallplan />
   </>);
 }
 

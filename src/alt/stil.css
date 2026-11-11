@@ -13021,3 +13021,7 @@ body.dunkel .qma-lb__s4 { background: #1f3b27; } body.dunkel .qma-lb__s5 { backg
   cursor: pointer; opacity: .45; filter: grayscale(.5); padding: 0; }
 .qma-lb-smiley--an { opacity: 1; filter: none; border-color: #234; }
 body.dunkel .qma-lb-smiley--an { border-color: #fff; }
+
+/* QMS-Notfallplan (seit 1.484.0) */
+.qma-notfall__zeile { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; margin: 6px 0; }
+.qms-pdf-freigeben { bottom: 140px; }

@@ -98,12 +98,12 @@ with sync_playwright() as p:
     pruefe("3 × 4 = 12" in txt and "2 × 3 = 6" in txt, "Erst- und Neubeurteilung E × A")
     pruefe(pg.locator(".qma-gruppenzeile", has_text="Kunden").count() == 1, "Gruppenzeile Kunden")
 
-    # Lieferant: Note
+    # Lieferant: Punktzahl wie auf dem Gewatec-Blatt (seit 1.483.0), unter 60 rot
     pg.click("[data-qmareiter='lieferant']"); pg.wait_for_selector("#qma-lieferant")
     pg.click("[data-qmaneu='lieferant']"); d = dialog(pg)
-    feld(d, "titel").fill("Stahl AG"); feld(d, "t").select_option("1")
+    feld(d, "titel").fill("Stahl AG"); feld(d, "punkte").fill("50")
     speichern(pg, d)
-    pruefe(pg.locator("#qma-lieferant .qma-ton--rot", has_text="C").count() == 1, "Lieferant mit einer 1 = C")
+    pruefe(pg.locator("#qma-lieferant .qma-ton--rot", has_text="50").count() == 1, "Lieferant mit 50 Punkten rot")
 
     # Audit mit Feststellungen → Abweichungen
     pg.click("[data-qmareiter='audit']"); pg.wait_for_selector("#qma-audit")
@@ -195,18 +195,7 @@ with sync_playwright() as p:
     pruefe("qma-stufe--2" in pg.locator("[data-qmazelle]").first.get_attribute("class"), "zweimal antippen = selbständig")
     pruefe(pg.locator("#qma-schulung").count() == 1, "Schulungen unter der Matrix")
 
-    # Managementbewertung
-    pg.click("[data-qmareiter='bewertung']"); pg.wait_for_selector("#qma-bewertung")
-    pg.click("#qma-neu-bewertung"); d = dialog(pg); feld(d, "jahr").fill("2026"); speichern(pg, d)
-    pg.wait_for_selector("[data-qmabewblatt='2026']")
-    pruefe("Abweichungen" in pg.locator("#qma-bew-zahlen").inner_text(), "Zahlen kommen von selbst")
-    t = pg.locator("[data-qmabewfeld='fazit'] textarea"); t.fill("Wirksam."); pg.locator("[data-qmabewfeld='kunden'] textarea").click(); pg.wait_for_timeout(800)
-    pruefe(pg.evaluate("TEST.daten.qma_eintraege.find(e => e.art === 'bewertung').daten.fazit") == "Wirksam.", "Fazit gespeichert")
-    pg.click("#qma-bew-freigeben"); d = dialog(pg); speichern(pg, d)
-    b = pg.evaluate("TEST.daten.qma_eintraege.find(e => e.art === 'bewertung')")
-    pruefe(b["status"] == "freigegeben" and b["daten"].get("schnapp"), "freigegeben mit eingefrorenen Zahlen")
-    pruefe(pg.locator("[data-qmabewfeld='fazit'] textarea").get_attribute("readonly") is not None, "freigegeben nur zum Lesen")
-    pg.screenshot(path=BILD + "/qma-bewertung.png", full_page=True)
+    # Managementbewertung: seit 1.483.0 eigenes Werkzeug, geprüft in qm_bewertung.py
 
     laden(pg, VERMERK + "(TEST.daten.profiles.find(x => x.id === 'u1') || {}).role = 'extern';\n")
     pruefe(pg.locator("[data-nav='qmalt']").count() == 0, "Externe sehen QM alternativ nicht")

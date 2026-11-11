@@ -15,7 +15,7 @@ const MIN = 60 * 1000;
 const STD = 60 * MIN;
 
 const SCHLUESSEL = ["sicherung", "sicherung_status", "planwand_archiv", "planwand_archiv_status",
-  "eb_pdf", "eb_pdf_status", "dok_pool_status", "druck_status", "nc_geo_status"];
+  "eb_pdf", "eb_pdf_status", "qms_pdf", "qms_pdf_status", "dok_pool_status", "druck_status", "nc_geo_status"];
 
 function jsonOder(text, ersatz) {
   if (text && typeof text === "object") return text;
@@ -56,6 +56,14 @@ export function zustandPruefen(w, solarZeit, jetzt = Date.now()) {
   const eb = w.eb_pdf_status || {};
   if ((w.eb_pdf || {}).geraet && eb.fehler && eb.fehler.length)
     aus.push({ was: "Einrichtblätter als PDF", text: fehlerText(eb.fehler) });
+  // QMS-Notfallplan (seit 1.484.0): einmal am Tag, solange der PC mit dem
+  // Ordner läuft; über das Wochenende darf es ruhen, darum 80 Stunden
+  const qs = w.qms_pdf_status || {};
+  if ((w.qms_pdf || {}).geraet) {
+    const a = alter(qs.zeit, jetzt);
+    if (a > 80 * STD) aus.push({ was: "QMS-Notfallplan", text: "Letzte PDF-Kopie des QMS " + seitText(a) + " her. Läuft die App am Gerät mit dem Ordner?" });
+    if (qs.fehler && qs.fehler.length) aus.push({ was: "QMS-Notfallplan", text: fehlerText(qs.fehler) });
+  }
   const pool = w.dok_pool_status;
   if (pool) {
     // Die Aufgabe „HoferTool“ meldet alle 5 Minuten
