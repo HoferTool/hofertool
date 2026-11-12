@@ -191,6 +191,15 @@ with sync_playwright() as p:
     pg.goto(f"http://127.0.0.1:{PORT}/index.html?bildschirm=empfang", wait_until="domcontentloaded"); pg.wait_for_timeout(3000)
     pruefe(pg.evaluate("() => localStorage.getItem('hofer.empfang.geraet')") == "1", "Gerät als Empfang gemerkt")
     pruefe(pg.locator("#infoboard [data-ibtafel='empfang']").count() == 1, "Empfang geht von selbst auf, nicht das Infoboard")
+    # 1.491.1: die Seite dahinter ruht (der Samsung gab sonst nach Stunden
+    # ein weisses Bild), nach dem Schliessen kommt sie wieder
+    r = pg.evaluate("() => [document.body.classList.contains('ib-ruht'), document.getElementById('inhalt').children.length, getComputedStyle(document.getElementById('root')).display]")
+    pruefe(r == [True, 0, "none"], "Seite hinter dem Empfang ruht: %s" % r)
+    pg.evaluate("location.hash = '#/planwand'"); pg.wait_for_timeout(800)
+    pruefe(pg.locator("#inhalt > *").count() == 0, "Adresswechsel weckt die Seite dahinter nicht")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(1500)
+    r = pg.evaluate("() => [document.body.classList.contains('ib-ruht'), document.getElementById('inhalt').children.length > 0, getComputedStyle(document.getElementById('root')).display]")
+    pruefe(r[0] is False and r[1] and r[2] != "none", "nach dem Schliessen ist die Seite wieder da: %s" % r)
     pg.goto(f"http://127.0.0.1:{PORT}/index.html?bildschirm=infoboard", wait_until="domcontentloaded"); pg.wait_for_timeout(3000)
     pruefe(pg.evaluate("() => [localStorage.getItem('hofer.empfang.geraet'), localStorage.getItem('hofer.infoboard.geraet')]") == [None, "1"],
            "umgestellt auf Infoboard")

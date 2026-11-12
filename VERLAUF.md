@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.491.1** (12. November 2026): Empfang und andere Wandbildschirme: Ist die Anzeige von selbst offen, ruht die App dahinter (kein Abgleich, Startseite abgebaut, `#root` nicht gezeichnet, `seiteRuhen`/`seiteWecken` in `app.js`), Wetter-Effekt höchstens 30 Bilder je Sekunde. Der Samsung am Empfang brach laut Logs nach 3¾ bis 5 Stunden ab und zeigte ein weisses Bild (Patrick: „schaltet immer auf ein weisses Vollbild“). Schliessen holt die Seite zurück.
 - **1.491.0** (12. November 2026): Strg + F in einem offenen PDF (Betrachter, Handbücher, Zeichnungen) öffnet die Lupe des PDF-Betrachters statt der Suche des HoferTools; ist sie schon offen, springt die Schreibmarke ins Suchfeld. Ausserhalb von PDFs wie bisher (Wunsch Patrick).
 - **1.490.3** (12. November 2026): Einlagen Generator: beginnt das Verschieben mit der Radtaste erst bei der ersten Bewegung (Chrome 158), zählt es ab der letzten Mauslage davor, damit kein Stück des Zugs verloren geht.
 - **1.490.2** (12. November 2026): Einlagen Generator: Chrome 158 meldet das Drücken der Radtaste teils gar nicht (kein pointerdown/mousedown), nur Bewegungen mit gedrückter Taste; das Verschieben beginnt darum auch bei der ersten solchen Bewegung über dem Bild.

@@ -13025,3 +13025,7 @@ body.dunkel .qma-lb-smiley--an { border-color: #fff; }
 /* QMS-Notfallplan (seit 1.484.0) */
 .qma-notfall__zeile { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; margin: 6px 0; }
 .qms-pdf-freigeben { bottom: 140px; }
+
+/* Wandbildschirm von selbst offen (1.491.1): die App dahinter ruht und
+   wird gar nicht gezeichnet, das schont den Browser des Samsung am Empfang */
+body.ib-ruht #root { display: none !important; }

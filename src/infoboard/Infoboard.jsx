@@ -527,7 +527,7 @@ function Drehung({ wert, setzen }) {
 // ---------- Anzeige über den ganzen Bildschirm ----------
 let offen = null;
 
-export function infoboardOeffnen(vonHand, mass = TAFELN.haupt) {
+export function infoboardOeffnen(vonHand, mass = TAFELN.haupt, { beimZu } = {}) {
   if (offen) return;
   const huelle = document.createElement("div");
   huelle.className = "ib-voll ib-voll--" + mass.id;
@@ -535,7 +535,7 @@ export function infoboardOeffnen(vonHand, mass = TAFELN.haupt) {
   document.body.appendChild(huelle);
   document.body.classList.add("ib-offen");
   const wurzel = createRoot(huelle);
-  offen = { huelle, wurzel, vonSelbst: !vonHand };
+  offen = { huelle, wurzel, vonSelbst: !vonHand, beimZu };
   // Nur der echte Bildschirm meldet die Lage der Chrome-Fenster (WebFeld.jsx),
   // nicht wer am eigenen PC mal „Anzeige öffnen“ drückt
   wurzel.render(<Anzeige huelle={huelle} mass={mass} melden={!vonHand || istInfoboardGeraet(mass)} />);
@@ -594,13 +594,14 @@ function vollbild(el) {
 
 export function infoboardSchliessen() {
   if (!offen) return;
-  const { huelle, wurzel, weg } = offen;
+  const { huelle, wurzel, weg, beimZu } = offen;
   offen = null;
   if (weg) weg();
   try { if (imVollbild()) (document.exitFullscreen || document.webkitExitFullscreen).call(document)?.catch?.(() => {}); } catch (f) { /* egal */ }
   wurzel.unmount();
   huelle.remove();
   document.body.classList.remove("ib-offen");
+  if (beimZu) beimZu();
 }
 
 const NACHSEHEN_MS = 30000;

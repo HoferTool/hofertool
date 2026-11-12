@@ -111,6 +111,9 @@ export default function Wetterhimmel({ breite, hoehe, probe }) {
     const lauf = (jetzt) => {
       bild = requestAnimationFrame(lauf);
       if (document.hidden) { zuletzt = jetzt; return; }
+      // Höchstens etwa 30 Bilder je Sekunde: sieht gleich aus und schont
+      // den schwachen Browser des Samsung am Empfang (1.491.1)
+      if (jetzt - zuletzt < 30) return;
       // Gleich schnell bei 30 wie bei 60 Bildern je Sekunde
       const d = Math.min(3, (jetzt - zuletzt) / 16.7);
       zuletzt = jetzt;

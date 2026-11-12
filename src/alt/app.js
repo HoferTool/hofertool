@@ -159,7 +159,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.491.0";
+const APP_VERSION = "1.491.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -11308,10 +11308,36 @@ function zeichneGeruest() {
     // mit dem Konto „Infoboard“ (seit 1.201.0)
     const ibKonto = !!(profil && profil.einstellungen && profil.einstellungen.infoboardBildschirm);
     const bildschirm = bildschirmDiesesGeraets() || (ibKonto ? TAFELN.haupt : null);
-    if (!ARCHIV && bildschirm && infoboardSichtbar()) infoboardOeffnen(false, bildschirm);
+    if (!ARCHIV && bildschirm && infoboardSichtbar()) {
+      infoboardOeffnen(false, bildschirm, { beimZu: seiteWecken });
+      seiteRuhen();
+    }
   });
   if (ARCHIV) archivMarkeEinbauen(); else padKnopfEinbauen();
   if (!window._escZurueck) { window._escZurueck = true; escapeZurueck(); }
+}
+
+// Wandbildschirm (Infoboard, Empfang, Pausenraum), von selbst geöffnet:
+// Die Seite dahinter sieht dort niemand, sie lief aber den ganzen Tag mit
+// (Abgleich alle 45 Sekunden, Neuzeichnen der Startseite bei jeder
+// Änderung, Bälle in der Kopfzeile). Der Samsung am Empfang hielt das
+// nur wenige Stunden aus, dann stand ein weisses Bild und er meldete sich
+// nicht mehr (Patrick 12. November 2026: „der Empfangsbildschirm schaltet
+// immer auf ein weisses Vollbild“; Logs: Abbruch nach 3¾ bis 5 Stunden).
+// Darum ruht die Seite dahinter, bis die Anzeige zugeht.
+function seiteRuhen() {
+  syncStoppen();
+  if (typeof planSyncStoppen === "function") planSyncStoppen();
+  const bereich = document.getElementById("inhalt");
+  if (bereich) { reactAufraeumen(bereich); bereich.innerHTML = ""; }
+  document.body.classList.add("ib-ruht");
+}
+
+function seiteWecken() {
+  if (!document.body.classList.contains("ib-ruht")) return;
+  document.body.classList.remove("ib-ruht");
+  // Beim Abmelden geht die Anzeige auch zu, dann kommt die Anmeldung
+  setTimeout(() => { if (profil && document.getElementById("inhalt")) zeichneSeite(); }, 0);
 }
 
 window.addEventListener("hashchange", () => {
@@ -11323,6 +11349,7 @@ window.addEventListener("hashchange", () => {
     padZeichnen();
     return;
   }
+  if (document.body.classList.contains("ib-ruht")) return;
   if (document.getElementById("inhalt")) zeichneSeite();
 });
 
