@@ -13029,3 +13029,55 @@ body.dunkel .qma-lb-smiley--an { border-color: #fff; }
 /* Wandbildschirm von selbst offen (1.491.1): die App dahinter ruht und
    wird gar nicht gezeichnet, das schont den Browser des Samsung am Empfang */
 body.ib-ruht #root { display: none !important; }
+
+/* Menüplan im Pausenraum (seit 1.492.0, Wunsch Patrick 12. November 2026):
+   Kachel mit dem Menü von heute, gross die Woche Mo–Fr, oben links Bearbeiten */
+.ib-kachel--menue { justify-content: flex-start; align-items: stretch; text-align: left; padding: .4em .6em .5em; gap: .2em; }
+.ib-kachel--menue .ib-kachel__titel { font-size: .78em; opacity: .92; }
+.ib-kachel--menue .ib-kachel__tipp { display: none; }
+.ib-menue-heute { flex: 1; min-height: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4;
+  font-size: .62em; font-weight: 600; line-height: 1.25; white-space: pre-line; text-shadow: 0 1px 2px rgba(0,0,0,.3); }
+.ib-gross .ib-menue-knopf { flex: none; display: inline-flex; align-items: center; gap: 14px; padding: 16px 34px 16px 28px;
+  border: 0; border-radius: 999px; cursor: pointer; font: inherit; font-size: 32px; font-weight: 700; touch-action: manipulation;
+  background: #fff; color: color-mix(in srgb, var(--kf) 70%, #000) !important; -webkit-text-fill-color: currentColor;
+  box-shadow: 0 6px 18px rgba(0,0,0,.28), inset 0 -3px 0 rgba(0,0,0,.08); transition: transform .12s ease, box-shadow .12s ease; }
+.ib-gross .ib-menue-knopf svg { width: 34px; height: 34px; fill: none; stroke: currentColor; stroke-width: 2.4;
+  stroke-linecap: round; stroke-linejoin: round; }
+.ib-gross .ib-menue-knopf:active { transform: scale(.96); box-shadow: 0 2px 8px rgba(0,0,0,.3); }
+.ib-gross .ib-menue-knopf:disabled { opacity: .6; cursor: default; }
+.ib-gross .ib-menue-knopf--gut span { font-size: 36px; line-height: 1; }
+.ib-gross .ib-menue-knopf--still { background: rgba(0,0,0,.22); color: #fff !important; box-shadow: inset 0 0 0 3px rgba(255,255,255,.85); }
+.ib-gross__kopf .ib-menue-knopf + .ib-gross__titel, .ib-gross__kopf .ib-menue-knopf--still + .ib-gross__titel { margin-left: 12px; }
+.ib-gross__kopf .ib-gross__titel:has(+ .ib-gross__zu) { margin-right: auto; }
+.ib-menue { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 24px; padding: 28px 40px 40px;
+  background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--kf) 26%, transparent), transparent 70%); }
+.ib-menue__leiste { flex: none; display: flex; align-items: center; justify-content: center; gap: 32px; }
+.ib-menue__woche { display: flex; flex-direction: column; align-items: center; min-width: 420px; }
+.ib-menue__woche b { font-size: 38px; }
+.ib-menue__woche span { font-size: 24px; opacity: .75; }
+.ib-menue__pfeil { width: 78px; height: 78px; border-radius: 50%; border: 3px solid rgba(255,255,255,.5); cursor: pointer;
+  background: rgba(255,255,255,.08); color: #fff; font: inherit; font-size: 50px; line-height: 1; padding-bottom: 6px; touch-action: manipulation; }
+.ib-menue__pfeil:active { background: rgba(255,255,255,.22); }
+.ib-menue__pfeil:disabled { opacity: .25; cursor: default; }
+.ib-menue__tage { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 22px; }
+.ib-menue__tag { min-height: 0; display: flex; flex-direction: column; border-radius: 22px; overflow: hidden;
+  background: rgba(255,255,255,.07); border: 2px solid rgba(255,255,255,.14); box-shadow: 0 10px 30px rgba(0,0,0,.3); }
+.ib-menue__tag--heute { background: rgba(255,255,255,.12); border-color: var(--kf);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--kf) 45%, transparent), 0 14px 40px rgba(0,0,0,.45); transform: translateY(-6px); }
+.ib-menue__tagkopf { flex: none; display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; padding: 20px 24px 16px;
+  border-bottom: 2px solid rgba(255,255,255,.1); }
+.ib-menue__tag--heute .ib-menue__tagkopf { background: var(--kf); border-bottom-color: transparent; }
+.ib-menue__tagname { font-size: 34px; font-weight: 700; }
+.ib-menue__datum { font-size: 24px; opacity: .75; }
+.ib-menue__heute { margin-left: auto; padding: 4px 16px; border-radius: 999px; background: #fff; font-size: 20px; font-weight: 800;
+  letter-spacing: .06em; text-transform: uppercase; color: color-mix(in srgb, var(--kf) 70%, #000) !important;
+  -webkit-text-fill-color: currentColor; }
+.ib-menue__text { flex: 1; min-height: 0; overflow: auto; padding: 22px 24px; font-size: 32px; line-height: 1.35;
+  white-space: pre-wrap; overflow-wrap: anywhere; }
+.ib-menue__tag--heute .ib-menue__text { font-size: 36px; font-weight: 600; }
+.ib-menue__text--leer { opacity: .4; font-style: italic; font-size: 26px !important; font-weight: 400 !important; }
+.ib-menue__feld { flex: 1; min-height: 0; margin: 14px; padding: 16px 18px; border-radius: 14px; resize: none;
+  border: 2px solid rgba(255,255,255,.35); background: #fff; color: #1b2a40 !important; -webkit-text-fill-color: #1b2a40;
+  font: inherit; font-size: 28px; line-height: 1.35; outline: none; }
+.ib-menue__feld:focus { border-color: var(--kf); box-shadow: 0 0 0 5px color-mix(in srgb, var(--kf) 45%, transparent); }
+.ib-menue__feld::placeholder { color: #8a97a8; -webkit-text-fill-color: #8a97a8; }

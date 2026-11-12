@@ -12,7 +12,8 @@
 //  teil = { art: "kachel", titel, zeichen (Emoji, frei), farbe,
 //           inhalt: { art: "datei", datei } | { art: "web", adresse, zoom, gesperrt }
 //                 | { art: "text", html } | { art: "spiel", spiel: "alle" | Spiel-Id }
-//                 | { art: "eier" } (Eierzähler, Eier.jsx) }
+//                 | { art: "eier" } (Eierzähler, Eier.jsx)
+//                 | { art: "menu" } (Menüplan, Menueplan.jsx) }
 // =================================================================
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
@@ -21,10 +22,11 @@ import { webBearbeiten } from "./WebFeld.jsx";
 import { dateiHochladen, dateiTyp } from "./daten.js";
 import { SPIELE, Spiele, spielName } from "./Spiele.jsx";
 import Eier from "./Eier.jsx";
+import { MenueGross, MenueHeute } from "./Menueplan.jsx";
 
 export const KACHEL_FARBEN = [["#1f6feb", "Blau"], ["#2ea043", "Grün"], ["#d97706", "Orange"], ["#dc2626", "Rot"],
   ["#7c3aed", "Violett"], ["#0891b2", "Türkis"], ["#db2777", "Pink"], ["#475569", "Grau"]];
-const INHALTE = [["datei", "Datei (PDF, Bild, Video, Excel)"], ["web", "Webseite"], ["text", "Text wie in Word"], ["spiel", "Spiele"], ["eier", "Eierzähler"]];
+const INHALTE = [["datei", "Datei (PDF, Bild, Video, Excel)"], ["web", "Webseite"], ["text", "Text wie in Word"], ["spiel", "Spiele"], ["eier", "Eierzähler"], ["menu", "Menüplan (Menü je Tag)"]];
 export const ZU_MS = 2 * 60 * 1000;
 
 // Eine Datei wählen, ohne festes Feld im Fenster. Bricht man ab, kommt null
@@ -45,12 +47,14 @@ export const inhaltName = (inh) => !inh ? "kein Inhalt"
   : inh.art === "text" ? "Text"
   : inh.art === "spiel" ? "Spiel: " + spielName(inh.spiel)
   : inh.art === "eier" ? "Eierzähler"
+  : inh.art === "menu" ? "Menüplan"
   : inh.datei ? ({ pdf: "PDF", bild: "Bild", video: "Video", excel: "Excel" }[inh.datei.typ] || "Datei") + ": " + (inh.datei.name || "")
   : "kein Inhalt";
 
 // Inhalt wählen oder ändern. Ergibt den neuen Inhalt oder null.
 export async function inhaltBearbeiten(art, alt0) {
   if (art === "eier") return { art: "eier" };
+  if (art === "menu") return { art: "menu" };
   if (art === "spiel") {
     const w = await alt.dialogFelder({
       titel: "Welches Spiel?",
@@ -105,12 +109,14 @@ export async function kachelBearbeiten(t) {
 // auch klein oder gross gezogen immer passt.
 export function KachelFlaeche({ feld, breite, hoehe, antippen }) {
   const m = Math.min(breite, hoehe);
+  const menue = feld.inhalt && feld.inhalt.art === "menu";
   return (
-    <button type="button" className="ib-kachel" data-ibkachel={feld.titel} tabIndex={antippen ? 0 : -1}
+    <button type="button" className={"ib-kachel" + (menue ? " ib-kachel--menue" : "")} data-ibkachel={feld.titel} tabIndex={antippen ? 0 : -1}
       style={{ "--kf": feld.farbe || KACHEL_FARBEN[0][0], fontSize: Math.max(14, m * 0.16) }}
       onClick={antippen ? (e) => { e.stopPropagation(); antippen(feld); } : undefined}>
       {feld.zeichen && <span className="ib-kachel__zeichen">{feld.zeichen}</span>}
       <span className="ib-kachel__titel">{feld.titel}</span>
+      {menue && <MenueHeute />}
       <span className="ib-kachel__tipp" aria-hidden="true">Antippen</span>
     </button>
   );
@@ -133,6 +139,14 @@ export function KachelGross({ feld, breite, hoehe, zu, inhaltZeigen }) {
     if (el) setBox({ b: el.clientWidth, h: el.clientHeight });
   }, [breite, hoehe]);
   const inh = feld.inhalt || {};
+  if (inh.art === "menu") {
+    return (
+      <div className="ib-gross" data-ib="gross" style={{ width: breite, height: hoehe, "--kf": feld.farbe || KACHEL_FARBEN[0][0] }}
+        onPointerDown={(e) => { e.stopPropagation(); setZuletzt(Date.now()); }}>
+        <MenueGross feld={feld} zu={zu} aktiv={() => setZuletzt(Date.now())} />
+      </div>
+    );
+  }
   // Text als Blatt quer, so gross wie Platz ist
   let tb = null;
   if (box && inh.art === "text") {
