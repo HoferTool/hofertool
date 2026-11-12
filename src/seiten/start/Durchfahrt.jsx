@@ -201,6 +201,35 @@ export default function Durchfahrt({ tief = false } = {}) {
     let phase = "pause", bis = performance.now() + zufall(800, 2000);
     let x = 0, dir = 1, v = 0, halte = [], salve = 0, naechsterWurf = 0, naechsterLaufwurf = 0;
     let drehAb = -9, naechsteDrehung = 0, naechsteNote = 0;
+    // Von Tristans Dose getroffen: fällt um, bleibt kurz liegen, steht auf
+    let umfallAb = -99;
+    const UMFALL = 2.8;
+    if (haufen) {
+      haufen.ziel = () => {
+        if (phase === "pause" || performance.now() / 1000 - umfallAb < UMFALL + .5) return null;
+        const m = raumMass();
+        if (!m.w) return null;
+        const r = mobil.getBoundingClientRect();
+        if (!r.width) return null;
+        const bandK = band.offsetWidth ? band.getBoundingClientRect().width / band.offsetWidth : 1;
+        return { x: (r.left + r.width / 2 - m.r.left) / m.k, y: (r.top + r.height * .45 - m.r.top) / m.k,
+          b: r.width / m.k, h: r.height * .8 / m.k, vx: phase === "laufen" ? dir * v * bandK / m.k : 0 };
+      };
+      haufen.getroffen = () => {
+        umfallAb = performance.now() / 1000;
+        const r = koerper.getBoundingClientRect(), pr = band.getBoundingClientRect();
+        const bandK = band.offsetWidth ? pr.width / band.offsetWidth : 1;
+        const n = document.createElement("div");
+        n.className = "gm-note gm-bumm";
+        n.textContent = "💫";
+        n.style.cssText = `font-size:${H * .22}px;left:${(r.left + r.width * .3 - pr.left) / bandK}px;top:${(r.top - pr.top) / bandK}px`;
+        band.appendChild(n);
+        n.animate([{ transform: "scale(.4)", opacity: 0 }, { transform: "scale(1.2)", opacity: 1, offset: .15 },
+          { transform: "translateY(" + H * .5 + "px) scale(1)", opacity: 1, offset: .5 }, { transform: "translateY(" + H * .6 + "px) scale(.9)", opacity: 0 }],
+          { duration: 2400, easing: "ease-out", fill: "forwards" }).onfinish = () => n.remove();
+      };
+      if (window.TEST && window.TEST.dosen) window.TEST.dosen.umgefallen = () => performance.now() / 1000 - umfallAb < UMFALL;
+    }
     const neueRunde = () => {
       messen();
       dir = Math.random() < .5 ? 1 : -1;
@@ -224,7 +253,10 @@ export default function Durchfahrt({ tief = false } = {}) {
       vorher = jetzt;
       const t = jetzt / 1000;
 
-      if (phase === "pause" && jetzt > bis) neueRunde();
+      const umP = t - umfallAb;
+      const liegt = umP >= 0 && umP < UMFALL;
+      if (liegt) { /* getroffen: steht still, wirft nicht */ }
+      else if (phase === "pause" && jetzt > bis) neueRunde();
       else if (phase === "laufen") {
         x += dir * v * dt;
         if (halte.length && (dir > 0 ? x >= halte[0] : x <= halte[0])) {
@@ -250,7 +282,15 @@ export default function Durchfahrt({ tief = false } = {}) {
 
       // Tanzen: hüpfen im Takt, Hüften schwingen, ab und zu eine
       // Drehung um sich selbst, beim Wurf nach vorne lehnen
-      if (phase !== "pause") {
+      if (liegt) {
+        // Nach hinten umkippen, liegen bleiben (zuckt ein wenig), aufstehen
+        let wink;
+        if (umP < .35) wink = (umP / .35) ** 2 * 88;
+        else if (umP < UMFALL - .55) wink = 88 + Math.sin(umP * 30) * Math.max(0, 1.2 - umP) * 3;
+        else wink = 88 * (1 - (umP - (UMFALL - .55)) / .55);
+        koerper.style.transform = `rotate(${(-wink).toFixed(1)}deg)`;
+        naechsterWurf = jetzt + 500; naechsterLaufwurf = jetzt + 900;
+      } else if (phase !== "pause") {
         const takt = t * Math.PI * (phase === "halt" ? 4.4 : 3.6);
         const hopp = Math.abs(Math.sin(takt));
         const stark = phase === "halt" ? 1.5 : 1;
@@ -403,9 +443,9 @@ const TRISTAN = `<svg viewBox="0 0 340 300" xmlns="http://www.w3.org/2000/svg">
       <path d="M32 282 h26 a8 8 0 0 1 0 14 h-26 z" fill="#15171b"/></g>
     <g class="tr-bein tr-bein--vorne"><path d="M60 190 L62 280" stroke="#454b55" stroke-width="19" stroke-linecap="round"/>
       <path d="M52 282 h26 a8 8 0 0 1 0 14 h-26 z" fill="#1d2025"/></g>
-    <path d="M66 112 L148 152" stroke="#1a477f" stroke-width="15" stroke-linecap="round"/>
+    <path class="tr-arm" d="M66 112 L148 152" stroke="#1a477f" stroke-width="15" stroke-linecap="round"/>
     <circle cx="149" cy="152" r="8" fill="#e8b494"/>
-    <path d="M30 108 C32 92 44 88 56 88 C70 88 82 94 84 108 L86 200 L28 200 Z" fill="#1d4f91"/>
+    <g class="tr-oben"><path d="M30 108 C32 92 44 88 56 88 C70 88 82 94 84 108 L86 200 L28 200 Z" fill="#1d4f91"/>
     <rect x="28" y="160" width="58" height="7" fill="#e8eef5" opacity=".9"/>
     <path d="M56 90 L56 200" stroke="#163d70" stroke-width="2"/>
     <rect x="50" y="76" width="13" height="14" fill="#e3a98a"/>
@@ -413,7 +453,8 @@ const TRISTAN = `<svg viewBox="0 0 340 300" xmlns="http://www.w3.org/2000/svg">
     <path d="M38 60 C36 38 56 32 70 38 C78 42 80 50 78 56 C70 50 54 50 40 64 Z" fill="#3b2a1e"/>
     <circle cx="70" cy="62" r="2.2" fill="#2a2a2a"/>
     <path d="M66 73 C70 75 74 74 76 71" stroke="#9c5b3e" stroke-width="2" fill="none" stroke-linecap="round"/>
-    <circle cx="46" cy="64" r="4" fill="#e3a98a"/></g>
+    <circle cx="46" cy="64" r="4" fill="#e3a98a"/></g></g>
+    <g class="tr-foto"></g>
   </g>
   <g class="tr-tonne">
     <rect x="166" y="276" width="10" height="6" fill="#2b2f35"/><rect x="276" y="276" width="10" height="6" fill="#2b2f35"/>
@@ -428,7 +469,7 @@ const TRISTAN = `<svg viewBox="0 0 340 300" xmlns="http://www.w3.org/2000/svg">
     <text x="226" y="252" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" fill="#d7f0df">♻</text></g>
   </g>
   <g class="tr-schaufel">
-    <path d="M62 112 L104 150" stroke="#1d4f91" stroke-width="15" stroke-linecap="round"/>
+    <path class="tr-arm" d="M62 112 L104 150" stroke="#1d4f91" stroke-width="15" stroke-linecap="round"/>
     <path d="M100 146 L300 264" stroke="#a36a35" stroke-width="7" stroke-linecap="round"/>
     <path d="M88 132 L104 148" stroke="#2b2f35" stroke-width="9" stroke-linecap="round"/>
     <circle cx="106" cy="152" r="8" fill="#e8b494"/>
@@ -448,11 +489,13 @@ function tristanAnlegen(raum) {
   raum.appendChild(el);
   tristanFoto().then((url) => {
     if (!url) return;
-    // Das Foto ist nur der Kopf (freigestellt, nach rechts schauend); er
-    // sitzt auf der gezeichneten Figur im blauen Kittel, Arme und Beine
-    // bleiben gezeichnet und laufen weiter
-    const g = el.querySelector(".tr-kopf");
-    g.innerHTML = `<image href="${url}" x="26" y="16" width="64" height="84" preserveAspectRatio="xMidYMax meet"/>`;
+    // Seit 1.504.0 ist das Foto die ganze Person bis zur Hüfte
+    // (freigestellt, nach rechts schauend; Wunsch Patrick 12. November
+    // 2026: „baue die ganze Person von Tristan ein, nicht nur den Kopf“):
+    // es ersetzt Kittel und Kopf, Beine und Arme mit der Schaufel bleiben
+    // gezeichnet und laufen weiter (Jeans und nackte Arme, CSS)
+    el.querySelector(".tr-oben").innerHTML = "";
+    el.querySelector(".tr-foto").innerHTML = `<image href="${url}" x="16" y="18" width="84" height="186" preserveAspectRatio="xMidYMax meet"/>`;
     el.classList.add("tr-tristan--foto");
   });
   let an = false, x = 0, dir = 1, k = 1, tempo = 0, w = 0, h = 0, plopps = 0;
@@ -503,6 +546,9 @@ function haufenAnlegen(raum) {
   let w = 0, h = 0, q = 1, sprites = new Map(), D = 0, zelle = 1;
   const fliegt = [], gitter = new Map();
   let liegen = 0, raus = 0, voll = false, runden = 0, zurueck = 0, zurueckWarte = 0;
+  // Gezielte Würfe auf den Tänzer (seit 1.500.0): ziel() liefert ihn im
+  // Raum der Dosen, getroffen() lässt ihn umfallen; beides setzt Durchfahrt
+  let treffer = 0, trefferWarte = 0;
   // Beim Abfliessen fallen alle liegenden Bälle durch den offenen Boden,
   // die untersten zuerst; danach füllt sich die Tafel wieder
   let abfluss = [], grenze = 0, grenzeAm = 0;
@@ -571,12 +617,27 @@ function haufenAnlegen(raum) {
         if (steigen > 0) b.vy = -Math.sqrt(2 * b.g * steigen) * zufall(1, 1.15);
         // Ab und zu wirft Tristan eine Dose hoch zum Tänzer zurück (seit
         // 1.499.0, Wunsch Patrick 12. November 2026: „ab und zu kann er eine
-        // zurückwerfen“): sie fliegt oben aus der Tafel hinaus
-        if (steigen > 0 && zurueckWarte <= 0 && Math.random() < .2) {
-          zurueckWarte = zufall(2.5, 5); zurueck++;
+        // zurückwerfen“), seit 1.504.0 öfter, und ab und zu zielt er auf
+        // den Tänzer und trifft ihn, der fällt um (Wunsch Patrick
+        // 12. November 2026: „öfter zurückwerfen, und ab und zu soll er
+        // den Werfer treffen und der fällt dann um“)
+        if (steigen > 0 && zurueckWarte <= 0 && Math.random() < .5) {
+          zurueckWarte = zufall(.6, 1.4); zurueck++;
           b.zurueck = true; b.warte = 0;
-          b.vy = -Math.sqrt(2 * b.g * (b.y + D * 3)) * zufall(1.05, 1.15);
-          b.vx = (w * zufall(.3, .7) - b.x) * zufall(.35, .5);
+          const z = haufen.ziel && haufen.ziel();
+          if (z && trefferWarte <= 0 && (haufen.immerTreffen || Math.random() < .3)) {
+            // Wurfbahn genau auf den Tänzer, noch im Steigen, dorthin, wo
+            // er sein wird, wenn die Dose ankommt
+            trefferWarte = haufen.immerTreffen ? 0 : zufall(5, 10);
+            const hoch = Math.max(D * 2, b.y - z.y);
+            const T = Math.sqrt(2 * hoch / b.g) * zufall(.75, .9);
+            b.vx = (z.x + z.vx * T - b.x) / T;
+            b.vy = (z.y - b.y - .5 * b.g * T * T) / T;
+            b.zielen = true;
+          } else {
+            b.vy = -Math.sqrt(2 * b.g * (b.y + D * 3)) * zufall(1.05, 1.15);
+            b.vx = (w * zufall(.3, .7) - b.x) * zufall(.35, .5);
+          }
         }
         abfluss.push(b);
       }
@@ -701,6 +762,7 @@ function haufenAnlegen(raum) {
       }
     }
     if (oben) abfliessen();
+    trefferWarte -= dt;
     if (voll) { zurueckWarte -= dt; tristan.schritt(dt); zurTonne(); }
     // Die Dosen auf dem Weg in die Tonne: ohne Stösse, jede für sich,
     // sie ziehen zur Tonne hin und verschwinden hinter ihrem Rand
@@ -711,6 +773,13 @@ function haufenAnlegen(raum) {
       b.vy += b.g * dt; b.y += b.vy * dt;
       if (b.zurueck) {
         b.x += b.vx * dt; b.dreh += 9 * dt;
+        // Trifft die gezielte Dose den Tänzer, prallt sie ab und er fällt um
+        const z = b.zielen && haufen.ziel && haufen.ziel();
+        if (z && Math.abs(b.x - z.x) < z.b / 2 + b.d / 2 && Math.abs(b.y - z.y) < z.h / 2 + b.d / 2) {
+          b.zielen = false; treffer++;
+          b.vx = -b.vx * .3 + (Math.random() - .5) * D * 4; b.vy = Math.abs(b.vy) * .2;
+          if (haufen.getroffen) haufen.getroffen();
+        }
         if ((b.vy < 0 && b.y < -b.d * 2) || b.y > h + b.d) { abfluss.splice(i, 1); raus++; }
         continue;
       }
@@ -728,7 +797,8 @@ function haufenAnlegen(raum) {
   };
 
   const haufen = { fliegt, neu, schritt, durchmesser, voll: () => voll, liegen: () => liegen, raus: () => raus,
-    runden: () => runden, grenze: () => grenzeMessen(), abfluss: () => abfluss.length, tristan: () => tristan.unterwegs(), zurueck: () => zurueck };
+    runden: () => runden, grenze: () => grenzeMessen(), abfluss: () => abfluss.length, tristan: () => tristan.unterwegs(), zurueck: () => zurueck,
+    treffer: () => treffer, ziel: null, getroffen: null, immerTreffen: false };
   // Für den Prüfstand: viele Bälle auf einmal oben einwerfen
   if (window.TEST) window.TEST.dosen = window.TEST.tennis = Object.assign(haufen, {
     regen: (anzahl) => {

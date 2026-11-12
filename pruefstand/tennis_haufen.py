@@ -78,6 +78,18 @@ with sync_playwright() as p:
         if pg.evaluate("TEST.dosen.fliegt.length") < 60: pg.evaluate("TEST.dosen.regen(25)")
         pg.wait_for_timeout(500)
     pruefe(pg.evaluate("TEST.dosen.zurueck()") >= 1, "Tristan wirft Dosen zurück: %d" % pg.evaluate("TEST.dosen.zurueck()"))
+    # Seit 1.504.0 trifft Tristan ab und zu den Tänzer, der fällt um
+    pg.evaluate("TEST.dosen.immerTreffen = true")
+    um = False
+    t0 = time.time()
+    while time.time() - t0 < 240 and not um:
+        if pg.evaluate("TEST.dosen.umgefallen()"):
+            um = True; pg.wait_for_timeout(500)
+            pg.screenshot(path=os.path.join(BILDER, "taenzer_umgefallen.png")); break
+        if not pg.evaluate("TEST.dosen.voll()") and pg.evaluate("TEST.dosen.fliegt.length") < 60: pg.evaluate("TEST.dosen.regen(25)")
+        pg.wait_for_timeout(150)
+    pruefe(pg.evaluate("TEST.dosen.treffer()") >= 1 and um, "Tänzer getroffen und umgefallen: %d Treffer" % pg.evaluate("TEST.dosen.treffer()"))
+    pg.evaluate("TEST.dosen.immerTreffen = false")
     # Liegen innerhalb der Tafel
     fps = pg.evaluate("""() => new Promise(r => { let n = 0; const t = performance.now();
       const f = () => { n++; if (performance.now() - t < 2000) requestAnimationFrame(f); else r(n / 2); }; requestAnimationFrame(f); })""")
