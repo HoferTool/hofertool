@@ -15,7 +15,10 @@ import { alt } from "../bruecke.jsx";
 import { GRUPPEN, gruppeText, VORLAGEN, vorlagenLaden, Vorschau, ansehen, ablageName, endungVon,
   geaendert } from "../pad/Wartung.jsx";
 
-let merkGruppe = "langdreher";
+// Seit 1.505.1 zuerst „Alle“: alle sehen alle Vorlagen (Wunsch Patrick
+// 12. November 2026: „Wartungsvorlagen sollen alle alle sehen“)
+let merkGruppe = "alle";
+const gruppeOder = (g) => (g && g !== "alle" ? g : "langdreher");
 
 export default function WartungVorlagen() {
   const [gruppe, setGruppe] = useState(merkGruppe);
@@ -46,7 +49,7 @@ export default function WartungVorlagen() {
         felder: [
           { name: "titel", label: "Was ist zu tun?", pflicht: true,
             wert: datei.name.replace(/\.[^.]+$/, "").replace(/[_]+/g, " ").trim() },
-          { name: "gruppe", label: "Gruppe", wert: gruppe, auswahl: GRUPPEN },
+          { name: "gruppe", label: "Gruppe", wert: gruppeOder(gruppe), auswahl: GRUPPEN },
         ],
         bestaetigen: "Ablegen" });
       if (!w) continue;
@@ -57,12 +60,12 @@ export default function WartungVorlagen() {
           { contentType: datei.type || (pdf ? "application/pdf" : "application/octet-stream"), upsert: false });
         if (up.error) throw up.error;
         const url = alt.db.storage.from("zeichnungen").getPublicUrl(pfad).data.publicUrl;
-        const ein = await alt.db.from(VORLAGEN).insert({ gruppe: w.gruppe || gruppe, titel: w.titel.trim(), url, pfad,
+        const ein = await alt.db.from(VORLAGEN).insert({ gruppe: w.gruppe || gruppeOder(gruppe), titel: w.titel.trim(), url, pfad,
           dateiname: datei.name, art: pdf ? "pdf" : "bild" }).select("id");
         if (ein.error) throw ein.error;
         const neu = ((ein.data || [])[0] || {}).id;
         if (neu) alt.merkeSchritt("Vorlage " + w.titel.trim(), alt.rueckWeg(VORLAGEN, { id: neu }));
-        alt.meldung("Vorlage abgelegt: " + w.titel.trim() + " (" + gruppeText(w.gruppe || gruppe) + ")", "gut");
+        alt.meldung("Vorlage abgelegt: " + w.titel.trim() + " (" + gruppeText(w.gruppe || gruppeOder(gruppe)) + ")", "gut");
         if (w.gruppe && w.gruppe !== gruppe) gruppeWaehlen(w.gruppe);
       } catch (f) {
         const t = alt.fehlertext(f);
@@ -99,14 +102,14 @@ export default function WartungVorlagen() {
     geaendert();
   };
 
-  const liste = (vorlagen || []).filter((v) => (v.gruppe || "langdreher") === gruppe);
+  const liste = (vorlagen || []).filter((v) => gruppe === "alle" || (v.gruppe || "langdreher") === gruppe);
   return (
     <div className="wartung wartung--einstellungen" id="wartung-vorlagen">
       <div className="es-wartung__art" role="tablist">
-        {GRUPPEN.map(([g, t]) => (
+        {[["alle", "Alle"]].concat(GRUPPEN).map(([g, t]) => (
           <button key={g} role="tab" aria-selected={g === gruppe} data-vorlage-gruppe={g}
             className={"knopf" + (g === gruppe ? " knopf--haupt" : "")} onClick={() => gruppeWaehlen(g)}>
-            {t} <span className="es-wartung__zahl">{(vorlagen || []).filter((v) => (v.gruppe || "langdreher") === g).length}</span>
+            {t} <span className="es-wartung__zahl">{(vorlagen || []).filter((v) => g === "alle" || (v.gruppe || "langdreher") === g).length}</span>
           </button>))}
         {darf && <button className="knopf knopf--haupt wartung-vorlagen__neu" id="vorlage-neu" disabled={!!laedt}
           onClick={() => wahl.current && wahl.current.click()}>+ Bild oder PDF</button>}
@@ -119,7 +122,7 @@ export default function WartungVorlagen() {
       {laedt && <p className="unterlagen__laedt">Lädt hoch: {laedt} …</p>}
       {fehler && <p className="fehlertext">{fehler}</p>}
       {vorlagen === null ? <p className="klein">Lädt …</p>
-        : !liste.length ? <p className="unterlagen__leer">Noch keine Vorlagen für {gruppeText(gruppe)}.
+        : !liste.length ? <p className="unterlagen__leer">Noch keine Vorlagen{gruppe === "alle" ? "" : " für " + gruppeText(gruppe)}.
             {darf ? " Mit „+ Bild oder PDF“ beginnen." : ""}</p>
         : <ul className="wartung__liste">
             {liste.map((v) => (

@@ -159,7 +159,10 @@ with sync_playwright() as p:
     pg.click("[data-einst='wartung']"); pg.wait_for_timeout(700)
     # 1.353.0: zuerst Vorlagen nach Langdreher, Kurzdreher, Extern
     pruefe("Reiter Vorlagen zuerst offen", pg.locator("#wartung-vorlagen").count() == 1
-           and pg.locator("#wartung-vorlagen [data-vorlage-gruppe]").count() == 3)
+           and pg.locator("#wartung-vorlagen [data-vorlage-gruppe]").count() == 4
+           and pg.locator("#wartung-vorlagen [data-vorlage-gruppe='alle'][aria-selected=true]").count() == 1)
+    # 1.505.1: in „Alle“ abgelegt geht in Langdreher
+
     pg.set_input_files("#vorlage-datei", files=[{"name": "Langdreher Öl.png", "mimeType": "image/png", "buffer": PNG}])
     pg.wait_for_selector(".dialog-huelle:nth-last-child(1 of .dialog-huelle) [data-ja]"); pg.wait_for_timeout(300)
     pg.click(".dialog-huelle:nth-last-child(1 of .dialog-huelle) [data-ja]"); pg.wait_for_timeout(900)
@@ -216,7 +219,7 @@ with sync_playwright() as p:
     vorher = pg.evaluate("TEST.daten.wartung_plan.length")
     typplan = pg.evaluate("TEST.daten.wartung_plan.find(p => p.type_id === 't1')")
     pg.click("#wartung-vorhanden"); pg.wait_for_timeout(500)
-    pruefe("Auswahl öffnet bei Langdreher", pg.locator("#wartung-wahl [data-vorlage-gruppe='langdreher'][aria-selected=true]").count() == 1)
+    pruefe("Auswahl öffnet bei Alle (1.505.1)", pg.locator("#wartung-wahl [data-vorlage-gruppe='alle'][aria-selected=true]").count() == 1)
     if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-vorhanden.png"))
     pg.click("#wartung-wahl [data-vorlage-gruppe='bisher']"); pg.wait_for_timeout(300)
     pg.locator(".dialog-huelle:nth-last-child(1 of .dialog-huelle) button").filter(has_text=typplan["titel"]).first.click(); pg.wait_for_timeout(500)
@@ -270,8 +273,10 @@ with sync_playwright() as p:
     if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-pad-ziele.png"))
     # 1.353.0: Vorlage an der Maschine wählen und dem ganzen Park zuteilen
     pg.click("#wartung-vorhanden"); pg.wait_for_selector("#wartung-wahl"); pg.wait_for_timeout(400)
-    pruefe("im Pad: Gruppe Langdreher vorgewählt", pg.locator("#wartung-wahl [data-vorlage-gruppe='langdreher'][aria-selected=true]").count() == 1
-           and pg.locator("#wartung-wahl [data-vorlage]").count() == 1)
+    pruefe("im Pad: Alle vorgewählt, beide Vorlagen", pg.locator("#wartung-wahl [data-vorlage-gruppe='alle'][aria-selected=true]").count() == 1
+           and pg.locator("#wartung-wahl [data-vorlage]").count() == 2)
+    pg.click("#wartung-wahl [data-vorlage-gruppe='langdreher']"); pg.wait_for_timeout(300)
+    pruefe("im Pad: Langdreher zeigt nur ihre", pg.locator("#wartung-wahl [data-vorlage]").count() == 1)
     if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-vorlage-wahl.png"))
     pg.locator("#wartung-wahl [data-vorlage]").first.click(); pg.wait_for_timeout(500)
     pg.evaluate("""(pk) => { const s = [...document.querySelectorAll('.dialog-huelle:nth-last-child(1 of .dialog-huelle) select')]

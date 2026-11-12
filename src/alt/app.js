@@ -159,7 +159,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.505.0";
+const APP_VERSION = "1.505.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3393,10 +3393,13 @@ async function ladeParksFrisch(auchInaktive, ganz) {
   if (error) throw error;
   // Alle Parks merken, damit der Namensvergleich funktioniert
   plan.parksAlle = data || [];
-  // Eigene Parks nach Name, externe Maschinen immer zuletzt
+  // Eigene Parks nach Reihenfolge (sort_order, gesetzt seit 1.505.1, als der
+  // Langdreherpark in SB-20RG Park, SW-20 Park und Playmobile Abteilung
+  // aufgeteilt wurde), ohne Reihenfolge (0) danach nach Name, externe immer zuletzt
   const extern = (p) => /extern|lohn|fremd/i.test(String(p.name || "")) ? 1 : 0;
+  const reihe = (p) => Number(p.sort_order) > 0 ? Number(p.sort_order) : 999;
   return (data || []).filter((p) => ganz || parkErlaubt(p.id))
-    .sort((a, b) => extern(a) - extern(b)
+    .sort((a, b) => extern(a) - extern(b) || reihe(a) - reihe(b)
       || String(a.name || "").localeCompare(String(b.name || ""), "de"));
 }
 

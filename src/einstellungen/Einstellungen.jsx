@@ -73,9 +73,11 @@ function Einstellungen({ zu }) {
   // bearbeiten“ (seit 1.172.0, Wunsch Patrick 24. Oktober 2026)
   const mat = alt.darfMaterialplatz();
   const temp = !alt.istExtern() && alt.meineRolle() !== "dienst";
-  // Wartung im Pad Mode: alle mit Schreibrecht ausser Externen, Dienst und
-  // Gerätekonten (die bleiben bei Allgemein, Dokumente, Backup), seit 1.337.0
-  const wartung = alt.darfSchreiben() && !alt.istExtern() && !["dienst", "planwand"].includes(alt.meineRolle());
+  // Wartung im Pad Mode: seit 1.505.1 sehen alle ausser Externen und Dienst
+  // die Vorlagen und Zuteilungen (Wunsch Patrick 12. November 2026:
+  // „Wartungsvorlagen sollen alle alle sehen“); ablegen und ändern weiter nur
+  // mit Schreibrecht (`darf` in WartungVorlagen.jsx und Wartung.jsx)
+  const wartung = !alt.istExtern() && alt.meineRolle() !== "dienst";
   const reiter = REITER.filter(([, , wer]) => wer === "temp" ? temp : wer === "wartung" ? wartung
     : !wer || bin || (wer === "dok" && dok) || (wer === "mat" && mat));
   if (!reiter.some(([w]) => w === alt.einst.reiter)) alt.einst.reiter = reiter[0][0];

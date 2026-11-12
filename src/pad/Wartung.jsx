@@ -330,14 +330,16 @@ function naechstesAnMaschine(m, { plaene, info, typ }) {
 export const VORLAGEN = "wartung_vorlagen";
 export const GRUPPEN = [["langdreher", "Langdreher"], ["kurzdreher", "Kurzdreher"], ["extern", "Extern"]];
 export const gruppeText = (g) => (GRUPPEN.find((x) => x[0] === g) || GRUPPEN[0])[1];
-// Gruppe nach dem Namen des Parks (Langdreherpark, Kurzdreherpark, Multitasking, Extern)
+// Gruppe nach dem Namen des Parks (SB-20RG Park, SW-20 Park, Playmobile Abteilung, Kurzdreherpark, Multitasking, Extern)
 export function gruppeVonPark(name) {
   const n = String(name || "").toLowerCase();
   if (/extern/.test(n)) return "extern";
   // Multitasking (Macodel) war bis 1.477.1 im Kurzdreherpark und nimmt
   // weiter die Vorlagen der Kurzdreher
   if (/kurz|multi/.test(n)) return "kurzdreher";
-  if (/lang/.test(n)) return "langdreher";
+  // Der Langdreherpark heisst seit 1.505.1 Playmobile Abteilung, dazu
+  // SB-20RG Park und SW-20 Park: alle nehmen die Vorlagen der Langdreher
+  if (/lang|playmobil|sw-?20|sb-?20/.test(n)) return "langdreher";
   return null;
 }
 export async function vorlagenLaden() {
@@ -351,9 +353,12 @@ export async function vorlagenLaden() {
 // keine Vorlage sind). Gibt { titel, url, pfad, dateiname, art,
 // wiederholung? } oder null.
 function VorlagenWahl({ vorlagen, bisher, gruppe, namen, fertig }) {
-  const reiter = GRUPPEN.concat(bisher.length ? [["bisher", "Bisher zugeteilt"]] : []);
-  const [g, setG] = useState(gruppe || "langdreher");
-  const liste = g === "bisher" ? bisher : vorlagen.filter((v) => (v.gruppe || "langdreher") === g);
+  // „Alle“ zuerst (seit 1.505.1, Wunsch Patrick 12. November 2026:
+  // „Wartungsvorlagen sollen alle alle sehen“), die Gruppen bleiben zum Eingrenzen
+  const reiter = [["alle", "Alle"]].concat(GRUPPEN, bisher.length ? [["bisher", "Bisher zugeteilt"]] : []);
+  const [g, setG] = useState(gruppe || "alle");
+  const inG = (v, k) => k === "alle" || (v.gruppe || "langdreher") === k;
+  const liste = g === "bisher" ? bisher : vorlagen.filter((v) => inG(v, g));
   return (
     <div className="dialog dialog--breit wartung wartung-wahl" id="wartung-wahl">
       <div className="blatt__kopf">
@@ -362,7 +367,7 @@ function VorlagenWahl({ vorlagen, bisher, gruppe, namen, fertig }) {
       </div>
       <div className="es-wartung__art" role="tablist">
         {reiter.map(([k, t]) => {
-          const n = k === "bisher" ? bisher.length : vorlagen.filter((v) => (v.gruppe || "langdreher") === k).length;
+          const n = k === "bisher" ? bisher.length : vorlagen.filter((v) => inG(v, k)).length;
           return <button key={k} role="tab" aria-selected={k === g} data-vorlage-gruppe={k}
             className={"knopf" + (k === g ? " knopf--haupt" : "")} onClick={() => setG(k)}>
             {t} <span className="es-wartung__zahl">{n}</span></button>;
@@ -370,7 +375,7 @@ function VorlagenWahl({ vorlagen, bisher, gruppe, namen, fertig }) {
       </div>
       <p className="klein">Die Datei bleibt dieselbe. Danach wählen, wofür sie gilt, und den Termin setzen.
         Vorlagen ablegen unter Einstellungen → Wartung → Vorlagen.</p>
-      {!liste.length ? <p className="unterlagen__leer">Keine Vorlagen in {gruppeText(g)}.</p>
+      {!liste.length ? <p className="unterlagen__leer">Keine Vorlagen{g === "alle" ? "" : " in " + gruppeText(g)}.</p>
         : <ul className="wartung-wahl__liste">
             {liste.map((v) => (
               <li key={v.id}>
@@ -394,11 +399,8 @@ export async function vorlageWaehlen({ gruppe, namen, mitBisher = true }) {
     alt.meldung("Es ist noch keine Vorlage abgelegt (Einstellungen → Wartung → Vorlagen).", "warn");
     return null;
   }
-  // Ohne Vorlage in der eigenen Gruppe die erste mit Inhalt
-  let g = gruppe;
-  if (!g || !vorlagen.some((v) => v.gruppe === g)) {
-    g = (GRUPPEN.find(([k]) => vorlagen.some((v) => v.gruppe === k)) || [bisher.length ? "bisher" : gruppe || "langdreher"])[0];
-  }
+  // Immer zuerst alle Vorlagen (seit 1.505.1), ohne Vorlagen „Bisher zugeteilt“
+  const g = vorlagen.length ? "alle" : "bisher";
   return new Promise((fertig) => {
     let ende = false;
     const fertigMit = (wert) => { if (!ende) { ende = true; fertig(wert); } };
