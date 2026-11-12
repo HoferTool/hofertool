@@ -1,5 +1,5 @@
 // =================================================================
-//  SENIORENMOBIL MIT TENNISBALLKANONE, IM BAND OBEN
+//  TÄNZER MIT NOCCO-DOSEN, IM BAND OBEN
 //  Geschichte (alles Wunsch Patrick): 1.130.0 bis 1.149.0 liefen hier
 //  Hühner, 1.150.0 Ferrari und Mario, 1.151.0 bis 1.210.x Jiviano auf
 //  dem Jetski, 1.211.0 bis 1.323.x zogen Hühner mit ihrem Stall um,
@@ -32,109 +32,58 @@
 //  nichts mehr oben über: reicht der Haufen bis an die Unterkante des
 //  Bands mit Geburtstagen und Terminen, öffnet sich der Boden, alle Bälle
 //  rinnen von unten her aus der Tafel, und danach füllt sie sich neu.
+//  Seit 1.495.0 (12. November 2026: „Nimm die Tennisballkanone raus und
+//  lass ihn tanzend durchlaufen, er soll noch Nocco-Getränke werfen“)
+//  statt Mobil und Kanone ein Tänzer (Foto nur in der Datenbank,
+//  app_config.durchfahrt_taenzer; ohne Foto eine gezeichnete Figur): er
+//  läuft hüpfend und schwingend durchs Band, dreht sich ab und zu um sich
+//  selbst, Noten steigen von den Kopfhörern auf, und statt Tennisbällen
+//  wirft er Nocco-Dosen, die im Infoboard genauso liegen bleiben, sich
+//  stapeln und unter dem Kalender abfliessen.
 //  Alles in einer Schleife mit requestAnimationFrame statt React-Zustand,
 //  damit die Seite dafür nie neu zeichnet.
 // =================================================================
 import { useEffect, useRef } from "react";
+import { alt } from "../../bruecke.jsx";
 
 const zufall = (a, b) => a + Math.random() * (b - a);
 const ganz = (a, b) => Math.floor(zufall(a, b + 1));
 
-// Das Mobil mit Fahrer, Blick nach rechts, Raster 220 × 160, Räder
-// stehen auf y 158. Drehpunkt der Kanone (172, 60); .gm-muendung ist die
-// Stelle, an der die Bälle herauskommen.
-const MOBIL = `<svg viewBox="0 0 220 160" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="gm-rot" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff4a4a"/><stop offset=".35" stop-color="#d4141c"/><stop offset="1" stop-color="#7a0509"/></linearGradient>
-    <linearGradient id="gm-sitz" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5a5f68"/><stop offset=".5" stop-color="#2e3238"/><stop offset="1" stop-color="#15171b"/></linearGradient>
-    <linearGradient id="gm-rohr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e3e7ec"/><stop offset=".45" stop-color="#8d949c"/><stop offset="1" stop-color="#3d4248"/></linearGradient>
-    <radialGradient id="gm-haut" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#ffe0c7"/><stop offset="1" stop-color="#e2a98a"/></radialGradient>
-    <radialGradient id="gm-ball" cx="35%" cy="30%" r="70%"><stop offset="0" stop-color="#f4fb7a"/><stop offset=".6" stop-color="#d3e12c"/><stop offset="1" stop-color="#9aab17"/></radialGradient>
-  </defs>
-  <ellipse cx="108" cy="158" rx="98" ry="4" fill="#000" opacity=".25"/>
-  <g class="gm-wagen">
-    <!-- Sitz: Rückenlehne, Kopfstütze, Armlehne (hinter dem Fahrer) -->
-    <rect x="61" y="90" width="7" height="20" fill="#3b3f45"/>
-    <path d="M30 92 L27 48 C27 41 31 38 38 38 L47 38 C52 38 54 42 54 47 L52 90 Z" fill="url(#gm-sitz)"/>
-    <path d="M35 46 L36 86 M41 45 L42 86 M47 46 L47 86" stroke="#1b1d21" stroke-width="1"/>
-    <rect x="29" y="20" width="23" height="16" rx="6" fill="url(#gm-sitz)"/>
-    <rect x="38" y="35" width="4" height="5" fill="#2a2d32"/>
-    <rect x="44" y="68" width="38" height="6" rx="3" fill="#25282d"/>
-    <path d="M78 74 L80 90" stroke="#25282d" stroke-width="4"/>
-    <!-- Grundkörper rot, Trittbrett, vordere Haube -->
-    <path d="M18 136 C13 120 22 106 44 106 L110 106 C118 106 121 112 121 119 L121 136 Z" fill="url(#gm-rot)"/>
-    <path d="M24 112 C40 108 90 108 114 110" stroke="#ff9a9a" stroke-width="2" fill="none" opacity=".7"/>
-    <rect x="119" y="125" width="32" height="8" fill="#26282c"/>
-    <rect x="117" y="131" width="35" height="6" rx="2" fill="url(#gm-rot)"/>
-    <rect x="134" y="132" width="8" height="3" fill="#ff9d1c"/>
-    <path d="M146 137 L146 118 C148 104 163 100 177 106 C189 111 193 123 191 137 Z" fill="url(#gm-rot)"/>
-    <path d="M152 112 C158 105 170 104 178 108" stroke="#ff9a9a" stroke-width="2" fill="none" opacity=".7"/>
-    <rect x="176" y="128" width="24" height="9" rx="4" fill="#1d1f23"/>
-    <ellipse cx="180" cy="114" rx="6" ry="4.5" fill="#f4f4f0" stroke="#9a9a9a" stroke-width="1"/>
-    <!-- Lenksäule mit Faltenbalg, Kopf mit Anzeige, Lenker, Spiegel, Blinker -->
-    <path d="M148 110 L160 110 L158 104 L150 104 L158 100 L148 100 L156 96 L146 96 Z" fill="#1d1f23"/>
-    <path d="M145 97 L157 97 L148 54 L136 54 Z" fill="url(#gm-rot)"/>
-    <path d="M132 56 C130 46 136 40 144 40 C152 40 156 46 154 56 Z" fill="url(#gm-rot)"/>
-    <ellipse cx="143" cy="49" rx="5" ry="4" fill="#1b2a3a"/>
-    <path d="M128 52 L156 50" stroke="#1d1f23" stroke-width="4.5" stroke-linecap="round"/>
-    <path d="M136 50 L131 32 M152 49 L157 31" stroke="#2a2c30" stroke-width="2"/>
-    <ellipse cx="130" cy="29" rx="4" ry="5.5" fill="#1d1f23"/><ellipse cx="158" cy="28" rx="4" ry="5.5" fill="#1d1f23"/>
-    <rect x="131" y="55" width="5" height="3" rx="1" fill="#ff8a00"/><rect x="152" y="54" width="5" height="3" rx="1" fill="#ff8a00"/>
-    <!-- Drahtkorb mit Tennisbällen -->
-    <circle cx="164" cy="61" r="5" fill="url(#gm-ball)"/><circle cx="174" cy="60" r="5" fill="url(#gm-ball)"/><circle cx="183" cy="61" r="4.5" fill="url(#gm-ball)"/>
-    <path d="M155 62 L190 60 L186 90 L159 92 Z" fill="#2b2d31" opacity=".35"/>
-    <path d="M155 62 L190 60 L186 90 L159 92 Z M156 70 L189 68 M157 78 L188 76 M158 86 L187 84 M162 62 L165 92 M169 61.6 L171 91.5 M176 61.2 L177 91 M183 60.6 L182 90.6"
-      stroke="#2b2d31" stroke-width="1.3" fill="none"/>
-    <path d="M150 80 L158 80" stroke="#2b2d31" stroke-width="3"/>
-    <!-- Fahrer: Grossvater mit Mütze, Brille, Schnauz und Schal -->
-    <path d="M60 84 L104 86" stroke="#5b4a3a" stroke-width="13" stroke-linecap="round"/>
-    <path d="M104 86 L113 118" stroke="#5b4a3a" stroke-width="11" stroke-linecap="round"/>
-    <ellipse cx="119" cy="122" rx="10" ry="4.5" fill="#2a1c12"/>
-    <path d="M47 86 C45 68 47 53 57 47 C66 42 75 46 77 55 L79 86 Z" fill="#c9b48a"/>
-    <path d="M47 86 C46 72 47 60 51 54" stroke="#a8946b" stroke-width="2" fill="none"/>
-    <circle cx="73" cy="62" r="1.3" fill="#6b5a3a"/><circle cx="74" cy="70" r="1.3" fill="#6b5a3a"/><circle cx="75" cy="78" r="1.3" fill="#6b5a3a"/>
-    <g class="gm-schal"><path d="M60 46 C56 50 48 52 38 50 L36 56 C46 58 56 56 62 51 Z" fill="#c8202a"/>
-      <path d="M38 50 l-4 1 M37 53 l-4 1 M36 56 l-4 1" stroke="#c8202a" stroke-width="1.5"/></g>
-    <path d="M60 44 C64 48 72 48 76 44 L76 49 C72 53 64 53 60 49 Z" fill="#c8202a"/>
-    <g class="gm-kopf">
-      <rect x="65" y="38" width="7" height="8" fill="#e8b494"/>
-      <circle cx="69" cy="31" r="11.5" fill="url(#gm-haut)"/>
-      <path d="M58 28 C56 34 58 40 62 42 C60 36 61 31 63 29 Z" fill="#f2f2f2"/>
-      <ellipse cx="63" cy="32" rx="2.3" ry="3.2" fill="#e2a98a"/>
-      <path d="M80 29 C84 31 84 35 80.5 35.5" fill="#f0bf9d" stroke="#d29878" stroke-width=".8"/>
-      <circle cx="75.5" cy="29.5" r="3.6" fill="#cfe4f2" fill-opacity=".45" stroke="#2b2b2b" stroke-width="1.2"/>
-      <path d="M71.9 29 L64 29.5" stroke="#2b2b2b" stroke-width="1"/>
-      <circle cx="76" cy="29.6" r="1" fill="#2b2b2b"/>
-      <path d="M72.5 25 L78.5 24.5" stroke="#f4f4f4" stroke-width="1.6" stroke-linecap="round"/>
-      <path d="M73 37.5 C75 35 80 35 82.5 37.5 C80 39.5 76 39.5 73 37.5 Z" fill="#f6f6f6"/>
-      <path d="M75 40.5 C77 41.5 79 41.3 80 40.5" stroke="#9a5a4a" stroke-width="1" fill="none"/>
-      <path d="M57 26 C58 15 75 13 81 21 L89 23.5 C87 27 82 27.5 79 26.5 L57 28 Z" fill="#6b5a46"/>
-      <path d="M60 22 C66 18 74 18 79 21" stroke="#8a7760" stroke-width="1.2" fill="none"/>
-    </g>
-    <path d="M66 55 L92 71" stroke="#c9b48a" stroke-width="9" stroke-linecap="round"/>
-    <path d="M92 71 L127 52" stroke="#c9b48a" stroke-width="8" stroke-linecap="round"/>
-    <circle cx="129" cy="51" r="4.6" fill="url(#gm-haut)"/>
-    <!-- Kanone auf dem Korb: Sockel, Rohr mit Ring, Mündung -->
-    <path d="M162 64 L184 63 L182 70 L164 71 Z" fill="#30343a"/>
-    <g class="gm-kanone" transform="rotate(-25 172 60)">
-      <g class="gm-rohr">
-        <rect x="162" y="53" width="48" height="14" rx="4" fill="url(#gm-rohr)"/>
-        <rect x="180" y="52" width="6" height="16" rx="1.5" fill="#d3e12c"/>
-        <rect x="205" y="51" width="9" height="18" rx="3" fill="#3d4248"/>
-        <ellipse cx="214" cy="60" rx="2.2" ry="6.5" fill="#111"/>
-        <circle class="gm-muendung" cx="214" cy="60" r="1" fill="none"/>
-      </g>
-      <circle cx="172" cy="60" r="6" fill="#30343a"/><circle cx="172" cy="60" r="2.2" fill="#8d949c"/>
-    </g>
-  </g>
-  <!-- Räder drehen um ihre Mitte -->
-  <g class="gm-rad"><circle cx="48" cy="141" r="17" fill="#1b1b1d"/><circle cx="48" cy="141" r="9.5" fill="#a9afb6"/>
-    <path d="M48 132 L48 150 M39.5 141 L56.5 141 M42 135 L54 147 M54 135 L42 147" stroke="#5d6369" stroke-width="2"/><circle cx="48" cy="141" r="3.5" fill="#3a3d42"/></g>
-  <g class="gm-rad"><circle cx="168" cy="141" r="17" fill="#1b1b1d"/><circle cx="168" cy="141" r="9.5" fill="#a9afb6"/>
-    <path d="M168 132 L168 150 M159.5 141 L176.5 141 M162 135 L174 147 M174 135 L162 147" stroke="#5d6369" stroke-width="2"/><circle cx="168" cy="141" r="3.5" fill="#3a3d42"/></g>
-  <path d="M28 132 C30 120 40 115 50 115 C60 115 68 121 70 131" stroke="#7a0509" stroke-width="3" fill="none"/>
-  <path d="M148 132 C150 120 160 115 170 115 C180 115 188 121 190 131" stroke="#7a0509" stroke-width="3" fill="none"/>
+// Das Foto des Tänzers steht nur in der Datenbank (app_config,
+// Schlüssel durchfahrt_taenzer, als data:-Bild), nie im Repository, weil
+// das öffentlich ist. Einmal je Laden der App geholt.
+let fotoHolen = null;
+const taenzerFoto = () => {
+  if (!fotoHolen) fotoHolen = (async () => {
+    try {
+      if (!alt.db) return null;
+      const r = await alt.db.from("app_config").select("wert").eq("schluessel", "durchfahrt_taenzer").maybeSingle();
+      const w = r && r.data && r.data.wert;
+      return typeof w === "string" && w.startsWith("data:image/") ? w : null;
+    } catch { return null; }
+  })();
+  return fotoHolen;
+};
+
+// Ohne Foto (Prüfstand, keine Verbindung): gezeichnete Figur mit
+// Kopfhörern, dunklem Pulli und schwarzer Hose, gleiches Seitenverhältnis
+// wie das Foto (102 × 300), Hand vorne rechts.
+const FIGUR = `<svg viewBox="0 0 102 300" xmlns="http://www.w3.org/2000/svg">
+  <path d="M30 196 L28 296 L50 296 L52 214 L56 296 L78 296 L76 196 Z" fill="#17181c"/>
+  <path d="M22 84 C24 64 40 58 52 58 C66 58 80 64 84 84 L86 204 L20 204 Z" fill="#1f2a44"/>
+  <path d="M40 66 L42 116 M64 66 L62 116" stroke="#e9eef4" stroke-width="2.5"/>
+  <path d="M84 96 L94 140" stroke="#1f2a44" stroke-width="13" stroke-linecap="round"/>
+  <circle cx="94" cy="142" r="7" fill="#e8b494"/>
+  <path d="M24 98 L18 176" stroke="#1f2a44" stroke-width="13" stroke-linecap="round"/>
+  <circle cx="19" cy="182" r="7" fill="#e8b494"/>
+  <rect x="44" y="46" width="14" height="14" fill="#e3a98a"/>
+  <circle cx="51" cy="32" r="17" fill="#f0c4a4"/>
+  <path d="M36 40 C38 54 64 54 66 40 C62 50 40 50 36 40 Z" fill="#a8693a"/>
+  <path d="M33 30 C33 8 69 8 69 30" stroke="#222" stroke-width="5" fill="none"/>
+  <rect x="28" y="26" width="9" height="15" rx="4" fill="#2b2b2f"/><rect x="65" y="26" width="9" height="15" rx="4" fill="#2b2b2f"/>
 </svg>`;
+// Wo die Hand ist, in Anteilen des Bilds (Foto wie Zeichnung)
+const HAND = { x: .89, y: .48 };
 
 export default function Durchfahrt() {
   const ref = useRef(null);
@@ -144,114 +93,123 @@ export default function Durchfahrt() {
     if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     let aus = false;
 
-    // Strasse unten im Band
+    // Boden unten im Band
     const strasse = document.createElement("div");
     strasse.className = "gm-strasse";
     band.appendChild(strasse);
 
-    // Wohin die Bälle fliegen: im Infoboard über die ganze Tafel (das
+    // Wohin die Dosen fliegen: im Infoboard über die ganze Tafel (das
     // Blatt in Punkten der Tafel, als Ganzes skaliert), sonst im Band
     const tafel = band.closest("[data-ibtafel]");
     const raum = document.createElement("div");
     raum.className = "gm-baelle" + (tafel ? " gm-baelle--tafel" : "");
     (tafel || band).appendChild(raum);
-    // Nur in der Anzeige des Infoboards bleiben die Bälle liegen
+    // Nur in der Anzeige des Infoboards bleiben die Dosen liegen
     const fuellen = !!tafel && !!band.closest(".ib-voll");
     const haufen = fuellen ? haufenAnlegen(raum) : null;
 
+    // Der Tänzer: aussen nur Ort und Blickrichtung, innen das Tanzen
     const mobil = document.createElement("div");
-    mobil.className = "gm-mobil";
-    mobil.innerHTML = MOBIL;
+    mobil.className = "gm-taenzer";
     mobil.style.visibility = "hidden";
+    const koerper = document.createElement("div");
+    koerper.className = "gm-koerper";
+    koerper.innerHTML = FIGUR;
+    const hand = document.createElement("i");
+    hand.className = "gm-hand";
+    hand.style.left = HAND.x * 100 + "%"; hand.style.top = HAND.y * 100 + "%";
+    koerper.appendChild(hand);
+    mobil.appendChild(koerper);
     band.appendChild(mobil);
-    const raeder = [...mobil.querySelectorAll(".gm-rad")];
-    const kanone = mobil.querySelector(".gm-kanone");
-    const rohr = mobil.querySelector(".gm-rohr");
-    const muendung = mobil.querySelector(".gm-muendung");
+    taenzerFoto().then((url) => {
+      if (!url || aus) return;
+      const img = new Image();
+      img.alt = ""; img.draggable = false; img.src = url;
+      img.onload = () => { if (!aus) koerper.replaceChild(img, koerper.querySelector("svg")); };
+    });
 
-    // Masse, neu bei jeder Fahrt (das Band ändert seine Grösse mit dem Fenster)
+    // Masse, neu bei jeder Runde (das Band ändert seine Grösse mit dem Fenster)
     let breit = 0, hoch = 0, H = 0, W = 0, boden = 0;
     const messen = () => {
       breit = band.clientWidth; hoch = band.clientHeight;
-      H = Math.max(40, Math.min(150, hoch * .62));
-      W = H * 220 / 160;
       boden = Math.max(3, hoch * .045);
+      H = Math.max(46, Math.min(190, (hoch - boden) * .76));
+      W = H * 102 / 300;
       mobil.style.width = W + "px";
       mobil.style.height = H + "px";
       mobil.style.bottom = boden + "px";
     };
 
-    // Stelle auf dem Bildschirm → Punkt im Raum der Bälle
+    // Stelle auf dem Bildschirm → Punkt im Raum der Dosen
     const raumMass = () => {
       const r = raum.getBoundingClientRect();
       const k = raum.offsetWidth ? r.width / raum.offsetWidth : 1;
       return { r, k, w: raum.offsetWidth, h: raum.offsetHeight };
     };
 
-    const baelle = [];
-    let winkel = 25;
-    const schuss = (tempoMobil, richtung) => {
-      if ((haufen ? haufen.fliegt.length > 70 : baelle.length > 40) || !raum.isConnected) return;
+    const dosen = [];
+    let wurfAb = -9;
+    const wurf = (tempoMobil, richtung, jetzt) => {
+      if ((haufen ? haufen.fliegt.length > 70 : dosen.length > 40) || !raum.isConnected) return;
       const m = raumMass();
       if (!m.w || !m.h) return;
-      const p = muendung.getBoundingClientRect();
-      const x = (p.left + p.width / 2 - m.r.left) / m.k;
-      const y = (p.top + p.height / 2 - m.r.top) / m.k;
-      // Grösse: im Band wie das Rohr, auf der Tafel gut sichtbar
+      const p = hand.getBoundingClientRect();
+      const x = (p.left - m.r.left) / m.k;
+      const y = (p.top - m.r.top) / m.k;
+      // Grösse: im Band passend zur Hand, auf der Tafel gut sichtbar
       const bandK = band.offsetWidth ? band.getBoundingClientRect().width / band.offsetWidth : 1;
-      const klein = H * .085 * bandK / m.k;
-      const gross = tafel ? Math.max(klein * 1.6, m.w * .028) : klein;
-      const a = winkel * Math.PI / 180;
+      const klein = H * .16 * bandK / m.k;
+      const gross = tafel ? Math.max(klein * 1.6, m.w * .03) : klein;
+      const a = zufall(25, 62) * Math.PI / 180;
       const g = tafel ? m.h * zufall(.5, .7) : Math.max(500, m.h * 3);
-      const tempo = tafel ? m.w * zufall(.55, 1.05) : m.w * zufall(.3, .6);
+      const tempo = tafel ? m.w * zufall(.5, 1) : m.w * zufall(.28, .55);
       const vx = richtung * Math.cos(a) * tempo + tempoMobil * .5, vy = -Math.sin(a) * tempo;
-      if (haufen) haufen.neu(x, y, klein, haufen.durchmesser(m.w), vx, vy, g);
+      const sorte = ganz(0, SORTEN.length - 1);
+      if (haufen) haufen.neu(x, y, klein, haufen.durchmesser(m.w), vx, vy, g, sorte);
       else {
         const el = document.createElement("div");
-        el.className = "gm-ball";
+        el.className = "gm-dose";
+        el.style.backgroundImage = `url(${dosenBild(64, sorte).url})`;
         raum.appendChild(el);
-        baelle.push({ el, x, y, d: klein, ziel: gross, alt: 0, ende: 9, dreh: 0, sprung: 0, g, vx, vy });
+        dosen.push({ el, x, y, d: klein, ziel: gross, alt: 0, ende: 9, dreh: 0, spin: richtung * zufall(400, 900), sprung: 0, g, vx, vy });
       }
-      // Rückstoss und Rauch an der Mündung
-      rohr.animate([{ transform: "translateX(0)" }, { transform: "translateX(-7px)" }, { transform: "translateX(0)" }],
-        { duration: 260, easing: "ease-out" });
-      const pr = band.getBoundingClientRect();
-      const puff = document.createElement("div");
-      puff.className = "gm-puff";
-      const pd = H * .22;
-      puff.style.cssText = `width:${pd}px;height:${pd}px;left:${(p.left - pr.left) / bandK - pd / 2}px;top:${(p.top - pr.top) / bandK - pd / 2}px`;
-      band.appendChild(puff);
-      puff.animate([{ transform: "scale(.3)", opacity: .9 }, { transform: `translate(${richtung * pd * .4}px, ${-pd * .5}px) scale(1.6)`, opacity: 0 }],
-        { duration: 700, easing: "ease-out", fill: "forwards" }).onfinish = () => puff.remove();
-    };
-    const zielen = () => {
-      winkel = zufall(12, 48);
-      kanone.setAttribute("transform", `rotate(${-winkel.toFixed(1)} 172 60)`);
+      wurfAb = jetzt / 1000;
     };
 
-    // Fahrt: Phasen pause → fahren (mit Halten zum Schiessen) → pause …
-    let phase = "pause", bis = performance.now() + zufall(800, 2000);
-    let x = 0, dir = 1, v = 0, halte = [], salve = 0, naechsterSchuss = 0, naechsterFahrschuss = 0;
-    const raederTempo = (tempo) => {
-      const umfang = 2 * Math.PI * 17 / 160 * H;
-      raeder.forEach((r) => {
-        r.style.animationDuration = tempo > 0 ? (umfang / tempo).toFixed(2) + "s" : "";
-        r.style.animationPlayState = tempo > 0 ? "running" : "paused";
-      });
+    // Musiknoten steigen von den Kopfhörern auf
+    const note = () => {
+      const r = koerper.getBoundingClientRect(), pr = band.getBoundingClientRect();
+      const bandK = band.offsetWidth ? pr.width / band.offsetWidth : 1;
+      if (!r.width) return;
+      const n = document.createElement("div");
+      n.className = "gm-note";
+      n.textContent = Math.random() < .5 ? "♪" : "♫";
+      const gr = H * zufall(.1, .16);
+      n.style.cssText = `font-size:${gr}px;left:${(r.left + r.width * zufall(.2, .8) - pr.left) / bandK}px;top:${(r.top - pr.top) / bandK}px`;
+      band.appendChild(n);
+      const dx = zufall(-1, 1) * H * .3;
+      n.animate([{ transform: "translate(0,0) rotate(-10deg)", opacity: 0 }, { opacity: 1, offset: .2 },
+        { transform: `translate(${dx}px, ${-H * .45}px) rotate(12deg)`, opacity: 0 }],
+        { duration: 1800, easing: "ease-out", fill: "forwards" }).onfinish = () => n.remove();
     };
-    const neueFahrt = () => {
+
+    // Runde: pause → laufen (mit Halten zum Tanzen und Werfen) → pause …
+    let phase = "pause", bis = performance.now() + zufall(800, 2000);
+    let x = 0, dir = 1, v = 0, halte = [], salve = 0, naechsterWurf = 0, naechsterLaufwurf = 0;
+    let drehAb = -9, naechsteDrehung = 0, naechsteNote = 0;
+    const neueRunde = () => {
       messen();
       dir = Math.random() < .5 ? 1 : -1;
       x = dir > 0 ? -W - 20 : breit + 20;
-      v = H * zufall(1.3, 1.9);
+      v = H * zufall(.55, .85);
       halte = [];
       for (let n = ganz(1, 2), i = 0; i < n; i++) halte.push(breit * zufall(.15, .85) - W / 2);
       halte.sort((a, b) => dir > 0 ? a - b : b - a);
       mobil.style.visibility = "";
-      naechsterFahrschuss = performance.now() + zufall(1200, 2600);
-      zielen();
-      raederTempo(v);
-      phase = "fahren";
+      const jetzt = performance.now();
+      naechsterLaufwurf = jetzt + zufall(1200, 2600);
+      naechsteDrehung = jetzt + zufall(2500, 5000);
+      phase = "laufen";
     };
 
     let vorher = performance.now();
@@ -260,59 +218,79 @@ export default function Durchfahrt() {
       if (aus) return;
       const dt = Math.min(.05, (jetzt - vorher) / 1000);
       vorher = jetzt;
+      const t = jetzt / 1000;
 
-      if (phase === "pause" && jetzt > bis) neueFahrt();
-      else if (phase === "fahren") {
+      if (phase === "pause" && jetzt > bis) neueRunde();
+      else if (phase === "laufen") {
         x += dir * v * dt;
         if (halte.length && (dir > 0 ? x >= halte[0] : x <= halte[0])) {
           halte.shift();
-          phase = "halt"; salve = haufen ? ganz(6, 11) : ganz(2, 5); naechsterSchuss = jetzt + 450;
-          raederTempo(0);
-        } else if (jetzt > naechsterFahrschuss) {
-          zielen(); schuss(dir * v, dir);
-          naechsterFahrschuss = jetzt + (haufen ? zufall(450, 1000) : zufall(1500, 3200));
+          phase = "halt"; salve = haufen ? ganz(6, 11) : ganz(2, 5); naechsterWurf = jetzt + 600;
+        } else if (jetzt > naechsterLaufwurf) {
+          wurf(dir * v, dir, jetzt);
+          naechsterLaufwurf = jetzt + (haufen ? zufall(450, 1000) : zufall(1500, 3200));
         }
         if (dir > 0 ? x > breit + 20 : x < -W - 20) {
           phase = "pause"; bis = jetzt + zufall(2500, 6000);
           mobil.style.visibility = "hidden";
-          raederTempo(0);
         }
-      } else if (phase === "halt" && jetzt > naechsterSchuss) {
+      } else if (phase === "halt" && jetzt > naechsterWurf) {
         if (salve > 0) {
-          zielen(); schuss(0, dir); salve--;
-          naechsterSchuss = jetzt + (haufen ? zufall(160, 320) : zufall(300, 650));
+          wurf(0, dir, jetzt); salve--;
+          naechsterWurf = jetzt + (haufen ? zufall(220, 420) : zufall(380, 700));
         } else {
-          phase = "fahren"; raederTempo(v);
-          naechsterFahrschuss = jetzt + zufall(1500, 3000);
+          phase = "laufen";
+          naechsterLaufwurf = jetzt + zufall(1500, 3000);
         }
+      }
+
+      // Tanzen: hüpfen im Takt, Hüften schwingen, ab und zu eine
+      // Drehung um sich selbst, beim Wurf nach vorne lehnen
+      if (phase !== "pause") {
+        const takt = t * Math.PI * (phase === "halt" ? 4.4 : 3.6);
+        const hopp = Math.abs(Math.sin(takt));
+        const stark = phase === "halt" ? 1.5 : 1;
+        let drehX = 1;
+        if (jetzt > naechsteDrehung) { drehAb = t; naechsteDrehung = jetzt + zufall(3500, 7000); }
+        const dp = (t - drehAb) / .7;
+        if (dp >= 0 && dp < 1) drehX = Math.cos(dp * Math.PI * 2);
+        const wp = (t - wurfAb) / .32;
+        const lehne = wp >= 0 && wp < 1 ? Math.sin(wp * Math.PI) * 15 : 0;
+        const schwung = Math.sin(takt / 2) * 8 * stark + lehne;
+        const tief = 1 - (1 - hopp) * .05;
+        koerper.style.transform = `translateY(${(-hopp * H * .07 * stark).toFixed(1)}px) rotate(${schwung.toFixed(1)}deg)` +
+          ` scale(${drehX.toFixed(3)}, ${tief.toFixed(3)})`;
+        if (jetzt > naechsteNote) { note(); naechsteNote = jetzt + zufall(500, 1100); }
       }
       mobil.style.transform = `translateX(${x.toFixed(1)}px)` + (dir < 0 ? " scaleX(-1)" : "");
 
       if (haufen) haufen.schritt(dt);
-      // Bälle: Wurf mit Schwerkraft, springen an allen Rändern ab
-      if (baelle.length) {
+      // Dosen: Wurf mit Schwerkraft, wirbeln, springen an allen Rändern ab
+      if (dosen.length) {
         const w = raum.offsetWidth, h = raum.offsetHeight;
-        for (let i = baelle.length - 1; i >= 0; i--) {
-          const b = baelle[i];
+        for (let i = dosen.length - 1; i >= 0; i--) {
+          const b = dosen[i];
           b.alt += dt;
           if (b.d < b.ziel) b.d = Math.min(b.ziel, b.d + (b.ziel - b.d) * dt * 6 + dt * 4);
           const r = b.d / 2;
           b.vy += b.g * dt;
           b.x += b.vx * dt; b.y += b.vy * dt;
-          if (b.x < r) { b.x = r; b.vx = Math.abs(b.vx) * .82; }
-          if (b.x > w - r) { b.x = w - r; b.vx = -Math.abs(b.vx) * .82; }
-          if (b.y < r) { b.y = r; b.vy = Math.abs(b.vy) * .8; }
+          if (b.x < r) { b.x = r; b.vx = Math.abs(b.vx) * .7; }
+          if (b.x > w - r) { b.x = w - r; b.vx = -Math.abs(b.vx) * .7; }
+          if (b.y < r) { b.y = r; b.vy = Math.abs(b.vy) * .7; }
           if (b.y > h - r) {
-            b.y = h - r; b.vy = -Math.abs(b.vy) * .72; b.vx *= .9; b.sprung++;
+            b.y = h - r; b.vy = -Math.abs(b.vy) * .5; b.vx *= .8; b.sprung++; b.spin *= .6;
             if (Math.abs(b.vy) < 60) b.vy = 0;
           }
-          b.dreh += b.vx * dt / r * 57.3;
-          // Nach dem vierten Aufprall oder 9 Sekunden blendet er aus
-          if (b.sprung >= 4 && b.ende > b.alt + .6) b.ende = b.alt + .6;
-          if (b.alt >= b.ende) { b.el.remove(); baelle.splice(i, 1); continue; }
+          b.dreh += b.spin * dt;
+          // Nach dem dritten Aufprall oder 9 Sekunden blendet sie aus
+          if (b.sprung >= 3 && b.ende > b.alt + .6) b.ende = b.alt + .6;
+          if (b.alt >= b.ende) { b.el.remove(); dosen.splice(i, 1); continue; }
           const sicht = Math.min(1, (b.ende - b.alt) / .6);
-          b.el.style.cssText = `width:${b.d.toFixed(1)}px;height:${b.d.toFixed(1)}px;opacity:${sicht.toFixed(2)};` +
-            `transform:translate(${(b.x - r).toFixed(1)}px,${(b.y - r).toFixed(1)}px) rotate(${b.dreh.toFixed(0)}deg)`;
+          const bw = b.d * 1.3, bh = bw; // Bild quadratisch, Dose darin
+          const st = b.el.style;
+          st.width = bw.toFixed(1) + "px"; st.height = bh.toFixed(1) + "px"; st.opacity = sicht.toFixed(2);
+          st.transform = `translate(${(b.x - bw / 2).toFixed(1)}px,${(b.y - bh / 2).toFixed(1)}px) rotate(${b.dreh.toFixed(0)}deg)`;
         }
       }
       rahmen = requestAnimationFrame(schritt);
@@ -334,30 +312,73 @@ export default function Durchfahrt() {
   return <div className="durchfahrt" ref={ref} aria-hidden="true" />;
 }
 
-// Ein Tennisball als Bild (Filz mit Verlauf, zwei weisse Nähte, Schatten),
-// einmal gezeichnet und danach nur noch kopiert. Rand für den Schatten.
-function ballBild(px) {
-  const rand = Math.ceil(px * .25), s = px + 2 * rand;
+// Nocco-Sorten: Farbe der Dose, Schrift, Streifen
+const SORTEN = [
+  { grund: "#ffd21f", hell: "#fff27a", schrift: "#1b3fae", band: "#1b3fae" },   // Caribbean
+  { grund: "#ff4f9a", hell: "#ff9cc6", schrift: "#ffffff", band: "#ffd400" },   // Miami
+  { grund: "#7ccf3c", hell: "#c3f08a", schrift: "#ffffff", band: "#1f6b22" },   // Limón
+  { grund: "#ff7a1a", hell: "#ffb36b", schrift: "#ffffff", band: "#b8160f" },   // Blood Orange
+  { grund: "#5cc8f2", hell: "#b5e9ff", schrift: "#ffffff", band: "#1d5fae" },   // Ice Soda
+  { grund: "#26282e", hell: "#5a5e68", schrift: "#ffffff", band: "#e8c440" },   // Black
+];
+
+// Eine Nocco-Dose als Bild (stehend, Blechränder oben und unten,
+// „NOCCO“ senkrecht), einmal je Sorte und Grösse gezeichnet. Das Bild ist
+// quadratisch um die Mitte, damit es sich frei drehen lässt; px ist der
+// Durchmesser des Kreises, mit dem die Dose im Haufen rechnet.
+const dosenVorrat = new Map();
+function dosenBild(px, sorte) {
+  const k = px + ":" + sorte;
+  if (dosenVorrat.has(k)) return dosenVorrat.get(k);
+  const f = SORTEN[sorte] || SORTEN[0];
+  const s = Math.ceil(px * 1.3);
   const c = document.createElement("canvas");
   c.width = c.height = s;
-  const g = c.getContext("2d"), r = px / 2, m = s / 2;
+  const g = c.getContext("2d"), m = s / 2;
+  const bw = px * .56, bh = px * 1.1, x0 = m - bw / 2, y0 = m - bh / 2;
+  const rund = (x, y, w, h, r) => { g.beginPath(); g.roundRect ? g.roundRect(x, y, w, h, r) : g.rect(x, y, w, h); };
   g.save();
-  g.shadowColor = "rgba(0,0,0,.35)"; g.shadowBlur = px * .15; g.shadowOffsetY = px * .07;
-  const f = g.createRadialGradient(m - r * .3, m - r * .4, r * .05, m, m, r * 1.05);
-  f.addColorStop(0, "#f6fc86"); f.addColorStop(.6, "#d3e12c"); f.addColorStop(1, "#9aab17");
-  g.fillStyle = f; g.beginPath(); g.arc(m, m, r, 0, Math.PI * 2); g.fill();
+  g.shadowColor = "rgba(0,0,0,.35)"; g.shadowBlur = px * .1; g.shadowOffsetY = px * .05;
+  // Körper mit Licht von links (Zylinder)
+  const lg = g.createLinearGradient(x0, 0, x0 + bw, 0);
+  lg.addColorStop(0, f.grund); lg.addColorStop(.28, f.hell); lg.addColorStop(.55, f.grund); lg.addColorStop(1, shade(f.grund));
+  g.fillStyle = lg; rund(x0, y0, bw, bh, bw * .14); g.fill();
   g.restore();
+  // Blech oben und unten
+  const blech = g.createLinearGradient(x0, 0, x0 + bw, 0);
+  blech.addColorStop(0, "#9aa1a9"); blech.addColorStop(.3, "#f3f5f7"); blech.addColorStop(.6, "#b9c0c7"); blech.addColorStop(1, "#6d747c");
+  g.fillStyle = blech;
+  rund(x0 + bw * .04, y0, bw * .92, bh * .09, bw * .1); g.fill();
+  rund(x0 + bw * .04, y0 + bh * .93, bw * .92, bh * .07, bw * .1); g.fill();
+  // Streifen und Schrift
+  g.fillStyle = f.band; g.fillRect(x0, y0 + bh * .8, bw, bh * .05);
   g.save();
-  g.beginPath(); g.arc(m, m, r, 0, Math.PI * 2); g.clip();
-  const k = px / 40, o = m - r;
-  g.strokeStyle = "#fff"; g.lineWidth = 2.6 * k; g.lineCap = "round";
-  g.beginPath(); g.moveTo(o + 6 * k, o + 7 * k); g.bezierCurveTo(o + 16 * k, o + 14 * k, o + 16 * k, o + 26 * k, o + 6 * k, o + 33 * k); g.stroke();
-  g.beginPath(); g.moveTo(o + 34 * k, o + 7 * k); g.bezierCurveTo(o + 24 * k, o + 14 * k, o + 24 * k, o + 26 * k, o + 34 * k, o + 33 * k); g.stroke();
+  g.translate(m, m - bh * .02); g.rotate(-Math.PI / 2);
+  g.fillStyle = f.schrift;
+  g.font = `900 ${(bw * .52).toFixed(1)}px "Arial Black", Arial, sans-serif`;
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText("NOCCO", 0, 0, bh * .66);
   g.restore();
-  return { bild: c, faktor: s / px };
+  g.fillStyle = f.schrift; g.globalAlpha = .9;
+  g.font = `700 ${(bw * .17).toFixed(1)}px Arial, sans-serif`;
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText("BCAA", m, y0 + bh * .88);
+  g.globalAlpha = 1;
+  // Glanz
+  g.fillStyle = "rgba(255,255,255,.28)";
+  g.fillRect(x0 + bw * .16, y0 + bh * .1, bw * .08, bh * .68);
+  const erg = { bild: c, faktor: s / px, url: c.toDataURL() };
+  dosenVorrat.set(k, erg);
+  return erg;
+}
+function shade(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const d = (v) => Math.round(v * .6).toString(16).padStart(2, "0");
+  return "#" + d(n >> 16) + d((n >> 8) & 255) + d(n & 255);
 }
 
-// Der Haufen in der Anzeige des Infoboards: fliegende Bälle mit
+// Der Haufen in der Anzeige des Infoboards: fliegende Dosen (im Haufen
+// gerechnet als Kreise, darum der Name Bälle unten) mit
 // Schwerkraft und Stössen untereinander; wer zur Ruhe kommt, bleibt für
 // immer liegen (wird nur noch angestossen, bewegt sich aber nicht mehr),
 // das hält den Stapel ruhig und die Rechnung klein.
@@ -366,7 +387,7 @@ function haufenAnlegen(raum) {
   fest.className = los.className = "gm-leinwand";
   raum.append(fest, los);
   const gf = fest.getContext("2d"), gl = los.getContext("2d");
-  let w = 0, h = 0, q = 1, sprite = null, D = 0, zelle = 1;
+  let w = 0, h = 0, q = 1, sprites = new Map(), D = 0, zelle = 1;
   const fliegt = [], gitter = new Map();
   let liegen = 0, raus = 0, voll = false, runden = 0;
   // Beim Abfliessen fallen alle liegenden Bälle durch den offenen Boden,
@@ -384,11 +405,13 @@ function haufenAnlegen(raum) {
     gf.setTransform(q, 0, 0, q, 0, 0); gl.setTransform(q, 0, 0, q, 0, 0);
     return true;
   };
-  const durchmesser = (breite) => Math.max(18, breite * .036);
+  const durchmesser = (breite) => Math.max(18, breite * .04);
   const zeichne = (g, b) => {
-    const s = b.d * sprite.faktor;
+    let sp = sprites.get(b.s);
+    if (!sp) { sp = dosenBild(Math.round(D * q), b.s); sprites.set(b.s, sp); }
+    const s = b.d * sp.faktor;
     g.save(); g.translate(b.x, b.y); g.rotate(b.dreh);
-    g.drawImage(sprite.bild, -s / 2, -s / 2, s, s);
+    g.drawImage(sp.bild, -s / 2, -s / 2, s, s);
     g.restore();
   };
   // Bis wohin der Haufen wachsen darf: Unterkante des Bands mit
@@ -427,13 +450,13 @@ function haufenAnlegen(raum) {
     if (!voll && b.y - b.d / 2 < grenzeMessen()) b.oben = true;
   };
 
-  const neu = (x, y, d, ziel, vx, vy, g) => {
+  const neu = (x, y, d, ziel, vx, vy, g, sorte = ganz(0, SORTEN.length - 1)) => {
     if (!vorbereiten()) return;
-    if (!D) { D = ziel; zelle = D * 1.05; sprite = ballBild(Math.round(D * q)); }
+    if (!D) { D = ziel; zelle = D * 1.05; }
     // Steckt die Mündung schon im Haufen, kommt der Ball oben auf ihm
     // heraus, statt zwischen liegenden Bällen festzuhängen
     while (y > -D && belegt(x, y)) y -= D * .5;
-    fliegt.push({ x, y, d, ziel: D, vx, vy, g, dreh: Math.random() * 6.28, ruhe: 0, alt: 0 });
+    fliegt.push({ x, y, d, ziel: D, vx, vy, g, s: sorte, dreh: Math.random() * 6.28, ruhe: 0, alt: 0 });
   };
 
   const belegt = (x, y) => {
@@ -550,7 +573,7 @@ function haufenAnlegen(raum) {
   const haufen = { fliegt, neu, schritt, durchmesser, voll: () => voll, liegen: () => liegen, raus: () => raus,
     runden: () => runden, grenze: () => grenzeMessen(), abfluss: () => abfluss.length };
   // Für den Prüfstand: viele Bälle auf einmal oben einwerfen
-  if (window.TEST) window.TEST.tennis = Object.assign(haufen, {
+  if (window.TEST) window.TEST.dosen = window.TEST.tennis = Object.assign(haufen, {
     regen: (anzahl) => {
       if (!vorbereiten()) return;
       for (let i = 0; i < anzahl; i++) neu(w * (.3 + Math.random() * .4), D * (1 + Math.random() * 3), durchmesser(w), durchmesser(w),

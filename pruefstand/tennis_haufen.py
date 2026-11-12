@@ -1,3 +1,4 @@
+# Seit 1.495.0 wirft ein Tänzer Nocco-Dosen statt der Tennisbälle; der Haufen bleibt gleich.
 # Infoboard-Anzeige: die Tennisbälle bleiben liegen und stapeln sich, bis
 # die Tafel voll ist (seit 1.477.0); reicht der Haufen bis unter den
 # Kalender, fliesst alles unten ab und füllt sich neu (Wunsch Patrick
@@ -29,38 +30,38 @@ with sync_playwright() as p:
     # Echte Schüsse der Kanone bleiben liegen
     for i in range(40):
         pg.wait_for_timeout(1000)
-        if pg.evaluate("TEST.tennis.liegen()") >= 3: break
-    n0 = pg.evaluate("TEST.tennis.liegen()")
-    pruefe(n0 >= 3, "Bälle der Kanone bleiben liegen: %d" % n0)
-    pruefe(pg.locator("#infoboard .gm-ball").count() == 0, "keine verschwindenden Bälle mehr")
-    gr = pg.evaluate("TEST.tennis.grenze()")
+        if pg.evaluate("TEST.dosen.liegen()") >= 3: break
+    n0 = pg.evaluate("TEST.dosen.liegen()")
+    pruefe(n0 >= 3, "Dosen des Tänzers bleiben liegen: %d" % n0)
+    pruefe(pg.locator("#infoboard .gm-dose").count() == 0, "keine verschwindenden Dosen mehr")
+    gr = pg.evaluate("TEST.dosen.grenze()")
     pruefe(450 < gr < 1000, "Grenze unter dem Kalender: %.0f Punkte" % gr)
     # Viele einwerfen, bis der Haufen den Kalender erreicht
     def fuellen():
         t0 = time.time()
         while time.time() - t0 < 240:
-            if pg.evaluate("TEST.tennis.fliegt.length") < 60: pg.evaluate("TEST.tennis.regen(25)")
+            if pg.evaluate("TEST.dosen.fliegt.length") < 60: pg.evaluate("TEST.dosen.regen(25)")
             pg.wait_for_timeout(400)
-            if pg.evaluate("TEST.tennis.voll()"): return True
+            if pg.evaluate("TEST.dosen.voll()"): return True
         return False
     voll = fuellen()
     pruefe(voll, "Tafel füllt sich bis unter den Kalender")
     pg.wait_for_timeout(500)
     pg.screenshot(path=os.path.join(BILDER, "tennis_abfluss.png"))
     # Abfliessen: alles rinnt unten hinaus, danach ist die Tafel leer
-    raus0 = pg.evaluate("TEST.tennis.raus()")
+    raus0 = pg.evaluate("TEST.dosen.raus()")
     for i in range(40):
-        if not pg.evaluate("TEST.tennis.voll()"): break
+        if not pg.evaluate("TEST.dosen.voll()"): break
         pg.wait_for_timeout(250)
-    raus = pg.evaluate("TEST.tennis.raus()") - raus0
-    pruefe(not pg.evaluate("TEST.tennis.voll()") and pg.evaluate("TEST.tennis.abfluss()") == 0,
+    raus = pg.evaluate("TEST.dosen.raus()") - raus0
+    pruefe(not pg.evaluate("TEST.dosen.voll()") and pg.evaluate("TEST.dosen.abfluss()") == 0,
       "fliesst ab: %d Bälle unten hinaus" % raus)
-    pruefe(raus > 300 and pg.evaluate("TEST.tennis.liegen()") < 30, "Tafel danach leer: %d liegen" % pg.evaluate("TEST.tennis.liegen()"))
+    pruefe(raus > 300 and pg.evaluate("TEST.dosen.liegen()") < 30, "Tafel danach leer: %d liegen" % pg.evaluate("TEST.dosen.liegen()"))
     # Und füllt sich wieder
-    pg.evaluate("TEST.tennis.regen(25)"); pg.wait_for_timeout(5000)
-    pruefe(pg.evaluate("TEST.tennis.liegen()") >= 15, "füllt sich neu: %d liegen" % pg.evaluate("TEST.tennis.liegen()"))
+    pg.evaluate("TEST.dosen.regen(25)"); pg.wait_for_timeout(5000)
+    pruefe(pg.evaluate("TEST.dosen.liegen()") >= 15, "füllt sich neu: %d liegen" % pg.evaluate("TEST.dosen.liegen()"))
     voll2 = fuellen()
-    pruefe(voll2 and pg.evaluate("TEST.tennis.runden()") >= 2, "zweite Runde bis unter den Kalender")
+    pruefe(voll2 and pg.evaluate("TEST.dosen.runden()") >= 2, "zweite Runde bis unter den Kalender")
     # Liegen innerhalb der Tafel
     fps = pg.evaluate("""() => new Promise(r => { let n = 0; const t = performance.now();
       const f = () => { n++; if (performance.now() - t < 2000) requestAnimationFrame(f); else r(n / 2); }; requestAnimationFrame(f); })""")

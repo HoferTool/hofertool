@@ -1,8 +1,8 @@
-# Startseite und Infoboard: Im Band oben fährt ein Grossvater auf einem
-# roten Seniorenmobil mit Tennisballkanone und schiesst Tennisbälle ab
-# (Wunsch Patrick 6. November 2026, seit 1.442.0; vorher Zombies). Auf der
-# Startseite bleiben die Bälle im Band, im Infoboard fliegen sie über die
-# ganze Tafel. Die Pausen werden hier verkürzt.
+# Startseite und Infoboard: Im Band oben läuft ein Tänzer durch und wirft
+# Nocco-Dosen (seit 1.495.0, Wunsch Patrick 12. November 2026; 1.442.0 bis
+# 1.494.x Seniorenmobil mit Tennisballkanone). Auf der Startseite bleiben
+# die Dosen im Band, im Infoboard fliegen sie über die ganze Tafel. Die
+# Pausen werden hier verkürzt.
 import os, time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -30,13 +30,13 @@ def beobachten(pg, name, wurzel, tafel):
     if pg.locator(".spuk, .spuk-erde, .spuk-grab").count(): fehler.append(f"{name}: Zombies noch da")
     richtung, baelle, weit = set(), 0, False
     for i in range(1200):
-        info = pg.evaluate("""(w) => { const m = document.querySelector(w + ' .gm-mobil');
+        info = pg.evaluate("""(w) => { const m = document.querySelector(w + ' .gm-taenzer');
             if (!m || m.style.visibility === 'hidden') return null;
             const r = m.getBoundingClientRect(), k = document.querySelector(w + ' .kopfkarte').getBoundingClientRect();
             return { x: r.left, unten: k.bottom - r.bottom, hoch: k.height, oben: r.top - k.top,
                      spiegel: m.style.transform.includes('scaleX(-1)') } }""", wurzel)
         b = pg.evaluate("""([w, t]) => { const k = document.querySelector(w + ' .kopfkarte').getBoundingClientRect();
-            const bs = [...document.querySelectorAll(w + ' .gm-ball')].map(e => e.getBoundingClientRect());
+            const bs = [...document.querySelectorAll(w + ' .gm-dose')].map(e => e.getBoundingClientRect());
             return { n: bs.length, weit: bs.some(r => r.top > k.bottom + 40) } }""", [wurzel, tafel])
         baelle = max(baelle, b["n"]); weit = weit or b["weit"]
         if info and i % 10 == 0:
