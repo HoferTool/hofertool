@@ -1889,7 +1889,9 @@ $("viewer").addEventListener("wheel", e => {
   // verlieren die Zeiger-Erfassung; darum beginnt das Verschieben auch mit
   // mousedown und folgt der Maus am ganzen Fenster, nicht nur am Bild.
   const los = e => { if (pn) return; pn = { x: e.clientX, y: e.clientY, l: vw.scrollLeft, t: vw.scrollTop }; vw.style.cursor = "grabbing"; };
-  const zieh = e => { if (!pn) return; vw.scrollLeft = pn.l - (e.clientX - pn.x); vw.scrollTop = pn.t - (e.clientY - pn.y); };
+  // Chrome 158 schickt beim Drücken der Radtaste teils gar kein pointerdown/mousedown,
+        // nur Bewegungen mit gedrückter Taste (buttons 4): dann beginnt das Verschieben dort.
+        const zieh = e => { if (!pn && (e.buttons & 4 || (e.buttons & 2 && st.view === "contour")) && vw.contains(e.target)) los(e); if (!pn) return; vw.scrollLeft = pn.l - (e.clientX - pn.x); vw.scrollTop = pn.t - (e.clientY - pn.y); };
   vw.addEventListener("pointerdown", e => { if (e.pointerType === "mouse" && (e.button === 1 || (e.button === 2 && st.view === "contour"))) { los(e); try { vw.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); e.stopPropagation(); } }, true);
   window.addEventListener("pointermove", zieh); window.addEventListener("mousemove", zieh);
   const aus = () => { if (pn) vw.style.cursor = ""; pn = null; };
