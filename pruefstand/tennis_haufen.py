@@ -72,6 +72,12 @@ with sync_playwright() as p:
     # Und füllt sich wieder
     voll2 = fuellen()
     pruefe(voll2 and pg.evaluate("TEST.dosen.runden()") >= 2, "zweite Runde")
+    # Seit 1.499.0 wirft Tristan ab und zu eine Dose zurück
+    for i in range(80):
+        if pg.evaluate("TEST.dosen.zurueck()") >= 1: break
+        if pg.evaluate("TEST.dosen.fliegt.length") < 60: pg.evaluate("TEST.dosen.regen(25)")
+        pg.wait_for_timeout(500)
+    pruefe(pg.evaluate("TEST.dosen.zurueck()") >= 1, "Tristan wirft Dosen zurück: %d" % pg.evaluate("TEST.dosen.zurueck()"))
     # Liegen innerhalb der Tafel
     fps = pg.evaluate("""() => new Promise(r => { let n = 0; const t = performance.now();
       const f = () => { n++; if (performance.now() - t < 2000) requestAnimationFrame(f); else r(n / 2); }; requestAnimationFrame(f); })""")

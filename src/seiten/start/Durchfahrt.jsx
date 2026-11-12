@@ -502,7 +502,7 @@ function haufenAnlegen(raum) {
   const gf = fest.getContext("2d"), gl = los.getContext("2d");
   let w = 0, h = 0, q = 1, sprites = new Map(), D = 0, zelle = 1;
   const fliegt = [], gitter = new Map();
-  let liegen = 0, raus = 0, voll = false, runden = 0;
+  let liegen = 0, raus = 0, voll = false, runden = 0, zurueck = 0, zurueckWarte = 0;
   // Beim Abfliessen fallen alle liegenden Bälle durch den offenen Boden,
   // die untersten zuerst; danach füllt sich die Tafel wieder
   let abfluss = [], grenze = 0, grenzeAm = 0;
@@ -569,6 +569,15 @@ function haufenAnlegen(raum) {
         // Was unter dem Rand der Tonne liegt, fliegt mit der Schaufel hinein
         const steigen = b.y - (t.oben - D * 1.2);
         if (steigen > 0) b.vy = -Math.sqrt(2 * b.g * steigen) * zufall(1, 1.15);
+        // Ab und zu wirft Tristan eine Dose hoch zum Tänzer zurück (seit
+        // 1.499.0, Wunsch Patrick 12. November 2026: „ab und zu kann er eine
+        // zurückwerfen“): sie fliegt oben aus der Tafel hinaus
+        if (steigen > 0 && zurueckWarte <= 0 && Math.random() < .2) {
+          zurueckWarte = zufall(2.5, 5); zurueck++;
+          b.zurueck = true; b.warte = 0;
+          b.vy = -Math.sqrt(2 * b.g * (b.y + D * 3)) * zufall(1.05, 1.15);
+          b.vx = (w * zufall(.3, .7) - b.x) * zufall(.35, .5);
+        }
         abfluss.push(b);
       }
       if (!l.length) gitter.delete(k);
@@ -692,7 +701,7 @@ function haufenAnlegen(raum) {
       }
     }
     if (oben) abfliessen();
-    if (voll) { tristan.schritt(dt); zurTonne(); }
+    if (voll) { zurueckWarte -= dt; tristan.schritt(dt); zurTonne(); }
     // Die Dosen auf dem Weg in die Tonne: ohne Stösse, jede für sich,
     // sie ziehen zur Tonne hin und verschwinden hinter ihrem Rand
     const tn = tristan.tonne();
@@ -700,6 +709,11 @@ function haufenAnlegen(raum) {
       const b = abfluss[i];
       if (b.warte > 0) { b.warte -= dt; continue; }
       b.vy += b.g * dt; b.y += b.vy * dt;
+      if (b.zurueck) {
+        b.x += b.vx * dt; b.dreh += 9 * dt;
+        if ((b.vy < 0 && b.y < -b.d * 2) || b.y > h + b.d) { abfluss.splice(i, 1); raus++; }
+        continue;
+      }
       if (tn) b.x += (tn.x + b.zuX - b.x) * Math.min(1, dt * 3.5);
       else b.x += b.vx * dt;
       b.dreh += 3 * dt;
@@ -714,7 +728,7 @@ function haufenAnlegen(raum) {
   };
 
   const haufen = { fliegt, neu, schritt, durchmesser, voll: () => voll, liegen: () => liegen, raus: () => raus,
-    runden: () => runden, grenze: () => grenzeMessen(), abfluss: () => abfluss.length, tristan: () => tristan.unterwegs() };
+    runden: () => runden, grenze: () => grenzeMessen(), abfluss: () => abfluss.length, tristan: () => tristan.unterwegs(), zurueck: () => zurueck };
   // Für den Prüfstand: viele Bälle auf einmal oben einwerfen
   if (window.TEST) window.TEST.dosen = window.TEST.tennis = Object.assign(haufen, {
     regen: (anzahl) => {
