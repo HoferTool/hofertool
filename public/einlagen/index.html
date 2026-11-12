@@ -1893,8 +1893,10 @@ $("viewer").addEventListener("wheel", e => {
         // nur Bewegungen mit gedrückter Taste (buttons 4): dann beginnt das Verschieben dort.
         // Beginnt das Verschieben erst bei einer Bewegung, zählt es ab der letzten Lage ohne Taste,
         // sonst ginge das erste Stück des Zugs verloren.
+        // Ohne frische Lage (älter als 1,5 s: die Maus kann seither ohne Meldung weitergefahren sein)
+        // gilt der Weg der ersten Bewegung (movementX/Y) als Startpunkt.
         let letzte = null;
-        const zieh = e => { if (!pn && (e.buttons & 4 || (e.buttons & 2 && st.view === "contour")) && vw.contains(e.target)) los(letzte || e); if (!e.buttons) letzte = { clientX: e.clientX, clientY: e.clientY }; if (!pn) return; vw.scrollLeft = pn.l - (e.clientX - pn.x); vw.scrollTop = pn.t - (e.clientY - pn.y); };
+        const zieh = e => { if (!pn && (e.buttons & 4 || (e.buttons & 2 && st.view === "contour")) && vw.contains(e.target)) los(letzte && e.timeStamp - letzte.t < 1500 ? letzte : { clientX: e.clientX - (e.movementX || 0), clientY: e.clientY - (e.movementY || 0) }); if (!e.buttons) letzte = { clientX: e.clientX, clientY: e.clientY, t: e.timeStamp }; if (!pn) return; vw.scrollLeft = pn.l - (e.clientX - pn.x); vw.scrollTop = pn.t - (e.clientY - pn.y); };
   vw.addEventListener("pointerdown", e => { if (e.pointerType === "mouse" && (e.button === 1 || (e.button === 2 && st.view === "contour"))) { los(e); try { vw.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); e.stopPropagation(); } }, true);
   window.addEventListener("pointermove", zieh); window.addEventListener("mousemove", zieh);
   const aus = () => { if (pn) vw.style.cursor = ""; pn = null; };
