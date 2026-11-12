@@ -266,12 +266,13 @@ function Kopf() {
       <div className="ib-kopf__innen" ref={innen}
         style={{ transform: k < 1 ? "scale(" + k + ")" : undefined, width: k < 1 ? breite / k : breite }}>
         <section className="kopfkarte">
-          <Durchfahrt />
           <Uhr ohneId />
           <img className="kopfkarte__logo" src={alt.LOGO_WEISS} alt="Hofer + Co." />
           <Wetter ohneId />
         </section>
         <Solaranlage ohneId />
+        {/* Tänzer über Kopf und Solaranlage, Füsse unten über dem Kalender */}
+        <Durchfahrt tief />
       </div>
     </div>
   );

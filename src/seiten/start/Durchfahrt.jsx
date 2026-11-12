@@ -85,7 +85,7 @@ const FIGUR = `<svg viewBox="0 0 102 300" xmlns="http://www.w3.org/2000/svg">
 // Wo die Hand ist, in Anteilen des Bilds (Foto wie Zeichnung)
 const HAND = { x: .89, y: .48 };
 
-export default function Durchfahrt() {
+export default function Durchfahrt({ tief = false } = {}) {
   const ref = useRef(null);
   useEffect(() => {
     const band = ref.current;
@@ -96,7 +96,7 @@ export default function Durchfahrt() {
     // Boden unten im Band
     const strasse = document.createElement("div");
     strasse.className = "gm-strasse";
-    band.appendChild(strasse);
+    if (!tief) band.appendChild(strasse);
 
     // Wohin die Dosen fliegen: im Infoboard über die ganze Tafel (das
     // Blatt in Punkten der Tafel, als Ganzes skaliert), sonst im Band
@@ -132,8 +132,12 @@ export default function Durchfahrt() {
     let breit = 0, hoch = 0, H = 0, W = 0, boden = 0;
     const messen = () => {
       breit = band.clientWidth; hoch = band.clientHeight;
-      boden = Math.max(3, hoch * .045);
-      H = Math.max(46, Math.min(190, (hoch - boden) * .76));
+      // Im Infoboard tanzt er seit 1.498.0 eine Ebene tiefer, auf der
+      // Höhe der Solaranlage direkt über dem Kalender, und ist grösser
+      // (Wunsch Patrick 12. November 2026: „sieht man schlecht“)
+      boden = tief ? 2 : Math.max(3, hoch * .045);
+      H = tief ? Math.max(60, Math.min(340, hoch * .66))
+        : Math.max(46, Math.min(190, (hoch - boden) * .76));
       W = H * 102 / 300;
       mobil.style.width = W + "px";
       mobil.style.height = H + "px";
@@ -308,8 +312,8 @@ export default function Durchfahrt() {
       band.getAnimations({ subtree: true }).forEach((a) => a.cancel());
       band.replaceChildren();
     };
-  }, []);
-  return <div className="durchfahrt" ref={ref} aria-hidden="true" />;
+  }, [tief]);
+  return <div className={"durchfahrt" + (tief ? " durchfahrt--tief" : "")} ref={ref} aria-hidden="true" />;
 }
 
 // Nocco-Sorten: Farbe der Dose, Schrift, Streifen

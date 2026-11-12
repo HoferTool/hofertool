@@ -13203,3 +13203,7 @@ body.dunkel .wz5p-wahl__karte img, body.dunkel .wz5p-wahl__leer { background: #0
 .wz5p-raus__wahl { display: flex; gap: 6px; flex-wrap: wrap; }
 body.dunkel .wz5p-raus__liste li { background: #1a2230; }
 body.dunkel #pad .pad-wz5__zahl { background: #4b82c4; }
+
+/* Infoboard: der Tänzer tanzt seit 1.498.0 vor Kopf und Solaranlage,
+   Füsse unten über dem Kalender, grösser (Wunsch Patrick 12. November 2026) */
+.durchfahrt--tief { z-index: 5; }
