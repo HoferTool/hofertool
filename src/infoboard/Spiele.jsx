@@ -30,6 +30,7 @@
 //  localStorage (darf fehlen, dann eben ohne Rekord).
 // =================================================================
 import { useCallback, useEffect, useRef, useState } from "react";
+import { PauseKontext, usePause } from "./spielPause.js";
 import { Versandpalette } from "./SpielPalette.jsx";
 import Kugellager from "./Kugellager.jsx";
 
@@ -69,8 +70,10 @@ function Taste({ children, los, className = "", ...rest }) {
 function usePfeile(fn) {
   const ref = useRef(fn);
   ref.current = fn;
+  const pause = usePause();
   useEffect(() => {
     const t = (e) => {
+      if (pause.current) return;
       const r = { ArrowLeft: "links", ArrowRight: "rechts", ArrowUp: "hoch", ArrowDown: "runter", " ": "fallen" }[e.key];
       if (r && ref.current(r) !== false) e.preventDefault();
     };
@@ -111,10 +114,45 @@ export function Spiele({ spiel, breite, hoehe }) {
       </div>
     );
   }
-  const h = liste ? hoehe - 90 : hoehe;
+  return <SpielRahmen key={gewaehlt} gewaehlt={gewaehlt} liste={liste} zurueck={() => setGewaehlt(null)} breite={breite} hoehe={hoehe} />;
+}
+
+// Rahmen um ein Spiel: oben „← Alle Spiele“ und „Pause“, darunter das
+// Spiel. In der Pause liegt ein Schleier über dem Spiel (kein Tippen geht
+// durch), die Spiele lassen Zeit und Bewegung stehen (spielPause.js).
+// Taste P am PC schaltet ebenso; die Leertaste nicht, die brauchen
+// Materiallager, Hallensprint und Kugellager selbst.
+function SpielRahmen({ gewaehlt, liste, zurueck, breite, hoehe }) {
+  const pauseRef = useRef(false);
+  const [pause, setPauseZ] = useState(false);
+  const setPause = useCallback((p) => { pauseRef.current = p; setPauseZ(p); }, []);
+  useEffect(() => {
+    const t = (e) => {
+      if (e.key !== "p" && e.key !== "P") return;
+      const ziel = e.target;
+      if (ziel && (ziel.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(ziel.tagName))) return;
+      e.preventDefault();
+      setPause(!pauseRef.current);
+    };
+    window.addEventListener("keydown", t);
+    return () => window.removeEventListener("keydown", t);
+  }, [setPause]);
+  // Wechselt der Tab oder geht der Bildschirm aus, pausiert das Spiel
+  useEffect(() => {
+    const t = () => { if (document.hidden) setPause(true); };
+    document.addEventListener("visibilitychange", t);
+    return () => document.removeEventListener("visibilitychange", t);
+  }, [setPause]);
+  const h = hoehe - 90;
   return (
+    <PauseKontext.Provider value={pauseRef}>
     <div className="sp-rahmen" style={{ width: breite, height: hoehe }}>
-      {liste && <button type="button" className="sp-zurueck" data-sp="zurueck" onClick={() => setGewaehlt(null)}>← Alle Spiele</button>}
+      <div className="sp-oben" style={{ width: breite }}>
+        {liste && <button type="button" className="sp-zurueck" data-sp="zurueck" onClick={zurueck}>← Alle Spiele</button>}
+        <button type="button" className={"sp-zurueck sp-pause-knopf" + (pause ? " sp-pause-knopf--an" : "")} data-sp="pause"
+          onPointerDown={(e) => { e.preventDefault(); setPause(!pauseRef.current); }}>{pause ? "▶ Weiter" : "⏸ Pause"}</button>
+      </div>
+      <div className="sp-flaeche" style={{ width: breite, height: h }}>
       {gewaehlt === "dreigewinnt" && <DreiGewinnt breite={breite} hoehe={h} />}
       {gewaehlt === "kloetzli" && <Kloetzli breite={breite} hoehe={h} />}
       {gewaehlt === "huehnerhof" && <Huehnerhof breite={breite} hoehe={h} />}
@@ -123,7 +161,15 @@ export function Spiele({ spiel, breite, hoehe }) {
       {gewaehlt === "palette" && <Versandpalette breite={breite} hoehe={h} />}
       {gewaehlt === "hallensprint" && <Hallensprint breite={breite} hoehe={h} />}
       {gewaehlt === "kugellager" && <Kugellager breite={breite} hoehe={h} />}
+      {pause &&
+        <div className="sp-ueber sp-pause" data-sp="pause-schleier" onPointerDown={(e) => e.stopPropagation()}>
+          <div className="sp-ueber__titel">⏸ Pause</div>
+          <div className="sp-ueber__text">Das Spiel wartet. Weiter geht es genau dort, wo du aufgehört hast.</div>
+          <button type="button" className="sp-gross" data-sp="weiter" onClick={() => setPause(false)}>▶ Weiter</button>
+        </div>}
+      </div>
     </div>
+    </PauseKontext.Provider>
   );
 }
 
@@ -241,6 +287,7 @@ const drehen = (teile) => {
 };
 
 function Kloetzli({ breite, hoehe }) {
+  const pause = usePause();
   const s = useRef(null);
   const [, neu] = useState(0);
   const zeichne = () => neu((n) => n + 1);
@@ -297,7 +344,7 @@ function Kloetzli({ breite, hoehe }) {
     if (!laeuft) return;
     const t = setInterval(() => {
       const z = s.current;
-      if (!z || !z.laeuft) return;
+      if (!z || !z.laeuft || pause.current) return;
       if (passt(z.stein.teile, z.stein.x, z.stein.y + 1)) z.stein.y++; else ablegen();
       zeichne();
     }, Math.max(140, 750 - (stufe - 1) * 70));
@@ -408,6 +455,7 @@ function fuchsSchritt(f, ziel, schlau) {
 }
 
 function Huehnerhof({ breite, hoehe }) {
+  const pause = usePause();
   const s = useRef(null);
   const [, neu] = useState(0);
   const zeichne = () => neu((n) => n + 1);
@@ -439,7 +487,7 @@ function Huehnerhof({ breite, hoehe }) {
     let huhnZeit = 0, fuchsZeit = 0;
     const t = setInterval(() => {
       const z = s.current;
-      if (!z || !z.laeuft) return;
+      if (!z || !z.laeuft || pause.current) return;
       if (z.pause > 0) { z.pause -= TAKT; return; }
       const h = z.huhn;
       huhnZeit += TAKT; fuchsZeit += TAKT;
@@ -654,6 +702,7 @@ const FH_DAUER = 90;
 const FEHLER = ["riss", "rost", "grat"];
 
 function Flatterhuhn({ breite, hoehe }) {
+  const pause = usePause();
   const cv = useRef(null);
   const s = useRef(null);
   const [, neu] = useState(0);
@@ -666,9 +715,12 @@ function Flatterhuhn({ breite, hoehe }) {
   useEffect(() => {
     let rahmen, zuletzt = performance.now(), anzeige = -1, lauf = 0;
     const schritt = (jetzt) => {
-      const dt = Math.min(0.05, (jetzt - zuletzt) / 1000); zuletzt = jetzt;
+      const roh = jetzt - zuletzt;
+      const dt = Math.min(0.05, roh / 1000); zuletzt = jetzt;
       const c = cv.current, z = s.current;
       if (!c) return;
+      // In der Pause steht auch die Spieluhr: das Ende rückt mit
+      if (pause.current) { if (z && z.laeuft) z.ende += roh; rahmen = requestAnimationFrame(schritt); return; }
       const g = c.getContext("2d");
       zeichneHalle(g, b, h, h - 30, false);
       if (z && z.laeuft) lauf += dt;
@@ -824,6 +876,7 @@ function zeichneKiste(g, x, k0) {
 }
 
 function Eierschleuder({ breite, hoehe }) {
+  const pause = usePause();
   const cv = useRef(null);
   const s = useRef(null);
   const [, neu] = useState(0);
@@ -838,9 +891,11 @@ function Eierschleuder({ breite, hoehe }) {
   useEffect(() => {
     let rahmen, zuletzt = performance.now(), zeit = 0;
     const schritt = (jetzt) => {
-      const dt = Math.min(0.033, (jetzt - zuletzt) / 1000); zuletzt = jetzt; zeit += dt;
+      const dt = Math.min(0.033, (jetzt - zuletzt) / 1000); zuletzt = jetzt;
       const c = cv.current, z = s.current;
       if (!c) return;
+      if (pause.current) { rahmen = requestAnimationFrame(schritt); return; }
+      zeit += dt;
       const g = c.getContext("2d");
       zeichneHalle(g, b, h, boden);
       // Schleuder aus Stahl auf einem Sockel
@@ -1121,6 +1176,7 @@ function hsMagnet(g, x, y, s) {
 }
 
 function Hallensprint({ breite, hoehe }) {
+  const pause = usePause();
   const cv = useRef(null);
   const s = useRef(null);
   const [, neu] = useState(0);
@@ -1159,6 +1215,7 @@ function Hallensprint({ breite, hoehe }) {
       const dt = Math.min(0.04, (jetzt - zuletzt) / 1000); zuletzt = jetzt;
       const c = cv.current, z = s.current;
       if (!c) return;
+      if (pause.current) { rahmen = requestAnimationFrame(schritt); return; }
       const g = c.getContext("2d");
       const zeit = z ? z.zeit : jetzt / 1000;
       if (z && z.laeuft) {

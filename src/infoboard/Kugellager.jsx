@@ -14,6 +14,7 @@
 //  Pfeile links/rechts, Leertaste schiesst, Pfeil runter tauscht.
 // =================================================================
 import { useEffect, useRef, useState } from "react";
+import { usePause } from "./spielPause.js";
 
 const SPALTEN = 12;
 const WURZEL3 = Math.sqrt(3);
@@ -67,6 +68,7 @@ function zeichneKugel(g, x, y, r, art) {
 }
 
 export default function Kugellager({ breite, hoehe }) {
+  const pause = usePause();
   const cv = useRef(null);
   const s = useRef(null);
   const [, neu] = useState(0);
@@ -209,9 +211,11 @@ export default function Kugellager({ breite, hoehe }) {
   useEffect(() => {
     let rahmen, zuletzt = performance.now(), zeit = 0;
     const schritt = (jetzt) => {
-      const dt = Math.min(0.033, (jetzt - zuletzt) / 1000); zuletzt = jetzt; zeit += dt;
+      const dt = Math.min(0.033, (jetzt - zuletzt) / 1000); zuletzt = jetzt;
       const c = cv.current, z = s.current;
       if (!c) return;
+      if (pause.current) { rahmen = requestAnimationFrame(schritt); return; }
+      zeit += dt;
       const g = c.getContext("2d");
       // Halle aussen, Lager innen
       const aussen = g.createLinearGradient(0, 0, 0, h);
@@ -356,7 +360,7 @@ export default function Kugellager({ breite, hoehe }) {
   useEffect(() => {
     const t = (e) => {
       const z = s.current;
-      if (!z || !z.laeuft) return;
+      if (!z || !z.laeuft || pause.current) return;
       if (e.key === "ArrowLeft") z.winkel = Math.max(-Math.PI + 0.12, z.winkel - 0.06);
       else if (e.key === "ArrowRight") z.winkel = Math.min(-0.12, z.winkel + 0.06);
       else if (e.key === " " || e.key === "ArrowUp") schiessen();

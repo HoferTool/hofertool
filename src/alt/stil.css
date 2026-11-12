@@ -13081,3 +13081,9 @@ body.ib-ruht #root { display: none !important; }
   font: inherit; font-size: 28px; line-height: 1.35; outline: none; }
 .ib-menue__feld:focus { border-color: var(--kf); box-shadow: 0 0 0 5px color-mix(in srgb, var(--kf) 45%, transparent); }
 .ib-menue__feld::placeholder { color: #8a97a8; -webkit-text-fill-color: #8a97a8; }
+/* Pause für alle Spiele im Pausenraum (1.493.0, Wunsch Patrick 12. November 2026) */
+.sp-oben { flex: none; display: flex; align-items: flex-start; gap: 20px; height: 90px; }
+.sp-oben .sp-pause-knopf { margin-left: auto; touch-action: manipulation; user-select: none; }
+.sp-pause-knopf--an { background: #22c55e; border-color: #22c55e; }
+.sp-flaeche { position: relative; flex: none; display: flex; align-items: center; justify-content: center; }
+.sp-pause { z-index: 5; border-radius: 20px; }
