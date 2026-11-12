@@ -20,6 +20,8 @@ import { blattSuchen } from "../../einrichtblatt/daten.js";
 import { jeMaterialLaden, jeMaterialSpeichern, blattSchluessel } from "../../einrichtblatt/jeMaterial.js";
 import { betrachter } from "../../teile/Betrachter.jsx";
 import { UnterlagenListe } from "../../teile/Unterlagen.jsx";
+import { istMacodel, wz508Sichtbar } from "../../pad/Wz508.jsx";
+import { ncAnsicht } from "../NcFunktionen.jsx";
 import { infoLaden, infoSetzen, wartungLaden, anhangHochladen, plusJahre, batterieFaellig,
   batterieText, tageBis, ohneBatterien, fehltSql, SQL_FEHLT, BATTERIE_JAHRE, istPdf, istBild,
   BATTERIE_ARTEN, batterieArtTeilen, batterieArtZusammen, batterienText, batterienGewechselt } from "../../daten/maschinenInfo.js";
@@ -44,7 +46,12 @@ export default function MaschineSeite({ m, typ, park }) {
             ? <span className="mseite-kopf__name"> {m.name}</span> : null}</h2>
           <span className="klein">{[typ && "Typ " + typ, park && park.name].filter(Boolean).join(" · ")}</span>
         </div>
-        <button className="knopf knopf--haupt" id="mseite-pad" onClick={() => padZeigen(m)}>Pad Mode öffnen</button>
+        <div className="mseite-kopf__knoepfe">
+          {/* Macodel: 508 Werkzeuge in NC-PRO (seit 1.501.0, Wunsch Patrick 12. November 2026) */}
+          {wz508Sichtbar() && istMacodel(m, typ) && <button className="knopf" id="mseite-wz508"
+            onClick={() => { ncAnsicht("wz508"); location.hash = "#/nc"; }}>🔧 508 Werkzeuge</button>}
+          <button className="knopf knopf--haupt" id="mseite-pad" onClick={() => padZeigen(m)}>Pad Mode öffnen</button>
+        </div>
       </div>
       {sqlFehlt && <div className="karte karte--fehler"><p>{SQL_FEHLT}</p></div>}
       {info.fehler && !sqlFehlt && <div className="karte karte--fehler"><p>{alt.fehlertext(info.fehler)}</p></div>}

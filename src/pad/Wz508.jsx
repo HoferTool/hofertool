@@ -24,6 +24,13 @@ export async function wz508Laden() {
 
 export const wz508Sichtbar = () => !alt.istExtern() && !(alt.meineRolle && alt.meineRolle() === "dienst");
 
+// Die Macodel (W&M 508MT2, Park Multitasking) erkennt man am Namen; dort
+// führt seit 1.501.0 ein Knopf direkt zu den 508 Werkzeugen (Wunsch
+// Patrick 12. November 2026: „Werkzeuge von Macodel bei Multitasking rein
+// zum Anklicken“). typName wahlweise, falls der Name es nicht verrät.
+export const istMacodel = (m, typName) =>
+  !!m && /\b508|macodel/i.test([m.name, m.machine_number, typName].filter(Boolean).join(" "));
+
 let reiterGemerkt = "vorbereiten";
 const ortText = (w) => (w.ort === "maschine" ? "Fach " + w.fach + (w.nr ? " · T" + w.nr : "") : ORTE[w.ort] || w.ort);
 

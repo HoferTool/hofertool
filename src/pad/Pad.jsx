@@ -22,7 +22,7 @@ import { alt, reactAufraeumen } from "../bruecke.jsx";
 import Maschine, { maschineLaden } from "./Maschine.jsx";
 import QsCheck, { qsLaden } from "./QsCheck.jsx";
 import PadAudit, { auditLaden } from "./Audit.jsx";
-import PadWz508, { wz508Laden, wz508Sichtbar } from "./Wz508.jsx";
+import PadWz508, { wz508Laden, wz508Sichtbar, istMacodel } from "./Wz508.jsx";
 import { padGeraet, geraetSetzen, istPadKonto, GeraetMarke } from "./geraet.jsx";
 import { PadMeldungenKnopf } from "./QsMeldung.jsx";
 export { padGeraetZustand } from "./geraet.jsx";
@@ -56,7 +56,9 @@ function sichtVon(p) {
 // Übersicht, nicht gleich zur Liste aller Maschinen.
 export function padZurueck() {
   gehe((p) => {
-    if (p.wo === "maschine" && p.reiter && p.reiter !== "uebersicht") p.reiter = "uebersicht";
+    // Von der Macodel oder ihrem Park aus geöffnet: genau dorthin zurück
+    if (p.wo === "wz508" && p.wz508Von) { p.wo = p.wz508Von; delete p.wz508Von; }
+    else if (p.wo === "maschine" && p.reiter && p.reiter !== "uebersicht") p.reiter = "uebersicht";
     else if (p.wo === "maschine") p.wo = "maschinen";
     else if (p.wo === "maschinen") p.wo = p.typUebersprungen ? "parks" : "typen";
     else if (p.wo === "typen") p.wo = "parks";
@@ -286,7 +288,7 @@ function Start() {
           </button>}
           {/* Werkzeuge der 508 mit Marke (seit 1.495.0), nicht für Externe und Dienst */}
           {wz508Sichtbar() && <button className="pad-kachel pad-kachel--qs pad-kachel--wz508" data-padwo="wz508"
-            onClick={() => gehe((p) => { p.wo = "wz508"; })}>
+            onClick={() => gehe((p) => { p.wo = "wz508"; delete p.wz508Von; })}>
             <span className="pad-kachel__zeichen">🔧</span><span>508 Werkzeuge</span>
           </button>}
         </div>
@@ -437,7 +439,7 @@ function Maschinen({ eigene, laufend }) {
       <PadKopf titel="Maschinen" zurueck />
       <div className="pad__wahl">
         <img className="pad__wahllogo" src={alt.LOGO_WEISS} alt="Hofer + Co." />
-        <div className="pad__kacheln pad__kacheln--maschinen" style={{ "--pad-spalten": spalten(eigene.length) }}>
+        <div className="pad__kacheln pad__kacheln--maschinen" style={{ "--pad-spalten": spalten(eigene.length + (wz508Sichtbar() && eigene.some((m) => istMacodel(m)) ? 1 : 0)) }}>
           {eigene.length
             ? eigene.map((m) => {
                 const j = laufend[m.id];
@@ -451,6 +453,15 @@ function Maschinen({ eigene, laufend }) {
                 );
               })
             : <p className="pad__leer">Keine Maschinen in diesem Park.</p>}
+          {/* Im Park der Macodel (Multitasking) gleich die 508 Werkzeuge
+              als eigene Kachel (seit 1.501.0, Wunsch Patrick 12. November 2026) */}
+          {wz508Sichtbar() && eigene.some((m) => istMacodel(m)) &&
+            <button className="pad-kachel pad-kachel--maschine pad-kachel--wz508" data-padwo="wz508" data-wz508-park=""
+              onClick={() => gehe((p) => { p.wo = "wz508"; p.wz508Von = "maschinen"; })}>
+              <span className="pad-kachel__nr">🔧</span>
+              <span>508 Werkzeuge</span>
+              <span className="pad-kachel__auftrag">Magazin und Marken</span>
+            </button>}
         </div>
       </div>
     </>

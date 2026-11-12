@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { padZeichnen, padZurueck, PadNeuLadenKnopf } from "./Pad.jsx";
 import { GeraetMarke } from "./geraet.jsx";
+import { istMacodel, wz508Sichtbar } from "./Wz508.jsx";
 import { unterlagenOeffnen } from "../teile/Unterlagen.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { planwandFensterOeffnen } from "./PlanwandFenster.jsx";
@@ -660,6 +661,12 @@ export default function Maschine({ d }) {
           <button className="pad__unterlagen" data-padunterlagen="" onClick={() => unterlagenOeffnen(m)}>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z" />
               <path d="M4 19V5M8 7h6M8 11h6" /></svg>Unterlagen</button>}
+        {/* Macodel: direkt zu den 508 Werkzeugen (seit 1.501.0, Wunsch
+            Patrick 12. November 2026), Zurück führt wieder hierher */}
+        {!datei && wz508Sichtbar() && istMacodel(m) &&
+          <button className="pad__unterlagen" data-padwz508="" onClick={() => {
+            alt.pad.wo = "wz508"; alt.pad.wz508Von = "maschine"; padZeichnen(); }}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z" /></svg>508 Werkzeuge</button>}
         {/* Den Knopf Spezialwerkzeuge gibt es im Pad seit 1.305.0 nicht
             mehr: die Zeichnung des Werkzeugs steht im Einrichtblatt beim
             Antippen des Platzes (Wunsch Patrick 30. Oktober 2026) */}

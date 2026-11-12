@@ -13258,3 +13258,7 @@ body.dunkel .mag5-liste, body.dunkel .mag5-ring { background-color: #e9eff6; }
 body.dunkel .mag5 *:not(.mag5-platz--schutz):not(.mag5-platz--schutz *):not(.mag5-geist) { color: #12233a !important; }
 body.dunkel .mag5 { background: #f3f7fc; border-radius: 12px; padding: 10px; }
 body.dunkel .mag5-wz { background: #fff; }
+
+/* Seite der Macodel: 508 Werkzeuge neben „Pad Mode öffnen“ (seit 1.501.0) */
+.mseite-kopf__knoepfe { display: flex; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 640px) { .mseite-kopf__knoepfe { width: 100%; } .mseite-kopf__knoepfe .knopf { flex: 1 1 100%; } }
