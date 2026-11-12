@@ -7,6 +7,7 @@
 import { useRef, useState } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
 import { Gruppe } from "./teile.jsx";
+import MaterialLieferanten from "./MaterialLieferanten.jsx";
 import { kategorienListe, dichtenLaden, dichtenSpeichern, eigeneDichten, werkstoffAnzeige,
   werkstoffNummernLaden, werkstoffNummerSpeichern, nummerAusText } from "../daten/material.js";
 
@@ -31,6 +32,11 @@ export default function Farben() {
           + "die Suche findet den Werkstoff dann unter beidem."}>
         <div id="werkstoffliste"><Werkstoffe /></div>
       </Gruppe>
+      {/* Lieferbarkeit der Material-Lieferanten für den Planer im Pad (seit 1.506.0) */}
+      {alt.istAdmin() && <Gruppe titel="Material-Lieferanten"
+        text="Wie schnell welcher Lieferant Material liefert. Der Planer im Pad Mode schlägt damit vor, wo bestellt wird, und zeigt rot, wenn es nicht mehr rechtzeitig kommt.">
+        <MaterialLieferanten />
+      </Gruppe>}
     </>
   );
 }
