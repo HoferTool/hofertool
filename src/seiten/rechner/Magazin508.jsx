@@ -3,7 +3,7 @@
 //  Wunsch Patrick 12. November 2026: „die 2 Ebenen vom runden Magazin
 //  mit je 24 Werkzeugen graphisch zeigen, dann kann man die Werkzeuge
 //  aus der CAM-Liste per Drag and Drop aufs Magazin legen“.
-//  Ebene 1 = Fach 1–24, Ebene 2 = Fach 25–48 (Annahme, Patrick gefragt).
+//  Ebene 1 = Fach 1–24, Ebene 2 = Fach 25–48 (bestätigt Patrick 12. November 2026).
 //  Ziehen mit Pointer-Ereignissen statt HTML-Drag, damit es auch mit
 //  dem Finger auf dem iPad geht. Antippen eines belegten Platzes wählt
 //  die Marke (erst Platz, dann Marke, Entscheid Patrick).
