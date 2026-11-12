@@ -26,10 +26,11 @@ import Kontur, { tutorialOeffnen, TUTORIAL_AUS } from "./rechner/Kontur.jsx";
 import BohrenFraesen from "./rechner/BohrenFraesen.jsx";
 import Entgraten from "./rechner/Entgraten.jsx";
 import HoferCam from "./rechner/HoferCam.jsx";
+import Werkzeuge508 from "./rechner/Werkzeuge508.jsx";
 import Rechner, { REITER as RECHNER_REITER, rechnerAnsicht } from "./Rechner.jsx";
 
 export const REITER = [
-  ["kontur", "HOFERCONTUR"], ["cam", "HOFERCAM"], ["bohren", "Bohren / Fräsen"], ["entgraten", "Entgraten"], ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"], ["rechner", "Rechner"],
+  ["kontur", "HOFERCONTUR"], ["cam", "HOFERCAM"], ["bohren", "Bohren / Fräsen"], ["entgraten", "Entgraten"], ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"], ["wz508", "508 Werkzeuge"], ["rechner", "Rechner"],
 ];
 
 // Hofer Cam sehen seit 1.432.0 alle ausser Externen (camSehen in app.js)
@@ -37,7 +38,7 @@ export function ncReiter() {
   return REITER.filter(([w]) => w !== "cam" || (alt.camSehen && alt.camSehen()));
 }
 
-const INHALT = { bohren: BohrenFraesen, entgraten: Entgraten, cachse: CAchse, gravur: Gravur, dxf: Dxf, kontur: Kontur, cam: HoferCam, rechner: Rechner };
+const INHALT = { bohren: BohrenFraesen, entgraten: Entgraten, cachse: CAchse, gravur: Gravur, dxf: Dxf, kontur: Kontur, cam: HoferCam, wz508: Werkzeuge508, rechner: Rechner };
 
 // Eigenes Fenster für jeden Reiter (seit 1.437.0, Wunsch Patrick
 // 6. November 2026: „alle der Module in NC-PRO sollen auch als eigenes
@@ -111,7 +112,7 @@ export default function NcFunktionen() {
   }, []);
   useGemerkt(gemerkt, { ansicht });
   useSeitenSuche({
-    name: "NC-PRO", platzhalter: "HOFERCONTUR, Kontur, Bohren, Fräsen, Entgraten, C-Achse, Gravur, DXF, HOFERCAM, Drehzahl …",
+    name: "NC-PRO", platzhalter: "HOFERCONTUR, Kontur, Bohren, Fräsen, Entgraten, C-Achse, Gravur, DXF, HOFERCAM, 508 Werkzeuge, Drehzahl …",
     eintraege: [
       ...ncReiter().map(([w, t]) => ({ gruppe: "NC-PRO", zeichen: "⌨", titel: t, wert: w })),
       ...RECHNER_REITER.map(([w, t]) => ({ gruppe: "Rechner", zeichen: "∑", titel: t, wert: "rechner", unter: w })),

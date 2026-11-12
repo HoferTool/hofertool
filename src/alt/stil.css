@@ -13087,3 +13087,28 @@ body.ib-ruht #root { display: none !important; }
 .sp-pause-knopf--an { background: #22c55e; border-color: #22c55e; }
 .sp-flaeche { position: relative; flex: none; display: flex; align-items: center; justify-content: center; }
 .sp-pause { z-index: 5; border-radius: 20px; }
+
+/* NC-PRO → 508 Werkzeuge (seit 1.494.0): Werkzeugtabelle der 508 aus InventorCAM */
+.wz5-hilfe { color: var(--grau, #667); font-size: 0.92em; margin: 6px 0 10px; }
+.wz5-schritte { margin: 0 0 14px 1.2em; padding: 0; }
+.wz5-schritte li { margin: 6px 0; line-height: 1.6; }
+.wz5-datei { margin-left: 8px; cursor: pointer; white-space: nowrap; display: inline-block; }
+.wz5-ok { margin-left: 8px; color: #1f7a3a; font-weight: 600; }
+.wz5-tabelle td { vertical-align: top; }
+.wz5-tabelle input, .wz5-tabelle select { font: inherit; padding: 3px 5px; }
+.wz5-name { width: 100%; min-width: 14em; }
+.wz5-zahl { width: 6.5em; }
+.wz5-klein { width: 4.5em; }
+.wz5-vorher { font-size: 0.8em; color: var(--grau, #778); margin-top: 2px; overflow-wrap: anywhere; }
+.wz5-schild { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 0.82em; font-weight: 600; white-space: nowrap; }
+.wz5-neu { background: #d9f2e1; color: #1d6b35; }
+.wz5-aendern { background: #dde9fb; color: #1f4f99; }
+.wz5-fehler { background: #fde0dd; color: #a3261b; }
+.wz5-warn { outline: 2px solid #e0662b; }
+.wz5-aus { opacity: 0.55; }
+.wz5-fehlertext { color: #a3261b; }
+.wz5-fuss { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+body.dunkel .wz5-neu { background: #1d4a2b; }
+body.dunkel .wz5-aendern { background: #1d355e; }
+body.dunkel .wz5-fehler { background: #5c211c; }
+body.dunkel .wz5-ok { color: #7fd99a !important; }
