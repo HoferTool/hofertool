@@ -409,11 +409,11 @@ const TRISTAN = `<svg viewBox="0 0 340 300" xmlns="http://www.w3.org/2000/svg">
     <rect x="28" y="160" width="58" height="7" fill="#e8eef5" opacity=".9"/>
     <path d="M56 90 L56 200" stroke="#163d70" stroke-width="2"/>
     <rect x="50" y="76" width="13" height="14" fill="#e3a98a"/>
-    <circle cx="58" cy="62" r="20" fill="#f0c4a4"/>
+    <g class="tr-kopf"><circle cx="58" cy="62" r="20" fill="#f0c4a4"/>
     <path d="M38 60 C36 38 56 32 70 38 C78 42 80 50 78 56 C70 50 54 50 40 64 Z" fill="#3b2a1e"/>
     <circle cx="70" cy="62" r="2.2" fill="#2a2a2a"/>
     <path d="M66 73 C70 75 74 74 76 71" stroke="#9c5b3e" stroke-width="2" fill="none" stroke-linecap="round"/>
-    <circle cx="46" cy="64" r="4" fill="#e3a98a"/>
+    <circle cx="46" cy="64" r="4" fill="#e3a98a"/></g>
   </g>
   <g class="tr-tonne">
     <rect x="166" y="276" width="10" height="6" fill="#2b2f35"/><rect x="276" y="276" width="10" height="6" fill="#2b2f35"/>
@@ -436,6 +436,8 @@ const TRISTAN = `<svg viewBox="0 0 340 300" xmlns="http://www.w3.org/2000/svg">
   </g>
 </svg>`;
 // Masse im SVG: Tonne von 154 bis 298, Rand oben bei 130
+// So viele liegende Dosen, dann kommt Tristan mit Schaufel und Tonne
+const TRISTAN_AB = 20;
 const TR = { breite: 340, hoehe: 300, tonneMitte: 226, tonneBreit: 144, tonneOben: 134 };
 
 function tristanAnlegen(raum) {
@@ -446,10 +448,11 @@ function tristanAnlegen(raum) {
   raum.appendChild(el);
   tristanFoto().then((url) => {
     if (!url) return;
-    const g = el.querySelector(".tr-figur");
-    // Mit Foto ohne gezeichnete Beine und Arme; der Arm an der Tonne bleibt
-    g.innerHTML = `<image href="${url}" x="0" y="20" width="120" height="280" preserveAspectRatio="xMidYMax meet"/>` +
-      `<path d="M74 118 L148 152" stroke="#1a477f" stroke-width="13" stroke-linecap="round"/><circle cx="149" cy="152" r="8" fill="#e8b494"/>`;
+    // Das Foto ist nur der Kopf (freigestellt, nach rechts schauend); er
+    // sitzt auf der gezeichneten Figur im blauen Kittel, Arme und Beine
+    // bleiben gezeichnet und laufen weiter
+    const g = el.querySelector(".tr-kopf");
+    g.innerHTML = `<image href="${url}" x="26" y="16" width="64" height="84" preserveAspectRatio="xMidYMax meet"/>`;
     el.classList.add("tr-tristan--foto");
   });
   let an = false, x = 0, dir = 1, k = 1, tempo = 0, w = 0, h = 0, plopps = 0;
@@ -578,8 +581,10 @@ function haufenAnlegen(raum) {
     if (l) l.push(b); else gitter.set(k, [b]);
     liegen++;
     zeichne(gf, b);
-    // Bis unter den Kalender gefüllt: am Ende des Schritts abfliessen
-    if (!voll && b.y - b.d / 2 < grenzeMessen()) b.oben = true;
+    // Seit 1.497.1 kommt Tristan schon bei rund 20 liegenden Dosen
+    // (Wunsch Patrick 12. November 2026: „früher schaufeln, schon wenn ca. 20
+    // Dosen liegen“); reicht der Haufen vorher bis unter den Kalender, auch
+    if (!voll && (liegen >= TRISTAN_AB || b.y - b.d / 2 < grenzeMessen())) b.oben = true;
   };
 
   const neu = (x, y, d, ziel, vx, vy, g, sorte = ganz(0, SORTEN.length - 1)) => {

@@ -4,7 +4,7 @@
 # Kalender, fliesst alles unten ab und füllt sich neu (Wunsch Patrick
 # 11. November 2026, seit 1.481.0); seit 1.496.0 schaufelt Tristan sie in seine Tonne.
 # In der Gestaltung verschwinden sie weiter.
-import os, time
+import os, json, time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
@@ -23,6 +23,12 @@ with sync_playwright() as p:
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FAKE))
     for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
         pg.route(u, lambda r: r.abort())
+    # Foto von Tristan nur zum Anschauen: TRISTAN_FOTO=<Datei mit data:-Adresse>
+    # (das Foto steht nie im Repository, nur in der Datenbank)
+    if os.environ.get("TRISTAN_FOTO"):
+        url = open(os.environ["TRISTAN_FOTO"]).read().strip()
+        pg.add_init_script("""(() => { const t = setInterval(() => { if (window.TEST && TEST.daten) {
+          TEST.daten.app_config.push({ schluessel: 'infoboard_tristan', wert: %s }); clearInterval(t); } }, 5); })();""" % json.dumps(url))
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(800)
     pg.evaluate("location.hash='#/infoboard'"); pg.wait_for_selector("[data-ib='anzeige']")
@@ -46,7 +52,8 @@ with sync_playwright() as p:
             if pg.evaluate("TEST.dosen.voll()"): return True
         return False
     voll = fuellen()
-    pruefe(voll, "Tafel füllt sich bis unter den Kalender")
+    pruefe(voll, "Tristan kommt")
+    pruefe(pg.evaluate("TEST.dosen.liegen()") <= 40, "schon bei rund 20 Dosen: %d liegen" % pg.evaluate("TEST.dosen.liegen()"))
     pg.wait_for_timeout(500)
     pg.screenshot(path=os.path.join(BILDER, "tennis_abfluss.png"))
     # Seit 1.496.0 räumt Tristan mit Schaufel und Tonne den Haufen weg
@@ -61,12 +68,10 @@ with sync_playwright() as p:
     raus = pg.evaluate("TEST.dosen.raus()") - raus0
     pruefe(not pg.evaluate("TEST.dosen.voll()") and pg.evaluate("TEST.dosen.abfluss()") == 0,
       "fliesst ab: %d Bälle unten hinaus" % raus)
-    pruefe(raus > 300 and pg.evaluate("TEST.dosen.liegen()") < 30, "Tafel danach leer: %d liegen" % pg.evaluate("TEST.dosen.liegen()"))
+    pruefe(raus >= 15 and pg.evaluate("TEST.dosen.liegen()") < 30, "Tafel danach leer: %d liegen" % pg.evaluate("TEST.dosen.liegen()"))
     # Und füllt sich wieder
-    pg.evaluate("TEST.dosen.regen(25)"); pg.wait_for_timeout(5000)
-    pruefe(pg.evaluate("TEST.dosen.liegen()") >= 15, "füllt sich neu: %d liegen" % pg.evaluate("TEST.dosen.liegen()"))
     voll2 = fuellen()
-    pruefe(voll2 and pg.evaluate("TEST.dosen.runden()") >= 2, "zweite Runde bis unter den Kalender")
+    pruefe(voll2 and pg.evaluate("TEST.dosen.runden()") >= 2, "zweite Runde")
     # Liegen innerhalb der Tafel
     fps = pg.evaluate("""() => new Promise(r => { let n = 0; const t = performance.now();
       const f = () => { n++; if (performance.now() - t < 2000) requestAnimationFrame(f); else r(n / 2); }; requestAnimationFrame(f); })""")
