@@ -46,7 +46,15 @@ with sync_playwright() as p:
         pg.wait_for_selector("#inhalt")
         pg.evaluate("""TEST.daten.wz508_werkzeuge = [{ marke: '111111', name: 'FRAESER VHM D2.0', ort: 'maschine', fach: 2, nr: 2 }]""")
         pg.evaluate("document.getElementById('pad-knopf').click()")
-        pg.wait_for_selector("#pad [data-padwo='wz508']"); pg.click("#pad [data-padwo='wz508']")
+        # Startbild hat seit 1.505.0 keine Kachel mehr: über die Macodel im Park
+        pg.evaluate("""TEST.daten.machine_types.push({ id: 't-mac', name: 'Macodel' });
+          TEST.daten.machines.push({ id: 'm-401', park_id: TEST.daten.machine_parks[1].id, name: 'W&M 508MT2', machine_number: '401', sort_order: 99, is_active: true, type_id: 't-mac' });""")
+        pg.wait_for_selector("#pad [data-padwo='parks']")
+        pruefe("Startbild ohne Kachel 508", not pg.is_visible("#pad [data-padwo='wz508']"))
+        pg.click("#pad [data-padwo='parks']")
+        pg.click("#pad [data-park='" + pg.evaluate('TEST.daten.machine_parks[1].id') + "']"); pg.wait_for_timeout(800)
+        if pg.is_visible("#pad [data-padtyp='t-mac']"): pg.click("#pad [data-padtyp='t-mac']")
+        pg.wait_for_selector("#pad [data-wz508-park]"); pg.click("#pad [data-wz508-park]")
         pg.wait_for_selector("#pad-wz5")
         if name == "ipad":
             # Mehrere Werkzeuge auf einem Foto

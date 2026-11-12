@@ -286,11 +286,6 @@ function Start() {
             onClick={() => gehe((p) => { p.wo = "audit"; })}>
             <span className="pad-kachel__zeichen">☑</span><span>Audit</span>
           </button>}
-          {/* Werkzeuge der 508 mit Marke (seit 1.495.0), nicht für Externe und Dienst */}
-          {wz508Sichtbar() && <button className="pad-kachel pad-kachel--qs pad-kachel--wz508" data-padwo="wz508"
-            onClick={() => gehe((p) => { p.wo = "wz508"; delete p.wz508Von; })}>
-            <span className="pad-kachel__zeichen">🔧</span><span>508 Werkzeuge</span>
-          </button>}
         </div>
         {istPadKonto() && <GeraetZeile />}
       </div>
