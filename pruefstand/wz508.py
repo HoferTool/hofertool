@@ -47,6 +47,10 @@ with sync_playwright() as p:
     pruefe("Fach 4 belegt mit Taster", "Fach belegt" in zeile(4) and "MESSTASTER" in zeile(4))
     pruefe("Fach 9 fehlt", "Fach fehlt" in zeile(9))
     pg.screenshot(path=os.path.join(tmp, "wz508.png"), full_page=True)
+    # seit 1.503.0 Magazin und Fächerliste auch im Reiter, ohne Marken
+    pruefe("Magazin im Reiter", pg.locator("#mag5").count() == 1 and pg.locator("[data-mag-fach]").count() == 5)
+    pruefe("Fächerliste im Reiter", pg.locator("[data-mag-zeile]").count() == 5)
+    pruefe("Keine Marken im Reiter", pg.locator("[data-wz5-marke]").count() == 0 and "Marke wählen" not in pg.text_content("#mag5"))
     with pg.expect_download() as dl:
         pg.click("#wz5-laden")
     neu = open(dl.value.path(), "rb").read().decode("ascii")

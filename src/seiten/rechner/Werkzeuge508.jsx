@@ -52,7 +52,7 @@ export default function Werkzeuge508({ pad = false, marken = [], waehleMarke, on
 
   const zeilen = useMemo(() => {
     if (!z.dat || !z.csv) return [];
-    return vorschlagen(z.dat, z.csv, pad ? z.wahl : {}).map((v) => {
+    return vorschlagen(z.dat, z.csv, z.wahl).map((v) => {
       const a = { ...v, ...(z.aenderung[v.nr] || {}) };
       if (!pad) return a;
       // Marke: gewählt, sonst die, die laut Liste schon in diesem Fach steckt
@@ -117,11 +117,12 @@ export default function Werkzeuge508({ pad = false, marken = [], waehleMarke, on
 
       {zeilen.length > 0 && (
         <>
-          {pad && <Magazin508 bloecke={z.dat} zeilen={zeilen} marken={marken} onFach={aufFach}
-            onMarke={markeWaehlen} MarkeZeigen={MarkeZeigen} />}
+          {/* seit 1.503.0 auch im Reiter von NC-PRO, dort ohne Marken (Wunsch Patrick 12. November 2026) */}
+          <Magazin508 bloecke={z.dat} zeilen={zeilen} marken={pad ? marken : []} onFach={aufFach}
+            onMarke={pad ? markeWaehlen : undefined} MarkeZeigen={MarkeZeigen} />
           <div className="tabellenrolle">
             <table className="tabelle wz5-tabelle" id="wz5-tabelle">
-              <thead><tr><th /><th>{pad ? "Nr. / Fach" : "Fach"}</th>{pad && <th>Marke</th>}<th /><th>Name auf der Maschine</th><th>Typ</th><th>S max</th>
+              <thead><tr><th /><th>Nr. / Fach</th>{pad && <th>Marke</th>}<th /><th>Name auf der Maschine</th><th>Typ</th><th>S max</th>
                 <th>Zähne</th><th>Winkel</th><th>Radius</th><th title="Zustand 6 = Zu vermessen: das Programm misst das Werkzeug am Anfang (G850/G851)">Neu messen</th></tr></thead>
               <tbody>{zeilen.map((v) => {
                 const geht = v.aktion === "neu" || v.aktion === "aendern";
@@ -131,12 +132,11 @@ export default function Werkzeuge508({ pad = false, marken = [], waehleMarke, on
                   <tr key={v.nr} data-wz5={v.nr} className={aus ? "wz5-aus" : ""}>
                     <td>{geht && <input type="checkbox" checked={v.mit !== false} title="Übernehmen"
                       onChange={(e) => setze(v.nr, { mit: e.target.checked })} />}</td>
-                    {!pad && <td className="mitte"><b>{v.nr}</b></td>}
-                    {pad && <td><div className="wz5-nr">T{v.nr}</div>
+                    <td><div className="wz5-nr">T{v.nr}</div>
                       <select className={"wz5-fach" + (v.doppelt ? " wz5-warn" : "")} value={v.fach} data-wz5-fach={v.nr}
                         onChange={(e) => neu({ wahl: { ...z.wahl, [v.nr]: Number(e.target.value) } })}>
                         {z.dat.map((b) => <option key={b.fach} value={b.fach}>{fachText(b)}</option>)}</select>
-                      {v.doppelt && <div className="wz5-fehlertext">Fach doppelt</div>}</td>}
+                      {v.doppelt && <div className="wz5-fehlertext">Fach doppelt</div>}</td>
                     {pad && <td>{geht && !aus ? <button className="wz5-marke" data-wz5-marke={v.nr} onClick={() => markeWaehlen(v)}>
                       {v.marke ? (MarkeZeigen ? <MarkeZeigen marke={v.marke} /> : v.marke) : "Marke wählen"}</button> : null}</td>}
                     <td><span className={"wz5-schild " + klasse}>{wort}</span></td>

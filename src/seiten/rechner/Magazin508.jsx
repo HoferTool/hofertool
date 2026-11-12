@@ -79,7 +79,7 @@ export default function Magazin508({ bloecke, zeilen, marken = [], onFach, onMar
     const b = bloecke.find((x) => x.fach === gewaehlt);
     if (!b) return null;
     const c = (cam[gewaehlt] || [])[0];
-    if (c) return { titel: "Fach " + gewaehlt, zeilen: ["T" + c.nr + " " + c.name, c.ersetzt ? "raus: " + c.ersetzt.name : "", c.marke ? "Marke " + c.marke : "Antippen: Marke wählen"] };
+    if (c) return { titel: "Fach " + gewaehlt, zeilen: ["T" + c.nr + " " + c.name, c.ersetzt ? "raus: " + c.ersetzt.name : "", c.marke ? "Marke " + c.marke : onMarke ? "Antippen: Marke wählen" : ""] };
     const m = marken.find((x) => x.ort === "maschine" && x.fach === gewaehlt);
     if (geleert.has(gewaehlt)) return { titel: "Fach " + gewaehlt, zeilen: ["wird geleert", b.name] };
     if (b.leer) return { titel: "Fach " + gewaehlt, zeilen: ["leer"] };
