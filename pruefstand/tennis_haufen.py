@@ -2,7 +2,8 @@
 # Infoboard-Anzeige: die Tennisbälle bleiben liegen und stapeln sich, bis
 # die Tafel voll ist (seit 1.477.0); reicht der Haufen bis unter den
 # Kalender, fliesst alles unten ab und füllt sich neu (Wunsch Patrick
-# 11. November 2026, seit 1.481.0). In der Gestaltung verschwinden sie weiter.
+# 11. November 2026, seit 1.481.0); seit 1.496.0 schaufelt Tristan sie in seine Tonne.
+# In der Gestaltung verschwinden sie weiter.
 import os, time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -48,9 +49,13 @@ with sync_playwright() as p:
     pruefe(voll, "Tafel füllt sich bis unter den Kalender")
     pg.wait_for_timeout(500)
     pg.screenshot(path=os.path.join(BILDER, "tennis_abfluss.png"))
+    # Seit 1.496.0 räumt Tristan mit Schaufel und Tonne den Haufen weg
+    pruefe(pg.evaluate("TEST.dosen.tristan()"), "Tristan schiebt die Tonne über die Tafel")
+    pg.wait_for_timeout(5500)
+    pg.screenshot(path=os.path.join(BILDER, "tristan_mitte.png"))
     # Abfliessen: alles rinnt unten hinaus, danach ist die Tafel leer
     raus0 = pg.evaluate("TEST.dosen.raus()")
-    for i in range(40):
+    for i in range(120):
         if not pg.evaluate("TEST.dosen.voll()"): break
         pg.wait_for_timeout(250)
     raus = pg.evaluate("TEST.dosen.raus()") - raus0

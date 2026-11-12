@@ -377,6 +377,112 @@ function shade(hex) {
   return "#" + d(n >> 16) + d((n >> 8) & 255) + d(n & 255);
 }
 
+// Tristan mit Schaufel und Tonne (seit 1.496.0). Ein Foto steht nur in
+// der Datenbank (app_config, Schlüssel infoboard_tristan, als data:-Bild),
+// nie im Repository; ohne Foto die gezeichnete Figur. Alles in einem SVG
+// 340 × 300, nach rechts schauend: Tristan links, die Tonne rechts davor.
+let tristanHolen = null;
+const tristanFoto = () => {
+  if (!tristanHolen) tristanHolen = (async () => {
+    try {
+      if (!alt.db) return null;
+      const r = await alt.db.from("app_config").select("wert").eq("schluessel", "infoboard_tristan").maybeSingle();
+      const w = r && r.data && r.data.wert;
+      return typeof w === "string" && w.startsWith("data:image/") ? w : null;
+    } catch { return null; }
+  })();
+  return tristanHolen;
+};
+const TRISTAN = `<svg viewBox="0 0 340 300" xmlns="http://www.w3.org/2000/svg">
+  <g class="tr-figur">
+    <g class="tr-bein tr-bein--hinten"><path d="M44 190 L42 280" stroke="#3a3f47" stroke-width="19" stroke-linecap="round"/>
+      <path d="M32 282 h26 a8 8 0 0 1 0 14 h-26 z" fill="#15171b"/></g>
+    <g class="tr-bein tr-bein--vorne"><path d="M60 190 L62 280" stroke="#454b55" stroke-width="19" stroke-linecap="round"/>
+      <path d="M52 282 h26 a8 8 0 0 1 0 14 h-26 z" fill="#1d2025"/></g>
+    <path d="M66 112 L148 152" stroke="#1a477f" stroke-width="15" stroke-linecap="round"/>
+    <circle cx="149" cy="152" r="8" fill="#e8b494"/>
+    <path d="M30 108 C32 92 44 88 56 88 C70 88 82 94 84 108 L86 200 L28 200 Z" fill="#1d4f91"/>
+    <rect x="28" y="160" width="58" height="7" fill="#e8eef5" opacity=".9"/>
+    <path d="M56 90 L56 200" stroke="#163d70" stroke-width="2"/>
+    <rect x="50" y="76" width="13" height="14" fill="#e3a98a"/>
+    <circle cx="58" cy="62" r="20" fill="#f0c4a4"/>
+    <path d="M38 60 C36 38 56 32 70 38 C78 42 80 50 78 56 C70 50 54 50 40 64 Z" fill="#3b2a1e"/>
+    <circle cx="70" cy="62" r="2.2" fill="#2a2a2a"/>
+    <path d="M66 73 C70 75 74 74 76 71" stroke="#9c5b3e" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <circle cx="46" cy="64" r="4" fill="#e3a98a"/>
+  </g>
+  <g class="tr-tonne">
+    <rect x="166" y="276" width="10" height="6" fill="#2b2f35"/><rect x="276" y="276" width="10" height="6" fill="#2b2f35"/>
+    <circle cx="172" cy="288" r="11" fill="#1c1f24"/><circle cx="172" cy="288" r="4" fill="#9aa1a9"/>
+    <circle cx="280" cy="288" r="11" fill="#1c1f24"/><circle cx="280" cy="288" r="4" fill="#9aa1a9"/>
+    <path d="M154 140 L298 140 L290 280 L162 280 Z" fill="#2f6f45"/>
+    <path d="M154 140 L298 140 L294 200 L158 200 Z" fill="#ffffff" opacity=".07"/>
+    <path d="M170 150 L176 272 M200 150 L202 272 M252 150 L250 272 M282 150 L276 272" stroke="#245a37" stroke-width="4"/>
+    <rect x="148" y="130" width="156" height="14" rx="5" fill="#3e8a58"/>
+    <path d="M140 150 L156 150" stroke="#2b2f35" stroke-width="6" stroke-linecap="round"/>
+    <g class="tr-schild"><text x="226" y="222" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="24" fill="#ffffff">LEERGUT</text>
+    <text x="226" y="252" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" fill="#d7f0df">♻</text></g>
+  </g>
+  <g class="tr-schaufel">
+    <path d="M62 112 L104 150" stroke="#1d4f91" stroke-width="15" stroke-linecap="round"/>
+    <path d="M100 146 L300 264" stroke="#a36a35" stroke-width="7" stroke-linecap="round"/>
+    <path d="M88 132 L104 148" stroke="#2b2f35" stroke-width="9" stroke-linecap="round"/>
+    <circle cx="106" cy="152" r="8" fill="#e8b494"/>
+    <path d="M292 246 L338 262 L330 296 L282 282 Z" fill="#8f98a3" stroke="#5d6670" stroke-width="3" stroke-linejoin="round"/>
+  </g>
+</svg>`;
+// Masse im SVG: Tonne von 154 bis 298, Rand oben bei 130
+const TR = { breite: 340, hoehe: 300, tonneMitte: 226, tonneBreit: 144, tonneOben: 134 };
+
+function tristanAnlegen(raum) {
+  const el = document.createElement("div");
+  el.className = "tr-tristan";
+  el.style.visibility = "hidden";
+  el.innerHTML = TRISTAN;
+  raum.appendChild(el);
+  tristanFoto().then((url) => {
+    if (!url) return;
+    const g = el.querySelector(".tr-figur");
+    // Mit Foto ohne gezeichnete Beine und Arme; der Arm an der Tonne bleibt
+    g.innerHTML = `<image href="${url}" x="0" y="20" width="120" height="280" preserveAspectRatio="xMidYMax meet"/>` +
+      `<path d="M74 118 L148 152" stroke="#1a477f" stroke-width="13" stroke-linecap="round"/><circle cx="149" cy="152" r="8" fill="#e8b494"/>`;
+    el.classList.add("tr-tristan--foto");
+  });
+  let an = false, x = 0, dir = 1, k = 1, tempo = 0, w = 0, h = 0, plopps = 0;
+  const tonne = () => {
+    if (!an) return null;
+    const mitte = dir > 0 ? TR.tonneMitte : TR.breite - TR.tonneMitte;
+    return { x: x + mitte * k, w: TR.tonneBreit * k, oben: h - (TR.hoehe - TR.tonneOben) * k, dir };
+  };
+  return {
+    los(breite, hoehe) {
+      w = breite; h = hoehe;
+      k = h * .15 / TR.hoehe;
+      el.style.width = TR.breite * k + "px"; el.style.height = TR.hoehe * k + "px";
+      dir = Math.random() < .5 ? 1 : -1;
+      x = dir > 0 ? -TR.breite * k : w;
+      tempo = w / 13;
+      el.classList.toggle("tr-links", dir < 0);
+      el.style.visibility = ""; el.style.transform = `translateX(${x}px)` + (dir < 0 ? " scaleX(-1)" : "");
+      an = true;
+    },
+    schritt(dt) {
+      if (!an) return;
+      x += dir * tempo * dt;
+      el.style.transform = `translateX(${x.toFixed(1)}px)` + (dir < 0 ? " scaleX(-1)" : "");
+      if (dir > 0 ? x > w + 4 : x < -TR.breite * k - 4) { an = false; el.style.visibility = "hidden"; }
+    },
+    tonne,
+    unterwegs: () => an,
+    // Die Tonne wackelt ab und zu, wenn Dosen hineinfallen
+    plopp() {
+      if (++plopps % 7) return;
+      const t = el.querySelector(".tr-tonne");
+      if (t && t.animate) t.animate([{ transform: "translateY(0)" }, { transform: "translateY(3px)" }, { transform: "translateY(0)" }], { duration: 220 });
+    },
+  };
+}
+
 // Der Haufen in der Anzeige des Infoboards: fliegende Dosen (im Haufen
 // gerechnet als Kreise, darum der Name Bälle unten) mit
 // Schwerkraft und Stössen untereinander; wer zur Ruhe kommt, bleibt für
@@ -427,18 +533,40 @@ function haufenAnlegen(raum) {
     grenze = unten > 0 && unten < h * .8 ? unten : h * 622 / 1920;
     return grenze;
   };
+  // Seit 1.496.0 (12. November 2026: „unten im Infoboard noch Tristan
+  // Ecker mit einer Schaufel, der die Nocco-Dosen wegwischt in eine
+  // Tonne, die er vor sich hin schiebt“) fliesst der volle Haufen nicht
+  // mehr einfach unten hinaus: Tristan kommt von einer Seite, schiebt die
+  // Tonne quer über die Tafel, und wo sie hinkommt, fällt die ganze Säule
+  // Dosen in die Tonne, die untersten schaufelt er hinein.
+  const tristan = tristanAnlegen(raum);
   const abfliessen = () => {
     voll = true; runden++;
     abfluss = [];
-    for (const l of gitter.values()) for (const b of l) {
-      // Untere Bälle starten früher und sind darum immer schneller als
-      // die darüber: so rinnt der Haufen von unten weg, ohne Gedränge
-      b.warte = (h - b.y) / h * 1.6 + Math.random() * .12;
-      b.vx = (Math.random() - .5) * 40; b.vy = 0;
-      abfluss.push(b);
+    tristan.los(w, h);
+  };
+  // Alles, was die Tonne erreicht hat, fällt hinein
+  const zurTonne = () => {
+    const t = tristan.tonne();
+    if (!t) return;
+    let weg = false;
+    for (const [k, l] of gitter) {
+      for (let i = l.length - 1; i >= 0; i--) {
+        const b = l[i];
+        if ((b.x - t.x) * t.dir > t.w * .5 + D * .5) continue;
+        l.splice(i, 1); liegen--; weg = true;
+        // Untere zuerst, die Säule darüber rutscht nach
+        b.warte = (h - b.y) / h * .7 + Math.random() * .08;
+        b.zuX = (Math.random() - .5) * t.w * .5;
+        b.vx = 0; b.vy = 0; b.inTonne = false;
+        // Was unter dem Rand der Tonne liegt, fliegt mit der Schaufel hinein
+        const steigen = b.y - (t.oben - D * 1.2);
+        if (steigen > 0) b.vy = -Math.sqrt(2 * b.g * steigen) * zufall(1, 1.15);
+        abfluss.push(b);
+      }
+      if (!l.length) gitter.delete(k);
     }
-    gitter.clear(); liegen = 0;
-    gf.clearRect(0, 0, w, h);
+    if (weg) { gf.clearRect(0, 0, w, h); for (const l of gitter.values()) for (const b of l) zeichne(gf, b); }
   };
   const hinlegen = (b) => {
     const k = schluessel(b.x, b.y);
@@ -481,7 +609,7 @@ function haufenAnlegen(raum) {
   };
 
   const schritt = (dt) => {
-    if ((!fliegt.length && !abfluss.length) || !D) return;
+    if ((!fliegt.length && !abfluss.length && !voll) || !D) return;
     let oben = false;
     const n = 3, t = dt / n;
     for (let s = 0; s < n; s++) {
@@ -555,23 +683,29 @@ function haufenAnlegen(raum) {
       }
     }
     if (oben) abfliessen();
-    // Der abfliessende Haufen: ohne Stösse, jeder fällt für sich
+    if (voll) { tristan.schritt(dt); zurTonne(); }
+    // Die Dosen auf dem Weg in die Tonne: ohne Stösse, jede für sich,
+    // sie ziehen zur Tonne hin und verschwinden hinter ihrem Rand
+    const tn = tristan.tonne();
     for (let i = abfluss.length - 1; i >= 0; i--) {
       const b = abfluss[i];
       if (b.warte > 0) { b.warte -= dt; continue; }
-      b.vy += b.g * dt; b.x += b.vx * dt; b.y += b.vy * dt;
-      b.dreh += b.vx * dt / (b.d / 2);
-      if (b.y > h + b.d) { abfluss.splice(i, 1); raus++; }
+      b.vy += b.g * dt; b.y += b.vy * dt;
+      if (tn) b.x += (tn.x + b.zuX - b.x) * Math.min(1, dt * 3.5);
+      else b.x += b.vx * dt;
+      b.dreh += 3 * dt;
+      const drin = tn && b.vy > 0 && b.y > tn.oben + D * .4 && Math.abs(b.x - tn.x) < tn.w * .5;
+      if (drin || b.y > h + b.d) { abfluss.splice(i, 1); raus++; if (drin) tristan.plopp(); }
     }
-    // Alles abgeflossen: Boden zu, die Tafel füllt sich wieder
-    if (voll && !abfluss.length) voll = false;
+    // Tristan ist durch und alles ist in der Tonne: die Tafel füllt sich wieder
+    if (voll && !abfluss.length && !tristan.unterwegs()) voll = false;
     gl.clearRect(0, 0, w, h);
     for (const b of abfluss) zeichne(gl, b);
     for (const b of fliegt) zeichne(gl, b);
   };
 
   const haufen = { fliegt, neu, schritt, durchmesser, voll: () => voll, liegen: () => liegen, raus: () => raus,
-    runden: () => runden, grenze: () => grenzeMessen(), abfluss: () => abfluss.length };
+    runden: () => runden, grenze: () => grenzeMessen(), abfluss: () => abfluss.length, tristan: () => tristan.unterwegs() };
   // Für den Prüfstand: viele Bälle auf einmal oben einwerfen
   if (window.TEST) window.TEST.dosen = window.TEST.tennis = Object.assign(haufen, {
     regen: (anzahl) => {

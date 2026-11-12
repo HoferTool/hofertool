@@ -13112,3 +13112,22 @@ body.dunkel .wz5-neu { background: #1d4a2b; }
 body.dunkel .wz5-aendern { background: #1d355e; }
 body.dunkel .wz5-fehler { background: #5c211c; }
 body.dunkel .wz5-ok { color: #7fd99a !important; }
+
+/* Tristan mit Schaufel und Tonne räumt den vollen Haufen Nocco-Dosen im
+   Infoboard weg (seit 1.496.0, Wunsch Patrick 12. November 2026).
+   Läuft unten über die Tafel, gesteuert von Durchfahrt.jsx. */
+.tr-tristan { position: absolute; left: 0; bottom: 0; z-index: 2; pointer-events: none; will-change: transform; transform-origin: 50% 50%; }
+.tr-tristan svg { width: 100%; height: 100%; display: block; overflow: visible;
+  filter: drop-shadow(0 0 2px rgba(255,255,255,.7)) drop-shadow(0 4px 6px rgba(0,0,0,.45)); }
+.tr-tristan svg * { transform-box: view-box; }
+.tr-figur { animation: tr-hopp .5s ease-in-out infinite alternate; }
+.tr-bein { transform-origin: 52px 192px; animation: tr-schritt 1s ease-in-out infinite alternate; }
+.tr-bein--vorne { animation-delay: -1s; }
+.tr-schaufel { transform-origin: 66px 112px; animation: tr-schaufeln .9s ease-in-out infinite alternate; }
+.tr-tonne { transform-origin: 226px 288px; }
+@keyframes tr-hopp { from { transform: translateY(0); } to { transform: translateY(-4px); } }
+@keyframes tr-schritt { from { transform: rotate(-16deg); } to { transform: rotate(16deg); } }
+@keyframes tr-schaufeln { from { transform: rotate(-9deg); } to { transform: rotate(7deg); } }
+.tr-tristan--foto .tr-figur { animation-duration: .45s; }
+/* Nach links gespiegelt: die Schrift auf der Tonne bleibt lesbar */
+.tr-links .tr-schild { transform: scaleX(-1); transform-origin: 226px 0; }
