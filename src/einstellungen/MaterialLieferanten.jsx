@@ -1,6 +1,6 @@
 // =================================================================
 //  EINSTELLUNGEN → FARBEN UND MATERIAL → MATERIAL-LIEFERANTEN
-//  (seit 1.506.0, Wunsch Patrick 12. November 2026: „Lieferant
+//  (seit 1.507.0, Wunsch Patrick 12. November 2026: „Lieferant
 //  Lieferbarkeit in Einstellungen definierbar machen, wenn möglich, ist
 //  nicht überall möglich“). Je Lieferant: Name, weitere Schreibweisen
 //  (so steht er im Feld „Menge vorhanden oder bestellt“), Lieferzeit in

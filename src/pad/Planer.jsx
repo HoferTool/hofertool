@@ -1,5 +1,5 @@
 // =================================================================
-//  PAD MODE: PLANER (seit 1.506.0, Wunsch Patrick 12. November 2026:
+//  PAD MODE: PLANER (seit 1.507.0, Wunsch Patrick 12. November 2026:
 //  „Dashboard für Planer im Pad Mode, aktuelle wichtige Sachen, Todos wie
 //  Probleme (auch eigene Sachen verfassen), Materialbestellungen für die
 //  nächsten Aufträge zeigen und nach Lieferant sortieren“). Kachel

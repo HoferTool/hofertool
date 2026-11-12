@@ -284,7 +284,7 @@ function Start() {
             onClick={() => gehe((p) => { p.wo = "qs"; })}>
             <span className="pad-kachel__zeichen">🔍</span><span>QS Check</span>
           </button>
-          {/* Planer-Dashboard (seit 1.506.0), nur Admins, nie Externe */}
+          {/* Planer-Dashboard (seit 1.507.0), nur Admins, nie Externe */}
           {planerSichtbar() && <button className="pad-kachel pad-kachel--qs pad-kachel--planer" data-padwo="planer"
             onClick={() => gehe((p) => { p.wo = "planer"; })}>
             <span className="pad-kachel__zeichen">📋</span><span>Planer</span>

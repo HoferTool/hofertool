@@ -13291,7 +13291,7 @@ body.dunkel .mag5-zeile--cam td:last-child { background: #fff1e2; }
 body.dunkel .mag5-zeile--marke td:last-child { background: #e3f5e7; }
 body.dunkel .mag5-zeile--doppelt td:last-child { background: #ffe1e1; }
 
-/* ---------- Pad Mode: Planer (seit 1.506.0) ----------
+/* ---------- Pad Mode: Planer (seit 1.507.0) ----------
    Wunsch Patrick 12. November 2026: Dashboard für Planer, links Todo,
    rechts Material der nächsten Aufträge nach Lieferant. */
 #pad .pl { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(300px, 400px) 1fr; gap: 14px;
@@ -13382,7 +13382,7 @@ body.dunkel .mag5-zeile--doppelt td:last-child { background: #ffe1e1; }
 }
 #pad .pad-kachel--planer .pad-kachel__zeichen { filter: none; }
 
-/* Einstellungen → Material-Lieferanten (seit 1.506.0) */
+/* Einstellungen → Material-Lieferanten (seit 1.507.0) */
 .ml-tabelle { display: flex; flex-direction: column; gap: 6px; }
 .ml-zeile { display: grid; grid-template-columns: minmax(110px, 1.2fr) minmax(110px, 1.2fr) 120px auto 80px 40px; gap: 6px; align-items: center; }
 .ml-zeile--kopf { font-size: .8rem; font-weight: 700; color: var(--grau, #667); }

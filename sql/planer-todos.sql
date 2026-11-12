@@ -1,5 +1,5 @@
 -- =================================================================
---  Planer im Pad Mode (seit 1.506.0): eigene Todos
+--  Planer im Pad Mode (seit 1.507.0): eigene Todos
 --  Legt die Tabelle planer_todos an. Darin stehen die Todos, die
 --  Admins im Planer-Dashboard selbst schreiben (Text, fällig am,
 --  erledigt am). Lesen und schreiben nur Admins.

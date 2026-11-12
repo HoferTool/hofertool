@@ -32,7 +32,7 @@ export default function Farben() {
           + "die Suche findet den Werkstoff dann unter beidem."}>
         <div id="werkstoffliste"><Werkstoffe /></div>
       </Gruppe>
-      {/* Lieferbarkeit der Material-Lieferanten für den Planer im Pad (seit 1.506.0) */}
+      {/* Lieferbarkeit der Material-Lieferanten für den Planer im Pad (seit 1.507.0) */}
       {alt.istAdmin() && <Gruppe titel="Material-Lieferanten"
         text="Wie schnell welcher Lieferant Material liefert. Der Planer im Pad Mode schlägt damit vor, wo bestellt wird, und zeigt rot, wenn es nicht mehr rechtzeitig kommt.">
         <MaterialLieferanten />

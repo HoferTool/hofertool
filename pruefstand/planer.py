@@ -1,4 +1,4 @@
-# Planer-Dashboard im Pad Mode (1.506.0, Wunsch Patrick 12. November 2026):
+# Planer-Dashboard im Pad Mode (1.507.0, Wunsch Patrick 12. November 2026):
 # Todo mit Problemen und eigenen Todos, Material nach Lieferant gebündelt.
 import time, os
 from pruefstand import server_starten, FAKE, CH, PORT
