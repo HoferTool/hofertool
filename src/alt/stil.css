@@ -13262,3 +13262,26 @@ body.dunkel .mag5-wz { background: #fff; }
 /* Seite der Macodel: 508 Werkzeuge neben „Pad Mode öffnen“ (seit 1.501.0) */
 .mseite-kopf__knoepfe { display: flex; gap: 8px; flex-wrap: wrap; }
 @media (max-width: 640px) { .mseite-kopf__knoepfe { width: 100%; } .mseite-kopf__knoepfe .knopf { flex: 1 1 100%; } }
+
+/* Liste der Fächer unter dem runden Magazin der 508 (seit 1.502.0) */
+.mag5-tabelle { min-width: 0; }
+.mag5-tabelle td { vertical-align: top; overflow-wrap: anywhere; }
+.mag5-zeile { cursor: pointer; }
+.mag5-zeile--leer td { color: #8a97a8; }
+.mag5-zeile--cam td:last-child { background: #fff1e2; }
+.mag5-zeile--marke td:last-child { background: #e3f5e7; }
+.mag5-zeile--doppelt td:last-child { background: #ffe1e1; color: #a01818; }
+.mag5-zeile--geleert td:last-child { color: #8a3c3c; }
+.mag5-zeile--an td { box-shadow: inset 0 2px 0 #1d4f86, inset 0 -2px 0 #1d4f86; }
+.mag5-punkt { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 2px solid; margin-right: 6px; vertical-align: -1px; position: static; transform: none; }
+.mag5-punkt.mag5-platz--leer { border-style: dashed; border-color: #8a97a8; background: #f4f6f9; }
+.mag5-punkt.mag5-platz--belegt { border-color: #5f82ac; background: #d5e2f1; }
+.mag5-punkt.mag5-platz--schutz { border-color: #2d3644; background: #4a5668; }
+.mag5-punkt.mag5-platz--cam { border-color: #e8781c; background: #ffe1c2; }
+.mag5-punkt.mag5-platz--marke { border-color: #2e8b46; background: #c9ecd0; }
+.mag5-punkt.mag5-platz--doppelt { border-color: #c62828; background: #ffd0d0; }
+.mag5-punkt.mag5-platz--geleert { border-color: #c98a8a; background: #f0d7d7; }
+body.dunkel .mag5-tabelle .tabelle, body.dunkel .mag5-tabelle td, body.dunkel .mag5-tabelle th { background-color: #fff; }
+body.dunkel .mag5-zeile--cam td:last-child { background: #fff1e2; }
+body.dunkel .mag5-zeile--marke td:last-child { background: #e3f5e7; }
+body.dunkel .mag5-zeile--doppelt td:last-child { background: #ffe1e1; }

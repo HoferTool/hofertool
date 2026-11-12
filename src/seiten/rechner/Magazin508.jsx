@@ -9,9 +9,12 @@
 //  die Marke (erst Platz, dann Marke, Entscheid Patrick).
 // =================================================================
 import { useRef, useState } from "react";
-import { fachGeschuetzt, wirdGeschrieben } from "./wz508.js";
+import { TYPEN, fachGeschuetzt, fachTyp, wirdGeschrieben } from "./wz508.js";
 
 const JE_EBENE = 24;
+// Namen der Typen; die Schutztypen ≥900 stehen nicht in TYPEN
+const TYP_NAME = Object.fromEntries([...TYPEN, [900, "Taster"], [910, "Etalon"], [930, "Dummy"], [940, "Greifer"]]);
+const typText = (q) => (q ? (TYP_NAME[q] || (q >= 500 && q < 600 ? "Drehstahl" : "Typ")) + " " + q : "");
 const kurz = (s, n = 18) => (s && s.length > n ? s.slice(0, n - 1) + "…" : s || "");
 
 export default function Magazin508({ bloecke, zeilen, marken = [], onFach, onMarke, MarkeZeigen }) {
@@ -139,8 +142,38 @@ export default function Magazin508({ bloecke, zeilen, marken = [], onFach, onMar
         ))}
         <div className="mag5-legende">
           <span><i className="mag5-platz--cam" />neu aus dem CAM</span><span><i className="mag5-platz--marke" />mit Marke</span>
-          <span><i className="mag5-platz--belegt" />bleibt</span><span><i className="mag5-platz--schutz" />Taster, Greifer …</span>
+          <span><i className="mag5-platz--belegt" />bleibt</span><span><i className="mag5-platz--schutz" />gesperrt: Drehstahl, Taster, Greifer …</span>
           <span><i className="mag5-platz--leer" />leer</span>
+        </div>
+      </div>
+      {/* Liste aller Fächer unter dem Magazin, Wunsch Patrick 12. November 2026:
+          „kannst du diese Liste unterhalb auch anzeigen?“ – was jetzt drin ist
+          und was nach dem Schreiben drin ist */}
+      <div className="mag5-tabelle" id="mag5-tabelle">
+        <h3>Fächer im Magazin: jetzt und nach dem Schreiben</h3>
+        <div className="tabellenrolle">
+          <table className="tabelle">
+            <thead><tr><th>Fach</th><th>Jetzt in der Maschine</th><th>Typ</th><th>Nach dem Schreiben</th></tr></thead>
+            <tbody>{sortiert.map((b) => {
+              const c = cam[b.fach] || [];
+              const v = c[0];
+              const schutz = fachGeschuetzt(b);
+              const m = marken.find((x) => x.ort === "maschine" && x.fach === b.fach);
+              const nachher = c.length > 1 ? "zwei Werkzeuge: " + c.map((x) => "T" + x.nr).join(", ")
+                : v ? "T" + v.nr + " " + v.name + (v.aktion === "neu" ? " (neu, wird vermessen)" : " (aus dem CAM)") + (v.marke ? " · Marke " + v.marke : "")
+                : geleert.has(b.fach) ? "wird geleert"
+                : b.leer ? "leer" : schutz ? "bleibt (wird nie geändert)" : "bleibt";
+              const art = c.length > 1 ? "doppelt" : v ? (v.marke ? "marke" : "cam") : geleert.has(b.fach) ? "geleert" : b.leer ? "leer" : schutz ? "schutz" : "belegt";
+              return (
+                <tr key={b.fach} data-mag-zeile={b.fach} className={"mag5-zeile mag5-zeile--" + art + (gewaehlt === b.fach ? " mag5-zeile--an" : "")}
+                  onClick={() => setGewaehlt(b.fach)}>
+                  <td><i className={"mag5-punkt mag5-platz--" + art} />{b.fach}</td>
+                  <td>{b.leer ? <span className="klein">leer</span> : <>N{b.nr} {b.name}{schutz ? " 🔒" : ""}{m ? <span className="klein"> · Marke {m.marke}</span> : null}</>}</td>
+                  <td className="klein">{typText(fachTyp(b))}</td>
+                  <td>{nachher}</td>
+                </tr>);
+            })}</tbody>
+          </table>
         </div>
       </div>
       {geist && <div className="mag5-geist" style={{ left: geist.x, top: geist.y }}>T{geist.v.nr}</div>}

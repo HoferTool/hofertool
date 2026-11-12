@@ -210,7 +210,9 @@ export function vorschlagen(bloecke, wz, wahl = {}) {
 
 // Für die Grafik des Magazins: steckt im Fach ein Werkzeug, das nie
 // angefasst wird (Taster, Etalon, Dummy, Greifer, Drehstahl)?
-export const fachGeschuetzt = (b) => !!b && !b.leer && SCHUTZ(Number(wert(zerlegen(b).T || [], "Q")));
+export const fachGeschuetzt = (b) => !!b && !b.leer && SCHUTZ(fachTyp(b));
+// Werkzeugtyp (Q) eines belegten Fachs, für die Liste unter dem Magazin
+export const fachTyp = (b) => (!b || b.leer ? 0 : Number(wert(zerlegen(b).T || [], "Q")) || 0);
 
 // Was beim Schreiben wirklich übernommen wird
 export const wirdGeschrieben = (v) => v.mit !== false && (v.aktion === "neu" || v.aktion === "aendern");
