@@ -1,7 +1,7 @@
 // =================================================================
 //  EINSTELLUNGEN → NUTZER
 //  Benutzer mit Login (Rolle, Bearbeiten, Plant mit Kürzel, Geburtstag,
-//  PIN und Passwort, Andere Nutzer, aktiv), Zugriff auf Maschinenparks, der Link für
+//  PIN und Passwort, Andere Nutzer, aktiv), der Link für
 //  externe Partner und Personen ohne Login (nur für die Geburtstage
 //  auf der Startseite). Ändern dürfen nur Administratoren, alle
 //  anderen sehen die Liste.
@@ -25,17 +25,17 @@ export default function Nutzer() {
   return (
     <>
       <Gruppe titel="Benutzer mit Login" text={bin
-        ? "„Bearbeiten“ öffnet alles zu einer Person: Rolle, Rechte, Bild, Parks, Passwort und PIN."
+        ? "„Bearbeiten“ öffnet alles zu einer Person: Rolle, Rechte, Bild, Passwort und PIN."
         : "Ändern dürfen nur Administratoren."}>
         <div id="benutzerliste"><Benutzer bin={bin} /></div>
       </Gruppe>
       <Gruppe titel="Was die Rollen dürfen">
         <div className="rollenhilfe">
           <div><strong>Administrator</strong> darf alles, ohne etwas einzuschalten.</div>
-          <div><strong>Planwand</strong> sieht alle Parks und darf ändern.</div>
-          <div><strong>Langdreher</strong> und <strong>Kurzdreher</strong> sehen in der Produktion nur ihren Park, die Planwand ganz.</div>
+          <div><strong>Planwand</strong> sieht alles und darf ändern.</div>
+          <div><strong>Mechaniker</strong> sieht alles und darf ändern.</div>
           <div><strong>Mitarbeiter</strong> darf überall zusehen und den Einkauf nutzen, sonst nichts ändern.</div>
-          <div><strong>Extern</strong> ist für Partner wie Zurbrügg: nur die Planwand der eigenen Maschinen ansehen
+          <div><strong>Extern</strong> ist für Partner wie Zurbrügg: nur Planwand und Produktion der Parks mit „Extern“ im Namen ansehen
             und dort Stückzahlen melden, sonst nichts.</div>
           <div className="klein">Das Häkchen bei <strong>Plant</strong> heisst: Diese Person erscheint im
             Auftragsfenster unter „Siegel“. Das Kürzel daneben erscheint als Siegel in der Schnellvorschau.</div>
@@ -120,11 +120,6 @@ let ladeNr = 0;
 async function benutzerLaden(bin) {
   const r = await alt.zeitlimit(alt.db.from("profiles").select("*").order("full_name"), 9000, "Benutzer");
   if (r.error) throw r.error;
-  let parks = [];
-  try {
-    const p = await alt.zeitlimit(alt.db.from("machine_parks").select("id, name").eq("is_active", true).order("name"), 8000, "Parks");
-    if (!p.error) parks = p.data || [];
-  } catch (f) { /* ohne Parks geht es auch */ }
   // Maschinentypen für „Arbeitet an“ (seit 1.445.0)
   let typen = [];
   try {
@@ -147,7 +142,7 @@ async function benutzerLaden(bin) {
       if (!st.error && Array.isArray(st.data)) status = new Map(st.data.map((x) => [x.user_id, x]));
     } catch (f) { /* ohne SQL bleibt die Mitte leer */ }
   }
-  return { leute: r.data || [], parks, typen, mitPin, status, nr: ++ladeNr };
+  return { leute: r.data || [], typen, mitPin, status, nr: ++ladeNr };
 }
 
 function Benutzer({ bin }) {
@@ -189,12 +184,12 @@ function Info({ titel, wert, punkt, hinweis }) {
   );
 }
 
-function BenutzerListe({ leute, parks, typen, mitPin, status, bin, neu }) {
+function BenutzerListe({ leute, typen, mitPin, status, bin, neu }) {
   const ich = alt.profil && alt.profil.id;
   const ROLLEN = alt.ROLLEN;
   const oeffnen = (u) => {
     alt.plan.imDialog = true;
-    fensterOeffnen((zu) => <NutzerFenster person={u} parks={parks} typen={typen} mitPin={mitPin} zu={zu} />,
+    fensterOeffnen((zu) => <NutzerFenster person={u} typen={typen} mitPin={mitPin} zu={zu} />,
       () => { alt.plan.imDialog = false; neu(); });
   };
   return (
@@ -271,7 +266,7 @@ function startSeiten(u) {
   });
 }
 
-function NutzerFenster({ person, parks, typen = [], mitPin: pinAnfang, zu }) {
+function NutzerFenster({ person, typen = [], mitPin: pinAnfang, zu }) {
   const [u, setU] = useState(person);
   const [mitPin, setMitPin] = useState(() => !!(pinAnfang && pinAnfang.has(person.id)));
   const selbst = u.id === (alt.profil && alt.profil.id);
@@ -374,12 +369,6 @@ function NutzerFenster({ person, parks, typen = [], mitPin: pinAnfang, zu }) {
     if (ok) aendern({ is_active: ein });
   };
 
-  const parkUmschalten = (parkId, an) => {
-    const liste = (u.parks || []).filter((x) => x !== parkId);
-    if (an) liste.push(parkId);
-    aendern({ parks: liste }, "Zugriff gespeichert.");
-  };
-
   const typUmschalten = (typId, an) => {
     const liste = (u.typen || []).filter((x) => x !== typId);
     if (an) liste.push(typId);
@@ -457,20 +446,6 @@ function NutzerFenster({ person, parks, typen = [], mitPin: pinAnfang, zu }) {
               <input type="checkbox" data-tu={u.id} data-tt={t.id} checked={(u.typen || []).includes(t.id)}
                 onChange={(e) => typUmschalten(t.id, e.target.checked)} />
               <span>{t.name}</span></label>
-          ))}</div>
-        </div>
-      )}
-
-      {parks.length > 0 && u.role === "extern" && (
-        <div className="nutzerfenster__teil">
-          <h3>Maschinenparks</h3>
-          <p className="es-gruppe__text">Was die externe Firma in Produktion und Planwand sieht.
-            Ohne Auswahl die Parks mit „extern“, „Lohn“ oder „fremd“ im Namen.</p>
-          <div className="parkzeile__wahl">{parks.map((pk) => (
-            <label className="parkchip" key={pk.id}>
-              <input type="checkbox" data-pu={u.id} data-pp={pk.id} checked={(u.parks || []).includes(pk.id)}
-                onChange={(e) => parkUmschalten(pk.id, e.target.checked)} />
-              <span>{pk.name}</span></label>
           ))}</div>
         </div>
       )}

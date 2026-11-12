@@ -159,7 +159,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.505.1";
+const APP_VERSION = "1.506.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -2993,14 +2993,10 @@ function ladeHerunter(inhalt, dateiname, art) {
 //  RECHTE
 // =================================================================
 
-// Auf welche Maschinenparks hat der angemeldete Benutzer Zugriff?
-// Leere Liste heisst: alle.
-function meineParks() {
-  return (profil && Array.isArray(profil.parks)) ? profil.parks : [];
-}
-
-// Externe Partner sehen nur Parks, die ihnen zugewiesen sind — ohne
-// Zuweisung die Parks mit "extern", "Lohn" oder "fremd" im Namen
+// Externe Partner sehen nur die Parks mit "extern", "Lohn" oder "fremd"
+// im Namen. Parks je Person zuweisen gibt es seit 1.506.0 nicht mehr,
+// die Rolle reicht (Wunsch Patrick 12. November 2026: „brauchts nicht,
+// Rolle reicht, auch Externe“); profiles.parks ist geleert.
 function istExtern() { return meineRolle() === "extern"; }
 
 // Gemeldete Probleme als erledigt markieren darf jede Person ausser
@@ -3034,8 +3030,6 @@ function parkIstExtern(parkId) {
 function parkErlaubt(parkId) {
   if (istAdmin() || meineRolle() === "planwand") return true;
   if (istExtern()) {
-    const zu = meineParks();
-    if (zu.length) return zu.indexOf(parkId) !== -1;
     const park = (prod.parks || []).concat(plan.parksAlle || []).find((p) => p.id === parkId);
     return /extern|lohn|fremd/i.test(String((park && park.name) || ""));
   }
@@ -3043,8 +3037,7 @@ function parkErlaubt(parkId) {
   // Alle ausser Externen sehen seit 1.445.0 wieder alle Parks (Wunsch
   // Patrick 7. November 2026: „kannst du wieder für alle alles sichtbar
   // machen“). Statt des eigenen Parks gibt es den eigenen Maschinentyp
-  // (meineTypen), der vorgewählt wird. Die zugewiesenen Parks und die
-  // Rolle lang/kurz zählen nur noch bei Externen.
+  // (meineTypen), der vorgewählt wird.
   return true;
 }
 
@@ -3096,7 +3089,10 @@ function istAndererNutzer(u) {
 }
 function darfSchreiben() {
   const r = meineRolle();
-  return r === "admin" || r === "planwand"
+  // Langdreher und Kurzdreher heissen seit 1.506.0 Mechaniker (Wunsch
+  // Patrick 12. November 2026); die alten Namen gelten weiter, falls eine
+  // Zeile sie noch trägt.
+  return r === "admin" || r === "planwand" || r === "mechaniker"
     || r === "langdreher" || r === "kurzdreher";
 }
 
@@ -3123,8 +3119,7 @@ function darfEinkaufen() {
 const ROLLEN = {
   admin: "Administrator",
   planwand: "Planwand",
-  langdreher: "Langdreher",
-  kurzdreher: "Kurzdreher",
+  mechaniker: "Mechaniker",
   mitarbeiter: "Mitarbeiter",
   extern: "Extern",
   dienst: "Dienstkonto",
