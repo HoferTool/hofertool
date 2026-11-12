@@ -138,7 +138,8 @@ with sync_playwright() as p:
     print("Reiter Planwand:", reiter)
     # Seit 1.12.3 nur noch Allgemein, Dokumente und Backup (Wunsch Patrick, 9. Oktober 2026)
     # Seit 1.310.0 dazu Temp (alle ausser Externen und Dienst), Wartung nicht für Gerätekonten
-    if reiter != ["allgemein", "temp", "dokumente", "backup"]: fehler.append("Planwand sieht andere Reiter als Allgemein, Temp, Dokumente, Backup")
+    # Seit 1.505.1 auch Wartung (Vorlagen sehen alle ausser Externen und Dienst)
+    if sorted(reiter) != sorted(["allgemein", "temp", "dokumente", "backup", "wartung"]): fehler.append("Planwand sieht andere Reiter als Allgemein, Temp, Dokumente, Backup, Wartung")
     if pg.locator("#np").count(): fehler.append("Planwand sieht Passwortfeld")
     da = pg.evaluate("[!!document.getElementById('bestellmail-oeffnen'), !!document.getElementById('pin-feld')]")
     print("Bestellmail, Planwand-PIN:", da)
