@@ -13131,3 +13131,75 @@ body.dunkel .wz5-ok { color: #7fd99a !important; }
 .tr-tristan--foto .tr-figur { animation-duration: .45s; }
 /* Nach links gespiegelt: die Schrift auf der Tonne bleibt lesbar */
 .tr-links .tr-schild { transform: scaleX(-1); transform-origin: 226px 0; }
+/* ---------- Pad Mode: 508 Werkzeuge mit Marke (seit 1.495.0) ---------- */
+#pad .pad-wz5 { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 12px 16px 28px; display: flex; flex-direction: column; gap: 14px;
+  width: 100%; max-width: 1400px; margin: 0 auto; box-sizing: border-box; color: #e6eef7; }
+#pad .pad-wz5__fehlt { background: #5c211c; color: #fff; padding: 10px 14px; border-radius: 10px; }
+#pad .pad-wz5__reiter { display: flex; gap: 8px; flex-wrap: wrap; }
+#pad .pad-wz5__tab { flex: 1 1 180px; padding: 14px 16px; border-radius: 12px; border: 1px solid #2f4d74; background: #141c26; color: #dfe7ef;
+  font: inherit; font-size: 1.15rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+#pad .pad-wz5__tab--an { background: linear-gradient(180deg, #1d4f86, #12345a); border-color: #4b82c4; color: #fff; }
+#pad .pad-wz5__zahl { background: #fff; color: #12345a; border-radius: 10px; padding: 0 8px; font-size: .9rem; }
+#pad .pad-wz5__teil { display: flex; flex-direction: column; gap: 12px; }
+#pad .pad-wz5__erfassen { display: flex; gap: 16px; flex-wrap: wrap; }
+#pad .pad-wz5__foto { flex: 1 1 320px; min-height: 260px; max-height: 420px; border: 2px dashed #4b82c4; border-radius: 16px; background: #0f2238;
+  display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; }
+#pad .pad-wz5__foto img { width: 100%; height: 100%; object-fit: contain; }
+#pad .pad-wz5__foto span { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 3rem; color: #fff; }
+#pad .pad-wz5__foto b { font-size: 1.3rem; }
+#pad .pad-wz5__foto i { font-size: 1rem; color: #b9c8d8; font-style: normal; }
+#pad .pad-wz5__felder { flex: 1 1 300px; display: flex; flex-direction: column; gap: 10px; }
+#pad .pad-wz5__felder label { display: flex; flex-direction: column; gap: 4px; color: #b9c8d8; font-size: .95rem; }
+#pad .pad-wz5__felder input, #pad .pad-wz5__suche { font: inherit; font-size: 1.15rem; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid #3d4a5a; background: #0b1520; color: #fff; }
+#pad .pad-wz5__felder .pad-wz5__marke { font-size: 2.2rem; letter-spacing: .25em; font-variant-numeric: tabular-nums; text-align: center; }
+#pad .pad-wz5__hinweis { color: #ffd98a; margin: 0; }
+#pad .pad-wz5__klein { color: #9fb1c4; font-size: .9rem; margin: 0; }
+#pad .pad-wz5__leer { color: #9fb1c4; margin: 0; }
+#pad .pad-wz5__zwischen { color: #b9c8d8; margin: 8px 0 0; font-size: 1rem; text-transform: uppercase; letter-spacing: .05em; }
+#pad .pad-wz5__knopf { padding: 10px 16px; border-radius: 10px; border: 1px solid #3d4a5a; background: #222b36; color: #fff;
+  font: inherit; font-size: 1rem; cursor: pointer; }
+#pad .pad-wz5__knopf--haupt { background: #fff; color: #0f2238; border-color: #fff; font-weight: 700; font-size: 1.2rem; padding: 14px 18px; }
+#pad .pad-wz5__knopf--haupt:disabled { opacity: .45; cursor: default; }
+#pad .pad-wz5__knopf--weg { padding: 10px 14px; }
+#pad .pad-wz5__karten { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+#pad .pad-wz5__karte { display: flex; gap: 10px; align-items: center; padding: 10px; border-radius: 12px; background: #141c26;
+  border: 1px solid #2a3a4e; min-width: 0; flex-wrap: wrap; }
+#pad .pad-wz5__text { flex: 1 1 120px; display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+#pad .pad-wz5__nummer { font-size: 1.5rem; letter-spacing: .08em; font-variant-numeric: tabular-nums; }
+#pad .pad-wz5__ort { color: #9fb1c4; font-size: .9rem; }
+#pad .pad-wz5__aktionen { display: flex; gap: 6px; flex-wrap: wrap; }
+.wz5p-bild { width: 84px; height: 84px; object-fit: cover; border-radius: 8px; background: #0b1520; flex: 0 0 auto; cursor: zoom-in; }
+.wz5p-bild--leer { display: inline-flex; align-items: center; justify-content: center; font-size: .75rem; color: #9fb1c4; cursor: default; }
+/* Tabelle wie in NC-PRO, auf heller Fläche */
+#pad .pad-wz5__bestuecken { background: #fff; color: #12233a; border-radius: 14px; }
+#pad .pad-wz5__bestuecken .karte { margin: 0; box-shadow: none; }
+body.dunkel #pad .pad-wz5__bestuecken { background: #1a2230; }
+.wz5-nr { font-weight: 700; margin-bottom: 3px; }
+.wz5-fach { max-width: 12em; }
+.wz5-hinweis { font-size: 0.8em; color: #a0570f; margin-top: 2px; }
+body.dunkel .wz5-hinweis { color: #ffc27a !important; }
+.wz5-marke { font: inherit; padding: 4px 8px; border-radius: 8px; border: 1px solid #9fb4cc; background: #f3f7fc; color: #12345a;
+  cursor: pointer; white-space: nowrap; }
+body.dunkel .wz5-marke { background: #222b36; border-color: #3d4a5a; }
+.wz5-marke-text { display: inline-flex; align-items: center; gap: 6px; }
+.wz5-marke-text .wz5p-bild { width: 40px; height: 40px; }
+/* Auswahl der Marke und Frage nach herausgenommenen Werkzeugen */
+.wz5p-huelle .wz5p-wahl { max-width: min(1100px, 96vw); }
+.wz5p-wahl__eigen { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+.wz5p-wahl__eigen input { font: inherit; font-size: 1.3rem; padding: 8px 10px; width: 9em; letter-spacing: .15em; }
+.wz5p-wahl__liste { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+.wz5p-wahl__karte { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px; border-radius: 12px;
+  border: 1px solid #c8d4e2; background: #f6f9fc; font: inherit; cursor: pointer; color: inherit; overflow-wrap: anywhere; }
+.wz5p-wahl__karte img, .wz5p-wahl__leer { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; background: #e6edf5; }
+.wz5p-wahl__leer { display: flex; align-items: center; justify-content: center; color: #778; }
+.wz5p-wahl__karte b { font-size: 1.3rem; letter-spacing: .08em; }
+body.dunkel .wz5p-wahl__karte { background: #1a2230; border-color: #3d4a5a; }
+body.dunkel .wz5p-wahl__karte img, body.dunkel .wz5p-wahl__leer { background: #0b1520; }
+.wz5p-raus__liste { list-style: none; padding: 0; margin: 0 0 10px; display: flex; flex-direction: column; gap: 8px; }
+.wz5p-raus__liste li { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 8px; border-radius: 10px; background: #f3f7fc; }
+.wz5p-raus__liste li > img, .wz5p-raus__liste li > .wz5p-wahl__leer { width: 80px; height: 80px; aspect-ratio: auto; object-fit: cover; border-radius: 8px; }
+.wz5p-raus__liste li > span:nth-child(2) { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; }
+.wz5p-raus__wahl { display: flex; gap: 6px; flex-wrap: wrap; }
+body.dunkel .wz5p-raus__liste li { background: #1a2230; }
+body.dunkel #pad .pad-wz5__zahl { background: #4b82c4; }

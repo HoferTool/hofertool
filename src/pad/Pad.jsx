@@ -22,6 +22,7 @@ import { alt, reactAufraeumen } from "../bruecke.jsx";
 import Maschine, { maschineLaden } from "./Maschine.jsx";
 import QsCheck, { qsLaden } from "./QsCheck.jsx";
 import PadAudit, { auditLaden } from "./Audit.jsx";
+import PadWz508, { wz508Laden, wz508Sichtbar } from "./Wz508.jsx";
 import { padGeraet, geraetSetzen, istPadKonto, GeraetMarke } from "./geraet.jsx";
 import { PadMeldungenKnopf } from "./QsMeldung.jsx";
 export { padGeraetZustand } from "./geraet.jsx";
@@ -182,6 +183,7 @@ async function sichtLaden(p) {
   if (p.wo === "qsparks") p.wo = "qs"; // gemerkt von vor 1.62.0
   if (p.wo === "qs") return qsLaden(p);
   if (p.wo === "audit" && alt.seiteSichtbar("qmalt")) return auditLaden();
+  if (p.wo === "wz508" && wz508Sichtbar()) return wz508Laden();
   if (p.wo === "planwand") return { art: "planwand" };
   if (String(p.wo).indexOf("seite:") === 0) {
     const pfad = p.wo.slice(6);
@@ -249,6 +251,7 @@ function Pad({ h, auffrischen }) {
   if (d.art === "maschine") return <Maschine d={d} />;
   if (d.art === "qs") return <QsCheck zeilen={d.zeilen} teile={d.teile} />;
   if (d.art === "audit") return <PadAudit d={d} Kopf={PadKopf} neu={padZeichnen} />;
+  if (d.art === "wz508") return <PadWz508 d={d} Kopf={PadKopf} neu={padZeichnen} />;
   if (d.art === "planwand") {
     return <Rahmen key={stand.nr} titel="Planwand" id="pad-planwand" klasse="pad__rolle"
       zeichne={(ziel) => alt.seitePlanwand(ziel)} />;
@@ -280,6 +283,11 @@ function Start() {
           {alt.seiteSichtbar("qmalt") && <button className="pad-kachel pad-kachel--qs pad-kachel--audit" data-padwo="audit"
             onClick={() => gehe((p) => { p.wo = "audit"; })}>
             <span className="pad-kachel__zeichen">☑</span><span>Audit</span>
+          </button>}
+          {/* Werkzeuge der 508 mit Marke (seit 1.495.0), nicht für Externe und Dienst */}
+          {wz508Sichtbar() && <button className="pad-kachel pad-kachel--qs pad-kachel--wz508" data-padwo="wz508"
+            onClick={() => gehe((p) => { p.wo = "wz508"; })}>
+            <span className="pad-kachel__zeichen">🔧</span><span>508 Werkzeuge</span>
           </button>}
         </div>
         {istPadKonto() && <GeraetZeile />}

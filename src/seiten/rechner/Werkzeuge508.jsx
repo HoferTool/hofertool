@@ -6,10 +6,12 @@
 // =================================================================
 import { useMemo, useState } from "react";
 import { alt } from "../../bruecke.jsx";
-import { TYPEN, datLesen, csvLesen, vorschlagen, datSchreiben, dateiText } from "./wz508.js";
+import { TYPEN, datLesen, csvLesen, vorschlagen, datSchreiben, dateiText, wirdGeschrieben } from "./wz508.js";
 
-// Bleibt beim Reiterwechsel stehen, samt Dateien
-const gemerkt = { dat: null, datName: "", csv: null, csvName: "", aenderung: {} };
+// Bleibt beim Reiterwechsel stehen, samt Dateien; im Pad eigener Stand
+const leer = () => ({ dat: null, datName: "", csv: null, csvName: "", aenderung: {}, wahl: {}, marken: {} });
+const gemerkt = leer();
+const gemerktPad = leer();
 
 const AKTION = {
   neu: ["Neu", "wz5-neu"], aendern: ["Ändern", "wz5-aendern"],
@@ -26,9 +28,15 @@ function herunterladen(e, text) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-export default function Werkzeuge508() {
-  const [z, setZ] = useState(gemerkt);
-  const neu = (teil) => { const g = { ...z, ...teil }; Object.assign(gemerkt, g); setZ(g); };
+// pad (seit 1.495.0): im Pad Mode wählt man je Werkzeug das Magazinfach und
+// die Marke (3D-gedruckter Clip mit 6 Ziffern, Wunsch Patrick 12. November
+// 2026); nach dem Herunterladen meldet onGeschrieben, was wohin kam.
+// marken: alle Komplettwerkzeuge aus wz508_werkzeuge, waehleMarke(ausser)
+// öffnet die Auswahl und gibt die Marke zurück.
+export default function Werkzeuge508({ pad = false, marken = [], waehleMarke, onGeschrieben, MarkeZeigen }) {
+  const speicher = pad ? gemerktPad : gemerkt;
+  const [z, setZ] = useState(speicher);
+  const neu = (teil) => { const g = { ...z, ...teil }; Object.assign(speicher, g); setZ(g); };
 
   const lesen = (art) => async (e) => {
     const datei = (e.target.files || [])[0];
@@ -37,20 +45,44 @@ export default function Werkzeuge508() {
     try {
       const text = dateiText(new Uint8Array(await datei.arrayBuffer()));
       if (art === "dat") neu({ dat: datLesen(text), datName: datei.name, aenderung: {} });
-      else neu({ csv: csvLesen(text), csvName: datei.name, aenderung: {} });
+      else neu({ csv: csvLesen(text), csvName: datei.name, aenderung: {}, wahl: {}, marken: {} });
     } catch (f) { alt.meldung(f.message || String(f), "warn"); }
   };
 
   const zeilen = useMemo(() => {
     if (!z.dat || !z.csv) return [];
-    return vorschlagen(z.dat, z.csv).map((v) => ({ ...v, ...(z.aenderung[v.nr] || {}) }));
-  }, [z.dat, z.csv, z.aenderung]);
+    return vorschlagen(z.dat, z.csv, pad ? z.wahl : {}).map((v) => {
+      const a = { ...v, ...(z.aenderung[v.nr] || {}) };
+      if (!pad) return a;
+      // Marke: gewählt, sonst die, die laut Liste schon in diesem Fach steckt
+      if (z.marken[v.nr] !== undefined) a.marke = z.marken[v.nr];
+      else if (v.aktion === "aendern") {
+        const da = marken.find((m) => m.ort === "maschine" && m.fach === v.fach && m.nr === v.nr);
+        a.marke = da ? da.marke : "";
+      } else a.marke = "";
+      return a;
+    });
+  }, [z.dat, z.csv, z.aenderung, z.wahl, z.marken, pad, marken]);
   const setze = (nr, teil) => neu({ aenderung: { ...z.aenderung, [nr]: { ...(z.aenderung[nr] || {}), ...teil } } });
 
   const machbar = zeilen.filter((v) => v.aktion === "neu" || v.aktion === "aendern");
-  const aktiv = machbar.filter((v) => v.mit !== false);
+  const aktiv = zeilen.filter(wirdGeschrieben);
   const fehlerS = aktiv.filter((v) => !(v.smax > 0));
-  const text = z.dat && aktiv.length && !fehlerS.length ? datSchreiben(z.dat, zeilen) : "";
+  const doppelt = aktiv.filter((v) => v.doppelt);
+  const text = z.dat && aktiv.length && !fehlerS.length && !doppelt.length ? datSchreiben(z.dat, zeilen) : "";
+
+  // Fächer zur Wahl: Inhalt laut eingelesener Tabelle
+  const fachText = (b) => b.fach + " · " + (b.leer ? "leer" : b.name);
+  const markeWaehlen = async (v) => {
+    if (!waehleMarke) return;
+    const vergeben = zeilen.filter((x) => x.nr !== v.nr && x.marke).map((x) => x.marke);
+    const m = await waehleMarke(vergeben, v);
+    if (m !== undefined && m !== null) neu({ marken: { ...z.marken, [v.nr]: m } });
+  };
+  const laden = (e) => {
+    herunterladen(e, text);
+    if (onGeschrieben) onGeschrieben(aktiv);
+  };
 
   return (
     <div className="karte wz5" id="wz5">
@@ -74,7 +106,7 @@ export default function Werkzeuge508() {
         <>
           <div className="tabellenrolle">
             <table className="tabelle wz5-tabelle" id="wz5-tabelle">
-              <thead><tr><th /><th>Fach</th><th /><th>Name auf der Maschine</th><th>Typ</th><th>S max</th>
+              <thead><tr><th /><th>{pad ? "Nr. / Fach" : "Fach"}</th>{pad && <th>Marke</th>}<th /><th>Name auf der Maschine</th><th>Typ</th><th>S max</th>
                 <th>Zähne</th><th>Winkel</th><th>Radius</th><th title="Zustand 6 = Zu vermessen: das Programm misst das Werkzeug am Anfang (G850/G851)">Neu messen</th></tr></thead>
               <tbody>{zeilen.map((v) => {
                 const geht = v.aktion === "neu" || v.aktion === "aendern";
@@ -84,13 +116,22 @@ export default function Werkzeuge508() {
                   <tr key={v.nr} data-wz5={v.nr} className={aus ? "wz5-aus" : ""}>
                     <td>{geht && <input type="checkbox" checked={v.mit !== false} title="Übernehmen"
                       onChange={(e) => setze(v.nr, { mit: e.target.checked })} />}</td>
-                    <td className="mitte"><b>{v.nr}</b></td>
+                    {!pad && <td className="mitte"><b>{v.nr}</b></td>}
+                    {pad && <td><div className="wz5-nr">T{v.nr}</div>
+                      <select className={"wz5-fach" + (v.doppelt ? " wz5-warn" : "")} value={v.fach} data-wz5-fach={v.nr}
+                        onChange={(e) => neu({ wahl: { ...z.wahl, [v.nr]: Number(e.target.value) } })}>
+                        {z.dat.map((b) => <option key={b.fach} value={b.fach}>{fachText(b)}</option>)}</select>
+                      {v.doppelt && <div className="wz5-fehlertext">Fach doppelt</div>}</td>}
+                    {pad && <td>{geht && !aus ? <button className="wz5-marke" data-wz5-marke={v.nr} onClick={() => markeWaehlen(v)}>
+                      {v.marke ? (MarkeZeigen ? <MarkeZeigen marke={v.marke} /> : v.marke) : "Marke wählen"}</button> : null}</td>}
                     <td><span className={"wz5-schild " + klasse}>{wort}</span></td>
                     {geht ? <>
                       <td><input className="wz5-name" value={v.name} maxLength={32} disabled={aus}
                         onChange={(e) => setze(v.nr, { name: e.target.value.replace(/[()]/g, "") })} />
                         {v.alt && !v.alt.leer && v.alt.name !== v.name && <div className="wz5-vorher">vorher: {v.alt.name}</div>}
-                        <div className="wz5-vorher">CAM: {v.cam.art.toLowerCase()} Ø{v.cam.d}</div></td>
+                        <div className="wz5-vorher">CAM: {v.cam.art.toLowerCase()} Ø{v.cam.d}</div>
+                        {v.ersetzt && <div className="wz5-hinweis">raus: „{v.ersetzt.name}“ (Nr. {v.ersetzt.nr})</div>}
+                        {v.leeren && <div className="wz5-hinweis">Fach {v.leeren.fach} („{v.leeren.name}“) wird geleert</div>}</td>
                       <td><select value={v.typ} disabled={aus} className={v.typUnsicher ? "wz5-warn" : ""}
                         onChange={(e) => setze(v.nr, { typ: Number(e.target.value), typUnsicher: false })}>
                         {!TYPEN.some(([q]) => q === v.typ) && <option value={v.typ}>{v.typ}</option>}
@@ -116,9 +157,10 @@ export default function Werkzeuge508() {
           <p className="wz5-hilfe">Neue Werkzeuge bekommen als Länge den Wert aus dem CAM (H-Länge) und Zustand 6 „Zu vermessen“;
             das Programm misst sie am Anfang selbst. Bei vorhandenen Werkzeugen bleiben Länge und Abnutzung, der Radius
             ändert nur, wenn der Durchmesser anders ist. Leere Fächer im CAM bleiben auf der Maschine, wie sie sind.</p>
+          {doppelt.length > 0 && <p className="karte karte--fehler" id="wz5-doppelt">Zwei Werkzeuge im selben Fach ({[...new Set(doppelt.map((v) => v.fach))].join(", ")}). Bitte ein anderes Fach wählen.</p>}
           {fehlerS.length > 0 && <p className="karte karte--fehler" id="wz5-smax-fehlt">S max fehlt bei Fach {fehlerS.map((v) => v.nr).join(", ")}. Bitte eintragen.</p>}
           <div className="wz5-fuss">
-            <button className="knopf" id="wz5-laden" disabled={!text} onClick={(e) => herunterladen(e, text)}>GESTOUTI.DAT herunterladen</button>
+            <button className="knopf" id="wz5-laden" disabled={!text} onClick={laden}>GESTOUTI.DAT herunterladen</button>
             <span>{aktiv.length} von {machbar.length} Werkzeugen werden übernommen</span>
           </div>
         </>

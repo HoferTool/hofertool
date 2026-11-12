@@ -153,27 +153,42 @@ const SCHUTZ = (q) => (q >= 500 && q < 600) || q >= 900;
 
 // ---------- Vorschlag je Werkzeug ----------
 // Liefert je CAM-Werkzeug eine Zeile, die man in der Ansicht noch ändern kann.
-export function vorschlagen(bloecke, wz) {
-  return wz.slice().sort((a, b) => a.nr - b.nr).map((w) => {
-    const b = bloecke.find((x) => x.fach === w.nr);
+// wahl: { CAM-Nr.: Fach } – seit 1.495.0 wählt man im Pad Mode das
+// Magazinfach selbst (Wunsch Patrick 12. November 2026). Ohne Wahl gilt
+// wie bisher Fach = CAM-Nr. Die Werkzeugnummer (N, im Programm T…)
+// bleibt immer die CAM-Nr., nur das Fach (G) wechselt.
+export function vorschlagen(bloecke, wz, wahl = {}) {
+  const zeilen = wz.slice().sort((a, b) => a.nr - b.nr).map((w) => {
+    const gewaehlt = wahl[w.nr] != null && wahl[w.nr] !== "";
+    const fach = gewaehlt ? Number(wahl[w.nr]) : w.nr;
+    const b = bloecke.find((x) => x.fach === fach);
     const typ = CAM_TYP[w.art] || null;
     const radius = isFinite(w.d) ? w.d / 2 : NaN;
     const winkel = isFinite(w.winkel) && w.winkel > 0 ? w.winkel : 180;
-    const z = { nr: w.nr, cam: w, name: maschinenName(w.text), radius: w.art === "TAP" ? 0 : radius, winkel,
+    const z = { nr: w.nr, fach, cam: w, name: maschinenName(w.text), radius: w.art === "TAP" ? 0 : radius, winkel,
       zaehne: isFinite(w.zaehne) ? w.zaehne : 0, typ, laenge: w.laenge };
-    if (!b) return { ...z, aktion: "fehlt", text: "Fach " + w.nr + " gibt es auf der Maschine nicht (1–" + bloecke.length + ")." };
-    if (!b.leer && b.nr !== w.nr) return { ...z, aktion: "belegt", alt: b, text: "Fach " + w.nr + " ist mit „" + b.name + "“ (Nr. " + b.nr + ") belegt, bleibt so." };
-    if (b.leer) {
-      return { ...z, aktion: "neu", messen: true,
-        smax: w.smax > 0 ? w.smax : (w.d > 10 ? 0 : 30000),
-        typ: typ || 110, typUnsicher: !typ };
+    if (!b) return { ...z, aktion: "fehlt", text: "Fach " + fach + " gibt es auf der Maschine nicht (1–" + bloecke.length + ")." };
+    const qVon = (x) => Number(wert(zerlegen(x).T || [], "Q"));
+    // Dieselbe Werkzeugnummer in einem anderen Fach: dort leeren, sonst
+    // stünde die Nummer zweimal in der Tabelle (das Werkzeug kommt raus)
+    const anderes = bloecke.find((x) => !x.leer && x.nr === w.nr && x.fach !== fach);
+    if (anderes && SCHUTZ(qVon(anderes))) return { ...z, aktion: "belegt", alt: b, text: "Nr. " + w.nr + " ist auf der Maschine „" + anderes.name + "“ in Fach " + anderes.fach + ", das bleibt immer so." };
+    if (anderes) z.leeren = { fach: anderes.fach, nr: anderes.nr, name: anderes.name };
+    const neuesWz = (extra) => ({ ...z, aktion: "neu", messen: true,
+      smax: w.smax > 0 ? w.smax : (w.d > 10 ? 0 : 30000),
+      typ: typ || 110, typUnsicher: !typ, ...extra });
+    if (!b.leer && b.nr !== w.nr) {
+      // Im Pad gewählt: das Werkzeug im Fach kommt heraus (ausser Taster, Greifer …)
+      if (gewaehlt && !SCHUTZ(qVon(b))) return neuesWz({ alt: b, ersetzt: { fach, nr: b.nr, name: b.name } });
+      return { ...z, aktion: "belegt", alt: b, text: "Fach " + fach + " ist mit „" + b.name + "“ (Nr. " + b.nr + ") belegt, bleibt so." };
     }
+    if (b.leer) return neuesWz({});
     const t = zerlegen(b);
     const altR = zahl(wert(t.A1 || [], "R"));
     const altQ = Number(wert(t.T || [], "Q"));
     // Taster, Etalon, Dummy, Greifer und Drehstähle kommen nie aus dem CAM:
     // auch bei gleicher Nummer nicht anfassen
-    if (SCHUTZ(altQ)) return { ...z, aktion: "belegt", alt: b, text: "Fach " + w.nr + " hat „" + b.name + "“ (Typ " + altQ + "), das bleibt immer so." };
+    if (SCHUTZ(altQ)) return { ...z, aktion: "belegt", alt: b, text: "Fach " + fach + " hat „" + b.name + "“ (Typ " + altQ + "), das bleibt immer so." };
     // Radius auf der Maschine ist oft von Hand gemessen (D2 → R0.98):
     // nur ersetzen, wenn der Durchmesser wirklich ein anderer ist
     // Gewindebohrer fahren ohne Radiuskorrektur, dort steht R0 und bleibt so
@@ -186,7 +201,15 @@ export function vorschlagen(bloecke, wz) {
       // anderes Werkzeug im selben Fach → neu messen lassen
       messen: rAnders, nameAnders };
   });
+  // Zwei Werkzeuge im selben Fach geht nicht
+  const zahlFach = {};
+  zeilen.forEach((v) => { if (v.aktion === "neu" || v.aktion === "aendern") zahlFach[v.fach] = (zahlFach[v.fach] || 0) + 1; });
+  zeilen.forEach((v) => { if (zahlFach[v.fach] > 1) v.doppelt = true; });
+  return zeilen;
 }
+
+// Was beim Schreiben wirklich übernommen wird
+export const wirdGeschrieben = (v) => v.mit !== false && (v.aktion === "neu" || v.aktion === "aendern");
 
 // ---------- Neue Datei schreiben ----------
 function neuerBlock(v) {
@@ -194,7 +217,7 @@ function neuerBlock(v) {
   const k = (x) => "X" + f4(x) + " U0.0000 S0.0000 R" + f4(v.radius || 0);
   return [
     "N" + v.nr + " D1 (" + v.name + ")",
-    "G" + v.nr,
+    "G" + v.fach,
     "T1 E6 F1 P0 R0 Q" + v.typ,
     "I9 J3600 K3600",
     "A-2 S" + ganz(v.smax || 0) + " T" + ganz(v.zaehne || 0) + " I" + f4(v.winkel) + " J0.0000 K0.0000 F0 Q0 R0 B0.0",
@@ -232,12 +255,15 @@ function geaenderterBlock(b, v) {
 }
 
 export function datSchreiben(bloecke, vorschlaege) {
+  const aktiv = vorschlaege.filter(wirdGeschrieben);
   const zeilen = ["%"];
   for (const b of bloecke) {
-    const v = vorschlaege.find((x) => x.nr === b.fach && x.mit !== false && (x.aktion === "neu" || x.aktion === "aendern"));
-    if (!v) zeilen.push(...b.zeilen);
-    else if (v.aktion === "neu") zeilen.push(...neuerBlock(v));
-    else zeilen.push(...geaenderterBlock(b, v));
+    const v = aktiv.find((x) => x.fach === b.fach);
+    const leer = aktiv.some((x) => x.leeren && x.leeren.fach === b.fach);
+    if (v && v.aktion === "neu") zeilen.push(...neuerBlock(v));
+    else if (v) zeilen.push(...geaenderterBlock(b, v));
+    else if (leer) zeilen.push("N0", "G" + b.fach);
+    else zeilen.push(...b.zeilen);
   }
   zeilen.push("%");
   return zeilen.join("\r\n") + "\r\n";
