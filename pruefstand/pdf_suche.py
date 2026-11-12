@@ -88,6 +88,13 @@ with sync_playwright() as p:
     pg.locator("[data-pdfsuchfeld]").press("Escape"); pg.wait_for_timeout(300)
     pruefe("Escape schliesst die Suche", pg.locator("[data-pdfsuchleiste]").count() == 0)
     pruefe("Betrachter bleibt offen", pg.locator(".betrachter-huelle").count() == 1)
+    # Strg + F öffnet im PDF die Lupe, nicht die Suche des HoferTools (seit 1.491.0)
+    pg.locator(".pdfansicht__buehne").click(); pg.wait_for_timeout(200)
+    pg.keyboard.press("Control+f"); pg.wait_for_timeout(400)
+    pruefe("Strg+F: Lupe offen", pg.locator("[data-pdfsuchleiste]").count() == 1)
+    pruefe("Strg+F: Suchfeld im Fokus", pg.evaluate("() => document.activeElement && document.activeElement.matches('[data-pdfsuchfeld]')"))
+    pruefe("Strg+F: keine Suche über alles", pg.locator("[class*=suche-alles]").count() == 0)
+    pg.locator("[data-pdfsuchfeld]").press("Escape"); pg.wait_for_timeout(300)
     pruefe("keine Skriptfehler", not f)
     if f: print(f)
 

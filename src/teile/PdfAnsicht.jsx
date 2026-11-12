@@ -171,6 +171,12 @@ const ZOOM_MIN = 1, ZOOM_MAX = 6;
 // lieber etwas weicher als gar nicht gezeichnet.
 const MAX_PIXEL = 12_000_000;
 
+// Strg + F im offenen PDF öffnet die Lupe des Betrachters statt der Suche
+// über das HoferTool (seit 1.491.0, Wunsch Patrick 12. November 2026:
+// „bei PDF auch Strg F … die Lupenfunktion statt dem normalen
+// Suchfenster“). Sind mehrere PDFs offen, gilt das zuletzt geöffnete.
+const offenePdfs = [];
+
 export function PdfAnsicht({ daten, beiFehler }) {
   const buehne = useRef(null);
   const blatt = useRef(null);
@@ -369,6 +375,30 @@ export function PdfAnsicht({ daten, beiFehler }) {
     window.addEventListener("keydown", taste, true);
     return () => window.removeEventListener("keydown", taste, true);
   }, [suche === null]);
+
+  const sucheRef = useRef(null);
+  sucheRef.current = suche;
+  useEffect(() => {
+    if (!doc) return;
+    const eintrag = {};
+    offenePdfs.push(eintrag);
+    const fenster = (buehne.current && buehne.current.ownerDocument.defaultView) || window;
+    const taste = (e) => {
+      if (!((e.ctrlKey || e.metaKey) && !e.altKey && e.key && e.key.toLowerCase() === "f")) return;
+      if (offenePdfs[offenePdfs.length - 1] !== eintrag) return;
+      const el = buehne.current;
+      if (!el || !el.isConnected || !el.getClientRects().length) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      if (sucheRef.current === null) setSuche("");
+      else if (suchFeld.current) { suchFeld.current.focus(); suchFeld.current.select(); }
+    };
+    fenster.addEventListener("keydown", taste, true);
+    return () => {
+      fenster.removeEventListener("keydown", taste, true);
+      const i = offenePdfs.indexOf(eintrag);
+      if (i >= 0) offenePdfs.splice(i, 1);
+    };
+  }, [doc]);
 
   // Verweis im PDF: zur Zielseite rollen
   const springen = (nr) => {
