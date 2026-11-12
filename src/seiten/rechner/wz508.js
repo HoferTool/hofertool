@@ -208,6 +208,10 @@ export function vorschlagen(bloecke, wz, wahl = {}) {
   return zeilen;
 }
 
+// Für die Grafik des Magazins: steckt im Fach ein Werkzeug, das nie
+// angefasst wird (Taster, Etalon, Dummy, Greifer, Drehstahl)?
+export const fachGeschuetzt = (b) => !!b && !b.leer && SCHUTZ(Number(wert(zerlegen(b).T || [], "Q")));
+
 // Was beim Schreiben wirklich übernommen wird
 export const wirdGeschrieben = (v) => v.mit !== false && (v.aktion === "neu" || v.aktion === "aendern");
 

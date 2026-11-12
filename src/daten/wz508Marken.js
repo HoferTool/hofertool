@@ -34,24 +34,40 @@ function werfen(error) {
 // Foto von Werkzeug und Clip ablegen, Marke anlegen oder auffrischen.
 // Ein Werkzeug aus dem Schrank wird wieder „vorbereitet“, eines, das
 // schon in der Maschine steckt, bleibt dort.
-export async function vorbereiten({ marke, name, notiz, datei }, liste) {
-  if (!markeGut(marke)) throw new Error("Die Marke hat genau 6 Ziffern.");
-  const vorher = liste.find((w) => w.marke === marke);
-  const daten = { marke, name: (name || "").trim() || (vorher && vorher.name) || null, notiz: (notiz || "").trim() || null,
-    ort: vorher && vorher.ort === "maschine" ? "maschine" : "vorbereitet" };
+export function vorbereiten({ marke, name, notiz, datei }, liste) {
+  return vorbereitenViele([{ marke, name, notiz }], datei, liste);
+}
+
+// Mehrere Werkzeuge auf einem Foto (seit 1.500.0, Wunsch Patrick
+// 12. November 2026: „was wenn ich mehrere Werkzeuge gleichzeitig
+// fotografieren will?“): das Foto kommt einmal in die Ablage, jede Marke
+// bekommt dieselbe Adresse; die Nummer auf dem Clip sieht man im Bild.
+export async function vorbereitenViele(eintraege, datei, liste) {
+  const marken = eintraege.map((e) => e.marke);
+  if (!marken.length || !marken.every(markeGut)) throw new Error("Jede Marke hat genau 6 Ziffern.");
+  if (new Set(marken).size !== marken.length) throw new Error("Eine Marke steht zweimal da.");
+  let foto = null;
   if (datei) {
     const blob = await alt.bildVerkleinern(datei, 1600);
-    const pfad = "wz508/" + marke + "/" + Date.now() + ".jpg";
+    const pfad = "wz508/" + marken[0] + "/" + Date.now() + ".jpg";
     const up = await alt.db.storage.from("zeichnungen").upload(pfad, blob, { contentType: "image/jpeg", upsert: false });
     if (up.error) throw up.error;
-    daten.foto_pfad = pfad;
-    daten.foto_url = alt.db.storage.from("zeichnungen").getPublicUrl(pfad).data.publicUrl;
+    foto = { foto_pfad: pfad, foto_url: alt.db.storage.from("zeichnungen").getPublicUrl(pfad).data.publicUrl };
   }
-  const alt0 = vorher ? await alt.rueckSichern(T, { marke }) : [];
-  const { error } = await alt.db.from(T).upsert(daten, { onConflict: "marke" });
+  const zeilen = eintraege.map(({ marke, name, notiz }) => {
+    const vorher = liste.find((w) => w.marke === marke);
+    return { marke, name: (name || "").trim() || (vorher && vorher.name) || null, notiz: (notiz || "").trim() || null,
+      ort: vorher && vorher.ort === "maschine" ? "maschine" : "vorbereitet", ...(foto || {}) };
+  });
+  const da = marken.filter((m) => liste.some((w) => w.marke === m));
+  const alt0 = da.length ? await alt.rueckSichern(T, { marke: da }) : [];
+  const { error } = await alt.db.from(T).upsert(zeilen, { onConflict: "marke" });
   werfen(error);
-  alt.merkeSchritt("Werkzeug " + marke + " vorbereitet",
-    alt0.length ? alt.rueckRein(T, alt0, "marke") : alt.rueckWeg(T, { marke }));
+  const neu = marken.filter((m) => !alt0.some((v) => v.marke === m));
+  const schritte = [];
+  if (alt0.length) schritte.push(alt.rueckRein(T, alt0, "marke"));
+  if (neu.length) schritte.push(alt.rueckWeg(T, { marke: neu }));
+  alt.merkeSchritt(marken.length > 1 ? marken.length + " Werkzeuge vorbereitet" : "Werkzeug " + marken[0] + " vorbereitet", schritte);
 }
 
 export async function aendern(w, daten, text) {

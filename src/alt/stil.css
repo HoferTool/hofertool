@@ -13207,3 +13207,54 @@ body.dunkel #pad .pad-wz5__zahl { background: #4b82c4; }
 /* Infoboard: der Tänzer tanzt seit 1.498.0 vor Kopf und Solaranlage,
    Füsse unten über dem Kalender, grösser (Wunsch Patrick 12. November 2026) */
 .durchfahrt--tief { z-index: 5; }
+
+/* ---------- Rundes Magazin der 508 (seit 1.500.0) ---------- */
+.mag5 { display: flex; flex-direction: column; gap: 12px; margin: 6px 0 14px; }
+.mag5 h3 { margin: 0 0 4px; font-size: 1rem; }
+.mag5-liste { background: #f3f7fc; border: 1px dashed #9fb4cc; border-radius: 12px; padding: 10px; min-width: 0; }
+.mag5-liste ul { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.mag5-liste li { flex: 0 1 170px; min-width: 0; }
+.mag5-wz { display: grid; grid-template-columns: auto 1fr; column-gap: 6px; align-items: center; padding: 6px 8px; font-size: .9rem; height: 100%; box-sizing: border-box; border-radius: 10px;
+  background: #fff; border: 1px solid #f0a35a; border-left: 6px solid #e8781c; cursor: grab; touch-action: none; user-select: none;
+  -webkit-user-select: none; overflow-wrap: anywhere; }
+.mag5-wz b { font-size: 1.05rem; }
+.mag5-wz em { grid-column: 1 / -1; font-style: normal; font-size: .85em; color: #4a5d73; }
+.mag5-wz__marke { grid-column: 1 / -1; font-style: normal; font-size: .85em; }
+.mag5-wz--aus { border-color: #c8d4e2; border-left-color: #9fb4cc; opacity: .7; }
+.mag5-wz--hand { box-shadow: 0 0 0 3px #1d4f86; background: #fff4e8; }
+.mag5-wz--doppelt { border-color: #c62828; border-left-color: #c62828; }
+.mag5-ebenen { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; min-width: 0; }
+.mag5-ebene { flex: 1 1 300px; max-width: 440px; min-width: 0; text-align: center; }
+.mag5-ring { position: relative; width: 100%; aspect-ratio: 1; border-radius: 50%;
+  background: radial-gradient(circle, #fff 0 31%, #e3ebf5 31.5% 58%, #cfdbea 58.5% 100%); border: 2px solid #9fb4cc; box-sizing: border-box; }
+.mag5-mitte { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 52%; display: flex; flex-direction: column;
+  gap: 2px; font-size: .85rem; overflow-wrap: anywhere; color: #12233a; }
+.mag5-mitte b { font-size: 1.1rem; }
+.mag5-platz { position: absolute; width: 12.5%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; cursor: pointer;
+  border: 2px solid #8aa0b8; background: #fff; color: #12233a; font-size: clamp(9px, 2.4vw, 13px); user-select: none; -webkit-user-select: none; }
+.mag5-platz b { font-size: 1.05em; }
+.mag5-platz span { font-size: .8em; margin-top: 2px; }
+.mag5-platz--leer { background: #f4f6f9; border-style: dashed; color: #8a97a8; }
+.mag5-platz--belegt { background: #d5e2f1; border-color: #5f82ac; }
+.mag5-platz--schutz { background: #4a5668; border-color: #2d3644; color: #fff; }
+.mag5-platz--geleert { background: repeating-linear-gradient(45deg, #fff 0 4px, #f0d7d7 4px 8px); border-color: #c98a8a; color: #8a3c3c; }
+.mag5-platz--cam { background: #ffe1c2; border-color: #e8781c; touch-action: none; cursor: grab; }
+.mag5-platz--marke { background: #c9ecd0; border-color: #2e8b46; touch-action: none; cursor: grab; }
+.mag5-platz--doppelt { background: #ffd0d0; border-color: #c62828; touch-action: none; }
+.mag5-platz--an { box-shadow: 0 0 0 3px #1d4f86; z-index: 2; }
+.mag5-legende { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 6px 14px; justify-content: center; font-size: .85rem; }
+.mag5-legende span { display: inline-flex; align-items: center; gap: 5px; }
+.mag5-legende i { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 2px solid; position: static; }
+.mag5-legende .mag5-platz--leer { border-style: dashed; border-color: #8a97a8; background: #f4f6f9; }
+.mag5-legende .mag5-platz--belegt { border-color: #5f82ac; background: #d5e2f1; }
+.mag5-legende .mag5-platz--schutz { border-color: #2d3644; background: #4a5668; }
+.mag5-legende .mag5-platz--cam { border-color: #e8781c; background: #ffe1c2; }
+.mag5-legende .mag5-platz--marke { border-color: #2e8b46; background: #c9ecd0; }
+.mag5-geist { position: fixed; z-index: 100000; transform: translate(-50%, -120%); pointer-events: none; padding: 8px 12px; border-radius: 10px;
+  background: #e8781c; color: #fff; font-weight: 700; box-shadow: 0 6px 18px rgba(0, 0, 0, .3); }
+/* Dunkel: Magazin bleibt hell, damit die Farben der Plätze lesbar bleiben */
+body.dunkel .mag5-liste, body.dunkel .mag5-ring { background-color: #e9eff6; }
+body.dunkel .mag5 *:not(.mag5-platz--schutz):not(.mag5-platz--schutz *):not(.mag5-geist) { color: #12233a !important; }
+body.dunkel .mag5 { background: #f3f7fc; border-radius: 12px; padding: 10px; }
+body.dunkel .mag5-wz { background: #fff; }

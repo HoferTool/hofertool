@@ -6,7 +6,8 @@
 // =================================================================
 import { useMemo, useState } from "react";
 import { alt } from "../../bruecke.jsx";
-import { TYPEN, datLesen, csvLesen, vorschlagen, datSchreiben, dateiText, wirdGeschrieben } from "./wz508.js";
+import Magazin508 from "./Magazin508.jsx";
+import { TYPEN, datLesen, csvLesen, vorschlagen, datSchreiben, dateiText, wirdGeschrieben, fachGeschuetzt } from "./wz508.js";
 
 // Bleibt beim Reiterwechsel stehen, samt Dateien; im Pad eigener Stand
 const leer = () => ({ dat: null, datName: "", csv: null, csvName: "", aenderung: {}, wahl: {}, marken: {} });
@@ -79,6 +80,18 @@ export default function Werkzeuge508({ pad = false, marken = [], waehleMarke, on
     const m = await waehleMarke(vergeben, v);
     if (m !== undefined && m !== null) neu({ marken: { ...z.marken, [v.nr]: m } });
   };
+  // Aus der Grafik: Werkzeug auf ein Fach gelegt. Liegt dort schon ein
+  // anderes aus dem CAM, tauschen die beiden; fach null = wieder Fach = Nr.
+  const aufFach = (v, fach) => {
+    const w = { ...z.wahl };
+    if (fach == null) { delete w[v.nr]; neu({ wahl: w }); return; }
+    const b = z.dat.find((x) => x.fach === fach);
+    if (fachGeschuetzt(b)) { alt.meldung("Fach " + fach + " hat „" + b.name + "“, das bleibt immer so.", "warn"); return; }
+    const anderes = zeilen.find((x) => x.nr !== v.nr && wirdGeschrieben(x) && x.fach === fach);
+    if (anderes) w[anderes.nr] = v.fach;
+    w[v.nr] = fach;
+    neu({ wahl: w });
+  };
   const laden = (e) => {
     herunterladen(e, text);
     if (onGeschrieben) onGeschrieben(aktiv);
@@ -104,6 +117,8 @@ export default function Werkzeuge508({ pad = false, marken = [], waehleMarke, on
 
       {zeilen.length > 0 && (
         <>
+          {pad && <Magazin508 bloecke={z.dat} zeilen={zeilen} marken={marken} onFach={aufFach}
+            onMarke={markeWaehlen} MarkeZeigen={MarkeZeigen} />}
           <div className="tabellenrolle">
             <table className="tabelle wz5-tabelle" id="wz5-tabelle">
               <thead><tr><th /><th>{pad ? "Nr. / Fach" : "Fach"}</th>{pad && <th>Marke</th>}<th /><th>Name auf der Maschine</th><th>Typ</th><th>S max</th>

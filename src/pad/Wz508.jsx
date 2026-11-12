@@ -15,7 +15,7 @@ import { useEffect, useMemo, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import Werkzeuge508 from "../seiten/rechner/Werkzeuge508.jsx";
-import { ORTE, SQL_FEHLT, markeGut, markenLaden, vorbereiten, aendern, loeschen, nachDemSchreiben, nachDemSchreibenRechnen } from "../daten/wz508Marken.js";
+import { ORTE, SQL_FEHLT, markeGut, markenLaden, vorbereitenViele, aendern, loeschen, nachDemSchreiben, nachDemSchreibenRechnen } from "../daten/wz508Marken.js";
 
 export async function wz508Laden() {
   const m = await markenLaden();
@@ -58,16 +58,19 @@ export default function PadWz508({ d, Kopf, neu }) {
   );
 }
 
-// ---------- Vorbereiten: Foto und Marke ----------
+// ---------- Vorbereiten: Foto und Marke(n) ----------
+// Auf einem Foto dürfen mehrere Werkzeuge mit ihren Clips liegen: je
+// Werkzeug eine Zeile mit Marke und Name (seit 1.500.0).
 function Vorbereiten({ liste, schreiben, neu }) {
   const [datei, setDatei] = useState(null);
   const [vorschau, setVorschau] = useState("");
-  const [marke, setMarke] = useState("");
-  const [name, setName] = useState("");
+  const [zeilen, setZeilen] = useState([{ marke: "", name: "" }]);
   const [laeuft, setLaeuft] = useState(false);
   useEffect(() => () => { if (vorschau) URL.revokeObjectURL(vorschau); }, [vorschau]);
-  const da = liste.find((w) => w.marke === marke);
   const vorbereitet = liste.filter((w) => w.ort === "vorbereitet");
+  const setzeZeile = (i, teil) => setZeilen((zs) => zs.map((z, k) => (k === i ? { ...z, ...teil } : z)));
+  const doppelt = (i) => zeilen.some((z, k) => k !== i && z.marke && z.marke === zeilen[i].marke);
+  const alleGut = zeilen.every((z, i) => markeGut(z.marke) && !doppelt(i));
 
   const foto = (e) => {
     const f = (e.target.files || [])[0];
@@ -75,13 +78,18 @@ function Vorbereiten({ liste, schreiben, neu }) {
     if (!f) return;
     setDatei(f); setVorschau(URL.createObjectURL(f));
   };
+  const mehr = () => {
+    setZeilen((zs) => [...zs, { marke: "", name: "" }]);
+    // Schreibmarke gleich ins neue Feld, das iPad zeigt die Ziffern
+    setTimeout(() => { const f = document.querySelectorAll("#pad-wz5 .pad-wz5__marke"); if (f.length) f[f.length - 1].focus(); }, 30);
+  };
   const speichern = async () => {
-    if (!markeGut(marke)) { alt.meldung("Die Marke hat genau 6 Ziffern.", "warn"); return; }
+    if (!alleGut) { alt.meldung("Jede Marke hat genau 6 Ziffern und darf nur einmal vorkommen.", "warn"); return; }
     setLaeuft(true);
     try {
-      await vorbereiten({ marke, name, datei }, liste);
-      alt.meldung("Werkzeug " + marke + " ist vorbereitet", "gut");
-      setDatei(null); setVorschau(""); setMarke(""); setName("");
+      await vorbereitenViele(zeilen, datei, liste);
+      alt.meldung(zeilen.length > 1 ? zeilen.length + " Werkzeuge sind vorbereitet" : "Werkzeug " + zeilen[0].marke + " ist vorbereitet", "gut");
+      setDatei(null); setVorschau(""); setZeilen([{ marke: "", name: "" }]);
       neu();
     } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
     setLaeuft(false);
@@ -91,21 +99,33 @@ function Vorbereiten({ liste, schreiben, neu }) {
     <div className="pad-wz5__teil">
       {schreiben ? <div className="pad-wz5__erfassen">
         <label className="pad-wz5__foto" data-wz5p-foto="">
-          {vorschau ? <img src={vorschau} alt="Foto" /> : <span>📷<b>Foto: Werkzeug mit Clip</b><i>antippen</i></span>}
+          {vorschau ? <img src={vorschau} alt="Foto" /> : <span>📷<b>Foto: Werkzeug mit Clip</b><i>antippen, gerne mehrere Werkzeuge auf einem Bild</i></span>}
           <input type="file" accept="image/*" capture="environment" id="wz5p-foto" hidden onChange={foto} />
         </label>
         <div className="pad-wz5__felder">
-          <label>Marke (6 Ziffern auf dem Clip)
-            <input id="wz5p-marke" className="pad-wz5__marke" inputMode="numeric" autoComplete="off"
-              value={marke} placeholder="000000" onChange={(e) => setMarke(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              onKeyDown={(e) => { if (e.key === "Enter") speichern(); }} /></label>
-          {da && <p className="pad-wz5__hinweis" id="wz5p-schon">Marke {marke} gibt es schon: {da.name || "ohne Name"}, {ortText(da)}.
-            {datei ? " Speichern ersetzt das Foto." : ""}</p>}
-          <label>Werkzeug (freiwillig, z.B. Fräser D6)
-            <input id="wz5p-name" value={name} maxLength={60} placeholder={da && da.name ? da.name : ""}
-              onChange={(e) => setName(e.target.value)} /></label>
-          <button className="pad-wz5__knopf pad-wz5__knopf--haupt" id="wz5p-speichern" disabled={laeuft || !markeGut(marke)}
-            onClick={speichern}>{laeuft ? "Wird gespeichert …" : "Speichern"}</button>
+          {zeilen.map((z, i) => {
+            const da = liste.find((w) => w.marke === z.marke);
+            return (
+              <div key={i} className="pad-wz5__zeile" data-wz5p-zeile={i}>
+                {zeilen.length > 1 && <div className="pad-wz5__zeilenkopf"><b>Werkzeug {i + 1}</b>
+                  <button className="pad-wz5__knopf pad-wz5__knopf--weg" aria-label="Zeile weg" data-wz5p-zeile-weg={i}
+                    onClick={() => setZeilen((zs) => zs.filter((_, k) => k !== i))}>✕</button></div>}
+                <label>Marke (6 Ziffern auf dem Clip)
+                  <input id={i === 0 ? "wz5p-marke" : undefined} className={"pad-wz5__marke" + (doppelt(i) ? " wz5-warn" : "")}
+                    inputMode="numeric" autoComplete="off" value={z.marke} placeholder="000000"
+                    onChange={(e) => setzeZeile(i, { marke: e.target.value.replace(/\D/g, "").slice(0, 6) })}
+                    onKeyDown={(e) => { if (e.key === "Enter") speichern(); }} /></label>
+                {doppelt(i) && <p className="pad-wz5__hinweis">Diese Marke steht schon weiter oben.</p>}
+                {da && <p className="pad-wz5__hinweis" id={i === 0 ? "wz5p-schon" : undefined}>Marke {z.marke} gibt es schon: {da.name || "ohne Name"}, {ortText(da)}.
+                  {datei ? " Speichern ersetzt das Foto." : ""}</p>}
+                <label>Werkzeug (freiwillig, z.B. Fräser D6)
+                  <input id={i === 0 ? "wz5p-name" : undefined} className="pad-wz5__name" value={z.name} maxLength={60}
+                    placeholder={da && da.name ? da.name : ""} onChange={(e) => setzeZeile(i, { name: e.target.value })} /></label>
+              </div>);
+          })}
+          <button className="pad-wz5__knopf" id="wz5p-mehr" onClick={mehr}>+ Noch ein Werkzeug auf diesem Foto</button>
+          <button className="pad-wz5__knopf pad-wz5__knopf--haupt" id="wz5p-speichern" disabled={laeuft || !alleGut}
+            onClick={speichern}>{laeuft ? "Wird gespeichert …" : zeilen.length > 1 ? zeilen.length + " Werkzeuge speichern" : "Speichern"}</button>
           <p className="pad-wz5__klein">Das Foto geht auch mit dem Handy: dort im Pad Mode dasselbe.
             Beim Bestücken der Maschine wählst du dann die Marke beim Werkzeug.</p>
         </div>
