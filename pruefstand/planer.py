@@ -19,6 +19,10 @@ DATEN = """;
   geplant[1].material_bez = '11SMnPb30 rd 16'; geplant[1].material_menge = '';
   geplant[2].material_bez = 'CuZn39Pb3 sw 10'; geplant[2].material_menge = '';
   geplant[3].material_bez = 'CuZn39Pb3 rd 8'; geplant[3].material_menge = '300 kg · Schmobi 2026008672';
+  geplant[4].material_bez = '1.4305 rd 20 h9'; geplant[4].material_menge = '20 kg · Notz 2026001234';
+  geplant[4].target_quantity = 5000; geplant[4].stand = 0; TEST.teilJob = geplant[4].job_number;
+  TEST.daten.hoco_parts = TEST.daten.hoco_parts || [];
+  TEST.daten.hoco_parts.push({ hoco_nr: geplant[4].job_number, teil_laenge_mm: 30, teil_mass_bestaetigt: true });
   const alt = (id, bez, menge, tag) => J.push({ id, job_number: '19999-' + id, machine_id: 'm-l1', plan_status: 'fertig',
     planned_from: tag, ended_at: '2026-01-01T10:00:00Z', material_bez: bez, material_menge: menge });
   alt('h1', '1.4305 rd 12 h9', '200 kg · Metalix 2026001111', '2026-05-01');
@@ -52,6 +56,10 @@ with sync_playwright() as p:
     pruefe(pg.locator("[data-pllieferant='Lieferant offen']", has_text="CuZn39Pb3 sw 10").count() == 1, "ohne Verlauf unter Lieferant offen")
     pruefe(pg.locator("[data-pllieferant='Schmobi']", has_text="bestellt").count() == 1, "bestellt unter Schmobi")
     pruefe("Lieferbar 2 Arbeitstage" in notz.inner_text(), "Lieferbarkeit Notz")
+    teil = pg.evaluate("TEST.teilJob")
+    tz = pg.locator(f"[data-plzeile='{teil}']")
+    pruefe(tz.count() == 1 and "fehlen noch" in tz.inner_text(), "Teilmenge: fehlen noch … kg " + (tz.inner_text() if tz.count() else ""))
+    pruefe(pg.locator(".pl-zeile", has_text="X10CrNiS18").count() == 0, "Material ganz da wird nicht gezeigt")
     pruefe(pg.locator("[data-pltodo='problem']").count() >= 1, "Problem im Todo")
     pruefe(pg.locator("[data-pltodo='eigen']").count() == 1, "eigenes Todo")
     # Lieferant von Hand wählen

@@ -14,7 +14,7 @@ import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { planwandFensterOeffnen } from "./PlanwandFenster.jsx";
 import { qsQuittieren } from "../daten/qs.js";
-import { planerLaden, wahlSetzen, lieferbarText, todoNeu, todoHaken, todoAendern, todoLoeschen } from "../daten/planer.js";
+import { planerLaden, zuBestellen, wahlSetzen, lieferbarText, todoNeu, todoHaken, todoAendern, todoLoeschen } from "../daten/planer.js";
 import MaterialLieferanten from "../einstellungen/MaterialLieferanten.jsx";
 
 export const planerSichtbar = () => alt.istAdmin() && !alt.istExtern();
@@ -34,7 +34,7 @@ const TAGE = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 const tagText = (iso) => (iso ? TAGE[new Date(iso + "T12:00:00").getDay()] + " " + alt.kurzDatum(iso) : "");
 const zahl = (n) => (alt.zahlText ? alt.zahlText(n) : String(n));
 const STAND = {
-  fehlt: ["fehlt", "rot"], offen: ["offen", "rot"], bestellt: ["bestellt", "blau"], da: ["da", "gruen"],
+  fehlt: ["fehlt", "rot"], offen: ["offen", "rot"], teil: ["fehlen noch", "orange"], bestellt: ["bestellt", "blau"], da: ["da", "gruen"],
 };
 
 export default function Planer({ d, Kopf, neu }) {
@@ -64,7 +64,7 @@ export default function Planer({ d, Kopf, neu }) {
               ))}
             </span>
             <button className={"pl-knopf" + (e.nurFehlt ? " pl-knopf--an" : "")} id="pl-nurfehlt"
-              onClick={() => um((x) => { x.nurFehlt = !x.nurFehlt; })}>Nur Fehlendes</button>
+              onClick={() => um((x) => { x.nurFehlt = !x.nurFehlt; })}>Nur zu bestellen</button>
           </div>
           <Material d={d} e={e} neu={neu} />
         </section>
@@ -102,10 +102,10 @@ function Todos({ d, neu }) {
       haken: async () => { if (await qsQuittieren(q)) neu(); } });
   }
   for (const z of d.zeilen) {
-    if ((z.stand !== "fehlt" && z.stand !== "offen") || (z.start > bald && !z.zuSpaet)) continue;
+    if (!zuBestellen(z) || (z.start > bald && !z.zuSpaet)) continue;
     posten.push({ k: "m" + z.j.id, art: "m", rot: z.zuSpaet, sort: "2" + z.start,
-      titel: "Material " + (z.stand === "offen" ? "offen" : "fehlt") + ": Start " + tagText(z.start) + (z.maschine ? " auf " + z.maschine : ""),
-      unter: [z.j.job_number, z.j.material_bez, z.stand === "offen" ? "„" + z.j.material_menge + "“" : "",
+      titel: "Material " + (z.stand === "offen" ? "offen" : z.stand === "teil" ? "reicht nicht" : "fehlt") + ": Start " + tagText(z.start) + (z.maschine ? " auf " + z.maschine : ""),
+      unter: [z.j.job_number, z.j.material_bez, z.stand === "offen" ? "„" + z.j.material_menge + "“" : "", z.stand === "teil" ? "fehlen noch " + zahl(z.fehltKg) + " kg" : "",
         z.zuSpaet ? "kommt zu spät" : ""].filter(Boolean).join(" · "),
       auf: () => planwandFensterOeffnen(z.j) });
   }
@@ -131,7 +131,7 @@ function Todos({ d, neu }) {
   const offen = posten.filter((p) => !p.erledigt).length;
   const z = {
     prob: posten.filter((p) => p.art === "problem").length,
-    mat: d.zeilen.filter((x) => x.stand === "fehlt" || x.stand === "offen").length,
+    mat: d.zeilen.filter(zuBestellen).length,
     spaet: d.zeilen.filter((x) => x.zuSpaet).length,
   };
   return (
@@ -196,7 +196,7 @@ async function todoBearbeiten(t, neu) {
 
 function Material({ d, e, neu }) {
   let zeilen = d.zeilen;
-  if (e.nurFehlt) zeilen = zeilen.filter((z) => z.stand === "fehlt" || z.stand === "offen");
+  if (e.nurFehlt) zeilen = zeilen.filter(zuBestellen);
   if (!zeilen.length) return <p className="pl-leer">Keine Aufträge mit Material bis {tagText(d.bis)}.</p>;
   if (e.ansicht === "start") {
     return <div className="pl-gruppen"><div className="pl-lief"><Tabelle zeilen={zeilen} d={d} neu={neu} mitLieferant /></div></div>;
@@ -205,14 +205,13 @@ function Material({ d, e, neu }) {
   const gruppen = new Map();
   const dazu = (k, z) => { if (!gruppen.has(k)) gruppen.set(k, []); gruppen.get(k).push(z); };
   for (const z of zeilen) {
-    if (z.stand === "da") dazu("__da", z);
-    else if (z.lieferant) dazu(z.lieferant, z);
+    if (z.lieferant) dazu(z.lieferant, z);
     else if (z.stand === "bestellt") dazu("__bestellt", z);
     else dazu("__offen", z);
   }
-  const fehlend = (l) => l.filter((z) => z.stand === "fehlt" || z.stand === "offen");
+  const fehlend = (l) => l.filter(zuBestellen);
   const reihe = [...gruppen.keys()].sort((a, b) => {
-    const rang = (k) => (k === "__da" ? 4 : k === "__bestellt" ? 3 : k === "__offen" ? 1 : fehlend(gruppen.get(k)).length ? 0 : 2);
+    const rang = (k) => (k === "__bestellt" ? 3 : k === "__offen" ? 1 : fehlend(gruppen.get(k)).length ? 0 : 2);
     const ga = gruppen.get(a), gb = gruppen.get(b);
     return rang(a) - rang(b) || gb.some((z) => z.zuSpaet) - ga.some((z) => z.zuSpaet)
       || fehlend(gb).length - fehlend(ga).length || a.localeCompare(b, "de");
@@ -223,7 +222,7 @@ function Material({ d, e, neu }) {
         const l = vonName[k];
         const liste = gruppen.get(k);
         const fehlt = fehlend(liste);
-        const titel = k === "__da" ? "Material da" : k === "__bestellt" ? "Bestellt, Lieferant nicht erkannt"
+        const titel = k === "__bestellt" ? "Bestellt, Lieferant nicht erkannt"
           : k === "__offen" ? "Lieferant offen" : k;
         const lb = lieferbarText(l);
         const an = fehlt.find((z) => z.ankunft);
@@ -232,7 +231,7 @@ function Material({ d, e, neu }) {
             <div className="pl-lief__kopf">
               <span className="pl-lief__name">{titel}</span>
               {lb && <span className="pl-marke pl-marke--grau">{lb}</span>}
-              {k !== "__da" && k !== "__bestellt" && k !== "__offen" && !lb && <span className="pl-marke pl-marke--grau">Lieferzeit unbekannt</span>}
+              {k !== "__bestellt" && k !== "__offen" && !lb && <span className="pl-marke pl-marke--grau">Lieferzeit unbekannt</span>}
               {an && <span className={"pl-marke " + (fehlt.some((z) => z.zuSpaet) ? "pl-marke--rot" : "pl-marke--gruen")}>
                 heute bestellt: da {tagText(an.ankunft.da)}</span>}
               {k === "__offen" && <span className="pl-marke pl-marke--grau">noch nie mit Lieferant bestellt</span>}
@@ -254,7 +253,7 @@ function bedarfText(z) {
 }
 
 async function listeKopieren(name, zeilen) {
-  const text = name + "\n" + zeilen.map((z) => "- " + z.j.material_bez + ": " + bedarfText(z) + " (für " + z.j.job_number + ", Start " + alt.kurzDatum(z.start) + ")").join("\n");
+  const text = name + "\n" + zeilen.map((z) => "- " + z.j.material_bez + ": " + (z.stand === "teil" ? "noch " + zahl(z.fehltKg) + " kg" : bedarfText(z)) + " (für " + z.j.job_number + ", Start " + alt.kurzDatum(z.start) + ")").join("\n");
   try { await navigator.clipboard.writeText(text); alt.meldung("Liste kopiert.", "gut"); }
   catch (f) { alt.meldung("Kopieren ging nicht.", "warn"); }
 }
@@ -265,7 +264,7 @@ function Tabelle({ zeilen, d, neu, mitLieferant }) {
       {zeilen.map((z) => {
         const farbe = alt.auftragFarbe ? alt.auftragFarbe(z.j, z.j.material_bez) : null;
         const [st, ton] = STAND[z.stand];
-        const fehlt = z.stand === "fehlt" || z.stand === "offen";
+        const fehlt = zuBestellen(z);
         return (
           <div key={z.j.id} className={"pl-zeile" + (z.zuSpaet ? " pl-zeile--spaet" : "")} data-plzeile={z.j.job_number}>
             <span className={"pl-start" + (z.zuSpaet ? " pl-rot" : "")}>{z.j.plan_status === "geplant" ? tagText(z.start) : "jetzt"}</span>
@@ -280,10 +279,10 @@ function Tabelle({ zeilen, d, neu, mitLieferant }) {
             </span>
             <span className="pl-bedarf">{bedarfText(z)}</span>
             <span className="pl-stand">
-              <span className={"pl-chip pl-chip--" + ton}>{st}{z.stand === "bestellt" && z.j.material_liefertermin ? " · " + z.j.material_liefertermin : ""}
+              <span className={"pl-chip pl-chip--" + ton}>{st}{z.stand === "teil" ? " " + zahl(z.fehltKg) + " kg (" + zahl(Math.round(z.hatKg)) + " kg da/bestellt)" : ""}{z.stand === "bestellt" && z.j.material_liefertermin ? " · " + z.j.material_liefertermin : ""}
                 {z.zuSpaet ? " · zu spät!" : ""}</span>
               {fehlt && (mitLieferant || z.quelle) && <LieferantWahl z={z} d={d} neu={neu} />}
-              {z.stand === "offen" && <small className="pl-text">„{z.j.material_menge}“</small>}
+              {(z.stand === "offen" || z.stand === "teil") && <small className="pl-text">„{z.j.material_menge}“</small>}
             </span>
           </div>
         );

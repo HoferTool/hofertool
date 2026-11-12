@@ -15,7 +15,7 @@
 //  änderbar (app_config.planer_lieferant_wahl).
 // =================================================================
 import { alt } from "../bruecke.jsx";
-import { materialZerlegen, materialDatenLaden, bedarfRechnen, startSchaetzen, istOffen, istRahmen } from "./material.js";
+import { materialZerlegen, materialDatenLaden, bedarfRechnen, startSchaetzen, istOffen, istRahmen, kgJeStange } from "./material.js";
 
 // Gefunden in den Aufträgen (12. November 2026); gilt, solange in den
 // Einstellungen nichts gespeichert ist
@@ -89,6 +89,26 @@ export function materialStand(j) {
   if (/\d\s*(kg|stg|st\b|stk|stangen)|lager|rest|vorhanden|\bda\b/i.test(t)) return "da";
   return "offen";
 }
+
+// Muss (noch) bestellt werden: fehlt, nur Text, oder zu wenig da
+export const zuBestellen = (z) => z.stand === "fehlt" || z.stand === "offen" || z.stand === "teil";
+
+// Alle Mengen im Text in kg („300 kg · Notz …“, „10 Stg.“), null ohne Menge
+export function mengeKg(j) {
+  const t = String(j.material_menge || "").replace(BE_RE, " ");
+  let kg = 0, gefunden = false;
+  for (const m of t.matchAll(/(\d[\d']*(?:[.,]\d+)?)\s*(kg|stg|stangen)\b/gi)) {
+    const n = Number(m[1].replace(/'/g, "").replace(",", "."));
+    if (!isFinite(n)) continue;
+    if (/kg/i.test(m[2])) kg += n;
+    else { const je = kgJeStange(j.material_bez); if (!je) return null; kg += n * je; }
+    gefunden = true;
+  }
+  return gefunden ? kg : null;
+}
+// Eine Menge für mehrere Aufträge („für alle 3 Artikel“, Rahmen) lässt
+// sich nicht mit einem Auftrag vergleichen
+const GETEILT_RE = /alle|rahmen|gesamt|zusammen|f[üu]r\s+\d|abruf/i;
 
 // ---------- Arbeitstage ----------
 
@@ -175,18 +195,28 @@ export async function planerLaden(tage) {
     const status = j.plan_status || "geplant";
     const start = status === "geplant" ? ((geschaetzt[j.id] || {}).start || j.planned_from) : heute;
     if (start > bis) continue;
-    const stand = materialStand(j);
-    // An der Maschine (läuft, Rüsten) mit Material: nichts mehr zu tun
-    if (status !== "geplant" && stand !== "fehlt" && stand !== "offen") continue;
+    let stand = materialStand(j);
     const z = materialZerlegen(j.material_bez);
     let bedarf = null;
     if (material && material.teile[j.job_number]) {
       const b = bedarfRechnen(j, material.teile[j.job_number], material.maschineVon[j.machine_id], false);
       if (b && b.kg) bedarf = { kg: Math.ceil(b.kg), stangen: b.stangen, sicher: b.sicher };
     }
+    // Teilmenge (Wunsch Patrick 12. November 2026: „wenn nur Teilmenge
+    // vorhanden ist, soll es anzeigen, noch so viel“): da oder bestellt,
+    // aber weniger als der Bedarf der offenen Stück
+    let hatKg = null, fehltKg = null;
+    if ((stand === "da" || stand === "bestellt") && bedarf && !istRahmen(j) && !GETEILT_RE.test(j.material_menge || "")) {
+      hatKg = mengeKg(j);
+      if (hatKg !== null && hatKg < bedarf.kg * 0.98) { fehltKg = Math.ceil(bedarf.kg - hatKg); stand = "teil"; }
+    }
+    // Ganz da: für die Bestellung uninteressant (Patrick: „juckt nicht“)
+    if (stand === "da") continue;
+    // An der Maschine (läuft, Rüsten) und bestellt: nichts mehr zu tun
+    if (status !== "geplant" && stand === "bestellt") continue;
     const rest = material && z ? (material.posten || []).filter((p) => p.art === "lager" && !p.weg_am
       && (materialZerlegen(p.material) || {}).grund === z.grund) : [];
-    zeilen.push({ j, start, stand, z, bedarf, rest, rahmen: istRahmen(j),
+    zeilen.push({ j, start, stand, z, bedarf, hatKg, fehltKg, rest, rahmen: istRahmen(j),
       maschine: j.maschine_nr || nrVon[j.machine_id] || "",
       kandidaten: z && verlauf[z.grund] ? Object.entries(verlauf[z.grund])
         .sort((a, b) => b[1].zuletzt.localeCompare(a[1].zuletzt)).map(([n, e]) => ({ name: n, ...e })) : [] });
@@ -240,7 +270,7 @@ export function lieferantenVerteilen(zeilen, lieferanten, wahl) {
   for (const z of zeilen) {
     if (z.quelle === "vorschlag" || z.quelle === "gewaehlt") z.auch = z.kandidaten.map((k) => k.name).filter((n) => n !== z.lieferant);
     const l = z.lieferant && vonName[z.lieferant];
-    const a = (z.stand === "fehlt" || z.stand === "offen") && ankunft(l);
+    const a = zuBestellen(z) && ankunft(l);
     z.ankunft = a || null;
     z.zuSpaet = !!(a && a.da > z.start);
   }

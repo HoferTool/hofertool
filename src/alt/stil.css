@@ -13400,3 +13400,4 @@ body.dunkel .mag5-zeile--doppelt td:last-child { background: #ffe1e1; }
 }
 .pl-lf { width: min(1000px, calc(100vw - 24px)) !important; max-width: none !important; }
 .pl-lf .dialog__kopf { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+#pad .pl-chip--orange { background: #f08a20; color: #1a1000 !important; }
