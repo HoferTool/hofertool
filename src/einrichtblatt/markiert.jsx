@@ -11,6 +11,7 @@
 // und <br>) unter fmt. Passt das HTML nicht mehr zum Text (etwa weil die
 // Stammdaten anderswo geändert wurden), gilt nur der Text.
 import { useEffect, useLayoutEffect, useRef } from "react";
+import { alt } from "../bruecke.jsx";
 
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const gleich = (s) => String(s == null ? "" : s).replace(/ /g, " ").replace(/\r/g, "").trim();
@@ -237,4 +238,51 @@ export function RichFeld({ text, html, aendern, einzeilig, nurLesen, className, 
       document.execCommand("insertText", false, einzeilig ? t.replace(/\s*\n\s*/g, " ") : t);
     }}
     {...rest} />;
+}
+
+// Die Leiste oben für markierten Text: feste Farben und Farbwähler des
+// Geräts, Dünn / Fett, Grösse. Gebaut fürs Einrichtblatt (1.406.0,
+// 1.462.0), seit 1.517.0 auch für die Wartung mit Text, damit beide
+// gleich aussehen. ohneMarkierung(z): was ohne markierten Text geschieht
+// (true = erledigt), sonst ein Hinweis. start: Grösse ohne eigene Angabe.
+export const MARKIER_FARBEN = [["Schwarz", "#000000"], ["Rot", "#e03030"], ["Blau", "#1f5fd6"], ["Grün", "#1a8f3c"], ["Orange", "#e07a00"]];
+export function MarkierLeiste({ ohneMarkierung, hinweis, feld, start = 12, min = 6, max = 40 }) {
+  const behalten = (e) => e.preventDefault();
+  const sagen = () => alt.meldung(hinweis || "Zuerst den Text markieren, dann Farbe, Dünn/Fett oder Grösse wählen.", "warn");
+  const tun = (z) => {
+    if (markiertFormatieren(z, feld)) return;
+    if (ohneMarkierung && ohneMarkierung(z)) return;
+    sagen();
+  };
+  const gr = (d) => {
+    const g = markierteGroesse(feld, start);
+    if (!g) { sagen(); return; }
+    tun({ groesse: Math.max(min, Math.min(max, g + d)) });
+  };
+  return (
+    <span className="eba-schriftleiste" data-schriftleiste="" data-markierleiste="">
+      <span className="eba-pf-geostil" data-pf-geostil="">
+        {MARKIER_FARBEN.map(([name, wert]) => <button key={wert} type="button" title={name} aria-label={name} onMouseDown={behalten}
+          data-pf-geofarbe={wert} className="eba-pf-geofarbe" style={{ "--f": wert }} onClick={() => tun({ farbe: wert })} />)}
+        <label className="eba-pf-geofarbe eba-pf-geofarbe--waehler" style={{ "--f": "#000000" }} title="Andere Farbe wählen"
+          aria-label="Andere Farbe wählen" onMouseDown={behalten}>
+          <input type="color" data-pf-geowahl="" defaultValue="#000000" onChange={(e) => tun({ farbe: e.target.value.toLowerCase() })} /></label>
+        <span className="eba-pf-geodicke">
+          <button type="button" data-pf-geodicke="duenn" onMouseDown={behalten} onClick={() => tun({ fett: false })}>Dünn</button>
+          <button type="button" data-pf-geodicke="fett" onMouseDown={behalten} onClick={() => tun({ fett: true })}><b>Fett</b></button>
+        </span>
+      </span>
+      <span className="eba-pf-geogroesse" data-pf-geogroesse="">
+        <span>Grösse</span>
+        <button type="button" data-pf-geogr="auto" onMouseDown={behalten} onClick={() => tun({ groesse: null })}>Normal</button>
+        <button type="button" data-pf-geogr="minus" aria-label="Kleiner" onMouseDown={behalten} onClick={() => gr(-1)}>−</button>
+        <button type="button" data-pf-geogr="plus" aria-label="Grösser" onMouseDown={behalten} onClick={() => gr(1)}>+</button>
+      </span>
+    </span>
+  );
+}
+
+// Text mit Formatierung als HTML zum Hineinsetzen (gültig oder nur Text)
+export function formatHtml(html, text) {
+  return fmtGueltig(html, text) ? htmlSauber(html).html : textHtml(text);
 }

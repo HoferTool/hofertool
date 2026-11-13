@@ -13,7 +13,7 @@
 import { useEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { GRUPPEN, gruppeText, VORLAGEN, vorlagenLaden, Vorschau, ansehen, ablageName, endungVon,
-  geaendert } from "../pad/Wartung.jsx";
+  geaendert, istText, textSchreiben } from "../pad/Wartung.jsx";
 
 // Seit 1.505.1 zuerst „Alle“: alle sehen alle Vorlagen (Wunsch Patrick
 // 12. November 2026: „Wartungsvorlagen sollen alle alle sehen“)
@@ -77,6 +77,38 @@ export default function WartungVorlagen() {
     geaendert();
   };
 
+  // Vorlage mit Text statt Datei (seit 1.517.0)
+  const textNeu = async () => {
+    const t = await textSchreiben({ knopf: "Weiter" });
+    if (!t) return;
+    const w = await alt.dialogFelder({ titel: "Vorlage ablegen",
+      felder: [{ name: "titel", label: "Was ist zu tun?", pflicht: true, wert: t.titel },
+        { name: "gruppe", label: "Gruppe", wert: gruppeOder(gruppe), auswahl: GRUPPEN }],
+      bestaetigen: "Ablegen" });
+    if (!w) return;
+    const ein = await alt.db.from(VORLAGEN).insert({ gruppe: w.gruppe || gruppeOder(gruppe), titel: w.titel.trim(),
+      url: null, art: "text", inhalt: t.inhalt, inhalt_fmt: t.inhalt_fmt }).select("id");
+    if (ein.error) {
+      const f = alt.fehlertext(ein.error);
+      alt.meldung(/inhalt|url/.test(f) ? "Vorlagen mit Text sind in der Datenbank noch nicht eingerichtet (sql/wartung-text.sql)." : f, "fehler");
+      return;
+    }
+    const neu = ((ein.data || [])[0] || {}).id;
+    if (neu) alt.merkeSchritt("Vorlage " + w.titel.trim(), alt.rueckWeg(VORLAGEN, { id: neu }));
+    alt.meldung("Vorlage abgelegt: " + w.titel.trim(), "gut");
+    if (w.gruppe && w.gruppe !== gruppe && gruppe !== "alle") gruppeWaehlen(w.gruppe);
+    geaendert();
+  };
+  const textAendern = async (v) => {
+    const t = await textSchreiben({ titel: v.titel, inhalt: v.inhalt, fmt: v.inhalt_fmt, knopf: "Speichern" });
+    if (!t) return;
+    const vorher = await alt.rueckSichern(VORLAGEN, { id: v.id });
+    const { error } = await alt.db.from(VORLAGEN).update({ titel: t.titel, inhalt: t.inhalt, inhalt_fmt: t.inhalt_fmt }).eq("id", v.id);
+    if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
+    alt.merkeSchritt("Vorlage " + v.titel, alt.rueckRein(VORLAGEN, vorher));
+    geaendert();
+  };
+
   const bearbeiten = async (v) => {
     const w = await alt.dialogFelder({ titel: "Vorlage ändern",
       felder: [{ name: "titel", label: "Was ist zu tun?", wert: v.titel, pflicht: true },
@@ -113,6 +145,7 @@ export default function WartungVorlagen() {
           </button>))}
         {darf && <button className="knopf knopf--haupt wartung-vorlagen__neu" id="vorlage-neu" disabled={!!laedt}
           onClick={() => wahl.current && wahl.current.click()}>+ Bild oder PDF</button>}
+        {darf && <button className="knopf knopf--haupt" id="vorlage-text-neu" onClick={textNeu}>+ Text</button>}
       </div>
       {darf && <input ref={wahl} type="file" multiple hidden id="vorlage-datei" accept="image/*,application/pdf,.pdf"
         onChange={(e) => { const d = [...e.target.files]; e.target.value = ""; if (d.length) hochladen(d); }} />}
@@ -123,13 +156,14 @@ export default function WartungVorlagen() {
       {fehler && <p className="fehlertext">{fehler}</p>}
       {vorlagen === null ? <p className="klein">Lädt …</p>
         : !liste.length ? <p className="unterlagen__leer">Noch keine Vorlagen{gruppe === "alle" ? "" : " für " + gruppeText(gruppe)}.
-            {darf ? " Mit „+ Bild oder PDF“ beginnen." : ""}</p>
+            {darf ? " Mit „+ Bild oder PDF“ oder „+ Text“ beginnen." : ""}</p>
         : <ul className="wartung__liste">
             {liste.map((v) => (
               <li key={v.id} className="wartung__zeile" data-vorlage-zeile={v.id}>
                 <button className="wartung__vorschau" title="Gross ansehen" onClick={() => ansehen(v)}><Vorschau w={v} /></button>
                 <div className="wartung__text"><b>{v.titel}</b><span className="klein">{gruppeText(v.gruppe)}</span></div>
                 {darf && <div className="wartung__knoepfe">
+                  {istText(v) && <button className="knopf knopf--klein" data-vorlage-text={v.id} onClick={() => textAendern(v)}>Text ändern</button>}
                   <button className="knopf knopf--klein" data-vorlage-aendern={v.id} onClick={() => bearbeiten(v)}>Ändern</button>
                   <button className="knopf knopf--klein knopf--gefahr-leise" data-vorlage-weg={v.id}
                     onClick={() => loeschen(v)}>Löschen</button>

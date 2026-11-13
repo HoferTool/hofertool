@@ -13512,3 +13512,26 @@ body.dunkel .pl-rf__feld select, body.dunkel .pl-rf__feld input, body.dunkel .pl
 .pl-rf .dialog__kopf { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .pl-rf .dialog__kopf h2 { margin: 0; font-size: 1.25rem; }
 .pl-rf .dialog__schliessen-inline { flex: none; width: 40px; height: 40px; }
+
+/* Wartung mit Text (seit 1.517.0, Wunsch Patrick 13. November 2026):
+   weisses Blatt mit dunkler Schrift, auch im dunklen Modus, damit die
+   gewählten Farben (Schwarz eingeschlossen) gleich aussehen wie im Pad */
+.wartung-text { background: #fff; color: #111; -webkit-text-fill-color: #111; font-size: 20px; line-height: 1.35;
+  white-space: pre-wrap; word-break: break-word; text-align: left; }
+.wartung__vorschau-inhalt { position: absolute; inset: 0; padding: 18px 20px; overflow: hidden; border-radius: 10px;
+  -webkit-mask-image: linear-gradient(#000 82%, transparent); mask-image: linear-gradient(#000 82%, transparent); }
+.wartung-text--gross { padding: 24px 28px; border-radius: 12px; border: 1px solid #d6dde5; min-height: 40vh; }
+.wartung-textansicht .wartung-text--gross { zoom: 1.3; }
+.pad-schoner__text.wartung-text--gross { position: absolute; inset: 0; overflow: auto; border: 0; border-radius: 0;
+  padding: 90px 6vw 130px; zoom: 1.6; }
+.wartung-schreiben { display: flex; flex-direction: column; gap: 12px; }
+.wartung-schreiben__titel { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
+.wartung-schreiben__leiste { position: sticky; top: 0; z-index: 2; background: var(--flaeche, #fff); padding: 8px 0 4px;
+  border-bottom: 1px solid var(--linie, #d6dde5); }
+.wartung-schreiben__leiste .eba-pf-geostil, .wartung-schreiben__leiste .eba-pf-geogroesse { margin: 0; }
+.wartung-schreiben__leiste .eba-pf-geodicke { margin-left: 0; }
+.wartung-schreiben__text { min-height: 300px; max-height: 60vh; overflow: auto; padding: 14px 16px;
+  border: 2px solid #c9d2dc; border-radius: 10px; cursor: text; }
+.wartung-schreiben__text:focus { border-color: #1f6feb; outline: none; }
+.wartung-schreiben__fuss { display: flex; justify-content: flex-end; }
+body.dunkel .wartung-schreiben__leiste { background: #161b22; }

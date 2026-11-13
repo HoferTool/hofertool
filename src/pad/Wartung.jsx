@@ -37,6 +37,13 @@
 //  Maschine zeigt zuerst die Gruppe ihres Parks und legt mit derselben
 //  Datei einen Plan mit eigenem Ziel und Termin an.
 //
+//  Seit 1.517.0 auch Text statt Bild oder PDF (Wunsch Patrick
+//  13. November 2026: „nicht nur PDFs oder Bilder, sondern das Feld
+//  gleich mit Text beschreiben, mit Farbpalette oben“): art = "text",
+//  reiner Text in inhalt, die Formatierung in inhalt_fmt (wie im
+//  Einrichtblatt, dieselbe Leiste aus einrichtblatt/markiert.jsx),
+//  ohne Datei (sql/wartung-text.sql).
+//
 //  Hochladen, terminieren, löschen: alle mit Schreibrecht. Quittieren:
 //  alle, die es sehen. Externe haben die Kachel nicht (wie vorher
 //  „Internet“).
@@ -45,6 +52,7 @@ import { useEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { betrachter } from "../teile/Betrachter.jsx";
+import { RichFeld, MarkierLeiste, formatHtml } from "../einrichtblatt/markiert.jsx";
 import { infoLaden, batterieHeuteFaellig, batterienGewechselt, batterieText, batterienText,
   ohneBatterien, infoSetzenViele, plusJahre, BATTERIE_JAHRE, BATTERIE_ARTEN, batterieArtTeilen,
   batterieArtZusammen } from "../daten/maschinenInfo.js";
@@ -70,7 +78,8 @@ const SCHRITT = { tag: [1, 0], woche: [7, 0], "2wochen": [14, 0], monat: [0, 1],
   "6monate": [0, 6], jahr: [0, 12], "2jahre": [0, 24] };
 
 export const endungVon = (name) => ((String(name || "").match(/\.([A-Za-z0-9]+)$/) || [])[1] || "").toLowerCase();
-export const istPdf = (w) => !!w && (w.art === "pdf" || endungVon(w.dateiname || String(w.url || "").split(/[?#]/)[0]) === "pdf");
+export const istText = (w) => !!w && w.art === "text";
+export const istPdf = (w) => !!w && !istText(w) && (w.art === "pdf" || endungVon(w.dateiname || String(w.url || "").split(/[?#]/)[0]) === "pdf");
 
 export function ablageName(name) {
   const rein = String(name || "datei").normalize("NFD").replace(/[̀-ͯ]/g, "")
@@ -308,6 +317,15 @@ export async function erledigen(item, m) {
 }
 
 export function ansehen(w) {
+  if (istText(w)) {
+    fensterOeffnen((zu) => (
+      <div className="dialog dialog--breit wartung wartung-textansicht" id="wartung-textansicht">
+        <div className="blatt__kopf"><h2>{w.titel}</h2>
+          <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button></div>
+        <WartungText w={w} gross />
+      </div>), null, "wartung-huelle");
+    return;
+  }
   if (istPdf(w)) return betrachter(w.url, w.titel, true);
   return betrachter(w.url, w.titel, false, "bild", endungVon(w.dateiname || w.url));
 }
@@ -395,7 +413,9 @@ export async function vorlageWaehlen({ gruppe, namen, mitBisher = true }) {
     mitBisher ? alleLaden().catch(() => []) : []]);
   // Je Datei nur einmal, nichts, was schon Vorlage ist
   const gesehen = new Set(vorlagen.map((v) => v.url));
-  const bisher = plaene.filter((p) => { if (!p.url || gesehen.has(p.url)) return false; gesehen.add(p.url); return true; });
+  const schluessel = (p) => istText(p) ? "text:" + p.titel + "\n" + (p.inhalt || "") : p.url;
+  vorlagen.forEach((v) => gesehen.add(schluessel(v)));
+  const bisher = plaene.filter((p) => { const k = schluessel(p); if (!k || gesehen.has(k)) return false; gesehen.add(k); return true; });
   if (!vorlagen.length && !bisher.length) {
     alt.meldung("Es ist noch keine Vorlage abgelegt (Einstellungen → Wartung → Vorlagen).", "warn");
     return null;
@@ -474,7 +494,56 @@ function pdfVorschau(url) {
   return vorschauVorrat.get(url);
 }
 
+// Text einer Wartung mit seiner Formatierung (Karte, Fenster, Schoner)
+export function WartungText({ w, gross, className }) {
+  return <div className={"wartung-text hell-bleibt" + (gross ? " wartung-text--gross" : "") + (className ? " " + className : "")}
+    data-wartung-text="" dangerouslySetInnerHTML={{ __html: formatHtml(w.inhalt_fmt, w.inhalt || "") }} />;
+}
+
+// Fenster zum Schreiben: Titel, Leiste mit Farben, Dünn/Fett und Grösse
+// für markierten Text (wie im Einrichtblatt), darunter das Textfeld.
+// Gibt { titel, inhalt, inhalt_fmt } oder null.
+const TEXT_HINWEIS = "Zuerst den Text markieren, dann Farbe, Dünn/Fett oder Grösse wählen.";
+function TextFenster({ titel: t0, inhalt: i0, fmt: f0, knopf, fertig }) {
+  const [titel, setTitel] = useState(t0 || "");
+  const [text, setText] = useState({ t: i0 || "", f: f0 || null });
+  const leer = !titel.trim() || !text.t.trim();
+  return (
+    <div className="dialog dialog--breit wartung wartung-schreiben" id="wartung-schreiben">
+      <div className="blatt__kopf">
+        <h2>Wartung mit Text</h2>
+        <button className="knopf knopf--still" data-nein="" onClick={() => fertig(null)}>Abbrechen</button>
+      </div>
+      <label className="wartung-schreiben__titel">Was ist zu tun?
+        <input className="feld" id="wartung-schreiben-titel" value={titel} onChange={(e) => setTitel(e.target.value)}
+          placeholder="z. B. Filter reinigen" /></label>
+      <div className="wartung-schreiben__leiste"><MarkierLeiste hinweis={TEXT_HINWEIS} start={20} max={80} /></div>
+      <div>
+        <RichFeld className="wartung-schreiben__text wartung-text hell-bleibt" id="wartung-schreiben-text" text={text.t} html={text.f}
+          platzhalter="Hier beschreiben, was zu tun ist. Text markieren und oben Farbe, Fett oder Grösse wählen."
+          aendern={(t, f) => setText({ t, f })} />
+      </div>
+      <div className="wartung-schreiben__fuss">
+        <button className="knopf knopf--haupt" id="wartung-schreiben-ok" disabled={leer}
+          onClick={() => fertig({ titel: titel.trim(), inhalt: text.t, inhalt_fmt: text.f })}>{knopf || "Weiter"}</button>
+      </div>
+    </div>
+  );
+}
+export function textSchreiben({ titel, inhalt, fmt, knopf } = {}) {
+  return new Promise((fertig) => {
+    let ende = false;
+    const fertigMit = (wert) => { if (!ende) { ende = true; fertig(wert); } };
+    const zu = fensterOeffnen(() => <TextFenster titel={titel} inhalt={inhalt} fmt={fmt} knopf={knopf}
+      fertig={(v) => { fertigMit(v); zu(); }} />, () => fertigMit(null), "wartung-huelle");
+  });
+}
+
 export function Vorschau({ w }) {
+  if (istText(w)) return <WartungText w={w} className="wartung__vorschau-inhalt" />;
+  return <DateiVorschau w={w} />;
+}
+function DateiVorschau({ w }) {
   const pdf = istPdf(w);
   const [v, setV] = useState(null);
   const [fehler, setFehler] = useState(false);
@@ -593,6 +662,8 @@ export function WartungListe({ m, ziel, maschinen: alle, zu, vorgabe }) {
   const maschinen = m ? [m] : (alle || []);
   const kennung = maschinen.map((x) => x.id).join(",") + "|" + (ziel ? zielWert(ziel) : "");
 
+  const textSqlFehler = (t) => /inhalt|url/.test(t)
+    ? "Wartung mit Text ist in der Datenbank noch nicht eingerichtet (sql/wartung-text.sql)." : sqlFehler(t);
   const sqlFehler = (t) => /wartung_(plan|erledigt)|machine_id|park_id|type_id|ein_ziel/.test(t)
     ? "Die Wartung ist in der Datenbank noch nicht ganz eingerichtet (sql/wartung-ziel.sql)." : t;
 
@@ -667,6 +738,37 @@ export function WartungListe({ m, ziel, maschinen: alle, zu, vorgabe }) {
     geaendert();
   };
 
+  // Wartung mit Text statt Datei (seit 1.517.0)
+  const textNeu = async () => {
+    const t = await textSchreiben({});
+    if (!t) return;
+    const w = await alt.dialogFelder({
+      titel: "Wartung ablegen" + (ueberschrift ? " · " + ueberschrift : ""),
+      felder: [
+        { name: "titel", label: "Was ist zu tun?", pflicht: true, wert: t.titel },
+        ...zielFeld(zielWert(vorgabeZiel())),
+        { name: "termin", label: "Erster Termin (leer = nur ablegen)", typ: "datetime-local", wert: "",
+          hinweis: "Ab dann zeigt das Pad jeder betroffenen Maschine den Text als Bildschirmschoner, bis dort jemand „Erledigt“ tippt." },
+        wiederholungFeld("nie"),
+      ],
+      bestaetigen: "Ablegen" });
+    if (!w) return;
+    const z = w.ziel ? zielAus(w.ziel) : vorgabeZiel();
+    const ein = await alt.db.from(PLAN).insert({
+      ...zielSpalten(z, false), titel: w.titel.trim(), url: null, art: "text", inhalt: t.inhalt, inhalt_fmt: t.inhalt_fmt,
+      termin: w.termin ? new Date(w.termin).toISOString() : null, wiederholung: w.wiederholung || "nie" }).select("id");
+    if (ein.error) { alt.meldung(textSqlFehler(alt.fehlertext(ein.error)), "fehler"); return; }
+    const neuId = ((ein.data || [])[0] || {}).id;
+    if (neuId) alt.merkeSchritt("Wartung " + w.titel.trim(), alt.rueckWeg(PLAN, { id: neuId }));
+    alt.meldung("Abgelegt: " + w.titel.trim(), "gut");
+    geaendert();
+  };
+  const textAendern = async (w) => {
+    const t = await textSchreiben({ titel: w.titel, inhalt: w.inhalt, fmt: w.inhalt_fmt, knopf: "Speichern" });
+    if (!t) return;
+    await aendern(w, { titel: t.titel, inhalt: t.inhalt, inhalt_fmt: t.inhalt_fmt }, "Text " + w.titel);
+  };
+
   const aendern = async (w, daten, text) => {
     const vorher = await alt.rueckSichern(PLAN, { id: w.id });
     const { error } = await alt.db.from(PLAN).update(daten).eq("id", w.id);
@@ -716,8 +818,9 @@ export function WartungListe({ m, ziel, maschinen: alle, zu, vorgabe }) {
     if (!w) return;
     const z = w.ziel ? zielAus(w.ziel) : vorgabe;
     const ein = await alt.db.from(PLAN).insert({
-      ...zielSpalten(z, false), titel: w.titel.trim(), url: q.url, pfad: q.pfad, dateiname: q.dateiname,
-      art: q.art || (istPdf(q) ? "pdf" : "bild"), termin: w.termin ? new Date(w.termin).toISOString() : null,
+      ...zielSpalten(z, false), titel: w.titel.trim(), url: q.url || null, pfad: q.pfad, dateiname: q.dateiname,
+      art: q.art || (istPdf(q) ? "pdf" : "bild"),
+      ...(istText(q) ? { inhalt: q.inhalt, inhalt_fmt: q.inhalt_fmt } : {}), termin: w.termin ? new Date(w.termin).toISOString() : null,
       wiederholung: w.wiederholung || "nie" }).select("id");
     if (ein.error) { alt.meldung(sqlFehler(alt.fehlertext(ein.error)), "fehler"); return; }
     const neuId = ((ein.data || [])[0] || {}).id;
@@ -788,6 +891,7 @@ export function WartungListe({ m, ziel, maschinen: alle, zu, vorgabe }) {
         <h2>Wartung{titel ? " · " + titel : ""}</h2>
         {darf && <button className="knopf knopf--haupt" id="wartung-neu" disabled={!!laedt}
           onClick={() => wahl.current && wahl.current.click()}>+ Bild oder PDF</button>}
+        {darf && <button className="knopf knopf--haupt" id="wartung-text-neu" onClick={textNeu}>+ Text</button>}
         {darf && <button className="knopf" id="wartung-vorhanden" onClick={vorhandeneWaehlen}>Vorlage wählen</button>}
         {zu && <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button>}
       </div>
@@ -811,7 +915,7 @@ export function WartungListe({ m, ziel, maschinen: alle, zu, vorgabe }) {
       </div>}
       {darf && <input ref={wahl} type="file" multiple hidden id="wartung-datei" accept="image/*,application/pdf,.pdf"
         onChange={(e) => { const d = [...e.target.files]; e.target.value = ""; if (d.length) hochladen(d); }} />}
-      <p className="klein wartung__erklaerung">{erklaerung} Bild oder PDF ablegen (oder eine Vorlage aus den Einstellungen mit „Vorlage wählen“), dann „Terminieren“ mit
+      <p className="klein wartung__erklaerung">{erklaerung} Bild, PDF oder Text ablegen (oder eine Vorlage aus den Einstellungen mit „Vorlage wählen“), dann „Terminieren“ mit
         Wiederholung: ab dem Termin zeigt das Pad es als Bildschirmschoner statt des Einrichtblatts, bis an der
         Maschine jemand unten in der Mitte „Erledigt“ tippt.</p>
       {laedt && <p className="unterlagen__laedt">Lädt hoch: {laedt} …</p>}
@@ -823,7 +927,7 @@ export function WartungListe({ m, ziel, maschinen: alle, zu, vorgabe }) {
       {plaene === null
         ? <p className="klein">Lädt …</p>
         : !sortiert.length
-        ? <p className="unterlagen__leer">Noch nichts abgelegt.{darf ? " Mit „+ Bild oder PDF“ beginnen." : ""}</p>
+        ? <p className="unterlagen__leer">Noch nichts abgelegt.{darf ? " Mit „+ Bild oder PDF“ oder „+ Text“ beginnen." : ""}</p>
         : <ul className="wartung__liste">
             {sortiert.map((w) => {
               const seit = m ? faelligSeit(w, erledigt, m.id, jetzt) : null;
@@ -852,6 +956,8 @@ export function WartungListe({ m, ziel, maschinen: alle, zu, vorgabe }) {
                   <div className="wartung__knoepfe">
                     {m && seit && <button className="knopf knopf--klein knopf--haupt" data-wartung-erledigt={w.id}
                       onClick={() => erledigen({ art: "plan", plan: w, titel: w.titel }, m)}>Erledigt</button>}
+                    {darf && istText(w) && <button className="knopf knopf--klein" data-wartung-textaendern={w.id}
+                      onClick={() => textAendern(w)}>Text ändern</button>}
                     {darf && <button className={"knopf knopf--klein" + (f ? "" : " knopf--haupt")} data-wartung-termin={w.id}
                       onClick={() => terminieren(w)}>{w.termin ? "Termin ändern" : "Terminieren"}</button>}
                     {darf && w.termin && <button className="knopf knopf--klein" data-wartung-ohne={w.id}

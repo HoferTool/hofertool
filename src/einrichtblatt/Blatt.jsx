@@ -29,7 +29,8 @@ import { pdfSeitenAlsBilder } from "../teile/drucken.js";
 import { vorlageFuer, reihenMitRest, platzName, platzGruppe, freiFeld } from "./vorlagen.js";
 import { TextBlatt, textBearbeiten } from "../infoboard/TextFeld.jsx";
 import { ohneFa } from "./excelEinlesen.js";
-import { RichFeld, MitFormat, fmtGueltig, markiertFormatieren, markierteGroesse, markierungVergessen } from "./markiert.jsx";
+import { RichFeld, MitFormat, fmtGueltig, markiertFormatieren, markierteGroesse, markierungVergessen,
+  MarkierLeiste as GemeinsameLeiste } from "./markiert.jsx";
 import { betrachter } from "../teile/Betrachter.jsx";
 import { spezialPdfsLaden } from "../daten/spezialwerkzeuge.js";
 import { istMaterialBlatt, MATERIAL_OHNE, materialArtBez } from "./jeMaterial.js";
@@ -298,42 +299,11 @@ const MARKIER_HINWEIS = "Zuerst den Text im Feld markieren, dann Farbe, Dünn/Fe
 // Setzt die Farbe der Werkzeugmarkierung im offenen Platzfenster
 let wzFarbeZiel = null;
 
-function MarkierLeiste() {
-  const behalten = (e) => e.preventDefault();
-  // Ohne markierten Text färbt eine Farbe die Werkzeugmarkierung im
-  // offenen Platzfenster (Wunsch Patrick 10. November 2026)
-  const tun = (z) => {
-    if (markiertFormatieren(z)) return;
-    if (z.farbe && wzFarbeZiel) { wzFarbeZiel(z.farbe); return; }
-    alt.meldung(MARKIER_HINWEIS, "warn");
-  };
-  const gr = (d) => {
-    const g = markierteGroesse();
-    if (!g) { alt.meldung(MARKIER_HINWEIS, "warn"); return; }
-    tun({ groesse: Math.max(GEO_GROESSE_MIN, Math.min(GEO_GROESSE_MAX, g + d)) });
-  };
-  return (
-    <span className="eba-schriftleiste" data-schriftleiste="" data-markierleiste="">
-      <span className="eba-pf-geostil" data-pf-geostil="">
-        {GEO_FARBEN.map(([name, wert]) => <button key={wert} type="button" title={name} aria-label={name} onMouseDown={behalten}
-          data-pf-geofarbe={wert} className="eba-pf-geofarbe" style={{ "--f": wert }} onClick={() => tun({ farbe: wert })} />)}
-        <label className="eba-pf-geofarbe eba-pf-geofarbe--waehler" style={{ "--f": GEO_SCHWARZ }} title="Andere Farbe wählen"
-          aria-label="Andere Farbe wählen" onMouseDown={behalten}>
-          <input type="color" data-pf-geowahl="" defaultValue={GEO_SCHWARZ} onChange={(e) => tun({ farbe: e.target.value.toLowerCase() })} /></label>
-        <span className="eba-pf-geodicke">
-          <button type="button" data-pf-geodicke="duenn" onMouseDown={behalten} onClick={() => tun({ fett: false })}>Dünn</button>
-          <button type="button" data-pf-geodicke="fett" onMouseDown={behalten} onClick={() => tun({ fett: true })}><b>Fett</b></button>
-        </span>
-      </span>
-      <span className="eba-pf-geogroesse" data-pf-geogroesse="">
-        <span>Grösse</span>
-        <button type="button" data-pf-geogr="auto" onMouseDown={behalten} onClick={() => tun({ groesse: null })}>Normal</button>
-        <button type="button" data-pf-geogr="minus" aria-label="Kleiner" onMouseDown={behalten} onClick={() => gr(-1)}>−</button>
-        <button type="button" data-pf-geogr="plus" aria-label="Grösser" onMouseDown={behalten} onClick={() => gr(1)}>+</button>
-      </span>
-    </span>
-  );
-}
+// Die Leiste steht seit 1.517.0 gemeinsam in markiert.jsx (auch für die
+// Wartung mit Text); hier färbt eine Farbe ohne markierten Text die
+// Werkzeugmarkierung im offenen Platzfenster
+const MarkierLeiste = () => <GemeinsameLeiste hinweis={MARKIER_HINWEIS}
+  ohneMarkierung={(z) => { if (z.farbe && wzFarbeZiel) { wzFarbeZiel(z.farbe); return true; } return false; }} />;
 // Felder im Platz, in die man selbst schreibt: dort gilt die Schrift nur
 // für den markierten Text, gespeichert unter fmt
 const PLATZ_RICH = ["taetigkeit", "mass", "geo"];

@@ -39,7 +39,7 @@ import { istExcel } from "../teile/excelLesen.js";
 import { blattSuchen } from "../einrichtblatt/daten.js";
 import { materialBlattFuer } from "../einrichtblatt/jeMaterial.js";
 import { BlattAnzeige } from "../einrichtblatt/Blatt.jsx";
-import { useWartung, istPdf, erledigen, BatterieSymbol, zeitText } from "./Wartung.jsx";
+import { useWartung, istPdf, istText, WartungText, erledigen, BatterieSymbol, zeitText } from "./Wartung.jsx";
 import { batterienText } from "../daten/maschinenInfo.js";
 
 export const SCHONER_NACH_MS = 60 * 1000;
@@ -86,6 +86,10 @@ function stoertNicht() {
 }
 
 function Wartung({ w }) {
+  if (istText(w)) return <WartungText w={w} gross className="pad-schoner__text" />;
+  return <WartungDatei w={w} />;
+}
+function WartungDatei({ w }) {
   const [daten, setDaten] = useState(null);
   const [fehler, setFehler] = useState(false);
   const pdf = istPdf(w);
@@ -158,7 +162,7 @@ export default function Bildschirmschoner({ maschine, hoco, typId, mahnt }) {
   useEffect(lauschen, []);
 
   // Kennung der fälligen Wartung; die Batterie hat keine Datei
-  const wartungUrl = wartung ? (wartung.art === "plan" ? wartung.plan.url : "batterie") : null;
+  const wartungUrl = wartung ? (wartung.art === "plan" ? wartung.plan.url || "text:" + wartung.plan.id : "batterie") : null;
   useEffect(() => {
     if (zeigen || (!wartungUrl && (!adresse || mahnt))) return;
     const takt = setInterval(() => {
