@@ -16,14 +16,17 @@ dat = ["%"] + fach(1, "BOHRER D 1.8 VHM", 160, "77.0639", "0.9000", i="118.0000"
       + fach(2, "FRAESER VHM D2.0", 110, "73.8268", "0.9800") + ["N0", "G3"] \
       + fach(4, "MESSTASTER", 900, "125.1323", "1.0000", s=300) + ["N0", "G5", "%"]
 
-def schneide(nr, name, tt, mill, len_="", fl="", inner=""):
+def schneide(nr, name, tt, mill, len_="", fl="", inner="", kette=False):
     sh = f'<Shape Ver="7" ShapeType="0" NumFlutes="{fl}"><LenParams>{len_}</LenParams><Params>{inner}</Params></Shape>' if mill == "-1" else '<Shape Ver="7" ShapeType="0" ToolType="16"><LenParams/><Params/></Shape>'
     return (f'<CompTool Ver="6" ID="{nr}0" Name="Komplettwerkzeug" Type="0" ToolNumber="{nr}" DeviceId="0" StationId="0" IsOnMagazine="1">'
-            f'<Components><CompTool Ver="3" Name="Halter" Type="2"><Components><CompTool Ver="1" Name="{name}" Type="1" IsMilling="{mill}" ToolType="{tt}">{sh}</CompTool></Components></CompTool></Components></CompTool>')
+            f'<Components><CompTool Ver="3" Name="Halter" Type="2"><Components><CompTool Ver="1" Name="{name}" Type="1" IsMilling="{mill}" ToolType="{tt}">'
+            + ('<Mounting><MountingPos z="20"/></Mounting>' if kette else '') + f'{sh}</CompTool></Components>'
+            + ('<Mounting><MountingPos/></Mounting><Joints><Joint><PlugIn><PlugInPos z="-55"/></PlugIn></Joint></Joints>' if kette else '')
+            + '</CompTool></Components></CompTool>')
 tlm = ('<?xml version="1.0" encoding="UTF-8"?>\r\n<ToolsItemsManager Version="11" Istoolkit="1" Machine="WilleminMacodel_508MT2_X1000_Fanuc31"><Components>'
        '<CompTool Ver="6" Name="Hainbuch S3" Type="0" ToolNumber="1" DeviceId="3" StationId="1" IsOnMagazine="0"></CompTool>'
        + schneide(1, "VHM BOHR D1.8", 0, "-1", '<D Units="0" Val="1.8"/><TL Units="0" Val="40"/>', 2, '<A Units="0" Val="140"/>')
-       + schneide(3, "Kopierfräser R0.5", 15, "-1", '<D Units="0" Val="1"/><R Units="0" Val="0.5"/>', 2)
+       + schneide(3, "Kopierfräser R0.5", 15, "-1", '<D Units="0" Val="1"/><R Units="0" Val="0.5"/><TL Units="0" Val="40"/>', 2, kette=True)
        + schneide(7, "DCGT 11T302", 16, "0")
        + '<CompTool Ver="6" Name="FESTO Greifer" Type="0" ToolNumber="4" DeviceId="0" StationId="0" IsOnMagazine="1"><Components><CompTool Ver="3" Name="C4 Grundhalter" Type="2"></CompTool></Components></CompTool>'
        '</Components></ToolsItemsManager>\r\n')
@@ -57,6 +60,9 @@ for name, inhalt in ([("satz.TLM", tlm), ("teil.TLS", tls)] if not os.environ.ge
         print("Bild:", os.path.join(tmp, "wz508_tlm.png"))
         print(pg.text_content("#wz5-csv-ok"))
         if os.environ.get("TLM"):
+            with pg.expect_download() as dl:
+                pg.click("#wz5-laden")
+            print("   Längen:", [z for z in open(dl.value.path(), "rb").read().decode("ascii").split("\r\n") if z.startswith(("N", "A1 "))][:60])
             for r in pg.locator("#wz5-tabelle tbody tr").all(): print("  ", r.get_attribute("data-wz5"), r.locator(".wz5-schild").text_content(), [i.input_value() for i in r.locator("input.wz5-name, select:not(.wz5-fach), input.wz5-zahl").all()], " ".join(r.locator("td").last.text_content().split())[:90])
         else:
             zeile = lambda n: " ".join(pg.text_content(f"[data-wz5='{n}']").split())
@@ -71,7 +77,7 @@ for name, inhalt in ([("satz.TLM", tlm), ("teil.TLS", tls)] if not os.environ.ge
             neu = open(dl.value.path(), "rb").read().decode("ascii").split("\r\n")
             pruefe(name + ": Neu Kopierfraeser in Fach 3", "N3 D1 (Kopierfraeser R0.5)" in neu)
             i3 = neu.index("N3 D1 (Kopierfraeser R0.5)")
-            pruefe(name + ": Ohne H-Länge 999.9999, zu vermessen", neu[i3 + 2] == "T1 E6 F1 P0 R0 Q130" and neu[i3 + 7].startswith("A1 X999.9999") and "R0.5000" in neu[i3 + 7])
+            pruefe(name + ": H-Länge aus Halter 55 + 40 - 20 = 75, zu vermessen", neu[i3 + 2] == "T1 E6 F1 P0 R0 Q130" and neu[i3 + 7].startswith("A1 X75.0000") and "R0.5000" in neu[i3 + 7])
             pruefe(name + ": Taster bleibt", "N4 D1 (MESSTASTER)" in neu)
         br.close()
 print("Fehler:", ", ".join(fehler) if fehler else "keine")

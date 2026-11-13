@@ -171,7 +171,7 @@ export default function Werkzeuge508({ pad = false, marken = [], waehleMarke, on
               })}</tbody>
             </table>
           </div>
-          <p className="wz5-hilfe">Neue Werkzeuge bekommen als Länge den Wert aus dem CAM (H-Länge, nur in der CSV; aus .TLM und .TLS 999.9999) und Zustand 6 „Zu vermessen“;
+          <p className="wz5-hilfe">Neue Werkzeuge bekommen als Länge den Wert aus dem CAM (H-Länge; aus .TLM und .TLS aus Halter und Ausspannlänge gerechnet, fehlt sie dort, 999.9999) und Zustand 6 „Zu vermessen“;
             das Programm misst sie am Anfang selbst. Bei vorhandenen Werkzeugen bleiben Länge und Abnutzung, der Radius
             ändert nur, wenn der Durchmesser anders ist. Leere Fächer im CAM bleiben auf der Maschine, wie sie sind.</p>
           {drehFehlt.length > 0 && <p className="karte karte--fehler" id="wz5-dreh-fehlt">Nicht auf der Maschine: {drehFehlt.map((v) => "T" + v.nr + " " + v.name).join(", ")}. Drehstähle und Greifer richtet man an der Maschine von Hand ein.</p>}

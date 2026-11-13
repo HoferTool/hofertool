@@ -159,6 +159,30 @@ export function csvLesen(text) {
 const TLM_ART = { 0: "DRILL", 21: "SPOT DRILL", 12: "TAP", 2: "END MILL", 15: "BALL NOSE MILL", 7: "SLOT MILL" };
 export const istTlm = (text) => /^\s*(<\?xml[^>]*>\s*)?<ToolsItemsManager\b/.test(String(text || ""));
 
+// H-Länge wie in der CSV (HLength), aus der Kette Halter → Zwischenstücke → Schneide:
+// jedes Stück ragt um seinen Verbindungspunkt (PlugInPos, Abstand) minus die Tiefe,
+// mit der es selbst eingesteckt ist (MountingPos z), die Schneide um TL minus diese Tiefe.
+// An Patricks Werkzeugen mit der CSV verglichen: ER16 A55 + Bohrer 40/20 = 75,
+// ER11 A100 quer + 80/71 = 109, Fräsdorn mit zwei Scheiben = 87.
+const kind = (e, n) => e ? [...e.children].find((c) => c.nodeName === n) : null;
+function punkt(e) {
+  if (!e) return { x: 0, y: 0, z: 0 };
+  const w = (k) => zahl(e.getAttribute(k)) || 0;
+  return { x: w("x"), y: w("y"), z: w("z") };
+}
+function tlmLaenge(t, schneide, tl) {
+  if (!schneide || !(tl > 0)) return NaN;
+  let summe = 0;
+  for (let e = schneide.parentElement; e && e !== t; e = e.parentElement) {
+    if (e.nodeName !== "CompTool") continue;
+    const pin = punkt(kind(kind(kind(kind(e, "Joints"), "Joint"), "PlugIn"), "PlugInPos"));
+    const tief = punkt(kind(kind(e, "Mounting"), "MountingPos")).z;
+    summe += Math.hypot(pin.x, pin.y, pin.z) - tief;
+  }
+  const l = summe + tl - punkt(kind(kind(schneide, "Mounting"), "MountingPos")).z;
+  return l > 0 && summe > 0 ? Math.round(l * 10000) / 10000 : NaN;
+}
+
 export function tlmLesen(text) {
   const doc = new DOMParser().parseFromString(String(text || ""), "application/xml");
   const wurzel = doc.documentElement;
@@ -201,7 +225,7 @@ export function tlmLesen(text) {
       winkel: mass("A"),
       eckR: mass("R"),
       zaehne: zahl(form && form.getAttribute("NumFlutes")),
-      laenge: NaN,
+      laenge: tlmLaenge(t, schneide, mass("TL")),
       smax: NaN,
     });
   }
