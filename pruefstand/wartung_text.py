@@ -54,13 +54,13 @@ with sync_playwright() as p:
     pg.click("#wartung-schreiben [data-pf-geodicke='fett']")
     pg.click("#wartung-schreiben [data-pf-geogr='plus']"); pg.click("#wartung-schreiben [data-pf-geogr='plus']")
     h = pg.inner_html("#wartung-schreiben-text")
-    pruefe("markierter Text rot, fett, 22px", "e03030" in h.lower() or "224, 48, 48" in h)
-    pruefe("Grösse 22", "22px" in h)
+    pruefe("markierter Text rot, fett, 34px", "e03030" in h.lower() or "224, 48, 48" in h)
+    pruefe("Grösse 34", "34px" in h)
     if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-text-schreiben.png"))
     # Vorschau wie der Bildschirmschoner
     pg.click("#wartung-schreiben-vorschau"); pg.wait_for_timeout(300)
     pruefe("Vorschau offen", pg.locator("#wartung-schoner-vorschau").is_visible())
-    pruefe("Vorschau zeigt formatierten Text", "22px" in pg.inner_html("#wartung-schoner-vorschau .wartung-text"))
+    pruefe("Vorschau zeigt formatierten Text", "34px" in pg.inner_html("#wartung-schoner-vorschau .wartung-text"))
     if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-text-vorschau.png"))
     pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
     pruefe("Escape schliesst nur die Vorschau", pg.locator("#wartung-schoner-vorschau").count() == 0
@@ -89,7 +89,7 @@ with sync_playwright() as p:
            and "font-weight:700" in pg.evaluate("TEST.daten.wartung_plan[0].inhalt_fmt || ''"))
     pg.click("#wartung [data-zu]"); pg.wait_for_timeout(500)
     warten(pg, 61000)
-    pruefe("Schoner zeigt den Text", pg.locator(SCHONER + " .pad-schoner__text").count() == 1
+    pruefe("Schoner zeigt den Text", pg.locator(SCHONER + " [data-wartung-blatt]").count() == 1
            and "HLP 46" in pg.locator(SCHONER).inner_text())
     if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-text-schoner.png"))
     pg.click("[data-wartung-erledigt-schoner]"); pg.wait_for_timeout(800)

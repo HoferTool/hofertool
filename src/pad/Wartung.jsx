@@ -53,7 +53,8 @@ import { createPortal } from "react-dom";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { betrachter } from "../teile/Betrachter.jsx";
-import { RichFeld, MarkierLeiste, formatHtml } from "../einrichtblatt/markiert.jsx";
+import { MarkierLeiste, formatHtml } from "../einrichtblatt/markiert.jsx";
+import { BlattAnsicht, BlattEditor, blattAusAlt, blattSchreiben, istBlatt, BLATT_SCHRIFT } from "./WartungBlatt.jsx";
 import { infoLaden, batterieHeuteFaellig, batterienGewechselt, batterieText, batterienText,
   ohneBatterien, infoSetzenViele, plusJahre, BATTERIE_JAHRE, BATTERIE_ARTEN, batterieArtTeilen,
   batterieArtZusammen } from "../daten/maschinenInfo.js";
@@ -497,22 +498,33 @@ function pdfVorschau(url) {
 
 // Text einer Wartung mit seiner Formatierung (Karte, Fenster, Schoner)
 export function WartungText({ w, gross, className }) {
+  // Seit 1.535.0 ein Querblatt mit frei liegenden Feldern und Bildern
+  if (istBlatt(w.inhalt_fmt)) return <BlattAnsicht fmt={w.inhalt_fmt}
+    className={(gross ? "wblatt--gross" : "wblatt--klein") + (className ? " " + className.replace(/\bpad-schoner__text\b/, "wblatt--schoner") : "")} />;
   return <div className={"wartung-text hell-bleibt" + (gross ? " wartung-text--gross" : "") + (className ? " " + className : "")}
     data-wartung-text="" dangerouslySetInnerHTML={{ __html: formatHtml(w.inhalt_fmt, w.inhalt || "") }} />;
 }
 
 // Fenster zum Schreiben: Titel, Leiste mit Farben, Dünn/Fett und Grösse
-// für markierten Text (wie im Einrichtblatt), darunter das Textfeld.
-// Gibt { titel, inhalt, inhalt_fmt } oder null.
+// für markierten Text (wie im Einrichtblatt), darunter seit 1.535.0 das
+// Querblatt in iPad-Grösse mit frei verschiebbaren Textfeldern und
+// Bildern (WartungBlatt.jsx). Gibt { titel, inhalt, inhalt_fmt } oder null.
 const TEXT_HINWEIS = "Zuerst den Text markieren, dann Farbe, Dünn/Fett oder Grösse wählen.";
 function TextFenster({ titel: t0, inhalt: i0, fmt: f0, knopf, fertig }) {
   const [titel, setTitel] = useState(t0 || "");
-  const [text, setText] = useState({ t: i0 || "", f: f0 || null });
-  const leer = !titel.trim() || !text.t.trim();
+  // Neu: gleich ein leeres Textfeld oben, damit man sofort schreiben kann
+  const [teile, setTeile] = useState(() => {
+    const b = blattAusAlt(i0, f0);
+    return b.teile.length || istBlatt(f0) ? b.teile
+      : [{ id: "t0", art: "text", x: 0.05, y: 0.12, w: 0.9, t: "", f: null }];
+  });
+  const gefuellt = teile.some((t) => t.art === "bild" || (t.t || "").trim());
+  const leer = !titel.trim() || !gefuellt;
   const [vorschau, setVorschau] = useState(false);
+  const ergebnis = () => ({ titel: titel.trim(), ...blattSchreiben(teile) });
   return (
     <div className="dialog dialog--breit wartung wartung-schreiben" id="wartung-schreiben">
-      {vorschau && <SchonerVorschau w={{ titel: titel.trim(), inhalt: text.t, inhalt_fmt: text.f }} zu={() => setVorschau(false)} />}
+      {vorschau && <SchonerVorschau w={{ ...ergebnis() }} zu={() => setVorschau(false)} />}
       <div className="blatt__kopf">
         <h2>Wartung mit Text</h2>
         <button className="knopf knopf--still" data-nein="" onClick={() => fertig(null)}>Abbrechen</button>
@@ -520,17 +532,13 @@ function TextFenster({ titel: t0, inhalt: i0, fmt: f0, knopf, fertig }) {
       <label className="wartung-schreiben__titel">Was ist zu tun?
         <input className="feld" id="wartung-schreiben-titel" value={titel} onChange={(e) => setTitel(e.target.value)}
           placeholder="z. B. Filter reinigen" /></label>
-      <div className="wartung-schreiben__leiste"><MarkierLeiste hinweis={TEXT_HINWEIS} start={20} max={80} /></div>
-      <div>
-        <RichFeld className="wartung-schreiben__text wartung-text hell-bleibt" id="wartung-schreiben-text" text={text.t} html={text.f}
-          platzhalter="Hier beschreiben, was zu tun ist. Text markieren und oben Farbe, Fett oder Grösse wählen."
-          aendern={(t, f) => setText({ t, f })} />
-      </div>
+      <div className="wartung-schreiben__leiste"><MarkierLeiste hinweis={TEXT_HINWEIS} start={BLATT_SCHRIFT} min={10} max={160} /></div>
+      <BlattEditor teile={teile} setTeile={setTeile} titel={titel.trim()} />
       <div className="wartung-schreiben__fuss">
-        <button className="knopf" id="wartung-schreiben-vorschau" disabled={!text.t.trim()}
+        <button className="knopf" id="wartung-schreiben-vorschau" disabled={!gefuellt}
           onClick={() => setVorschau(true)}>Vorschau</button>
         <button className="knopf knopf--haupt" id="wartung-schreiben-ok" disabled={leer}
-          onClick={() => fertig({ titel: titel.trim(), inhalt: text.t, inhalt_fmt: text.f })}>{knopf || "Weiter"}</button>
+          onClick={() => fertig(ergebnis())}>{knopf || "Weiter"}</button>
       </div>
     </div>
   );
@@ -552,7 +560,6 @@ function SchonerVorschau({ w, zu }) {
     <div className="pad-schoner pad-schoner--wartung wartung-schoner-vorschau" id="wartung-schoner-vorschau"
       onClick={(e) => { e.preventDefault(); e.stopPropagation(); zu(); }}>
       <div className="pad-schoner__blatt"><WartungText w={w} gross className="pad-schoner__text" /></div>
-      <div className="pad-schoner__wartung-titel">Wartung fällig: {w.titel || "…"}</div>
       <div className="wartung-schoner-vorschau__schild">Vorschau · so erscheint es an der Maschine</div>
       <button type="button" className="pad-schoner__erledigt" id="wartung-schoner-vorschau-zu">Schliessen</button>
     </div>,

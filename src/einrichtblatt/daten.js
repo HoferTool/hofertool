@@ -276,7 +276,7 @@ export async function freieBilderSpeichern(hocoNr, typId, bilder) {
 
 // Ein Bild für das Blatt hochladen, verkleinert auf höchstens 1600
 // Pixel; Fotos als JPG, PNG bleibt PNG (freigestellt bleibt freigestellt)
-export async function freiesBildHochladen(datei) {
+export async function freiesBildHochladen(datei, ordner = "einrichtblatt/frei") {
   let blob = datei;
   const png = /png|gif|webp|svg/i.test(datei.type || "");
   try {
@@ -290,7 +290,7 @@ export async function freiesBildHochladen(datei) {
   } catch (f) { /* dann das Original */ }
   const ext = /png/.test(blob.type) ? "png" : /jpe?g/.test(blob.type) ? "jpg" : (String(datei.name || "").split(".").pop() || "bild");
   const name = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
-  const pfad = "einrichtblatt/frei/" + name + "." + ext;
+  const pfad = ordner + "/" + name + "." + ext;
   const ablage = alt.db.storage.from("zeichnungen");
   const r = await ablage.upload(pfad, blob, { upsert: true, contentType: blob.type || "image/" + ext });
   if (r.error) throw r.error;

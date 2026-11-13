@@ -203,7 +203,9 @@ export default function Bildschirmschoner({ maschine, hoco, typId, mahnt }) {
           {wartung.art === "plan" ? <Wartung w={wartung.plan} /> : <BatterieKarte m={maschine} w={wartung} />}</div>
         <div className="pad-schoner__deckel" data-padschonerzu=""
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); setZeigen(false); }} />
-        {wartung.art === "plan" && <div className="pad-schoner__wartung-titel">Wartung fällig: {wartung.titel}</div>}
+        {/* Kein oranges Schild „Wartung fällig“ mehr, nur die Vorlage selbst
+            (seit 1.535.0, Wunsch Patrick 13. November 2026: „nimm das Orange
+            raus, das Wartung steht, und so einfach die Vorlage anzeigen“) */}
         <button type="button" className="pad-schoner__erledigt" data-wartung-erledigt-schoner=""
           onClick={async (e) => {
             e.preventDefault(); e.stopPropagation();

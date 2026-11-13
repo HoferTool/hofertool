@@ -82,7 +82,7 @@ with sync_playwright() as p:
     warten(pg, 61000)
     pruefe("Schoner zeigt die Wartung", pg.locator(SCHONER).count() == 1)
     pruefe("Bild im Schoner", pg.locator(SCHONER + " .pad-schoner__bild").count() == 1)
-    pruefe("Titel oben", "Filter wechseln" in pg.locator(".pad-schoner__wartung-titel").inner_text())
+    pruefe("kein oranges Schild oben", pg.locator(".pad-schoner__wartung-titel").count() == 0)
     b = pg.locator("[data-wartung-erledigt-schoner]").bounding_box()
     pruefe("Erledigt unten in der Mitte", b and abs(b["x"] + b["width"] / 2 - 590) < 3 and b["y"] > 820 - 140)
     if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-schoner.png"))
