@@ -5,9 +5,10 @@
 //  nächsten Aufträge zeigen und nach Lieferant sortieren“). Kachel
 //  „Planer“ auf dem Startbild des Pads, nur Admins, nie Externe.
 //
-//  Links Todo: gemeldete Probleme, offene QS-Meldungen, fehlendes
-//  Material bald, laufend ohne WBG (alles von selbst) und eigene Todos
-//  (Tabelle planer_todos). Rechts das Material der nächsten Aufträge,
+//  Links Todo: gemeldete Probleme, fehlendes Material bald, laufend ohne
+//  WBG (alles von selbst) und eigene Todos (Tabelle planer_todos). Keine
+//  QS-Meldungen (seit 1.529.0, Patrick: „das nervt“), erledigte eigene
+//  Todos stehen im Fenster „Abgeschlossen“ neben dem Todo-Titel. Rechts das Material der nächsten Aufträge,
 //  nach Lieferant gebündelt (Rechnung in src/daten/planer.js).
 // =================================================================
 import { useEffect, useState } from "react";
@@ -16,7 +17,6 @@ import { padZurueck } from "./Pad.jsx";
 import { istPlanerTab, planerTabVerlassen, planerSichtbar } from "./planerTab.js";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { planwandFensterOeffnen } from "./PlanwandFenster.jsx";
-import { qsQuittieren } from "../daten/qs.js";
 import { planerLaden, zuBestellen, wahlSetzen, regelnLaden, regelnSpeichern, lieferbarText, lieferantLogoDaten, todoNeu, todoHaken, todoAendern, todoLoeschen } from "../daten/planer.js";
 import MaterialLieferanten from "../einstellungen/MaterialLieferanten.jsx";
 import { Logo } from "../seiten/bestellungen/teile.jsx";
@@ -139,12 +139,6 @@ function Todos({ d, neu }) {
       unter: [j.job_number, j.problem_at ? alt.datumZeitKurz(j.problem_at) : "", j.problem_von].filter(Boolean).join(" · "),
       haken: () => alt.problemQuittieren(j, null, neu), auf: () => planwandFensterOeffnen(j) });
   }
-  for (const q of d.qs) {
-    posten.push({ k: "q" + q.id, art: "qs", sort: "1" + q.erstellt_am,
-      titel: (d.nrVon[q.machine_id] ? d.nrVon[q.machine_id] + " · " : "") + zahl(q.stueck) + " Stk. Ausschuss am Counter abziehen",
-      unter: [q.hoco_nr, q.notiz, alt.datumZeitKurz(q.erstellt_am)].filter(Boolean).join(" · "),
-      haken: async () => { if (await qsQuittieren(q)) neu(); } });
-  }
   for (const z of d.zeilen) {
     if (!zuBestellen(z) || (z.start > bald && !z.zuSpaet)) continue;
     posten.push({ k: "m" + z.j.id, art: "m", rot: z.zuSpaet, sort: "2" + z.start,
@@ -160,9 +154,12 @@ function Todos({ d, neu }) {
   }
   // „Nur für mich“ sieht nur, wer es geschrieben hat (seit 1.521.0)
   const ich = alt.meineProfilId();
-  const eigene = (d.todos || []).filter((t) => (t.fuer_alle !== false || t.erstellt_von === ich)
-    && (!t.erledigt_am || String(t.erledigt_am) > new Date(Date.now() - 86400000).toISOString()));
-  eigene.sort((a, b) => (!!a.erledigt_am - !!b.erledigt_am) || String(a.faellig || "9").localeCompare(String(b.faellig || "9")));
+  const sichtbar = (d.todos || []).filter((t) => t.fuer_alle !== false || t.erstellt_von === ich);
+  // Erledigtes steht nicht mehr in der Liste, nur im Fenster „Abgeschlossen“
+  // (seit 1.529.0, Wunsch Patrick 13. November 2026)
+  const erledigt = sichtbar.filter((t) => t.erledigt_am);
+  const eigene = sichtbar.filter((t) => !t.erledigt_am);
+  eigene.sort((a, b) => String(a.faellig || "9").localeCompare(String(b.faellig || "9")));
   for (const t of eigene) {
     const spaet = !t.erledigt_am && t.faellig && t.faellig <= heute;
     posten.push({ k: "e" + t.id, art: "eigen", erledigt: !!t.erledigt_am, rot: spaet, sort: "4",
@@ -172,11 +169,11 @@ function Todos({ d, neu }) {
       haken: async () => { try { await todoHaken(t, !t.erledigt_am); neu(); } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); } },
       auf: () => todoBearbeiten(t, neu) });
   }
-  // Gemeldete (Probleme, QS) zuerst, gleich darunter die eigenen, dann was
-  // von selbst kommt; Erledigtes ganz unten (Patrick 13. November 2026:
-  // „eigene sollen gleich unter den gemeldeten kommen“)
-  const RANG = { problem: 0, qs: 1, eigen: 2, m: 3, wbg: 4 };
-  posten.sort((a, b) => (!!a.erledigt - !!b.erledigt) || RANG[a.art] - RANG[b.art] || a.sort.localeCompare(b.sort));
+  // Gemeldete Probleme zuerst, gleich darunter die eigenen, dann was von
+  // selbst kommt (Patrick 13. November 2026: „eigene sollen gleich unter
+  // den gemeldeten kommen“)
+  const RANG = { problem: 0, eigen: 2, m: 3, wbg: 4 };
+  posten.sort((a, b) => RANG[a.art] - RANG[b.art] || a.sort.localeCompare(b.sort));
   const offen = posten.filter((p) => !p.erledigt).length;
   const z = {
     prob: posten.filter((p) => p.art === "problem").length,
@@ -193,7 +190,11 @@ function Todos({ d, neu }) {
       <section className="pl-karte pl-todo">
         <div className="pl-kopf">
           <h2>Todo {offen > 0 && <span className="pl-anzahl">{offen}</span>}</h2>
-          {d.todos !== null && <button className="pl-plus" id="pl-todo-neu" title="Eigenes Todo" onClick={() => todoBearbeiten(null, neu)}>+</button>}
+          {d.todos !== null && <span className="pl-gruppe">
+            <button className="pl-knopf" id="pl-abgeschlossen" title="Erledigte Todos ansehen oder wieder öffnen"
+              onClick={() => abgeschlossenFenster(d, neu)}>✓ Abgeschlossen{erledigt.length > 0 ? " (" + erledigt.length + ")" : ""}</button>
+            <button className="pl-plus" id="pl-todo-neu" title="Eigenes Todo" onClick={() => todoBearbeiten(null, neu)}>+</button>
+          </span>}
         </div>
         <div className="pl-liste">
           {!posten.length && <p className="pl-leer">Nichts zu tun. 🎉</p>}
@@ -204,13 +205,53 @@ function Todos({ d, neu }) {
                 : <span className="pl-haken pl-haken--leer" />}
               <button className="pl-todo__text" onClick={p.auf || p.haken}>
                 <span className="pl-todo__titel"><span className={"pl-schild pl-schild--" + p.art}>
-                  {{ problem: "PROBLEM", qs: "QS", m: "M", wbg: "WBG", eigen: "EIGEN" }[p.art]}</span>{p.titel}</span>
+                  {{ problem: "PROBLEM", m: "M", wbg: "WBG", eigen: "EIGEN" }[p.art]}</span>{p.titel}</span>
                 {p.unter && <span className="pl-todo__unter">{p.unter}</span>}
               </button>
             </div>
           ))}
         </div>
       </section>
+    </div>
+  );
+}
+
+// Erledigte eigene Todos zum Nachschauen oder Rückgängig machen, neuste
+// zuoberst (seit 1.529.0, Wunsch Patrick 13. November 2026). Das Fenster
+// lädt selbst neu, damit es nach dem Wieder-Öffnen stimmt.
+function abgeschlossenFenster(d, neu) {
+  fensterOeffnen((zu) => <Abgeschlossen start={d.todos} zu={zu} neu={neu} />);
+}
+
+function Abgeschlossen({ start, zu, neu }) {
+  const [todos, setTodos] = useState(start || []);
+  const ich = alt.meineProfilId();
+  const liste = todos.filter((t) => t.erledigt_am && (t.fuer_alle !== false || t.erstellt_von === ich))
+    .sort((a, b) => String(b.erledigt_am).localeCompare(String(a.erledigt_am)));
+  const wiederOffen = async (t) => {
+    try {
+      await todoHaken(t, false);
+      setTodos((x) => x.map((y) => (y.id === t.id ? { ...y, erledigt_am: null, erledigt_von: null } : y)));
+      neu();
+    } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+  };
+  return (
+    <div className="dialog dialog--breit pl-abg" id="pl-abg">
+      <div className="dialog__kopf"><h2>Abgeschlossen</h2>
+        <button className="dialog__schliessen-inline" title="Schliessen" onClick={zu}>✕</button></div>
+      <div className="pl-abg__liste">
+        {!liste.length && <p className="pl-abg__leer">Noch nichts abgeschlossen.</p>}
+        {liste.map((t) => (
+          <div key={t.id} className="pl-abg__zeile" data-plabg={t.id}>
+            <span className="pl-abg__text">
+              <b>{t.text}</b>
+              <small>{["erledigt " + alt.datumZeitKurz(t.erledigt_am), t.erledigt_von,
+                t.fuer_alle === false ? "nur für mich" : ""].filter(Boolean).join(" · ")}</small>
+            </span>
+            <button className="knopf knopf--still" data-plwieder={t.id} onClick={() => wiederOffen(t)}>↶ Wieder offen</button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -13654,3 +13654,17 @@ body.dunkel .eg-rechteck-an { background: #3b7fe0 !important; }
 /* 508 Werkzeuge: CAM-Werkzeug noch ohne Fach (seit 1.528.0) */
 .wz5-offen { background: #fff4d6; color: #7a5a00; }
 body.dunkel .wz5-offen { background: #4a3d12; }
+
+/* Planer: Fenster „Abgeschlossen“ (seit 1.529.0) – erledigte eigene Todos
+   mit „Wieder offen“, ausserhalb von #pad, darum eigene Regeln */
+.pl-abg { width: min(720px, calc(100vw - 24px)) !important; max-width: none !important; }
+.pl-abg .dialog__kopf { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pl-abg__liste { display: flex; flex-direction: column; gap: 8px; max-height: 70vh; overflow: auto; }
+.pl-abg__leer { color: var(--grau, #64748b); margin: 8px 0; }
+.pl-abg__zeile { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px;
+  border: 1px solid #e2e8f0; background: #f7f9fc; }
+.pl-abg__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pl-abg__text b { font-weight: 600; text-decoration: line-through; color: #475569; overflow-wrap: anywhere; }
+.pl-abg__text small { font-size: .82rem; color: #64748b; overflow-wrap: anywhere; }
+.pl-abg__zeile .knopf { flex: none; }
+body.dunkel .pl-abg__zeile { background: #1a2433; border-color: #2c3a50; }

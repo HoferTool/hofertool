@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.529.0** (13. November 2026): Planer: Todo ohne QS-Meldungen (Patrick: „das nervt“); erledigte eigene Todos verschwinden aus der Liste, Knopf „✓ Abgeschlossen (n)“ neben dem „+“ öffnet ein Fenster mit allen Erledigten zum Nachschauen und „↶ Wieder offen“. Prüfstand `planer.py`.
 - **1.528.0** (13. November 2026): 508 Werkzeuge (NC-PRO und Pad Mode): die Werkzeuge aus dem CAM werden nicht mehr von selbst ins Fach mit ihrer Nummer gelegt; sie stehen als „Kein Fach“ da, bis man in der Liste ein Fach wählt oder sie aufs Magazin zieht, ohne Fach wird nichts geschrieben und kein anderes Fach geleert, unten „… noch ohne Fach“ (Wunsch Patrick: „nicht automatisch als Vorschlag platziert“). Prüfstand `wz508*.py` legt die Werkzeuge dafür von Hand ab (`wz508_hilfe.py`).
 - **1.517.0** (13. November 2026): Planer im Pad Mode: Escape fragt erst „Planer wirklich verlassen?“, Enter verlässt, nochmals Escape bleibt im Planer (Patrick: „nicht dass man aus Versehen rausfällt“).
 - **1.516.0** (13. November 2026): Planer: Tipp aufs Lieferantenfeld öffnet direkt die Regel mit „Immer dort bestellen“ und „Kann dort bestellt werden“ (Schilder, je Wahl eins mehr); Vorschlag ohne Regel = wo am häufigsten bestellt, bei Gleichstand zuletzt; 1.4305 in Regeln kein Mass.

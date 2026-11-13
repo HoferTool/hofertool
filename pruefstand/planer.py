@@ -34,6 +34,7 @@ DATEN = """;
     { name: 'Metalix', tage: 3, website: 'metalix.ch' }, { name: 'Notz', tage: 2, bestelltage: [2, 4], schluss: '11:00', liefertage: [3], notiz: 'Frau Muster anrufen' }, { name: 'Schmobi', tage: 5 }]) });
   TEST.daten.app_config.push({ schluessel: 'material_regeln', wert: JSON.stringify([
     { material: 'Messing sw', muss: 'Schmobi', kann: ['Notz'] }, { material: 'Messing rd 99', muss: 'Notz', kann: [] }]) });
+  TEST.daten.qs_meldungen = [{ id: 'q1', machine_id: null, stueck: 3, hoco_nr: '10000-0001', erstellt_am: '2026-11-12T08:00:00Z' }];
   TEST.daten.planer_todos = [{ id: 't1', text: 'Gühring wegen Termin anrufen', faellig: null, erledigt_am: null, erstellt_am: '2026-11-12T08:00:00Z' },
     { id: 't2', text: 'Geheim von jemand anderem', fuer_alle: false, erstellt_von: 'jemand-anders', faellig: null, erledigt_am: null, erstellt_am: '2026-11-12T09:00:00Z' }];
 })();
@@ -119,7 +120,16 @@ with sync_playwright() as p:
     pg.locator(".dialog button:has-text('Speichern')").click(); pg.wait_for_timeout(800)
     pruefe(pg.evaluate("TEST.daten.planer_todos.find(t => t.text === 'Für alle sichtbar').fuer_alle") is True, "Schieber auf alle Admins")
     pg.locator("[data-pltodo='eigen']", has_text="Zangen").locator(".pl-haken").click(); pg.wait_for_timeout(600)
-    pruefe(pg.locator(".pl-todo__eintrag--erledigt", has_text="Zangen").count() == 1, "Todo abgehakt")
+    pruefe(pg.locator("[data-pltodo='eigen']", has_text="Zangen").count() == 0, "abgehaktes Todo aus der Liste")
+    pruefe("(1)" in pg.inner_text("#pl-abgeschlossen"), "Knopf Abgeschlossen zählt")
+    pruefe(pg.locator("[data-pltodo='qs']").count() == 0, "keine QS-Meldungen im Todo")
+    pg.click("#pl-abgeschlossen"); pg.wait_for_selector("#pl-abg")
+    pruefe(pg.locator("#pl-abg [data-plabg]", has_text="Zangen").count() == 1, "Abgeschlossen zeigt Todo")
+    pg.wait_for_timeout(300); pg.screenshot(path=BILD + "/planer-abgeschlossen.png")
+    pg.locator("#pl-abg [data-plabg]", has_text="Zangen").locator("[data-plwieder]").click(); pg.wait_for_timeout(800)
+    pruefe(pg.locator("#pl-abg [data-plabg]").count() == 0, "wieder offen aus dem Fenster")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-pltodo='eigen']", has_text="Zangen").count() == 1, "Todo wieder in der Liste")
     pg.click("[data-plansicht='start']"); pg.wait_for_timeout(600)
     pruefe(pg.locator(".pl-zeile").count() >= 4, "Ansicht nach Start")
     pg.click("#pl-lieferanten"); pg.wait_for_selector("#material-lieferanten")
