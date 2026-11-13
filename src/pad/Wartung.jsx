@@ -330,16 +330,16 @@ function naechstesAnMaschine(m, { plaene, info, typ }) {
 export const VORLAGEN = "wartung_vorlagen";
 export const GRUPPEN = [["langdreher", "Langdreher"], ["kurzdreher", "Kurzdreher"], ["extern", "Extern"]];
 export const gruppeText = (g) => (GRUPPEN.find((x) => x[0] === g) || GRUPPEN[0])[1];
-// Gruppe nach dem Namen des Parks (SB-20RG Park, SW-20 Park, Playmobile Abteilung, Kurzdreherpark, Multitasking, Extern)
+// Gruppe nach dem Namen des Parks (SB-20RG Park, SW-20 Park, Alte Maschinen, Kurzdreherpark, Multitasking, Extern)
 export function gruppeVonPark(name) {
   const n = String(name || "").toLowerCase();
   if (/extern/.test(n)) return "extern";
   // Multitasking (Macodel) war bis 1.477.1 im Kurzdreherpark und nimmt
   // weiter die Vorlagen der Kurzdreher
   if (/kurz|multi/.test(n)) return "kurzdreher";
-  // Der Langdreherpark heisst seit 1.505.1 Playmobile Abteilung, dazu
+  // Der Langdreherpark heisst seit 1.505.1 Playmobile Abteilung (seit 1.508.3 Alte Maschinen), dazu
   // SB-20RG Park und SW-20 Park: alle nehmen die Vorlagen der Langdreher
-  if (/lang|playmobil|sw-?20|sb-?20/.test(n)) return "langdreher";
+  if (/lang|playmobil|alte maschinen|sw-?20|sb-?20/.test(n)) return "langdreher";
   return null;
 }
 export async function vorlagenLaden() {
