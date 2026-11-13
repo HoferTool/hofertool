@@ -83,6 +83,7 @@ import { zustandVorher, zustandVergessen, zustandFuerSpaeter, zustandNachAnmeldu
 // Stellt window.hoferMailSenden fürs Bestellblatt bereit (1.323.0)
 import "../daten/mailkonto.js";
 import { istModulFehler } from "../teile/modulFehler.js";
+import { istVollbildTab, vollbildNachholen, vollbildVerlassenFragen } from "../planwand/vollbildTab.js";
 
 const BOOT = document.getElementById("boot");
 const WURZEL = document.getElementById("root");
@@ -159,7 +160,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.521.0";
+const APP_VERSION = "1.522.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -201,6 +202,13 @@ function escapeZurueck() {
     if (wo === "kalkulation" && kalkulationZurueck()) return;
     if (wo === "produktion" && prod.ansicht && prod.ansicht !== "erfassen") {
       prod.ansicht = "erfassen"; zeichneSeite(); return;
+    }
+    // Im Vollbild-Tab der Planwand (seit 1.522.0) schliesst Escape am
+    // Schluss den Tab nach einer Rückfrage, statt zur Startseite zu gehen
+    if (!ARCHIV && profil && istVollbildTab() && !document.querySelector("#pad")) {
+      e.preventDefault();
+      vollbildVerlassenFragen();
+      return;
     }
     if (wo === "bestellungen" && best.ansicht && best.ansicht !== "offen") {
       best.ansicht = "offen"; zeichneSeite(); return;
@@ -11246,6 +11254,10 @@ function zeichneSeite() {
   syncStarten(pfad);
   bereich.classList.toggle("inhalt--breit", pfad === "planwand");
   document.body.classList.toggle("pw-seite", pfad === "planwand");
+  // Planwand im eigenen Vollbild-Tab ohne Kopf und Menü (seit 1.522.0)
+  const vollbild = pfad === "planwand" && !ARCHIV && istVollbildTab();
+  document.body.classList.toggle("pw-vollbild", vollbild);
+  if (vollbild) { document.title = "Planwand · Hofer Tool"; vollbildNachholen(); }
   // Eine React-Seite im Bereich zuerst sauber abbauen, bevor die
   // nächste Seite ihn überschreibt
   reactAufraeumen(bereich);

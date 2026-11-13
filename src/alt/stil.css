@@ -13612,3 +13612,15 @@ body.pad-offen .dialog.pl-lf .ml .ml-tag { min-height: 0; }
 body.pad-offen .dialog .feld-schieber input { min-height: 0 !important; width: 52px; height: 30px; border-radius: 15px !important; }
 body.pad-offen .dialog .feld-schieber input::after { width: 24px; height: 24px; }
 body.pad-offen .dialog .feld-schieber input:checked::after { transform: translateX(22px); }
+
+/* ---------- Planwand im Vollbild-Tab (seit 1.522.0) ----------
+   #/planwand/vollbild: nur die Planwand, ohne Kopfzeile, Menü und
+   Handy-Menü; die Höhen der Planwand rechnen mit --kopfhoehe, darum 0. */
+body.pw-vollbild { --kopfhoehe: 0px; }
+body.pw-vollbild .kopf, body.pw-vollbild .nav, body.pw-vollbild .handymenue { display: none !important; }
+body.pw-vollbild .rahmen { display: block !important; padding-top: 0 !important;
+                           grid-template-columns: none !important; min-height: 100dvh; }
+body.pw-vollbild .inhalt { margin: 0 !important; max-width: none !important;
+                           padding: 6px 10px 0 !important; }
+/* Auch der schwebende Knopf „Pad Mode“ gehört nicht ins Vollbild */
+body.pw-vollbild #werkzeugleiste { display: none !important; }

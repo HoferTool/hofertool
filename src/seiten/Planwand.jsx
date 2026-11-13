@@ -14,6 +14,7 @@
 // =================================================================
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { istPlanerTab, planerTabOeffnen, planerSichtbar } from "../pad/planerTab.js";
+import { vollbildSichtbar, vollbildTabOeffnen } from "../planwand/vollbildTab.js";
 import { alt } from "../bruecke.jsx";
 import { symboleFensterOeffnen } from "../einstellungen/Symbole.jsx";
 import { materialRechnerOeffnen } from "../planwand/MaterialRechner.jsx";
@@ -320,6 +321,15 @@ function Kopfleiste({ b, mobil }) {
             strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
             <rect x="5" y="4" width="14" height="17" rx="2.5" /><path d="M9 4V3h6v1" />
             <path d="M8.5 10.5l1.5 1.5 2.5-2.5M8.5 16l1.5 1.5 2.5-2.5M14.5 11h1.5M14.5 16.5h1.5" /></svg>
+        </button>}
+        {/* Planwand im eigenen Tab im Vollbild, ohne Kopf und Menü (seit 1.522.0,
+            Wunsch Patrick 13. November 2026); nur am Computer, nicht für Externe */}
+        {vollbildSichtbar() && <button
+          className="knopf knopf--klein pw-eck pw-eck--plus" id="pw-vollbild"
+          title="Vollbild (eigener Tab)" aria-label="Vollbild" onClick={vollbildTabOeffnen}>
+          <svg viewBox="0 0 24 24" className="pw-ecksym" fill="none" stroke="currentColor"
+            strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
         </button>}
         {/* Material von Stangen, kg und Teilen rechnen (Wunsch Patrick
             16. Oktober 2026); Externe nicht (Entscheid Patrick 16. Oktober 2026) */}
