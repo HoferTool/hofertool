@@ -13942,3 +13942,16 @@ body.dunkel .nav-todo .pl-schild--eigen { background: #2a4a7a; color: #cfe0ff !i
   .nav-todo .pl-liste { flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
     padding: 0 2px 12px; margin: 0 -2px; scrollbar-width: thin; }
 }
+
+/* Schnellvorschau gräulich statt weiss (seit 1.538.0, Wunsch Patrick
+   13. November 2026: „soll nicht so weiss sein, eine gräuliche Farbe, dass
+   es besser lesbar ist, weil dort ja das Todo ist“): die Vorschau liegt über
+   der Seitenleiste mit den Todos; so hebt sie sich klar davon ab. Nur im
+   hellen Modus, im dunklen bleibt sie wie sie war. Gilt nicht im eigenen
+   Vorschaufenster. */
+body:not(.dunkel) .pw-info:not(.pw-info--eigen) {
+  background: #dfe5ec; border-color: #9aa8b8;
+  box-shadow: 0 12px 30px rgba(15, 30, 55, .35);
+  text-shadow: 0 0 3px #dfe5ec, 0 0 1px #dfe5ec;
+}
+body:not(.dunkel) .pw-info:not(.pw-info--eigen) .pw-info__zeile--schluss { border-top-color: #b5c0cc; }
