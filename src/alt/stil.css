@@ -13642,3 +13642,5 @@ body.pw-vollbild #werkzeugleiste { display: none !important; }
   .ml-li__name { grid-column: 2 / 4; }
   .ml-li__pfeil { grid-column: 4; }
 }
+/* SB-16, SR-10, SR-32: leeres Werkzeugfeld ohne T-Nr.; beim Bearbeiten blass (1.526.0) */
+.eba [data-eba-leer-nr] { opacity: .35; }

@@ -26,7 +26,7 @@ import { eigenesBildHochladen, eigenesBildLoeschen, freieBilderSpeichern, freies
 import { PdfSeiten, istPdfSeite, pdfDaten } from "./PdfSeiten.jsx";
 import { pdfjs } from "../teile/PdfAnsicht.jsx";
 import { pdfSeitenAlsBilder } from "../teile/drucken.js";
-import { vorlageFuer, reihenMitRest, platzName, platzGruppe, freiFeld } from "./vorlagen.js";
+import { vorlageFuer, reihenMitRest, platzName, platzGruppe, freiFeld, leerOhneTnr } from "./vorlagen.js";
 import { TextBlatt, textBearbeiten } from "../infoboard/TextFeld.jsx";
 import { ohneFa } from "./excelEinlesen.js";
 import { RichFeld, MitFormat, fmtGueltig, markiertFormatieren, markierteGroesse, markierungVergessen,
@@ -454,6 +454,7 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbei
 
   // Star wie im Excel: Plätze in Gebrauch in der Farbe des Typs, leere grau
   const inGebrauch = platzInGebrauch;
+  const leerTnrWeg = leerOhneTnr(typ);
   const farbeVon = (nr) => (vorlage.farben && vorlage.farben[nr])
     || (vorlage.typFarbe ? (inGebrauch(plaetze[nr] || {}) ? vorlage.typFarbe : GRAU)
       : pfad[nr] ? PFADFARBE[pfad[nr].nummer] || GRAU : GRAU);
@@ -479,6 +480,9 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbei
     // T-Nr. stehen“; 1.303.0 bis 1.352.1 ein leeres graues Feld). Mit einer
     // „Andere T-Nr.“ steht diese; ein belegter Platz zeigt seine wie bisher
     const ohneNr = !platzName(nr) || !!(aufbau && !aufbau.has(nr) && !inGebrauch(p));
+    // SB-16, SR-10, SR-32: leeres Feld ohne T-Nr.; beim Bearbeiten steht sie
+    // blass da, damit man den Platz noch findet
+    const leerOhne = !ohneNr && !p.tnr && leerTnrWeg && !inGebrauch(p);
     return (
       <div key={nr} className={"eba-zelle eba-platz" + (bearbeiten ? " eba-platz--bearbeiten" : "") + (aktiv === nr ? " eba-platz--aktiv" : "")
         + (pruefen && werkzeugOffen(p) ? " eba-platz--pruefen" : "") + (wechsel === nr ? " eba-platz--wechsel" : "")
@@ -501,7 +505,7 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbei
         } : undefined}>
         <div className="eba-tk" style={{ background: ohneNr ? GRAU : farbeVon(nr), "--eba-schrift": vorlage.schrift }}>
           {p.standzeit ? <span className="eba-tk-links"><span className="eba-wert">{alt.zahlText(p.standzeit)}</span></span> : null}
-          <b data-eba-tnr={p.tnr ? "" : undefined} data-eba-ohne-nr={ohneNr ? "" : undefined} style={stilCss(platzStil(p, "tnr"))}><MitFormat html={(p.fmt || {}).tnr} text={p.tnr || (ohneNr ? "" : platzName(nr))} /></b>
+          <b data-eba-tnr={p.tnr ? "" : undefined} data-eba-ohne-nr={ohneNr || (leerOhne && !bearbeiten) ? "" : undefined} data-eba-leer-nr={leerOhne && bearbeiten ? "" : undefined} style={stilCss(platzStil(p, "tnr"))}><MitFormat html={(p.fmt || {}).tnr} text={p.tnr || (ohneNr || (leerOhne && !bearbeiten) ? "" : platzName(nr))} /></b>
           {p.hd && <span className="eba-tk-rechts"><span className="eba-hd" data-hd="">HD</span></span>}</div>
         <div className="eba-tat" style={stilCss(platzStil(p, "taetigkeit"))}><MitFormat html={(p.fmt || {}).taetigkeit} text={p.taetigkeit || ""} /></div>
         <div className="eba-mass" style={stilCss(platzStil(p, "mass"))}><MitFormat html={(p.fmt || {}).mass} text={p.mass || ""} /></div>

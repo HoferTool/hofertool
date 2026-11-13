@@ -76,6 +76,13 @@ export function istBlauerTyp(typ) {
   const n = kurz(String((typ && typ.name) || "").replace(/_\d+$/, "")).replace(/^star/, "");
   return /^(sb16|sr10)/.test(n);
 }
+// SB-16, SR-10 und SR-32: ein Werkzeugfeld ohne Werkzeug zeigt keine T-Nr.
+// (seit 1.526.0, Wunsch Patrick 13. November 2026: „wenn es Felder gibt,
+// die kein Werkzeug haben, soll auch keine T-Nr. stehen“)
+export function leerOhneTnr(typ) {
+  const n = kurz(String((typ && typ.name) || "").replace(/_\d+$/, "")).replace(/^star/, "");
+  return /^(sb16|sr10|sr32)/.test(n);
+}
 function star(name, art, { mitT700 = true, mitT3100 = true, mitT3400 = false } = {}) {
   const reihen = [T(100, 600, 100)];
   const t3100 = vier(T(3100, mitT3400 ? 3400 : 3300, 100));
