@@ -47,9 +47,22 @@ function Reiter({ an, wahl }) {
         data-plreiter="uebersicht" onClick={() => wahl("uebersicht")}>📋 Dashboard</button>
       <button role="tab" className={"pl-reiter__knopf" + (an === "planwand" ? " pl-reiter__knopf--an" : "")}
         data-plreiter="planwand" onClick={() => wahl("planwand")}>🗓️ Planwand</button>
-      <button hidden data-padzurueck="" onClick={padZurueck} />
+      <button hidden data-padzurueck="" onClick={verlassenFragen} />
     </div>
   );
+}
+
+// Aus dem Planer nur nach Rückfrage (seit 1.517.0, Wunsch Patrick 13. November 2026: „wenn man
+// aus dem Dashboard will, soll kurz kommen wirklich und dann Enter, nicht dass man aus Versehen
+// rausfällt“). Enter bestätigt, weil der Knopf „Verlassen“ den Fokus hat; Escape bleibt drin.
+let fragtGerade = false;
+async function verlassenFragen() {
+  if (fragtGerade) return;
+  fragtGerade = true;
+  try {
+    const ja = await alt.nachfragen({ titel: "Planer wirklich verlassen?", text: "Enter verlässt den Planer, Escape bleibt hier.", bestaetigen: "Verlassen" });
+    if (ja) padZurueck();
+  } finally { fragtGerade = false; }
 }
 
 // Die ganze Planwand wie auf der Seite Planwand, mit allen Knöpfen, über die volle Fläche.

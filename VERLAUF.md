@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.517.0** (13. November 2026): Planer im Pad Mode: Escape fragt erst „Planer wirklich verlassen?“, Enter verlässt, nochmals Escape bleibt im Planer (Patrick: „nicht dass man aus Versehen rausfällt“).
 - **1.516.0** (13. November 2026): Planer: Tipp aufs Lieferantenfeld öffnet direkt die Regel mit „Immer dort bestellen“ und „Kann dort bestellt werden“ (Schilder, je Wahl eins mehr); Vorschlag ohne Regel = wo am häufigsten bestellt, bei Gleichstand zuletzt; 1.4305 in Regeln kein Mass.
 - **1.515.0** (13. November 2026): Planer im Pad Mode ohne Kopfzeile (Zurück, Neu laden, Schliessen), Reiter ganz oben; Wechsel Dashboard ↔ Planwand sofort, ohne das Pad neu zu laden (Planwand bleibt verborgen aufgebaut, Dashboard frischt still auf).
 - **1.514.0** (13. November 2026): Planer im Pad Mode: Liefertage und Bemerkungen aller Material-Lieferanten (aus Patricks Liste, nur in der Datenbank), Ankunft auf den nächsten Liefertag; Regeln je Material „muss bei“ (für den Vorschlag) und „kann auch bei“ (nur Info); Reiter „Dashboard“ statt „Übersicht“, Planwand-Reiter wie das Planwand-Fenster; Planer hell ausser im dunklen Modus; eigene Todos gleich unter den gemeldeten.
