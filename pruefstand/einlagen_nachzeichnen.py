@@ -112,8 +112,14 @@ with sync_playwright() as p:
         if (!e.buttons && n.endsWith('move')) window.__rad.ohne = [Math.round(e.clientX), Math.round(e.clientY)]; }, true); }""")
     # Wie ein Mensch: erst über die Stelle fahren und kurz ruhen, dann drücken. Chrome 158 im
     # Prüfstand lieferte sonst die Bewegung zur Stelle nicht aus, und die App kannte den Startpunkt nicht.
-    pg.mouse.move(mx + 15, my + 10, steps=3); pg.mouse.move(mx, my, steps=3); pg.wait_for_timeout(150)
-    pg.mouse.down(button="middle"); pg.mouse.move(mx - 120, my - 80, steps=6); pg.mouse.up(button="middle"); pg.wait_for_timeout(200)
+    # Jeder Schritt einzeln mit Pause, sonst fasst Chrome die Bewegungen zusammen oder lässt sie weg.
+    for dx, dy in ((15, 10), (8, 5), (0, 0)):
+        pg.mouse.move(mx + dx, my + dy); pg.wait_for_timeout(80)
+    pg.wait_for_timeout(150)
+    pg.mouse.down(button="middle"); pg.wait_for_timeout(50)
+    for i in range(1, 7):
+        pg.mouse.move(mx - 20 * i, my - 80 * i / 6); pg.wait_for_timeout(40)
+    pg.mouse.up(button="middle"); pg.wait_for_timeout(200)
     s1 = f.evaluate("[$('viewer').scrollLeft, $('viewer').scrollTop]")
     pruefe(abs(s1[0] - s0[0] - 120) < 3 and abs(s1[1] - s0[1] - 80) < 3, "Radtaste verschiebt: %s → %s %s" % (s0, s1, f.evaluate("JSON.stringify(window.__rad)") if abs(s1[0] - s0[0] - 120) >= 3 else ""))
     pruefe(f.evaluate("st.edit.strokes.length") == 4, "Verschieben setzt keinen Punkt")

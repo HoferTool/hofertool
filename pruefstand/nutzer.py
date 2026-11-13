@@ -40,9 +40,10 @@ with sync_playwright() as p:
     # Rolle: abbrechen lässt alles, bestätigen ändert
     pg.select_option("[data-rolle='u2']", "mitarbeiter"); pg.wait_for_selector(".dialog-huelle [data-nein]")
     pg.locator(".dialog-huelle [data-nein]").last.click(); pg.wait_for_timeout(400)
-    pruefe("Abbrechen lässt die Rolle", prof("u2", "role") == "langdreher" and pg.input_value("[data-rolle='u2']") == "langdreher")
-    pg.select_option("[data-rolle='u2']", "kurzdreher"); ja(pg); pg.wait_for_timeout(600)
-    pruefe("Rolle geändert", prof("u2", "role") == "kurzdreher" and pg.input_value("[data-rolle='u2']") == "kurzdreher")
+    # Seit 1.506.0 gibt es zur Wahl nur noch „Mechaniker“; die alte Rolle langdreher bleibt in der Datenbank stehen
+    pruefe("Abbrechen lässt die Rolle", prof("u2", "role") == "langdreher")
+    pg.select_option("[data-rolle='u2']", "mechaniker"); ja(pg); pg.wait_for_timeout(600)
+    pruefe("Rolle geändert", prof("u2", "role") == "mechaniker" and pg.input_value("[data-rolle='u2']") == "mechaniker")
     fenster("u3")
     # Häkchen „Darf bearbeiten“ ist seit 1.10.0 weg: Planwand nur für Admins
     pruefe("Kein Häkchen Darf bearbeiten", pg.locator("[data-bearb='u3']").count() == 0)
