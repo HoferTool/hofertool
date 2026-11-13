@@ -373,7 +373,7 @@ function Tabelle({ zeilen, d, neu, mitLieferant }) {
                   + (p.ort ? " " + p.ort : "")).join(", ")}</small>}
               </span>
             </span>
-            <span className="pl-bedarf">{bedarfText(z)}</span>
+            <span className="pl-bedarf">{z.bedarf ? <><b>{(z.bedarf.sicher ? "" : "ca. ") + zahl(z.bedarf.kg) + " kg"}</b><small>{z.bedarf.stangen + " Stangen"}</small></> : bedarfText(z)}</span>
             <span className="pl-stand">
               <span className={"pl-chip pl-chip--" + ton}>{st}{z.stand === "teil" ? " " + zahl(z.fehltKg) + " kg (" + zahl(Math.round(z.hatKg)) + " kg da/bestellt)" : ""}{z.stand === "bestellt" && z.j.material_liefertermin ? " · " + z.j.material_liefertermin : ""}
                 {z.zuSpaet ? " · zu spät!" : ""}</span>
