@@ -27,7 +27,7 @@ import { useEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import {
   scanLesen, scanAblegen, scanWeg, verknuepftLesen, verknuepftSetzen, signatur, projektOhneFoto,
-  foto, werkzeugDaten, finden, umrissPfad,
+  foto, werkzeugDaten, finden, umrissPfad, tiefeOk, vorgabeTiefe,
 } from "./einlagen/scan.js";
 
 // Bedienung im Rahmen sieht die App nicht von selbst; ohne Weitergabe
@@ -249,7 +249,7 @@ export default function Einlagen() {
           const i = finden(w, x.mitte, schon);
           if (i < 0) continue;
           schon.add(i);
-          const daten = werkzeugDaten(w, i, x.name);
+          const daten = werkzeugDaten(w, i, x.name, x.tiefe); // die gespeicherte Tiefe bleibt
           const { data, error } = await alt.db.from("einlagen_werkzeuge")
             .update({ name: x.name, daten, projekt }).eq("id", x.id).select("geaendert_am").maybeSingle();
           if (error) { setWzStand((s) => ({ ...(s || {}), text: "Werkzeug nicht in der App gespeichert: " + alt.fehlertext(error) })); return; }
@@ -283,18 +283,25 @@ export default function Einlagen() {
     const namen = await alt.dialogFelder({
       titel: idx.length > 1 ? "Werkzeuge in der App speichern" : "Werkzeug in der App speichern",
       text: "Gespeicherte Werkzeuge sehen alle unter „Gespeicherte Werkzeuge“ und können sie in jede Einlage holen.",
-      felder: idx.map((i) => ({
+      // Je Werkzeug Name und gleich die Tiefe der Tasche (Wunsch Patrick 13. November 2026)
+      felder: idx.flatMap((i) => [{
         name: "n" + i, pflicht: true,
         label: (idx.length > 1 ? "Name Werkzeug Nr. " + (i + 1) : "Name") + (zuordnung.has(i) ? " (schon gespeichert, wird ersetzt)" : ""),
         wert: zuordnung.has(i) ? zuordnung.get(i).name : (idx.length > 1 || tools.length > 1 ? grund + " " + (i + 1) : grund),
-      })),
+      }, {
+        name: "t" + i, pflicht: true, dezimal: true,
+        label: (idx.length > 1 ? "Tiefe Werkzeug Nr. " + (i + 1) : "Tiefe") + " in mm",
+        wert: String(zuordnung.has(i) && tiefeOk(zuordnung.get(i).tiefe) ? zuordnung.get(i).tiefe : vorgabeTiefe(w)),
+      }]),
       bestaetigen: "Speichern",
     });
     if (!namen) return;
+    const falsch = idx.find((i) => !tiefeOk(String(namen["t" + i]).replace(",", ".")));
+    if (falsch !== undefined) { alt.meldung("Die Tiefe muss eine Zahl über 0 bis 200 mm sein.", "warn"); return; }
     const projekt = projektOhneFoto(w);
     let bild = null;
     for (const i of idx) {
-      const name = String(namen["n" + i]).slice(0, 60), daten = werkzeugDaten(w, i, name), alt_ = zuordnung.get(i);
+      const name = String(namen["n" + i]).slice(0, 60), daten = werkzeugDaten(w, i, name, +String(namen["t" + i]).replace(",", ".")), alt_ = zuordnung.get(i);
       let antwort = null;
       if (alt_) {
         antwort = await alt.db.from("einlagen_werkzeuge").update({ name, daten, projekt })
@@ -312,7 +319,7 @@ export default function Einlagen() {
         return;
       }
       v.zeilen = v.zeilen.filter((x) => x.id !== antwort.data.id && x !== alt_);
-      v.zeilen.push({ id: antwort.data.id, name, mitte: daten.mitte });
+      v.zeilen.push({ id: antwort.data.id, name, mitte: daten.mitte, tiefe: daten.depth });
       v.am = antwort.data.geaendert_am;
     }
     verknuepftSetzen(v);
@@ -362,7 +369,7 @@ export default function Einlagen() {
       alt.meldung(error ? alt.fehlertext(error) : "Zu „" + x.name + "“ ist kein Foto gespeichert.", "fehler"); return;
     }
     const geschw = x.scan_id ? await alt.db.from("einlagen_werkzeuge").select("id, name, daten").eq("scan_id", x.scan_id) : { data: [x] };
-    const zeilen = (geschw.data || [x]).map((y) => ({ id: y.id, name: y.name, mitte: (y.daten && y.daten.mitte) || [0, 0] }));
+    const zeilen = (geschw.data || [x]).map((y) => ({ id: y.id, name: y.name, mitte: (y.daten && y.daten.mitte) || [0, 0], tiefe: y.daten && y.daten.depth }));
     setListe(null);
     w.setMode("scan");
     w.projApply({ ...data.projekt, image: data.foto }, "„" + x.name + "“ geöffnet.", () => {
@@ -373,6 +380,27 @@ export default function Einlagen() {
       z.scanSig = signatur(w);
       scanAblegen({ ...projektOhneFoto(w), image: data.foto });
     });
+  }
+
+  // Tiefe eines gespeicherten Werkzeugs ändern, mit Rückgängig (Wunsch Patrick 13. November 2026)
+  async function tiefeAendern(x, feld) {
+    const d = x.daten || {}, roh = String(feld.value).replace(",", ".").trim();
+    if (!tiefeOk(roh)) {
+      if (roh !== "") alt.meldung("Die Tiefe muss eine Zahl über 0 bis 200 mm sein.", "warn");
+      feld.value = d.depth || ""; return;
+    }
+    if (+roh === +d.depth) return;
+    const daten = { ...d, depth: +roh };
+    const { data, error } = await alt.db.from("einlagen_werkzeuge").update({ daten }).eq("id", x.id).select("geaendert_am").maybeSingle();
+    if (error || !data) { alt.meldung("Tiefe nicht gespeichert" + (error ? ": " + alt.fehlertext(error) : "."), "fehler"); feld.value = d.depth || ""; return; }
+    alt.merkeSchritt("Tiefe „" + x.name + "“", alt.rueckSetz("einlagen_werkzeuge", { daten: d }, { id: x.id }));
+    setListe((l) => l && l.art === "werkzeuge"
+      ? { ...l, zeilen: l.zeilen.map((y) => (y.id === x.id ? { ...y, daten, geaendert_am: data.geaendert_am } : y)) } : l);
+    const v = verknuepftLesen();
+    if (v && v.zeilen.some((y) => y.id === x.id)) {
+      v.zeilen = v.zeilen.map((y) => (y.id === x.id ? { ...y, tiefe: +roh } : y)); verknuepftSetzen(v);
+    }
+    alt.meldung("Tiefe von „" + x.name + "“: " + roh + " mm.", "gut");
   }
 
   async function werkzeugWeg(x) {
@@ -485,7 +513,13 @@ export default function Einlagen() {
                     : <span className="einlagen__umriss" />}
                   <div className="einlagen__wz-text">
                     <b>{x.name}</b>
-                    {m.length === 2 && <span>{alt.zahlText(Math.round(m[0]))} × {alt.zahlText(Math.round(m[1]))} mm{d.depth ? " · Tiefe " + d.depth + " mm" : ""}</span>}
+                    {m.length === 2 && <span>{alt.zahlText(Math.round(m[0]))} × {alt.zahlText(Math.round(m[1]))} mm</span>}
+                    <label className="einlagen__tiefe">Tiefe
+                      <input key={x.id + ":" + d.depth} type="number" inputMode="decimal" min="0.5" max="200" step="0.5"
+                        defaultValue={d.depth || ""} data-wz="tiefe" aria-label={"Tiefe von " + x.name + " in mm"}
+                        onBlur={(e) => tiefeAendern(x, e.target)}
+                        onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }} /> mm
+                    </label>
                     <span className="einlagen__stand">{alt.datumZeitKurz(x.geaendert_am)}{x.wer ? " · " + x.wer : ""}</span>
                   </div>
                   <button type="button" className="knopf" data-wz="einlage" onClick={() => inEinlage(x)}>In die Einlage</button>
