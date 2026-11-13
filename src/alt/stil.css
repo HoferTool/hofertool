@@ -13650,3 +13650,7 @@ body.pw-vollbild #werkzeugleiste { display: none !important; }
 .eg-rechteck-an { background: #1e6edc !important; color: #fff !important; border-color: #1e6edc !important; }
 body.dunkel .eg-rechteck { fill: rgba(120, 170, 255, 0.15); stroke: #8fb8ff; }
 body.dunkel .eg-rechteck-an { background: #3b7fe0 !important; }
+
+/* 508 Werkzeuge: CAM-Werkzeug noch ohne Fach (seit 1.528.0) */
+.wz5-offen { background: #fff4d6; color: #7a5a00; }
+body.dunkel .wz5-offen { background: #4a3d12; }

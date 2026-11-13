@@ -239,8 +239,10 @@ const SCHUTZ = (q) => (q >= 500 && q < 600) || q >= 900;
 // ---------- Vorschlag je Werkzeug ----------
 // Liefert je CAM-Werkzeug eine Zeile, die man in der Ansicht noch ändern kann.
 // wahl: { CAM-Nr.: Fach } – seit 1.495.0 wählt man im Pad Mode das
-// Magazinfach selbst (Wunsch Patrick 12. November 2026). Ohne Wahl gilt
-// wie bisher Fach = CAM-Nr. Die Werkzeugnummer (N, im Programm T…)
+// Magazinfach selbst (Wunsch Patrick 12. November 2026). Seit 1.528.0
+// schlägt die App kein Fach mehr vor: ohne Wahl steht das Werkzeug noch
+// ohne Fach da und wird nicht geschrieben (Wunsch Patrick 13. November 2026:
+// „nicht automatisch als Vorschlag platziert“). Die Werkzeugnummer (N, im Programm T…)
 // bleibt immer die CAM-Nr., nur das Fach (G) wechselt.
 export function vorschlagen(bloecke, wz, wahl = {}) {
   const qVon = (x) => Number(wert(zerlegen(x).T || [], "Q"));
@@ -253,7 +255,8 @@ export function vorschlagen(bloecke, wz, wahl = {}) {
       return { ...z, aktion: "drehFehlt", text: w.was + (w.platte ? " " + w.platte : "") + ": Nr. " + w.nr + " gibt es auf der Maschine nicht. Bitte an der Maschine von Hand einrichten." };
     }
     const gewaehlt = wahl[w.nr] != null && wahl[w.nr] !== "";
-    const fach = gewaehlt ? Number(wahl[w.nr]) : w.nr;
+    if (!gewaehlt) return { nr: w.nr, fach: null, cam: w, name: maschinenName(w.text), aktion: "offen", text: "Noch kein Fach gewählt." };
+    const fach = Number(wahl[w.nr]);
     const b = bloecke.find((x) => x.fach === fach);
     const typ = CAM_TYP[w.art] || null;
     const radius = isFinite(w.d) ? w.d / 2 : NaN;

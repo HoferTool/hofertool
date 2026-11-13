@@ -1,4 +1,5 @@
 # Pad Mode → 508 Werkzeuge (seit 1.495.0): Foto mit Marke, Fach und Marke wählen, Liste Maschine / Schrank
+from wz508_hilfe import alle_auf_nr
 import time, os, tempfile
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -74,6 +75,7 @@ with sync_playwright() as p:
     pg.click("[data-wz5p-reiter='bestuecken']"); pg.wait_for_selector("#wz5")
     pg.set_input_files("#wz5-dat", pd); pg.set_input_files("#wz5-csv", pc)
     pg.wait_for_selector("#wz5-tabelle")
+    alle_auf_nr(pg)
     pruefe("Marke im Fach 2 schon da", "111111" in pg.text_content("[data-wz5='2']"))
     pg.select_option("[data-wz5-fach='3']", "5")
     pg.select_option("[data-wz5-fach='1']", "3")

@@ -1,4 +1,5 @@
 # NC-PRO → 508 Werkzeuge (seit 1.494.0): GESTOUTI.DAT + CSV aus InventorCAM → neue GESTOUTI.DAT
+from wz508_hilfe import alle_auf_nr
 import time, os, tempfile
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -40,12 +41,16 @@ with sync_playwright() as p:
     pg.wait_for_selector("#wz5")
     pg.set_input_files("#wz5-dat", pd); pg.set_input_files("#wz5-csv", pc)
     pg.wait_for_selector("#wz5-tabelle")
+    # seit 1.528.0: nichts von selbst platziert
+    pruefe("Ohne Wahl kein Fach", all("Kein Fach" in r.text_content() for r in pg.locator("#wz5-tabelle tbody tr").all())
+           and pg.is_disabled("#wz5-laden") and pg.locator("[data-mag-fach].mag5-platz--cam").count() == 0)
+    alle_auf_nr(pg)
     pruefe("Datei gelesen: 5 Fächer, 3 belegt", "5 Fächer, 3 belegt" in pg.text_content("#wz5-dat-ok"))
     zeile = lambda n: pg.text_content(f"[data-wz5='{n}']")
     pruefe("Fach 1 ändern", "Ändern" in zeile(1))
     pruefe("Fach 3 neu", "Neu" in zeile(3))
     pruefe("Fach 4 belegt mit Taster", "Fach belegt" in zeile(4) and "MESSTASTER" in zeile(4))
-    pruefe("Fach 9 fehlt", "Fach fehlt" in zeile(9))
+    pruefe("T9 ohne Fach 9 bleibt ohne Fach", "Kein Fach" in zeile(9))
     pg.screenshot(path=os.path.join(tmp, "wz508.png"), full_page=True)
     # seit 1.503.0 Magazin und Fächerliste auch im Reiter, ohne Marken
     pruefe("Magazin im Reiter", pg.locator("#mag5").count() == 1 and pg.locator("[data-mag-fach]").count() == 5)

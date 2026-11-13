@@ -18,6 +18,7 @@ const AKTION = {
   neu: ["Neu", "wz5-neu"], aendern: ["Ändern", "wz5-aendern"],
   belegt: ["Fach belegt", "wz5-fehler"], fehlt: ["Fach fehlt", "wz5-fehler"],
   dreh: ["Bleibt", "wz5-dreh"], drehFehlt: ["Fehlt", "wz5-fehler"],
+  offen: ["Kein Fach", "wz5-offen"],
 };
 
 function herunterladen(e, text) {
@@ -68,6 +69,7 @@ export default function Werkzeuge508({ pad = false, marken = [], waehleMarke, on
   const setze = (nr, teil) => neu({ aenderung: { ...z.aenderung, [nr]: { ...(z.aenderung[nr] || {}), ...teil } } });
 
   const machbar = zeilen.filter((v) => v.aktion === "neu" || v.aktion === "aendern");
+  const ohneFach = zeilen.filter((v) => v.aktion === "offen");
   const drehFehlt = zeilen.filter((v) => v.aktion === "drehFehlt");
   const aktiv = zeilen.filter(wirdGeschrieben);
   const fehlerS = aktiv.filter((v) => !(v.smax > 0));
@@ -83,7 +85,7 @@ export default function Werkzeuge508({ pad = false, marken = [], waehleMarke, on
     if (m !== undefined && m !== null) neu({ marken: { ...z.marken, [v.nr]: m } });
   };
   // Aus der Grafik: Werkzeug auf ein Fach gelegt. Liegt dort schon ein
-  // anderes aus dem CAM, tauschen die beiden; fach null = wieder Fach = Nr.
+  // anderes aus dem CAM, tauschen die beiden; fach null = wieder ohne Fach
   const aufFach = (v, fach) => {
     const w = { ...z.wahl };
     if (fach == null) { delete w[v.nr]; neu({ wahl: w }); return; }
@@ -135,8 +137,14 @@ export default function Werkzeuge508({ pad = false, marken = [], waehleMarke, on
                     <td>{geht && <input type="checkbox" checked={v.mit !== false} title="Übernehmen"
                       onChange={(e) => setze(v.nr, { mit: e.target.checked })} />}</td>
                     <td><div className="wz5-nr">T{v.nr}</div>
-                      {v.dreh ? (v.alt ? <div className="wz5-vorher">Fach {v.fach}</div> : null) : <select className={"wz5-fach" + (v.doppelt ? " wz5-warn" : "")} value={v.fach} data-wz5-fach={v.nr}
-                        onChange={(e) => neu({ wahl: { ...z.wahl, [v.nr]: Number(e.target.value) } })}>
+                      {v.dreh ? (v.alt ? <div className="wz5-vorher">Fach {v.fach}</div> : null) : <select className={"wz5-fach" + (v.doppelt ? " wz5-warn" : "")} value={v.fach == null ? "" : v.fach} data-wz5-fach={v.nr}
+                        onChange={(e) => {
+                          const f = e.target.value === "" ? null : Number(e.target.value);
+                          // Taster, Greifer …: in der Liste wählbar, dann steht „bleibt immer so“ (nicht geschrieben)
+                          if (f != null && fachGeschuetzt(z.dat.find((x) => x.fach === f))) neu({ wahl: { ...z.wahl, [v.nr]: f } });
+                          else aufFach(v, f);
+                        }}>
+                        <option value="">— Fach wählen —</option>
                         {z.dat.map((b) => <option key={b.fach} value={b.fach}>{fachText(b)}</option>)}</select>}
                       {v.doppelt && <div className="wz5-fehlertext">Fach doppelt</div>}</td>
                     {pad && <td>{geht && !aus ? <button className="wz5-marke" data-wz5-marke={v.nr} onClick={() => markeWaehlen(v)}>
@@ -179,7 +187,7 @@ export default function Werkzeuge508({ pad = false, marken = [], waehleMarke, on
           {fehlerS.length > 0 && <p className="karte karte--fehler" id="wz5-smax-fehlt">S max fehlt bei Fach {fehlerS.map((v) => v.nr).join(", ")}. Bitte eintragen.</p>}
           <div className="wz5-fuss">
             <button className="knopf" id="wz5-laden" disabled={!text} onClick={laden}>GESTOUTI.DAT herunterladen</button>
-            <span>{aktiv.length} von {machbar.length} Werkzeugen werden übernommen</span>
+            <span>{aktiv.length} von {machbar.length} Werkzeugen werden übernommen{ohneFach.length ? " · " + ohneFach.length + " noch ohne Fach" : ""}</span>
           </div>
         </>
       )}

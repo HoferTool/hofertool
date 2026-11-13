@@ -1,4 +1,5 @@
 # Pad Mode → 508 Werkzeuge (seit 1.500.0): rundes Magazin mit Ziehen, mehrere Werkzeuge auf einem Foto
+from wz508_hilfe import alle_auf_nr
 import time, os, tempfile
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -77,6 +78,7 @@ with sync_playwright() as p:
         pg.click("[data-wz5p-reiter='bestuecken']"); pg.wait_for_selector("#wz5")
         pg.set_input_files("#wz5-dat", pd); pg.set_input_files("#wz5-csv", pc)
         pg.wait_for_selector("#mag5")
+        alle_auf_nr(pg)
         pruefe(name + ": zwei Ebenen mit je 24", pg.locator("[data-mag-ebene='1'] [data-mag-fach]").count() == 24
                and pg.locator("[data-mag-ebene='2'] [data-mag-fach]").count() == 24)
         pruefe(name + ": Taster geschützt", "mag5-platz--schutz" in pg.get_attribute("[data-mag-fach='4']", "class"))
@@ -118,7 +120,7 @@ with sync_playwright() as p:
             pg.click("[data-wz5p-wahl='500002']")
             pruefe("Platz 30 grün mit Marke", "mag5-platz--marke" in pg.get_attribute("[data-mag-fach='30']", "class"))
             ziehen("[data-mag-fach='30']", "[data-mag-liste]")
-            pruefe("Zurück in die Liste: T1 wieder Fach 1", pg.input_value("[data-wz5-fach='1']") == "1")
+            pruefe("Zurück in die Liste: T1 wieder ohne Fach", pg.input_value("[data-wz5-fach='1']") == "" and "noch kein Fach" in pg.text_content("[data-mag-wz='1']"))
             pg.evaluate("document.body.classList.add('dunkel')"); pg.wait_for_timeout(100)
             pg.screenshot(path=os.path.join(tmp, "ipad-magazin-dunkel.png"), full_page=True)
             pg.evaluate("document.body.classList.remove('dunkel')")

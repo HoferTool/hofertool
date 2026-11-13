@@ -91,7 +91,7 @@ export default function Magazin508({ bloecke, zeilen, marken = [], onFach, onMar
       <div className="mag5-liste" data-mag-liste="">
         <h3>Werkzeuge aus dem CAM</h3>
         <p className="klein">{hand ? "T" + hand.nr + " ist gewählt: jetzt den Platz im Magazin antippen."
-          : "Auf einen Platz im Magazin ziehen oder antippen und dann den Platz antippen. Hierher zurückziehen = wieder Fach wie Nr."}</p>
+          : "Auf einen Platz im Magazin ziehen oder antippen und dann den Platz antippen. Hierher zurückziehen = wieder ohne Fach."}</p>
         <ul>{zeilen.map((v) => {
           const geht = wirdGeschrieben(v);
           return (
@@ -99,7 +99,7 @@ export default function Magazin508({ bloecke, zeilen, marken = [], onFach, onMar
               <div className={"mag5-wz" + (geht ? "" : " mag5-wz--aus") + (hand && hand.nr === v.nr ? " mag5-wz--hand" : "") + (v.doppelt ? " mag5-wz--doppelt" : "")} data-mag-wz={v.nr}
                 {...ziehbar(v, () => { setGewaehlt(v.fach); setHand(hand && hand.nr === v.nr ? null : v); })}>
                 <b>T{v.nr}</b><span>{kurz(v.name, 24)}</span>
-                <em>{geht ? "→ Fach " + v.fach : v.mit === false ? "nicht übernommen" : v.aktion === "fehlt" ? "Fach fehlt" : "bleibt"}</em>
+                <em>{geht ? "→ Fach " + v.fach : v.aktion === "offen" ? "noch kein Fach" : v.mit === false ? "nicht übernommen" : v.aktion === "fehlt" ? "Fach fehlt" : "bleibt"}</em>
                 {geht && v.marke ? <i className="mag5-wz__marke">{MarkeZeigen ? <MarkeZeigen marke={v.marke} /> : v.marke}</i> : null}
               </div>
             </li>);

@@ -1,4 +1,5 @@
 # NC-PRO → 508 Werkzeuge (seit 1.508.0): Werkzeugsatz .TLM aus InventorCAM statt CSV, mit Drehstählen und Greifer; seit 1.508.1 auch .TLS
+from wz508_hilfe import alle_auf_nr
 import time, os, tempfile
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -56,6 +57,7 @@ for name, inhalt in ([("satz.TLM", tlm), ("teil.TLS", tls)] if not os.environ.ge
         pg.wait_for_selector("#wz5")
         pg.set_input_files("#wz5-dat", pd); pg.set_input_files("#wz5-csv", pt)
         pg.wait_for_selector("#wz5-tabelle")
+        alle_auf_nr(pg)
         pg.screenshot(path=os.path.join(tmp, "wz508_tlm.png"), full_page=True)
         print("Bild:", os.path.join(tmp, "wz508_tlm.png"))
         print(pg.text_content("#wz5-csv-ok"))
