@@ -159,7 +159,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.520.0";
+const APP_VERSION = "1.521.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -11196,7 +11196,7 @@ function zeichneSeite() {
     return;
   }
 
-  // Der Planer ist seit 1.520.0 nicht mehr im Pad Mode, sondern ein eigener
+  // Der Planer ist seit 1.521.0 nicht mehr im Pad Mode, sondern ein eigener
   // Tab (Wunsch Patrick 13. November 2026: „Dashboard aus Pad Mode raus und
   // als Button bei Planwand neben Symbole, soll immer als extra Tab aufgehen“).
   // #/planer zeigt ihn über die ganze Fläche, wie bisher mit den Mitteln des

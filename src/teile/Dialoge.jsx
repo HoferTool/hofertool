@@ -86,7 +86,7 @@ function Feld({ f, id, erstes }) {
     );
   }
   // Schieber mit Text links (aus) und rechts (an), gibt true oder false
-  // zurück (seit 1.520.0, zuerst für „Nur für mich / Alle Admins“ im Planer)
+  // zurück (seit 1.521.0, zuerst für „Nur für mich / Alle Admins“ im Planer)
   if (f.typ === "haken" && f.schieber) {
     return (
       <label className="feld-schieber"><span className="feld-schieber__aus">{f.aus}</span>

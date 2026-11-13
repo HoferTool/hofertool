@@ -62,7 +62,7 @@ async function verlassenFragen() {
   fragtGerade = true;
   try {
     const ja = await alt.nachfragen({ titel: "Planer wirklich verlassen?", text: "Enter schliesst den Planer, Escape bleibt hier.", bestaetigen: "Verlassen" });
-    // Im eigenen Tab (seit 1.520.0) geht der Tab zu, sonst einen Schritt zurück
+    // Im eigenen Tab (seit 1.521.0) geht der Tab zu, sonst einen Schritt zurück
     if (ja) { if (istPlanerTab()) planerTabVerlassen(); else padZurueck(); }
   } finally { fragtGerade = false; }
 }
@@ -219,7 +219,7 @@ function Todos({ d, neu }) {
     posten.push({ k: "w" + j.id, art: "wbg", sort: "3" + j.job_number,
       titel: (j.maschine_nr ? j.maschine_nr + " " : "") + "läuft ohne WBG", unter: j.job_number, auf: () => planwandFensterOeffnen(j) });
   }
-  // „Nur für mich“ sieht nur, wer es geschrieben hat (seit 1.520.0)
+  // „Nur für mich“ sieht nur, wer es geschrieben hat (seit 1.521.0)
   const ich = alt.meineProfilId();
   const eigene = (d.todos || []).filter((t) => (t.fuer_alle !== false || t.erstellt_von === ich)
     && (!t.erledigt_am || String(t.erledigt_am) > new Date(Date.now() - 86400000).toISOString()));
@@ -283,7 +283,7 @@ async function todoBearbeiten(t, neu) {
       { name: "text", label: "Was ist zu tun?", typ: "textarea", wert: t ? t.text : "", pflicht: true },
       { name: "faellig", label: "Fällig am (freiwillig)", typ: "date", wert: t ? t.faellig || "" : "" },
       // Neue Todos sind zuerst nur für mich, der Schieber stellt auf alle Admins
-      // (seit 1.520.0, Wunsch Patrick 13. November 2026)
+      // (seit 1.521.0, Wunsch Patrick 13. November 2026)
       { name: "alle", typ: "haken", schieber: true, aus: "Nur für mich", label: "Alle Admins",
         wert: t ? t.fuer_alle !== false : false },
     ],

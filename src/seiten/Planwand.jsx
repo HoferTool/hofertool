@@ -310,7 +310,7 @@ function Kopfleiste({ b, mobil }) {
             <path d="M8 14.5c1 1.5 2.4 2.2 4 2.2s3-.7 4-2.2" />
             <circle cx="9" cy="10" r=".9" fill="currentColor" /><circle cx="15" cy="10" r=".9" fill="currentColor" /></svg>
         </button>}
-        {/* Planer-Dashboard als eigener Tab (seit 1.520.0, Wunsch Patrick 13. November 2026:
+        {/* Planer-Dashboard als eigener Tab (seit 1.521.0, Wunsch Patrick 13. November 2026:
             „als Button bei Planwand neben Symbole, soll immer als extra Tab aufgehen“);
             nur Admins, nie Externe, nicht im Archiv und nicht im Planer selbst */}
         {planerSichtbar() && !(alt.istArchiv && alt.istArchiv()) && !istPlanerTab() && <button

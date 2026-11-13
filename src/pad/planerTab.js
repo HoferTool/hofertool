@@ -1,5 +1,5 @@
 // =================================================================
-//  PLANER ALS EIGENER TAB (seit 1.520.0, Wunsch Patrick 13. November
+//  PLANER ALS EIGENER TAB (seit 1.521.0, Wunsch Patrick 13. November
 //  2026: „Dashboard aus Pad Mode raus und als Button bei Planwand neben
 //  Symbole, soll immer als extra Tab aufgehen“). Der Knopf auf der
 //  Planwand öffnet #/planer in einem Tab mit festem Namen, so geht ein

@@ -1,5 +1,5 @@
 -- =================================================================
---  Planer (seit 1.520.0): Todo nur für mich oder für alle Admins
+--  Planer (seit 1.521.0): Todo nur für mich oder für alle Admins
 --  Neue Spalte fuer_alle an planer_todos. Bisherige Todos bleiben für
 --  alle Admins sichtbar (Vorgabe true). Ein neues Todo ist zuerst „Nur
 --  für mich“ (setzt die App), dann sieht es nur, wer es geschrieben hat.

@@ -13596,7 +13596,7 @@ body.pad-offen .dialog.pl-lf .ml textarea { min-height: 40px; font-size: 1rem; p
 body.pad-offen .dialog.pl-lf .ml .knopf { min-height: 42px; font-size: 1rem; padding: 0 16px; border-radius: 10px; }
 body.pad-offen .dialog.pl-lf .ml .ml-tag { min-height: 0; }
 
-/* Schieber in Dialogen (seit 1.520.0), z.B. Todo „Nur für mich / Alle Admins“ */
+/* Schieber in Dialogen (seit 1.521.0), z.B. Todo „Nur für mich / Alle Admins“ */
 .feld-schieber { display: flex; align-items: center; gap: 10px; margin: 4px 0 12px; cursor: pointer; user-select: none; }
 .feld-schieber input { appearance: none; -webkit-appearance: none; width: 46px; height: 26px; min-height: 0 !important;
   padding: 0 !important; margin: 0; border-radius: 13px !important; background: #c3cddb; position: relative; cursor: pointer;
