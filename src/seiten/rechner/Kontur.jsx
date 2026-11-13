@@ -17,6 +17,7 @@ import Kontur3D from "./Kontur3D.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
 import { schnittAusStep, konturAusSchnitt, elementeAusZug, modellUndKanten } from "./step.js";
 import Modell3D from "./Modell3D.jsx";
+import { ncMelden } from "./ncAktuell.js";
 import { konturRechnen, bahnRechnen, ncProgrammZeilen, bogenWinkel, umkehren, startRichtung, SPITZEN, FREISTICHE, freistichMasse, istFreistich } from "./kontur.js";
 
 const VORGABE = {
@@ -225,6 +226,10 @@ function KonturRechner({ imFenster }) {
     : bahnRechnen(kontur.segmente, rn, seite, spitze)), [kontur, rn, seite, spitze, rueck]);
   const nc = useMemo(() => ncProgrammZeilen(k, kontur.fehler.length || bahn.fehler.length ? [] : bahn.bahn), [k, kontur, bahn]);
   const code = nc.zeilen.join("\n");
+  // HOFERCAM kann den Code mit „+ Aus Modul“ übernehmen (seit 1.530.0,
+  // Wunsch Patrick 13. November 2026); ohne gültige Kontur nichts melden
+  const gueltig = !kontur.fehler.length && !bahn.fehler.length && bahn.bahn.length > 0;
+  useEffect(() => { ncMelden("kontur", gueltig ? code : ""); }, [code, gueltig]);
   // Gewählte Zeilen im Programm sichtbar halten, ohne die Seite zu rollen
   const ncKasten = useRef(null);
   useEffect(() => {

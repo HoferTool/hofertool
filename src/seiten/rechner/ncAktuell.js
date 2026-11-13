@@ -2,7 +2,8 @@
 //  AKTUELLER NC-CODE DER MODULE
 //  Seit 1.436.0 (Wunsch Patrick 6. November 2026: „im HoferCam in den
 //  Bearbeitungen ein Button, um die aktuellen Codes aus den Modulen
-//  Bohren/Fräsen, Entgraten, C-Achse G12, Gravur und DXF zu übernehmen“):
+//  Bohren/Fräsen, Entgraten, C-Achse G12, Gravur und DXF zu übernehmen“;
+//  seit 1.530.0 auch HOFERCONTUR, Wunsch Patrick 13. November 2026):
 //  jeder dieser Reiter meldet hier seinen gerade erzeugten NC-Code.
 //  Gemerkt im sessionStorage, damit er nach Reiterwechsel und Neuladen
 //  noch da ist; ein Reiter, der im Tab noch nie offen war, hat keinen.
@@ -10,7 +11,7 @@
 import { kopfZeilen, fussZeilen } from "./kopf.jsx";
 
 export const NC_QUELLEN = [
-  ["bohren", "Bohren / Fräsen"], ["entgraten", "Entgraten"], ["cachse", "C-Achse G12.1"],
+  ["kontur", "HOFERCONTUR"], ["bohren", "Bohren / Fräsen"], ["entgraten", "Entgraten"], ["cachse", "C-Achse G12.1"],
   ["gravur", "Gravur"], ["dxf", "DXF"],
 ];
 const SCHLUESSEL = "hofer.ncAktuell";
