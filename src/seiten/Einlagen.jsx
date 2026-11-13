@@ -92,9 +92,13 @@ export default function Einlagen() {
     // falls inzwischen an einem anderen Gerät weitergearbeitet wurde
     const sichtbar = () => { if (document.visibilityState === "visible") abgleichen(); };
     document.addEventListener("visibilitychange", sichtbar);
+    // Nach Rückgängig (etwa „Umbenennen“) Namen und offene Liste frisch aus der App holen
+    const zurueck = () => nachRueckgaengig();
+    window.addEventListener("hofer-rueckgaengig", zurueck);
     return () => {
       window.removeEventListener("resize", anpassen);
       document.removeEventListener("visibilitychange", sichtbar);
+      window.removeEventListener("hofer-rueckgaengig", zurueck);
       const z = zustand.current;
       if (z.takt) { clearTimeout(z.takt); speichern(); }
       if (z.scanTakt) { clearTimeout(z.scanTakt); scanSichern(); }
@@ -126,6 +130,21 @@ export default function Einlagen() {
     if (data.geaendert_am !== a.am) einsetzen(data.daten);
     else planen(); // hier Geändertes, das vor dem Schliessen nicht mehr hinauskam
 
+  }
+
+  async function nachRueckgaengig() {
+    const z = zustand.current, a = aktuellLesen();
+    if (z.w && a && a.id && !z.takt) {
+      const { data } = await alt.db.from("einlagen").select("id, name, geaendert_am").eq("id", a.id).maybeSingle();
+      const feld = data && z.w.document.getElementById("layName");
+      if (feld && data.name && feld.value !== data.name) {
+        feld.value = data.name;
+        z.gespeichert = JSON.stringify(z.w.layData());
+        merken({ id: data.id, name: data.name, am: data.geaendert_am });
+      }
+    }
+    if (listeOffen.current === "einlagen") listeLaden();
+    else if (listeOffen.current === "werkzeuge") werkzeugeLaden();
   }
 
   function planen() {
@@ -403,6 +422,39 @@ export default function Einlagen() {
     alt.meldung("Tiefe von „" + x.name + "“: " + roh + " mm.", "gut");
   }
 
+  // Gespeicherte Einlage oder gespeichertes Werkzeug umbenennen, mit Rückgängig (Wunsch Patrick 13. November 2026)
+  async function umbenennen(x, art) {
+    const einlage = art === "einlagen", tabelle = einlage ? "einlagen" : "einlagen_werkzeuge";
+    const r = await alt.dialogFelder({ titel: einlage ? "Einlage umbenennen" : "Werkzeug umbenennen",
+      felder: [{ name: "name", label: "Name", wert: x.name, pflicht: true }], bestaetigen: "Umbenennen" });
+    if (!r) return;
+    const name = String(r.name || "").trim();
+    if (!name || name === x.name) return;
+    const z = zustand.current, offenHier = einlage && stand.id === x.id;
+    // Die offene Einlage zuerst fertig speichern, sonst schreibt ihr Speichern den alten Namen zurück
+    if (offenHier && z.takt) { clearTimeout(z.takt); z.takt = null; await speichern(); }
+    if (offenHier && z.laeuft) await z.laeuft;
+    const alt_d = x.daten || {}, daten = { ...alt_d, name };
+    const { data, error } = await alt.db.from(tabelle).update({ name, daten }).eq("id", x.id).select("geaendert_am").maybeSingle();
+    if (error || !data) { alt.meldung("Nicht umbenannt" + (error ? ": " + alt.fehlertext(error) : ", der Eintrag ist nicht mehr da."), "fehler"); return; }
+    alt.merkeSchritt((einlage ? "Einlage" : "Werkzeug") + " umbenennen", alt.rueckSetz(tabelle, { name: x.name, daten: alt_d }, { id: x.id }));
+    if (offenHier && z.w) {
+      const feld = z.w.document.getElementById("layName");
+      if (feld) feld.value = name;
+      z.gespeichert = JSON.stringify(z.w.layData());
+      merken({ id: x.id, name, am: data.geaendert_am });
+    }
+    if (!einlage) {
+      const v = verknuepftLesen();
+      if (v && v.zeilen.some((y) => y.id === x.id)) {
+        v.zeilen = v.zeilen.map((y) => (y.id === x.id ? { ...y, name } : y)); verknuepftSetzen(v); setWzStand(wzStandVon(v));
+      }
+    }
+    setListe((l) => l && l.art === art
+      ? { ...l, zeilen: l.zeilen.map((y) => (y.id === x.id ? { ...y, name, daten, geaendert_am: data.geaendert_am } : y)) } : l);
+    alt.meldung("Umbenannt in „" + name + "“.", "gut");
+  }
+
   async function werkzeugWeg(x) {
     const ok = await alt.loeschen({ tabelle: "einlagen_werkzeuge", id: x.id, titel: "Werkzeug löschen?",
       text: "„" + x.name + "“ wird für alle gelöscht. Einlagen, in denen es schon liegt, behalten es.", rueckText: "Werkzeug löschen" });
@@ -494,6 +546,7 @@ export default function Einlagen() {
                     <span>{n} Werkzeug{n === 1 ? "" : "e"} · {b.W} × {b.H} × {b.T} mm</span>
                     <span className="einlagen__stand">{alt.datumZeitKurz(x.geaendert_am)}{x.wer ? " · " + x.wer : ""}</span>
                   </button>
+                  <button type="button" className="knopf" data-einlage="umbenennen" onClick={() => umbenennen(x, "einlagen")}>Umbenennen</button>
                   <button type="button" className="knopf einlagen__weg" title="Löschen" aria-label="Löschen" onClick={() => weg(x)}>✕</button>
                 </div>
               );
@@ -524,6 +577,7 @@ export default function Einlagen() {
                   </div>
                   <button type="button" className="knopf" data-wz="einlage" onClick={() => inEinlage(x)}>In die Einlage</button>
                   <button type="button" className="knopf" data-wz="kontur" onClick={() => konturOeffnen(x)}>Kontur bearbeiten</button>
+                  <button type="button" className="knopf" data-wz="umbenennen" onClick={() => umbenennen(x, "werkzeuge")}>Umbenennen</button>
                   <button type="button" className="knopf einlagen__weg" title="Löschen" aria-label="Löschen" onClick={() => werkzeugWeg(x)}>✕</button>
                 </div>
               );
