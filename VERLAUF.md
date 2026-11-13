@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.531.0** (13. November 2026): Einlagen Generator: beim „Werkzeug speichern“ je Werkzeug gleich die Tiefe eintippen (vorbelegt mit der gespeicherten Tiefe bzw. „Tiefe für neue Werkzeuge“, Komma geht), unter „Gespeicherte Werkzeuge“ die Tiefe direkt im Feld ändern (Enter oder Feld verlassen speichert, mit Rückgängig), „In die Einlage“ nimmt sie; „Kontur bearbeiten“ behält die gespeicherte Tiefe. Prüfstand `einlagen_tiefe.py` (Wunsch Patrick).
 - **1.529.0** (13. November 2026): Planer: Todo ohne QS-Meldungen (Patrick: „das nervt“); erledigte eigene Todos verschwinden aus der Liste, Knopf „✓ Abgeschlossen (n)“ neben dem „+“ öffnet ein Fenster mit allen Erledigten zum Nachschauen und „↶ Wieder offen“. Prüfstand `planer.py`.
 - **1.528.0** (13. November 2026): 508 Werkzeuge (NC-PRO und Pad Mode): die Werkzeuge aus dem CAM werden nicht mehr von selbst ins Fach mit ihrer Nummer gelegt; sie stehen als „Kein Fach“ da, bis man in der Liste ein Fach wählt oder sie aufs Magazin zieht, ohne Fach wird nichts geschrieben und kein anderes Fach geleert, unten „… noch ohne Fach“ (Wunsch Patrick: „nicht automatisch als Vorschlag platziert“). Prüfstand `wz508*.py` legt die Werkzeuge dafür von Hand ab (`wz508_hilfe.py`).
 - **1.517.0** (13. November 2026): Planer im Pad Mode: Escape fragt erst „Planer wirklich verlassen?“, Enter verlässt, nochmals Escape bleibt im Planer (Patrick: „nicht dass man aus Versehen rausfällt“).

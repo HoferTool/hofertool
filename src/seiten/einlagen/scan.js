@@ -79,15 +79,23 @@ export function mitte(t) {
 }
 
 // Werkzeug i des Scans als Kontur um seine Mitte (wie „Als Werkzeug speichern“)
-export function werkzeugDaten(w, i, name) {
+// tiefe: eigene Tiefe des Werkzeugs (Wunsch Patrick 13. November 2026), sonst die Vorgabe für neue Werkzeuge
+export function werkzeugDaten(w, i, name, tiefe) {
   const t = w.scanState().result.tools[i], b = bbox(t.outer), [cx, cy] = mitte(t);
   const sh = (r) => r.map((p) => [r3(p[0] - cx), r3(p[1] - cy)]);
-  const tiefe = parseFloat(w.document.getElementById("newDepth")?.value);
   return {
-    app: "werkzeug-kontur", version: 1, name, depth: Number.isFinite(tiefe) && tiefe > 0 ? tiefe : 20,
+    app: "werkzeug-kontur", version: 1, name, depth: tiefeOk(tiefe) ? +tiefe : vorgabeTiefe(w),
     polys: [{ outer: sh(t.outer), holes: t.holes.map(sh) }], grips: [],
     nr: i, mitte: [r3(cx), r3(cy)], mass: [r3(b[2] - b[0]), r3(b[3] - b[1])],
   };
+}
+
+export const tiefeOk = (t) => t !== null && t !== "" && Number.isFinite(+t) && +t > 0 && +t <= 200;
+
+// Tiefe für neue Werkzeuge aus der Einlage
+export function vorgabeTiefe(w) {
+  const t = parseFloat(w.document.getElementById("newDepth")?.value);
+  return tiefeOk(t) ? t : 20;
 }
 
 // Welches Werkzeug im Scan ist das gespeicherte? Das mit der nächsten Mitte
