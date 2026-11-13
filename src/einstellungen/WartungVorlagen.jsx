@@ -1,9 +1,7 @@
 // =================================================================
 //  EINSTELLUNGEN → WARTUNG → VORLAGEN (seit 1.353.0)
-//  Bilder und PDFs für die Wartung als Vorlagen ablegen, gegliedert nur
-//  in Langdreher, Kurzdreher und Extern (Wunsch Patrick 3. November
-//  2026: „die Wartungsvorlagen sollen bei den Einstellungen abgelegt
-//  werden können, unterscheide nur Langdreher, Kurzdreher, Extern“).
+//  Bilder, PDFs und Texte für die Wartung als Vorlagen ablegen (Wunsch
+//  Patrick 3. November 2026), seit 1.533.0 in einer einzigen Liste.
 //  Zugeteilt wird an der Maschine mit „Vorlage wählen“ (Pad und
 //  Einstellungen → Wartung → Zuteilen): nur diese Maschine, ganzer Park
 //  oder Typ, mit eigenem Termin. Eine Vorlage löschen lässt die
@@ -12,16 +10,16 @@
 // =================================================================
 import { useEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
-import { GRUPPEN, gruppeText, VORLAGEN, vorlagenLaden, Vorschau, ansehen, ablageName, endungVon,
+import { VORLAGEN, vorlagenLaden, Vorschau, ansehen, ablageName, endungVon,
   geaendert, istText, textSchreiben } from "../pad/Wartung.jsx";
 
-// Seit 1.505.1 zuerst „Alle“: alle sehen alle Vorlagen (Wunsch Patrick
-// 12. November 2026: „Wartungsvorlagen sollen alle alle sehen“)
-let merkGruppe = "alle";
-const gruppeOder = (g) => (g && g !== "alle" ? g : "langdreher");
+// Seit 1.533.0 eine einzige Liste ohne Gruppen (Wunsch Patrick
+// 13. November 2026: „fass es zusammen“; die Parks gibt es je Typ, die
+// Einteilung Langdreher / Kurzdreher / Extern half nicht mehr). Die Spalte
+// `gruppe` bleibt in der Datenbank, neue Vorlagen bekommen „langdreher“.
+const GRUPPE_NEU = "langdreher";
 
 export default function WartungVorlagen() {
-  const [gruppe, setGruppe] = useState(merkGruppe);
   const [vorlagen, setVorlagen] = useState(null);
   const [fehler, setFehler] = useState("");
   const [laedt, setLaedt] = useState("");
@@ -38,8 +36,6 @@ export default function WartungVorlagen() {
   useEffect(() => { laden(); window.addEventListener("hofer:wartung", laden);
     return () => window.removeEventListener("hofer:wartung", laden); }, []);
 
-  const gruppeWaehlen = (g) => { merkGruppe = g; setGruppe(g); };
-
   const hochladen = async (dateien) => {
     for (const datei of dateien) {
       const pdf = datei.type === "application/pdf" || endungVon(datei.name) === "pdf";
@@ -49,7 +45,6 @@ export default function WartungVorlagen() {
         felder: [
           { name: "titel", label: "Was ist zu tun?", pflicht: true,
             wert: datei.name.replace(/\.[^.]+$/, "").replace(/[_]+/g, " ").trim() },
-          { name: "gruppe", label: "Gruppe", wert: gruppeOder(gruppe), auswahl: GRUPPEN },
         ],
         bestaetigen: "Ablegen" });
       if (!w) continue;
@@ -60,13 +55,12 @@ export default function WartungVorlagen() {
           { contentType: datei.type || (pdf ? "application/pdf" : "application/octet-stream"), upsert: false });
         if (up.error) throw up.error;
         const url = alt.db.storage.from("zeichnungen").getPublicUrl(pfad).data.publicUrl;
-        const ein = await alt.db.from(VORLAGEN).insert({ gruppe: w.gruppe || gruppeOder(gruppe), titel: w.titel.trim(), url, pfad,
+        const ein = await alt.db.from(VORLAGEN).insert({ gruppe: GRUPPE_NEU, titel: w.titel.trim(), url, pfad,
           dateiname: datei.name, art: pdf ? "pdf" : "bild" }).select("id");
         if (ein.error) throw ein.error;
         const neu = ((ein.data || [])[0] || {}).id;
         if (neu) alt.merkeSchritt("Vorlage " + w.titel.trim(), alt.rueckWeg(VORLAGEN, { id: neu }));
-        alt.meldung("Vorlage abgelegt: " + w.titel.trim() + " (" + gruppeText(w.gruppe || gruppeOder(gruppe)) + ")", "gut");
-        if (w.gruppe && w.gruppe !== gruppe) gruppeWaehlen(w.gruppe);
+        alt.meldung("Vorlage abgelegt: " + w.titel.trim(), "gut");
       } catch (f) {
         const t = alt.fehlertext(f);
         alt.meldung(/exceeded|too large|413|maximum/i.test(t) ? datei.name + " ist zu gross für die Ablage."
@@ -82,11 +76,10 @@ export default function WartungVorlagen() {
     const t = await textSchreiben({ knopf: "Weiter" });
     if (!t) return;
     const w = await alt.dialogFelder({ titel: "Vorlage ablegen",
-      felder: [{ name: "titel", label: "Was ist zu tun?", pflicht: true, wert: t.titel },
-        { name: "gruppe", label: "Gruppe", wert: gruppeOder(gruppe), auswahl: GRUPPEN }],
+      felder: [{ name: "titel", label: "Was ist zu tun?", pflicht: true, wert: t.titel }],
       bestaetigen: "Ablegen" });
     if (!w) return;
-    const ein = await alt.db.from(VORLAGEN).insert({ gruppe: w.gruppe || gruppeOder(gruppe), titel: w.titel.trim(),
+    const ein = await alt.db.from(VORLAGEN).insert({ gruppe: GRUPPE_NEU, titel: w.titel.trim(),
       url: null, art: "text", inhalt: t.inhalt, inhalt_fmt: t.inhalt_fmt }).select("id");
     if (ein.error) {
       const f = alt.fehlertext(ein.error);
@@ -96,7 +89,6 @@ export default function WartungVorlagen() {
     const neu = ((ein.data || [])[0] || {}).id;
     if (neu) alt.merkeSchritt("Vorlage " + w.titel.trim(), alt.rueckWeg(VORLAGEN, { id: neu }));
     alt.meldung("Vorlage abgelegt: " + w.titel.trim(), "gut");
-    if (w.gruppe && w.gruppe !== gruppe && gruppe !== "alle") gruppeWaehlen(w.gruppe);
     geaendert();
   };
   const textAendern = async (v) => {
@@ -111,12 +103,11 @@ export default function WartungVorlagen() {
 
   const bearbeiten = async (v) => {
     const w = await alt.dialogFelder({ titel: "Vorlage ändern",
-      felder: [{ name: "titel", label: "Was ist zu tun?", wert: v.titel, pflicht: true },
-        { name: "gruppe", label: "Gruppe", wert: v.gruppe, auswahl: GRUPPEN }],
+      felder: [{ name: "titel", label: "Was ist zu tun?", wert: v.titel, pflicht: true }],
       bestaetigen: "Speichern" });
     if (!w) return;
     const vorher = await alt.rueckSichern(VORLAGEN, { id: v.id });
-    const { error } = await alt.db.from(VORLAGEN).update({ titel: w.titel.trim(), gruppe: w.gruppe }).eq("id", v.id);
+    const { error } = await alt.db.from(VORLAGEN).update({ titel: w.titel.trim() }).eq("id", v.id);
     if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
     alt.merkeSchritt("Vorlage " + v.titel, alt.rueckRein(VORLAGEN, vorher));
     geaendert();
@@ -134,15 +125,11 @@ export default function WartungVorlagen() {
     geaendert();
   };
 
-  const liste = (vorlagen || []).filter((v) => gruppe === "alle" || (v.gruppe || "langdreher") === gruppe);
+  const liste = vorlagen || [];
   return (
     <div className="wartung wartung--einstellungen" id="wartung-vorlagen">
       <div className="es-wartung__art" role="tablist">
-        {[["alle", "Alle"]].concat(GRUPPEN).map(([g, t]) => (
-          <button key={g} role="tab" aria-selected={g === gruppe} data-vorlage-gruppe={g}
-            className={"knopf" + (g === gruppe ? " knopf--haupt" : "")} onClick={() => gruppeWaehlen(g)}>
-            {t} <span className="es-wartung__zahl">{(vorlagen || []).filter((v) => g === "alle" || (v.gruppe || "langdreher") === g).length}</span>
-          </button>))}
+        <b className="wartung-vorlagen__zahl" id="vorlage-zahl">{liste.length} {liste.length === 1 ? "Vorlage" : "Vorlagen"}</b>
         {darf && <button className="knopf knopf--haupt wartung-vorlagen__neu" id="vorlage-neu" disabled={!!laedt}
           onClick={() => wahl.current && wahl.current.click()}>+ Bild oder PDF</button>}
         {darf && <button className="knopf knopf--haupt" id="vorlage-text-neu" onClick={textNeu}>+ Text</button>}
@@ -155,13 +142,13 @@ export default function WartungVorlagen() {
       {laedt && <p className="unterlagen__laedt">Lädt hoch: {laedt} …</p>}
       {fehler && <p className="fehlertext">{fehler}</p>}
       {vorlagen === null ? <p className="klein">Lädt …</p>
-        : !liste.length ? <p className="unterlagen__leer">Noch keine Vorlagen{gruppe === "alle" ? "" : " für " + gruppeText(gruppe)}.
+        : !liste.length ? <p className="unterlagen__leer">Noch keine Vorlagen.
             {darf ? " Mit „+ Bild oder PDF“ oder „+ Text“ beginnen." : ""}</p>
         : <ul className="wartung__liste">
             {liste.map((v) => (
               <li key={v.id} className="wartung__zeile" data-vorlage-zeile={v.id}>
                 <button className="wartung__vorschau" title="Gross ansehen" onClick={() => ansehen(v)}><Vorschau w={v} /></button>
-                <div className="wartung__text"><b>{v.titel}</b><span className="klein">{gruppeText(v.gruppe)}</span></div>
+                <div className="wartung__text"><b>{v.titel}</b></div>
                 {darf && <div className="wartung__knoepfe">
                   {istText(v) && <button className="knopf knopf--klein" data-vorlage-text={v.id} onClick={() => textAendern(v)}>Text ändern</button>}
                   <button className="knopf knopf--klein" data-vorlage-aendern={v.id} onClick={() => bearbeiten(v)}>Ändern</button>

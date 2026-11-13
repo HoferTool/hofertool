@@ -373,11 +373,11 @@ export async function vorlagenLaden() {
 // keine Vorlage sind). Gibt { titel, url, pfad, dateiname, art,
 // wiederholung? } oder null.
 function VorlagenWahl({ vorlagen, bisher, gruppe, namen, fertig }) {
-  // „Alle“ zuerst (seit 1.505.1, Wunsch Patrick 12. November 2026:
-  // „Wartungsvorlagen sollen alle alle sehen“), die Gruppen bleiben zum Eingrenzen
-  const reiter = [["alle", "Alle"]].concat(GRUPPEN, bisher.length ? [["bisher", "Bisher zugeteilt"]] : []);
+  // Seit 1.533.0 ohne Gruppen, nur „Alle“ und „Bisher zugeteilt“
+  // (Wunsch Patrick 13. November 2026: „fass es zusammen“)
+  const reiter = [["alle", "Alle"]].concat(bisher.length ? [["bisher", "Bisher zugeteilt"]] : []);
   const [g, setG] = useState(gruppe || "alle");
-  const inG = (v, k) => k === "alle" || (v.gruppe || "langdreher") === k;
+  const inG = () => true;
   const liste = g === "bisher" ? bisher : vorlagen.filter((v) => inG(v, g));
   return (
     <div className="dialog dialog--breit wartung wartung-wahl" id="wartung-wahl">
@@ -395,7 +395,7 @@ function VorlagenWahl({ vorlagen, bisher, gruppe, namen, fertig }) {
       </div>
       <p className="klein">Die Datei bleibt dieselbe. Danach wählen, wofür sie gilt, und den Termin setzen.
         Vorlagen ablegen unter Einstellungen → Wartung → Vorlagen.</p>
-      {!liste.length ? <p className="unterlagen__leer">Keine Vorlagen{g === "alle" ? "" : " in " + gruppeText(g)}.</p>
+      {!liste.length ? <p className="unterlagen__leer">Keine Vorlagen.</p>
         : <ul className="wartung-wahl__liste">
             {liste.map((v) => (
               <li key={v.id}>
