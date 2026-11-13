@@ -31,16 +31,20 @@ import { planwandFensterOeffnen } from "./PlanwandFenster.jsx";
 const ABLAUF = ["geplant", "ruesten", "laeuft", "fertig"];
 
 export async function qsLaden() {
-  const [maschinen, laufend, offen] = await Promise.all([
+  const [alleMaschinen, laufend, offen] = await Promise.all([
     alt.ladeMaschinen(false),
     alt.ladeLaufendeAuftraege(),
     alt.db.from("jobs").select("*").is("ended_at", null)
       .not("planned_from", "is", null).order("planned_from")
       .then((r) => (r && r.data) || []),
   ]);
+  // Park „Extern“ nur für Externe und Admins (seit 1.520.0); die Namen
+  // der Parks braucht parkIstExtern, darum zuerst die Parks
+  await alt.ladeParks(false);
+  const maschinen = alleMaschinen.filter((m) => !alt.padParkVerborgen(m.park_id));
   // Das Auftragsfenster nimmt seine Maschinenliste von dort; im Pad
   // ist sie leer, wenn man vorher nicht auf der Planwand war
-  if (!(alt.prod.maschinen || []).length) alt.prod.maschinen = maschinen;
+  if (!(alt.prod.maschinen || []).length) alt.prod.maschinen = alleMaschinen;
   // Je Maschine der früheste noch geplante Auftrag
   const naechster = {};
   offen.forEach((j) => {

@@ -147,11 +147,19 @@ async function typenLaden(p) {
            alle: eigene.length };
 }
 
+// Parks und Maschinen fürs Pad, ohne den Park „Extern“ für alle ausser
+// Externen und Admins (seit 1.520.0, padParkVerborgen in app.js)
+async function padParksUndMaschinen() {
+  const [parks, maschinen] = await Promise.all([alt.ladeParks(false), alt.ladeAlleMaschinen()]);
+  return [parks.filter((k) => !alt.padParkVerborgen(k.id)),
+          maschinen.filter((m) => !alt.padParkVerborgen(m.park_id))];
+}
+
 async function sichtLaden(p) {
   if (p.wo === "parks") {
     // Mit der Zahl der Maschinen je Park, wie beim QS Check
     // (Wunsch Patrick, 10. Oktober 2026)
-    const [parks, maschinen] = await Promise.all([alt.ladeParks(false), alt.ladeAlleMaschinen()]);
+    const [parks, maschinen] = await padParksUndMaschinen();
     // Eigener Maschinentyp (seit 1.445.0, Wunsch Patrick 7. November 2026):
     // „Maschinen“ auf dem Startbild führt gleich zu den Maschinen dieses
     // Typs; „Zurück“ geht über die Typen zu allen Parks.
@@ -180,7 +188,7 @@ async function sichtLaden(p) {
     return maschinenLaden(p);
   }
   if (p.wo === "geraet") {
-    const [parks, maschinen] = await Promise.all([alt.ladeParks(false), alt.ladeAlleMaschinen()]);
+    const [parks, maschinen] = await padParksUndMaschinen();
     return { art: "geraet", parks, maschinen };
   }
   if (p.wo === "qsparks") p.wo = "qs"; // gemerkt von vor 1.62.0
