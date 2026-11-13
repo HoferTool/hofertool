@@ -242,7 +242,7 @@ export function RichFeld({ text, html, aendern, einzeilig, nurLesen, className, 
 
 // Die Leiste oben für markierten Text: feste Farben und Farbwähler des
 // Geräts, Dünn / Fett, Grösse. Gebaut fürs Einrichtblatt (1.406.0,
-// 1.462.0), seit 1.517.0 auch für die Wartung mit Text, damit beide
+// 1.462.0), seit 1.518.0 auch für die Wartung mit Text, damit beide
 // gleich aussehen. ohneMarkierung(z): was ohne markierten Text geschieht
 // (true = erledigt), sonst ein Hinweis. start: Grösse ohne eigene Angabe.
 export const MARKIER_FARBEN = [["Schwarz", "#000000"], ["Rot", "#e03030"], ["Blau", "#1f5fd6"], ["Grün", "#1a8f3c"], ["Orange", "#e07a00"]];

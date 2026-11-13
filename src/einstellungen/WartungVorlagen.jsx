@@ -77,7 +77,7 @@ export default function WartungVorlagen() {
     geaendert();
   };
 
-  // Vorlage mit Text statt Datei (seit 1.517.0)
+  // Vorlage mit Text statt Datei (seit 1.518.0)
   const textNeu = async () => {
     const t = await textSchreiben({ knopf: "Weiter" });
     if (!t) return;

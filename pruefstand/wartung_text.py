@@ -1,4 +1,4 @@
-# Wartung mit Text statt Bild oder PDF (1.517.0, Wunsch Patrick 13. November
+# Wartung mit Text statt Bild oder PDF (1.518.0, Wunsch Patrick 13. November
 # 2026): „+ Text“ im Wartungsfenster des Pads, Leiste mit Farben, Dünn/Fett
 # und Grösse für markierten Text (dieselbe wie im Einrichtblatt), Ablegen
 # mit Termin, Vorschau, „Text ändern“, Bildschirmschoner zeigt den Text.

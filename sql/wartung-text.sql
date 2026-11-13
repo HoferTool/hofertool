@@ -1,4 +1,4 @@
--- Wartung mit Text statt Bild oder PDF (seit 1.517.0, Wunsch Patrick
+-- Wartung mit Text statt Bild oder PDF (seit 1.518.0, Wunsch Patrick
 -- 13. November 2026: „nicht nur PDFs oder Bilder, sondern das Feld gleich
 -- mit Text beschreiben, mit Farbpalette oben“).
 -- Was es tut: Pläne und Vorlagen bekommen zwei Spalten für den Text

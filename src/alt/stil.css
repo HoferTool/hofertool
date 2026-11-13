@@ -13513,7 +13513,7 @@ body.dunkel .pl-rf__feld select, body.dunkel .pl-rf__feld input, body.dunkel .pl
 .pl-rf .dialog__kopf h2 { margin: 0; font-size: 1.25rem; }
 .pl-rf .dialog__schliessen-inline { flex: none; width: 40px; height: 40px; }
 
-/* Wartung mit Text (seit 1.517.0, Wunsch Patrick 13. November 2026):
+/* Wartung mit Text (seit 1.518.0, Wunsch Patrick 13. November 2026):
    weisses Blatt mit dunkler Schrift, auch im dunklen Modus, damit die
    gewählten Farben (Schwarz eingeschlossen) gleich aussehen wie im Pad */
 .wartung-text { background: #fff; color: #111; -webkit-text-fill-color: #111; font-size: 20px; line-height: 1.35;

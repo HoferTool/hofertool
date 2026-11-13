@@ -37,7 +37,7 @@
 //  Maschine zeigt zuerst die Gruppe ihres Parks und legt mit derselben
 //  Datei einen Plan mit eigenem Ziel und Termin an.
 //
-//  Seit 1.517.0 auch Text statt Bild oder PDF (Wunsch Patrick
+//  Seit 1.518.0 auch Text statt Bild oder PDF (Wunsch Patrick
 //  13. November 2026: „nicht nur PDFs oder Bilder, sondern das Feld
 //  gleich mit Text beschreiben, mit Farbpalette oben“): art = "text",
 //  reiner Text in inhalt, die Formatierung in inhalt_fmt (wie im
@@ -738,7 +738,7 @@ export function WartungListe({ m, ziel, maschinen: alle, zu, vorgabe }) {
     geaendert();
   };
 
-  // Wartung mit Text statt Datei (seit 1.517.0)
+  // Wartung mit Text statt Datei (seit 1.518.0)
   const textNeu = async () => {
     const t = await textSchreiben({});
     if (!t) return;

@@ -299,7 +299,7 @@ const MARKIER_HINWEIS = "Zuerst den Text im Feld markieren, dann Farbe, Dünn/Fe
 // Setzt die Farbe der Werkzeugmarkierung im offenen Platzfenster
 let wzFarbeZiel = null;
 
-// Die Leiste steht seit 1.517.0 gemeinsam in markiert.jsx (auch für die
+// Die Leiste steht seit 1.518.0 gemeinsam in markiert.jsx (auch für die
 // Wartung mit Text); hier färbt eine Farbe ohne markierten Text die
 // Werkzeugmarkierung im offenen Platzfenster
 const MarkierLeiste = () => <GemeinsameLeiste hinweis={MARKIER_HINWEIS}
