@@ -10,8 +10,7 @@
 //  (Tabelle planer_todos). Rechts das Material der nächsten Aufträge,
 //  nach Lieferant gebündelt (Rechnung in src/daten/planer.js).
 // =================================================================
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import Planwand from "../seiten/Planwand.jsx";
+import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { padZurueck } from "./Pad.jsx";
 import { istPlanerTab, planerTabVerlassen, planerSichtbar } from "./planerTab.js";
@@ -32,26 +31,15 @@ const einst = () => {
 };
 
 export async function planerSichtLaden() {
-  // Im Reiter Planwand braucht es die Planer-Daten nicht; die Planwand lädt selbst.
-  if (einst().reiter === "planwand") return { art: "planer", reiter: "planwand" };
   return { art: "planer", ...(await planerLaden(einst().tage)) };
 }
 
-// Reiter oben im Planer (seit 1.511.0, Wunsch Patrick 13. November 2026: „Planwand soll auch oben
-// aufgelistet sein … schön gross mit allen Funktionen … umschaltbar wieder aufs Dashboard“).
-// Seit 1.515.0 ganz oben ohne Kopfzeile (Patrick: „das Zurück und Schliessen, Neu laden braucht
-// es nicht, beim Dashboard hast du mehr Platz“). Escape geht weiter einen Schritt zurück über
-// den unsichtbaren Knopf mit data-padzurueck.
-function Reiter({ an, wahl }) {
-  return (
-    <div className="pl-reiter" role="tablist">
-      <button role="tab" className={"pl-reiter__knopf" + (an === "uebersicht" ? " pl-reiter__knopf--an" : "")}
-        data-plreiter="uebersicht" onClick={() => wahl("uebersicht")}>📋 Dashboard</button>
-      <button role="tab" className={"pl-reiter__knopf" + (an === "planwand" ? " pl-reiter__knopf--an" : "")}
-        data-plreiter="planwand" onClick={() => wahl("planwand")}>🗓️ Planwand</button>
-      <button hidden data-padzurueck="" onClick={verlassenFragen} />
-    </div>
-  );
+// Den Reiter Planwand im Planer (1.511.0 bis 1.524.x) gibt es seit 1.525.0 nicht mehr (Wunsch
+// Patrick 13. November 2026: „beim Dashboard braucht es den Reiter Planwand nicht mehr“); die
+// Planwand hat ihren eigenen Vollbild-Tab. Escape geht weiter über den unsichtbaren Knopf mit
+// data-padzurueck.
+function Zurueck() {
+  return <button hidden data-padzurueck="" onClick={verlassenFragen} />;
 }
 
 // Aus dem Planer nur nach Rückfrage (seit 1.517.0, Wunsch Patrick 13. November 2026: „wenn man
@@ -66,23 +54,6 @@ async function verlassenFragen() {
     // Im eigenen Tab (seit 1.521.0) geht der Tab zu, sonst einen Schritt zurück
     if (ja) { if (istPlanerTab()) planerTabVerlassen(); else padZurueck(); }
   } finally { fragtGerade = false; }
-}
-
-// Die ganze Planwand wie auf der Seite Planwand, mit allen Knöpfen, über die volle Fläche.
-// Wie das Fenster nach Tipp auf eine HOCO Nr. (PlanwandFenster.jsx):
-// dieselbe Seite wie im Menü mit Kopfleiste, auf einer hellen Karte
-// (Patrick 13. November 2026: „so gefällt es mir, die Ansicht gerne so“)
-function PlanwandReiter() {
-  const ref = useRef(null);
-  const [b, setB] = useState(null);
-  useLayoutEffect(() => { setB(ref.current); }, []);
-  return (
-    <div className="pl-planwand" id="pad-planer-planwand">
-      <div className="dialog pad-pw pl-pw-karte">
-        <div className="pad-pw__buehne" ref={ref}>{b && <Planwand behaelter={b} />}</div>
-      </div>
-    </div>
-  );
 }
 
 // Der Planer ist hell, ausser im dunklen Modus (Wunsch Patrick
@@ -105,43 +76,10 @@ export default function Planer({ d, neu }) {
   const e = einst();
   const um = (aendern) => { aendern(e); neu(); };
   useHell();
-  // Schneller Wechsel (seit 1.515.0, Wunsch Patrick 13. November 2026: „das Wechseln von Reiter
-  // zu Reiter soll schneller sein“): der Reiter wechselt hier, ohne das Pad neu zu laden. Die
-  // Planwand bleibt nach dem ersten Öffnen aufgebaut (nur verborgen), das Dashboard zeigt sofort
-  // den letzten Stand und frischt still im Hintergrund auf.
-  const [reiter, setReiter] = useState(e.reiter === "planwand" ? "planwand" : "uebersicht");
-  const [pwDa, setPwDa] = useState(reiter === "planwand");
-  const [dash, setDash] = useState(d.reiter === "planwand" ? null : d);
-  const lauf = useRef(0);
-  useEffect(() => { if (d.reiter !== "planwand") { lauf.current++; setDash(d); } }, [d]);
-  const dashHolen = () => {
-    const nr = ++lauf.current;
-    planerLaden(e.tage).then((x) => { if (nr === lauf.current) setDash({ art: "planer", ...x }); },
-      (f) => { if (nr === lauf.current) alt.meldung(alt.fehlertext(f), "fehler"); });
-  };
-  // Mit der Planwand gestartet: das Dashboard kurz danach schon vorladen
-  useEffect(() => {
-    if (dash) return undefined;
-    const t = setTimeout(dashHolen, 1200);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  const wahl = (r) => {
-    if (r === reiter) return;
-    e.reiter = r;
-    setReiter(r);
-    if (r === "planwand") {
-      setPwDa(true);
-      // Die verborgene Tafel misst ihre Höhe neu
-      requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
-    } else dashHolen();
-  };
   return (
     <>
-      <Reiter an={reiter} wahl={wahl} />
-      {pwDa && <div className="pl-pw-huelle" hidden={reiter !== "planwand"}><PlanwandReiter /></div>}
-      {reiter === "uebersicht" && !dash && <div className="pad__laedt">Wird geladen …</div>}
-      {reiter === "uebersicht" && dash && <Dashboard d={dash} e={e} um={um} neu={neu} />}
+      <Zurueck />
+      <Dashboard d={d} e={e} um={um} neu={neu} />
     </>
   );
 }
