@@ -1217,15 +1217,34 @@ async function fassungHolen(spaeter) {
     sessionStorage.setItem(FASSUNG_NEULADEN, server);
   } catch (f) { /* ohne Speicher trotzdem einmal neu laden */ }
   await seiteFrischHolen();
-  if (!spaeter) location.reload();
+  // Über eine Adresse mit der neuen Fassung (?fassung=…): die kommt sicher
+  // frisch vom Server, ein blosses reload() bekam oft die alte Seite aus
+  // dem Zwischenspeicher (Patrick 13. November 2026)
+  if (!spaeter) neuLadenMitFassung(server);
   return true;
 }
 
-// ---------- Jede Stunde kurz neu laden ----------
+// Neu laden mit der Fassung in der Adresse, im Pad über padNeuLaden,
+// damit das Tablet danach wieder genau dort steht
+function neuLadenMitFassung(server) {
+  const ziel = adresseMitFassung(server);
+  if (document.getElementById("pad") && typeof padNeuLaden === "function") padNeuLaden(ziel);
+  else location.replace(ziel);
+}
+
+// ---------- Jede Stunde nach einer neuen Fassung schauen ----------
 // Wunsch Patrick, 8. Oktober 2026: „soll jede Stunde kurz neu laden bei
-// allen“. So holt sich auch ein Bildschirm, der tagelang offen bleibt,
-// die neuste Fassung, und ein hängen gebliebener Abgleich fängt frisch
-// an. Neu geladen wird nur in einem ruhigen Moment: kein Fenster oder
+// allen“, damit auch ein Gerät, das tagelang offen bleibt, die neuste
+// Fassung bekommt. Bis 1.513.x lud die App dafür jede Stunde blind neu,
+// bekam dabei aber oft die alte Seite aus dem Zwischenspeicher (GitHub
+// Pages hält sie bis zehn Minuten) und lief mit der alten Fassung weiter
+// (Patrick 13. November 2026: „lädt neu, aber ohne die neue Version zu
+// holen, entweder fixt du es oder nimmst es raus“). Seit 1.514.0 fragt
+// sie jede Stunde den Server, ob eine neue Fassung draussen ist, und lädt
+// nur dann neu, und zwar über eine Adresse mit der neuen Fassung
+// (?fassung=…, wie die Bildschirme), die sicher frisch kommt. Ohne neue
+// Fassung wird nicht mehr neu geladen.
+// Neu geladen wird nur in einem ruhigen Moment: kein Fenster oder
 // Dialog offen, kein Feld mit Schreibmarke, kein Balken am Haken,
 // nichts wartet auf das Netz, und seit einer halben Minute keine
 // Berührung. Sonst probiert es die App jede Minute wieder. Im Pad geht
@@ -1264,13 +1283,33 @@ function neuladenRuhig() {
   return true;
 }
 
-function stuendlichNeuLaden() {
-  if (ARCHIV) return;
-  if (Date.now() < neuladenAb || !neuladenRuhig()) return;
-  // Falls das Neuladen scheitert, nicht jede Minute wieder: erst in einer Stunde
+// Neue Fassung, auf die gerade gewartet wird (bis ein ruhiger Moment kommt)
+let neuladenFassung = "";
+const STUENDLICH_NEULADEN = "hofer.fassung.stuendlich";
+
+async function stuendlichNeuLaden() {
+  if (ARCHIV || bildschirmZeigt()) return; // Bildschirme: bildschirmFassung
+  if (Date.now() < neuladenAb) return;
+  if (!neuladenFassung) {
+    neuladenAb = Date.now() + NEULADEN_TAKT;
+    const eigene = eigeneFassung();
+    const server = eigene && await fassungAufServer();
+    if (!server || server === eigene) return; // nichts Neues: kein Neuladen
+    // Kam nach dem Neuladen doch wieder die alte Fassung, nicht im Kreis:
+    // dieselbe Fassung höchstens alle zehn Minuten
+    try {
+      const [f, zeit] = String(sessionStorage.getItem(STUENDLICH_NEULADEN) || "").split("|");
+      if (f === server && Date.now() - +zeit < 10 * 60 * 1000) return;
+    } catch (f) { /* egal */ }
+    neuladenFassung = server;
+  }
+  if (!neuladenRuhig()) { neuladenAb = 0; return; } // in einer Minute wieder
+  const server = neuladenFassung;
+  neuladenFassung = "";
   neuladenAb = Date.now() + NEULADEN_TAKT;
-  if (document.getElementById("pad") && typeof padNeuLaden === "function") padNeuLaden();
-  else seiteFrischHolen().then(() => location.reload());
+  try { sessionStorage.setItem(STUENDLICH_NEULADEN, server + "|" + Date.now()); } catch (f) { /* egal */ }
+  await seiteFrischHolen();
+  neuLadenMitFassung(server);
 }
 setInterval(stuendlichNeuLaden, 60000);
 
@@ -8499,11 +8538,13 @@ function padOeffnen(zustand) {
 const PAD_NEULADEN = "hofer.pad.neuladen";
 const PAD_FELDER = ["wo", "parkId", "typId", "typUebersprungen", "maschineId", "reiter", "qsPark", "qsParkUebersprungen"];
 
-function padNeuLaden() {
+// ziel: Adresse mit neuer Fassung (?fassung=…), sonst dieselbe Seite neu
+function padNeuLaden(ziel) {
   const z = { zeit: Date.now() };
   PAD_FELDER.forEach((k) => { if (pad[k] !== undefined) z[k] = pad[k]; });
   try { sessionStorage.setItem(PAD_NEULADEN, JSON.stringify(z)); } catch (f) { /* dann eben Start */ }
-  location.reload();
+  if (typeof ziel === "string" && ziel) location.replace(ziel);
+  else location.reload();
 }
 
 // Auch bei jedem anderen Neuladen (Strg + F5, neue Fassung) geht das

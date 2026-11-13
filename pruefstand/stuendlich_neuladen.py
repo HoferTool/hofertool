@@ -1,5 +1,9 @@
 # Jede Stunde kurz neu laden (111.113.0, Wunsch Patrick 8. Oktober 2026):
-# nach einer Stunde lädt die Seite neu, Anmeldung und Seite bleiben; mit
+# seit 1.514.0 nur, wenn auf dem Server eine neue Fassung liegt (siehe
+# stuendlich_fassung.py); hier liegt jede Stunde eine neue da. Während die
+# App den Server fragt, laufen andere Abgleiche an, darum kann das Neuladen
+# erst in der Minute danach kommen (STUNDE + eine Minute).
+# Nach einer Stunde lädt die Seite neu, Anmeldung und Seite bleiben; mit
 # offenem Fenster oder Schreibmarke im Feld wartet sie, bis es ruhig ist;
 # im Pad landet sie danach wieder im Pad. Eine offene Zeichnung hält sie
 # nicht auf und ist danach wieder offen (1.7.0).
@@ -13,6 +17,18 @@ daten.profiles[0].andere_nutzer = true; daten.profiles[0].email = 'planwand@hofe
 """
 F = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;", K + "\nif (typeof window !== \"undefined\") window.TEST = TEST;")
 STUNDE = 61 * 60 * 1000
+NEU = open("../dist/index.html", encoding="utf-8").read().replace("assets/index-", "assets/index-NEU")
+# Wie oft der Server noch die neue Fassung meldet (vor jeder Stunde 1)
+neu = {"n": 0}
+def fassung(r):
+    if neu["n"] > 0 and r.request.method == "GET":  # HEAD fragt die Einstellungen
+        neu["n"] -= 1
+        r.fulfill(status=200, content_type="text/html", body=NEU)
+    else: r.continue_()
+
+def stunde(pg):
+    pg.clock.fast_forward(STUNDE); pg.wait_for_timeout(1500)
+    pg.clock.fast_forward(61 * 1000)
 
 
 def zeichnung_allein(pg, jz):
@@ -32,11 +48,13 @@ def seite(br, hash=""):
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=F))
     for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
         pg.route(u, lambda r: r.abort())
+    pg.route("**/index.html?stand=*", fassung)
     pg.add_init_script("window.OHNE_SITZUNG = false; window.SITZUNG_MAIL = 'planwand@hoferco.ch';")
     pg.goto(f"http://127.0.0.1:{PORT}/index.html" + hash, wait_until="domcontentloaded"); pg.wait_for_timeout(2300)
     return pg, f
 
-def marke(pg): pg.evaluate("window.__marke = 1")
+def marke(pg):
+    pg.evaluate("window.__marke = 1"); neu["n"] = 1
 def neu_geladen(pg): return pg.evaluate("window.__marke === undefined")
 def angemeldet(pg): return pg.evaluate("!document.getElementById('lg-auswahl')")
 
@@ -53,7 +71,7 @@ with sync_playwright() as p:
     marke(pg)
     pg.clock.fast_forward(30 * 60 * 1000); pg.wait_for_timeout(500)
     pruefe("nach 30 Minuten nicht neu geladen", not neu_geladen(pg))
-    pg.clock.fast_forward(31 * 60 * 1000); pg.wait_for_timeout(2500)
+    pg.clock.fast_forward(31 * 60 * 1000); pg.wait_for_timeout(1500); pg.clock.fast_forward(61 * 1000); pg.wait_for_timeout(2500)
     pruefe("nach einer Stunde neu geladen", neu_geladen(pg))
     pruefe("danach angemeldet", angemeldet(pg))
     pruefe("danach dieselbe Seite", pg.evaluate("location.hash") == "#/planwand")
@@ -63,11 +81,11 @@ with sync_playwright() as p:
     pg, f = seite(br)
     marke(pg)
     pg.evaluate("document.getElementById('kopf-einstellungen').click()"); pg.wait_for_timeout(1000)
-    pg.clock.fast_forward(STUNDE); pg.wait_for_timeout(500)
+    stunde(pg); pg.wait_for_timeout(500)
     pruefe("Einstellungen offen: nicht neu geladen", not neu_geladen(pg) and pg.locator(".dialog-huelle").count() == 1)
     pg.keyboard.press("Escape"); pg.wait_for_timeout(600)
     pruefe("Einstellungen zu", pg.locator(".dialog-huelle").count() == 0)
-    pg.clock.fast_forward(2 * 60 * 1000); pg.wait_for_timeout(2500)
+    pg.clock.fast_forward(2 * 60 * 1000); pg.wait_for_timeout(1500); pg.clock.fast_forward(61 * 1000); pg.wait_for_timeout(2500)
     pruefe("Fenster zu: in der nächsten Minute neu geladen", neu_geladen(pg))
     fehler += f; pg.close()
 
@@ -77,7 +95,7 @@ with sync_playwright() as p:
     # Die Startseite hat kein eigenes Feld mehr: ein Feld dazu, wie ein Suchfeld
     pg.evaluate("(() => { const i = document.createElement('input'); i.id = 'test-feld'; document.getElementById('inhalt').prepend(i); i.focus(); })()")
     im_feld = pg.evaluate("/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)")
-    pg.clock.fast_forward(STUNDE); pg.wait_for_timeout(500)
+    stunde(pg); pg.wait_for_timeout(500)
     pruefe("Schreibmarke im Feld: nicht neu geladen", im_feld and not neu_geladen(pg))
     # Feld weg statt nur blur(): das stille Neuzeichnen der Startseite gibt
     # einem Feld mit derselben id den Fokus zurück (je nach Zeitpunkt)
@@ -92,7 +110,7 @@ with sync_playwright() as p:
     pg.evaluate("document.getElementById('pad-knopf') ? document.getElementById('pad-knopf').click() : null"); pg.wait_for_timeout(1200)
     im_pad = pg.evaluate("!!document.getElementById('pad')")
     marke(pg)
-    pg.clock.fast_forward(STUNDE); pg.wait_for_timeout(3000)
+    stunde(pg); pg.wait_for_timeout(3000)
     pruefe("Pad: neu geladen", im_pad and neu_geladen(pg))
     pruefe("Pad: danach wieder im Pad", pg.evaluate("!!document.getElementById('pad')"))
     fehler += f; pg.close()
@@ -105,7 +123,7 @@ with sync_playwright() as p:
     zeichnung_allein(pg, jz)
     offen = pg.locator(".betrachter-huelle").count() == 1
     marke(pg)
-    pg.clock.fast_forward(STUNDE); pg.wait_for_timeout(3500)
+    stunde(pg); pg.wait_for_timeout(3500)
     pruefe("Zeichnung offen: trotzdem neu geladen", offen and neu_geladen(pg))
     pg.clock.fast_forward(1500); pg.wait_for_timeout(1500)
     pruefe("Zeichnung danach wieder offen", pg.locator(".betrachter-huelle").count() == 1)

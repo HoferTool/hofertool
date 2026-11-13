@@ -120,9 +120,14 @@ self.addEventListener("fetch", (e) => {
       || url.pathname.endsWith("/")) {
     e.respondWith((async () => {
       try {
-        const frisch = await fetch(anfrage);
+        // Immer beim Server nachfragen (no-cache), nie die Seite ungefragt
+        // aus dem Zwischenspeicher des Browsers: sonst kam beim Neuladen
+        // bis zehn Minuten die alte Fassung (Patrick 13. November 2026)
+        let frisch;
+        try { frisch = await fetch(anfrage.url, { cache: "no-cache", credentials: "same-origin" }); }
+        catch (f) { frisch = await fetch(anfrage); }
         const c = await caches.open(HUELLE);
-        c.put("./index.html", frisch.clone());
+        if (frisch.ok) c.put("./index.html", frisch.clone());
         return frisch;
       } catch (f) {
         const c = await caches.open(HUELLE);
