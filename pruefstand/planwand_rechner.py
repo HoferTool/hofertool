@@ -52,8 +52,11 @@ def tippe(pg, sel, t):
 
 with sync_playwright() as p:
     br, pg = seite(p, False)
-    pruefe("Rechner-Knopf da, neben den Symbolen", pg.locator("#pw-matrechner").count() == 1 and pg.evaluate(
-        "document.querySelector('#pw-symbole').nextElementSibling.id") == "pw-matrechner")
+    # Seit 1.521.0 / 1.522.0 stehen Planer und Vollbild zwischen Symbolen und Rechner
+    pruefe("Rechner-Knopf da, nach den Symbolen", pg.locator("#pw-matrechner").count() == 1 and pg.evaluate(
+        """(() => { let e = document.querySelector('#pw-symbole').nextElementSibling;
+          while (e && ['pw-planer', 'pw-vollbild'].includes(e.id)) e = e.nextElementSibling;
+          return e && e.id; })()""") == "pw-matrechner")
     pg.click("#pw-matrechner"); pg.wait_for_selector(".dialog--matrechner")
     pruefe("Standard ist Rund", "aktiv" in pg.get_attribute("[data-form='rd']", "class"))
     pg.select_option("#mr-werkstoff", "kat:v2a")
