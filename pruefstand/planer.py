@@ -31,7 +31,7 @@ DATEN = """;
   alt('h3', '11SMnPb30 rd 16', '100 kg · Notz 2026001113', '2026-04-01');
   TEST.daten.app_config = TEST.daten.app_config || [];
   TEST.daten.app_config.push({ schluessel: 'material_lieferanten', wert: JSON.stringify([
-    { name: 'Metalix', tage: 3 }, { name: 'Notz', tage: 2, bestelltage: [2, 4], schluss: '11:00', liefertage: [3], notiz: 'Frau Muster anrufen' }, { name: 'Schmobi', tage: 5 }]) });
+    { name: 'Metalix', tage: 3, website: 'metalix.ch' }, { name: 'Notz', tage: 2, bestelltage: [2, 4], schluss: '11:00', liefertage: [3], notiz: 'Frau Muster anrufen' }, { name: 'Schmobi', tage: 5 }]) });
   TEST.daten.app_config.push({ schluessel: 'material_regeln', wert: JSON.stringify([
     { material: 'Messing sw', muss: 'Schmobi', kann: ['Notz'] }, { material: 'Messing rd 99', muss: 'Notz', kann: [] }]) });
   TEST.daten.planer_todos = [{ id: 't1', text: 'Gühring wegen Termin anrufen', faellig: null, erledigt_am: null, erstellt_am: '2026-11-12T08:00:00Z' },
@@ -72,6 +72,8 @@ with sync_playwright() as p:
     pruefe("Lieferbar 2 Arbeitstage" in notz.inner_text(), "Lieferbarkeit Notz")
     pruefe("liefert Mi" in notz.inner_text(), "Liefertage Notz")
     pruefe(notz.locator("[data-plnotiz]", has_text="Frau Muster").count() == 1, "Bemerkung Notz")
+    # Seit 1.524.0: Logo vor dem Namen (ohne Website die Buchstaben)
+    pruefe(notz.locator(".pl-lief__logo .bs-kuerzel, .pl-lief__logo .bs-logo").count() == 1, "Logo bei Notz")
     an = notz.locator(".pl-marke", has_text="heute bestellt")
     pruefe(an.count() == 1 and "Mi" in an.inner_text(), "Ankunft am Liefertag Mi " + (an.inner_text() if an.count() else ""))
     teil = pg.evaluate("TEST.teilJob")

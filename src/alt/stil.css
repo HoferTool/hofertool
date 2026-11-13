@@ -13629,3 +13629,16 @@ body.pw-vollbild #werkzeugleiste { display: none !important; }
 .wartung-schoner-vorschau { z-index: 100000; cursor: pointer; }
 .wartung-schoner-vorschau__schild { position: absolute; top: 18px; right: 18px; z-index: 3;
   background: #f5a623; color: #1b1b1b !important; font-weight: 700; padding: 6px 14px; border-radius: 999px; font-size: 15px; }
+/* Logos der Material-Lieferanten (seit 1.524.0, Wunsch Patrick 13. November 2026) */
+.ml-li { grid-template-columns: 32px minmax(130px, 1.1fr) 110px 125px 150px 150px minmax(160px, 2fr) 28px; }
+.ml-li__logo .bs-logo, .ml-li__logo .bs-kuerzel { width: 30px; height: 30px; border-radius: 8px; font-size: .72rem; }
+.ml-li__logo .bs-logo img { width: 24px; height: 24px; }
+.pl-lief__logo { display: inline-flex; flex: none; }
+.pl-lief__logo .bs-logo, .pl-lief__logo .bs-kuerzel { width: 34px; height: 34px; border-radius: 9px; font-size: .78rem; }
+.pl-lief__logo .bs-logo img { width: 28px; height: 28px; }
+@media (max-width: 820px) {
+  .ml-li { grid-template-columns: 32px 1fr 1fr 24px; }
+  .ml-li__logo { grid-row: 1; }
+  .ml-li__name { grid-column: 2 / 4; }
+  .ml-li__pfeil { grid-column: 4; }
+}

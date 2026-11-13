@@ -9,7 +9,8 @@
 // =================================================================
 import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
-import { lieferantenLaden, lieferantenSpeichern, regelnLaden, regelnSpeichern, WOCHENTAGE } from "../daten/planer.js";
+import { Logo } from "../seiten/bestellungen/teile.jsx";
+import { lieferantenLaden, lieferantenSpeichern, lieferantLogoDaten, regelnLaden, regelnSpeichern, WOCHENTAGE } from "../daten/planer.js";
 
 export default function MaterialLieferanten({ nachSpeichern }) {
   const [liste, setListe] = useState(null);
@@ -51,12 +52,13 @@ export default function MaterialLieferanten({ nachSpeichern }) {
     <div className="ml" id="material-lieferanten">
       <div className="ml-liste" role="table">
         <div className="ml-li ml-li--kopf" role="row">
-          <span>Lieferant</span><span>Lieferzeit</span><span>Bestellschluss</span><span>Bestellen an</span><span>Liefert an</span><span>Bemerkung</span><span />
+          <span /><span>Lieferant</span><span>Lieferzeit</span><span>Bestellschluss</span><span>Bestellen an</span><span>Liefert an</span><span>Bemerkung</span><span />
         </div>
         {liste.map((l, i) => (
           <div className={"ml-eintrag" + (offen === i ? " ml-eintrag--offen" : "")} key={i} data-mllieferant={l.name}>
             <div className="ml-li" role="row" tabIndex={0} data-mlzeile="" onClick={() => offenWahl(i)}
               onKeyDown={(e) => { if (e.key === "Enter" && e.target === e.currentTarget) offenWahl(i); }}>
+              <span className="ml-li__logo"><Logo lief={lieferantLogoDaten(l)} name={l.name} /></span>
               <span className="ml-li__name"><b>{l.name || "Neuer Lieferant"}</b>
                 {l.aliasText && <small>auch: {l.aliasText}</small>}</span>
               <span data-lbl="Lieferzeit">{tageText(l.tage)}</span>
@@ -89,6 +91,12 @@ export default function MaterialLieferanten({ nachSpeichern }) {
                   <span className="ml-wochentage">{WOCHENTAGE.map(([n, t]) => (
                     <button key={n} type="button" className={"ml-tag ml-tag--liefer" + ((l.liefertage || []).includes(n) ? " ml-tag--an" : "")}
                       onClick={() => tagUm(i, n, "liefertage")}>{t}</button>))}</span></div>
+                <label><small>Website (fürs Logo)</small>
+                  <input className="feld" value={l.website || ""} placeholder="z.B. steeltec.ch" aria-label="Website" data-mlwebsite=""
+                    onChange={(e) => setzen(i, "website", e.target.value)} /></label>
+                <label><small>Eigenes Logo (Bildadresse, freiwillig)</small>
+                  <input className="feld" value={l.logo || ""} placeholder="leer = Symbol der Website" aria-label="Eigenes Logo"
+                    onChange={(e) => setzen(i, "logo", e.target.value)} /></label>
                 <label className="ml-form__breit"><small>Bemerkung (Kontakt, Sortiment, Shop …)</small>
                   <textarea className="feld ml-notiz" rows={2} value={l.notiz || ""} aria-label="Bemerkung" data-mlnotiz=""
                     onChange={(e) => setzen(i, "notiz", e.target.value)} /></label>
@@ -104,7 +112,7 @@ export default function MaterialLieferanten({ nachSpeichern }) {
       </div>
       <div className="ml-knoepfe ml-knoepfe--links">
         <button className="knopf" id="ml-neu" onClick={() => {
-          setListe([...liste, { name: "", aliasText: "", tage: null, bestelltage: [], liefertage: [], schluss: "", notiz: "" }]);
+          setListe([...liste, { name: "", aliasText: "", tage: null, bestelltage: [], liefertage: [], schluss: "", notiz: "", website: "", logo: "" }]);
           setOffen(liste.length); setGeaendert(true); }}>+ Lieferant</button>
       </div>
       <p className="ml-hinweis">Der Name muss so im Feld „Menge vorhanden oder bestellt“ der Aufträge stehen

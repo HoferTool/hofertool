@@ -57,9 +57,29 @@ export async function lieferantenSpeichern(liste) {
     liefertage: [...new Set((l.liefertage || []).map(Number).filter((n) => n >= 1 && n <= 5))].sort(),
     schluss: /^\d{1,2}:\d{2}$/.test(String(l.schluss || "").trim()) ? String(l.schluss).trim() : "",
     notiz: String(l.notiz || "").trim(),
+    // Website und eigenes Logo (seit 1.524.0, Wunsch Patrick 13. November 2026:
+    // „im Planer das Logo der Lieferanten verwenden“); leer = aus der Bemerkung
+    website: String(l.website || "").trim(),
+    logo: String(l.logo || "").trim(),
   })).filter((l) => l.name);
   await konfigSchreiben(KONFIG, sauber);
   return sauber;
+}
+// Logo eines Material-Lieferanten wie in Bestellungen (Logo in bestellungen/teile.jsx):
+// eigenes Bild, sonst das Symbol der Website. Ohne Website nimmt es die erste
+// Adresse oder Mail-Domain aus der Bemerkung („schmobi.ch“, „…@kindlimann.ch“).
+export function lieferantLogoDaten(l) {
+  if (!l) return null;
+  let website = String(l.website || "").trim();
+  if (!website) {
+    const t = String(l.notiz || "");
+    const url = t.match(/https?:\/\/([a-z0-9.-]+\.[a-z]{2,})/i) || t.match(/\b((?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:ch|com|de|at|it|fr|eu|net))\b/i);
+    const mail = t.match(/@([a-z0-9.-]+\.[a-z]{2,})/i);
+    const host = (url && url[1]) || (mail && mail[1]) || "";
+    // Shop-Unterseiten auf die Firma kürzen (shop.pestalozzi-… → pestalozzi-…)
+    website = host.replace(/^(shop|www)\./i, "");
+  }
+  return { name: l.name, website, logo_url: String(l.logo || "").trim() };
 }
 export async function wahlLaden() { return (await konfigLesen(WAHL)) || {}; }
 export async function wahlSetzen(jobId, name) {

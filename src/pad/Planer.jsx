@@ -18,8 +18,9 @@ import { istPlanerTab, planerTabVerlassen, planerSichtbar } from "./planerTab.js
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { planwandFensterOeffnen } from "./PlanwandFenster.jsx";
 import { qsQuittieren } from "../daten/qs.js";
-import { planerLaden, zuBestellen, wahlSetzen, regelnLaden, regelnSpeichern, lieferbarText, todoNeu, todoHaken, todoAendern, todoLoeschen } from "../daten/planer.js";
+import { planerLaden, zuBestellen, wahlSetzen, regelnLaden, regelnSpeichern, lieferbarText, lieferantLogoDaten, todoNeu, todoHaken, todoAendern, todoLoeschen } from "../daten/planer.js";
 import MaterialLieferanten from "../einstellungen/MaterialLieferanten.jsx";
+import { Logo } from "../seiten/bestellungen/teile.jsx";
 
 export { planerSichtbar };
 
@@ -343,6 +344,7 @@ function Material({ d, e, neu }) {
         return (
           <div key={k} className="pl-lief" data-pllieferant={titel}>
             <div className="pl-lief__kopf">
+              {k.indexOf("__") !== 0 && <span className="pl-lief__logo"><Logo lief={lieferantLogoDaten(l || { name: k })} name={k} /></span>}
               <span className="pl-lief__name">{titel}</span>
               {lb && <span className="pl-marke pl-marke--grau">{lb}</span>}
               {k !== "__bestellt" && k !== "__offen" && !lb && <span className="pl-marke pl-marke--grau">Lieferzeit unbekannt</span>}
