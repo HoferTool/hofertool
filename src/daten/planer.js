@@ -104,6 +104,8 @@ function regelStuecke(text) {
     if (f && nach && /^\d+([.,]\d+)?$/.test(nach)) { st.push({ form: f, d: zahlWert(nach) }); i++; continue; }
     if (f && f !== "*") { st.push({ form: f }); continue; }
     if (f) continue;
+    // Werkstoffnummern wie 1.4305 sind kein Mass, sondern ein Wort
+    if (/^\d\.\d{4}$/.test(w[i])) { st.push({ wort: w[i] }); continue; }
     if (/^\d+([.,]\d+)?$/.test(w[i])) { st.push({ d: zahlWert(w[i]) }); continue; }
     st.push({ wort: w[i].replace(/[^a-z0-9.+-]/g, "") });
   }
@@ -306,7 +308,7 @@ export async function planerLaden(tage) {
     zeilen.push({ j, start, stand, z, bedarf, regel: regelFuer(j.material_bez, regeln), hatKg, fehltKg, rest, rahmen: istRahmen(j),
       maschine: j.maschine_nr || nrVon[j.machine_id] || "",
       kandidaten: z && verlauf[z.grund] ? Object.entries(verlauf[z.grund])
-        .sort((a, b) => b[1].zuletzt.localeCompare(a[1].zuletzt)).map(([n, e]) => ({ name: n, ...e })) : [] });
+        .sort((a, b) => b[1].anzahl - a[1].anzahl || b[1].zuletzt.localeCompare(a[1].zuletzt)).map(([n, e]) => ({ name: n, ...e })) : [] });
   }
   zeilen.sort((a, b) => a.start.localeCompare(b.start) || String(a.maschine).localeCompare(String(b.maschine), "de", { numeric: true }));
   lieferantenVerteilen(zeilen, lieferanten, wahl);
@@ -317,7 +319,7 @@ export async function planerLaden(tage) {
 }
 
 // Lieferant je Zeile: bestellt → aus dem Text; da → keiner; fehlt/offen
-// → von Hand gewählt, sonst gebündelt vorgeschlagen.
+// → Regel „immer bei“, sonst wo am häufigsten bestellt (Gleichstand: zuletzt).
 export function lieferantenVerteilen(zeilen, lieferanten, wahl) {
   const vonName = Object.fromEntries(lieferanten.map((l) => [l.name, l]));
   const offen = [];
@@ -331,32 +333,10 @@ export function lieferantenVerteilen(zeilen, lieferanten, wahl) {
     if (z.regel && z.regel.muss) { z.lieferant = z.regel.muss; z.quelle = "regel"; continue; }
     if (z.kandidaten.length) offen.push(z);
   }
-  // Zuerst zählen schon gewählte und bestellte Lieferanten: dort geht
-  // ohnehin eine Bestellung hin
-  const schonDa = new Set(zeilen.filter((z) => z.lieferant && z.stand !== "bestellt").map((z) => z.lieferant));
-  const rechtzeitig = (z, name) => {
-    const a = ankunft(vonName[name]);
-    return !a || a.da <= z.start;
-  };
-  let rest = offen.slice();
-  while (rest.length) {
-    const punkte = {};
-    for (const z of rest) for (const k of z.kandidaten) {
-      const p = (punkte[k.name] = punkte[k.name] || { name: k.name, n: 0, recht: 0, zuletzt: "" });
-      p.n++;
-      if (rechtzeitig(z, k.name)) p.recht++;
-      if (k.zuletzt > p.zuletzt) p.zuletzt = k.zuletzt;
-    }
-    const best = Object.values(punkte).sort((a, b) => (schonDa.has(b.name) - schonDa.has(a.name))
-      || b.n - a.n || b.recht - a.recht || b.zuletzt.localeCompare(a.zuletzt))[0];
-    if (!best) break;
-    schonDa.add(best.name);
-    rest = rest.filter((z) => {
-      if (!z.kandidaten.some((k) => k.name === best.name)) return true;
-      z.lieferant = best.name; z.quelle = "vorschlag";
-      return false;
-    });
-  }
+  // Ohne Regel (seit 1.516.0, Wunsch Patrick 13. November 2026): wo das Material am
+  // häufigsten bestellt wurde, bei Gleichstand zuletzt; die anderen als „auch“.
+  // Die Kandidaten sind schon so sortiert. Der Planer passt es mit Regeln an.
+  for (const z of offen) { z.lieferant = z.kandidaten[0].name; z.quelle = "vorschlag"; }
   for (const z of zeilen) {
     // „Kann auch bei“ einer Regel ist nur Info: nicht im Vorschlag
     if (z.quelle === "vorschlag" || z.quelle === "gewaehlt") z.auch = z.kandidaten.map((k) => k.name).filter((n) => n !== z.lieferant);

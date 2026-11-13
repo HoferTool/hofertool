@@ -387,49 +387,90 @@ function Tabelle({ zeilen, d, neu, mitLieferant }) {
 // Regel je Material: „muss bei“ und „kann auch bei“ (nur Info), vorgefüllt
 // mit dem Material ohne Toleranz; der Planer kürzt es selbst, etwa auf
 // „Messing Rohr“, damit es für jede Dimension gilt
-async function regelDialog(z, d, neu) {
+// Tipp aufs Lieferantenfeld öffnet direkt die Regel für das Material (seit 1.516.0, Wunsch
+// Patrick 13. November 2026): oben „Immer dort bestellen“ mit allen Lieferanten, darunter
+// „Kann dort bestellt werden“: jede Wahl im Auswahlmenü kommt als Schild ins Feld, dann die
+// nächste wählen und so weiter. Ohne Regel vorgefüllt mit dem Vorschlag aus dem Verlauf.
+function regelFenster(z, d, neu) {
+  fensterOeffnen((zu) => <RegelFenster z={z} d={d} neu={neu} zu={zu} />);
+}
+
+const materialOhneToleranz = (bez) => String(bez || "").replace(/\s*\|\s*$/, "")
+  .replace(/\b[hgfk]\d{1,2}\b/i, "").replace(/\s+/g, " ").trim();
+
+function RegelFenster({ z, d, neu, zu }) {
   const vorher = z.regel;
-  const material = vorher ? vorher.material
-    : String(z.j.material_bez || "").replace(/\s*\|\s*$/, "").replace(/\b[hgfk]\d{1,2}\b/i, "").replace(/\s+/g, " ").trim();
-  const namen = d.lieferanten.map((l) => [l.name, l.name]);
-  const w = await alt.dialogFelder({
-    titel: "Regel für Material",
-    text: "Gilt für jedes Material, in dem alle Wörter vorkommen. „Messing Rohr“ gilt für jedes Messing-Rohr, „Automatenstahl rd 24“ nur für Ø24, „ETG“ für alles mit ETG.",
-    felder: [
-      { name: "material", label: "Material", wert: material, pflicht: true },
-      { name: "muss", label: "Muss bestellt werden bei", wert: vorher ? vorher.muss : (z.lieferant || ""), auswahl: [["", "– keiner –"], ...namen] },
-      { name: "kann", label: "Kann auch bestellt werden bei (nur Info, nie im Vorschlag)", wert: vorher ? vorher.kann : [], mehrfach: namen },
-      ...(vorher ? [{ name: "weg", typ: "haken", label: "Regel löschen" }] : []),
-    ],
-    bestaetigen: "Regel speichern",
-  });
-  if (!w) return;
-  try {
-    const alle = (await regelnLaden()).filter((r) => !vorher || r.material !== vorher.material);
-    if (!w.weg) alle.push({ material: w.material, muss: w.muss, kann: w.kann });
-    await regelnSpeichern(alle);
-    alt.meldung(w.weg ? "Regel gelöscht." : "Regel gespeichert.", "gut");
-    neu();
-  } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+  const namen = d.lieferanten.map((l) => l.name);
+  const [material, setMaterial] = useState(vorher ? vorher.material : materialOhneToleranz(z.j.material_bez));
+  const [muss, setMuss] = useState(vorher ? vorher.muss || "" : (z.lieferant || ""));
+  const [kann, setKann] = useState(vorher ? (vorher.kann || []).filter((k) => k !== vorher.muss)
+    : z.kandidaten.map((k) => k.name).filter((n) => n !== z.lieferant));
+  const [laeuft, setLaeuft] = useState(false);
+  const anzahl = Object.fromEntries(z.kandidaten.map((k) => [k.name, k]));
+  const mitZahl = (n) => n + (anzahl[n] ? " (" + anzahl[n].anzahl + "× bestellt)" : "");
+  const frei = namen.filter((n) => n !== muss && !kann.includes(n));
+
+  const speichern = async (weg) => {
+    if (!weg && !material.trim()) { alt.meldung("Material eintragen.", "warn"); return; }
+    setLaeuft(true);
+    try {
+      const alle = (await regelnLaden()).filter((r) => !(vorher && r.material === vorher.material) && r.material !== material.trim());
+      if (!weg) alle.push({ material: material.trim(), muss, kann: kann.filter((k) => k !== muss) });
+      await regelnSpeichern(alle);
+      // Eine frühere Wahl von Hand für diesen Auftrag würde die Regel verdecken
+      if (z.quelle === "gewaehlt") await wahlSetzen(z.j.id, null);
+      alt.meldung(weg ? "Regel gelöscht." : "Regel gespeichert.", "gut");
+      zu(); neu();
+    } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); setLaeuft(false); }
+  };
+
+  return (
+    <div className="dialog pl-rf" id="pl-regelfenster">
+      <div className="dialog__kopf"><h2>Lieferant für {z.j.material_bez}</h2>
+        <button className="dialog__schliessen-inline" title="Schliessen" onClick={zu}>✕</button></div>
+      <label className="pl-rf__feld">
+        <span>Material</span>
+        <input type="text" value={material} onChange={(ev) => setMaterial(ev.target.value)} data-plrfmaterial="" />
+        <small>Gilt für jedes Material, in dem alle Wörter vorkommen: „Messing Rohr“ für jedes Messing-Rohr, „ETG“ für alles mit ETG.</small>
+      </label>
+      <label className="pl-rf__feld">
+        <span>Immer dort bestellen</span>
+        <select value={muss} onChange={(ev) => { const n = ev.target.value; setMuss(n); setKann((k) => k.filter((x) => x !== n)); }}
+          data-plrfmuss="">
+          <option value="">– keiner –</option>
+          {namen.map((n) => <option key={n} value={n}>{mitZahl(n)}</option>)}
+        </select>
+      </label>
+      <div className="pl-rf__feld">
+        <span>Kann dort bestellt werden <small>(nur Info)</small></span>
+        <div className="pl-rf__schilder" data-plrfkann="">
+          {kann.length === 0 && <em>noch keiner</em>}
+          {kann.map((n) => (
+            <span key={n} className="pl-rf__schild">{mitZahl(n)}
+              <button title="Entfernen" onClick={() => setKann((k) => k.filter((x) => x !== n))}>✕</button></span>
+          ))}
+        </div>
+        {frei.length > 0 && (
+          <select value="" onChange={(ev) => { const n = ev.target.value; if (n) setKann((k) => [...k, n]); }} data-plrfdazu="">
+            <option value="">+ Lieferant hinzufügen …</option>
+            {frei.map((n) => <option key={n} value={n}>{mitZahl(n)}</option>)}
+          </select>
+        )}
+      </div>
+      <div className="dialog__knoepfe">
+        {vorher && <button className="knopf knopf--gefahr-leise" disabled={laeuft} onClick={() => speichern(true)} data-plrfweg="">Regel löschen</button>}
+        <button className="knopf knopf--still" onClick={zu}>Abbrechen</button>
+        <button className="knopf knopf--haupt" disabled={laeuft} onClick={() => speichern(false)} data-plrfspeichern="">Speichern</button>
+      </div>
+    </div>
+  );
 }
 
 function LieferantWahl({ z, d, neu }) {
-  const waehlen = async () => {
-    const kand = new Set(z.kandidaten.map((k) => k.name));
-    const opt = [
-      ...z.kandidaten.map((k) => ({ wert: k.name, text: k.name + " (" + k.anzahl + "× bestellt" + (k.zuletzt ? ", zuletzt " + alt.kurzDatum(k.zuletzt) : "") + ")" })),
-      ...d.lieferanten.filter((l) => !kand.has(l.name)).map((l) => ({ wert: l.name, text: l.name })),
-    ];
-    if (z.quelle === "gewaehlt") opt.push({ wert: "__weg", text: "Vorschlag der App nehmen" });
-    opt.push({ wert: "__regel", text: z.regel ? "📌 Regel ändern: „" + z.regel.material + "“" : "📌 Regel für dieses Material …" });
-    const w = await alt.auswahlDialog("Lieferant für " + z.j.job_number, opt, z.j.material_bez);
-    if (!w) return;
-    if (w === "__regel") { await regelDialog(z, d, neu); return; }
-    try { await wahlSetzen(z.j.id, w === "__weg" ? null : w); neu(); } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
-  };
+  const waehlen = () => regelFenster(z, d, neu);
   return (
     <button className={"pl-lwahl" + (z.quelle === "gewaehlt" ? " pl-lwahl--fest" : "")} data-pllwahl={z.j.job_number} onClick={waehlen}
-      title="Lieferant wechseln">
+      title="Lieferant festlegen">
       {z.lieferant ? (z.quelle === "gewaehlt" ? "✓ " : z.quelle === "regel" ? "📌 " : "") + z.lieferant : "Lieferant wählen"}
       {z.auch.length > 0 && <small> auch: {z.auch.join(", ")}</small>}
       {z.kann.length > 0 && <small className="pl-kann" data-plkann=""> kann auch: {z.kann.join(", ")}</small>}

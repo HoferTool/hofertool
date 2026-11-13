@@ -27,6 +27,7 @@ DATEN = """;
     planned_from: tag, ended_at: '2026-01-01T10:00:00Z', material_bez: bez, material_menge: menge });
   alt('h1', '1.4305 rd 12 h9', '200 kg · Metalix 2026001111', '2026-05-01');
   alt('h2', '1.4305 rd 12 h9', '100 kg · Notz 2026001112', '2026-03-01');
+  alt('h4', '1.4305 rd 12 h9', '150 kg · Notz 2026001110', '2026-01-15');
   alt('h3', '11SMnPb30 rd 16', '100 kg · Notz 2026001113', '2026-04-01');
   TEST.daten.app_config = TEST.daten.app_config || [];
   TEST.daten.app_config.push({ schluessel: 'material_lieferanten', wert: JSON.stringify([
@@ -52,7 +53,7 @@ with sync_playwright() as p:
     zeile = lambda bez: pg.locator(".pl-zeile", has_text=bez).first
     notz = pg.locator("[data-pllieferant='Notz']")
     pruefe(notz.count() == 1, "Gruppe Notz da")
-    pruefe(notz.locator(".pl-zeile", has_text="1.4305 rd 12").count() == 1, "1.4305 rd 12 gebündelt bei Notz (obwohl zuletzt Metalix)")
+    pruefe(notz.locator(".pl-zeile", has_text="1.4305 rd 12").count() == 1, "1.4305 rd 12 bei Notz (2× Notz, nur 1× aber zuletzt Metalix)")
     pruefe(notz.locator(".pl-zeile", has_text="11SMnPb30").count() == 1, "11SMnPb30 bei Notz")
     pruefe("Metalix" in notz.locator(".pl-zeile", has_text="1.4305 rd 12").inner_text(), "„auch: Metalix“ steht dabei")
     rg = pg.locator("[data-pllieferant='Schmobi'] .pl-zeile", has_text="CuZn39Pb3 sw 10")
@@ -71,15 +72,25 @@ with sync_playwright() as p:
     pruefe(pg.locator(".pl-zeile", has_text="X10CrNiS18").count() == 0, "Material ganz da wird nicht gezeigt")
     pruefe(pg.locator("[data-pltodo='problem']").count() >= 1, "Problem im Todo")
     pruefe(pg.locator("[data-pltodo='eigen']").count() == 1, "eigenes Todo")
-    # Lieferant von Hand wählen
+    # Tipp aufs Lieferantenfeld: gleich das Regelfenster, vorgefüllt aus dem Verlauf
     notz.locator(".pl-zeile", has_text="1.4305 rd 12").locator("[data-pllwahl]").click()
-    pg.wait_for_selector(".statuswahl [data-w='Metalix']"); pg.click(".statuswahl [data-w='Metalix']"); pg.wait_for_timeout(800)
-    pruefe(pg.locator("[data-pllieferant='Metalix']", has_text="1.4305 rd 12").count() == 1, "von Hand auf Metalix gewechselt")
+    pg.wait_for_selector("#pl-regelfenster")
+    pruefe(pg.eval_on_selector("[data-plrfmuss]", "e => e.value") == "Notz", "Regelfenster: Immer dort = Notz vorgewählt")
+    pruefe("Metalix" in pg.inner_text("[data-plrfkann]"), "Regelfenster: Metalix bei Kann dort")
+    pg.select_option("[data-plrfmuss]", "Metalix")
+    pruefe("Metalix" not in pg.inner_text("[data-plrfkann]"), "Metalix aus Kann, wenn Immer dort")
+    pg.select_option("[data-plrfdazu]", "Schmobi")
+    pruefe("Schmobi" in pg.inner_text("[data-plrfkann]"), "Schmobi ins Feld Kann dort")
+    pg.select_option("[data-plrfdazu]", "Notz")
+    pruefe("Notz" in pg.inner_text("[data-plrfkann]") and pg.locator("[data-plrfdazu]").count() == 0, "Notz dazu, keiner mehr frei")
+    pg.wait_for_timeout(500); pg.screenshot(path=BILD + "/planer-regel.png")
+    pg.click("[data-plrfspeichern]"); pg.wait_for_timeout(900)
+    mz = pg.locator("[data-pllieferant='Metalix'] .pl-zeile", has_text="1.4305 rd 12")
+    pruefe(mz.count() == 1 and "📌" in mz.inner_text() and "kann auch: Schmobi, Notz" in mz.inner_text(), "Regel gespeichert: Metalix, kann auch Schmobi, Notz")
     # Regel aus der Zeile anlegen: 11SMnPb30 rd 16 muss bei Schmobi
     pg.locator(".pl-zeile", has_text="11SMnPb30 rd 16").locator("[data-pllwahl]").click()
-    pg.wait_for_selector(".statuswahl [data-w='__regel']"); pg.click(".statuswahl [data-w='__regel']")
-    pg.wait_for_selector(".dialog select"); pg.select_option(".dialog select", "Schmobi")
-    pg.click(".dialog [data-ja]"); pg.wait_for_timeout(900)
+    pg.wait_for_selector("#pl-regelfenster"); pg.select_option("[data-plrfmuss]", "Schmobi")
+    pg.click("[data-plrfspeichern]"); pg.wait_for_timeout(900)
     pruefe(pg.locator("[data-pllieferant='Schmobi']", has_text="11SMnPb30 rd 16").count() == 1, "Regel aus der Zeile: 11SMnPb30 → Schmobi")
     pruefe(pg.locator("[data-pllieferant='Schmobi'] [data-pllwahl]", has_text="📌").count() >= 1, "📌 zeigt die Regel")
     # Eigenes Todo anlegen

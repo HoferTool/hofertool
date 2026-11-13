@@ -13495,3 +13495,20 @@ body.pl-hell:not(.dunkel) #pad .pl-karte { background: #fff; }
 #pad .pl-reiter { padding-top: 12px; }
 #pad .pl-pw-huelle { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
 #pad .pl-pw-huelle[hidden] { display: none; }
+
+/* Planer: Regel je Material direkt am Lieferantenfeld (seit 1.516.0) */
+.pl-rf { width: min(560px, calc(100vw - 32px)); }
+.pl-rf__feld { display: flex; flex-direction: column; gap: 6px; margin: 0 0 16px; }
+.pl-rf__feld > span { font-weight: 600; }
+.pl-rf__feld > small { color: var(--leise, #6b7a90); }
+.pl-rf__feld select, .pl-rf__feld input { font: inherit; padding: 10px 12px; border-radius: 10px; border: 1px solid #c9d3e2; }
+.pl-rf__schilder { display: flex; flex-wrap: wrap; gap: 6px; min-height: 44px; padding: 6px; border: 1px solid #c9d3e2; border-radius: 10px; }
+.pl-rf__schilder em { color: #8a97ab; align-self: center; padding: 0 6px; }
+.pl-rf__schild { display: inline-flex; align-items: center; gap: 6px; padding: 6px 6px 6px 12px; border-radius: 999px; background: #e7eefb; color: #1b2638; font-weight: 600; }
+.pl-rf__schild button { border: none; background: #fff; border-radius: 50%; width: 26px; height: 26px; cursor: pointer; color: #c0392b; }
+body.dunkel .pl-rf__schild { background: #2a3a55; }
+body.dunkel .pl-rf__schild button { background: #1b2638; }
+body.dunkel .pl-rf__feld select, body.dunkel .pl-rf__feld input, body.dunkel .pl-rf__schilder { border-color: #3a4a66; }
+.pl-rf .dialog__kopf { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.pl-rf .dialog__kopf h2 { margin: 0; font-size: 1.25rem; }
+.pl-rf .dialog__schliessen-inline { flex: none; width: 40px; height: 40px; }
