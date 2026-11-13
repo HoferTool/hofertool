@@ -13,6 +13,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Planwand from "../seiten/Planwand.jsx";
 import { alt } from "../bruecke.jsx";
+import { padZurueck } from "./Pad.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { planwandFensterOeffnen } from "./PlanwandFenster.jsx";
 import { qsQuittieren } from "../daten/qs.js";
@@ -36,15 +37,17 @@ export async function planerSichtLaden() {
 
 // Reiter oben im Planer (seit 1.511.0, Wunsch Patrick 13. November 2026: „Planwand soll auch oben
 // aufgelistet sein … schön gross mit allen Funktionen … umschaltbar wieder aufs Dashboard“).
-function Reiter({ e, neu }) {
-  const wahl = (r) => { if (e.reiter !== r) { e.reiter = r; neu(); } };
-  const an = e.reiter === "planwand" ? "planwand" : "uebersicht";
+// Seit 1.515.0 ganz oben ohne Kopfzeile (Patrick: „das Zurück und Schliessen, Neu laden braucht
+// es nicht, beim Dashboard hast du mehr Platz“). Escape geht weiter einen Schritt zurück über
+// den unsichtbaren Knopf mit data-padzurueck.
+function Reiter({ an, wahl }) {
   return (
     <div className="pl-reiter" role="tablist">
       <button role="tab" className={"pl-reiter__knopf" + (an === "uebersicht" ? " pl-reiter__knopf--an" : "")}
         data-plreiter="uebersicht" onClick={() => wahl("uebersicht")}>📋 Dashboard</button>
       <button role="tab" className={"pl-reiter__knopf" + (an === "planwand" ? " pl-reiter__knopf--an" : "")}
         data-plreiter="planwand" onClick={() => wahl("planwand")}>🗓️ Planwand</button>
+      <button hidden data-padzurueck="" onClick={padZurueck} />
     </div>
   );
 }
@@ -82,24 +85,54 @@ const STAND = {
   fehlt: ["fehlt", "rot"], offen: ["offen", "rot"], teil: ["fehlen noch", "orange"], bestellt: ["bestellt", "blau"], da: ["da", "gruen"],
 };
 
-export default function Planer({ d, Kopf, neu }) {
+export default function Planer({ d, neu }) {
   const e = einst();
   const um = (aendern) => { aendern(e); neu(); };
   useHell();
-  // Nach d, nicht nach e: beim Umschalten steht bis zum Laden noch die alte Ansicht da.
-  if (d.reiter === "planwand") {
-    return (
-      <>
-        <Kopf titel="Planer" zurueck />
-        <Reiter e={e} neu={neu} />
-        <PlanwandReiter />
-      </>
-    );
-  }
+  // Schneller Wechsel (seit 1.515.0, Wunsch Patrick 13. November 2026: „das Wechseln von Reiter
+  // zu Reiter soll schneller sein“): der Reiter wechselt hier, ohne das Pad neu zu laden. Die
+  // Planwand bleibt nach dem ersten Öffnen aufgebaut (nur verborgen), das Dashboard zeigt sofort
+  // den letzten Stand und frischt still im Hintergrund auf.
+  const [reiter, setReiter] = useState(e.reiter === "planwand" ? "planwand" : "uebersicht");
+  const [pwDa, setPwDa] = useState(reiter === "planwand");
+  const [dash, setDash] = useState(d.reiter === "planwand" ? null : d);
+  const lauf = useRef(0);
+  useEffect(() => { if (d.reiter !== "planwand") { lauf.current++; setDash(d); } }, [d]);
+  const dashHolen = () => {
+    const nr = ++lauf.current;
+    planerLaden(e.tage).then((x) => { if (nr === lauf.current) setDash({ art: "planer", ...x }); },
+      (f) => { if (nr === lauf.current) alt.meldung(alt.fehlertext(f), "fehler"); });
+  };
+  // Mit der Planwand gestartet: das Dashboard kurz danach schon vorladen
+  useEffect(() => {
+    if (dash) return undefined;
+    const t = setTimeout(dashHolen, 1200);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const wahl = (r) => {
+    if (r === reiter) return;
+    e.reiter = r;
+    setReiter(r);
+    if (r === "planwand") {
+      setPwDa(true);
+      // Die verborgene Tafel misst ihre Höhe neu
+      requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
+    } else dashHolen();
+  };
   return (
     <>
-      <Kopf titel="Planer" zurueck />
-      <Reiter e={e} neu={neu} />
+      <Reiter an={reiter} wahl={wahl} />
+      {pwDa && <div className="pl-pw-huelle" hidden={reiter !== "planwand"}><PlanwandReiter /></div>}
+      {reiter === "uebersicht" && !dash && <div className="pad__laedt">Wird geladen …</div>}
+      {reiter === "uebersicht" && dash && <Dashboard d={dash} e={e} um={um} neu={neu} />}
+    </>
+  );
+}
+
+function Dashboard({ d, e, um, neu }) {
+  return (
+    <>
       <div className="pl" id="pad-planer">
         <Todos d={d} neu={neu} />
         <section className="pl-karte pl-material">

@@ -13490,3 +13490,8 @@ body.pl-hell:not(.dunkel) #pad .pl-punkt { border-color: rgba(0, 0, 0, .2); }
 #pad .pl-planwand .pad-pw__buehne #pw-inhalt .pw-rolle { height: calc(100dvh - var(--pw-oben, 220px) - 40px); }
 body.pl-hell:not(.dunkel) #pad .pl { color: #1b2638; }
 body.pl-hell:not(.dunkel) #pad .pl-karte { background: #fff; }
+
+/* Planer: Reiter ganz oben ohne Kopfzeile, Planwand bleibt verborgen aufgebaut (seit 1.515.0) */
+#pad .pl-reiter { padding-top: 12px; }
+#pad .pl-pw-huelle { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+#pad .pl-pw-huelle[hidden] { display: none; }
