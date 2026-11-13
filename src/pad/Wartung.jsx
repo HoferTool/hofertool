@@ -49,6 +49,7 @@
 //  „Internet“).
 // =================================================================
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { betrachter } from "../teile/Betrachter.jsx";
@@ -508,8 +509,10 @@ function TextFenster({ titel: t0, inhalt: i0, fmt: f0, knopf, fertig }) {
   const [titel, setTitel] = useState(t0 || "");
   const [text, setText] = useState({ t: i0 || "", f: f0 || null });
   const leer = !titel.trim() || !text.t.trim();
+  const [vorschau, setVorschau] = useState(false);
   return (
     <div className="dialog dialog--breit wartung wartung-schreiben" id="wartung-schreiben">
+      {vorschau && <SchonerVorschau w={{ titel: titel.trim(), inhalt: text.t, inhalt_fmt: text.f }} zu={() => setVorschau(false)} />}
       <div className="blatt__kopf">
         <h2>Wartung mit Text</h2>
         <button className="knopf knopf--still" data-nein="" onClick={() => fertig(null)}>Abbrechen</button>
@@ -524,12 +527,38 @@ function TextFenster({ titel: t0, inhalt: i0, fmt: f0, knopf, fertig }) {
           aendern={(t, f) => setText({ t, f })} />
       </div>
       <div className="wartung-schreiben__fuss">
+        <button className="knopf" id="wartung-schreiben-vorschau" disabled={!text.t.trim()}
+          onClick={() => setVorschau(true)}>Vorschau</button>
         <button className="knopf knopf--haupt" id="wartung-schreiben-ok" disabled={leer}
           onClick={() => fertig({ titel: titel.trim(), inhalt: text.t, inhalt_fmt: text.f })}>{knopf || "Weiter"}</button>
       </div>
     </div>
   );
 }
+// Vorschau im Schreibfenster: zeigt den Text genau so, wie ihn der
+// Bildschirmschoner an der Maschine zeigt (gleiche Klassen), damit man
+// vor dem Speichern sieht, ob Grösse und Farben passen. Ein Tipp,
+// „Schliessen“ oder Escape führt zurück ins Schreiben, nur diese Ebene.
+function SchonerVorschau({ w, zu }) {
+  useEffect(() => {
+    const taste = (e) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      e.preventDefault(); e.stopImmediatePropagation(); zu();
+    };
+    window.addEventListener("keydown", taste, true);
+    return () => window.removeEventListener("keydown", taste, true);
+  }, [zu]);
+  return createPortal(
+    <div className="pad-schoner pad-schoner--wartung wartung-schoner-vorschau" id="wartung-schoner-vorschau"
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); zu(); }}>
+      <div className="pad-schoner__blatt"><WartungText w={w} gross className="pad-schoner__text" /></div>
+      <div className="pad-schoner__wartung-titel">Wartung fällig: {w.titel || "…"}</div>
+      <div className="wartung-schoner-vorschau__schild">Vorschau · so erscheint es an der Maschine</div>
+      <button type="button" className="pad-schoner__erledigt" id="wartung-schoner-vorschau-zu">Schliessen</button>
+    </div>,
+    document.body);
+}
+
 export function textSchreiben({ titel, inhalt, fmt, knopf } = {}) {
   return new Promise((fertig) => {
     let ende = false;

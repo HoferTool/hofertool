@@ -57,6 +57,18 @@ with sync_playwright() as p:
     pruefe("markierter Text rot, fett, 22px", "e03030" in h.lower() or "224, 48, 48" in h)
     pruefe("Grösse 22", "22px" in h)
     if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-text-schreiben.png"))
+    # Vorschau wie der Bildschirmschoner
+    pg.click("#wartung-schreiben-vorschau"); pg.wait_for_timeout(300)
+    pruefe("Vorschau offen", pg.locator("#wartung-schoner-vorschau").is_visible())
+    pruefe("Vorschau zeigt formatierten Text", "22px" in pg.inner_html("#wartung-schoner-vorschau .wartung-text"))
+    if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-text-vorschau.png"))
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    pruefe("Escape schliesst nur die Vorschau", pg.locator("#wartung-schoner-vorschau").count() == 0
+           and pg.locator("#wartung-schreiben").is_visible())
+    pg.click("#wartung-schreiben-vorschau"); pg.wait_for_timeout(300)
+    pg.click("#wartung-schoner-vorschau-zu"); pg.wait_for_timeout(300)
+    pruefe("Schliessen führt zurück", pg.locator("#wartung-schoner-vorschau").count() == 0
+           and pg.locator("#wartung-schreiben").is_visible())
     pg.click("#wartung-schreiben-ok"); pg.wait_for_timeout(400)
     pg.evaluate("""() => { const d = new Date(Date.now() - 60000), z = (n) => String(n).padStart(2, '0');
       const el = document.querySelector('.dialog-huelle:nth-last-child(1 of .dialog-huelle) input[type=datetime-local]');

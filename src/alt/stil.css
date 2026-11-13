@@ -13533,7 +13533,7 @@ body.dunkel .pl-rf__feld select, body.dunkel .pl-rf__feld input, body.dunkel .pl
 .wartung-schreiben__text { min-height: 300px; max-height: 60vh; overflow: auto; padding: 14px 16px;
   border: 2px solid #c9d2dc; border-radius: 10px; cursor: text; }
 .wartung-schreiben__text:focus { border-color: #1f6feb; outline: none; }
-.wartung-schreiben__fuss { display: flex; justify-content: flex-end; }
+.wartung-schreiben__fuss { display: flex; justify-content: flex-end; gap: 10px; }
 body.dunkel .wartung-schreiben__leiste { background: #161b22; }
 
 /* Material-Lieferanten als Liste (seit 1.519.0, Patrick 13. November 2026:
@@ -13624,3 +13624,8 @@ body.pw-vollbild .inhalt { margin: 0 !important; max-width: none !important;
                            padding: 6px 10px 0 !important; }
 /* Auch der schwebende Knopf „Pad Mode“ gehört nicht ins Vollbild */
 body.pw-vollbild #werkzeugleiste { display: none !important; }
+
+/* Vorschau im Schreibfenster der Wartung (seit 1.523.0): über allen Fenstern */
+.wartung-schoner-vorschau { z-index: 100000; cursor: pointer; }
+.wartung-schoner-vorschau__schild { position: absolute; top: 18px; right: 18px; z-index: 3;
+  background: #f5a623; color: #1b1b1b !important; font-weight: 700; padding: 6px 14px; border-radius: 999px; font-size: 15px; }
