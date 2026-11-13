@@ -10,12 +10,13 @@
 //  (Tabelle planer_todos). Rechts das Material der nächsten Aufträge,
 //  nach Lieferant gebündelt (Rechnung in src/daten/planer.js).
 // =================================================================
-import { useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import Planwand from "../seiten/Planwand.jsx";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { planwandFensterOeffnen } from "./PlanwandFenster.jsx";
 import { qsQuittieren } from "../daten/qs.js";
-import { planerLaden, zuBestellen, wahlSetzen, lieferbarText, todoNeu, todoHaken, todoAendern, todoLoeschen } from "../daten/planer.js";
+import { planerLaden, zuBestellen, wahlSetzen, regelnLaden, regelnSpeichern, lieferbarText, todoNeu, todoHaken, todoAendern, todoLoeschen } from "../daten/planer.js";
 import MaterialLieferanten from "../einstellungen/MaterialLieferanten.jsx";
 
 export const planerSichtbar = () => alt.istAdmin() && !alt.istExtern();
@@ -41,7 +42,7 @@ function Reiter({ e, neu }) {
   return (
     <div className="pl-reiter" role="tablist">
       <button role="tab" className={"pl-reiter__knopf" + (an === "uebersicht" ? " pl-reiter__knopf--an" : "")}
-        data-plreiter="uebersicht" onClick={() => wahl("uebersicht")}>📋 Übersicht</button>
+        data-plreiter="uebersicht" onClick={() => wahl("uebersicht")}>📋 Dashboard</button>
       <button role="tab" className={"pl-reiter__knopf" + (an === "planwand" ? " pl-reiter__knopf--an" : "")}
         data-plreiter="planwand" onClick={() => wahl("planwand")}>🗓️ Planwand</button>
     </div>
@@ -49,10 +50,29 @@ function Reiter({ e, neu }) {
 }
 
 // Die ganze Planwand wie auf der Seite Planwand, mit allen Knöpfen, über die volle Fläche.
+// Wie das Fenster nach Tipp auf eine HOCO Nr. (PlanwandFenster.jsx):
+// dieselbe Seite wie im Menü mit Kopfleiste, auf einer hellen Karte
+// (Patrick 13. November 2026: „so gefällt es mir, die Ansicht gerne so“)
 function PlanwandReiter() {
   const ref = useRef(null);
-  useLayoutEffect(() => { alt.seitePlanwand(ref.current); }, []);
-  return <div className="pad__rolle pad--wischen pl-planwand" id="pad-planer-planwand" ref={ref} />;
+  const [b, setB] = useState(null);
+  useLayoutEffect(() => { setB(ref.current); }, []);
+  return (
+    <div className="pl-planwand" id="pad-planer-planwand">
+      <div className="dialog pad-pw pl-pw-karte">
+        <div className="pad-pw__buehne" ref={ref}>{b && <Planwand behaelter={b} />}</div>
+      </div>
+    </div>
+  );
+}
+
+// Der Planer ist hell, ausser im dunklen Modus (Wunsch Patrick
+// 13. November 2026: „hell, nicht so bläulich wie das restliche Pad“)
+function useHell() {
+  useEffect(() => {
+    document.body.classList.add("pl-hell");
+    return () => document.body.classList.remove("pl-hell");
+  }, []);
 }
 
 const TAGE = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
@@ -65,6 +85,7 @@ const STAND = {
 export default function Planer({ d, Kopf, neu }) {
   const e = einst();
   const um = (aendern) => { aendern(e); neu(); };
+  useHell();
   // Nach d, nicht nach e: beim Umschalten steht bis zum Laden noch die alte Ansicht da.
   if (d.reiter === "planwand") {
     return (
@@ -161,9 +182,11 @@ function Todos({ d, neu }) {
       haken: async () => { try { await todoHaken(t, !t.erledigt_am); neu(); } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); } },
       auf: () => todoBearbeiten(t, neu) });
   }
-  // Probleme zuerst, dann die eigenen, dann was von selbst kommt
-  const RANG = { problem: 0, eigen: 1, qs: 2, m: 3, wbg: 4 };
-  posten.sort((a, b) => RANG[a.art] - RANG[b.art] || (!!a.erledigt - !!b.erledigt) || a.sort.localeCompare(b.sort));
+  // Gemeldete (Probleme, QS) zuerst, gleich darunter die eigenen, dann was
+  // von selbst kommt; Erledigtes ganz unten (Patrick 13. November 2026:
+  // „eigene sollen gleich unter den gemeldeten kommen“)
+  const RANG = { problem: 0, qs: 1, eigen: 2, m: 3, wbg: 4 };
+  posten.sort((a, b) => (!!a.erledigt - !!b.erledigt) || RANG[a.art] - RANG[b.art] || a.sort.localeCompare(b.sort));
   const offen = posten.filter((p) => !p.erledigt).length;
   const z = {
     prob: posten.filter((p) => p.art === "problem").length,
@@ -275,6 +298,7 @@ function Material({ d, e, neu }) {
               {fehlt.length > 0 && k.indexOf("__") !== 0 && <button className="pl-knopf" data-plkopieren={k}
                 onClick={() => listeKopieren(k, fehlt)}>⧉ Liste kopieren</button>}
             </div>
+            {l && l.notiz && <div className="pl-lief__notiz" data-plnotiz="">{l.notiz}</div>}
             <Tabelle zeilen={liste} d={d} neu={neu} mitLieferant={k === "__offen"} />
           </div>
         );
@@ -327,6 +351,35 @@ function Tabelle({ zeilen, d, neu, mitLieferant }) {
   );
 }
 
+// Regel je Material: „muss bei“ und „kann auch bei“ (nur Info), vorgefüllt
+// mit dem Material ohne Toleranz; der Planer kürzt es selbst, etwa auf
+// „Messing Rohr“, damit es für jede Dimension gilt
+async function regelDialog(z, d, neu) {
+  const vorher = z.regel;
+  const material = vorher ? vorher.material
+    : String(z.j.material_bez || "").replace(/\s*\|\s*$/, "").replace(/\b[hgfk]\d{1,2}\b/i, "").replace(/\s+/g, " ").trim();
+  const namen = d.lieferanten.map((l) => [l.name, l.name]);
+  const w = await alt.dialogFelder({
+    titel: "Regel für Material",
+    text: "Gilt für jedes Material, in dem alle Wörter vorkommen. „Messing Rohr“ gilt für jedes Messing-Rohr, „Automatenstahl rd 24“ nur für Ø24, „ETG“ für alles mit ETG.",
+    felder: [
+      { name: "material", label: "Material", wert: material, pflicht: true },
+      { name: "muss", label: "Muss bestellt werden bei", wert: vorher ? vorher.muss : (z.lieferant || ""), auswahl: [["", "– keiner –"], ...namen] },
+      { name: "kann", label: "Kann auch bestellt werden bei (nur Info, nie im Vorschlag)", wert: vorher ? vorher.kann : [], mehrfach: namen },
+      ...(vorher ? [{ name: "weg", typ: "haken", label: "Regel löschen" }] : []),
+    ],
+    bestaetigen: "Regel speichern",
+  });
+  if (!w) return;
+  try {
+    const alle = (await regelnLaden()).filter((r) => !vorher || r.material !== vorher.material);
+    if (!w.weg) alle.push({ material: w.material, muss: w.muss, kann: w.kann });
+    await regelnSpeichern(alle);
+    alt.meldung(w.weg ? "Regel gelöscht." : "Regel gespeichert.", "gut");
+    neu();
+  } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+}
+
 function LieferantWahl({ z, d, neu }) {
   const waehlen = async () => {
     const kand = new Set(z.kandidaten.map((k) => k.name));
@@ -335,15 +388,18 @@ function LieferantWahl({ z, d, neu }) {
       ...d.lieferanten.filter((l) => !kand.has(l.name)).map((l) => ({ wert: l.name, text: l.name })),
     ];
     if (z.quelle === "gewaehlt") opt.push({ wert: "__weg", text: "Vorschlag der App nehmen" });
+    opt.push({ wert: "__regel", text: z.regel ? "📌 Regel ändern: „" + z.regel.material + "“" : "📌 Regel für dieses Material …" });
     const w = await alt.auswahlDialog("Lieferant für " + z.j.job_number, opt, z.j.material_bez);
     if (!w) return;
+    if (w === "__regel") { await regelDialog(z, d, neu); return; }
     try { await wahlSetzen(z.j.id, w === "__weg" ? null : w); neu(); } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
   };
   return (
     <button className={"pl-lwahl" + (z.quelle === "gewaehlt" ? " pl-lwahl--fest" : "")} data-pllwahl={z.j.job_number} onClick={waehlen}
       title="Lieferant wechseln">
-      {z.lieferant ? (z.quelle === "gewaehlt" ? "✓ " : "") + z.lieferant : "Lieferant wählen"}
+      {z.lieferant ? (z.quelle === "gewaehlt" ? "✓ " : z.quelle === "regel" ? "📌 " : "") + z.lieferant : "Lieferant wählen"}
       {z.auch.length > 0 && <small> auch: {z.auch.join(", ")}</small>}
+      {z.kann.length > 0 && <small className="pl-kann" data-plkann=""> kann auch: {z.kann.join(", ")}</small>}
     </button>
   );
 }

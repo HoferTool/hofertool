@@ -22,13 +22,14 @@ import { materialZerlegen, materialDatenLaden, bedarfRechnen, startSchaetzen, is
 export const LIEFERANTEN_VORGABE = [
   { name: "Notz", aliase: ["Notzi"] }, { name: "Metalix" }, { name: "Steeltec", aliase: ["Steelttec"] },
   { name: "Prometall", aliase: ["Pormetall"] }, { name: "Schmobi", aliase: ["Schmob"] }, { name: "Klein" },
-  { name: "Kindlimann" }, { name: "Allega" }, { name: "Böhler", aliase: ["Boehler"] }, { name: "Pfenninger" },
-  { name: "Thyssen" }, { name: "Bibus" }, { name: "Prexa" }, { name: "Looser" }, { name: "Capo" }, { name: "Cellpack" },
+  { name: "Kindlimann" }, { name: "Allega" }, { name: "Voestalpine", aliase: ["Böhler", "Boehler"] }, { name: "Pfenninger" },
+  { name: "Thyssenkrupp", aliase: ["Thyssen"] }, { name: "Bibus" }, { name: "Prexa" }, { name: "Looser" }, { name: "Capo" }, { name: "Cellpack" },
 ];
 export const WOCHENTAGE = [[1, "Mo"], [2, "Di"], [3, "Mi"], [4, "Do"], [5, "Fr"]];
 
 const KONFIG = "material_lieferanten";
 const WAHL = "planer_lieferant_wahl";
+const REGELN = "material_regeln";
 
 async function konfigLesen(schluessel) {
   const r = await alt.db.from("app_config").select("wert").eq("schluessel", schluessel).maybeSingle();
@@ -51,6 +52,9 @@ export async function lieferantenSpeichern(liste) {
     aliase: (l.aliase || []).map((a) => String(a).trim()).filter(Boolean),
     tage: l.tage === "" || l.tage === null || l.tage === undefined || !isFinite(Number(l.tage)) ? null : Math.max(0, Math.round(Number(l.tage))),
     bestelltage: (l.bestelltage || []).map(Number).filter((n) => n >= 1 && n <= 5).sort(),
+    // An welchen Tagen der Lieferant zu uns liefert (seit 1.514.0, Liste
+    // „Liefertage Rohmaterial-Lieferanten“ von Patrick); alle fünf = täglich
+    liefertage: [...new Set((l.liefertage || []).map(Number).filter((n) => n >= 1 && n <= 5))].sort(),
     schluss: /^\d{1,2}:\d{2}$/.test(String(l.schluss || "").trim()) ? String(l.schluss).trim() : "",
     notiz: String(l.notiz || "").trim(),
   })).filter((l) => l.name);
@@ -62,6 +66,73 @@ export async function wahlSetzen(jobId, name) {
   const w = await wahlLaden();
   if (name) w[jobId] = name; else delete w[jobId];
   await konfigSchreiben(WAHL, w);
+}
+
+// ---------- Regeln je Material (seit 1.514.0) ----------
+// Wunsch Patrick 13. November 2026: manches Material gibt es nur bei einem
+// Lieferanten, anderes wurde nur im Notfall woanders bestellt. Eine Regel
+// sagt „muss bei“ (gilt für den Vorschlag) und „kann auch bei“ (nur zur
+// Info, nie für den Vorschlag). Beispiele: „ETG“ → Steeltec, „Neusilber
+// Rohr“ → Metalix, „Messing Rohr“ → Prometall, „Automatenstahl rd 24“ →
+// Steeltec. Gespeichert in app_config.material_regeln
+// [{material, muss, kann: []}].
+export async function regelnLaden() {
+  const r = await konfigLesen(REGELN).catch(() => null);
+  return Array.isArray(r) ? r : [];
+}
+export async function regelnSpeichern(liste) {
+  const sauber = liste.map((r) => ({
+    material: String(r.material || "").replace(/\s+/g, " ").trim(),
+    muss: String(r.muss || "").trim(),
+    kann: [...new Set((r.kann || []).map((k) => String(k).trim()).filter(Boolean))],
+  })).filter((r) => r.material && (r.muss || r.kann.length));
+  await konfigSchreiben(REGELN, sauber);
+  return sauber;
+}
+const FORM_WORT = { rd: "rd", rund: "rd", rohr: "rohr", "6kt": "6kt", sechskant: "6kt", sk: "6kt", "4kt": "4kt", vierkant: "4kt", vk: "4kt", fl: "fl", flach: "fl" };
+const zahlWert = (t) => Number(String(t).replace(",", "."));
+// Stücke der Regel: Form („rohr“), Form mit Mass („rd 24“, „Ø24“), Mass
+// allein, sonst Wörter, die in der Bezeichnung oder im Namen der
+// Werkstoffgruppe stehen (Neusilber, Messing, Automatenstahl …)
+function regelStuecke(text) {
+  const t = klein(text).replace(/ø/g, " ø ").replace(/\b(rd|rund|rohr|6kt|sechskant|sk|4kt|vierkant|vk|fl|flach)(\d)/g, "$1 $2");
+  const w = t.split(/[\s,;]+/).filter(Boolean);
+  const st = [];
+  for (let i = 0; i < w.length; i++) {
+    const f = FORM_WORT[w[i]] || (w[i] === "ø" ? "*" : null);
+    const nach = w[i + 1];
+    if (f && nach && /^\d+([.,]\d+)?$/.test(nach)) { st.push({ form: f, d: zahlWert(nach) }); i++; continue; }
+    if (f && f !== "*") { st.push({ form: f }); continue; }
+    if (f) continue;
+    if (/^\d+([.,]\d+)?$/.test(w[i])) { st.push({ d: zahlWert(w[i]) }); continue; }
+    st.push({ wort: w[i].replace(/[^a-z0-9.+-]/g, "") });
+  }
+  return st.filter((x) => x.wort !== "");
+}
+export function regelPasst(regel, bez) {
+  const z = materialZerlegen(bez);
+  if (!z) return false;
+  const st = regelStuecke(regel.material);
+  if (!st.length) return false;
+  const text = klein(bez).replace(/\s+/g, " ");
+  const g = alt.werkstoffErkennen ? alt.werkstoffErkennen(bez) : null;
+  const gruppe = g ? klein(g.name || "") + " " + (g.key || "") : "";
+  return st.every((x) => {
+    if (x.form && x.form !== "*" && z.form !== x.form) return false;
+    if (x.d !== undefined && z.d !== x.d) return false;
+    if (x.wort) return text.includes(x.wort) || gruppe.includes(x.wort);
+    return true;
+  });
+}
+// Die genauste passende Regel (mit den meisten Stücken)
+export function regelFuer(bez, regeln) {
+  let best = null, n = -1;
+  for (const r of regeln || []) {
+    if (!regelPasst(r, bez)) continue;
+    const k = regelStuecke(r.material).length;
+    if (k > n) { best = r; n = k; }
+  }
+  return best;
 }
 
 // ---------- Text lesen ----------
@@ -140,14 +211,29 @@ export function ankunft(l, jetzt) {
   if ((l.bestelltage || []).length) {
     for (let i = 0; i < 10 && !l.bestelltage.includes(new Date(tag + "T12:00:00").getDay()); i++) tag = werktagPlus(tag, 1);
   }
-  return { bestellen: tag, da: werktagPlus(tag, l.tage) };
+  let da = werktagPlus(tag, l.tage);
+  // Kommt erst am nächsten Liefertag des Lieferanten
+  if ((l.liefertage || []).length) {
+    for (let i = 0; i < 10 && !l.liefertage.includes(new Date(da + "T12:00:00").getDay()); i++) da = werktagPlus(da, 1);
+  }
+  return { bestellen: tag, da };
+}
+
+const tagName = (n) => WOCHENTAGE.find((w) => w[0] === n)[1];
+// „liefert täglich“, „liefert Di, Do“, leer = unbekannt
+export function liefertageText(l) {
+  const t = (l && l.liefertage) || [];
+  if (!t.length) return "";
+  return "liefert " + (t.length === 5 ? "täglich" : t.map(tagName).join(", "));
 }
 
 export function lieferbarText(l) {
   if (!l) return "";
   const t = [];
   if (l.tage !== null && l.tage !== undefined) t.push(l.tage === 0 ? "sofort lieferbar" : "Lieferbar " + l.tage + (l.tage === 1 ? " Arbeitstag" : " Arbeitstage"));
-  if ((l.bestelltage || []).length && l.bestelltage.length < 5) t.push("bestellen nur " + l.bestelltage.map((n) => WOCHENTAGE.find((w) => w[0] === n)[1]).join(", "));
+  if ((l.bestelltage || []).length && l.bestelltage.length < 5) t.push("bestellen nur " + l.bestelltage.map(tagName).join(", "));
+  const lt = liefertageText(l);
+  if (lt) t.push(lt);
   if (l.schluss) t.push("bis " + l.schluss);
   return t.join(" · ");
 }
@@ -157,8 +243,9 @@ export function lieferbarText(l) {
 export async function planerLaden(tage) {
   const heute = heuteIso();
   const bis = werktagPlus(heute, tage || 10);
-  const [lieferanten, wahl, offenR, histR, qsR, todoR, maschinen] = await Promise.all([
+  const [lieferanten, regeln, wahl, offenR, histR, qsR, todoR, maschinen] = await Promise.all([
     lieferantenLaden(),
+    regelnLaden(),
     wahlLaden().catch(() => ({})),
     alt.db.from("planwand").select("*").is("ended_at", null),
     // Verlauf: in welchem Auftrag welches Material wo bestellt wurde
@@ -216,7 +303,7 @@ export async function planerLaden(tage) {
     if (status !== "geplant" && stand === "bestellt") continue;
     const rest = material && z ? (material.posten || []).filter((p) => p.art === "lager" && !p.weg_am
       && (materialZerlegen(p.material) || {}).grund === z.grund) : [];
-    zeilen.push({ j, start, stand, z, bedarf, hatKg, fehltKg, rest, rahmen: istRahmen(j),
+    zeilen.push({ j, start, stand, z, bedarf, regel: regelFuer(j.material_bez, regeln), hatKg, fehltKg, rest, rahmen: istRahmen(j),
       maschine: j.maschine_nr || nrVon[j.machine_id] || "",
       kandidaten: z && verlauf[z.grund] ? Object.entries(verlauf[z.grund])
         .sort((a, b) => b[1].zuletzt.localeCompare(a[1].zuletzt)).map(([n, e]) => ({ name: n, ...e })) : [] });
@@ -224,7 +311,7 @@ export async function planerLaden(tage) {
   zeilen.sort((a, b) => a.start.localeCompare(b.start) || String(a.maschine).localeCompare(String(b.maschine), "de", { numeric: true }));
   lieferantenVerteilen(zeilen, lieferanten, wahl);
 
-  return { heute, bis, tage, lieferanten, wahl, zeilen, offen, nrVon,
+  return { heute, bis, tage, lieferanten, regeln, wahl, zeilen, offen, nrVon,
     qs: qsR.error ? [] : (qsR.data || []).filter((q) => !q.quittiert_am),
     todos: todoR.error ? null : (todoR.data || []) };
 }
@@ -236,9 +323,12 @@ export function lieferantenVerteilen(zeilen, lieferanten, wahl) {
   const offen = [];
   for (const z of zeilen) {
     z.lieferant = null; z.quelle = null; z.auch = [];
+    z.kann = z.regel ? (z.regel.kann || []).filter((k) => k !== z.regel.muss) : [];
     if (z.stand === "bestellt") { z.lieferant = lieferantIn(z.j.material_menge, lieferanten); z.quelle = "bestellt"; continue; }
     if (z.stand === "da") continue;
     if (wahl[z.j.id]) { z.lieferant = wahl[z.j.id]; z.quelle = "gewaehlt"; continue; }
+    // Regel „muss bei“ geht vor dem Verlauf
+    if (z.regel && z.regel.muss) { z.lieferant = z.regel.muss; z.quelle = "regel"; continue; }
     if (z.kandidaten.length) offen.push(z);
   }
   // Zuerst zählen schon gewählte und bestellte Lieferanten: dort geht
@@ -268,6 +358,7 @@ export function lieferantenVerteilen(zeilen, lieferanten, wahl) {
     });
   }
   for (const z of zeilen) {
+    // „Kann auch bei“ einer Regel ist nur Info: nicht im Vorschlag
     if (z.quelle === "vorschlag" || z.quelle === "gewaehlt") z.auch = z.kandidaten.map((k) => k.name).filter((n) => n !== z.lieferant);
     const l = z.lieferant && vonName[z.lieferant];
     const a = zuBestellen(z) && ankunft(l);

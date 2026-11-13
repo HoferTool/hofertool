@@ -30,7 +30,9 @@ DATEN = """;
   alt('h3', '11SMnPb30 rd 16', '100 kg · Notz 2026001113', '2026-04-01');
   TEST.daten.app_config = TEST.daten.app_config || [];
   TEST.daten.app_config.push({ schluessel: 'material_lieferanten', wert: JSON.stringify([
-    { name: 'Metalix', tage: 3 }, { name: 'Notz', tage: 2, bestelltage: [2, 4], schluss: '11:00' }, { name: 'Schmobi', tage: 5 }]) });
+    { name: 'Metalix', tage: 3 }, { name: 'Notz', tage: 2, bestelltage: [2, 4], schluss: '11:00', liefertage: [3], notiz: 'Frau Muster anrufen' }, { name: 'Schmobi', tage: 5 }]) });
+  TEST.daten.app_config.push({ schluessel: 'material_regeln', wert: JSON.stringify([
+    { material: 'Messing sw', muss: 'Schmobi', kann: ['Notz'] }, { material: 'Messing rd 99', muss: 'Notz', kann: [] }]) });
   TEST.daten.planer_todos = [{ id: 't1', text: 'Gühring wegen Termin anrufen', faellig: null, erledigt_am: null, erstellt_am: '2026-11-12T08:00:00Z' }];
 })();
 """
@@ -53,9 +55,16 @@ with sync_playwright() as p:
     pruefe(notz.locator(".pl-zeile", has_text="1.4305 rd 12").count() == 1, "1.4305 rd 12 gebündelt bei Notz (obwohl zuletzt Metalix)")
     pruefe(notz.locator(".pl-zeile", has_text="11SMnPb30").count() == 1, "11SMnPb30 bei Notz")
     pruefe("Metalix" in notz.locator(".pl-zeile", has_text="1.4305 rd 12").inner_text(), "„auch: Metalix“ steht dabei")
-    pruefe(pg.locator("[data-pllieferant='Lieferant offen']", has_text="CuZn39Pb3 sw 10").count() == 1, "ohne Verlauf unter Lieferant offen")
+    rg = pg.locator("[data-pllieferant='Schmobi'] .pl-zeile", has_text="CuZn39Pb3 sw 10")
+    pruefe(rg.count() == 1, "Regel „Messing sw“ → Schmobi")
+    pruefe(rg.count() == 1 and "kann auch: Notz" in rg.inner_text(), "kann auch: Notz nur als Info")
+    pruefe(pg.locator("[data-pllieferant='Notz']", has_text="CuZn39Pb3 rd 8").count() == 0, "Regel rd 99 gilt nicht für rd 8")
     pruefe(pg.locator("[data-pllieferant='Schmobi']", has_text="bestellt").count() == 1, "bestellt unter Schmobi")
     pruefe("Lieferbar 2 Arbeitstage" in notz.inner_text(), "Lieferbarkeit Notz")
+    pruefe("liefert Mi" in notz.inner_text(), "Liefertage Notz")
+    pruefe(notz.locator("[data-plnotiz]", has_text="Frau Muster").count() == 1, "Bemerkung Notz")
+    an = notz.locator(".pl-marke", has_text="heute bestellt")
+    pruefe(an.count() == 1 and "Mi" in an.inner_text(), "Ankunft am Liefertag Mi " + (an.inner_text() if an.count() else ""))
     teil = pg.evaluate("TEST.teilJob")
     tz = pg.locator(f"[data-plzeile='{teil}']")
     pruefe(tz.count() == 1 and "fehlen noch" in tz.inner_text(), "Teilmenge: fehlen noch … kg " + (tz.inner_text() if tz.count() else ""))
@@ -66,6 +75,13 @@ with sync_playwright() as p:
     notz.locator(".pl-zeile", has_text="1.4305 rd 12").locator("[data-pllwahl]").click()
     pg.wait_for_selector(".statuswahl [data-w='Metalix']"); pg.click(".statuswahl [data-w='Metalix']"); pg.wait_for_timeout(800)
     pruefe(pg.locator("[data-pllieferant='Metalix']", has_text="1.4305 rd 12").count() == 1, "von Hand auf Metalix gewechselt")
+    # Regel aus der Zeile anlegen: 11SMnPb30 rd 16 muss bei Schmobi
+    pg.locator(".pl-zeile", has_text="11SMnPb30 rd 16").locator("[data-pllwahl]").click()
+    pg.wait_for_selector(".statuswahl [data-w='__regel']"); pg.click(".statuswahl [data-w='__regel']")
+    pg.wait_for_selector(".dialog select"); pg.select_option(".dialog select", "Schmobi")
+    pg.click(".dialog [data-ja]"); pg.wait_for_timeout(900)
+    pruefe(pg.locator("[data-pllieferant='Schmobi']", has_text="11SMnPb30 rd 16").count() == 1, "Regel aus der Zeile: 11SMnPb30 → Schmobi")
+    pruefe(pg.locator("[data-pllieferant='Schmobi'] [data-pllwahl]", has_text="📌").count() >= 1, "📌 zeigt die Regel")
     # Eigenes Todo anlegen
     pg.click("#pl-todo-neu"); pg.wait_for_selector(".dialog textarea")
     pg.fill(".dialog textarea", "Zangen nachzählen"); pg.keyboard.press("Control+Enter") if False else pg.locator(".dialog button:has-text('Speichern')").click()
@@ -77,7 +93,9 @@ with sync_playwright() as p:
     pruefe(pg.locator(".pl-zeile").count() >= 4, "Ansicht nach Start")
     pg.click("#pl-lieferanten"); pg.wait_for_selector("#material-lieferanten")
     pruefe(pg.locator("[data-mllieferant='Notz']").count() == 1, "Lieferanten-Fenster")
-    pg.screenshot(path=BILD + "/planer-lieferanten.png")
+    pruefe(pg.locator("[data-mllieferant='Notz'] [data-mlliefert] .ml-tag--an").all_inner_texts() == ["Mi"], "Liefert an Mi in den Einstellungen")
+    pruefe(pg.locator("[data-mllieferant='Notz'] [data-mlnotiz]").input_value() == "Frau Muster anrufen", "Bemerkung in den Einstellungen")
+    pg.wait_for_timeout(600); pg.screenshot(path=BILD + "/planer-lieferanten.png")
     pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
     # iPad hoch
     pg.set_viewport_size({"width": 820, "height": 1180}); pg.click("[data-plansicht='lieferant']"); pg.wait_for_timeout(700)
@@ -92,7 +110,7 @@ with sync_playwright() as p:
     pruefe(pg.locator("#pad-planer").count() == 0, "Übersicht im Reiter Planwand weg")
     pg.screenshot(path=BILD + "/planer-planwand.png")
     pg.click("[data-plreiter='uebersicht']"); pg.wait_for_selector("#pad-planer", timeout=8000)
-    pruefe(pg.locator("#pad-planer-planwand").count() == 0, "zurück zur Übersicht")
+    pruefe(pg.locator("#pad-planer-planwand").count() == 0, "zurück zum Dashboard")
     pruefe(not pf, "keine Fehler im Browser " + str(pf[:2]))
     br.close()
 print("Fehler:", ", ".join(fehler) if fehler else "keine")
