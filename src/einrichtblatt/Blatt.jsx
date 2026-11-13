@@ -744,7 +744,7 @@ function platzDaten(p, nr) {
 // Patrick, 23. Oktober 2026). Der Hersteller ist der Lieferant des
 // Artikels. Das Bild merkt sich der Artikel (Wunsch Patrick,
 // 13. Oktober 2026).
-function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildNeu, wechseln, offen, langdreher, seite }) {
+function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildNeu, wechseln, kopieren, offen, langdreher, seite }) {
   const [p, setP] = useState(Object.assign({}, wert));
   // Am Kopf verschieben (Wunsch Patrick 10. November 2026: „soll
   // verschiebbar sein“); ohne Verschieben steht es von selbst auf der
@@ -974,6 +974,9 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
         {wechseln && platzInGebrauch(p) && <button className="knopf knopf--klein" data-pf-wechseln=""
           title="Danach den neuen Platz antippen; steht dort schon etwas, wird getauscht"
           onClick={() => fertig(wechseln)}>Platz wechseln</button>}
+        {kopieren && platzInGebrauch(p) && <button className="knopf knopf--klein" data-pf-kopieren=""
+          title="Danach einen oder mehrere Plätze antippen; dort steht dann dasselbe Werkzeug, die T-Nr. bleibt die des Platzes"
+          onClick={() => fertig(kopieren)}>Kopieren</button>}
         <button className="knopf knopf--klein knopf--haupt" data-pf-ok="" onClick={() => fertig()}>Übernehmen</button>
       </div>
     </div>
@@ -1111,6 +1114,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   }, [imPad, artikelIds]);
   // Platz, dessen Werkzeug gerade auf einen anderen Platz wechselt
   const [wechsel, setWechsel] = useState(null);
+  const [kopie, setKopie] = useState(null);
   const [laeuft, setLaeuft] = useState(false);
   const [seiteNr, setSeiteNr] = useState(0);
   const [artikelBilder, setArtikelBilder] = useState(start.artikelBilder || {});
@@ -1227,7 +1231,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
       }
       const d = await neuLaden();
       anfangen(d);
-      setBearbeiten(false); setPlatz(null); setWechsel(null); setVorgelesen(null); setPrgPflicht(false);
+      setBearbeiten(false); setPlatz(null); setWechsel(null); setKopie(null); setVorgelesen(null); setPrgPflicht(false);
       alt.meldung("Einrichtblatt gespeichert.", "gut");
     } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
     finally { setLaeuft(false); }
@@ -1254,7 +1258,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   };
   const abbrechen = () => {
     if (!daten.blatt) { zu(); return; }
-    anfangen(daten); setBearbeiten(false); setPlatz(null); setWechsel(null); setVorgelesen(null); setPrgPflicht(false);
+    anfangen(daten); setBearbeiten(false); setPlatz(null); setWechsel(null); setKopie(null); setVorgelesen(null); setPrgPflicht(false);
   };
   // Ein Kopffeld ändern, dort, wo es hingehört
   const aendern = (f, w) => {
@@ -1372,6 +1376,29 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
     const nameVon = (k) => platzName(k) || "Feld ohne T-Nr.";
     alt.meldung(nameVon(von) + (war && platzInGebrauch(war) ? " und " + nameVon(nach) + " getauscht." : " auf " + nameVon(nach) + " verschoben."), "gut");
   };
+  // Werkzeugfeld auf einen anderen Platz kopieren: alles wie im Quellfeld,
+  // nur die T-Nr. bleibt die des Zielplatzes (Wunsch Patrick 13. November
+  // 2026: „werkzeugfelder kopieren … aber T-Nr. soll bleiben vom Platz“).
+  // Bleibt an, damit man mehrere Plätze nacheinander füllen kann
+  const kopieren = (von, nach) => {
+    const q = (entwurf.plaetze || {})[von];
+    if (!q || !platzInGebrauch(q)) { setKopie(null); return; }
+    const war = (entwurf.plaetze || {})[nach];
+    setEntwurf((b) => {
+      const pl = Object.assign({}, b.plaetze || {});
+      const quelle = pl[von]; if (!quelle) return b;
+      const neu = JSON.parse(JSON.stringify(quelle));
+      delete neu.tnr;
+      if (neu.fmt) { delete neu.fmt.tnr; if (!Object.keys(neu.fmt).length) delete neu.fmt; }
+      const ziel = pl[nach] || {};
+      if (ziel.tnr) neu.tnr = ziel.tnr;
+      if (ziel.fmt && ziel.fmt.tnr) neu.fmt = Object.assign({}, neu.fmt || {}, { tnr: ziel.fmt.tnr });
+      pl[nach] = neu;
+      return Object.assign({}, b, { plaetze: pl });
+    });
+    const name = (k) => platzName(k) || "Feld ohne T-Nr.";
+    alt.meldung(name(von) + " auf " + name(nach) + " kopiert" + (war && platzInGebrauch(war) ? " (vorheriges Werkzeug ersetzt)." : "."), "gut");
+  };
   // Werkzeug eines Platzes gleich bestellen: Neue Bestellposition mit dem
   // Artikel, danach steht es unter Bestellungen → Offen (Wunsch Patrick
   // 29. Oktober 2026: „auf den Platz klicken und direkt zu offenen
@@ -1384,6 +1411,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   };
   const platzWahl = (nr) => setTimeout(() => {
     if (wechsel) { if (wechsel !== nr) tauschen(wechsel, nr); else setWechsel(null); return; }
+    if (kopie) { if (kopie !== nr) kopieren(kopie, nr); else setKopie(null); return; }
     if (nr !== platz) offenesNehmen(entwurf);
     // Fenster auf die andere Seite als das angetippte Feld, die Leiste
     // gegenüber (Wunsch Patrick 10. November 2026: „von alleine spiegeln“)
@@ -1534,6 +1562,10 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
         <span><b>{platzName(wechsel) || "Feld ohne T-Nr."} wechseln:</b> jetzt den neuen Platz antippen. Steht dort schon ein Werkzeug, tauschen die beiden.</span>
         <button className="knopf knopf--klein" data-eba-wechsel-ab="" onClick={() => setWechsel(null)}>Abbrechen</button>
       </div>}
+      {bearbeiten && kopie && !wechsel && !zseite && <div className="eba-vorgelesen eba-wechsel" data-eba-kopie={kopie}>
+        <span><b>{platzName(kopie) || "Feld ohne T-Nr."} kopieren:</b> jetzt einen oder mehrere Plätze antippen. Die T-Nr. bleibt die des Platzes, ein Werkzeug dort wird ersetzt.</span>
+        <button className="knopf knopf--klein knopf--haupt" data-eba-kopie-ab="" onClick={() => setKopie(null)}>Fertig</button>
+      </div>}
       <div className="betrachter__buehne eba-buehne" ref={seite} onClick={() => { if (platz) offenesNehmen(entwurf); setPlatz(null); setMarkiert(null); }}>
         {zseite && bearbeiten && <div className="eba-zseite-leiste" onClick={(e) => e.stopPropagation()}>
           <label>Name <input className="eba-zseite-name" data-eba-seite-name="" value={zseite.name || ""}
@@ -1551,13 +1583,13 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
           ? <ZusatzSeite seite={zseite} bearbeiten={bearbeiten} inhaltBearbeiten={() => inhaltBearbeiten(seiteNr - 1)} />
           : <div className="eba-zoom" style={{ zoom }}><BlattSeite typ={typ} paths={paths} teil={bearbeiten ? teilE : teil} typDaten={bearbeiten ? typE : typDaten} blatt={blatt} auftrag={auftrag}
               bearbeiten={bearbeiten} aktiv={platz} artikelBilder={artikelBilder} aendern={aendern} fmtSetzen={kopfFmtSetzen} pruefen={darf}
-              platzWahl={platzWahl} tauschen={tauschen} wechsel={wechsel} bestellen={darf ? bestellen : null}
+              platzWahl={platzWahl} tauschen={tauschen} wechsel={wechsel || kopie} bestellen={darf ? bestellen : null}
               pdfs={imPad ? pdfs : null} markiert={markiert} markieren={imPad ? setMarkiert : null}
               bilderAendern={darf ? bilderAendern : null} prgRot={prgPflicht} /></div>}
         {bearbeiten && platz && !zseite && <PlatzFenster key={platz} nr={platz} titel={platzTitel(platz)} seite={pfSeite}
           wert={(entwurf.plaetze || {})[platz] || {}} setzen={(z) => platzSetzen(platz, z)} zu={() => setPlatz(null)}
           artikelBilder={artikelBilder} artikelBildNeu={(id, b) => setArtikelBilder((x) => Object.assign({}, x, { [id]: b }))}
-          wechseln={() => setWechsel(platz)} offen={offenerPlatz} langdreher={istLangdreher(vorlage)} />}
+          wechseln={() => { setKopie(null); setWechsel(platz); }} kopieren={() => { setWechsel(null); setKopie(platz); }} offen={offenerPlatz} langdreher={istLangdreher(vorlage)} />}
         {!hatPlaetze && !zseite && <div className="abruf-leer"><b>Für {typ.name} sind noch keine Werkzeugplätze angelegt.</b>
           <p>Unter Maschinen → Typen → {typ.name} → Aufbau anlegen.</p></div>}
       </div>
