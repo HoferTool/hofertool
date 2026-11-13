@@ -41,31 +41,36 @@ with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox","--disable-dev-shm-usage"])
     pg = seite(br, 1180, 820, True)
     mid = zumPad(pg)
+    nr = pg.inner_text("#pad .pad-wert--gross")
     if pg.locator("#pad-qsmeldung").count(): fehler.append("Meldung ohne Problem")
     if "WETTER" not in pg.inner_text("#pad .pad-karte2--saeule").upper(): fehler.append("Wetter fehlt ohne Problem")
     pg.click("#pad [data-padzu]"); pg.wait_for_timeout(500)
     # zwei Probleme an Aufträgen dieser Maschine, eine QS-Meldung
-    pg.evaluate("""(mid) => {
-        const js = TEST.daten.jobs.filter(j => j.machine_id === mid).slice(0, 2);
+    pg.evaluate("""([mid, nr]) => {
+        // Erstes Problem am laufenden Auftrag, zweites an einem anderen
+        // Auftrag der Maschine: seit 1.510.0 zeigt das Pad nur das erste.
+        const alle = TEST.daten.jobs.filter(j => j.machine_id === mid);
+        const lauf = alle.find(j => j.job_number === nr && !j.ended_at);
+        const anderer = alle.find(j => j !== lauf);
+        const js = [lauf, anderer].filter(Boolean);
         js.forEach((j, i) => { j.problem = i ? "Zange klemmt, Material rutscht" : "Kühlmittel läuft aus, bitte Schlauch prüfen";
           j.problem_at = new Date().toISOString(); });
         (TEST.daten.qs_meldungen = TEST.daten.qs_meldungen || []).push({ id: "qsx1", machine_id: mid, stueck: 40,
           notiz: "Grat am Einstich", hoco_nr: js[0].job_number, erstellt_am: new Date().toISOString(), erstellt_name: "Test" });
-        return js.length; }""", mid)
+        return js.length; }""", [mid, nr])
     zumPad(pg)
     pg.wait_for_selector("#pad-qsmeldung [data-padproblem]", timeout=8000)
     s = pg.inner_text("#pad .pad-karte2--saeule")
-    if "Kühlmittel" not in s or "Zange" not in s or "Grat" not in s: fehler.append("Nicht alles da: " + s)
+    if "Kühlmittel" not in s or "Grat" not in s: fehler.append("Nicht alles da: " + s)
+    if "Zange" in s: fehler.append("Problem eines nicht laufenden Auftrags sichtbar")
     if "WETTER" in s.upper(): fehler.append("Wetter trotz Problem")
-    if "3 Meldungen" not in s or "wischen" in s: fehler.append("Anzahl fehlt")
+    if "2 Meldungen" not in s or "wischen" in s: fehler.append("Anzahl fehlt")
     if not pg.locator("#pad .pad-qsm__weiter").count(): fehler.append("Kein Hinweis zum Wischen")
     pg.screenshot(path=os.environ.get("BILD", "/tmp/pad-probleme.png"))
     pg.locator("#pad .pad-qsm__weiter").click(force=True); pg.wait_for_timeout(900)
     pg.locator("#pad [data-padproblemweg]").first.click(); pg.wait_for_timeout(400)
     pg.locator(".dialog-huelle button:has-text('Meldung entfernen')").click(); pg.wait_for_timeout(1200)
-    if pg.locator("#pad [data-padproblem]").count() != 1: fehler.append("Erledigt hat nicht entfernt")
-    pg.locator("#pad [data-padproblemweg]").first.click(); pg.wait_for_timeout(400)
-    pg.locator(".dialog-huelle button:has-text('Meldung entfernen')").click(); pg.wait_for_timeout(1200)
+    if pg.locator("#pad [data-padproblem]").count() != 0: fehler.append("Erledigt hat nicht entfernt")
     pg.click("#pad [data-padqsquittieren]"); pg.wait_for_timeout(1200)
     if pg.locator("#pad-qsmeldung").count(): fehler.append("Nach allem Erledigen noch da")
     if "WETTER" not in pg.inner_text("#pad .pad-karte2--saeule").upper(): fehler.append("Wetter nicht zurück")

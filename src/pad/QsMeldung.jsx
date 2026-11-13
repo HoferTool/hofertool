@@ -66,7 +66,7 @@ export function useQsMeldungen(maschineId) {
 // =================================================================
 const PROBLEM_EREIGNIS = "hofer-pad-probleme";
 
-export function useProbleme(maschineId) {
+export function useProbleme(maschineId, auftragId) {
   const [liste, setListe] = useState([]);
   useEffect(() => {
     if (!maschineId || alt.istExtern()) { setListe([]); return undefined; }
@@ -76,7 +76,14 @@ export function useProbleme(maschineId) {
       .order("problem_at", { ascending: false }), 10000, "Probleme")
       .then(({ data, error }) => {
         if (error) throw error;
-        if (gueltig) setListe((data || []).filter((j) => String(j.problem || "").trim()));
+        // Seit 1.510.0 nur das Problem des Auftrags, der an dieser Maschine
+        // gerade dran ist, wie ihn das Dashboard zeigt (läuft, Rüsten …,
+        // sonst der nächste geplante; Wunsch Patrick 13. November 2026:
+        // „soll aufploppen, wenn der aktuelle Auftrag gerade dran ist, ob
+        // Rüsten oder was auch immer“). Startseite und Auftragsfenster
+        // zeigen weiter alle.
+        if (gueltig) setListe((data || []).filter((j) => auftragId && j.id === auftragId
+          && String(j.problem || "").trim()));
       })
       .catch(() => { /* ohne Netz: Liste bleibt, wie sie war */ });
     holen();
@@ -97,7 +104,7 @@ export function useProbleme(maschineId) {
       window.removeEventListener(PROBLEM_EREIGNIS, holen);
       if (kanal) { try { alt.db.removeChannel(kanal); } catch (f) { /* egal */ } }
     };
-  }, [maschineId]);
+  }, [maschineId, auftragId]);
   return liste;
 }
 

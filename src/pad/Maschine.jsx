@@ -538,11 +538,11 @@ function useJetzt() {
 // Eine offene QS-Meldung der Maschine steht anstelle des Wetters, bis
 // jemand quittiert (seit 1.77.0, src/pad/QsMeldung.jsx), seit 1.352.0
 // ebenso die gemeldeten Probleme der Aufträge dieser Maschine.
-function Saeule({ wetter, maschineId }) {
+function Saeule({ wetter, maschineId, auftragId }) {
   const jetzt = useJetzt();
   const heute = alt.isoDatum(jetzt);
   const [qs, qsWeg] = useQsMeldungen(maschineId);
-  const probleme = useProbleme(maschineId);
+  const probleme = useProbleme(maschineId, auftragId);
   const mitQs = qs.length > 0 || probleme.length > 0;
   const tage = wetter && !mitQs ? wetter.tage.filter((x) => x.datum >= heute).slice(0, 6) : [];
   return (
@@ -807,7 +807,7 @@ export default function Maschine({ d }) {
         </div>
 
         {/* ----- rechte Säule ----- */}
-        <div className="pad-spalte pad-spalte--rechts"><Saeule wetter={wetter} maschineId={m.id} />
+        <div className="pad-spalte pad-spalte--rechts"><Saeule wetter={wetter} maschineId={m.id} auftragId={j && j.id} />
           {/* Der Rest der Spalte ist zum Zeichnen da (Wunsch Patrick 5. Oktober 2026) */}
           <Skizze key={j ? j.id : "ohne"} j={j} /></div>
       </div>
