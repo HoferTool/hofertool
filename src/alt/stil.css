@@ -13743,3 +13743,27 @@ body.dunkel .pl-abg__zeile { background: #1a2433; border-color: #2c3a50; }
 .mseite-park__kopf { align-items: flex-start; }
 .mseite-park__kopf .mseite-park__name { flex: 1; min-width: 0; padding-top: 4px; }
 .mseite-park__typen { max-height: 64px; overflow: hidden; }
+
+/* Wartung → Zuteilen grösser und einfacher (seit 1.534.1, Patrick
+   13. November 2026: „grösser und einfach dargestellt, so ist es zu
+   minimalistisch“): Umschalter als grosse Knöpfe, Einträge als Karten
+   mit Rand, grössere Schrift, Zahlen als deutliche Schilder. */
+.es-wartung__zuteilen { grid-template-columns: 330px minmax(0, 1fr); gap: 22px; }
+.es-wartung__zuteilen .es-wartung__art { gap: 6px; border: 0; border-radius: 0; overflow: visible; }
+.es-wartung__zuteilen .es-wartung__art button { font-size: 16px; font-weight: 700; padding: 12px 6px; border-radius: 10px;
+  border: 1px solid var(--linie-stark, #c5ced8); background: var(--flaeche, #fff); }
+.es-wartung__zuteilen .es-wartung__art button + button { border-left: 1px solid var(--linie-stark, #c5ced8); }
+.es-wartung__zuteilen .es-wartung__art button.aktiv { border-color: var(--blau, #1f5fa8); }
+.es-wartung__wahl { gap: 8px; }
+.es-wartung__eintrag { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--linie-stark, #c5ced8);
+  border-left-width: 5px; background: var(--flaeche, #fff); gap: 4px 10px; }
+.es-wartung__eintrag:hover { border-color: var(--blau, #1f5fa8); }
+.es-wartung__eintrag.aktiv { border-color: var(--blau, #1f5fa8); background: color-mix(in srgb, var(--blau, #1f5fa8) 16%, var(--flaeche, #fff)); }
+.es-wartung__eintrag--faellig { border-left-color: #e08a2c; }
+.es-wartung__eintrag-name { font-size: 18px; font-weight: 700; }
+.es-wartung__eintrag-n { font-size: 14px; }
+.es-wartung__eintrag .es-wartung__zahl { font-size: 13px; padding: 3px 10px; }
+.es-wartung__gruppe .es-wartung__parkname { font-size: 14px; padding: 10px 2px 2px; opacity: .8; }
+.es-wartung__leer { font-size: 18px; padding: 30px; border: 2px dashed var(--linie-stark, #c5ced8); border-radius: 14px;
+  text-align: center; }
+.es-wartung__inhalt .blatt__kopf h2 { font-size: 1.5em; }
