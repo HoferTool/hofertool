@@ -13644,3 +13644,9 @@ body.pw-vollbild #werkzeugleiste { display: none !important; }
 }
 /* SB-16, SR-10, SR-32: leeres Werkzeugfeld ohne T-Nr.; beim Bearbeiten blass (1.526.0) */
 .eba [data-eba-leer-nr] { opacity: .35; }
+
+/* Entgraten: Rechteckauswahl der Kanten im 3D-Bild (seit 1.527.0) */
+.eg-rechteck { fill: rgba(30, 110, 220, 0.12); stroke: #1e6edc; stroke-width: 1.5; stroke-dasharray: 5 3; vector-effect: non-scaling-stroke; pointer-events: none; }
+.eg-rechteck-an { background: #1e6edc !important; color: #fff !important; border-color: #1e6edc !important; }
+body.dunkel .eg-rechteck { fill: rgba(120, 170, 255, 0.15); stroke: #8fb8ff; }
+body.dunkel .eg-rechteck-an { background: #3b7fe0 !important; }

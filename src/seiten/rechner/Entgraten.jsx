@@ -155,7 +155,8 @@ export default function Entgraten() {
 
       <div className="cax-raster eg-raster">
         <div className="eg-links">
-          <Bild3D b={bE} g={g} kanten={kanten} bahnen={bahnen} istGewaehlt={istGewaehlt} umschalten={umschalten} />
+          <Bild3D b={bE} g={g} kanten={kanten} bahnen={bahnen} istGewaehlt={istGewaehlt} umschalten={umschalten}
+            setWahl={(ids) => aendern({ wahl: ids })} />
           <div className="eg-liste" id="eg-liste">
             <div className="eg-liste__kopf"><b>Kanten</b>
               <button className="linkknopf" id="eg-alle" onClick={() => aendern({ wahl: null })}>Alle</button>
@@ -233,8 +234,15 @@ export default function Entgraten() {
 // Drahtmodell ohne Bibliothek: Teil als Zylinder, die Kanten blau,
 // gewählte orange, die Bahn der Werkzeugspitze grün gestrichelt.
 // Ziehen dreht, Mausrad zoomt, eine Kante antippen wählt sie.
-function Bild3D({ b, g, kanten, bahnen, istGewaehlt, umschalten }) {
+function Bild3D({ b, g, kanten, bahnen, istGewaehlt, umschalten, setWahl }) {
   const [dreh, setDreh] = useState({ a: 0.5, b: -0.6 });
+  // Rechteckauswahl (seit 1.527.0, Wunsch Patrick 13. November 2026: „alle
+  // Kanten im Bereich vom Rechteck auswählen, den Rest nicht“): mit dem
+  // Knopf „▭ Rechteck“ oder Shift + Ziehen zieht die Maus ein Rechteck statt
+  // zu drehen. Gewählt sind danach genau die Kanten, die ganz im Rechteck
+  // liegen. Der Knopf gilt auch für den Finger am iPad.
+  const [rechteckModus, setRechteckModus] = useState(false);
+  const [rechteck, setRechteck] = useState(null);
   const [zoom, setZoom] = useState(1);
   // Deckkraft des Modells (seit 1.390.0, Wunsch Patrick 4. November 2026:
   // „Transparenz vom 3D-Modell verstellen“), je Person gemerkt. Abgelegt
@@ -317,17 +325,46 @@ function Bild3D({ b, g, kanten, bahnen, istGewaehlt, umschalten }) {
   const cAnzeige = ((((-cDreh * 180) / Math.PI) % 360) + 360) % 360;
   const gross = Math.hypot(tief, b.teilD) * 0.62 / zoom;
   const box = `${-gross * 1.4} ${-gross} ${gross * 2.8} ${gross * 2}`;
+  // Bildschirmpunkt in Einheiten des Bilds, damit das Rechteck mit den
+  // gezeichneten Kanten vergleichbar ist, egal wie gezoomt
+  const svgPunkt = (e) => {
+    const el = bildRef.current, m = el?.getScreenCTM?.();
+    if (!m) return [0, 0];
+    const q = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
+    return [q.x, q.y];
+  };
+  const rechteckWaehlen = (a, c) => {
+    const x0 = Math.min(a[0], c[0]), x1 = Math.max(a[0], c[0]), y0 = Math.min(a[1], c[1]), y1 = Math.max(a[1], c[1]);
+    const drin = kanten.filter((k) => k.punkte.length && k.punkte.every((p) => {
+      const [x, y] = proj(amTeil(p.E));
+      return x >= x0 && x <= x1 && y >= y0 && y <= y1;
+    })).map((k) => k.id);
+    setWahl?.(drin);
+    alt.meldung?.(drin.length ? `${drin.length} ${drin.length === 1 ? "Kante" : "Kanten"} gewählt` : "Keine Kante ganz im Rechteck", drin.length ? "gut" : "warn");
+  };
   return (
     <div className="eg-3d">
       <svg className="eg-3d__bild" viewBox={box} id="eg-3d"
-        onPointerDown={(e) => { ziehen.current = { x: e.clientX, y: e.clientY, d: dreh, weit: 0 }; }}
+        style={rechteckModus ? { touchAction: "none", cursor: "crosshair" } : undefined}
+        onPointerDown={(e) => {
+          const r = rechteckModus || e.shiftKey;
+          ziehen.current = { x: e.clientX, y: e.clientY, d: dreh, weit: 0, r, a: r ? svgPunkt(e) : null };
+        }}
         onPointerMove={(e) => {
           const z = ziehen.current; if (!z) return;
           const dx = e.clientX - z.x, dy = e.clientY - z.y;
           z.weit = Math.max(z.weit, Math.abs(dx) + Math.abs(dy));
-          if (z.weit > 4) { e.currentTarget.setPointerCapture?.(e.pointerId); setDreh({ a: z.d.a + dy * 0.01, b: Math.max(-1.6, Math.min(1.6, z.d.b - dx * 0.01)) }); }
+          if (z.weit <= 4) return;
+          e.currentTarget.setPointerCapture?.(e.pointerId);
+          if (z.r) { const p = svgPunkt(e); setRechteck({ x1: z.a[0], y1: z.a[1], x2: p[0], y2: p[1] }); }
+          else setDreh({ a: z.d.a + dy * 0.01, b: Math.max(-1.6, Math.min(1.6, z.d.b - dx * 0.01)) });
         }}
-        onPointerUp={() => { setTimeout(() => { ziehen.current = null; }, 0); }}
+        onPointerUp={(e) => {
+          const z = ziehen.current;
+          if (z && z.r && z.weit > 4) rechteckWaehlen(z.a, svgPunkt(e));
+          setRechteck(null);
+          setTimeout(() => { ziehen.current = null; }, 0);
+        }}
         ref={bildRef}>
         {b.draht
           // STEP: das ganze Drahtmodell, dreht in der Simulation mit
@@ -346,11 +383,17 @@ function Bild3D({ b, g, kanten, bahnen, istGewaehlt, umschalten }) {
         {sim.an && sim.jetzt && <WerkzeugBild sicht={sicht} g={g} spitze={sim.jetzt.p} achse={sim.jetzt.a} />}
         {kanten.map((k) => (
           <path key={"t" + k.id} d={linieT(k.punkte.map((p) => p.E), k.geschlossen)} className="eg-treffer" data-eg3d={k.id}
-            onClick={() => { if (ziehen.current && ziehen.current.weit > 4) return; umschalten(k.id); }}>
+            onClick={() => { if (ziehen.current && (ziehen.current.weit > 4 || ziehen.current.r)) return; umschalten(k.id); }}>
             <title>{k.name}</title></path>
         ))}
+        {rechteck && <rect className="eg-rechteck" id="eg-rechteck"
+          x={Math.min(rechteck.x1, rechteck.x2)} y={Math.min(rechteck.y1, rechteck.y2)}
+          width={Math.abs(rechteck.x2 - rechteck.x1)} height={Math.abs(rechteck.y2 - rechteck.y1)} />}
       </svg>
       <div className="kt-3d__knoepfe">
+        <button className={"knopf knopf--klein" + (rechteckModus ? " eg-rechteck-an" : "")} id="eg-rechteck-knopf"
+          title="Rechteck um Kanten ziehen: genau diese sind gewählt (auch Shift + Ziehen)"
+          onClick={() => setRechteckModus((m) => !m)}>▭ Rechteck{rechteckModus ? " an" : ""}</button>
         <button className="knopf knopf--klein" onClick={() => setDreh({ a: 0, b: -1.5707 })}>Von vorne</button>
         <button className="knopf knopf--klein" onClick={() => setDreh({ a: 0, b: 0 })}>Von der Seite</button>
         <button className="knopf knopf--klein" onClick={() => { setDreh({ a: 0.5, b: -0.6 }); setZoom(1); }}>Schräg</button>
@@ -358,7 +401,7 @@ function Bild3D({ b, g, kanten, bahnen, istGewaehlt, umschalten }) {
           <input type="range" id="eg-deckung" min="0" max="100" step="5" value={deckung}
             onChange={(e) => setDeckung(Number(e.target.value))} />
           <span>{deckung} %</span></label>
-        <span className="klein">ziehen dreht, Mausrad zoomt, Kante antippen = wählen</span>
+        <span className="klein">{rechteckModus ? "Rechteck um die Kanten ziehen = genau diese wählen" : "ziehen dreht, Shift + ziehen = Rechteck wählen, Mausrad zoomt, Kante antippen = wählen"}</span>
       </div>
       <SimLeiste sim={sim} c={cAnzeige} />
     </div>
