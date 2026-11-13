@@ -20,14 +20,12 @@
 import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { WartungListe, faelligSeit, zielVon, giltFuer } from "../pad/Wartung.jsx";
-import { batterieHeuteFaellig } from "../daten/maschinenInfo.js";
 import WartungVorlagen from "./WartungVorlagen.jsx";
 
 // Gewählte Art und Wahl, solange die App offen ist
 let merk = { art: "typ", id: null };
 let merkTeil = "vorlagen";
 
-const KURZ = { typ: "Typ", park: "Park", maschine: "Maschine" };
 const ARTEN = [["typ", "Maschinentyp"], ["park", "Maschinenpark"], ["maschine", "Einzelne Maschine"]];
 
 // Maschinen, an denen ein Ziel gilt
@@ -76,10 +74,9 @@ function WartungZuteilen({ reiter }) {
         const ps = (parks || []).filter((x) => maschinen.some((y) => y.park_id === x.id));
         setStamm({ typen, parks: ps, maschinen });
         // Je Ziel: wie viele Pläne, an wie vielen Maschinen etwas fällig
-        const [p, e, i] = await Promise.all([alt.db.from("wartung_plan").select("*"),
-          alt.db.from("wartung_erledigt").select("*"), alt.db.from("maschinen_info").select("*")]);
+        const [p, e] = await Promise.all([alt.db.from("wartung_plan").select("*"),
+          alt.db.from("wartung_erledigt").select("*")]);
         if (weg) return;
-        const typName = (x) => (typen.find((y) => y.id === x.type_id) || {}).name || "";
         const z = {};
         const zaehlen = (a, id) => {
           // Bei einer Maschine zählt alles, was dort gilt (auch vom Typ und Park)
@@ -88,8 +85,7 @@ function WartungZuteilen({ reiter }) {
             if (mm) return giltFuer(x, mm);
             const q = zielVon(x); return q.art === a && q.id === id; });
           const faellig = betroffen({ art: a, id }, maschinen).filter((x) =>
-            plaene.some((pl) => faelligSeit(pl, e.data || [], x.id))
-            || batterieHeuteFaellig((i.data || []).find((y) => y.machine_id === x.id), typName(x))).length;
+            plaene.some((pl) => faelligSeit(pl, e.data || [], x.id))).length;
           z[a + ":" + id] = { alle: plaene.length, faellig };
         };
         typen.forEach((x) => zaehlen("typ", x.id));
@@ -106,36 +102,34 @@ function WartungZuteilen({ reiter }) {
   if (stamm === null) return <section className="karte"><p className="klein">Lädt …</p></section>;
   const { typen, parks, maschinen } = stamm;
 
-  // Seit 1.534.0 links eine schmale Liste statt Knopfreihen, rechts das
-  // Gewählte (Wunsch Patrick 13. November 2026: „das ist auch nicht
-  // übersichtlich, passe es an“)
-  const knopf = (id, name, n) => {
+  // Seit 1.536.0 mit den Bausteinen des restlichen Tools: „Gilt für“ als
+  // Reiter wie „Vorlagen / Zuteilen“, die Wahl als Knöpfe wie die
+  // Typwahl der Produktion, alles oben auf einmal sichtbar, darunter das
+  // Gewählte über die ganze Breite (Wunsch Patrick 13. November 2026:
+  // „ohne Scrollen alles sehen … nichts Neues machen“)
+  const knopf = (id, name) => {
     const z = zahlen[art + ":" + id];
     return (
       <button key={id} type="button" data-wartung-wahl={id} data-wartung-typ={art === "typ" ? id : undefined}
-        aria-current={id === wahl ? "true" : undefined}
-        className={"es-wartung__eintrag" + (id === wahl ? " aktiv" : "")
-          + (z && z.faellig ? " es-wartung__eintrag--faellig" : "")}
+        aria-pressed={id === wahl}
+        className={"typwahl__knopf" + (id === wahl ? " aktiv" : "") + (z && z.faellig ? " es-wartung__faellig" : "")}
+        title={z && z.faellig ? z.faellig + " fällig" : undefined}
         onClick={() => waehlen(id)}>
-        <span className="es-wartung__eintrag-name">{name}</span>
-        {z && z.faellig ? <span className="es-wartung__zahl es-wartung__zahl--faellig">{z.faellig} fällig</span>
-          : z && z.alle ? <span className="es-wartung__zahl">{z.alle} {z.alle === 1 ? "Wartung" : "Wartungen"}</span>
-          : null}
-        {n != null && <span className="es-wartung__eintrag-n klein">{n} {n === 1 ? "Maschine" : "Maschinen"}</span>}
+        {name}
+        {z && z.alle ? <span className="typwahl__zahl">{z.alle}</span> : null}
       </button>);
   };
 
   let wahlListe;
-  if (art === "typ") {
-    wahlListe = typen.map((x) => knopf(x.id, x.name, maschinen.filter((y) => y.type_id === x.id).length));
-  } else if (art === "park") {
-    wahlListe = parks.map((x) => knopf(x.id, x.name, maschinen.filter((y) => y.park_id === x.id).length));
-  } else {
+  if (art === "typ") wahlListe = <div className="typwahl">{typen.map((x) => knopf(x.id, x.name))}</div>;
+  else if (art === "park") wahlListe = <div className="typwahl">{parks.map((x) => knopf(x.id, x.name))}</div>;
+  else {
     // Maschinen nach Park, in der Reihenfolge der Planwand
     wahlListe = parks.map((pk) => (
       <div key={pk.id} className="es-wartung__gruppe">
-        <span className="es-wartung__parkname">{pk.name}</span>
-        {maschinen.filter((y) => y.park_id === pk.id).map((x) => knopf(x.id, x.machine_number || x.name, null))}
+        <span className="es-wartung__parkname klein">{pk.name}</span>
+        <div className="typwahl">{maschinen.filter((y) => y.park_id === pk.id)
+          .map((x) => knopf(x.id, x.machine_number || x.name))}</div>
       </div>));
   }
 
@@ -148,29 +142,21 @@ function WartungZuteilen({ reiter }) {
     <section className="karte es-wartung">
       <h2>Wartung im Pad Mode</h2>
       {reiter}
-      <p className="klein es-wartung__kurz">Links wählen, wofür es gilt. Rechts Bild, PDF oder Text ablegen und
-        terminieren: ab dem Termin zeigt das Pad es an der Maschine, bis dort jemand „Erledigt“ tippt.</p>
-      <div className="es-wartung__zuteilen">
-        <nav className="es-wartung__links">
-          <div className="es-wartung__art" role="tablist" aria-label="Gilt für">
-            {ARTEN.map(([a, t]) => (
-              <button key={a} type="button" role="tab" data-wartung-art={a} aria-selected={a === art}
-                className={a === art ? "aktiv" : ""} onClick={() => artWaehlen(a)}>{KURZ[a]}</button>))}
-          </div>
-          <div className="es-wartung__wahl">{wahlListe}</div>
-        </nav>
-        <div className="es-wartung__inhalt">
-          {ziel ? <div className="wartung wartung--einstellungen">
-              {/* Bei einer einzelnen Maschine alles, was dort gilt, auch vom Typ
-                  und vom Park, wie im Pad (Wunsch Patrick 2. November 2026) */}
-              {art === "maschine"
-                ? <WartungListe key={art + wahl} m={maschinen.find((x) => x.id === wahl)}
-                    vorgabe={{ art: "maschine", id: wahl }} />
-                : <WartungListe key={art + wahl} ziel={ziel} maschinen={betroffen(ziel, maschinen)} />}</div>
-            : <p className="unterlagen__leer es-wartung__leer">Links {art === "typ" ? "einen Maschinentyp" : art === "park" ? "einen Park"
-              : "eine Maschine"} wählen.</p>}
-        </div>
+      <div className="reiter es-wartung__art" role="tablist" aria-label="Gilt für">
+        {ARTEN.map(([a, t]) => (
+          <button key={a} type="button" role="tab" data-wartung-art={a} aria-selected={a === art}
+            className={"reiter__knopf" + (a === art ? " aktiv" : "")} onClick={() => artWaehlen(a)}>{t}</button>))}
       </div>
+      <div className="es-wartung__wahl">{wahlListe}</div>
+      {ziel ? <div className="wartung wartung--einstellungen">
+          {/* Bei einer einzelnen Maschine alles, was dort gilt, auch vom Typ
+              und vom Park, wie im Pad (Wunsch Patrick 2. November 2026) */}
+          {art === "maschine"
+            ? <WartungListe key={art + wahl} m={maschinen.find((x) => x.id === wahl)}
+                vorgabe={{ art: "maschine", id: wahl }} ohneBatterie />
+            : <WartungListe key={art + wahl} ziel={ziel} maschinen={betroffen(ziel, maschinen)} ohneBatterie />}</div>
+        : <p className="unterlagen__leer">{art === "typ" ? "Einen Maschinentyp" : art === "park" ? "Einen Park"
+          : "Eine Maschine"} wählen.</p>}
     </section>
   );
 }

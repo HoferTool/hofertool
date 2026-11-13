@@ -13898,3 +13898,31 @@ body.dunkel .nav-todo .pl-knopf { background: #142441; border-color: #2c4670; }
 body.dunkel .nav-todo .pl-haken { border-color: #4a6a96; }
 body.dunkel .nav-todo .pl-schild--m { color: #d42020 !important; }
 body.dunkel .nav-todo .pl-schild--eigen { background: #2a4a7a; color: #cfe0ff !important; }
+
+/* Wartung → Zuteilen ohne Rollen, mit den Bausteinen des Tools (seit 1.537.0,
+   Wunsch Patrick 13. November 2026: „ohne Scrollen alles sehen … wie das
+   restliche Tool“, „nicht so grosse Felder, so klein wie bei den Vorlagen“):
+   Wahl als Typwahl-Knöpfe der Produktion, Wartungen als kleine Karten wie
+   die Vorlagen (1.534.2) */
+.es-wartung > .es-wartung__art { margin: 10px 0 8px; }
+.es-wartung > .es-wartung__wahl { display: block; overflow: visible; margin: 0 0 14px; padding: 0; }
+.es-wartung > .es-wartung__wahl .es-wartung__gruppe { display: block; margin: 0 0 8px; }
+.es-wartung > .es-wartung__wahl .es-wartung__parkname { display: block; font-size: 12px; font-weight: 700;
+  text-transform: none; letter-spacing: 0; padding: 0 0 4px; opacity: .75; }
+.es-wartung .typwahl__knopf.es-wartung__faellig:not(.aktiv) { border-color: #e08a2c; }
+.es-wartung .typwahl__knopf.es-wartung__faellig .typwahl__zahl { background: #e08a2c; color: #fff !important; }
+.wartung--einstellungen .wartung__liste { gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); }
+.wartung--einstellungen .wartung__zeile { padding: 6px; gap: 5px; border-radius: 10px; }
+.wartung--einstellungen .wartung__vorschau { height: 150px; border-radius: 7px; }
+.wartung--einstellungen .wartung__vorschau-inhalt { padding: 8px 10px; }
+.wartung--einstellungen .wartung-text:not(.wblatt__text) { font-size: 10px; }
+.wartung--einstellungen .wartung__text, .wartung--einstellungen .wartung__text b { font-size: 12px; line-height: 1.2; }
+.wartung--einstellungen .wartung__text .klein, .wartung--einstellungen .wartung__text small { font-size: 11px; }
+.wartung--einstellungen .wartung__pdf-marke { top: 4px; left: 4px; font-size: 10px; padding: 1px 5px; }
+.wartung--einstellungen .wartung__knoepfe { gap: 4px; flex-wrap: wrap; }
+.wartung--einstellungen .wartung__knoepfe .knopf { padding: 2px 6px; font-size: 11px; min-height: 0; height: auto; line-height: 1.4; }
+.wartung--einstellungen .wartung__zeile--faellig { border-width: 2px; }
+.wartung--einstellungen .wartung__erklaerung { display: none; }
+.wartung--einstellungen .blatt__kopf { flex-wrap: wrap; gap: 8px; justify-content: flex-start; margin-bottom: 10px; }
+.wartung--einstellungen .blatt__kopf h2 { flex: 1 0 100%; font-size: 1.15em; margin: 0; }
+.wartung--einstellungen .blatt__kopf .knopf { margin-left: 0; }

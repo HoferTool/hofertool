@@ -686,7 +686,7 @@ const zielWert = (z) => z.art + ":" + z.id;
 // unter Einstellungen → Wartung (mit ziel: genau die Pläne dieses Typs,
 // Parks oder dieser Maschine, maschinen = alle, an denen sie gelten).
 // Ohne zu kein Schliessen.
-export function WartungListe({ m, ziel, maschinen: alle, zu, vorgabe }) {
+export function WartungListe({ m, ziel, maschinen: alle, zu, vorgabe, ohneBatterie }) {
   const [plaene, setPlaene] = useState(null);
   const [erledigt, setErledigt] = useState([]);
   const [infos, setInfos] = useState({});
@@ -904,7 +904,7 @@ export function WartungListe({ m, ziel, maschinen: alle, zu, vorgabe }) {
       if (seit) naechste.push({ id: p.id, titel: p.titel, wann: seit, faellig: true });
       else { const n = naechsterTermin(p, jetzt); if (n) naechste.push({ id: p.id, titel: p.titel, wann: n }); }
     });
-    if (info && info.batterie_hinweis !== false && info.batterie_faellig && !ohneBatterien(typ)) {
+    if (!ohneBatterie && info && info.batterie_hinweis !== false && info.batterie_faellig && !ohneBatterien(typ)) {
       naechste.push({ id: "batterie", titel: "Backup-Batterien wechseln", wann: alt.ausIso(info.batterie_faellig),
         tag: true, faellig: batterieHeuteFaellig(info, typ), zusatz: batterienText(info) });
     }
@@ -957,7 +957,9 @@ export function WartungListe({ m, ziel, maschinen: alle, zu, vorgabe }) {
       {laedt && <p className="unterlagen__laedt">Lädt hoch: {laedt} …</p>}
       {fehler && <p className="fehlertext">{fehler}</p>}
       {/* Steht die Batterie schon bei „Als Nächstes“, keine eigene Karte (Wunsch Patrick 2. November 2026) */}
-      {!(m && naechste.some((x) => x.id === "batterie"))
+      {/* Unter Einstellungen → Wartung keine Batterien: ansehen und ändern nur
+          auf der Seite der Maschine (Wunsch Patrick 13. November 2026) */}
+      {!ohneBatterie && !(m && naechste.some((x) => x.id === "batterie"))
         && <Batterien maschinen={maschinen} infos={infos} typen={namen.typ} darf={!alt.istExtern()}
           ziel={!m && ziel} zielName={ueberschrift} />}
       {plaene === null
