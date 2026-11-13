@@ -162,14 +162,21 @@ export const istTlm = (text) => /^\s*(<\?xml[^>]*>\s*)?<ToolsItemsManager\b/.tes
 export function tlmLesen(text) {
   const doc = new DOMParser().parseFromString(String(text || ""), "application/xml");
   const wurzel = doc.documentElement;
-  if (!wurzel || wurzel.nodeName !== "ToolsItemsManager") throw new Error("Das ist kein Werkzeugsatz aus InventorCAM (.TLM).");
+  if (!wurzel || wurzel.nodeName !== "ToolsItemsManager") throw new Error("Das ist kein Werkzeugsatz aus InventorCAM (.TLM oder .TLS).");
   const comps = [...wurzel.children].find((c) => c.nodeName === "Components");
+  const alle = comps ? [...comps.children].filter((c) => c.nodeName === "CompTool") : [];
+  // Die .TLM des Maschinensatzes kennt das Magazin (IsOnMagazine="1"); die .TLS
+  // des Teils nicht, dort steht alles auf 0. Dann zählt alles ausser den
+  // Spannmitteln, die an einer Spindel hängen (DeviceId / LoadedOnDeviceId 2, 3 …).
+  const mitMagazin = alle.some((c) => c.getAttribute("IsOnMagazine") === "1");
+  const spannmittel = (c) => Number(c.getAttribute("DeviceId")) > 1 || Number(c.getAttribute("LoadedOnDeviceId")) > 1;
   const wz = [];
-  for (const t of comps ? [...comps.children] : []) {
+  for (const t of alle) {
     if (t.nodeName !== "CompTool") continue;
     const nr = Math.round(zahl(t.getAttribute("ToolNumber")));
     // Spannmittel (Hainbuch …) hängen an einer Spindel, nicht im Magazin
-    if (!(nr > 0) || t.getAttribute("IsOnMagazine") !== "1") continue;
+    if (!(nr > 0)) continue;
+    if (mitMagazin ? t.getAttribute("IsOnMagazine") !== "1" : spannmittel(t)) continue;
     const teile = [...t.getElementsByTagName("CompTool")];
     const schneide = teile.find((c) => c.getAttribute("Type") === "1");
     const halter = teile.filter((c) => c.getAttribute("Type") === "2").map((c) => c.getAttribute("Name")).filter(Boolean);

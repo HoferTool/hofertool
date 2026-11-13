@@ -110,9 +110,9 @@ export default function Werkzeuge508({ pad = false, marken = [], waehleMarke, on
           <label className="knopf knopf--klein wz5-datei">Datei wählen
             <input type="file" accept=".dat,.DAT,.txt" id="wz5-dat" data-ablegen="direkt" hidden onChange={lesen("dat")} /></label>
           {z.dat && <span className="wz5-ok" id="wz5-dat-ok">✓ {z.datName}: {z.dat.length} Fächer, {z.dat.filter((b) => !b.leer).length} belegt</span>}</li>
-        <li><b>Werkzeuge aus InventorCAM:</b> den Werkzeugsatz (.TLM) wählen, dann sind auch Drehstähle und Greifer dabei; oder die Werkzeugtabelle als CSV (nur Fräser und Bohrer).
+        <li><b>Werkzeuge aus InventorCAM:</b> den Werkzeugsatz (.TLM oder .TLS) wählen, dann sind auch Drehstähle und Greifer dabei; oder die Werkzeugtabelle als CSV (nur Fräser und Bohrer).
           <label className="knopf knopf--klein wz5-datei">Datei wählen
-            <input type="file" accept=".csv,.CSV,.tlm,.TLM" id="wz5-csv" data-ablegen="direkt" hidden onChange={lesen("csv")} /></label>
+            <input type="file" accept=".csv,.CSV,.tlm,.TLM,.tls,.TLS" id="wz5-csv" data-ablegen="direkt" hidden onChange={lesen("csv")} /></label>
           {z.csv && <span className="wz5-ok" id="wz5-csv-ok">✓ {z.csvName}: {z.csv.length} Werkzeuge{z.csv.some((w) => w.dreh) ? ", davon " + z.csv.filter((w) => w.dreh).length + " Drehstähle / Greifer (nur geprüft)" : ""}</span>}</li>
         <li><b>Prüfen</b> und GESTOUTI.DAT herunterladen, dann an der Maschine einlesen.</li>
       </ol>
@@ -171,7 +171,7 @@ export default function Werkzeuge508({ pad = false, marken = [], waehleMarke, on
               })}</tbody>
             </table>
           </div>
-          <p className="wz5-hilfe">Neue Werkzeuge bekommen als Länge den Wert aus dem CAM (H-Länge, nur in der CSV; aus der .TLM 999.9999) und Zustand 6 „Zu vermessen“;
+          <p className="wz5-hilfe">Neue Werkzeuge bekommen als Länge den Wert aus dem CAM (H-Länge, nur in der CSV; aus .TLM und .TLS 999.9999) und Zustand 6 „Zu vermessen“;
             das Programm misst sie am Anfang selbst. Bei vorhandenen Werkzeugen bleiben Länge und Abnutzung, der Radius
             ändert nur, wenn der Durchmesser anders ist. Leere Fächer im CAM bleiben auf der Maschine, wie sie sind.</p>
           {drehFehlt.length > 0 && <p className="karte karte--fehler" id="wz5-dreh-fehlt">Nicht auf der Maschine: {drehFehlt.map((v) => "T" + v.nr + " " + v.name).join(", ")}. Drehstähle und Greifer richtet man an der Maschine von Hand ein.</p>}

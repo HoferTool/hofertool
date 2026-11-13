@@ -1,4 +1,4 @@
-# NC-PRO → 508 Werkzeuge (seit 1.508.0): Werkzeugsatz .TLM aus InventorCAM statt CSV, mit Drehstählen und Greifer
+# NC-PRO → 508 Werkzeuge (seit 1.508.0): Werkzeugsatz .TLM aus InventorCAM statt CSV, mit Drehstählen und Greifer; seit 1.508.1 auch .TLS
 import time, os, tempfile
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -27,45 +27,51 @@ tlm = ('<?xml version="1.0" encoding="UTF-8"?>\r\n<ToolsItemsManager Version="11
        + schneide(7, "DCGT 11T302", 16, "0")
        + '<CompTool Ver="6" Name="FESTO Greifer" Type="0" ToolNumber="4" DeviceId="0" StationId="0" IsOnMagazine="1"><Components><CompTool Ver="3" Name="C4 Grundhalter" Type="2"></CompTool></Components></CompTool>'
        '</Components></ToolsItemsManager>\r\n')
-tmp = tempfile.mkdtemp()
-pd, pt = os.path.join(tmp, "GESTOUTI.DAT"), os.path.join(tmp, "satz.TLM")
-open(pd, "w", newline="").write("\r\n".join(dat))
-open(pt, "w", encoding="utf-8", newline="").write(os.environ.get("TLM") and open(os.environ["TLM"], encoding="utf-8").read() or tlm)
-if os.environ.get("DAT"): open(pd, "wb").write(open(os.environ["DAT"], "rb").read())
+# Dieselbe Arbeit als .TLS des Teils: Machine leer, alles IsOnMagazine="0",
+# das Spannmittel hängt mit LoadedOnDeviceId an der Spindel (seit 1.508.1)
+tls = tlm.replace('Machine="WilleminMacodel_508MT2_X1000_Fanuc31"', 'Machine=""').replace('IsOnMagazine="1"', 'IsOnMagazine="0"') \
+         .replace('DeviceId="3" StationId="1"', 'DeviceId="0" LoadedOnDeviceId="3" StationId="1"')
+for name, inhalt in ([("satz.TLM", tlm), ("teil.TLS", tls)] if not os.environ.get("TLM") else [("satz.TLM", tlm)]):
+    print("—", name)
+    tmp = tempfile.mkdtemp()
+    pd, pt = os.path.join(tmp, "GESTOUTI.DAT"), os.path.join(tmp, name)
+    open(pd, "w", newline="").write("\r\n".join(dat))
+    open(pt, "w", encoding="utf-8", newline="").write(os.environ.get("TLM") and open(os.environ["TLM"], encoding="utf-8").read() or inhalt)
+    if os.environ.get("DAT"): open(pd, "wb").write(open(os.environ["DAT"], "rb").read())
 
-with sync_playwright() as p:
-    br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
-    ctx = br.new_context(viewport={"width": 1440, "height": 900}, accept_downloads=True)
-    pg = ctx.new_page()
-    pg.on("pageerror", lambda e: fehler.append("SEITENFEHLER: " + str(e)[:160]))
-    pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FAKE))
-    for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
-        pg.route(u, lambda r: r.abort())
-    pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
-    pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#nc'")
-    pg.wait_for_selector("[data-unter='nc/wz508']"); pg.click("[data-unter='nc/wz508']")
-    pg.wait_for_selector("#wz5")
-    pg.set_input_files("#wz5-dat", pd); pg.set_input_files("#wz5-csv", pt)
-    pg.wait_for_selector("#wz5-tabelle")
-    pg.screenshot(path=os.path.join(tmp, "wz508_tlm.png"), full_page=True)
-    print("Bild:", os.path.join(tmp, "wz508_tlm.png"))
-    print(pg.text_content("#wz5-csv-ok"))
-    if os.environ.get("TLM"):
-        for r in pg.locator("#wz5-tabelle tbody tr").all(): print("  ", r.get_attribute("data-wz5"), r.locator(".wz5-schild").text_content(), [i.input_value() for i in r.locator("input.wz5-name, select:not(.wz5-fach), input.wz5-zahl").all()], " ".join(r.locator("td").last.text_content().split())[:90])
-    else:
-        zeile = lambda n: " ".join(pg.text_content(f"[data-wz5='{n}']").split())
-        pruefe("Spannmittel weggelassen, 4 Werkzeuge", "4 Werkzeuge, davon 2 Drehstähle" in pg.text_content("#wz5-csv-ok"))
-        pruefe("Bohrer 1 ändern", "Ändern" in zeile(1))
-        pruefe("Kopierfräser 3 neu als 130", "Neu" in zeile(3) and pg.locator("[data-wz5='3'] select").nth(1).input_value() == "130")
-        pruefe("Greifer 4 bleibt im Fach", "Bleibt" in zeile(4) and "steht in Fach 4" in zeile(4))
-        pruefe("Drehstahl 7 fehlt", "Fehlt" in zeile(7) and pg.locator("#wz5-dreh-fehlt").count() == 1)
-        pruefe("Drehstähle nicht im Magazin", pg.locator("[data-mag-wz='7']").count() == 0 and pg.locator("[data-mag-wz='3']").count() == 1)
-        with pg.expect_download() as dl:
-            pg.click("#wz5-laden")
-        neu = open(dl.value.path(), "rb").read().decode("ascii").split("\r\n")
-        pruefe("Neu Kopierfraeser in Fach 3", "N3 D1 (Kopierfraeser R0.5)" in neu)
-        i3 = neu.index("N3 D1 (Kopierfraeser R0.5)")
-        pruefe("Ohne H-Länge 999.9999, zu vermessen", neu[i3 + 2] == "T1 E6 F1 P0 R0 Q130" and neu[i3 + 7].startswith("A1 X999.9999") and "R0.5000" in neu[i3 + 7])
-        pruefe("Taster bleibt", "N4 D1 (MESSTASTER)" in neu)
-    br.close()
+    with sync_playwright() as p:
+        br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
+        ctx = br.new_context(viewport={"width": 1440, "height": 900}, accept_downloads=True)
+        pg = ctx.new_page()
+        pg.on("pageerror", lambda e: fehler.append("SEITENFEHLER: " + str(e)[:160]))
+        pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FAKE))
+        for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
+            pg.route(u, lambda r: r.abort())
+        pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
+        pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#nc'")
+        pg.wait_for_selector("[data-unter='nc/wz508']"); pg.click("[data-unter='nc/wz508']")
+        pg.wait_for_selector("#wz5")
+        pg.set_input_files("#wz5-dat", pd); pg.set_input_files("#wz5-csv", pt)
+        pg.wait_for_selector("#wz5-tabelle")
+        pg.screenshot(path=os.path.join(tmp, "wz508_tlm.png"), full_page=True)
+        print("Bild:", os.path.join(tmp, "wz508_tlm.png"))
+        print(pg.text_content("#wz5-csv-ok"))
+        if os.environ.get("TLM"):
+            for r in pg.locator("#wz5-tabelle tbody tr").all(): print("  ", r.get_attribute("data-wz5"), r.locator(".wz5-schild").text_content(), [i.input_value() for i in r.locator("input.wz5-name, select:not(.wz5-fach), input.wz5-zahl").all()], " ".join(r.locator("td").last.text_content().split())[:90])
+        else:
+            zeile = lambda n: " ".join(pg.text_content(f"[data-wz5='{n}']").split())
+            pruefe(name + ": Spannmittel weggelassen, 4 Werkzeuge", "4 Werkzeuge, davon 2 Drehstähle" in pg.text_content("#wz5-csv-ok"))
+            pruefe(name + ": Bohrer 1 ändern", "Ändern" in zeile(1))
+            pruefe(name + ": Kopierfräser 3 neu als 130", "Neu" in zeile(3) and pg.locator("[data-wz5='3'] select").nth(1).input_value() == "130")
+            pruefe(name + ": Greifer 4 bleibt im Fach", "Bleibt" in zeile(4) and "steht in Fach 4" in zeile(4))
+            pruefe(name + ": Drehstahl 7 fehlt", "Fehlt" in zeile(7) and pg.locator("#wz5-dreh-fehlt").count() == 1)
+            pruefe(name + ": Drehstähle nicht im Magazin", pg.locator("[data-mag-wz='7']").count() == 0 and pg.locator("[data-mag-wz='3']").count() == 1)
+            with pg.expect_download() as dl:
+                pg.click("#wz5-laden")
+            neu = open(dl.value.path(), "rb").read().decode("ascii").split("\r\n")
+            pruefe(name + ": Neu Kopierfraeser in Fach 3", "N3 D1 (Kopierfraeser R0.5)" in neu)
+            i3 = neu.index("N3 D1 (Kopierfraeser R0.5)")
+            pruefe(name + ": Ohne H-Länge 999.9999, zu vermessen", neu[i3 + 2] == "T1 E6 F1 P0 R0 Q130" and neu[i3 + 7].startswith("A1 X999.9999") and "R0.5000" in neu[i3 + 7])
+            pruefe(name + ": Taster bleibt", "N4 D1 (MESSTASTER)" in neu)
+        br.close()
 print("Fehler:", ", ".join(fehler) if fehler else "keine")
