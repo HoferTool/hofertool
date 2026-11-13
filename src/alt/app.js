@@ -160,7 +160,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.538.0";
+const APP_VERSION = "1.539.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5926,9 +5926,47 @@ function sucheBeenden() {
 // Ohne Bearbeitungsrecht: Ein Klick markiert den Balken, ein Doppelklick
 // öffnet das Auftragsfenster zum Ansehen (Wunsch 4. Oktober 2026). Dort
 // lässt sich nur ändern, was vorher schon ging: Zustand und Problem.
+// Ohne Planrecht steht seit 1.539.0 kein dauernder Hinweis mehr über
+// der Planwand (Wunsch Patrick 13. November 2026). Stattdessen kommt
+// die Meldung erst, wenn jemand versucht, etwas zu ändern: mit der
+// Maus einen Balken oder Griff ziehen, eine leere Zelle doppelt
+// anklicken, mit dem Finger lange auf einen Balken drücken. Wischen
+// blättert am Finger weiter nur die Zeit, das ist kein Versuch.
+let nurAnsehenZuletzt = 0;
+function nurAnsehenMelden() {
+  if (istArchiv()) return;
+  const jetzt = Date.now();
+  if (jetzt - nurAnsehenZuletzt < 4000) return;
+  nurAnsehenZuletzt = jetzt;
+  meldung(istAdmin()
+    ? "Ändern geht nur am Computer, nicht auf dem Handy."
+    : "Ändern dürfen nur Administratoren.", "warn");
+}
+
 function balkenAnsehenVerhalten(b) {
   const tafel = document.querySelector(".pw-tafel");
   if (!tafel) return;
+
+  // Versuch erkennen, ohne Klick, Doppelklick und Wischen zu stören.
+  let start = null, lang = null;
+  tafel.onpointerdown = (e) => {
+    const balken = e.target.closest && e.target.closest("[data-auftrag]");
+    start = { x: e.clientX, y: e.clientY, maus: e.pointerType === "mouse", balken: !!balken };
+    clearTimeout(lang);
+    if (balken && !start.maus) lang = setTimeout(nurAnsehenMelden, 600);
+  };
+  tafel.onpointermove = (e) => {
+    if (!start) return;
+    const weg = Math.hypot(e.clientX - start.x, e.clientY - start.y);
+    if (weg > 8) clearTimeout(lang);
+    if (start.maus && start.balken && weg > 12) { start = null; nurAnsehenMelden(); }
+  };
+  const ende = () => { start = null; clearTimeout(lang); };
+  tafel.onpointerup = ende;
+  tafel.onpointercancel = ende;
+  tafel.ondblclick = (e) => {
+    if (e.target.closest && e.target.closest("[data-zelle]") && !e.target.closest("[data-auftrag]")) nurAnsehenMelden();
+  };
 
   tafel.querySelectorAll("[data-auftrag]").forEach((el) => {
     el.style.cursor = "pointer";

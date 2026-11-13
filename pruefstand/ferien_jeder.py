@@ -22,7 +22,7 @@ def seite(br, rolle):
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
     pg, f = seite(br, "mitarbeiter")
-    pruefe("Mitarbeiter: Planwand nur ansehen", pg.locator(".nurlesen").count() == 1)
+    pruefe("Mitarbeiter: Planwand nur ansehen", pg.locator(".nurlesen").count() == 0 and pg.locator(".pw-name--fassbar").count() == 0)
     pruefe("Mitarbeiter: Griffe an Ferien", pg.locator("[data-ferien] [data-fgriff]").count() >= 1)
     pg.locator("[data-fzelle]").nth(3).click(); pg.wait_for_timeout(400)
     pruefe("Mitarbeiter: Fenster „Ferien eintragen“", pg.locator("#fd-person").count() == 1)

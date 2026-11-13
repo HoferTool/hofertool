@@ -362,11 +362,13 @@ function Kopfleiste({ b, mobil }) {
           <span>HOCO Nr.</span>
         </button>
       </div>
-      {!alt.darfPlanen() && <div className="nurlesen">{alt.istArchiv()
-        ? "Backup der Planwand, nur zum Ansehen. Ändern geht nur in der App."
-        : mobil
-        ? "Bearbeitbar nur am Desktop, nicht auf dem Handy."
-        : "Du kannst die Planung ansehen. Ändern dürfen nur Administratoren."}</div>}
+      {/* Ohne Planrecht kein dauernder Hinweis mehr (Wunsch Patrick
+          13. November 2026: „die Info brauchts nicht, soll kommen, wenn
+          man versucht, etwas zu machen“): die Meldung kommt erst beim
+          Versuch, siehe nurAnsehenMelden in app.js. Nur das Archiv
+          sagt weiter oben, dass es ein Backup ist. */}
+      {alt.istArchiv() && <div className="nurlesen">
+        Backup der Planwand, nur zum Ansehen. Ändern geht nur in der App.</div>}
     </div>
   );
 }

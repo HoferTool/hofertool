@@ -31,8 +31,14 @@ with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
     for rolle in ["planwand", "langdreher"]:
         pg, f = seite(br, rolle, "daten.profiles[0].darf_materialplatz = true; daten.planwand.forEach(j => { j.material_platz = 'Regal 1'; });")
-        pruefe(rolle + ": Planwand nur ansehen", pg.locator(".nurlesen").count() == 1)
-        pruefe(rolle + ": Hinweis nennt Administratoren", "nur Administratoren" in pg.locator(".nurlesen").inner_text())
+        # Seit 1.539.0 kein dauernder Hinweis, die Meldung kommt erst beim Versuch.
+        pruefe(rolle + ": kein dauernder Hinweis", pg.locator(".nurlesen").count() == 0)
+        pruefe(rolle + ": vor dem Versuch keine Meldung", pg.locator(".toast", has_text="nur Administratoren").count() == 0)
+        bx = pg.evaluate("""() => { const b = [...document.querySelectorAll('.pw-balken[data-auftrag]')].find(b => b.getBoundingClientRect().width > 40);
+          const r = b.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }""")
+        pg.mouse.move(bx[0], bx[1]); pg.mouse.down(); pg.mouse.move(bx[0] + 60, bx[1], steps=6); pg.mouse.up()
+        pg.wait_for_timeout(300)
+        pruefe(rolle + ": Ziehen meldet nur Administratoren", pg.locator(".toast", has_text="nur Administratoren").count() == 1)
         pruefe(rolle + ": keine Griffe an Aufträgen", pg.locator(".pw-name--fassbar").count() == 0)
         pruefe(rolle + ": Ferien weiter mit Griffen", pg.locator("[data-ferien] [data-fgriff]").count() >= 1)
         oeffnen(pg)
@@ -43,7 +49,7 @@ with sync_playwright() as p:
         pruefe(rolle + ": Seitenfehler " + str(f[:2]), not f)
         pg.close()
     pg, f = seite(br, "admin")
-    pruefe("Admin: kein Hinweis", pg.locator(".nurlesen").count() == 0)
+    pruefe("Admin: kein Hinweis", pg.locator(".nurlesen").count() == 0 and pg.locator(".toast", has_text="nur Administratoren").count() == 0)
     pruefe("Admin: Aufträge fassbar", pg.locator(".pw-name--fassbar").count() > 0)
     oeffnen(pg)
     pruefe("Admin: Fenster bearbeitbar", pg.locator("#pl-nurlesen").count() == 0 and pg.locator("#pl-maschine").is_enabled())
