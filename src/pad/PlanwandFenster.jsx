@@ -2,10 +2,12 @@
 //  PLANWAND ALS FENSTER IM PAD
 //  Tipp auf die HOCO Nr. im Pad (Dashboard der Maschine und QS Check)
 //  öffnet die Planwand als Fenster über dem Pad. Der Balken des
-//  Auftrags steht in der Mitte und ist angewählt, das Auftragsfenster
-//  geht aber nicht auf (Wunsch Patrick 29. Oktober 2026: „Planwand
-//  soll aufgehen als Fenster, aber Balken nur angewählt, nicht
-//  geöffnet“). X, Escape oder Zurück schliessen nur dieses Fenster.
+//  Auftrags steht in der Mitte und ist angewählt. Seit 1.513.0 geht
+//  darüber auch wieder das Auftragsfenster auf (Wunsch Patrick
+//  13. November 2026: „wenn man auf eine HOCO Nr. drückt mit Verweis
+//  auf einen Auftrag, soll das Fenster wieder aufgehen“; von 1.254.0
+//  bis 1.512.x nur angewählt). Escape oder X schliessen zuerst das
+//  Auftragsfenster, dann die Planwand.
 //
 //  Darin läuft dieselbe Seite wie im Menü (src/seiten/Planwand.jsx).
 //  Das geht, weil das Pad die Seite darunter leert (padOeffnen): So
@@ -35,12 +37,12 @@ function Inhalt({ zu }) {
   );
 }
 
-export function planwandFensterOeffnen(auftrag) {
+export function planwandFensterOeffnen(auftrag, ohneAuftragsfenster = false) {
   if (!auftrag || !auftrag.id) return;
   // Wie balkenZeigen, nur ohne Seitenwechsel: zeichnePlanwand führt
-  // den Balken hin, markiert ihn und lässt das Auftragsfenster zu
+  // den Balken hin, markiert ihn und öffnet danach das Auftragsfenster
   alt.plan.zeigeAuftrag = auftrag.id;
-  alt.plan.zeigeOhneFenster = true;
+  alt.plan.zeigeOhneFenster = !!ohneAuftragsfenster;
   document.body.classList.add("pad-pw-offen");
   fensterOeffnen((zu) => <Inhalt zu={zu} />, () => {
     document.body.classList.remove("pad-pw-offen");

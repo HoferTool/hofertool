@@ -1,6 +1,7 @@
 # Pad: Tipp auf die HOCO Nr. (Dashboard und QS Check) öffnet die Planwand
-# als Fenster, der Balken ist angewählt, das Auftragsfenster bleibt zu
-# (Wunsch Patrick 29. Oktober 2026). Escape schliesst nur das Fenster.
+# als Fenster, der Balken ist angewählt, und seit 1.513.0 geht darüber
+# das Auftragsfenster auf (Wunsch Patrick 13. November 2026). Escape
+# schliesst zuerst das Auftragsfenster, dann die Planwand.
 import time, os
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -36,7 +37,10 @@ with sync_playwright() as p:
         pg.wait_for_timeout(1500)
         an = pg.locator(".pad-pw .pw-balken--angewaehlt")
         pruefe(name + ": Balken angewählt", an.count() == 1 and nr in an.first.inner_text())
-        pruefe(name + ": kein Auftragsfenster", pg.locator(".dialog--auftrag").count() == 0)
+        pruefe(name + ": Auftragsfenster geht auf", pg.locator(".dialog--auftrag").count() == 1)
+        if BILDER: pg.screenshot(path=f"{BILDER}/pad-planwand-auftrag-{name}.png")
+        pg.mouse.move(5, 5); pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
+        pruefe(name + ": Escape schliesst zuerst das Auftragsfenster", pg.locator(".dialog--auftrag").count() == 0 and pg.locator(".pad-pw").count() == 1)
         sicht = pg.evaluate("""(() => { const el = document.querySelector('.pad-pw .pw-balken--angewaehlt');
           if (!el) return false; const r = el.getBoundingClientRect();
           return r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth; })()""")
@@ -57,7 +61,8 @@ with sync_playwright() as p:
         jid = knopf.get_attribute("data-qsauftrag"); knopf.click()
         pg.wait_for_selector(".pad-pw .pw-balken", timeout=8000); pg.wait_for_timeout(1500)
         pruefe(name + ": QS Check → Balken angewählt", pg.locator(f".pad-pw .pw-balken--angewaehlt[data-auftrag='{jid}']").count() == 1)
-        pruefe(name + ": QS Check → kein Auftragsfenster", pg.locator(".dialog--auftrag").count() == 0)
+        pruefe(name + ": QS Check → Auftragsfenster", pg.locator(".dialog--auftrag").count() == 1)
+        pg.mouse.move(5, 5); pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
         pg.click(".pad-pw__zu"); pg.wait_for_timeout(400)
         pruefe(name + ": X schliesst", pg.locator(".pad-pw").count() == 0 and pg.locator("#pad").count() == 1)
         fehler += f
