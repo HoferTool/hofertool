@@ -10,6 +10,7 @@
 //  (Tabelle planer_todos). Rechts das Material der nächsten Aufträge,
 //  nach Lieferant gebündelt (Rechnung in src/daten/planer.js).
 // =================================================================
+import { useLayoutEffect, useRef } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { planwandFensterOeffnen } from "./PlanwandFenster.jsx";
@@ -27,7 +28,31 @@ const einst = () => {
 };
 
 export async function planerSichtLaden() {
+  // Im Reiter Planwand braucht es die Planer-Daten nicht; die Planwand lädt selbst.
+  if (einst().reiter === "planwand") return { art: "planer", reiter: "planwand" };
   return { art: "planer", ...(await planerLaden(einst().tage)) };
+}
+
+// Reiter oben im Planer (seit 1.511.0, Wunsch Patrick 13. November 2026: „Planwand soll auch oben
+// aufgelistet sein … schön gross mit allen Funktionen … umschaltbar wieder aufs Dashboard“).
+function Reiter({ e, neu }) {
+  const wahl = (r) => { if (e.reiter !== r) { e.reiter = r; neu(); } };
+  const an = e.reiter === "planwand" ? "planwand" : "uebersicht";
+  return (
+    <div className="pl-reiter" role="tablist">
+      <button role="tab" className={"pl-reiter__knopf" + (an === "uebersicht" ? " pl-reiter__knopf--an" : "")}
+        data-plreiter="uebersicht" onClick={() => wahl("uebersicht")}>📋 Übersicht</button>
+      <button role="tab" className={"pl-reiter__knopf" + (an === "planwand" ? " pl-reiter__knopf--an" : "")}
+        data-plreiter="planwand" onClick={() => wahl("planwand")}>🗓️ Planwand</button>
+    </div>
+  );
+}
+
+// Die ganze Planwand wie auf der Seite Planwand, mit allen Knöpfen, über die volle Fläche.
+function PlanwandReiter() {
+  const ref = useRef(null);
+  useLayoutEffect(() => { alt.seitePlanwand(ref.current); }, []);
+  return <div className="pad__rolle pad--wischen pl-planwand" id="pad-planer-planwand" ref={ref} />;
 }
 
 const TAGE = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
@@ -40,9 +65,20 @@ const STAND = {
 export default function Planer({ d, Kopf, neu }) {
   const e = einst();
   const um = (aendern) => { aendern(e); neu(); };
+  // Nach d, nicht nach e: beim Umschalten steht bis zum Laden noch die alte Ansicht da.
+  if (d.reiter === "planwand") {
+    return (
+      <>
+        <Kopf titel="Planer" zurueck />
+        <Reiter e={e} neu={neu} />
+        <PlanwandReiter />
+      </>
+    );
+  }
   return (
     <>
       <Kopf titel="Planer" zurueck />
+      <Reiter e={e} neu={neu} />
       <div className="pl" id="pad-planer">
         <Todos d={d} neu={neu} />
         <section className="pl-karte pl-material">

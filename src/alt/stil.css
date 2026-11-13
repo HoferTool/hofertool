@@ -13405,3 +13405,10 @@ body.dunkel .mag5-zeile--doppelt td:last-child { background: #ffe1e1; }
 /* 508 Werkzeuge: Drehstahl aus der .TLM, nur geprüft (seit 1.508.0) */
 .wz5-dreh { background: #ececf1; color: #4a4a5a; }
 body.dunkel .wz5-dreh { background: #3a3a46; }
+
+/* Planer im Pad: Reiter Übersicht / Planwand (seit 1.511.0) */
+#pad .pl-reiter { display: flex; gap: 6px; padding: 8px 16px 0; flex: 0 0 auto; }
+#pad .pl-reiter__knopf { font: inherit; font-size: 16px; font-weight: 600; padding: 9px 18px; border-radius: 12px 12px 0 0;
+  border: 1px solid #23395d; border-bottom: none; background: #0e1a2e; color: #9fb3d1; cursor: pointer; }
+#pad .pl-reiter__knopf--an { background: linear-gradient(160deg, #1f4f9a, #163a72); color: #fff; border-color: #3a6bb8; }
+#pad .pl-planwand { min-height: 0; }
