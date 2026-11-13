@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.537.1** (13. November 2026): Seitenleiste: Titel „Todos“ oben über Zahlen und Liste, mehr Abstand zu den Menüpunkten, beim Rollen rollt nur die Todo-Liste, nicht die Menüpunkte (Patrick).
 - **1.536.0** (13. November 2026): Todo des Planers auch unten in der Seitenleiste unter „Anzeigen“, nur Admins: drei Zahlen, Todo-Liste mit Haken, „Abgeschlossen“ und „+“, klein, hell und dunkel; zugeklappt und am Handy nicht. Prüfstand `nav_todo.py` (Wunsch Patrick).
 - **1.532.1** (13. November 2026): Planer: Materialzeilen aufgeräumt (Patrick: „nicht so komisch ineinander“): Menge in zwei Zeilen (kg, darunter Stangen) statt abgeschnitten, Stand-Schild, Lieferant mit „auch:“ und Notiz je auf einer eigenen Zeile linksbündig untereinander.
 - **1.532.0** (13. November 2026): Einlagen Generator: gespeicherte Einlagen und Werkzeuge lassen sich mit „Umbenennen“ umbenennen, mit Rückgängig; bei der offenen Einlage ändert sich auch das Namensfeld (Wunsch Patrick).

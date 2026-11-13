@@ -129,7 +129,7 @@ function lieferantenFenster(neu) {
 
 // ---------- Todo ----------
 
-function Todos({ d, neu }) {
+function Todos({ d, neu, titel }) {
   const heute = d.heute;
   const bald = alt.plusTage(heute, 7);
   const posten = [];
@@ -189,7 +189,7 @@ function Todos({ d, neu }) {
       </div>
       <section className="pl-karte pl-todo">
         <div className="pl-kopf">
-          <h2>Todo {offen > 0 && <span className="pl-anzahl">{offen}</span>}</h2>
+          <h2>{titel || "Todo"} {offen > 0 && <span className="pl-anzahl">{offen}</span>}</h2>
           {d.todos !== null && <span className="pl-gruppe">
             <button className="pl-knopf" id="pl-abgeschlossen" title="Erledigte Todos ansehen oder wieder öffnen"
               onClick={() => abgeschlossenFenster(d, neu)}>✓ Abgeschlossen{erledigt.length > 0 ? " (" + erledigt.length + ")" : ""}</button>
@@ -507,5 +507,5 @@ export function NavTodos() {
   }, []);
   if (!d) return null;
   const neu = () => window.dispatchEvent(new Event("hofer-planer-neu"));
-  return <div className="nav-todo" id="nav-todo"><Todos d={d} neu={neu} /></div>;
+  return <div className="nav-todo" id="nav-todo"><Todos d={d} neu={neu} titel="Todos" /></div>;
 }

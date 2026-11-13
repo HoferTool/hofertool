@@ -13926,3 +13926,19 @@ body.dunkel .nav-todo .pl-schild--eigen { background: #2a4a7a; color: #cfe0ff !i
 .wartung--einstellungen .blatt__kopf { flex-wrap: wrap; gap: 8px; justify-content: flex-start; margin-bottom: 10px; }
 .wartung--einstellungen .blatt__kopf h2 { flex: 1 0 100%; font-size: 1.15em; margin: 0; }
 .wartung--einstellungen .blatt__kopf .knopf { margin-left: 0; }
+/* Todo in der Seitenleiste (seit 1.536.1, Wunsch Patrick 13. November 2026: „wenn ich scrolle, soll
+   es nur die Meldungen scrollen, nicht die Reiter“, „mehr Abstand“, „Todos als Titel und darunter die
+   Sachen“): die Leiste ist eine Spalte, die Reiter bleiben stehen, nur die Liste rollt in sich. */
+@media (min-width: 780px) {
+  .nav:has(.nav-todo) { display: flex; flex-direction: column; }
+  .nav:has(.nav-todo) > :not(.nav-todo) { flex: none; }
+  .nav-todo { flex: 1 1 0; min-height: 140px; display: flex; flex-direction: column;
+    margin: 28px 8px 0; padding-top: 16px; padding-bottom: 0; }
+  .nav-todo .pl-links { flex: 1; min-height: 0; }
+  .nav-todo .pl-todo { display: contents; }
+  .nav-todo .pl-kopf { order: -1; margin-bottom: 2px; }
+  .nav-todo .pl-kopf h2 { font-size: 1.05rem; text-transform: none; letter-spacing: 0; color: #1d2b44; font-weight: 700; }
+  body.dunkel .nav-todo .pl-kopf h2 { color: #fff !important; }
+  .nav-todo .pl-liste { flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+    padding: 0 2px 12px; margin: 0 -2px; scrollbar-width: thin; }
+}

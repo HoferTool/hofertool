@@ -37,6 +37,7 @@ DATEN = """;
   TEST.daten.qs_meldungen = [{ id: 'q1', machine_id: null, stueck: 3, hoco_nr: '10000-0001', erstellt_am: '2026-11-12T08:00:00Z' }];
   TEST.daten.planer_todos = [{ id: 't1', text: 'Gühring wegen Termin anrufen', faellig: null, erledigt_am: null, erstellt_am: '2026-11-12T08:00:00Z' },
     { id: 't2', text: 'Geheim von jemand anderem', fuer_alle: false, erstellt_von: 'jemand-anders', faellig: null, erledigt_am: null, erstellt_am: '2026-11-12T09:00:00Z' }];
+  for (let i = 0; i < 25; i++) TEST.daten.planer_todos.push({ id: 'v' + i, text: 'Weiteres Todo ' + i, faellig: null, erledigt_am: null, erstellt_am: '2026-11-11T08:00:00Z' });
 })();
 """
 with sync_playwright() as p:
@@ -58,6 +59,14 @@ with sync_playwright() as p:
         pruefe("Probleme offen" in t, "Zahlen in der Seitenleiste")
         b = pg.evaluate("(() => { const n = document.querySelector('.nav'); return [n.scrollWidth, n.clientWidth]; })()")
         pruefe(b[0] <= b[1] + 1, "Seitenleiste rollt nicht seitlich " + str(b))
+        r = pg.evaluate("""(() => { const n = document.querySelector('.nav'), l = document.querySelector('#nav-todo .pl-liste');
+          const h = document.querySelector('#nav-todo .pl-kopf h2'), z = document.querySelector('#nav-todo .pl-zahlen');
+          return { navRollt: n.scrollHeight > n.clientHeight + 1, listeRollt: l.scrollHeight > l.clientHeight + 1,
+            titel: h.textContent.trim(), titelOben: h.getBoundingClientRect().bottom <= z.getBoundingClientRect().top + 1 }; })()""")
+        pruefe(not r["navRollt"], "Reiter rollen nicht " + str(r))
+        pruefe(r["listeRollt"], "nur die Liste rollt " + str(r))
+        pruefe(r["titel"].startswith("Todos"), "Titel Todos " + str(r))
+        pruefe(r["titelOben"], "Titel über den Zahlen " + str(r))
         pg.screenshot(path=f"{BILD}/nav_todo{'_dunkel' if dunkel else ''}.png")
         if not dunkel:
             pg.click("#nav-klapp"); pg.wait_for_timeout(1200)
