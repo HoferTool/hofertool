@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.507.3** (13. November 2026): Prüfstand `durchfahrt.py`: im Infoboard tanzt der Tänzer seit 1.498.0 ohne eigene Strasse und nicht mehr in der Kopfkarte, der Test wartete darum vergeblich auf die Strasse und war seither rot; er misst jetzt am Band der Durchfahrt selbst. An der App ändert sich nichts.
 - **1.504.0** (12. November 2026): Infoboard: Tristan ist jetzt als ganze Person aus dem Foto zu sehen (bis zur Hüfte, Beine und Schaufelarme gezeichnet), wirft öfter Dosen zurück und trifft ab und zu den Tänzer, der dann mit 💫 umfällt und wieder aufsteht (Patrick: „baue die ganze Person von Tristan ein“, „öfter zurückwerfen … den Werfer treffen und der fällt dann um“).
 - **1.503.0** (12. November 2026): NC-PRO → 508 Werkzeuge: das runde Magazin mit Ziehen, die Liste aller 48 Fächer und die Fachwahl je Werkzeug jetzt auch im Reiter, nicht nur im Pad Mode; Marken bleiben im Pad (Patrick: „ich möchte das auch im reiter, nicht nur im pad mode“).
 - **1.502.0** (12. November 2026): Pad Mode → 508 Werkzeuge: unter dem runden Magazin die Liste aller 48 Fächer, was jetzt in der Maschine steckt (Nr., Name, Typ, Marke) und was nach dem Schreiben drin ist; Antippen einer Zeile wählt den Platz (Patrick: „kannst du diese Liste unterhalb auch anzeigen?“). In der Legende heisst Dunkel „gesperrt: Drehstahl, Taster, Greifer …“.

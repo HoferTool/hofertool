@@ -26,16 +26,17 @@ def seite(br, vp, hash_=""):
     return pg
 
 def beobachten(pg, name, wurzel, tafel):
-    pg.wait_for_selector(wurzel + " .kopfkarte .durchfahrt .gm-strasse", timeout=20000)
+    # Im Infoboard tanzt er seit 1.498.0 ohne eigene Strasse (Durchfahrt tief)
+    pg.wait_for_selector(wurzel + " .durchfahrt .gm-taenzer", state="attached", timeout=20000)
     if pg.locator(".spuk, .spuk-erde, .spuk-grab").count(): fehler.append(f"{name}: Zombies noch da")
     richtung, baelle, weit = set(), 0, False
     for i in range(1200):
         info = pg.evaluate("""(w) => { const m = document.querySelector(w + ' .gm-taenzer');
             if (!m || m.style.visibility === 'hidden') return null;
-            const r = m.getBoundingClientRect(), k = document.querySelector(w + ' .kopfkarte').getBoundingClientRect();
+            const r = m.getBoundingClientRect(), k = document.querySelector(w + ' .durchfahrt').getBoundingClientRect();
             return { x: r.left, unten: k.bottom - r.bottom, hoch: k.height, oben: r.top - k.top,
                      spiegel: m.style.transform.includes('scaleX(-1)') } }""", wurzel)
-        b = pg.evaluate("""([w, t]) => { const k = document.querySelector(w + ' .kopfkarte').getBoundingClientRect();
+        b = pg.evaluate("""([w, t]) => { const k = document.querySelector(w + ' .durchfahrt').getBoundingClientRect();
             const bs = [...document.querySelectorAll(w + ' .gm-dose')].map(e => e.getBoundingClientRect());
             return { n: bs.length, weit: bs.some(r => r.top > k.bottom + 40) } }""", [wurzel, tafel])
         baelle = max(baelle, b["n"]); weit = weit or b["weit"]
