@@ -156,24 +156,6 @@ function TypOrdner({ k, name, liste, darf, offen, umschalten, oeffnen, ordnen, n
   );
 }
 
-// Symbole der Parkkarten: Drehmaschine, für den Park „Extern“ ein Gebäude
-const SYMBOL_DREHBANK = (
-  <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="4" y="14" width="12" height="18" rx="2" />
-    <path d="M16 20h6M16 26h6" />
-    <rect x="22" y="18" width="12" height="10" rx="1.5" />
-    <path d="M34 23h6" />
-    <rect x="38" y="19" width="6" height="8" rx="1" />
-    <path d="M4 38h40M10 32v6M38 27v11" />
-  </svg>
-);
-const SYMBOL_EXTERN = (
-  <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M6 40V20l12-7v7l12-7v7l12-7v27z" />
-    <path d="M4 40h40M13 30h4M22 30h4M31 30h4" />
-  </svg>
-);
-
 // Seit 1.161.0 Parks und Maschinen in einem (Wunsch Patrick 23. Oktober
 // 2026: „zuerst Park wählen, dann darunter die Maschinen, dort die
 // Reihenfolge regeln, zuerst nach Typ, dann einzelne Maschinen, je
@@ -209,11 +191,12 @@ function Uebersicht({ geladen, zeichnen, neuLaden }) {
             return (
               <button key={p.id} className={"mseite-park" + (p.is_active === false ? " mseite-park--aus" : "")}
                 data-mpark={p.id} onClick={gehe({ parkId: p.id, typId: null, maschineId: null })}>
+                {/* Seit 1.534.0 oben nur der Titel, ohne Symbol, alle Karten gleich
+                    gross (Wunsch Patrick 13. November 2026) */}
                 <span className="mseite-park__kopf">
-                  <span className="mseite-park__symbol" aria-hidden="true">{/extern/i.test(p.name) ? SYMBOL_EXTERN : SYMBOL_DREHBANK}</span>
+                  <span className="mseite-park__name">{p.name}{p.is_active === false && <> <span className="marke">inaktiv</span></>}</span>
                   <span className="mseite-park__zahl"><b>{n}</b>{n === 1 ? "Maschine" : "Maschinen"}</span>
                 </span>
-                <span className="mseite-park__name">{p.name}{p.is_active === false && <> <span className="marke">inaktiv</span></>}</span>
                 <span className="mseite-park__typen">
                   {chips.slice(0, 4).map(([k, z]) => <span key={k} className="mseite-park__typ">{typName(k)} <i>{z}</i></span>)}
                   {chips.length > 4 && <span className="mseite-park__typ">+{chips.length - 4}</span>}

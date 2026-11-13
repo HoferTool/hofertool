@@ -27,6 +27,7 @@ import WartungVorlagen from "./WartungVorlagen.jsx";
 let merk = { art: "typ", id: null };
 let merkTeil = "vorlagen";
 
+const KURZ = { typ: "Typ", park: "Park", maschine: "Maschine" };
 const ARTEN = [["typ", "Maschinentyp"], ["park", "Maschinenpark"], ["maschine", "Einzelne Maschine"]];
 
 // Maschinen, an denen ein Ziel gilt
@@ -105,37 +106,37 @@ function WartungZuteilen({ reiter }) {
   if (stamm === null) return <section className="karte"><p className="klein">Lädt …</p></section>;
   const { typen, parks, maschinen } = stamm;
 
+  // Seit 1.534.0 links eine schmale Liste statt Knopfreihen, rechts das
+  // Gewählte (Wunsch Patrick 13. November 2026: „das ist auch nicht
+  // übersichtlich, passe es an“)
   const knopf = (id, name, n) => {
     const z = zahlen[art + ":" + id];
     return (
-      <button key={id} data-wartung-wahl={id} data-wartung-typ={art === "typ" ? id : undefined}
-        className={"knopf es-wartung__maschine" + (id === wahl ? " knopf--haupt" : "")
-          + (z && z.faellig ? " es-wartung__maschine--faellig" : "")}
+      <button key={id} type="button" data-wartung-wahl={id} data-wartung-typ={art === "typ" ? id : undefined}
+        aria-current={id === wahl ? "true" : undefined}
+        className={"es-wartung__eintrag" + (id === wahl ? " aktiv" : "")
+          + (z && z.faellig ? " es-wartung__eintrag--faellig" : "")}
         onClick={() => waehlen(id)}>
-        {name}
-        <span className="es-wartung__zahl">{z && z.faellig ? z.faellig + " fällig"
-          : z && z.alle ? z.alle + (z.alle === 1 ? " Wartung" : " Wartungen")
-          : n != null ? n + (n === 1 ? " Maschine" : " Maschinen") : "–"}</span>
+        <span className="es-wartung__eintrag-name">{name}</span>
+        {z && z.faellig ? <span className="es-wartung__zahl es-wartung__zahl--faellig">{z.faellig} fällig</span>
+          : z && z.alle ? <span className="es-wartung__zahl">{z.alle} {z.alle === 1 ? "Wartung" : "Wartungen"}</span>
+          : null}
+        {n != null && <span className="es-wartung__eintrag-n klein">{n} {n === 1 ? "Maschine" : "Maschinen"}</span>}
       </button>);
   };
 
   let wahlListe;
   if (art === "typ") {
-    wahlListe = <div className="es-wartung__maschinen">
-      {typen.map((x) => knopf(x.id, x.name, maschinen.filter((y) => y.type_id === x.id).length))}</div>;
+    wahlListe = typen.map((x) => knopf(x.id, x.name, maschinen.filter((y) => y.type_id === x.id).length));
   } else if (art === "park") {
-    wahlListe = <div className="es-wartung__maschinen">
-      {parks.map((x) => knopf(x.id, x.name, maschinen.filter((y) => y.park_id === x.id).length))}</div>;
+    wahlListe = parks.map((x) => knopf(x.id, x.name, maschinen.filter((y) => y.park_id === x.id).length));
   } else {
     // Maschinen nach Park, in der Reihenfolge der Planwand
-    wahlListe = <div className="es-wartung__parks">
-      {parks.map((pk) => (
-        <div key={pk.id} className="es-wartung__park">
-          <span className="es-wartung__parkname">{pk.name}</span>
-          <div className="es-wartung__maschinen">
-            {maschinen.filter((y) => y.park_id === pk.id).map((x) => knopf(x.id, x.machine_number || x.name, null))}
-          </div>
-        </div>))}</div>;
+    wahlListe = parks.map((pk) => (
+      <div key={pk.id} className="es-wartung__gruppe">
+        <span className="es-wartung__parkname">{pk.name}</span>
+        {maschinen.filter((y) => y.park_id === pk.id).map((x) => knopf(x.id, x.machine_number || x.name, null))}
+      </div>));
   }
 
   const name = art === "typ" ? (typen.find((x) => x.id === wahl) || {}).name
@@ -147,26 +148,29 @@ function WartungZuteilen({ reiter }) {
     <section className="karte es-wartung">
       <h2>Wartung im Pad Mode</h2>
       {reiter}
-      <p className="klein">Bilder oder PDFs ablegen, terminieren und auf Wunsch wiederholen, für einen ganzen
-        Maschinentyp, einen ganzen Park oder eine einzelne Maschine. Ab dem Termin zeigt das Pad jeder betroffenen
-        Maschine es als Bildschirmschoner statt des Einrichtblatts, bis dort jemand unten in der Mitte „Erledigt“
-        tippt. Ebenso die Backup-Batterien am Tag, an dem sie fällig sind.</p>
-      <div className="es-wartung__art" role="tablist">
-        <span className="es-wartung__art-titel">Gilt für</span>
-        {ARTEN.map(([a, t]) => (
-          <button key={a} role="tab" data-wartung-art={a} aria-selected={a === art}
-            className={"knopf" + (a === art ? " knopf--haupt" : "")} onClick={() => artWaehlen(a)}>{t}</button>))}
+      <p className="klein es-wartung__kurz">Links wählen, wofür es gilt. Rechts Bild, PDF oder Text ablegen und
+        terminieren: ab dem Termin zeigt das Pad es an der Maschine, bis dort jemand „Erledigt“ tippt.</p>
+      <div className="es-wartung__zuteilen">
+        <nav className="es-wartung__links">
+          <div className="es-wartung__art" role="tablist" aria-label="Gilt für">
+            {ARTEN.map(([a, t]) => (
+              <button key={a} type="button" role="tab" data-wartung-art={a} aria-selected={a === art}
+                className={a === art ? "aktiv" : ""} onClick={() => artWaehlen(a)}>{KURZ[a]}</button>))}
+          </div>
+          <div className="es-wartung__wahl">{wahlListe}</div>
+        </nav>
+        <div className="es-wartung__inhalt">
+          {ziel ? <div className="wartung wartung--einstellungen">
+              {/* Bei einer einzelnen Maschine alles, was dort gilt, auch vom Typ
+                  und vom Park, wie im Pad (Wunsch Patrick 2. November 2026) */}
+              {art === "maschine"
+                ? <WartungListe key={art + wahl} m={maschinen.find((x) => x.id === wahl)}
+                    vorgabe={{ art: "maschine", id: wahl }} />
+                : <WartungListe key={art + wahl} ziel={ziel} maschinen={betroffen(ziel, maschinen)} />}</div>
+            : <p className="unterlagen__leer es-wartung__leer">Links {art === "typ" ? "einen Maschinentyp" : art === "park" ? "einen Park"
+              : "eine Maschine"} wählen.</p>}
+        </div>
       </div>
-      {wahlListe}
-      {ziel ? <div className="wartung wartung--einstellungen">
-          {/* Bei einer einzelnen Maschine alles, was dort gilt, auch vom Typ
-              und vom Park, wie im Pad (Wunsch Patrick 2. November 2026) */}
-          {art === "maschine"
-            ? <WartungListe key={art + wahl} m={maschinen.find((x) => x.id === wahl)}
-                vorgabe={{ art: "maschine", id: wahl }} />
-            : <WartungListe key={art + wahl} ziel={ziel} maschinen={betroffen(ziel, maschinen)} />}</div>
-        : <p className="unterlagen__leer">Oben {art === "typ" ? "einen Maschinentyp" : art === "park" ? "einen Park"
-          : "eine Maschine"} wählen.</p>}
     </section>
   );
 }
