@@ -148,6 +148,60 @@ export function csvLesen(text) {
   return wz;
 }
 
+// ---------- Werkzeugsatz (.TLM) aus InventorCAM lesen ----------
+// Seit 1.504.0 (Patrick 13. November 2026: die CSV der Werkzeugtabelle hat
+// nur Fräs- und Bohrwerkzeuge). Die .TLM ist XML mit dem ganzen Satz,
+// auch Drehstähle und Greifer. Fräser und Bohrer gehen wie aus der CSV in
+// die Tabelle (ohne H-Länge, die steht nicht drin: neu = zu vermessen);
+// Drehstähle, Einstecher und Greifer werden nur geprüft, ob sie auf der
+// Maschine stehen, angefasst werden sie nie (Korrektoren von Hand).
+// ToolType-Zahlen des Schneidteils, verglichen mit der CSV desselben Teils
+const TLM_ART = { 0: "DRILL", 21: "SPOT DRILL", 12: "TAP", 2: "END MILL", 15: "BALL NOSE MILL", 7: "SLOT MILL" };
+export const istTlm = (text) => /^\s*(<\?xml[^>]*>\s*)?<ToolsItemsManager\b/.test(String(text || ""));
+
+export function tlmLesen(text) {
+  const doc = new DOMParser().parseFromString(String(text || ""), "application/xml");
+  const wurzel = doc.documentElement;
+  if (!wurzel || wurzel.nodeName !== "ToolsItemsManager") throw new Error("Das ist kein Werkzeugsatz aus InventorCAM (.TLM).");
+  const comps = [...wurzel.children].find((c) => c.nodeName === "Components");
+  const wz = [];
+  for (const t of comps ? [...comps.children] : []) {
+    if (t.nodeName !== "CompTool") continue;
+    const nr = Math.round(zahl(t.getAttribute("ToolNumber")));
+    // Spannmittel (Hainbuch …) hängen an einer Spindel, nicht im Magazin
+    if (!(nr > 0) || t.getAttribute("IsOnMagazine") !== "1") continue;
+    const teile = [...t.getElementsByTagName("CompTool")];
+    const schneide = teile.find((c) => c.getAttribute("Type") === "1");
+    const halter = teile.filter((c) => c.getAttribute("Type") === "2").map((c) => c.getAttribute("Name")).filter(Boolean);
+    const titel = (t.getAttribute("Description") || t.getAttribute("Name") || "").trim();
+    if (!schneide || schneide.getAttribute("IsMilling") !== "-1") {
+      // Drehstahl, Einstecher (kein Fräser) oder Greifer (gar keine Schneide)
+      const was = !schneide ? "Greifer / Halter" : schneide.getAttribute("ToolType") === "17" ? "Einstechen" : "Drehstahl";
+      wz.push({ nr, dreh: true, art: was.toUpperCase(), text: titel && !/^(Tool|Komplettwerkzeug)$/i.test(titel) ? titel : (halter[0] || was),
+        was, platte: schneide ? schneide.getAttribute("Name") : "" });
+      continue;
+    }
+    const form = schneide.getElementsByTagName("Shape")[0];
+    const mass = (n) => {
+      for (const e of form ? form.getElementsByTagName(n) : []) return zahl(e.getAttribute("Val"));
+      return NaN;
+    };
+    const art = TLM_ART[schneide.getAttribute("ToolType")] || "FRAESER";
+    wz.push({
+      nr, art,
+      text: schneide.getAttribute("Name") || titel,
+      d: mass("D"),
+      winkel: mass("A"),
+      eckR: mass("R"),
+      zaehne: zahl(form && form.getAttribute("NumFlutes")),
+      laenge: NaN,
+      smax: NaN,
+    });
+  }
+  if (!wz.length) throw new Error("Im Werkzeugsatz steht kein Werkzeug im Magazin.");
+  return wz;
+}
+
 // Typen, die die App nie überschreibt (Drehstähle 500–599, Taster 900, Etalon 910, Dummy 930, Greifer 940)
 const SCHUTZ = (q) => (q >= 500 && q < 600) || q >= 900;
 
@@ -158,7 +212,15 @@ const SCHUTZ = (q) => (q >= 500 && q < 600) || q >= 900;
 // wie bisher Fach = CAM-Nr. Die Werkzeugnummer (N, im Programm T…)
 // bleibt immer die CAM-Nr., nur das Fach (G) wechselt.
 export function vorschlagen(bloecke, wz, wahl = {}) {
+  const qVon = (x) => Number(wert(zerlegen(x).T || [], "Q"));
   const zeilen = wz.slice().sort((a, b) => a.nr - b.nr).map((w) => {
+    if (w.dreh) {
+      // Nur nachsehen, ob die Maschine das Werkzeug unter dieser Nummer hat
+      const da = bloecke.find((x) => !x.leer && x.nr === w.nr);
+      const z = { nr: w.nr, fach: da ? da.fach : w.nr, cam: w, name: maschinenName(w.text), dreh: true, alt: da };
+      if (da) return { ...z, aktion: "dreh", text: w.was + ": steht in Fach " + da.fach + " als „" + da.name + "“, bleibt so" + (SCHUTZ(qVon(da)) ? "." : " (Typ " + qVon(da) + ", bitte prüfen).") };
+      return { ...z, aktion: "drehFehlt", text: w.was + (w.platte ? " " + w.platte : "") + ": Nr. " + w.nr + " gibt es auf der Maschine nicht. Bitte an der Maschine von Hand einrichten." };
+    }
     const gewaehlt = wahl[w.nr] != null && wahl[w.nr] !== "";
     const fach = gewaehlt ? Number(wahl[w.nr]) : w.nr;
     const b = bloecke.find((x) => x.fach === fach);
@@ -168,7 +230,6 @@ export function vorschlagen(bloecke, wz, wahl = {}) {
     const z = { nr: w.nr, fach, cam: w, name: maschinenName(w.text), radius: w.art === "TAP" ? 0 : radius, winkel,
       zaehne: isFinite(w.zaehne) ? w.zaehne : 0, typ, laenge: w.laenge };
     if (!b) return { ...z, aktion: "fehlt", text: "Fach " + fach + " gibt es auf der Maschine nicht (1–" + bloecke.length + ")." };
-    const qVon = (x) => Number(wert(zerlegen(x).T || [], "Q"));
     // Dieselbe Werkzeugnummer in einem anderen Fach: dort leeren, sonst
     // stünde die Nummer zweimal in der Tabelle (das Werkzeug kommt raus)
     const anderes = bloecke.find((x) => !x.leer && x.nr === w.nr && x.fach !== fach);

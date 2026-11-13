@@ -7,7 +7,7 @@
 import { useMemo, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import Magazin508 from "./Magazin508.jsx";
-import { TYPEN, datLesen, csvLesen, vorschlagen, datSchreiben, dateiText, wirdGeschrieben, fachGeschuetzt } from "./wz508.js";
+import { TYPEN, datLesen, csvLesen, tlmLesen, istTlm, vorschlagen, datSchreiben, dateiText, wirdGeschrieben, fachGeschuetzt } from "./wz508.js";
 
 // Bleibt beim Reiterwechsel stehen, samt Dateien; im Pad eigener Stand
 const leer = () => ({ dat: null, datName: "", csv: null, csvName: "", aenderung: {}, wahl: {}, marken: {} });
@@ -17,6 +17,7 @@ const gemerktPad = leer();
 const AKTION = {
   neu: ["Neu", "wz5-neu"], aendern: ["Ändern", "wz5-aendern"],
   belegt: ["Fach belegt", "wz5-fehler"], fehlt: ["Fach fehlt", "wz5-fehler"],
+  dreh: ["Bleibt", "wz5-dreh"], drehFehlt: ["Fehlt", "wz5-fehler"],
 };
 
 function herunterladen(e, text) {
@@ -46,7 +47,7 @@ export default function Werkzeuge508({ pad = false, marken = [], waehleMarke, on
     try {
       const text = dateiText(new Uint8Array(await datei.arrayBuffer()));
       if (art === "dat") neu({ dat: datLesen(text), datName: datei.name, aenderung: {} });
-      else neu({ csv: csvLesen(text), csvName: datei.name, aenderung: {}, wahl: {}, marken: {} });
+      else neu({ csv: istTlm(text) ? tlmLesen(text) : csvLesen(text), csvName: datei.name, aenderung: {}, wahl: {}, marken: {} });
     } catch (f) { alt.meldung(f.message || String(f), "warn"); }
   };
 
@@ -67,6 +68,7 @@ export default function Werkzeuge508({ pad = false, marken = [], waehleMarke, on
   const setze = (nr, teil) => neu({ aenderung: { ...z.aenderung, [nr]: { ...(z.aenderung[nr] || {}), ...teil } } });
 
   const machbar = zeilen.filter((v) => v.aktion === "neu" || v.aktion === "aendern");
+  const drehFehlt = zeilen.filter((v) => v.aktion === "drehFehlt");
   const aktiv = zeilen.filter(wirdGeschrieben);
   const fehlerS = aktiv.filter((v) => !(v.smax > 0));
   const doppelt = aktiv.filter((v) => v.doppelt);
@@ -108,17 +110,17 @@ export default function Werkzeuge508({ pad = false, marken = [], waehleMarke, on
           <label className="knopf knopf--klein wz5-datei">Datei wählen
             <input type="file" accept=".dat,.DAT,.txt" id="wz5-dat" data-ablegen="direkt" hidden onChange={lesen("dat")} /></label>
           {z.dat && <span className="wz5-ok" id="wz5-dat-ok">✓ {z.datName}: {z.dat.length} Fächer, {z.dat.filter((b) => !b.leer).length} belegt</span>}</li>
-        <li><b>Werkzeuge aus InventorCAM:</b> Werkzeugtabelle des Teils öffnen, alle Werkzeuge markieren, als CSV exportieren und hier wählen.
+        <li><b>Werkzeuge aus InventorCAM:</b> den Werkzeugsatz (.TLM) wählen, dann sind auch Drehstähle und Greifer dabei; oder die Werkzeugtabelle als CSV (nur Fräser und Bohrer).
           <label className="knopf knopf--klein wz5-datei">Datei wählen
-            <input type="file" accept=".csv,.CSV" id="wz5-csv" data-ablegen="direkt" hidden onChange={lesen("csv")} /></label>
-          {z.csv && <span className="wz5-ok" id="wz5-csv-ok">✓ {z.csvName}: {z.csv.length} Werkzeuge</span>}</li>
+            <input type="file" accept=".csv,.CSV,.tlm,.TLM" id="wz5-csv" data-ablegen="direkt" hidden onChange={lesen("csv")} /></label>
+          {z.csv && <span className="wz5-ok" id="wz5-csv-ok">✓ {z.csvName}: {z.csv.length} Werkzeuge{z.csv.some((w) => w.dreh) ? ", davon " + z.csv.filter((w) => w.dreh).length + " Drehstähle / Greifer (nur geprüft)" : ""}</span>}</li>
         <li><b>Prüfen</b> und GESTOUTI.DAT herunterladen, dann an der Maschine einlesen.</li>
       </ol>
 
       {zeilen.length > 0 && (
         <>
           {/* seit 1.503.0 auch im Reiter von NC-PRO, dort ohne Marken (Wunsch Patrick 12. November 2026) */}
-          <Magazin508 bloecke={z.dat} zeilen={zeilen} marken={pad ? marken : []} onFach={aufFach}
+          <Magazin508 bloecke={z.dat} zeilen={zeilen.filter((v) => !v.dreh)} marken={pad ? marken : []} onFach={aufFach}
             onMarke={pad ? markeWaehlen : undefined} MarkeZeigen={MarkeZeigen} />
           <div className="tabellenrolle">
             <table className="tabelle wz5-tabelle" id="wz5-tabelle">
@@ -133,9 +135,9 @@ export default function Werkzeuge508({ pad = false, marken = [], waehleMarke, on
                     <td>{geht && <input type="checkbox" checked={v.mit !== false} title="Übernehmen"
                       onChange={(e) => setze(v.nr, { mit: e.target.checked })} />}</td>
                     <td><div className="wz5-nr">T{v.nr}</div>
-                      <select className={"wz5-fach" + (v.doppelt ? " wz5-warn" : "")} value={v.fach} data-wz5-fach={v.nr}
+                      {v.dreh ? (v.alt ? <div className="wz5-vorher">Fach {v.fach}</div> : null) : <select className={"wz5-fach" + (v.doppelt ? " wz5-warn" : "")} value={v.fach} data-wz5-fach={v.nr}
                         onChange={(e) => neu({ wahl: { ...z.wahl, [v.nr]: Number(e.target.value) } })}>
-                        {z.dat.map((b) => <option key={b.fach} value={b.fach}>{fachText(b)}</option>)}</select>
+                        {z.dat.map((b) => <option key={b.fach} value={b.fach}>{fachText(b)}</option>)}</select>}
                       {v.doppelt && <div className="wz5-fehlertext">Fach doppelt</div>}</td>
                     {pad && <td>{geht && !aus ? <button className="wz5-marke" data-wz5-marke={v.nr} onClick={() => markeWaehlen(v)}>
                       {v.marke ? (MarkeZeigen ? <MarkeZeigen marke={v.marke} /> : v.marke) : "Marke wählen"}</button> : null}</td>}
@@ -169,9 +171,10 @@ export default function Werkzeuge508({ pad = false, marken = [], waehleMarke, on
               })}</tbody>
             </table>
           </div>
-          <p className="wz5-hilfe">Neue Werkzeuge bekommen als Länge den Wert aus dem CAM (H-Länge) und Zustand 6 „Zu vermessen“;
+          <p className="wz5-hilfe">Neue Werkzeuge bekommen als Länge den Wert aus dem CAM (H-Länge, nur in der CSV; aus der .TLM 999.9999) und Zustand 6 „Zu vermessen“;
             das Programm misst sie am Anfang selbst. Bei vorhandenen Werkzeugen bleiben Länge und Abnutzung, der Radius
             ändert nur, wenn der Durchmesser anders ist. Leere Fächer im CAM bleiben auf der Maschine, wie sie sind.</p>
+          {drehFehlt.length > 0 && <p className="karte karte--fehler" id="wz5-dreh-fehlt">Nicht auf der Maschine: {drehFehlt.map((v) => "T" + v.nr + " " + v.name).join(", ")}. Drehstähle und Greifer richtet man an der Maschine von Hand ein.</p>}
           {doppelt.length > 0 && <p className="karte karte--fehler" id="wz5-doppelt">Zwei Werkzeuge im selben Fach ({[...new Set(doppelt.map((v) => v.fach))].join(", ")}). Bitte ein anderes Fach wählen.</p>}
           {fehlerS.length > 0 && <p className="karte karte--fehler" id="wz5-smax-fehlt">S max fehlt bei Fach {fehlerS.map((v) => v.nr).join(", ")}. Bitte eintragen.</p>}
           <div className="wz5-fuss">
