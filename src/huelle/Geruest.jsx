@@ -15,6 +15,22 @@ import { alt } from "../bruecke.jsx";
 import { anmeldungAbbauen } from "./Anmeldung.jsx";
 import { GeraetMarke } from "../pad/geraet.jsx";
 import { UNTERREITER, reiterAktiv, reiterBeobachten, reiterWaehlen, menuePunkt } from "./unterreiter.js";
+import { planerSichtbar, istPlanerTab } from "../pad/planerTab.js";
+
+// Todo des Planers unten in der Seitenleiste, nur für Admins (seit 1.536.0).
+// Erst nachgeladen, damit der Planer nicht im Startpaket steckt.
+function NavTodoPlatz() {
+  const [Teil, setTeil] = useState(null);
+  // Im Planer-Tab steht dieselbe Liste schon gross
+  const darf = planerSichtbar() && !(alt.istArchiv && alt.istArchiv()) && !istPlanerTab();
+  useEffect(() => {
+    if (!darf) return;
+    let weg = false;
+    import("../pad/Planer.jsx").then((m) => { if (!weg) setTeil(() => m.NavTodos); }).catch(() => {});
+    return () => { weg = true; };
+  }, [darf]);
+  return darf && Teil ? <Teil /> : null;
+}
 
 let wurzel = null;
 let aktivSetzen = () => {};
@@ -233,6 +249,7 @@ function Geruest() {
               {zuklappend === s.pfad && aktiv !== s.pfad && <Unterreiter key="zu" seite={s.pfad} zu />}
             </Fragment>
           ))}
+          <NavTodoPlatz />
         </nav>
         {/* Am Handy statt der Leiste unten ein Knopf mit Fenster (seit 1.57.0).
             Externe behalten die Leiste, sie haben nur zwei Punkte. */}

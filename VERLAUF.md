@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.536.0** (13. November 2026): Todo des Planers auch unten in der Seitenleiste unter „Anzeigen“, nur Admins: drei Zahlen, Todo-Liste mit Haken, „Abgeschlossen“ und „+“, klein, hell und dunkel; zugeklappt und am Handy nicht. Prüfstand `nav_todo.py` (Wunsch Patrick).
 - **1.532.1** (13. November 2026): Planer: Materialzeilen aufgeräumt (Patrick: „nicht so komisch ineinander“): Menge in zwei Zeilen (kg, darunter Stangen) statt abgeschnitten, Stand-Schild, Lieferant mit „auch:“ und Notiz je auf einer eigenen Zeile linksbündig untereinander.
 - **1.532.0** (13. November 2026): Einlagen Generator: gespeicherte Einlagen und Werkzeuge lassen sich mit „Umbenennen“ umbenennen, mit Rückgängig; bei der offenen Einlage ändert sich auch das Namensfeld (Wunsch Patrick).
 - **1.531.0** (13. November 2026): Einlagen Generator: beim „Werkzeug speichern“ je Werkzeug gleich die Tiefe eintippen (vorbelegt mit der gespeicherten Tiefe bzw. „Tiefe für neue Werkzeuge“, Komma geht), unter „Gespeicherte Werkzeuge“ die Tiefe direkt im Feld ändern (Enter oder Feld verlassen speichert, mit Rückgängig), „In die Einlage“ nimmt sie; „Kontur bearbeiten“ behält die gespeicherte Tiefe. Prüfstand `einlagen_tiefe.py` (Wunsch Patrick).

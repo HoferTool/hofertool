@@ -480,3 +480,32 @@ function LieferantWahl({ z, d, neu }) {
     </button>
   );
 }
+
+// ---------- Todo in der Seitenleiste ----------
+// Dieselbe Todo-Liste wie im Planer, unten in der Seitenleiste unter den
+// Menüpunkten (seit 1.536.0, Wunsch Patrick 13. November 2026: „diesen Teil
+// beim Reiter unten, dass es dort aufgelistet wird bei Admins“). Nur Admins,
+// nie Externe; lädt still alle drei Minuten neu, solange der Tab sichtbar ist.
+export function NavTodos() {
+  const [d, setD] = useState(null);
+  useEffect(() => {
+    let weg = false, laeuft = false;
+    const laden = async () => {
+      if (laeuft || document.hidden) return;
+      laeuft = true;
+      try { const x = await planerLaden(10); if (!weg) setD(x); }
+      catch (f) { /* still: die Leiste ist nur eine Hilfe */ }
+      finally { laeuft = false; }
+    };
+    laden();
+    const uhr = setInterval(laden, 180000);
+    const sicht = () => { if (!document.hidden) laden(); };
+    document.addEventListener("visibilitychange", sicht);
+    window.addEventListener("hofer-planer-neu", laden);
+    return () => { weg = true; clearInterval(uhr); document.removeEventListener("visibilitychange", sicht);
+      window.removeEventListener("hofer-planer-neu", laden); };
+  }, []);
+  if (!d) return null;
+  const neu = () => window.dispatchEvent(new Event("hofer-planer-neu"));
+  return <div className="nav-todo" id="nav-todo"><Todos d={d} neu={neu} /></div>;
+}

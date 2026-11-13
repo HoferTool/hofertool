@@ -13843,3 +13843,58 @@ body.dunkel .wblatt--editor { background: #0f1216; }
 #wartung-schreiben-titel:focus { outline: none; border-color: var(--akzent, #1a5fb4); box-shadow: 0 0 0 4px rgba(26, 95, 180, .25); }
 body.dunkel #wartung-schreiben-titel { background: #2a3442 !important; border-color: #a9bbd1 !important; color: #fff !important; }
 body.dunkel #wartung-schreiben-titel::placeholder { color: #9fb0c4 !important; }
+
+/* ---------- Todo des Planers in der Seitenleiste (seit 1.536.0) ----------
+   Nur Admins, nur in der breiten Seitenleiste am Computer und Tablet. */
+.nav-todo { display: none; }
+@media (min-width: 780px) {
+  .nav-todo { display: block; margin: 14px 8px 16px; padding-top: 12px; border-top: 1px solid var(--linie-stark); }
+  body.nav--schmal .nav-todo, body.nav--klappt-zu .nav-todo { display: none; }
+}
+.nav-todo .pl-links { display: flex; flex-direction: column; gap: 8px; }
+.nav-todo .pl-zahlen { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.nav-todo .pl-zahl { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 5px 2px; border-radius: 8px;
+  background: #f4f7fb; border: 1px solid #e2e8f0; text-align: center; }
+.nav-todo .pl-zahl span { font-size: .6rem; line-height: 1.1; color: #6a7c96; }
+.nav-todo .pl-zahl b { font-size: 1.05rem; line-height: 1.1; color: #1d2b44; }
+.nav-todo .pl-zahl b.pl-rot { color: #d4322a; }
+.nav-todo .pl-zahl b.pl-gelb { color: #c98a00; }
+.nav-todo .pl-kopf { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; flex-wrap: wrap; }
+.nav-todo .pl-kopf h2 { margin: 0; flex: 1; font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; color: #6a7c96;
+  display: flex; align-items: center; gap: 5px; }
+.nav-todo .pl-anzahl { background: #e2433b; color: #fff !important; border-radius: 20px; padding: 0 7px; font-size: .7rem; letter-spacing: 0; }
+.nav-todo .pl-gruppe { display: flex; gap: 4px; }
+.nav-todo .pl-knopf { border: 1px solid #d6dee9; background: #fff; color: #2a4a7a; border-radius: 7px; font: inherit;
+  font-size: .68rem; padding: 3px 6px; cursor: pointer; }
+.nav-todo .pl-plus { width: 24px; height: 24px; border: 0; border-radius: 7px; background: #1f6fe0; color: #fff !important;
+  font-size: 1rem; line-height: 1; cursor: pointer; padding: 0; }
+.nav-todo .pl-liste { display: flex; flex-direction: column; gap: 5px; }
+.nav-todo .pl-leer { margin: 4px 0; font-size: .78rem; color: #6a7c96; }
+.nav-todo .pl-todo__eintrag { display: flex; gap: 6px; align-items: flex-start; padding: 6px; border-radius: 8px;
+  background: #f7f9fc; border: 1px solid #e2e8f0; }
+.nav-todo .pl-todo__eintrag--rot { background: #fdf0ef; border-color: #f2c4c0; }
+.nav-todo .pl-haken { flex: none; width: 18px; height: 18px; margin-top: 1px; border-radius: 5px; border: 2px solid #9fb0c8;
+  background: transparent; cursor: pointer; padding: 0; }
+.nav-todo .pl-haken:hover { border-color: #2fae62; background: #e7f6ed; }
+.nav-todo .pl-haken--leer { border-style: dashed; border-color: #d0d8e4; cursor: default; }
+.nav-todo .pl-haken--leer:hover { background: transparent; border-color: #d0d8e4; }
+.nav-todo .pl-todo__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left;
+  background: none; border: 0; color: inherit; font: inherit; padding: 0; cursor: pointer; }
+.nav-todo .pl-todo__titel { font-size: .76rem; font-weight: 600; line-height: 1.25; color: #1d2b44; overflow-wrap: anywhere; }
+.nav-todo .pl-todo__unter { font-size: .66rem; line-height: 1.25; color: #6a7c96; overflow-wrap: anywhere; }
+.nav-todo .pl-schild { display: inline-block; font-size: .56rem; font-weight: 800; border-radius: 4px; padding: 1px 4px;
+  margin-right: 4px; vertical-align: 1px; letter-spacing: .03em; }
+.nav-todo .pl-schild--problem { background: #e2433b; color: #fff !important; }
+.nav-todo .pl-schild--m { background: #fff; color: #d42020 !important; border: 1px solid #f0c0c0; }
+.nav-todo .pl-schild--wbg { background: #7a5af0; color: #fff !important; }
+.nav-todo .pl-schild--eigen { background: #e3ecfb; color: #2a4a7a !important; }
+body.dunkel .nav-todo .pl-zahl, body.dunkel .nav-todo .pl-todo__eintrag { background: #142441; border-color: #23395d; }
+body.dunkel .nav-todo .pl-todo__eintrag--rot { background: #2a1216; border-color: #7a2a2a; }
+body.dunkel .nav-todo .pl-zahl span, body.dunkel .nav-todo .pl-kopf h2, body.dunkel .nav-todo .pl-todo__unter,
+body.dunkel .nav-todo .pl-leer { color: #8aa3c7 !important; }
+body.dunkel .nav-todo .pl-zahl b.pl-rot { color: #ff6b62 !important; }
+body.dunkel .nav-todo .pl-zahl b.pl-gelb { color: #f0b429 !important; }
+body.dunkel .nav-todo .pl-knopf { background: #142441; border-color: #2c4670; }
+body.dunkel .nav-todo .pl-haken { border-color: #4a6a96; }
+body.dunkel .nav-todo .pl-schild--m { color: #d42020 !important; }
+body.dunkel .nav-todo .pl-schild--eigen { background: #2a4a7a; color: #cfe0ff !important; }
