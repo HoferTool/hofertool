@@ -13767,3 +13767,16 @@ body.dunkel .pl-abg__zeile { background: #1a2433; border-color: #2c3a50; }
 .es-wartung__leer { font-size: 18px; padding: 30px; border: 2px dashed var(--linie-stark, #c5ced8); border-radius: 14px;
   text-align: center; }
 .es-wartung__inhalt .blatt__kopf h2 { font-size: 1.5em; }
+
+/* Wartung → Vorlagen kleiner (seit 1.534.2, Wunsch Patrick 13. November 2026:
+   „kleiner anzeigen, dass man viel mehr auf einmal sieht, mässig erkennbar ist okay“):
+   schmale Karten, viele nebeneinander, Vorschau niedrig */
+#wartung-vorlagen .wartung__liste { gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); }
+#wartung-vorlagen .wartung__zeile { padding: 6px; gap: 5px; border-radius: 10px; }
+#wartung-vorlagen .wartung__vorschau { height: 150px; border-radius: 7px; }
+#wartung-vorlagen .wartung__vorschau-inhalt { padding: 8px 10px; }
+#wartung-vorlagen .wartung-text { font-size: 10px; }
+#wartung-vorlagen .wartung__text, #wartung-vorlagen .wartung__text b { font-size: 12px; line-height: 1.2; }
+#wartung-vorlagen .wartung__pdf-marke { top: 4px; left: 4px; font-size: 10px; padding: 1px 5px; }
+#wartung-vorlagen .wartung__knoepfe { gap: 4px; flex-wrap: wrap; }
+#wartung-vorlagen .wartung__knoepfe .knopf { padding: 2px 6px; font-size: 11px; min-height: 0; height: auto; line-height: 1.4; }
