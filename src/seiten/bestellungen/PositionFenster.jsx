@@ -29,6 +29,17 @@ function padMaschineId() {
   return p.maschineId || null;
 }
 
+// Wer bestellt hat: beim Gerätekonto Pad Mode stünde sonst nur „Pad Mode“,
+// darum die Maschine dieses iPads (Wunsch Patrick 13. November 2026:
+// „statt Padmode Maschinen-Nr., dass man zumindest das hat“)
+function padBesteller(maschinen) {
+  if (!istPadKonto()) return null;
+  const id = padMaschineId();
+  if (!id) return null;
+  const m = (maschinen || alt.best.alleMaschinen || []).find((x) => x.id === id);
+  return m ? "Pad " + alt.maschineZielText(m) : null;
+}
+
 // fertig: wird nach dem Speichern aufgerufen, damit die Liste neu lädt.
 // vorgabe: { artikel, maschine, notiz } schon eingetragen, etwa beim
 // Nachbestellen eines Spezialwerkzeugs (seit 1.131.0).
@@ -220,6 +231,8 @@ function PositionFenster({ zu, fertig, vorgabe }) {
       ziel_text: zielText,
     };
     if (termin.trim()) daten.liefertermin = termin.trim();
+    const besteller = padBesteller(maschinen);
+    if (besteller) daten.besteller = besteller;
     let { data, error } = await alt.db.from("order_items").insert(daten).select("id");
     // Kennt die Datenbank das Feld noch nicht (sql/bestellung-liefertermin.sql),
     // wird die Position ohne Termin gespeichert statt gar nicht
@@ -227,6 +240,11 @@ function PositionFenster({ zu, fertig, vorgabe }) {
       delete daten.liefertermin;
       ({ data, error } = await alt.db.from("order_items").insert(daten).select("id"));
       if (!error) alt.meldung("Der Liefertermin liess sich noch nicht speichern (Datenbank).", "warn");
+    }
+    // Ohne Spalte besteller (sql/bestellung-besteller.sql) ohne sie speichern
+    if (error && daten.besteller && /besteller/.test(alt.fehlertext(error))) {
+      delete daten.besteller;
+      ({ data, error } = await alt.db.from("order_items").insert(daten).select("id"));
     }
     setSpeichert(false);
     if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }

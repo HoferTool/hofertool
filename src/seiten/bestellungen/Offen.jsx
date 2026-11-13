@@ -248,7 +248,7 @@ function Zeile({ z, schreiben, behaelter, heute }) {
           {z.gesendet_am && <span className="bs-chip bs-chip--gesendet" title="Per Mail aus dem HoferTool gesendet">
               ✉ gesendet {alt.datumZeitKurz(z.gesendet_am)}</span>}
           {z.note && <span className="bs-chip bs-chip--notiz"><Zeichen name="notiz" groesse={14} />{z.note}</span>}
-          <span className="bs-pos__wer">{alt.personName(z.profiles)}{zeit && <> · {alt.statusZeitText(z)}</>}</span>
+          <span className="bs-pos__wer">{z.besteller || alt.personName(z.profiles)}{zeit && <> · {alt.statusZeitText(z)}</>}</span>
         </div>
       </div>
 

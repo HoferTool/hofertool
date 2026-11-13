@@ -94,7 +94,7 @@ async function bestellSuchListe() {
         titel: [a.article_number, a.name].filter(Boolean).join(" · ") || "Position",
         zeile: [STATUS[z.status] || z.status, z.quantity && alt.zahlText(z.quantity) + " " + (a.unit || ""), lieferant(z),
           z.ziel_anzeige || z.ziel_text].filter(Boolean).join(" · "),
-        such: [a.description, z.note, alt.personName(z.profiles, "")].filter(Boolean).join(" "),
+        such: [a.description, z.note, z.besteller, alt.personName(z.profiles, "")].filter(Boolean).join(" "),
         suchwort: a.article_number || a.name || "" };
     }),
     ...artikel.map((a) => ({ art: "artikel", gruppe: "Artikel", zeichen: "◧",

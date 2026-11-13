@@ -420,6 +420,18 @@ with sync_playwright() as p:
     pruefe("Pad: Bestellen mit Maschine des Pads vorgewählt", zw["aktiv"] == "maschine" and zw["wert"] == mk)
     pg.screenshot(path="/tmp/claude-0/eb-pad-ziel.png")
     pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    # Gerätekonto Pad Mode: Besteller ist die Maschine, nicht „Pad Mode“ (1.509.0)
+    pg.evaluate("TEST.daten.profiles.forEach(p => { p.einstellungen = Object.assign({}, p.einstellungen, { padGeraet: true }); })")
+    pg.click("[data-platz='T300']"); pg.wait_for_timeout(300)
+    if pg.locator("[data-eba-ansehen-bestellen]").count(): pg.click("[data-eba-ansehen-bestellen]")
+    pg.wait_for_selector("#pd-ja"); pg.wait_for_timeout(600)
+    vorher = pg.evaluate("TEST.daten.order_items.length")
+    pg.click("#pd-ja"); pg.wait_for_timeout(800)
+    neu = pg.evaluate("TEST.daten.order_items[TEST.daten.order_items.length - 1]")
+    print("Pad Besteller:", neu.get("besteller"))
+    pruefe("Pad: Besteller ist die Maschine", pg.evaluate("TEST.daten.order_items.length") == vorher + 1
+           and neu.get("besteller") == "Pad " + mk)
+    pg.evaluate("TEST.daten.profiles.forEach(p => { if (p.einstellungen) delete p.einstellungen.padGeraet; })")
     pg.click(".eba-fenster [data-zu]"); pg.wait_for_timeout(300)
 
     # „Laufen lassen“ (im Pad als -1) steht im Blatt als Wort (1.306.1)
