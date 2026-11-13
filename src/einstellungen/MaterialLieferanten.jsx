@@ -10,16 +10,14 @@
 import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { Logo } from "../seiten/bestellungen/teile.jsx";
-import { lieferantenLaden, lieferantenSpeichern, lieferantLogoDaten, regelnLaden, regelnSpeichern, WOCHENTAGE } from "../daten/planer.js";
+import { lieferantenLaden, lieferantenSpeichern, lieferantLogoDaten, WOCHENTAGE } from "../daten/planer.js";
 
 export default function MaterialLieferanten({ nachSpeichern }) {
   const [liste, setListe] = useState(null);
   const [geaendert, setGeaendert] = useState(false);
-  const [regeln, setRegeln] = useState([]);
   const [offen, setOffen] = useState(-1);
   useEffect(() => {
     lieferantenLaden().then((l) => setListe(l.map((x) => ({ ...x, aliasText: (x.aliase || []).join(", ") }))));
-    regelnLaden().then((r) => setRegeln(r.map((x) => ({ ...x, kannText: (x.kann || []).join(", ") }))));
   }, []);
   if (!liste) return <p className="ml-leer">Wird geladen …</p>;
 
@@ -35,8 +33,6 @@ export default function MaterialLieferanten({ nachSpeichern }) {
   const speichern = async () => {
     try {
       const neu = await lieferantenSpeichern(liste.map((l) => ({ ...l, aliase: String(l.aliasText || "").split(",") })));
-      const rg = await regelnSpeichern(regeln.map((r) => ({ ...r, kann: String(r.kannText || "").split(",") })));
-      setRegeln(rg.map((x) => ({ ...x, kannText: (x.kann || []).join(", ") })));
       setListe(neu.map((x) => ({ ...x, aliasText: (x.aliase || []).join(", ") })));
       setGeaendert(false);
       alt.meldung("Lieferanten gespeichert.", "gut");
@@ -117,31 +113,6 @@ export default function MaterialLieferanten({ nachSpeichern }) {
       </div>
       <p className="ml-hinweis">Der Name muss so im Feld „Menge vorhanden oder bestellt“ der Aufträge stehen
         (z.B. „300 kg · Schmobi 2026008672“), sonst unter „Weitere Schreibweisen“.</p>
-      <h3 className="ml-titel">Regeln je Material</h3>
-      <p className="ml-hinweis">„Muss bei“ gilt für den Vorschlag im Planer, „Kann auch bei“ ist nur Info.
-        Alle Wörter müssen im Material vorkommen: „Messing Rohr“ gilt für jedes Messing-Rohr, „Automatenstahl rd 24“ nur für Ø24.</p>
-      <div className="ml-regeln" id="ml-regeln">
-        <div className="ml-regel ml-regel--kopf"><span>Material</span><span>Muss bei</span><span>Kann auch bei (Info)</span><span /></div>
-        {regeln.map((r, i) => {
-          const rs = (feld, wert) => { setRegeln(regeln.map((x, k) => (k === i ? { ...x, [feld]: wert } : x))); setGeaendert(true); };
-          return (
-            <div className="ml-regel" key={i} data-mlregel={r.material}>
-              <input className="feld" value={r.material} placeholder="z.B. Messing Rohr" aria-label="Material" onChange={(e) => rs("material", e.target.value)} />
-              <select className="feld" value={r.muss || ""} aria-label="Muss bei" onChange={(e) => rs("muss", e.target.value)}>
-                <option value="">– keiner –</option>
-                {liste.filter((l) => l.name).map((l) => <option key={l.name} value={l.name}>{l.name}</option>)}
-              </select>
-              <input className="feld" value={r.kannText || ""} placeholder="z.B. Notz" aria-label="Kann auch bei" onChange={(e) => rs("kannText", e.target.value)} />
-              <button className="knopf knopf--klein" title="Regel löschen" onClick={() => {
-                setRegeln(regeln.filter((x, k) => k !== i)); setGeaendert(true); }}>✕</button>
-            </div>
-          );
-        })}
-      </div>
-      <div className="ml-knoepfe ml-knoepfe--links">
-        <button className="knopf" id="ml-regel-neu" onClick={() => { setRegeln([...regeln, { material: "", muss: "", kannText: "" }]); setGeaendert(true); }}>
-          + Regel</button>
-      </div>
       <div className="ml-fuss">
         <span>{geaendert ? "Nicht gespeichert" : ""}</span>
         <button className="knopf knopf--haupt" id="ml-speichern" disabled={!geaendert} onClick={speichern}>Speichern</button>
