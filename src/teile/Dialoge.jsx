@@ -85,6 +85,15 @@ function Feld({ f, id, erstes }) {
         {hinweis}</fieldset>
     );
   }
+  // Schieber mit Text links (aus) und rechts (an), gibt true oder false
+  // zurück (seit 1.520.0, zuerst für „Nur für mich / Alle Admins“ im Planer)
+  if (f.typ === "haken" && f.schieber) {
+    return (
+      <label className="feld-schieber"><span className="feld-schieber__aus">{f.aus}</span>
+        <input id={id} type="checkbox" role="switch" defaultChecked={!!f.wert} />
+        <span className="feld-schieber__an">{f.label}</span>{hinweis}</label>
+    );
+  }
   // Einzelnes Häkchen, gibt true oder false zurück
   if (f.typ === "haken") {
     return (

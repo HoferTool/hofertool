@@ -23,6 +23,7 @@ import Maschine, { maschineLaden } from "./Maschine.jsx";
 import QsCheck, { qsLaden } from "./QsCheck.jsx";
 import PadAudit, { auditLaden } from "./Audit.jsx";
 import Planer, { planerSichtLaden, planerSichtbar } from "./Planer.jsx";
+import { istPlanerTab } from "./planerTab.js";
 import PadWz508, { wz508Laden, wz508Sichtbar, istMacodel } from "./Wz508.jsx";
 import { padGeraet, geraetSetzen, istPadKonto, GeraetMarke } from "./geraet.jsx";
 import { PadMeldungenKnopf } from "./QsMeldung.jsx";
@@ -194,7 +195,7 @@ async function sichtLaden(p) {
   if (p.wo === "qsparks") p.wo = "qs"; // gemerkt von vor 1.62.0
   if (p.wo === "qs") return qsLaden(p);
   if (p.wo === "audit" && alt.seiteSichtbar("qmalt")) return auditLaden();
-  if (p.wo === "planer" && planerSichtbar()) return planerSichtLaden();
+  if (p.wo === "planer" && planerSichtbar() && istPlanerTab()) return planerSichtLaden();
   if (p.wo === "wz508" && wz508Sichtbar()) return wz508Laden();
   if (p.wo === "planwand") return { art: "planwand" };
   if (String(p.wo).indexOf("seite:") === 0) {
@@ -292,11 +293,8 @@ function Start() {
             onClick={() => gehe((p) => { p.wo = "qs"; })}>
             <span className="pad-kachel__zeichen">🔍</span><span>QS Check</span>
           </button>
-          {/* Planer-Dashboard (seit 1.507.0), nur Admins, nie Externe */}
-          {planerSichtbar() && <button className="pad-kachel pad-kachel--qs pad-kachel--planer" data-padwo="planer"
-            onClick={() => gehe((p) => { p.wo = "planer"; })}>
-            <span className="pad-kachel__zeichen">📋</span><span>Planer</span>
-          </button>}
+          {/* Den Planer gibt es seit 1.520.0 nicht mehr hier, sondern als eigenen Tab
+              über den Knopf auf der Planwand (Wunsch Patrick 13. November 2026) */}
           {/* Audit mit Checkliste (seit 1.470.0), nur wer QM alternativ sieht */}
           {alt.seiteSichtbar("qmalt") && <button className="pad-kachel pad-kachel--qs pad-kachel--audit" data-padwo="audit"
             onClick={() => gehe((p) => { p.wo = "audit"; })}>

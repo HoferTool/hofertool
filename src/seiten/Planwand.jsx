@@ -13,6 +13,7 @@
 //  mitzeichnen noch den Wert zurücksetzen.
 // =================================================================
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { istPlanerTab, planerTabOeffnen, planerSichtbar } from "../pad/planerTab.js";
 import { alt } from "../bruecke.jsx";
 import { symboleFensterOeffnen } from "../einstellungen/Symbole.jsx";
 import { materialRechnerOeffnen } from "../planwand/MaterialRechner.jsx";
@@ -308,6 +309,17 @@ function Kopfleiste({ b, mobil }) {
             strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="9" />
             <path d="M8 14.5c1 1.5 2.4 2.2 4 2.2s3-.7 4-2.2" />
             <circle cx="9" cy="10" r=".9" fill="currentColor" /><circle cx="15" cy="10" r=".9" fill="currentColor" /></svg>
+        </button>}
+        {/* Planer-Dashboard als eigener Tab (seit 1.520.0, Wunsch Patrick 13. November 2026:
+            „als Button bei Planwand neben Symbole, soll immer als extra Tab aufgehen“);
+            nur Admins, nie Externe, nicht im Archiv und nicht im Planer selbst */}
+        {planerSichtbar() && !(alt.istArchiv && alt.istArchiv()) && !istPlanerTab() && <button
+          className="knopf knopf--klein pw-eck pw-eck--plus" id="pw-planer"
+          title="Planer (eigener Tab)" aria-label="Planer" onClick={planerTabOeffnen}>
+          <svg viewBox="0 0 24 24" className="pw-ecksym" fill="none" stroke="currentColor"
+            strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="5" y="4" width="14" height="17" rx="2.5" /><path d="M9 4V3h6v1" />
+            <path d="M8.5 10.5l1.5 1.5 2.5-2.5M8.5 16l1.5 1.5 2.5-2.5M14.5 11h1.5M14.5 16.5h1.5" /></svg>
         </button>}
         {/* Material von Stangen, kg und Teilen rechnen (Wunsch Patrick
             16. Oktober 2026); Externe nicht (Entscheid Patrick 16. Oktober 2026) */}

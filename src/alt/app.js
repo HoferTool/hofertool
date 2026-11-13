@@ -11196,6 +11196,21 @@ function zeichneSeite() {
     return;
   }
 
+  // Der Planer ist seit 1.520.0 nicht mehr im Pad Mode, sondern ein eigener
+  // Tab (Wunsch Patrick 13. November 2026: „Dashboard aus Pad Mode raus und
+  // als Button bei Planwand neben Symbole, soll immer als extra Tab aufgehen“).
+  // #/planer zeigt ihn über die ganze Fläche, wie bisher mit den Mitteln des
+  // Pads (src/pad/Planer.jsx), nur Admins, nie Externe.
+  if (roh === "planer" && !ARCHIV) {
+    if (!profil) return;
+    if (!istAdmin() || istExtern()) { location.hash = "#/planwand"; return; }
+    document.title = "Planer · Hofer Tool";
+    if (document.getElementById("pad")) { pad.wo = "planer"; padZeichnen(); }
+    else padOeffnen({ wo: "planer" });
+    return;
+  }
+  if (document.title !== "Hofer Tool") document.title = "Hofer Tool";
+
   // Den Reiter QM gibt es seit 1.474.0 nicht mehr, nur noch QMS
   // (Wunsch Patrick 10. November 2026); alte Verweise führen dorthin
   if (roh === "qm") {

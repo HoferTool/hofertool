@@ -1,4 +1,4 @@
-# Planer-Dashboard im Pad Mode (1.507.0, Wunsch Patrick 12. November 2026):
+# Planer-Dashboard (1.507.0 im Pad Mode, seit 1.520.0 eigener Tab, Wunsch Patrick 12. November 2026):
 # Todo mit Problemen und eigenen Todos, Material nach Lieferant gebündelt.
 import time, os
 from pruefstand import server_starten, FAKE, CH, PORT
@@ -34,21 +34,29 @@ DATEN = """;
     { name: 'Metalix', tage: 3 }, { name: 'Notz', tage: 2, bestelltage: [2, 4], schluss: '11:00', liefertage: [3], notiz: 'Frau Muster anrufen' }, { name: 'Schmobi', tage: 5 }]) });
   TEST.daten.app_config.push({ schluessel: 'material_regeln', wert: JSON.stringify([
     { material: 'Messing sw', muss: 'Schmobi', kann: ['Notz'] }, { material: 'Messing rd 99', muss: 'Notz', kann: [] }]) });
-  TEST.daten.planer_todos = [{ id: 't1', text: 'Gühring wegen Termin anrufen', faellig: null, erledigt_am: null, erstellt_am: '2026-11-12T08:00:00Z' }];
+  TEST.daten.planer_todos = [{ id: 't1', text: 'Gühring wegen Termin anrufen', faellig: null, erledigt_am: null, erstellt_am: '2026-11-12T08:00:00Z' },
+    { id: 't2', text: 'Geheim von jemand anderem', fuer_alle: false, erstellt_von: 'jemand-anders', faellig: null, erledigt_am: null, erstellt_am: '2026-11-12T09:00:00Z' }];
 })();
 """
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
     ctx = br.new_context(viewport={"width": 1366, "height": 1024}, has_touch=True)
-    pg = ctx.new_page()
-    pf = []; pg.on("pageerror", lambda e: pf.append(str(e)[:300]))
-    pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FAKE + DATEN))
+    haupt = ctx.new_page()
+    pf = []
+    ctx.on("page", lambda neu: neu.on("pageerror", lambda e: pf.append(str(e)[:300])))
+    haupt.on("pageerror", lambda e: pf.append(str(e)[:300]))
+    ctx.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FAKE + DATEN))
     for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
-        pg.route(u, lambda r: r.abort())
-    pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
-    pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1500)
-    pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad [data-padwo='planer']")
-    pg.click("#pad [data-padwo='planer']"); pg.wait_for_selector("#pad-planer"); pg.wait_for_timeout(800)
+        ctx.route(u, lambda r: r.abort())
+    haupt.goto(f"http://127.0.0.1:{PORT}/index.html#/planwand", wait_until="domcontentloaded")
+    haupt.wait_for_selector("#pw-planer", timeout=15000); haupt.wait_for_timeout(800)
+    # Seit 1.520.0: Knopf neben Symbole öffnet den Planer im eigenen Tab
+    with haupt.expect_popup() as tab:
+        haupt.click("#pw-planer")
+    pg = tab.value
+    pg.wait_for_selector("#pad-planer", timeout=20000); pg.wait_for_timeout(800)
+    pruefe("#/planer" in pg.url, "Planer im eigenen Tab #/planer")
+    pruefe(pg.locator("#pw-planer").count() == 0, "im Planer kein Planer-Knopf")
     pg.screenshot(path=BILD + "/planer.png")
     zeile = lambda bez: pg.locator(".pl-zeile", has_text=bez).first
     notz = pg.locator("[data-pllieferant='Notz']")
@@ -95,9 +103,19 @@ with sync_playwright() as p:
     pruefe(pg.locator("[data-pllieferant='Schmobi'] [data-pllwahl]", has_text="📌").count() >= 1, "📌 zeigt die Regel")
     # Eigenes Todo anlegen
     pg.click("#pl-todo-neu"); pg.wait_for_selector(".dialog textarea")
-    pg.fill(".dialog textarea", "Zangen nachzählen"); pg.keyboard.press("Control+Enter") if False else pg.locator(".dialog button:has-text('Speichern')").click()
+    pruefe(pg.locator(".dialog .feld-schieber input").count() == 1 and not pg.locator(".dialog .feld-schieber input").is_checked(), "Schieber steht auf Nur für mich")
+    pg.wait_for_timeout(300); pg.screenshot(path=BILD + "/planer-todo-neu.png")
+    pg.fill(".dialog textarea", "Zangen nachzählen"); pg.locator(".dialog button:has-text('Speichern')").click()
     pg.wait_for_timeout(800)
     pruefe(pg.locator("[data-pltodo='eigen']", has_text="Zangen nachzählen").count() == 1, "neues Todo erscheint")
+    pruefe("nur für mich" in pg.locator("[data-pltodo='eigen']", has_text="Zangen").inner_text(), "neues Todo nur für mich")
+    pruefe(pg.evaluate("TEST.daten.planer_todos.find(t => t.text === 'Zangen nachzählen').fuer_alle") is False, "gespeichert fuer_alle false")
+    # Fremdes „nur für mich“ erscheint nicht
+    pruefe(pg.locator("[data-pltodo='eigen']", has_text="Geheim von jemand anderem").count() == 0, "fremdes privates Todo unsichtbar")
+    pg.click("#pl-todo-neu"); pg.wait_for_selector(".dialog textarea")
+    pg.click(".dialog .feld-schieber input"); pg.fill(".dialog textarea", "Für alle sichtbar")
+    pg.locator(".dialog button:has-text('Speichern')").click(); pg.wait_for_timeout(800)
+    pruefe(pg.evaluate("TEST.daten.planer_todos.find(t => t.text === 'Für alle sichtbar').fuer_alle") is True, "Schieber auf alle Admins")
     pg.locator("[data-pltodo='eigen']", has_text="Zangen").locator(".pl-haken").click(); pg.wait_for_timeout(600)
     pruefe(pg.locator(".pl-todo__eintrag--erledigt", has_text="Zangen").count() == 1, "Todo abgehakt")
     pg.click("[data-plansicht='start']"); pg.wait_for_timeout(600)
@@ -137,8 +155,13 @@ with sync_playwright() as p:
     pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
     pruefe(pg.locator("#pad-planer").is_visible() and pg.locator("[data-ja]").count() == 0, "zweites Escape bleibt im Planer")
     pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
-    pg.keyboard.press("Enter"); pg.wait_for_timeout(800)
-    pruefe(pg.locator("#pad-planer").count() == 0, "Enter verlässt den Planer")
+    try: pg.keyboard.press("Enter")
+    except Exception: pass  # der Tab geht dabei zu
+    haupt.wait_for_timeout(800)
+    pruefe(pg.is_closed(), "Enter schliesst den Planer-Tab")
+    # Im Pad gibt es keine Kachel Planer mehr
+    haupt.locator("button:has-text('Pad Mode')").first.click(); haupt.wait_for_selector("#pad [data-padwo='qs']")
+    pruefe(haupt.locator("#pad [data-padwo='planer']").count() == 0, "keine Kachel Planer im Pad")
     pruefe(not pf, "keine Fehler im Browser " + str(pf[:2]))
     br.close()
 print("Fehler:", ", ".join(fehler) if fehler else "keine")

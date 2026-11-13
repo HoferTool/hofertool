@@ -14,13 +14,14 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Planwand from "../seiten/Planwand.jsx";
 import { alt } from "../bruecke.jsx";
 import { padZurueck } from "./Pad.jsx";
+import { istPlanerTab, planerTabVerlassen, planerSichtbar } from "./planerTab.js";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { planwandFensterOeffnen } from "./PlanwandFenster.jsx";
 import { qsQuittieren } from "../daten/qs.js";
 import { planerLaden, zuBestellen, wahlSetzen, regelnLaden, regelnSpeichern, lieferbarText, todoNeu, todoHaken, todoAendern, todoLoeschen } from "../daten/planer.js";
 import MaterialLieferanten from "../einstellungen/MaterialLieferanten.jsx";
 
-export const planerSichtbar = () => alt.istAdmin() && !alt.istExtern();
+export { planerSichtbar };
 
 const ZEITRAUM = [[5, "1 Woche"], [10, "2 Wochen"], [20, "4 Wochen"]];
 const einst = () => {
@@ -60,8 +61,9 @@ async function verlassenFragen() {
   if (fragtGerade) return;
   fragtGerade = true;
   try {
-    const ja = await alt.nachfragen({ titel: "Planer wirklich verlassen?", text: "Enter verlässt den Planer, Escape bleibt hier.", bestaetigen: "Verlassen" });
-    if (ja) padZurueck();
+    const ja = await alt.nachfragen({ titel: "Planer wirklich verlassen?", text: "Enter schliesst den Planer, Escape bleibt hier.", bestaetigen: "Verlassen" });
+    // Im eigenen Tab (seit 1.520.0) geht der Tab zu, sonst einen Schritt zurück
+    if (ja) { if (istPlanerTab()) planerTabVerlassen(); else padZurueck(); }
   } finally { fragtGerade = false; }
 }
 
@@ -217,14 +219,17 @@ function Todos({ d, neu }) {
     posten.push({ k: "w" + j.id, art: "wbg", sort: "3" + j.job_number,
       titel: (j.maschine_nr ? j.maschine_nr + " " : "") + "läuft ohne WBG", unter: j.job_number, auf: () => planwandFensterOeffnen(j) });
   }
-  const eigene = (d.todos || []).filter((t) => !t.erledigt_am || String(t.erledigt_am) > new Date(Date.now() - 86400000).toISOString());
+  // „Nur für mich“ sieht nur, wer es geschrieben hat (seit 1.520.0)
+  const ich = alt.meineProfilId();
+  const eigene = (d.todos || []).filter((t) => (t.fuer_alle !== false || t.erstellt_von === ich)
+    && (!t.erledigt_am || String(t.erledigt_am) > new Date(Date.now() - 86400000).toISOString()));
   eigene.sort((a, b) => (!!a.erledigt_am - !!b.erledigt_am) || String(a.faellig || "9").localeCompare(String(b.faellig || "9")));
   for (const t of eigene) {
     const spaet = !t.erledigt_am && t.faellig && t.faellig <= heute;
     posten.push({ k: "e" + t.id, art: "eigen", erledigt: !!t.erledigt_am, rot: spaet, sort: "4",
       titel: t.text,
       unter: t.erledigt_am ? "erledigt " + alt.datumZeitKurz(t.erledigt_am) + (t.erledigt_von ? " · " + t.erledigt_von : "")
-        : [t.faellig ? "fällig " + tagText(t.faellig) : "", t.erstellt_name].filter(Boolean).join(" · "),
+        : [t.faellig ? "fällig " + tagText(t.faellig) : "", t.fuer_alle === false ? "nur für mich" : t.erstellt_name].filter(Boolean).join(" · "),
       haken: async () => { try { await todoHaken(t, !t.erledigt_am); neu(); } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); } },
       auf: () => todoBearbeiten(t, neu) });
   }
@@ -277,6 +282,10 @@ async function todoBearbeiten(t, neu) {
     felder: [
       { name: "text", label: "Was ist zu tun?", typ: "textarea", wert: t ? t.text : "", pflicht: true },
       { name: "faellig", label: "Fällig am (freiwillig)", typ: "date", wert: t ? t.faellig || "" : "" },
+      // Neue Todos sind zuerst nur für mich, der Schieber stellt auf alle Admins
+      // (seit 1.520.0, Wunsch Patrick 13. November 2026)
+      { name: "alle", typ: "haken", schieber: true, aus: "Nur für mich", label: "Alle Admins",
+        wert: t ? t.fuer_alle !== false : false },
     ],
     bestaetigen: "Speichern",
   });
@@ -288,8 +297,8 @@ async function todoBearbeiten(t, neu) {
     return;
   }
   try {
-    if (t) await todoAendern(t, { text: w.text.trim(), faellig: w.faellig || null });
-    else await todoNeu(w.text.trim(), w.faellig);
+    if (t) await todoAendern(t, { text: w.text.trim(), faellig: w.faellig || null, fuer_alle: !!w.alle });
+    else await todoNeu(w.text.trim(), w.faellig, !!w.alle);
     neu();
   } catch (f) {
     alt.meldung(/planer_todos|schema cache|does not exist/i.test(f.message || "")
