@@ -1,6 +1,7 @@
 # Einlagen Generator 1.485.0 / 1.486.0 (Wunsch Patrick 11. November 2026): automatische Erkennung
 # ausschaltbar, Werkzeug selber nachzeichnen, Ecke runden mit zwei Linien, Zoom mit Mausrad.
 # 1.486.0: Rechteck und Kreis im Nachzeichnen, Ecken bleiben spitz (Radius nur mit „Ecke runden“), Radtaste verschiebt.
+import json
 import os, time, math
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -109,6 +110,8 @@ with sync_playwright() as p:
     f.evaluate("""() => { window.__rad = {}; for (const n of ['pointerdown','mousedown','pointermove','mousemove','pointerup','mouseup','lostpointercapture'])
       window.addEventListener(n, e => { const k = n + ':' + e.button + '/' + e.buttons; window.__rad[k] = (window.__rad[k] || 0) + 1;
         if (e.buttons && !window.__rad.erst) window.__rad.erst = [Math.round(e.clientX), Math.round(e.clientY), e.movementX, e.movementY];
+        if (n.endsWith('down') && e.button === 1 && !window.__rad.unten) window.__rad.unten = [e.clientX, e.clientY];
+        if (e.buttons & 4 && n.endsWith('move')) window.__rad.zuletzt = [e.clientX, e.clientY];
         if (!e.buttons && n.endsWith('move')) window.__rad.ohne = [Math.round(e.clientX), Math.round(e.clientY)]; }, true); }""")
     # Wie ein Mensch: erst über die Stelle fahren und kurz ruhen, dann drücken. Chrome 158 im
     # Prüfstand lieferte sonst die Bewegung zur Stelle nicht aus, und die App kannte den Startpunkt nicht.
@@ -121,7 +124,15 @@ with sync_playwright() as p:
         pg.mouse.move(mx - 20 * i, my - 80 * i / 6); pg.wait_for_timeout(40)
     pg.mouse.up(button="middle"); pg.wait_for_timeout(200)
     s1 = f.evaluate("[$('viewer').scrollLeft, $('viewer').scrollTop]")
-    pruefe(abs(s1[0] - s0[0] - 120) < 3 and abs(s1[1] - s0[1] - 80) < 3, "Radtaste verschiebt: %s → %s %s" % (s0, s1, f.evaluate("JSON.stringify(window.__rad)") if abs(s1[0] - s0[0] - 120) >= 3 else ""))
+    # Soll = Weg, den der Browser der Seite wirklich gemeldet hat. Chrome 158 auf GitHub lässt das
+    # Drücken der Radtaste und einzelne Bewegungen weg; dann zählt der Weg ab der ersten Bewegung
+    # mit gedrückter Taste bis zur letzten, die ankam. Kam alles an, sind das genau 120 / 80.
+    rad = f.evaluate("window.__rad")
+    start = rad.get("unten") or (rad.get("erst") or [0, 0])[:2]
+    ende = rad.get("zuletzt") or start
+    soll = [start[0] - ende[0], start[1] - ende[1]]
+    pruefe(soll[0] >= 40 and soll[1] >= 25, "Radtaste: Bewegung kam an: %s" % json.dumps(rad))
+    pruefe(abs(s1[0] - s0[0] - soll[0]) < 3 and abs(s1[1] - s0[1] - soll[1]) < 3, "Radtaste verschiebt: %s → %s, Soll %s %s" % (s0, s1, soll, json.dumps(rad)))
     pruefe(f.evaluate("st.edit.strokes.length") == 4, "Verschieben setzt keinen Punkt")
     f.evaluate("setZoom(1)"); pg.wait_for_timeout(300)
     # wieder einschalten: Fotoerkennung kommt dazu
