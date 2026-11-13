@@ -165,7 +165,7 @@ function inhaltMitziehen() {
       inhalt.style.transform = "";
       return;
     }
-    const spalte = b.classList.contains("nav--klappt-zu") || b.classList.contains("nav--schmal") ? 62 : 208;
+    const spalte = b.classList.contains("nav--klappt-zu") || b.classList.contains("nav--schmal") ? 62 : 236;
     const versatz = nav.getBoundingClientRect().width - spalte;
     inhalt.style.transform = Math.abs(versatz) < .5 ? "" : `translateX(${versatz.toFixed(1)}px)`;
     mitziehBild = requestAnimationFrame(schritt);

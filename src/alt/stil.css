@@ -441,7 +441,7 @@ a:focus-visible {
 @media (min-width: 780px) {
   .rahmen {
     display: grid;
-    grid-template-columns: 208px 1fr;
+    grid-template-columns: 236px 1fr;
     min-height: calc(100dvh - var(--kopfhoehe));
   }
 
@@ -1424,10 +1424,10 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--marke); }
 }
 @media (min-width: 780px) {
   .nav { position: fixed; top: var(--kopfhoehe); left: 0;
-         width: 208px; height: calc(100dvh - var(--kopfhoehe));
+         width: 236px; height: calc(100dvh - var(--kopfhoehe));
          overflow-y: auto; z-index: 20; }
   body.nav--schmal .nav { width: 62px; }
-  .rahmen { grid-template-columns: 208px 1fr; }
+  .rahmen { grid-template-columns: 236px 1fr; }
   body.nav--schmal .rahmen { grid-template-columns: 62px 1fr; }
   .inhalt { grid-column: 2; }
 }
@@ -8583,14 +8583,14 @@ html:has(body.ib-offen)::-webkit-scrollbar, body.ib-offen::-webkit-scrollbar { d
 
   @keyframes nav-breit-auf {
     0%   { width: 62px; box-shadow: 0 0 0 color-mix(in srgb, var(--marke) 0%, transparent); }
-    45%  { width: 232px; box-shadow: 10px 0 40px color-mix(in srgb, var(--marke) 45%, transparent),
+    45%  { width: 260px; box-shadow: 10px 0 40px color-mix(in srgb, var(--marke) 45%, transparent),
                                      inset -3px 0 0 var(--marke); }
-    70%  { width: 202px; }
-    85%  { width: 211px; }
-    100% { width: 208px; box-shadow: 0 0 0 color-mix(in srgb, var(--marke) 0%, transparent); } }
+    70%  { width: 230px; }
+    85%  { width: 239px; }
+    100% { width: 236px; box-shadow: 0 0 0 color-mix(in srgb, var(--marke) 0%, transparent); } }
   @keyframes nav-breit-zu {
-    0%   { width: 208px; }
-    20%  { width: 216px; }
+    0%   { width: 236px; }
+    20%  { width: 244px; }
     62%  { width: 52px; box-shadow: 6px 0 30px color-mix(in srgb, var(--marke) 40%, transparent),
                                     inset -3px 0 0 var(--marke); }
     82%  { width: 66px; }
