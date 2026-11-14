@@ -18,7 +18,6 @@ import { NC_QUELLEN, hatSpann, ncAktuell, ncZeilen } from "./ncAktuell.js";
 import { TYP_NAME, eigeneFelder, eigenWert, feldAus, typBeobachten, wirksamB, wirksamW } from "./camTyp.js";
 import { camTypFensterOeffnen, camTypLaden } from "./CamTypFenster.jsx";
 import { bloeckeLesen, kopfLesen } from "./camLesen.js";
-import { simulationOeffnen } from "./CamSim.jsx";
 import { VORLAGEN, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen } from "./camVorlagen.js";
 import { FELDER, HD_STUFEN, plaetzeVon, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, markenPaare, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
@@ -788,9 +787,6 @@ export default function HoferCam() {
           <div className="cam-fensterleiste">
             <button className="knopf knopf--klein" id="cam-fenster" title="Kanäle in einem eigenen Browserfenster, auch auf einem anderen Bildschirm"
               onClick={programmFensterAuf}>⧉ Eigenes Fenster</button>
-            {/* Seit 1.543.0: Bearbeitung grafisch simulieren (Wunsch Patrick 14. November 2026) */}
-            <button className="knopf knopf--klein" id="cam-sim-auf" title="Kanal 1 vorne und Kanal 2 hinten grafisch abspielen, am Schluss das Fertigteil"
-              onClick={() => simulationOeffnen(prog.k1, prog.k2)}>▶ Simulation</button>
             <label className="knopf knopf--klein" id="cam-einlesen" title="Bestehendes Programm (Kanal 1 und / oder Kanal 2) einlesen, Abweichungen zum Standard violett">
               📂 Programm einlesen
               <input type="file" multiple hidden data-ablegen="direkt" onChange={(e) => { einlesen(e.target.files); e.target.value = ""; }} />

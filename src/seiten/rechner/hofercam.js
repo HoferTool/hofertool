@@ -527,9 +527,12 @@ export function programmeMitHand(w) {
   const r1 = handAnwenden(p.k1, h.k1), r2 = handAnwenden(p.k2, h.k2);
   // Seit 1.541.0: Abweichungen, die so aus einem eingelesenen Programm
   // stammen, violett statt gelb (danach von Hand Geändertes bleibt gelb)
-  const ein1 = ausEingelesen(r1, h.k1), ein2 = ausEingelesen(r2, h.k2);
+  // Seit 1.544.0 gelten Leerzeilen nie als Abweichung (Patrick 14. November
+  // 2026: „du musst leerzeilen, nicht als differenz anzeigen“)
+  const ohneLeer = (set, z) => new Set([...set].filter((i) => String(z[i] ?? "").trim() !== ""));
+  const ein1 = ohneLeer(ausEingelesen(r1, h.k1), r1.zeilen), ein2 = ohneLeer(ausEingelesen(r2, h.k2), r2.zeilen);
   return { ...p, auto1: p.k1, auto2: p.k2, k1: r1.zeilen, k2: r2.zeilen,
-    gelb1: ohne(r1.gelb, ein1), gelb2: ohne(r2.gelb, ein2), ein1, ein2,
+    gelb1: ohneLeer(ohne(r1.gelb, ein1), r1.zeilen), gelb2: ohneLeer(ohne(r2.gelb, ein2), r2.zeilen), ein1, ein2,
     verloren1: r1.verloren, verloren2: r2.verloren };
 }
 const ohne = (a, b) => new Set([...a].filter((i) => !b.has(i)));
