@@ -84,6 +84,7 @@ import { zustandVorher, zustandVergessen, zustandFuerSpaeter, zustandNachAnmeldu
 // Stellt window.hoferMailSenden fürs Bestellblatt bereit (1.323.0)
 import "../daten/mailkonto.js";
 import { istModulFehler } from "../teile/modulFehler.js";
+import { reihenAllein, istReihenAdresse } from "../seiten/reihen/allein.js";
 import { istVollbildTab, vollbildNachholen, vollbildVerlassenFragen } from "../planwand/vollbildTab.js";
 
 const BOOT = document.getElementById("boot");
@@ -161,7 +162,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.549.0";
+const APP_VERSION = "1.550.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -11217,6 +11218,8 @@ function rollenMerken() {
 }
 
 function zeichneSeite() {
+  // Über den Direktlink zum Reihen-Spiel geöffnet: nur das Spiel, nichts anderes
+  if (reihenAllein && !istReihenAdresse()) history.replaceState(null, "", location.pathname + location.search + "#/reihen");
   const roh = location.hash.replace(/^#\/?/, "").split("/")[0];
   // Das kleine Infofenster eines Planwand-Balkens hängt am Seitenende —
   // beim Wechsel auf eine andere Seite darf es nicht stehen bleiben
@@ -11466,6 +11469,7 @@ function seiteWecken() {
 }
 
 window.addEventListener("hashchange", () => {
+  if (reihenAllein && !istReihenAdresse()) { location.replace(location.pathname + location.search + "#/reihen"); return; }
   // Im Pad: ein Verweis auf einen Bereich öffnet ihn im Pad
   if (document.getElementById("pad")) {
     const roh = location.hash.replace(/^#\/?/, "").split("/")[0];

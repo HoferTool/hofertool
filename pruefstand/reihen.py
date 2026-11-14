@@ -11,7 +11,7 @@ def pruefe(ok, text):
     print(("ok   " if ok else "FEHLT") + " " + text)
     if not ok: fehler.append(text)
 
-def oeffnen(br, vp, mit=True, **kw):
+def oeffnen(br, vp, mit=True, hash="", **kw):
     ctx = br.new_context(viewport=vp, **kw)
     pg = ctx.new_page(); pf = []
     pg.on("pageerror", lambda e: pf.append(str(e)[:300]))
@@ -19,7 +19,7 @@ def oeffnen(br, vp, mit=True, **kw):
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=body))
     for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
         pg.route(u, lambda r: r.abort())
-    pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
+    pg.goto(f"http://127.0.0.1:{PORT}/index.html{hash}", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1000)
     return ctx, pg, pf
 
@@ -118,5 +118,17 @@ with sync_playwright() as p:
         pruefe(pg.locator(".rr-frage--gut").count() == 1, f"{name}: Tippen geht")
         pruefe(not pf, f"{name}: keine Fehler: {pf}")
         ctx.close()
+    # Direktlink #/reihen: nur das Spiel, kein Weg zurück ins HoferTool (1.550.0)
+    ctx, pg, pf = oeffnen(br, {"width": 1400, "height": 900}, hash="#/reihen")
+    pg.wait_for_selector("[data-rr-los]", timeout=15000)
+    pruefe(pg.locator("[data-rr-zu]").count() == 0, "Direktlink: kein Schliessen-Knopf")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
+    pruefe(pg.locator("[data-rr-los]").count() == 1 and "reihen" in pg.evaluate("location.hash"), "Direktlink: Escape bleibt im Spiel")
+    pg.evaluate("location.hash='#/planwand'"); pg.wait_for_timeout(800)
+    pruefe("reihen" in pg.evaluate("location.hash") and pg.locator("[data-rr-los]").count() == 1, "Direktlink: andere Seite führt zurück ins Spiel")
+    pg.reload(); pg.wait_for_selector("[data-rr-los]", timeout=15000); pg.evaluate("location.hash='#/dashboard'"); pg.wait_for_timeout(800)
+    pruefe("reihen" in pg.evaluate("location.hash"), "Direktlink: auch nach Neuladen nur das Spiel")
+    pruefe(not pf, "Direktlink: keine Fehler: %s" % pf)
+    ctx.close()
     br.close()
 print("Fehler:", ", ".join(fehler) if fehler else "keine")

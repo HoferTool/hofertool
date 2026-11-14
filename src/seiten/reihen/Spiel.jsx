@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { weltBauen } from "./welt.js";
+import { reihenAllein } from "./allein.js";
 import { TON, entsperren, tonAn } from "./ton.js";
 import {
   REIHEN, ZEITEN, ANZAHLEN, SKINS, SERIEN_TEXT, standLaden, standSpeichern, levelAus, rang, skinVon,
@@ -223,7 +224,7 @@ export default function Spiel() {
         if (schirm === "fahrt" || schirm === "zaehlen") { if (schirm === "fahrt") pausieren(!r.current.pausiertSeit); else abbrechen(); }
         else if (panel) setPanel(null);
         else if (schirm === "ende") abbrechen();
-        else location.hash = "#/dashboard";
+        else if (!reihenAllein) location.hash = "#/dashboard";
         return;
       }
       if (schirm !== "fahrt") { if (e.key === "Enter" && schirm === "menu" && !panel) { e.preventDefault(); starten(false); } return; }
@@ -342,7 +343,7 @@ function Menue({ stand, lv, einst, einstSetzen, fehlerZahl, starten, panel, setP
         <div className="rr-oben__rechts">
           {stand.tage.serie > 0 && <div className="rr-chip" title="Tage am Stück">🔥 {stand.tage.serie} {stand.tage.serie === 1 ? "Tag" : "Tage"}</div>}
           <button className="rr-rund" onClick={() => einstSetzen({ ton: !einst.ton })} aria-label="Ton">{einst.ton ? "🔊" : "🔇"}</button>
-          <button className="rr-rund" data-rr-zu onClick={() => { location.hash = "#/dashboard"; }} aria-label="Schliessen">✕</button>
+          {!reihenAllein && <button className="rr-rund" data-rr-zu onClick={() => { location.hash = "#/dashboard"; }} aria-label="Schliessen">✕</button>}
         </div>
       </div>
       <div className="rr-menue">
