@@ -20,6 +20,7 @@ import { camTypFensterOeffnen, camTypLaden } from "./CamTypFenster.jsx";
 import { bloeckeLesen, kopfLesen } from "./camLesen.js";
 import { wzFehler, wzText } from "./camWerkzeug.js";
 import { WerkzeugFeld } from "./CamWerkzeugBild.jsx";
+import { simulationOeffnen } from "./CamSim3D.jsx";
 import { VORLAGEN, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen } from "./camVorlagen.js";
 import { FELDER, HD_STUFEN, plaetzeVon, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, markenPaare, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
@@ -796,6 +797,9 @@ export default function HoferCam() {
           <div className="cam-fensterleiste">
             <button className="knopf knopf--klein" id="cam-fenster" title="Kanäle in einem eigenen Browserfenster, auch auf einem anderen Bildschirm"
               onClick={programmFensterAuf}>⧉ Eigenes Fenster</button>
+            {/* Seit 1.547.0: 3D-Simulation Drehen und Bohren von vorne (Patrick 14. November 2026, Schritt 2) */}
+            <button className="knopf knopf--klein" id="cam-sim-auf" title="Drehen und Bohren von vorne in 3D, Kanal 1 und Kanal 2, mit den Werkzeugen der Bearbeitungen"
+              onClick={() => simulationOeffnen(w)}>🧊 3D-Simulation</button>
             <label className="knopf knopf--klein" id="cam-einlesen" title="Bestehendes Programm (Kanal 1 und / oder Kanal 2) einlesen, Abweichungen zum Standard violett">
               📂 Programm einlesen
               <input type="file" multiple hidden data-ablegen="direkt" onChange={(e) => { einlesen(e.target.files); e.target.value = ""; }} />

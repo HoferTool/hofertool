@@ -134,7 +134,8 @@ export function plattenUmriss(wz, gross = 8) {
     const R = r > 0 ? r : gross / 2;
     // Mitte der Platte auf der Gegenseite der gedachten Spitze
     const n = Math.hypot(s.z, s.r) || 1;
-    const mz = s.id === "m" ? 0 : -s.z / n * R, mx = s.id === "m" ? 0 : -s.r / n * R;
+    // Gedachte Spitze = Schnittpunkt der achsparallelen Tangenten (1.547.0)
+    const mz = -s.z * R, mx = -s.r * R;
     return Array.from({ length: 48 }, (_, i) => ({ z: mz + R * Math.cos(i * Math.PI / 24), x: mx + R * Math.sin(i * Math.PI / 24) }));
   }
   if (f.art === "einstech") {
@@ -166,7 +167,15 @@ export function plattenUmriss(wz, gross = 8) {
   const a = { z: L * Math.cos(hb + e), x: L * Math.sin(hb + e) };
   const c = { z: L * Math.cos(hb - e), x: L * Math.sin(hb - e) };
   const p = f.art === "rhombus" ? [{ z: 0, x: 0 }, a, { z: a.z + c.z, x: a.x + c.x }, c] : [{ z: 0, x: 0 }, a, c];
-  return eckenRunden(p, r, f.art === "rhombus" || f.art === "dreieck" ? [0] : [0]);
+  const rund = eckenRunden(p, r, [0]);
+  // Seit 1.547.0: die gedachte Spitze ist der Schnittpunkt der Tangenten
+  // parallel zu Z und X an den Schneidenradius (so rechnet die Maschine
+  // ohne G41/G42 und so rechnet HOFERCONTUR). Die Platte wird so
+  // verschoben, dass die Mitte des Radius bei −Lage · r liegt.
+  if (!(r > 0) || s.id === "m") return rund;
+  const mitte = { z: Math.cos(hb) * r / Math.sin(e), x: Math.sin(hb) * r / Math.sin(e) };
+  const soll = { z: -s.z * r, x: -s.r * r };
+  return rund.map((q) => ({ z: q.z + soll.z - mitte.z, x: q.x + soll.x - mitte.x }));
 }
 
 // Ecken eines Vielecks mit Radius r runden (nur die genannten Ecken,

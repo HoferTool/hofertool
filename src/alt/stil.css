@@ -14025,3 +14025,30 @@ body.dunkel .cam-mass__linie polygon { fill: #9fc3e8; }
 .cam-wz__lage .kt-lage__knopf { width: 38px; height: 38px; min-height: 38px; }
 .cam-wz__lagetext { color: var(--gedaempft, #6b7a8a); }
 .cam-mass__feld:not(.cam-feld--fehler) input { border-color: var(--linie, #b8c4d0); }
+
+/* HOFERCAM 3D-Simulation (1.547.0) */
+.cam-sim-huelle .dialog.cam-sim { width: min(1400px, calc(100vw - 24px)); max-width: none; max-height: calc(100vh - 24px); overflow: auto; padding: 12px 14px; }
+.cam-sim__kopf { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.cam-sim__kopf > b { font-size: 16px; }
+.cam-sim__hinweis { flex: 1; color: var(--gedaempft, #6b7a8a); }
+.cam-sim__haupt { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+.cam-sim__bildteil { flex: 1 1 560px; min-width: 0; }
+.cam-sim__titel { font-weight: 600; margin-bottom: 4px; }
+.cam-sim__bild { display: block; background: #f4f7fa; border: 1px solid var(--linie, #d5dde6); border-radius: 6px; touch-action: none; cursor: grab; }
+body.dunkel .cam-sim__bild { background: #e9eef3; }
+.cam-sim__knoepfe { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
+.cam-sim__regler { flex: 1 1 200px; min-width: 160px; }
+.cam-sim__zeile { font-family: ui-monospace, monospace; font-size: 12px; margin-top: 4px; color: var(--gedaempft, #6b7a8a); }
+.cam-sim__liste { flex: 0 1 260px; display: flex; flex-direction: column; gap: 4px; }
+.cam-sim__schritt { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; text-align: left; padding: 5px 8px; border: 1px solid var(--linie, #d5dde6);
+  border-radius: 6px; background: var(--flaeche, #fff); cursor: pointer; font-size: 13px; }
+.cam-sim__schritt.aktiv { border-color: #e67814; box-shadow: 0 0 0 2px rgba(230, 120, 20, .25); }
+.cam-sim__schritt small { flex-basis: 100%; color: var(--gedaempft, #6b7a8a); }
+.cam-sim__schritt--fehlt { border-color: #d32f2f; }
+.cam-sim__schritt--fehlt small { color: #d32f2f !important; }
+.cam-sim__schritt--grau { opacity: .7; }
+.cam-sim__k { font-weight: 700; color: #1f4f82; }
+body.dunkel .cam-sim__k { color: #9fc3e8 !important; }
+body.dunkel .cam-sim__schritt { background: #101820; }
+.cam-sim__name { word-break: break-word; }
+.cam-sim__info { color: var(--gedaempft, #6b7a8a); margin-top: 6px; }
