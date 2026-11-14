@@ -17,6 +17,7 @@ import { inEigenesFenster } from "../../teile/eigenesFenster.js";
 import { NC_QUELLEN, hatSpann, ncAktuell, ncZeilen } from "./ncAktuell.js";
 import { TYP_NAME, eigeneFelder, eigenWert, feldAus, typBeobachten, wirksamB, wirksamW } from "./camTyp.js";
 import { camTypFensterOeffnen, camTypLaden } from "./CamTypFenster.jsx";
+import { bloeckeLesen, kopfLesen } from "./camLesen.js";
 import { VORLAGEN, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen } from "./camVorlagen.js";
 import { FELDER, HD_STUFEN, plaetzeVon, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, markenPaare, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
@@ -48,9 +49,10 @@ function VorlageFeld({ code, pos, einsetzen, zu }) {
               <input type="checkbox" data-camvorlage-feld={f.name} checked={feldWert(v, w, f)} onChange={(e) => setze(f.name, e.target.checked)} />
               <span>{f.text}</span></label>
           : <label key={f.name} className="cam-feld" title={f.lang}>
-              <span>{f.text}</span>
+              {/* Seit 1.542.0 mit Einheit wie bei den Kopfdaten (Wunsch Patrick 14. November 2026) */}
+              <span>{f.text}{f.einheit && <small className="cam-einheit"> [{f.einheit}]</small>}</span>
               <input data-camvorlage-feld={f.name} value={w[f.name] ?? ""} inputMode="decimal" style={{ width: 64 }}
-                placeholder={f.vorgabe ? f.vorgabe(w) : ""} onChange={(e) => setze(f.name, e.target.value)} />
+                placeholder={(f.vorgabe && f.vorgabe(w)) || f.einheit || ""} onChange={(e) => setze(f.name, e.target.value)} />
             </label>)}
       </div>
       <div className="cam-vorlage__fuss">
@@ -284,8 +286,11 @@ function herunterladen(e, zeilen, nr) {
 // Rücktaste in einer leeren Zeile löscht sie. Was von Hand anders ist als
 // erzeugt, ist gelb; die App setzt es nach jedem Neurechnen wieder ein
 // (handAnwenden in hofercam.js).
+// Einheiten der Felder in den Bearbeitungen (Marken haben keine)
+const BLOCK_EINHEIT = { S: "U/min", vc: "m/min", vcD: "mm", X: "mm", Y: "mm", anZ: "mm", wegZ: "mm", wegA: "Grad",
+  vorX: "mm", vorZ: "mm", nX: "mm", nZ: "mm" };
 let fokusNach = null;
-function Kanaele({ prog, sync, fehler, bereich, bereich2, w, handSetzen }) {
+function Kanaele({ prog, sync, fehler, bereich, bereich2, w, handSetzen, einlesen }) {
   const kasten = useRef(null);
   const imBereich = (z, k) => {
     const b = k === 0 ? bereich : bereich2;
@@ -355,6 +360,9 @@ function Kanaele({ prog, sync, fehler, bereich, bereich2, w, handSetzen }) {
           <span>
             <button className="knopf knopf--klein" data-cam-kopieren="1" onClick={(e) => kopieren(e, prog.k1, 1)}>Kopieren</button>
             <button className="knopf knopf--klein" data-cam-laden="1" onClick={(e) => herunterladen(e, prog.k1, prog.nr1)}>Herunterladen</button>
+            {/* Seit 1.542.0: jeder Kanal für sich, die Dateien liegen oft in verschiedenen Ordnern */}
+            {einlesen && <label className="knopf knopf--klein" data-cam-einlesen="1" title="Programm für Kanal 1 aus einer Datei einlesen, der andere Kanal bleibt">📂 Einlesen
+              <input type="file" hidden data-ablegen="direkt" onChange={(e) => { einlesen(e.target.files, 1); e.target.value = ""; }} /></label>}
           </span>
         </div>
         <div className="cam-spalte cam-spalte--kopf">
@@ -362,6 +370,9 @@ function Kanaele({ prog, sync, fehler, bereich, bereich2, w, handSetzen }) {
           <span>
             <button className="knopf knopf--klein" data-cam-kopieren="2" onClick={(e) => kopieren(e, prog.k2, 2)}>Kopieren</button>
             <button className="knopf knopf--klein" data-cam-laden="2" onClick={(e) => herunterladen(e, prog.k2, prog.nr2)}>Herunterladen</button>
+            {/* Seit 1.542.0: jeder Kanal für sich, die Dateien liegen oft in verschiedenen Ordnern */}
+            {einlesen && <label className="knopf knopf--klein" data-cam-einlesen="2" title="Programm für Kanal 2 aus einer Datei einlesen, der andere Kanal bleibt">📂 Einlesen
+              <input type="file" hidden data-ablegen="direkt" onChange={(e) => { einlesen(e.target.files, 2); e.target.value = ""; }} /></label>}
           </span>
         </div>
         {sync.reihen.map((r, i) => (
@@ -465,31 +476,55 @@ export default function HoferCam() {
   // Seit 1.541.0: bestehendes Programm einlesen. Die Felder oben kommen
   // aus Kanal 1 (Nr., HOCO Nr., G170, G266), der Text wird wie eine
   // Handänderung gespeichert, mit dem Eingelesenen als „ein“
-  const einlesen = async (dateien) => {
+  // Seit 1.542.0 mit kanalVorgabe (Knopf am Kanal): die Datei gilt für
+  // diesen Kanal, egal welche O-Nummer sie trägt; der andere Kanal bleibt
+  const einlesen = async (dateien, kanalVorgabe) => {
     const gelesen = [];
-    for (const d of [...(dateien || [])]) {
-      const r = programmLesen(await d.text());
+    for (const d of [...(dateien || [])].slice(0, kanalVorgabe ? 1 : undefined)) {
+      let r = programmLesen(await d.text());
       if (r.fehler) { alt.meldung(d.name + ": " + r.fehler, "fehler"); continue; }
+      if (kanalVorgabe && r.kanal !== kanalVorgabe) r = { ...r, kanal: kanalVorgabe, felder: w.nr ? {} : { nr: r.felder.nr } };
       gelesen.push(r);
     }
     if (!gelesen.length) return;
     gelesen.sort((a, b) => a.kanal - b.kanal);
-    let neu = { ...w };
+    // Seit 1.542.0 (Wunsch Patrick 14. November 2026: „es soll die Kopf-
+    // und Enddaten der Bearbeitungen sowie die Werkzeuge auch erkennen“):
+    // aus beiden Kanälen zusammen werden die Felder oben und die
+    // Bearbeitungen gelesen (camLesen.js). Für einen Kanal, der nicht in
+    // dieser Wahl ist, gilt das angezeigte Programm (samt allem, was seither
+    // geändert wurde), damit Kanal 1 und Kanal 2 nacheinander gehen; die
+    // Felder oben kommen nur aus den eingelesenen Kanälen
+    const vorher = programmeMitHand(w);
+    const zeilen = { 1: vorher.k1, 2: vorher.k2 };
+    for (const r of gelesen) zeilen[r.kanal] = r.zeilen;
+    const nur = (k) => (gelesen.some((r) => r.kanal === k) ? zeilen[k] : null);
+    const kopf = kopfLesen(nur(1), nur(2));
+    const { bloecke, unklar } = bloeckeLesen(zeilen[1], zeilen[2]);
+    let neu = { ...w, ...kopf };
     for (const r of gelesen) neu = { ...neu, ...r.felder };
+    neu.bloecke = bloecke;
     const p = programme(neu);
-    let hand = { ...(neu.hand || {}) };
-    for (const r of gelesen) {
-      const auto = r.kanal === 1 ? p.k1 : p.k2;
-      delete hand["k" + r.kanal];
-      hand = handNeu({ hand }, r.kanal, auto, r.zeilen);
-      if (hand["k" + r.kanal]) hand["k" + r.kanal].ein = r.zeilen;
+    let hand = { ...(w.hand || {}) };
+    for (const k of [1, 2]) {
+      const r = gelesen.find((x) => x.kanal === k);
+      // Angezeigt bleibt genau, was eingelesen bzw. vorher zu sehen war;
+      // was nicht dem Standard entspricht, ist violett
+      // Ein Kanal ohne Handänderung wird einfach neu erzeugt (sonst blieben
+      // Nr. und Kopf von vorher stehen)
+      if (r) delete hand["k" + k];
+      else if (!hand["k" + k]) continue;
+      hand = handNeu({ hand }, k, k === 1 ? p.k1 : p.k2, r ? r.zeilen : vorher["k" + k]);
+      if (r && hand["k" + k]) hand["k" + k].ein = r.zeilen;
     }
     neu.hand = hand;
     Object.assign(gemerkt, neu);
     setW(neu);
     melden();
     alt.meldung("Eingelesen: " + gelesen.map((r) => "Kanal " + r.kanal + " (O" + String(r.kanal === 2 ? r.nr + 1000 : r.nr).padStart(4, "0") + ")").join(", ")
-      + ". Violett = anders als der Standard.", "gut");
+      + ", " + (bloecke.length === 1 ? "1 Bearbeitung" : bloecke.length + " Bearbeitungen") + " erkannt"
+      + (unklar.length ? ", nicht erkannt: " + unklar.join(", ") + " (stehen nur im Programm)" : "")
+      + ". Violett = anders als der Standard.", unklar.length ? "warn" : "gut");
   };
 
   return (
@@ -573,11 +608,15 @@ export default function HoferCam() {
           // Seit 1.450.0: im Maschinentyp deaktivierte Felder fehlen hier
           const aus = (name) => feldAus(b.art, name);
           const be = wirksamB(b);
+          // Seit 1.542.0 mit Einheit wie bei den Kopfdaten (Wunsch Patrick
+          // 14. November 2026: „bei den Vorlagen für Bearbeitungen soll auch
+          // angezeigt werden, welche Einheiten eingegeben werden müssen“)
+          const einheit = (name) => BLOCK_EINHEIT[name] || (name === "wegF" ? (vorschubArt(b) === "98" ? "mm/min" : "mm/U") : "");
           const feld = (name, text, lang, breit, platzhalter) => aus(name) ? null : (
             <label className={"cam-feld" + (bf[name] ? " cam-feld--fehler" : "")} title={lang + (bf[name] ? " – " + bf[name] : "")}>
-              <span>{text}</span>
+              <span>{text}{einheit(name) && <small className="cam-einheit"> [{einheit(name)}]</small>}</span>
               <input data-camblock={name} value={b[name] ?? ""} style={breit ? { width: breit } : undefined}
-                placeholder={platzhalter} inputMode={platzhalter ? "text" : "decimal"} onChange={(e) => blockAendern(b.id, name, e.target.value)} />
+                placeholder={platzhalter || einheit(name)} inputMode={platzhalter ? "text" : "decimal"} onChange={(e) => blockAendern(b.id, name, e.target.value)} />
             </label>
           );
           return { key: b.id, inhalt: (
@@ -753,7 +792,7 @@ export default function HoferCam() {
               <input type="file" multiple hidden data-ablegen="direkt" onChange={(e) => { einlesen(e.target.files); e.target.value = ""; }} />
             </label></div>
           <Kanaele prog={prog} sync={sync} fehler={fehler} bereich={prog.bereiche[aktiv]} bereich2={prog.bereiche2[aktiv]}
-            w={w} handSetzen={(h) => setze("hand", h)} />
+            w={w} handSetzen={(h) => setze("hand", h)} einlesen={einlesen} />
         </>}
     </div>
   );

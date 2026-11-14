@@ -1,5 +1,6 @@
 # HOFERCAM (seit 1.541.0): bestehendes Programm einlesen, Abweichungen
-# zum Standard violett, danach von Hand Geändertes gelb.
+# zum Standard violett, danach von Hand Geändertes gelb. Seit 1.542.0
+# je Kanal einzeln und mit erkannten Bearbeitungen.
 import time, os
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -70,6 +71,31 @@ with sync_playwright() as p:
     pg.set_input_files("#cam-einlesen input", [ORDNER + "/leer.NC"])
     pg.wait_for_timeout(400)
     pruefe("Ohne O-Nummer Meldung", "keine Programmnummer" in pg.text_content("body"))
+    # Seit 1.542.0: Bearbeitungen erkennen, Kanal 1 und 2 nacheinander
+    if pg.locator("[data-cam-verwerfen='1']").count(): pg.click("[data-cam-verwerfen='1']")
+    for k in ["dreh", "front", "seite", "k2"]: pg.click("#cam-neu-" + k)
+    pg.locator(".cam-block[data-block='0'] textarea").first.fill("G1X10.F0.1\nG1Z-5.")
+    pg.wait_for_timeout(300)
+    c1 = [z for z in lies(1) if z != ""]; c2 = [z for z in lies(2) if z != ""]
+    open(ORDNER + "/K1.NC", "w").write("\r\n".join(c1) + "\r\n")
+    open(ORDNER + "/K2.NC", "w").write("\r\n".join(c2) + "\r\n")
+    for i in range(6):
+        if pg.locator(".cam-block").count() == 0: break
+        pg.click("[data-camblock-weg='0']")
+    pruefe("Bearbeitungen weg", pg.locator(".cam-block").count() == 0)
+    pruefe("Knopf Einlesen bei beiden Kanälen", pg.locator("[data-cam-einlesen='1'] input").count() == 1 and pg.locator("[data-cam-einlesen='2'] input").count() == 1)
+    pg.set_input_files("[data-cam-einlesen='1'] input", [ORDNER + "/K1.NC"]); pg.wait_for_timeout(500)
+    pruefe("Kanal 1 allein: drei Bearbeitungen", pg.locator(".cam-block").count() == 3)
+    pruefe("Code der ersten Bearbeitung erkannt", pg.locator(".cam-block[data-block='0'] textarea").first.input_value() == "G1X10.F0.1\nG1Z-5.")
+    pg.set_input_files("[data-cam-einlesen='2'] input", [ORDNER + "/K2.NC"]); pg.wait_for_timeout(500)
+    pruefe("Danach Kanal 2: vier Bearbeitungen", pg.locator(".cam-block").count() == 4)
+    pruefe("Kanal 1 blieb", [z for z in lies(1) if z != ""] == c1)
+    pruefe("Kanal 2 wie Datei", [z for z in lies(2) if z != ""] == c2)
+    pruefe("Erkannt = Standard, nichts violett", pg.locator(".cam-zeile--ein, .cam-zeile--hand").count() == 0)
+    # Kanal-2-Datei am Knopf von Kanal 2 lässt Kanal 1 und die Felder
+    pg.fill("[data-cam='A']", "18")
+    pg.set_input_files("[data-cam-einlesen='2'] input", [ORDNER + "/K2.NC"]); pg.wait_for_timeout(500)
+    pruefe("Kanal 2 nochmals: Feld A bleibt", pg.input_value("[data-cam='A']") == "18")
     pg.evaluate("document.body.classList.add('dunkel')")
     pg.set_input_files("#cam-einlesen input", [ORDNER + "/O0458.NC"])
     pg.wait_for_selector("#cam-ein-stand")
