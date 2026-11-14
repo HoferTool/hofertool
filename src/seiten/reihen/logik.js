@@ -28,29 +28,94 @@ export function leererStand() {
   };
 }
 
-function lesen(text) {
-  try { const s = JSON.parse(text); return s && s.v === 1 ? s : null; } catch (e) { return null; }
+// ---------- Profile (seit 1.551.0, Wunsch Patrick 14. November 2026:
+// „ich habe 2 Söhne, die üben“) ----------
+// Gespeichert wie bisher unter hofer.reihen.stand und am Konto unter
+// reihen_stand, aber als Behälter {v: 2, profile: [{id, name, erstellt,
+// geaendert, stand}]}. Ein alter Stand (v 1) wird Profil „Spieler 1“.
+// Wer am Gerät gerade spielt, merkt nur das Gerät (hofer.reihen.aktiv),
+// damit jedes iPad sein eigenes Kind kennt. Kein PIN, kein Passwort.
+const AKTIV = "hofer.reihen.aktiv";
+let behaelter = null;
+
+function behaelterLesen(text) {
+  try {
+    const s = JSON.parse(text);
+    if (!s) return null;
+    if (s.v === 2 && Array.isArray(s.profile)) return s;
+    if (s.v === 1) return { v: 2, profile: [{ id: "p1", name: "Spieler 1", erstellt: 0, geaendert: s.geaendert || 0, stand: s }] };
+  } catch (e) { /* kaputt = keiner */ }
+  return null;
 }
 
-export function standLaden() {
-  let geraet = null, konto = null;
-  try { geraet = lesen(localStorage.getItem(SCHLUESSEL)); } catch (e) { /* privat */ }
-  try { konto = lesen(alt.einstellungWert ? alt.einstellungWert(KONTO, "") : ""); } catch (e) { /* ohne Konto */ }
-  // Der jüngere Stand gilt: so geht nichts verloren, wenn ein Gerät
-  // offline gespielt hat oder das Konto auf einem anderen Gerät weiter ist.
-  const s = [geraet, konto].filter(Boolean).sort((x, y) => (y.geaendert || 0) - (x.geaendert || 0))[0];
+function standNorm(s) {
   const leer = leererStand();
-  if (!s) return leer;
+  if (!s || s.v !== 1) return leer;
   return Object.assign(leer, s, { einst: Object.assign(leer.einst, s.einst || {}), tage: Object.assign(leer.tage, s.tage || {}) });
 }
 
-export function standSpeichern(s, auchKonto) {
-  s.geaendert = Date.now();
-  const text = JSON.stringify(s);
+export function profileLaden() {
+  let geraet = null, konto = null;
+  try { geraet = behaelterLesen(localStorage.getItem(SCHLUESSEL)); } catch (e) { /* privat */ }
+  try { konto = behaelterLesen(alt.einstellungWert ? alt.einstellungWert(KONTO, "") : ""); } catch (e) { /* ohne Konto */ }
+  // Je Profil gilt der jüngere Stand: so geht nichts verloren, wenn ein
+  // Gerät offline gespielt hat oder das Konto auf einem anderen Gerät weiter ist.
+  const je = new Map();
+  for (const b of [geraet, konto]) {
+    if (!b) continue;
+    for (const p of b.profile) {
+      if (!p || !p.id) continue;
+      const da = je.get(p.id);
+      if (!da || (p.geaendert || 0) > (da.geaendert || 0)) je.set(p.id, p);
+    }
+  }
+  let profile = [...je.values()].map((p) => ({ id: p.id, name: String(p.name || "Spieler"), erstellt: p.erstellt || 0, geaendert: p.geaendert || 0, stand: standNorm(p.stand) }));
+  profile.sort((x, y) => x.erstellt - y.erstellt);
+  if (!profile.length) profile = [{ id: "p1", name: "Spieler 1", erstellt: 0, geaendert: 0, stand: leererStand() }];
+  behaelter = { v: 2, profile };
+  return behaelter;
+}
+
+function behaelterSchreiben(auchKonto) {
+  const text = JSON.stringify(behaelter);
   try { localStorage.setItem(SCHLUESSEL, text); } catch (e) { /* privat */ }
   if (auchKonto && alt.einstellungSetzenWert) {
     try { alt.einstellungSetzenWert(KONTO, text); } catch (e) { /* ohne Netz bleibt es am Gerät */ }
   }
+}
+
+export function profilVon(id) {
+  if (!behaelter) profileLaden();
+  return behaelter.profile.find((p) => p.id === id) || behaelter.profile[0];
+}
+
+export function aktivLesen() { try { return localStorage.getItem(AKTIV) || ""; } catch (e) { return ""; } }
+export function aktivSetzen(id) { try { localStorage.setItem(AKTIV, id); } catch (e) { /* privat */ } }
+
+export function profilNeu() {
+  if (!behaelter) profileLaden();
+  let n = behaelter.profile.length + 1;
+  while (behaelter.profile.some((p) => p.name === "Spieler " + n)) n++;
+  const jetzt = Date.now();
+  const p = { id: "p" + jetzt.toString(36), name: "Spieler " + n, erstellt: jetzt, geaendert: jetzt, stand: leererStand() };
+  behaelter.profile.push(p);
+  behaelterSchreiben(true);
+  return p;
+}
+
+export function profilUmbenennen(id, name) {
+  const p = profilVon(id), n = String(name || "").trim().slice(0, 20);
+  if (!n || n === p.name) return;
+  p.name = n; p.geaendert = Date.now();
+  behaelterSchreiben(true);
+}
+
+// Der Spielstand eines Profils; ans Konto nur am Ende einer Runde.
+export function standSpeichern(id, s, auchKonto) {
+  const p = profilVon(id);
+  s.geaendert = Date.now();
+  p.stand = s; p.geaendert = s.geaendert;
+  behaelterSchreiben(auchKonto);
 }
 
 // ---------- Levels ----------

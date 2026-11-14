@@ -15,7 +15,7 @@ import { weltBauen } from "./welt.js";
 import { reihenAllein } from "./allein.js";
 import { TON, entsperren, tonAn } from "./ton.js";
 import {
-  REIHEN, ZEITEN, ANZAHLEN, SKINS, SERIEN_TEXT, standLaden, standSpeichern, levelAus, rang, skinVon,
+  REIHEN, ZEITEN, ANZAHLEN, SKINS, SERIEN_TEXT, standSpeichern, profileLaden, profilVon, aktivLesen, aktivSetzen, profilNeu, profilUmbenennen, levelAus, rang, skinVon,
   rundeBauen, antwortMerken, punkteFuer, multiplikator, fehlerListe, eintrag, tagZaehlen,
 } from "./logik.js";
 import "./reihen.css";
@@ -24,10 +24,20 @@ const zahl = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, "'");
 
 export default function Spiel() {
   const canvasRef = useRef(null), weltRef = useRef(null);
-  const [stand, setStand] = useState(() => standLaden());
+  // Profile: mehrere Kinder am selben Gerät, jedes mit eigenem Stand.
+  // Sind es mehrere, fragt das Spiel beim Öffnen „Wer spielt?“.
+  const [start] = useState(() => {
+    const b = profileLaden(), a = aktivLesen();
+    const p = b.profile.find((x) => x.id === a) || b.profile[0];
+    return { id: p.id, fragen: b.profile.length > 1 };
+  });
+  const [pid, setPid] = useState(start.id);
+  const pidRef = useRef(pid); pidRef.current = pid;
+  const [stand, setStand] = useState(() => profilVon(start.id).stand);
   const standRef = useRef(stand); standRef.current = stand;
   const [schirm, setSchirm] = useState("menu");     // menu | zaehlen | fahrt | ende
-  const [panel, setPanel] = useState(null);         // reihen | garage | null
+  const [panel, setPanel] = useState(start.fragen ? "wer" : null); // reihen | garage | profile | wer | null
+  const [profilStand, setProfilStand] = useState(0); // zählt hoch, wenn Namen oder Profile ändern
   const [pause, setPause] = useState(false);
   const [zaehler, setZaehler] = useState(3);
   const [frage, setFrage] = useState(null);
@@ -71,7 +81,12 @@ export default function Spiel() {
   }, [schirm]);
   useEffect(() => { tonAn(einst.ton); }, [einst.ton]);
 
-  const aendern = (fn) => setStand((s) => { const n = structuredClone(s); fn(n); standSpeichern(n, false); return n; });
+  const aendern = (fn) => setStand((s) => { const n = structuredClone(s); fn(n); standSpeichern(pidRef.current, n, false); return n; });
+  const profilWaehlen = (id) => {
+    aktivSetzen(id); setPid(id); setStand(structuredClone(profilVon(id).stand)); setPanel(null);
+  };
+  const profile = useMemo(() => profileLaden().profile, [profilStand]); // eslint-disable-line react-hooks/exhaustive-deps
+  const profilName = profilVon(pid).name;
   const einstSetzen = (teil) => aendern((s) => Object.assign(s.einst, teil));
 
   // ---------- Ablauf einer Runde ----------
@@ -172,7 +187,7 @@ export default function Spiel() {
     s.serieRekord = Math.max(s.serieRekord, R.besteSerie);
     const schnitt = R.zeiten.length ? R.zeiten.reduce((a, b) => a + b, 0) / R.zeiten.length : 0;
     tagZaehlen(s);
-    standSpeichern(s, true);
+    standSpeichern(pidRef.current, s, true);
     setStand(s);
     const nachher = levelAus(s.xp).level;
     const neueSkins = SKINS.filter((k) => k.ab > vorher && k.ab <= nachher);
@@ -222,6 +237,7 @@ export default function Spiel() {
       if (e.key === "Escape") {
         e.preventDefault(); e.stopPropagation();
         if (schirm === "fahrt" || schirm === "zaehlen") { if (schirm === "fahrt") pausieren(!r.current.pausiertSeit); else abbrechen(); }
+        else if (panel === "wer") { /* erst wählen, wer spielt */ }
         else if (panel) setPanel(null);
         else if (schirm === "ende") abbrechen();
         else if (!reihenAllein) location.hash = "#/dashboard";
@@ -253,7 +269,9 @@ export default function Spiel() {
       {kein3d && <div className="rr-welt rr-welt--ersatz" />}
 
       {schirm === "menu" && (
-        <Menue stand={stand} lv={lv} einst={einst} einstSetzen={einstSetzen} fehlerZahl={fehlerZahl}
+        <Menue stand={stand} lv={lv} profilName={profilName} profile={profile} pid={pid}
+          profilWaehlen={profilWaehlen} profilNeu={() => { const p = profilNeu(); setProfilStand((n) => n + 1); return p.id; }}
+          umbenennen={(id, name) => { profilUmbenennen(id, name); setProfilStand((n) => n + 1); }} einst={einst} einstSetzen={einstSetzen} fehlerZahl={fehlerZahl}
           starten={starten} panel={panel} setPanel={setPanel} skin={skin}
           skinWaehlen={(id) => aendern((s) => { s.skin = id; })} />
       )}
@@ -330,7 +348,7 @@ function LevelAnzeige({ stand, lv }) {
   );
 }
 
-function Menue({ stand, lv, einst, einstSetzen, fehlerZahl, starten, panel, setPanel, skin, skinWaehlen }) {
+function Menue({ stand, lv, profilName, profile, pid, profilWaehlen, profilNeu, umbenennen, einst, einstSetzen, fehlerZahl, starten, panel, setPanel, skin, skinWaehlen }) {
   const reihe = (n) => {
     const da = einst.reihen.includes(n);
     einstSetzen({ reihen: da ? einst.reihen.filter((x) => x !== n) : einst.reihen.concat(n).sort() });
@@ -339,7 +357,13 @@ function Menue({ stand, lv, einst, einstSetzen, fehlerZahl, starten, panel, setP
   return (
     <>
       <div className="rr-oben">
-        <LevelAnzeige stand={stand} lv={lv} />
+        <div className="rr-oben__links">
+          <button className="rr-profilknopf" data-rr-profil onClick={() => setPanel("profile")} aria-label={"Profil " + profilName + " wechseln"} title={profilName}>
+            <span className="rr-avatar" style={{ background: avatarFarbe(profile, pid) }}>{(profilName[0] || "?").toUpperCase()}</span>
+            <b>{profilName}</b><small>wechseln ▾</small>
+          </button>
+          <LevelAnzeige stand={stand} lv={lv} />
+        </div>
         <div className="rr-oben__rechts">
           {stand.tage.serie > 0 && <div className="rr-chip" title="Tage am Stück">🔥 {stand.tage.serie} {stand.tage.serie === 1 ? "Tag" : "Tage"}</div>}
           <button className="rr-rund" onClick={() => einstSetzen({ ton: !einst.ton })} aria-label="Ton">{einst.ton ? "🔊" : "🔇"}</button>
@@ -382,8 +406,57 @@ function Menue({ stand, lv, einst, einstSetzen, fehlerZahl, starten, panel, setP
         </div>
       </div>
       {panel === "reihen" && <MeineReihen stand={stand} zu={() => setPanel(null)} />}
+      {(panel === "profile" || panel === "wer") && (
+        <Profile profile={profile} pid={pid} wer={panel === "wer"} waehlen={profilWaehlen}
+          neu={profilNeu} umbenennen={umbenennen} zu={() => setPanel(null)} />
+      )}
       {panel === "garage" && <Garage lv={lv} skin={skin} waehlen={skinWaehlen} zu={() => setPanel(null)} />}
     </>
+  );
+}
+
+const AVATAR = ["#ff3d00", "#2f7bff", "#00b85c", "#a43cff", "#ff9100", "#00b8d4", "#e91e63", "#795548"];
+function avatarFarbe(profile, id) { const i = Math.max(0, profile.findIndex((p) => p.id === id)); return AVATAR[i % AVATAR.length]; }
+
+function Profile({ profile, pid, wer, waehlen, neu, umbenennen, zu }) {
+  const [bearbeite, setBearbeite] = useState(null);
+  const [name, setName] = useState("");
+  const anfangen = (p) => { setBearbeite(p.id); setName(p.name); };
+  const fertig = () => { if (bearbeite) umbenennen(bearbeite, name); setBearbeite(null); };
+  const zuDa = !wer;
+  return (
+    <div className="rr-panel" data-rr-profile={wer ? "wer" : "wechseln"} onClick={zuDa ? zu : undefined}>
+      <div className="rr-karte rr-karte--profile" onClick={(e) => e.stopPropagation()}>
+        {zuDa && <button className="rr-rund rr-karte__zu" onClick={zu}>✕</button>}
+        <h2>{wer ? "Wer spielt?" : "Profile"}</h2>
+        <div className="rr-profile">
+          {profile.map((p) => {
+            const lv = levelAus(p.stand.xp);
+            return (
+              <div key={p.id} className={"rr-profilzeile" + (p.id === pid ? " an" : "")}>
+                {bearbeite === p.id ? (
+                  <form className="rr-profilname" onSubmit={(e) => { e.preventDefault(); fertig(); }}>
+                    <input autoFocus value={name} maxLength={20} data-rr-namefeld onChange={(e) => setName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setBearbeite(null); } }} />
+                    <button className="rr-knopf rr-knopf--blau" data-rr-nameok type="submit">OK</button>
+                  </form>
+                ) : (
+                  <>
+                    <button className="rr-profilwahl" data-rr-profilwahl={p.id} onClick={() => waehlen(p.id)}>
+                      <span className="rr-avatar rr-avatar--gross" style={{ background: avatarFarbe(profile, p.id) }}>{(p.name[0] || "?").toUpperCase()}</span>
+                      <span className="rr-profilwahl__text"><b>{p.name}</b><small>Level {lv.level} · {rang(lv.level)} · 🏆 {zahl(p.stand.punkteRekord)}</small></span>
+                    </button>
+                    <button className="rr-rund" data-rr-umbenennen={p.id} onClick={() => anfangen(p)} aria-label="Umbenennen">✎</button>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <button className="rr-knopf rr-knopf--grau" data-rr-profilneu onClick={() => { const id = neu(); setBearbeite(id); setName(""); }}>+ Neues Profil</button>
+        <p className="rr-klein">Jedes Profil hat eigene Punkte, Levels, Garage und Fehler.</p>
+      </div>
+    </div>
   );
 }
 

@@ -11,11 +11,11 @@ def pruefe(ok, text):
     print(("ok   " if ok else "FEHLT") + " " + text)
     if not ok: fehler.append(text)
 
-def oeffnen(br, vp, mit=True, hash="", **kw):
+def oeffnen(br, vp, mit=True, hash="", js="", **kw):
     ctx = br.new_context(viewport=vp, **kw)
     pg = ctx.new_page(); pf = []
     pg.on("pageerror", lambda e: pf.append(str(e)[:300]))
-    body = FAKE + (";\n(TEST.daten.profiles.find(x => x.id === 'u1') || {}).einstellungen = { reihenSehen: true };\n" if mit else "")
+    body = FAKE + (";\n(TEST.daten.profiles.find(x => x.id === 'u1') || {}).einstellungen = { reihenSehen: true };\n" if mit else "") + js
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=body))
     for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
         pg.route(u, lambda r: r.abort())
@@ -129,6 +129,37 @@ with sync_playwright() as p:
     pg.reload(); pg.wait_for_selector("[data-rr-los]", timeout=15000); pg.evaluate("location.hash='#/dashboard'"); pg.wait_for_timeout(800)
     pruefe("reihen" in pg.evaluate("location.hash"), "Direktlink: auch nach Neuladen nur das Spiel")
     pruefe(not pf, "Direktlink: keine Fehler: %s" % pf)
+    ctx.close()
+    # Profile (1.551.0): alter Stand wird „Spieler 1“, zweites Profil getrennt, Wechsel auch im Direktlink
+    alt_stand = '{"v":1,"geaendert":5,"xp":250,"runden":4,"punkteRekord":4321,"serieRekord":9,"zeitRekord":0,"richtigTotal":40,"tage":{"letzter":"","serie":0},"a":{},"skin":"gletscher","einst":{"reihen":[7],"zeit":3,"anzahl":10,"ton":false}}'
+    js = ";\n(TEST.daten.profiles.find(x => x.id === 'u1') || {}).einstellungen.reihen_stand = %r;\n" % alt_stand
+    ctx, pg, pf = oeffnen(br, {"width": 1180, "height": 820}, hash="#/reihen", js=js, has_touch=True)
+    pg.wait_for_selector("[data-rr-los]", timeout=15000); pg.wait_for_timeout(800)
+    pruefe(pg.locator("[data-rr-profile]").count() == 0, "ein Profil: keine Frage beim Start")
+    pruefe("Spieler 1" in pg.get_attribute("[data-rr-profil]", "title") and "4'321" in pg.inner_text(".rr-rekorde"), "alter Stand ist Profil Spieler 1")
+    pg.tap("[data-rr-profil]"); pg.wait_for_timeout(300)
+    pg.tap("[data-rr-profilneu]"); pg.wait_for_selector("[data-rr-namefeld]")
+    pg.fill("[data-rr-namefeld]", "Luca"); pg.tap("[data-rr-nameok]"); pg.wait_for_timeout(300)
+    pg.screenshot(path=BILD + "/rr-profile.png")
+    pruefe(pg.locator("[data-rr-profilwahl]").count() == 2 and "Luca" in pg.inner_text("[data-rr-profile]"), "neues Profil Luca angelegt")
+    lid = pg.locator("[data-rr-profilwahl]").nth(1).get_attribute("data-rr-profilwahl")
+    pg.tap(f"[data-rr-profilwahl='{lid}']"); pg.wait_for_timeout(400)
+    pruefe("Luca" in pg.get_attribute("[data-rr-profil]", "title") and "🏆 0" in pg.inner_text(".rr-rekorde"), "Luca hat eigenen leeren Stand")
+    pg.tap("[data-rr-profil]"); pg.wait_for_timeout(300)
+    pid1 = pg.locator("[data-rr-profilwahl]").nth(0).get_attribute("data-rr-profilwahl")
+    pg.tap(f"[data-rr-umbenennen='{pid1}']"); pg.fill("[data-rr-namefeld]", "Noah"); pg.keyboard.press("Enter"); pg.wait_for_timeout(300)
+    pruefe("Noah" in pg.inner_text("[data-rr-profile]"), "Spieler 1 umbenannt in Noah")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    konto = pg.evaluate("TEST.daten.profiles.find(x => x.id === 'u1').einstellungen.reihen_stand")
+    pruefe('"Noah"' in konto and '"Luca"' in konto and "4321" in konto, "beide Profile am Konto")
+    pg.reload(); pg.wait_for_selector("[data-rr-profile='wer']", timeout=15000); pg.wait_for_timeout(600)
+    pg.screenshot(path=BILD + "/rr-wer.png")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-rr-profile='wer']").count() == 1, "Wer spielt? bleibt bis zur Wahl")
+    pg.tap(f"[data-rr-profilwahl='{pid1}']"); pg.wait_for_timeout(400)
+    pruefe("Noah" in pg.get_attribute("[data-rr-profil]", "title") and "4'321" in pg.inner_text(".rr-rekorde"), "Noah wieder mit seinem Stand")
+    pruefe("reihen" in pg.evaluate("location.hash") and pg.locator("[data-rr-zu]").count() == 0, "Profile im Direktlink ohne Weg zurück")
+    pruefe(not pf, "Profile: keine Fehler: %s" % pf)
     ctx.close()
     br.close()
 print("Fehler:", ", ".join(fehler) if fehler else "keine")
