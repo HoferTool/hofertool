@@ -70,6 +70,10 @@ with sync_playwright() as p:
     # Ecke runden: obere und rechte Linie anklicken, R 10
     f.click("#traceFillet"); f.fill("#traceR", "10")
     klick(100, 80); klick(120, 105); pg.wait_for_timeout(1500)
+    # Auf GitHub fehlte hier dreimal die Form (nur dort); Zustand nennen statt nur „undefined“
+    zst = f.evaluate("""(() => { const e = st.edit; return { tool: e.tool, art: e.traceArt, fillet: e.fillet, poly: e.poly && e.poly.pts.length,
+      strokes: e.strokes.length, ssel: e.ssel != null, werkzeuge: (scanState().result || {tools: []}).tools.length, zoom: st.zoom }; })()""")
+    if not zst["strokes"]: raise AssertionError("keine gezeichnete Form vor dem Runden: %s, Werkzeug %s" % (json.dumps(zst), t))
     q = f.evaluate("st.edit.strokes[0].poly")
     ecke = min(math.hypot(x - 120, y - 80) for x, y in q)
     pruefe(len(q) > 6 and 3.5 < ecke < 4.5, "Ecke mit R 10 gerundet: %d Punkte, Abstand zur alten Ecke %.2f (soll 4.14)" % (len(q), ecke))

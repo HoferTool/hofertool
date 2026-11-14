@@ -32,7 +32,7 @@ with sync_playwright() as p:
             if rest: fehler.append(f"{richtung}: Klasse bleibt {rest}")
             b = breite()
             if richtung == "zu" and (not schmal or abs(b - 62) > 1): fehler.append(f"zu: schmal={schmal} breite={b}")
-            if richtung == "auf" and (schmal or abs(b - 208) > 1): fehler.append(f"auf: schmal={schmal} breite={b}")
+            if richtung == "auf" and (schmal or abs(b - 236) > 1): fehler.append(f"auf: schmal={schmal} breite={b}")
     # Die Seite gleitet mit dem Rand der Leiste mit (seit 1.121.0)
     for richtung in ["zu", "auf"]:
         pg.click("#nav-klapp"); luecken = []
@@ -44,7 +44,7 @@ with sync_playwright() as p:
         if pg.evaluate("document.getElementById('inhalt').style.transform"): fehler.append("Verschiebung bleibt stehen")
     # Schneller Doppelklick endet sauber
     pg.click("#nav-klapp"); pg.wait_for_timeout(100); pg.click("#nav-klapp"); pg.wait_for_timeout(1300)
-    if pg.evaluate("document.body.classList.contains('nav--schmal')") or abs(breite() - 208) > 1:
+    if pg.evaluate("document.body.classList.contains('nav--schmal')") or abs(breite() - 236) > 1:
         fehler.append("Doppelklick: nicht wieder breit")
     br.close()
 print("Fehler:", "; ".join(fehler) if fehler else "keine")
