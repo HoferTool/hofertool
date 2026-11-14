@@ -18,7 +18,8 @@ import { NC_QUELLEN, hatSpann, ncAktuell, ncZeilen } from "./ncAktuell.js";
 import { TYP_NAME, eigeneFelder, eigenWert, feldAus, typBeobachten, wirksamB, wirksamW } from "./camTyp.js";
 import { camTypFensterOeffnen, camTypLaden } from "./CamTypFenster.jsx";
 import { bloeckeLesen, kopfLesen } from "./camLesen.js";
-import { FRAESER, LAGE_NAME, PLATTEN, SPITZEN, fraeserUmriss, plattenForm, plattenUmriss, wzArt, wzArten, wzFehler, wzFelder, wzText } from "./camWerkzeug.js";
+import { wzFehler, wzText } from "./camWerkzeug.js";
+import { WerkzeugFeld } from "./CamWerkzeugBild.jsx";
 import { VORLAGEN, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen } from "./camVorlagen.js";
 import { FELDER, HD_STUFEN, plaetzeVon, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, markenPaare, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
@@ -67,91 +68,8 @@ function VorlageFeld({ code, pos, einsetzen, zu }) {
   );
 }
 
-// Seit 1.545.0 (Wunsch Patrick 14. November 2026, Grundlage für eine
-// spätere 3D-Simulation): Werkzeug je Bearbeitung wahlweise festlegen.
-// Die Skizze zeigt die Platte so ausgerichtet, wie es die Schneidenlage
-// sagt (Patrick: „Orientierung aufgrund der Schneidenlage erkennen“).
-function WerkzeugSkizze({ wz, art }) {
-  const W = 120, H = 96;
-  if (art === "dreh") {
-    const p = plattenUmriss(wz);
-    if (!p.length) return null;
-    const zs = p.map((q) => q.z), xs = p.map((q) => q.x);
-    const minZ = Math.min(...zs, 0), maxZ = Math.max(...zs, 0), minX = Math.min(...xs, 0), maxX = Math.max(...xs, 0);
-    const m = Math.min((W - 24) / (maxZ - minZ || 1), (H - 24) / (maxX - minX || 1));
-    const tz = (z) => 12 + (z - minZ) * m + ((W - 24) - (maxZ - minZ) * m) / 2;
-    const tx = (x) => 12 + (maxX - x) * m + ((H - 24) - (maxX - minX) * m) / 2;
-    return (
-      <svg className="cam-wz__skizze" data-camwz-skizze viewBox={`0 0 ${W} ${H}`} width={W} height={H} aria-label="Skizze der Platte">
-        <polygon className="cam-wz__platte" points={p.map((q) => tz(q.z).toFixed(1) + "," + tx(q.x).toFixed(1)).join(" ")} />
-        <circle className="cam-wz__spitze" cx={tz(0)} cy={tx(0)} r="3" />
-        <text x="4" y={H - 4} className="cam-wz__achse">Z →  X ↑</text>
-      </svg>);
-  }
-  const u = fraeserUmriss(wz);
-  const alle = [...u.schneide, ...u.schaft];
-  const zs = alle.map((q) => q.z), xs = alle.map((q) => q.x);
-  const minZ = Math.min(...zs), maxZ = Math.max(...zs), maxX = Math.max(...xs);
-  const m = Math.min((W - 24) / (maxZ - minZ || 1), (H - 16) / (maxX || 1));
-  const tz = (z) => W / 2 + z * m, tx = (x) => H - 8 - x * m;
-  const pts = (l) => l.map((q) => tz(q.z).toFixed(1) + "," + tx(q.x).toFixed(1)).join(" ");
-  return (
-    <svg className="cam-wz__skizze" data-camwz-skizze viewBox={`0 0 ${W} ${H}`} width={W} height={H} aria-label="Skizze des Werkzeugs">
-      <polygon className="cam-wz__schaft" points={pts(u.schaft)} />
-      <polygon className="cam-wz__platte" points={pts(u.schneide)} />
-    </svg>);
-}
-
-function WerkzeugFeld({ b, setze, zu }) {
-  const arten = wzArten(b.art);
-  const art = wzArt(b);
-  const wz = { ...(b.wz || {}), art };
-  const f = wzFehler({ ...b, wz });
-  const aendern = (n, x) => setze({ ...wz, [n]: x });
-  const form = art === "dreh" ? plattenForm(wz.form) : null;
-  return (
-    <div className="cam-vorlage cam-wz" data-camwz>
-      <div className="cam-vorlage__kopf">
-        <b>Werkzeug</b>
-        {arten.length > 1 && <select data-camwz-art value={art} onChange={(e) => setze({ art: e.target.value })}>
-          <option value="dreh">Drehwerkzeug</option><option value="fraes">Bohr- / Fräswerkzeug</option></select>}
-        <select data-camwz="form" value={wz.form || ""} onChange={(e) => aendern("form", e.target.value)}>
-          <option value="">– nicht festgelegt –</option>
-          {(art === "dreh" ? PLATTEN : FRAESER).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
-        </select>
-        {wz.form && <button className="knopf knopf--klein" data-camwz-weg title="Werkzeugangaben entfernen" onClick={() => setze(null)}>Entfernen</button>}
-        <button className="knopf knopf--klein" title="Schliessen" onClick={zu}>✕</button>
-      </div>
-      {wz.form && <div className="cam-wz__inhalt">
-        <div className="cam-vorlage__felder">
-          {wzFelder(wz, art).map((fe) => (
-            <label key={fe.name} className={"cam-feld" + (f[fe.name] ? " cam-feld--fehler" : "")} title={fe.text + (fe.frei ? " (freiwillig)" : "") + (f[fe.name] ? " – " + f[fe.name] : "")}>
-              <span>{fe.text}<small className="cam-einheit"> [{fe.einheit}]</small></span>
-              <input data-camwz={fe.name} value={wz[fe.name] ?? ""} inputMode="decimal" style={{ width: 60 }}
-                placeholder={fe.frei ? "frei" : fe.einheit} onChange={(e) => aendern(fe.name, e.target.value)} />
-            </label>))}
-          {art === "dreh" && form && form.art !== "rund" && <div className={"cam-wz__lage" + (f.sl ? " cam-feld--fehler" : "")}>
-            <span className="klein">Schneidenlage{wz.sl ? ": " + LAGE_NAME[wz.sl] : ""}</span>
-            <div className="kt-lage" role="group" aria-label="Schneidenlage">
-              {SPITZEN.map((s) => (
-                <button key={s.id} data-camwz-sl={s.id} className={"kt-lage__knopf" + (wz.sl === s.id ? " aktiv" : "")}
-                  title={LAGE_NAME[s.id]} onClick={() => aendern("sl", s.id)}>
-                  <svg viewBox="-12 -12 24 24" width="22" height="22" aria-hidden="true">
-                    <circle r="6" className="kt-lage__platte" />
-                    <circle cx={s.z * 6} cy={-s.r * 6} r="2.6" className="kt-lage__punkt" />
-                  </svg>
-                </button>))}
-            </div>
-          </div>}
-        </div>
-        <WerkzeugSkizze wz={wz} art={art} />
-      </div>}
-      <p className="klein cam-wz__hinweis">{art === "dreh"
-        ? "Freiwillig, für die spätere Simulation. Die Skizze zeigt die Platte so, wie die Schneidenlage sie ausrichtet (Z nach rechts, X nach oben)."
-        : "Freiwillig, für die spätere Simulation. Das Teil steht in Z 0.5 mm vor „Anfahren Z“ (Querwerkzeuge auf der programmierten Lage)."}</p>
-    </div>
-  );
-}
+// Seit 1.545.0: Werkzeug je Bearbeitung wahlweise festlegen; seit 1.546.0
+// mit Bildern zur Wahl und Massbild zum Eintippen (CamWerkzeugBild.jsx).
 
 // Seit 1.436.0 (Wunsch Patrick 6. November 2026): den gerade erzeugten
 // NC-Code aus Bohren / Fräsen, Entgraten, C-Achse, Gravur oder DXF in die

@@ -13990,3 +13990,38 @@ body.dunkel .cam-wz { background: #18222e; border-color: #3d6a96; }
 .cam-wz-knopf--fehler { border-color: #b3261e; color: #b3261e; }
 body.dunkel .cam-wz-knopf--gesetzt { color: #9fc3e8 !important; border-color: #9fc3e8; }
 body.dunkel .cam-wz-knopf--fehler { color: #ff8a80 !important; }
+
+/* HOFERCAM Werkzeug mit Bildern und Massbild (1.546.0) */
+.cam-wz__arten { display: inline-flex; gap: 4px; }
+.cam-wz__arten .aktiv { background: #1f4f82; color: #fff; border-color: #1f4f82; }
+.cam-wz__formen { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 8px; }
+.cam-wz__form { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 84px; padding: 5px 3px 4px;
+  border: 1px solid var(--linie, #d5dde6); border-radius: 6px; background: var(--flaeche, #fff); cursor: pointer; font-size: 11px; line-height: 1.15; text-align: center; }
+.cam-wz__form:hover { border-color: #7aa7d6; }
+.cam-wz__form.aktiv { border: 2px solid #1f4f82; background: #e4eef9; padding: 4px 2px 3px; }
+body.dunkel .cam-wz__form { background: #101820; }
+body.dunkel .cam-wz__form.aktiv { background: #1d3550; border-color: #9fc3e8; }
+.cam-mass { position: relative; flex: none; max-width: 100%; }
+.cam-mass .cam-wz__skizze { display: block; }
+.cam-mass__feld { position: absolute; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 2px;
+  background: var(--flaeche, #fff); border: 1px solid #7aa7d6; border-radius: 5px; padding: 1px 4px; font-size: 11px; white-space: nowrap; }
+.cam-mass__feld input { width: 46px; padding: 1px 3px; font-size: 12px; min-height: 0; height: 22px; }
+.cam-mass__name { font-weight: 600; color: #1f4f82; }
+.cam-mass__feld.cam-feld--fehler { border-color: #b3261e; box-shadow: 0 0 0 2px rgba(179, 38, 30, .2); }
+.cam-mass__feld.cam-feld--fehler input { border-color: #b3261e; }
+body.dunkel .cam-mass__feld { background: #101820; }
+body.dunkel .cam-mass__name { color: #9fc3e8 !important; }
+.cam-mass__linie line, .cam-mass__hilf, .cam-mass__bogen, .cam-mass__achsen line { stroke: #1f4f82; stroke-width: 1; fill: none; }
+.cam-mass__linie polygon { fill: #1f4f82; }
+.cam-mass__hilf { stroke-dasharray: 3 2; stroke: #6b7a8a; }
+.cam-mass__achse { stroke: #b3261e; stroke-width: 1; stroke-dasharray: 8 3 2 3; }
+.cam-mass__punkt { fill: #1f4f82; }
+.cam-mass__achsen text, .cam-mass__notiz { font-size: 10px; fill: #6b7a8a; }
+.cam-mass__notiz { fill: #b3261e; }
+body.dunkel .cam-mass__linie line, body.dunkel .cam-mass__bogen, body.dunkel .cam-mass__achsen line { stroke: #9fc3e8; }
+body.dunkel .cam-mass__linie polygon { fill: #9fc3e8; }
+.cam-wz__lage { display: flex; flex-direction: column; gap: 4px; max-width: 200px; }
+.cam-wz__lage .kt-lage { grid-template-columns: repeat(3, 38px); gap: 4px; }
+.cam-wz__lage .kt-lage__knopf { width: 38px; height: 38px; min-height: 38px; }
+.cam-wz__lagetext { color: var(--gedaempft, #6b7a8a); }
+.cam-mass__feld:not(.cam-feld--fehler) input { border-color: var(--linie, #b8c4d0); }
