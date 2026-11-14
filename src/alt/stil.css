@@ -13970,3 +13970,15 @@ body.dunkel .cam-stand--ein { background: #45305f; }
 .cam-stand--leer { margin-left: 10px; color: #6b5a00; }
 body.dunkel .cam-stand--leer { color: #e8d27a !important; }
 body.dunkel .cam-feld input::placeholder { color: #7d878f; }
+
+/* HOFERCAM Simulation (1.543.0) */
+.cam-sim-huelle .dialog.cam-sim { width: min(1180px, 96vw); max-width: none; }
+.cam-sim__kopf { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; margin-bottom: 8px; }
+.cam-sim__kopf > button { margin-left: auto; }
+.cam-sim__hinweis { color: #5b6976; font-size: 13px; }
+.cam-sim__bild { width: 100%; height: auto; display: block; border-radius: 8px; border: 1px solid #d5dde5; }
+.cam-sim__knoepfe { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.cam-sim__regler { flex: 1 1 220px; min-width: 160px; }
+.cam-sim__zeile { margin-top: 8px; font-family: ui-monospace, monospace; font-size: 13px; color: #33414f; overflow-wrap: anywhere; }
+body.dunkel .cam-sim__hinweis, body.dunkel .cam-sim__zeile { color: #c9d3dc !important; }
+body.dunkel .cam-sim__bild { border-color: #3a4652; }
