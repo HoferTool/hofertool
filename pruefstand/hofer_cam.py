@@ -35,6 +35,9 @@ with sync_playwright() as p:
         pg.click("[data-block='%d'] .cam-wahl__knopf" % i)
         pg.click("[data-block='%d'] .cam-wahl__punkt[data-platz='%s']" % (i, wert))
     k = lambda n: pg.eval_on_selector_all(f"[data-kanal='{n}'] .cam-text", "e => e.map(x => x.textContent)")
+    # Seit 1.541.0 startet die Ansicht leer: die früheren Vorgaben eintippen
+    for n, x in [("W", "15.125"), ("S", "3000"), ("X", "-0.8"), ("Z", "167.85"), ("F", "0.03"), ("B", "1.5"),
+                 ("plan", "0.20"), ("ueber", "4"), ("datum", "05.11.26")]: pg.fill(f"[data-cam='{n}']", x)
     pg.fill("[data-cam='nr']", "458"); pg.fill("[data-cam='hoco']", "10870-0002")
     pg.fill("[data-cam='A']", "20"); pg.fill("[data-cam='schlicht']", "-0,2"); pg.fill("[data-cam='annaehern']", "12")
     k1, k2 = k(1), k(2)

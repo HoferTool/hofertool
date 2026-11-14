@@ -13955,3 +13955,18 @@ body:not(.dunkel) .pw-info:not(.pw-info--eigen) {
   text-shadow: 0 0 3px #dfe5ec, 0 0 1px #dfe5ec;
 }
 body:not(.dunkel) .pw-info:not(.pw-info--eigen) .pw-info__zeile--schluss { border-top-color: #b5c0cc; }
+
+/* HOFERCAM seit 1.541.0: eingelesene Zeilen, die vom Standard abweichen */
+.cam-zeile--ein { background: #eadcfb; border-radius: 4px; }
+.cam-zeile--ein.cam-zeile--sync { background: #dcc6f8; }
+.cam-stand--ein { margin-left: 10px; background: #eadcfb; color: #4a2380; padding: 2px 6px; border-radius: 4px; }
+#cam-einlesen { margin-left: 6px; cursor: pointer; }
+body.dunkel .cam-zeile--ein { background: #45305f; }
+body.dunkel .cam-zeile--ein.cam-zeile--sync { background: #533a73; }
+body.dunkel .cam-stand--ein { background: #45305f; }
+/* HOFERCAM seit 1.541.0: Einheit beim Feld, leere Kopfdaten */
+.cam-einheit { color: #8a949c; font-size: 11px; }
+.cam-feld input::placeholder { color: #a6aeb5; }
+.cam-stand--leer { margin-left: 10px; color: #6b5a00; }
+body.dunkel .cam-stand--leer { color: #e8d27a !important; }
+body.dunkel .cam-feld input::placeholder { color: #7d878f; }

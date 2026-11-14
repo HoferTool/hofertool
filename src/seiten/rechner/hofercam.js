@@ -37,27 +37,27 @@ export function zahl(text) {
 
 export const FELDER = [
   { gruppe: "Programm", felder: [
-    { name: "nr", text: "Nr. Kanal 1", lang: "Programm-Nr. Kanal 1, 1 bis 999 (Kanal 2 = Nr. + 1000)", art: "nr" },
-    { name: "hoco", text: "HOCO Nr.", art: "text" },
-    { name: "datum", text: "Datum", lang: "Datum in G170", art: "text" },
-    { name: "kuerzel", text: "Kürzel", lang: "Kürzel in G170", art: "text" },
+    { name: "nr", text: "Nr. Kanal 1", einheit: "1–999", lang: "Programm-Nr. Kanal 1, 1 bis 999 (Kanal 2 = Nr. + 1000)", art: "nr" },
+    { name: "hoco", text: "HOCO Nr.", einheit: "z.B. 10007-0589", art: "text" },
+    { name: "datum", text: "Datum", einheit: "TT.MM.JJ", lang: "Datum in G170", art: "text" },
+    { name: "kuerzel", text: "Kürzel", einheit: "z.B. PR", lang: "Kürzel in G170", art: "text" },
   ] },
   { gruppe: "Grundvariablen G266", felder: [
-    { name: "A", text: "A Material-Ø", lang: "A = #531 Materialdurchmesser" },
-    { name: "W", text: "W Teilelänge", lang: "W = #530 Teilelänge" },
-    { name: "S", text: "S Drehzahl", lang: "S = #529 Abstechdrehzahl", ganz: true },
-    { name: "X", text: "X Abstechende", lang: "X = #524 Abstechendposition" },
-    { name: "Z", text: "Z Start", lang: "Z = #525 Z-Achse Startposition, höchstens 200: 200 mm minus Teilelänge minus inkl. evtl. vers. Abstecher minus Sicherheit" },
-    { name: "F", text: "F Vorschub", lang: "F = #522 Vorschub Abstechen" },
-    { name: "B", text: "B Stahlbreite", lang: "B = #528 Breite des Abstechstahls" },
+    { name: "A", text: "A Material-Ø", einheit: "mm", lang: "A = #531 Materialdurchmesser" },
+    { name: "W", text: "W Teilelänge", einheit: "mm", lang: "W = #530 Teilelänge" },
+    { name: "S", text: "S Drehzahl", einheit: "U/min", lang: "S = #529 Abstechdrehzahl", ganz: true },
+    { name: "X", text: "X Abstechende", einheit: "mm", lang: "X = #524 Abstechendposition" },
+    { name: "Z", text: "Z Start", einheit: "mm", lang: "Z = #525 Z-Achse Startposition, höchstens 200: 200 mm minus Teilelänge minus inkl. evtl. vers. Abstecher minus Sicherheit" },
+    { name: "F", text: "F Vorschub", einheit: "mm/U", lang: "F = #522 Vorschub Abstechen" },
+    { name: "B", text: "B Stahlbreite", einheit: "mm", lang: "B = #528 Breite des Abstechstahls" },
   ] },
   { gruppe: "Kanal 1", felder: [
-    { name: "schlicht", text: "Schlichtzugabe Z", lang: "Kopf: G0Z…T0(SCHLICHTZUGABE)" },
-    { name: "plan", text: "Zugabe Plan hinten W", lang: "Ende: G0W…(ZUGABE PLANDREHEN HINTEN)" },
+    { name: "schlicht", text: "Schlichtzugabe Z", einheit: "mm", lang: "Kopf: G0Z…T0(SCHLICHTZUGABE)" },
+    { name: "plan", text: "Zugabe Plan hinten W", einheit: "mm", lang: "Ende: G0W…(ZUGABE PLANDREHEN HINTEN)" },
   ] },
   { gruppe: "Kanal 2 Abgreifen", felder: [
-    { name: "annaehern", text: "Annähern Z vor das Teil", lang: "Abstand vor dem Teil, positiv eingeben; im Programm mit Minus: G0Z-…(EILGANG …MM VOR STUCK)" },
-    { name: "ueber", text: "Über das Teil Z", lang: "Ende: G1G98Z…F5000.(…MM UBER DEM STUCK)" },
+    { name: "annaehern", text: "Annähern Z vor das Teil", einheit: "mm", lang: "Abstand vor dem Teil, positiv eingeben; im Programm mit Minus: G0Z-…(EILGANG …MM VOR STUCK)" },
+    { name: "ueber", text: "Über das Teil Z", einheit: "mm", lang: "Ende: G1G98Z…F5000.(…MM UBER DEM STUCK)" },
   ] },
 ];
 
@@ -70,7 +70,12 @@ function heute() {
 // Vorgaben aus O0458 / O1458
 export function vorgabe() {
   // Seit 1.441.0 je Maschinentyp änderbar (camTyp.js)
-  return { nr: "1", hoco: "", datum: heute(), kuerzel: "", ...typ().vorgaben, eigen: eigeneVorgaben("kopf"), bloecke: [] };
+  // Seit 1.541.0 startet die Ansicht mit leeren Kopfdaten (Wunsch Patrick
+  // 14. November 2026: „bei der Startansicht sollen die Felder für die
+  // Kopfdaten leer sein“, „es soll aber angegeben werden, in welcher
+  // Einheit“); die Einheit steht beim Feld (einheit in FELDER)
+  const leer = Object.fromEntries(FELDER.flatMap((g) => g.felder.map((d) => [d.name, ""])));
+  return { ...leer, eigen: eigeneVorgaben("kopf"), bloecke: [] };
 }
 
 // Fehler je Feld (Text) oder leer
@@ -78,10 +83,13 @@ export function pruefen(w) {
   const f = {};
   w = wirksamW(w);
   const nr = Number(w.nr);
-  if (!/^\d{1,3}$/.test(String(w.nr).trim()) || nr < 1 || nr > 999) f.nr = "1 bis 999";
+  // Seit 1.541.0: leere Felder heissen „leer“ (nicht rot, nur genannt)
+  if (String(w.nr ?? "").trim() === "") f.nr = "leer";
+  else if (!/^\d{1,3}$/.test(String(w.nr).trim()) || nr < 1 || nr > 999) f.nr = "1 bis 999";
   for (const g of FELDER) for (const d of g.felder) {
     if (d.art || feldAus("kopf", d.name)) continue;
-    if (zahl(w[d.name]) == null) f[d.name] = "Zahl fehlt";
+    if (String(w[d.name] ?? "").trim() === "") f[d.name] = "leer";
+    else if (zahl(w[d.name]) == null) f[d.name] = "Zahl fehlt";
     else if (d.ganz && !Number.isInteger(Number(String(w[d.name]).replace(",", ".")))) f[d.name] = "ganze Zahl";
   }
   if (!f.Z && Number(String(w.Z).replace(",", ".")) > 200) f.Z = "höchstens 200";
@@ -517,8 +525,50 @@ export function programmeMitHand(w) {
   const p = programme(w);
   const h = w.hand || {};
   const r1 = handAnwenden(p.k1, h.k1), r2 = handAnwenden(p.k2, h.k2);
+  // Seit 1.541.0: Abweichungen, die so aus einem eingelesenen Programm
+  // stammen, violett statt gelb (danach von Hand Geändertes bleibt gelb)
+  const ein1 = ausEingelesen(r1, h.k1), ein2 = ausEingelesen(r2, h.k2);
   return { ...p, auto1: p.k1, auto2: p.k2, k1: r1.zeilen, k2: r2.zeilen,
-    gelb1: r1.gelb, gelb2: r2.gelb, verloren1: r1.verloren, verloren2: r2.verloren };
+    gelb1: ohne(r1.gelb, ein1), gelb2: ohne(r2.gelb, ein2), ein1, ein2,
+    verloren1: r1.verloren, verloren2: r2.verloren };
+}
+const ohne = (a, b) => new Set([...a].filter((i) => !b.has(i)));
+function ausEingelesen(r, h) {
+  const ein = new Set();
+  if (!h || !Array.isArray(h.ein) || !r.gelb.size) return ein;
+  const gleich = new Set(gleicheZeilen(r.zeilen, h.ein).map(([i]) => i));
+  r.gelb.forEach((i) => { if (gleich.has(i)) ein.add(i); });
+  return ein;
+}
+
+// Seit 1.541.0 (Wunsch Patrick 14. November 2026: „bestehende Programme
+// einlesen … das Abweichende, welches nicht mit dem Standard überein-
+// stimmt, markieren, aber nicht mit der gleichen Farbe“): liest eine
+// NC-Datei; Kanal aus der O-Nummer (O0001–O0999 Kanal 1, ab O1001
+// Kanal 2), aus Kanal 1 dazu HOCO Nr., G170 und G266 für die Felder oben
+export function programmLesen(text) {
+  const zeilen = String(text || "").replace(/\r/g, "").split("\n").map((z) => z.replace(/\s+$/, ""));
+  while (zeilen.length && zeilen[zeilen.length - 1] === "") zeilen.pop();
+  while (zeilen.length && zeilen[0] === "") zeilen.shift();
+  const oZeile = zeilen.find((z) => /^O\d{1,4}/i.test(z.trim()));
+  if (!oZeile) return { fehler: "keine Programmnummer (O…) gefunden" };
+  const o = Number(oZeile.trim().match(/^O(\d{1,4})/i)[1]);
+  const kanal = o >= 1000 ? 2 : 1, nr = kanal === 2 ? o - 1000 : o;
+  if (nr < 1 || nr > 999) return { fehler: "O" + o + " passt nicht (O0001–O0999 oder O1001–O1999)" };
+  const felder = { nr: String(nr) };
+  if (kanal === 1) {
+    const name = oZeile.match(/\(([^)]*)\)/);
+    if (name && name[1].trim()) felder.hoco = name[1].trim();
+    const g170 = zeilen.map((z) => z.match(/^G170\(([^)]*)\)/i)).find(Boolean);
+    if (g170) {
+      const t = g170[1].trim().split(/\s+/);
+      if (t.length > 1 && /^[A-Za-zÄÖÜäöü]{1,4}$/.test(t[t.length - 1])) felder.kuerzel = t.pop();
+      felder.datum = t.join(" ");
+    }
+    const g266 = zeilen.find((z) => /^G266/i.test(z.trim()));
+    if (g266) for (const m of g266.trim().slice(4).matchAll(/([AWSXZFB])([-+]?[\d.]+|#\d+)/gi)) felder[m[1].toUpperCase()] = m[2];
+  }
+  return { kanal, nr, zeilen, felder };
 }
 
 // Neue Handfassung eines Kanals: basis = jetzt erzeugt, hand = angezeigt
@@ -526,7 +576,10 @@ export function programmeMitHand(w) {
 export function handNeu(w, kanal, auto, zeilen) {
   const hand = { ...(w.hand || {}) };
   if (zeilen.length === auto.length && zeilen.every((z, i) => z === auto[i])) delete hand["k" + kanal];
-  else hand["k" + kanal] = { basis: auto, hand: zeilen };
+  else {
+    const ein = hand["k" + kanal]?.ein;
+    hand["k" + kanal] = { basis: auto, hand: zeilen, ...(ein ? { ein } : {}) };
+  }
   return hand;
 }
 

@@ -18,7 +18,7 @@ import { NC_QUELLEN, hatSpann, ncAktuell, ncZeilen } from "./ncAktuell.js";
 import { TYP_NAME, eigeneFelder, eigenWert, feldAus, typBeobachten, wirksamB, wirksamW } from "./camTyp.js";
 import { camTypFensterOeffnen, camTypLaden } from "./CamTypFenster.jsx";
 import { VORLAGEN, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen } from "./camVorlagen.js";
-import { FELDER, HD_STUFEN, plaetzeVon, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, markenPaare, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
+import { FELDER, HD_STUFEN, plaetzeVon, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, markenPaare, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Seit 1.427.0 (Wunsch Patrick 5. November 2026: „vordefinierte
 // Bearbeitungen aus einer Liste einfügen … in eine bestehende
@@ -327,15 +327,19 @@ function Kanaele({ prog, sync, fehler, bereich, bereich2, w, handSetzen }) {
   };
   const verwerfen = (k) => { const h = { ...(w.hand || {}) }; delete h["k" + k]; handSetzen(h); };
   const verloren = [[1, prog.verloren1], [2, prog.verloren2]].filter(([, v]) => v && v.length);
+  const leerF = Object.keys(fehler).filter((n) => fehler[n] === "leer");
+  fehler = Object.fromEntries(Object.entries(fehler).filter(([, t]) => t !== "leer"));
   const zuViel = Object.keys(fehler).length > 0;
   return (<>
       <div className="cam-stand" id="cam-stand">
+        {(prog.ein1?.size > 0 || prog.ein2?.size > 0) && <span className="cam-stand--ein" id="cam-ein-stand">Violett = eingelesen, anders als der Standard.</span>}
         {(w.hand?.k1 || w.hand?.k2) && <span className="cam-stand--hand" id="cam-hand-stand">Gelb = von Hand geändert.
           {[1, 2].filter((k) => w.hand?.["k" + k]).map((k) => (
             <button key={k} className="knopf knopf--klein" data-cam-verwerfen={k} onClick={() => verwerfen(k)}>Kanal {k} wie erzeugt</button>))} </span>}
         {sync.fehler
           ? <span className="cam-stand--fehler">{sync.fehler === 1 ? "1 Marke hat" : sync.fehler + " Marken haben"} im anderen Kanal kein Gegenstück.</span>
           : <span>Alle Synchronisationsmarken sind gepaart.</span>}
+        {leerF.length > 0 && <span className="cam-stand--leer" id="cam-leer-stand"> Noch leer: {leerF.map((n) => n === "nr" ? "Nr." : (FELDER.flatMap((g) => g.felder).find((d) => d.name === n)?.text || n)).join(", ")}.</span>}
         {zuViel && <span className="cam-stand--fehler"> Rot: {Object.entries(fehler).map(([n, t]) => n === "nr" ? "Nr. " + t : n + " " + t).join(", ")}.</span>}
       </div>
       {verloren.map(([k, v]) => (
@@ -365,6 +369,7 @@ function Kanaele({ prog, sync, fehler, bereich, bereich2, w, handSetzen }) {
             <div key={i + "-" + k} data-reihe={i} data-kanal={k + 1} data-nr={z ? z.nr : undefined}
               className={"cam-zeile" + (r.sync ? " cam-zeile--sync" : "") + (!z ? " cam-zeile--leer" : "")
                 + (z && (k === 0 ? prog.gelb1 : prog.gelb2)?.has(z.nr - 1) ? " cam-zeile--hand" : "")
+                + (z && (k === 0 ? prog.ein1 : prog.ein2)?.has(z.nr - 1) ? " cam-zeile--ein" : "")
                 + (z?.fehler ? " cam-zeile--fehler" : "") + (imBereich(z, k) ? " cam-zeile--aktiv" : "")}>
               <span className="cam-nr">{z ? z.nr : ""}</span>
               {z
@@ -457,6 +462,36 @@ export default function HoferCam() {
 
   const ncBeide = text(prog.k1) + text(prog.k2);
 
+  // Seit 1.541.0: bestehendes Programm einlesen. Die Felder oben kommen
+  // aus Kanal 1 (Nr., HOCO Nr., G170, G266), der Text wird wie eine
+  // Handänderung gespeichert, mit dem Eingelesenen als „ein“
+  const einlesen = async (dateien) => {
+    const gelesen = [];
+    for (const d of [...(dateien || [])]) {
+      const r = programmLesen(await d.text());
+      if (r.fehler) { alt.meldung(d.name + ": " + r.fehler, "fehler"); continue; }
+      gelesen.push(r);
+    }
+    if (!gelesen.length) return;
+    gelesen.sort((a, b) => a.kanal - b.kanal);
+    let neu = { ...w };
+    for (const r of gelesen) neu = { ...neu, ...r.felder };
+    const p = programme(neu);
+    let hand = { ...(neu.hand || {}) };
+    for (const r of gelesen) {
+      const auto = r.kanal === 1 ? p.k1 : p.k2;
+      delete hand["k" + r.kanal];
+      hand = handNeu({ hand }, r.kanal, auto, r.zeilen);
+      if (hand["k" + r.kanal]) hand["k" + r.kanal].ein = r.zeilen;
+    }
+    neu.hand = hand;
+    Object.assign(gemerkt, neu);
+    setW(neu);
+    melden();
+    alt.meldung("Eingelesen: " + gelesen.map((r) => "Kanal " + r.kanal + " (O" + String(r.kanal === 2 ? r.nr + 1000 : r.nr).padStart(4, "0") + ")").join(", ")
+      + ". Violett = anders als der Standard.", "gut");
+  };
+
   return (
     <div className="karte cam">
       <div className="cam-kopf">
@@ -476,9 +511,9 @@ export default function HoferCam() {
             <legend>{g.gruppe}</legend>
             {g.felder.map((d) => (
               <label key={d.name} title={(d.lang || d.text) + (fehler[d.name] ? " – " + fehler[d.name] : "")}
-                className={"cam-feld" + (fehler[d.name] ? " cam-feld--fehler" : "") + (d.art === "text" ? " cam-feld--text" : "")}>
-                <span>{d.text}</span>
-                <input data-cam={d.name} value={w[d.name]} inputMode={d.art === "text" ? "text" : "decimal"}
+                className={"cam-feld" + (fehler[d.name] && fehler[d.name] !== "leer" ? " cam-feld--fehler" : "") + (d.art === "text" ? " cam-feld--text" : "")}>
+                <span>{d.text}{d.einheit && /^[a-zA-Z/]+$/.test(d.einheit) && <small className="cam-einheit"> [{d.einheit}]</small>}</span>
+                <input data-cam={d.name} value={w[d.name] ?? ""} placeholder={d.einheit || ""} inputMode={d.art === "text" ? "text" : "decimal"}
                   onChange={(e) => setze(d.name, e.target.value)} />
               </label>
             ))}
@@ -712,7 +747,11 @@ export default function HoferCam() {
         : <>
           <div className="cam-fensterleiste">
             <button className="knopf knopf--klein" id="cam-fenster" title="Kanäle in einem eigenen Browserfenster, auch auf einem anderen Bildschirm"
-              onClick={programmFensterAuf}>⧉ Eigenes Fenster</button></div>
+              onClick={programmFensterAuf}>⧉ Eigenes Fenster</button>
+            <label className="knopf knopf--klein" id="cam-einlesen" title="Bestehendes Programm (Kanal 1 und / oder Kanal 2) einlesen, Abweichungen zum Standard violett">
+              📂 Programm einlesen
+              <input type="file" multiple hidden data-ablegen="direkt" onChange={(e) => { einlesen(e.target.files); e.target.value = ""; }} />
+            </label></div>
           <Kanaele prog={prog} sync={sync} fehler={fehler} bereich={prog.bereiche[aktiv]} bereich2={prog.bereiche2[aktiv]}
             w={w} handSetzen={(h) => setze("hand", h)} />
         </>}
