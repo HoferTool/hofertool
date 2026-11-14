@@ -4,13 +4,15 @@
 //  von vorne in 3D, Kanal 1 an der Hauptspindel, danach Kanal 2 an der
 //  Rückseite. Gerechnet in camSim.js; gezeichnet ohne 3D-Bibliothek wie
 //  die 3D-Ansicht der Kontur (Maleralgorithmus, Licht von oben links).
+//  Seit 1.548.0 (Schritt 3) mit Bohrungen und Fräsungen aus C und Y:
+//  dann je Bildpunkt ein Strahl durch Drehteil und Zellenraster.
 //  Ziehen dreht, Mausrad oder zwei Finger zoomen, „Aufgeschnitten“ zeigt
 //  die Bohrungen. Das Werkzeug steht in der Schnittebene oben (+X).
 // =================================================================
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
-import { materialStand, simAufbauen, umrissVon, plattenHuelle, bohrerHuelle } from "./camSim.js";
+import { RASTER, materialStand, simAufbauen, umrissVon, plattenHuelle, bohrerHuelle } from "./camSim.js";
 
 const SCHRAEG = { a: -0.55, b: 0.42 };
 const TEMPI = [["0.3", "⅓×"], ["1", "1×"], ["3", "3×"], ["10", "10×"], ["40", "40×"]];
@@ -37,7 +39,141 @@ function wertBei(l, z, seite) {
   return l[l.length - 1].r;
 }
 
-function malen(g, W, H, { umriss, bereich, dreh, zoom, schnitt, ueber, hinweis }) {
+// Ansicht aus Lage und Drehung: dieselbe Abbildung wie im Maler
+function abbildung(W, H, { bereich, dreh, zoom }) {
+  const { zmin, zmax, rmax } = bereich;
+  const zm = (zmin + zmax) / 2;
+  const diag = Math.hypot(zmax - zmin, 2 * rmax) || 1;
+  const s = Math.min(W, H) / (diag * 1.1) * zoom;
+  const ca = Math.cos(dreh.a), sa = Math.sin(dreh.a), cb = Math.cos(dreh.b), sb = Math.sin(dreh.b);
+  // Zeilen der Drehung (Welt x = z − zm, y = +X, w = +Y)
+  const r1 = [ca, 0, sa], r2 = [sa * sb, cb, -ca * sb], r3 = [-sa * cb, sb, ca * cb];
+  return { zm, s, ox: W / 2, oy: H / 2 + 10, r1, r2, r3 };
+}
+const LICHT = [-0.45, 0.65, 0.62].map((c, _, v) => c / Math.hypot(...v));
+const GLANZ = (() => { const v = [LICHT[0], LICHT[1], LICHT[2] + 1]; const l = Math.hypot(...v); return v.map((c) => c / l); })();
+
+// Körper mit Bohrungen und Fräsungen: je Bildpunkt ein Strahl durch das
+// Material (Drehteil aus aussen/innen, dazu das Zellenraster). q = Bildpunkte
+// je Punkt am Schirm (beim Abspielen gröber, damit es flüssig bleibt).
+function strahlenMalen(g, W, H, { st, vox, kanal2, Wt, bereich, dreh, zoom, schnitt, q }) {
+  const ab = abbildung(W, H, { bereich, dreh, zoom });
+  const { zm, s, ox, oy, r1, r2, r3 } = ab;
+  const iw = Math.max(40, Math.round(W * q)), ih = Math.max(30, Math.round(H * q));
+  const doc = g.canvas.ownerDocument;
+  const bild = doc.createElement("canvas"); bild.width = iw; bild.height = ih;
+  const bg = bild.getContext("2d");
+  if (!bg) return;
+  const img = bg.createImageData(iw, ih), px = img.data;
+  const { aussen, innen, z0 } = st;
+  const nk = aussen.length;
+  let Rb = 0, ka = nk, kb = -1;
+  for (let k = 0; k < nk; k++) if (aussen[k] > innen[k] + 1e-6) { if (aussen[k] > Rb) Rb = aussen[k]; if (k < ka) ka = k; kb = k; }
+  if (kb < 0) return;
+  const xa = z0 + ka * RASTER - zm - RASTER, xb = z0 + kb * RASTER - zm + RASTER;
+  Rb += 0.01;
+  const vh = vox ? vox.h : 0;
+  const dt = Math.max(0.015, Math.min(vox ? vh * 0.7 : Infinity, Rb / 140, (xb - xa) / 140));
+  const vz0 = vox ? vox.z0 : 0, vR = vox ? vox.R : 0, vnz = vox ? vox.nz : 0, vnu = vox ? vox.nu : 0, vf = vox ? vox.feld : null;
+  // 0 = Material; sonst der Grund, warum nicht: 1 aussen, 2 innen, 3 Schnitt, 4 Raster, 5 vor/hinter dem Teil
+  const grund = (x, y, w) => {
+    const z = x + zm;
+    const k = Math.round((z - z0) / RASTER);
+    if (k < 0 || k >= nk) return 5;
+    const r2v = y * y + w * w, ra = aussen[k];
+    if (r2v > ra * ra) return 1;
+    const ri = innen[k];
+    if (ri > 0 && r2v <= ri * ri) return 2;
+    if (schnitt && y > 0 && w > 0) return 3;
+    if (vf) {
+      const z1 = kanal2 ? Wt - z : z, w1 = kanal2 ? -w : w;
+      const iz = Math.floor((z1 - vz0) / vh), iu = Math.floor((y + vR) / vh), iv = Math.floor((w1 + vR) / vh);
+      if (iz >= 0 && iz < vnz && iu >= 0 && iu < vnu && iv >= 0 && iv < vnu && vf[(iz * vnu + iu) * vnu + iv]) return 4;
+    }
+    return 0;
+  };
+  const aw = (z) => { const k = Math.max(0, Math.min(nk - 1, Math.round((z - z0) / RASTER))); return aussen[k]; };
+  const iwv = (z) => { const k = Math.max(0, Math.min(nk - 1, Math.round((z - z0) / RASTER))); return innen[k]; };
+  const belegt = (z1, u, w1) => {
+    const iz = Math.floor((z1 - vz0) / vh), iu = Math.floor((u + vR) / vh), iv = Math.floor((w1 + vR) / vh);
+    return iz >= 0 && iz < vnz && iu >= 0 && iu < vnu && iv >= 0 && iv < vnu ? vf[(iz * vnu + iu) * vnu + iv] : 0;
+  };
+  const d3 = [-r3[0], -r3[1], -r3[2]];
+  const aa = r3[1] * r3[1] + r3[2] * r3[2];
+  for (let j = 0; j < ih; j++) {
+    const Y = (oy - (j + 0.5) / q) / s;
+    for (let i = 0; i < iw; i++) {
+      const X = ((i + 0.5) / q - ox) / s;
+      const O = [X * r1[0] + Y * r2[0], X * r1[1] + Y * r2[1], X * r1[2] + Y * r2[2]];
+      // Strahl p(t) = O + t·r3, gesucht vom grössten t (vorne) her
+      let tlo = -1e9, thi = 1e9;
+      if (aa > 1e-12) {
+        const bq = 2 * (O[1] * r3[1] + O[2] * r3[2]), cq = O[1] * O[1] + O[2] * O[2] - Rb * Rb;
+        const disk = bq * bq - 4 * aa * cq;
+        if (disk < 0) continue;
+        const wd = Math.sqrt(disk);
+        tlo = (-bq - wd) / (2 * aa); thi = (-bq + wd) / (2 * aa);
+      } else if (O[1] * O[1] + O[2] * O[2] > Rb * Rb) continue;
+      if (Math.abs(r3[0]) > 1e-12) {
+        let t1 = (xa - O[0]) / r3[0], t2 = (xb - O[0]) / r3[0];
+        if (t1 > t2) [t1, t2] = [t2, t1];
+        tlo = Math.max(tlo, t1); thi = Math.min(thi, t2);
+      } else if (O[0] < xa || O[0] > xb) continue;
+      if (thi <= tlo) continue;
+      let t = thi, vorher = thi, warum = 5, treffer = false;
+      while (t >= tlo) {
+        const x = O[0] + t * r3[0], y = O[1] + t * r3[1], w = O[2] + t * r3[2];
+        const gr = grund(x, y, w);
+        if (!gr) { treffer = true; break; }
+        warum = gr; vorher = t; t -= dt;
+      }
+      if (!treffer) continue;
+      // fein eingrenzen: t innen, vorher aussen
+      let ti = t, ta = vorher;
+      for (let b = 0; b < 7; b++) {
+        const tm = (ti + ta) / 2;
+        const gr = grund(O[0] + tm * r3[0], O[1] + tm * r3[1], O[2] + tm * r3[2]);
+        if (gr) { ta = tm; warum = gr; } else ti = tm;
+      }
+      const x = O[0] + ti * r3[0], y = O[1] + ti * r3[1], w = O[2] + ti * r3[2], z = x + zm;
+      const r = Math.hypot(y, w) || 1e-9;
+      let n;
+      const e = 0.04;
+      if (warum === 1 || warum === 5) n = [-(aw(z + e) - aw(z - e)) / (2 * e), y / r, w / r];
+      else if (warum === 2) n = [(iwv(z + e) - iwv(z - e)) / (2 * e), -y / r, -w / r];
+      else if (warum === 3) n = Math.abs(y) < Math.abs(w) ? [0, 1, 0] : [0, 0, 1];
+      else {
+        // Raster: Richtung zu den weggenommenen Nachbarzellen
+        const z1 = kanal2 ? Wt - z : z, w1 = kanal2 ? -w : w;
+        let gz = 0, gu = 0, gw = 0;
+        for (let a = -1; a <= 1; a++) for (let b2 = -1; b2 <= 1; b2++) for (let c = -1; c <= 1; c++) {
+          if (belegt(z1 + a * vh, y + b2 * vh, w1 + c * vh)) { gz += a; gu += b2; gw += c; }
+        }
+        if (kanal2) { gz = -gz; gw = -gw; }
+        n = gz || gu || gw ? [gz, gu, gw] : d3.map((c) => -c);
+      }
+      if (warum === 5) n = [z < (z0 + ka * RASTER + z0 + kb * RASTER) / 2 ? -1 : 1, 0, 0];
+      const l = Math.hypot(...n) || 1;
+      // in Blickrichtung: Bildschirm x, y und Tiefe
+      let nv = [(n[0] * r1[0] + n[1] * r1[1] + n[2] * r1[2]) / l, (n[0] * r2[0] + n[1] * r2[1] + n[2] * r2[2]) / l, (n[0] * r3[0] + n[1] * r3[1] + n[2] * r3[2]) / l];
+      if (nv[2] < 0) nv = nv.map((c) => -c);
+      const diff = Math.max(0, nv[0] * LICHT[0] + nv[1] * LICHT[1] + nv[2] * LICHT[2]);
+      const glanz = Math.pow(Math.max(0, nv[0] * GLANZ[0] + nv[1] * GLANZ[1] + nv[2] * GLANZ[2]), 40);
+      const basis = warum === 3 ? [226, 176, 120] : warum === 4 ? [168, 186, 212] : [176, 190, 206];
+      const hell = 0.5 + 0.6 * diff;
+      const o = (j * iw + i) * 4;
+      px[o] = Math.min(255, basis[0] * hell + 255 * glanz * 0.55);
+      px[o + 1] = Math.min(255, basis[1] * hell + 255 * glanz * 0.55);
+      px[o + 2] = Math.min(255, basis[2] * hell + 255 * glanz * 0.55);
+      px[o + 3] = 255;
+    }
+  }
+  bg.putImageData(img, 0, 0);
+  g.imageSmoothingEnabled = true;
+  g.drawImage(bild, 0, 0, W, H);
+}
+
+function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, hinweis }) {
   g.clearRect(0, 0, W, H);
   const { zmin, zmax, rmax } = bereich;
   const zm = (zmin + zmax) / 2;
@@ -64,7 +200,8 @@ function malen(g, W, H, { umriss, bereich, dreh, zoom, schnitt, ueber, hinweis }
     const glanz = Math.pow(Math.max(0, n[0] * Hh[0] + n[1] * Hh[1] + n[2] * Hh[2]), 40);
     liste.push({ pts, art, hell: 0.5 + 0.6 * diff, glanz, tiefe: pts.reduce((m, p) => m + p.t, 0) / pts.length });
   };
-  if (umriss) {
+  if (strahl) strahlenMalen(g, W, H, { ...strahl, bereich, dreh, zoom, schnitt });
+  else if (umriss) {
     const { aussen, innen } = umriss;
     const zug = [...aussen, ...innen.slice().reverse()];
     const N = 48;
@@ -113,11 +250,24 @@ function malen(g, W, H, { umriss, bereich, dreh, zoom, schnitt, ueber, hinweis }
   const m1 = P(ansicht(zmin - 2, 0, 0)), m2 = P(ansicht(zmax + 2, 0, 0));
   g.beginPath(); g.moveTo(m1.x, m1.y); g.lineTo(m2.x, m2.y); g.stroke(); g.setLineDash([]);
   // Bahn und Werkzeug in der Ebene oben (+X), vor dem Körper
-  const ebene = (z, r) => P(ansicht(z, r, 0));
+  const ebene = (z, r, phi) => P(ansicht(z, r, phi || 0));
+  const kart = (z, u, w) => P(ansicht(z, Math.hypot(u, w), Math.atan2(w, u)));
+  // Führungsbüchse vorne: Ring um das Material 2 mm hinter dem Drehwerkzeug
+  if (ueber.buechse) {
+    const { z: zb, r: rb } = ueber.buechse;
+    for (const dz of [0, 3]) {
+      g.beginPath();
+      for (let k = 0; k <= 48; k++) { const q = ebene(zb + dz, rb, (k / 48) * 2 * Math.PI); if (k) g.lineTo(q.x, q.y); else g.moveTo(q.x, q.y); }
+      g.strokeStyle = "rgba(70,85,100,.75)"; g.lineWidth = 1.3; g.stroke();
+    }
+    const a = ebene(zb, rb, 0), b = ebene(zb + 3, rb, 0);
+    g.fillStyle = "#425466"; g.font = "11px system-ui, sans-serif"; g.textAlign = "left";
+    g.fillText("Führungsbüchse", Math.max(a.x, b.x) + 4, Math.min(a.y, b.y) - 4);
+  }
   for (const b of ueber.bahnen) {
     g.strokeStyle = b.farbe; g.lineWidth = b.dick || 1.4; g.setLineDash(b.strich ? [4, 3] : []);
     g.beginPath();
-    b.pts.forEach((p, i) => { const q = ebene(p.z, p.r); if (i) g.lineTo(q.x, q.y); else g.moveTo(q.x, q.y); });
+    b.pts.forEach((p, i) => { const q = ebene(p.z, p.r, p.phi); if (i) g.lineTo(q.x, q.y); else g.moveTo(q.x, q.y); });
     g.stroke();
   }
   g.setLineDash([]);
@@ -126,8 +276,16 @@ function malen(g, W, H, { umriss, bereich, dreh, zoom, schnitt, ueber, hinweis }
     t.pts.forEach((p, i) => { const q = ebene(p.z, p.r); if (i) g.lineTo(q.x, q.y); else g.moveTo(q.x, q.y); });
     g.closePath(); g.fillStyle = t.farbe; g.strokeStyle = t.rand; g.lineWidth = 1.2; g.fill(); g.stroke();
   }
+  for (const st of ueber.stangen || []) {
+    // angetriebenes Werkzeug als Stab von der Spitze zum Schaft
+    const a = kart(...st.a), b = kart(...st.b);
+    g.lineCap = "butt"; g.strokeStyle = st.rand; g.lineWidth = Math.max(3, st.d * s) + 2;
+    g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+    g.strokeStyle = st.farbe; g.lineWidth = Math.max(2, st.d * s);
+    g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+  }
   if (ueber.spitze) {
-    const q = ebene(ueber.spitze.z, ueber.spitze.r);
+    const q = ebene(ueber.spitze.z, ueber.spitze.r, ueber.spitze.phi);
     g.fillStyle = "#b3261e"; g.beginPath(); g.arc(q.x, q.y, 3, 0, 2 * Math.PI); g.fill();
   }
   if (hinweis) {
@@ -137,7 +295,7 @@ function malen(g, W, H, { umriss, bereich, dreh, zoom, schnitt, ueber, hinweis }
 }
 
 const STATUS = {
-  fehlt: "Werkzeug fehlt, nur Bahn", spaeter: "Quer / C: folgt in Schritt 3", nurBahn: "Drehwerkzeug an Front: nur Bahn", leer: "keine Wege",
+  fehlt: "Werkzeug fehlt, nur Bahn", nurBahn: "Drehwerkzeug an Front: nur Bahn", nurBahnA: "Drehplatte am angetriebenen Werkzeug: nur Bahn", leer: "keine Wege",
 };
 
 function Simulation({ w, zu }) {
@@ -183,7 +341,7 @@ function Simulation({ w, zu }) {
     const umriss = st ? umrissVon(st, ende) : null;
     const bereich = kanal === 2 ? { zmin: -3, zmax: W + 1, rmax: A / 2 + 2 } : { zmin: vorne - 4, zmax: sim.zMax, rmax: A / 2 + 2 };
     // Bahn und Werkzeug des aktuellen Schritts
-    const ueber = { bahnen: [], werkzeuge: [], spitze: null };
+    const ueber = { bahnen: [], werkzeuge: [], stangen: [], spitze: null, buechse: null };
     if (akt && akt.kanal === kanal && akt.punkte.length && n > akt.von) {
       const bis = Math.min(n, akt.bis) - akt.von;
       const pts = akt.punkte.slice(0, bis);
@@ -201,6 +359,14 @@ function Simulation({ w, zu }) {
       if (akt.wz && akt.modus === "dreh") {
         const h = plattenHuelle(akt.wz);
         if (h) ueber.werkzeuge.push({ pts: h.umriss.map((q) => ({ z: p.z + q.z, r: p.r + q.x })), farbe: "rgba(224,161,42,.92)", rand: "#7a5410" });
+      } else if (akt.wz && akt.modus === "c") {
+        // Achse in der Ansicht: Kanal 2 von hinten (z und w gespiegelt)
+        const ax = kanal === 2 ? [-p.ax[0], p.ax[1], -p.ax[2]] : p.ax;
+        const u = p.r * Math.cos(p.phi), ww = p.r * Math.sin(p.phi);
+        const h = bohrerHuelle(akt.wz), Lc = Math.max(2, (h.rad.length - 1) * 0.02), d = 2 * h.R;
+        const pkt = (a) => [p.z + ax[0] * a, u + ax[1] * a, ww + ax[2] * a];
+        ueber.stangen.push({ a: pkt(0), b: pkt(Lc), d, farbe: "rgba(224,161,42,.92)", rand: "#7a5410" });
+        ueber.stangen.push({ a: pkt(Lc), b: pkt(Lc + d * 1.5), d: d * 1.15, farbe: "rgba(180,190,200,.95)", rand: "#5b6875" });
       } else if (akt.wz && akt.modus === "bohr") {
         const u = bohrerHuelle(akt.wz).umriss;
         const auf = (l) => l.map((q) => ({ z: p.z - q.x, r: p.r + q.z }));
@@ -208,9 +374,17 @@ function Simulation({ w, zu }) {
         ueber.werkzeuge.push({ pts: auf(u.schneide), farbe: "rgba(224,161,42,.92)", rand: "#7a5410" });
       }
     }
-    cv.__stand = stand; cv.__sim = sim; // für den Prüfstand
-    malen(g, breite, HOCH, { umriss, bereich, dreh, zoom, schnitt, ueber, hinweis: umriss ? "" : "Kein Material" });
-  }, [sim, stand, n, kanal, akt, dreh, zoom, schnitt, breite]);
+    // Vorne fährt das Material in Z durch die Führungsbüchse, rund 2 mm
+    // hinter den Drehwerkzeugen (Patrick 14. November 2026)
+    if (kanal === 1 && akt && akt.kanal === 1 && n > akt.von && n <= akt.bis && (akt.art === "dreh" || akt.art === "seite") && ueber.spitze) {
+      ueber.buechse = { z: ueber.spitze.z + 2 + (akt.art === "seite" && akt.wz ? bohrerHuelle(akt.wz).R : 0), r: A / 2 + 0.6 };
+    }
+    // Mit Bohrungen und Fräsungen aus C und Y: Strahlen statt Maler
+    const vx = stand.vox && stand.vox.weg > 0 ? stand.vox : null;
+    const strahl = vx && umriss ? { st, vox: vx, kanal2: kanal === 2, Wt: W, q: laeuft ? 0.45 : 1 } : null;
+    cv.__stand = stand; cv.__sim = sim; cv.__strahl = !!strahl; // für den Prüfstand
+    malen(g, breite, HOCH, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, hinweis: umriss ? "" : "Kein Material" });
+  }, [sim, stand, n, kanal, akt, dreh, zoom, schnitt, breite, laeuft]);
 
   useEffect(() => {
     if (!laeuft) return undefined;
