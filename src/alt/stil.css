@@ -13970,3 +13970,23 @@ body.dunkel .cam-stand--ein { background: #45305f; }
 .cam-stand--leer { margin-left: 10px; color: #6b5a00; }
 body.dunkel .cam-stand--leer { color: #e8d27a !important; }
 body.dunkel .cam-feld input::placeholder { color: #7d878f; }
+
+/* HOFERCAM Werkzeug je Bearbeitung (1.545.0) */
+.cam-wz { border-color: #7aa7d6; background: #f3f8fd; }
+body.dunkel .cam-wz { background: #18222e; border-color: #3d6a96; }
+.cam-wz__inhalt { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+.cam-wz__inhalt .cam-vorlage__felder { flex: 1 1 260px; }
+.cam-wz__lage .kt-lage { grid-template-columns: repeat(3, 28px); gap: 3px; margin: 2px 0 0; }
+.cam-wz__lage .kt-lage__knopf { width: 28px; height: 28px; min-height: 28px; padding: 0; }
+.cam-wz__lage.cam-feld--fehler .kt-lage { outline: 2px solid #b3261e; outline-offset: 2px; border-radius: 4px; }
+.cam-wz__skizze { flex: none; background: var(--flaeche, #fff); border: 1px solid var(--linie, #d5dde6); border-radius: 6px; }
+.cam-wz__platte { fill: #9fc3e8; stroke: #1f4f82; stroke-width: 1.2; stroke-linejoin: round; }
+.cam-wz__schaft { fill: #d5dde6; stroke: #6b7a8a; stroke-width: 1; }
+.cam-wz__spitze { fill: #b3261e; }
+.cam-wz__achse { font-size: 9px; fill: #6b7a8a; }
+.cam-wz__hinweis { margin: 4px 0 0; color: var(--gedaempft, #6b7a8a); }
+.cam-block__vorlageknopf .cam-wz-knopf { margin-right: auto; height: auto; min-height: 24px; white-space: normal; text-align: left; }
+.cam-wz-knopf--gesetzt { border-color: #1f4f82; color: #1f4f82; }
+.cam-wz-knopf--fehler { border-color: #b3261e; color: #b3261e; }
+body.dunkel .cam-wz-knopf--gesetzt { color: #9fc3e8 !important; border-color: #9fc3e8; }
+body.dunkel .cam-wz-knopf--fehler { color: #ff8a80 !important; }
