@@ -1,0 +1,193 @@
+/* =================================================================
+   1×1 RIDER (seit 1.546.0): Ebene über der ganzen App, eigene Farben.
+   hell-bleibt am Behälter, damit body.dunkel die Schrift nicht weiss
+   macht; die Farben hier gelten hell und dunkel gleich.
+   ================================================================= */
+body.rr-offen { overflow: hidden; }
+.rr {
+  position: fixed; inset: 0; z-index: 9000; overflow: hidden;
+  font-family: "Arial Black", "Segoe UI Black", system-ui, -apple-system, sans-serif; font-weight: 900;
+  color: #fff; background: #1f6fe0; user-select: none; -webkit-user-select: none;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  --gelb: #ffd400; --gelb-d: #b89600; --blau: #2f7bff; --blau-d: #1849a8; --rot: #ff3b3b; --rot-d: #a51d1d;
+  --gruen: #1fd16b; --gruen-d: #0b8a3e; --schwarz: #151515;
+}
+.rr * { box-sizing: border-box; color: inherit; }
+.rr-welt { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.rr-welt--ersatz { background: linear-gradient(#1f6fe0, #d8ecff 60%, #f4f9ff 60%); }
+
+/* Knöpfe zum Draufhauen: dick, mit Kante unten */
+.rr-knopf {
+  font: inherit; border: 0; border-radius: 16px; padding: 14px 22px; font-size: 18px; cursor: pointer;
+  background: var(--gelb); color: #111 !important; box-shadow: 0 6px 0 var(--gelb-d), 0 10px 20px rgba(0,0,0,.25);
+  transition: transform .08s, box-shadow .08s; letter-spacing: .5px;
+}
+.rr-knopf:active:not(:disabled) { transform: translateY(5px); box-shadow: 0 1px 0 var(--gelb-d); }
+.rr-knopf:disabled { opacity: .45; cursor: default; }
+.rr-knopf--gross { font-size: clamp(26px, 4.4vw, 40px); padding: 18px 44px; border-radius: 22px; }
+.rr-knopf--rot { background: var(--rot); color: #fff !important; box-shadow: 0 6px 0 var(--rot-d), 0 10px 20px rgba(0,0,0,.25); }
+.rr-knopf--blau { background: var(--blau); color: #fff !important; box-shadow: 0 6px 0 var(--blau-d), 0 10px 20px rgba(0,0,0,.25); }
+.rr-knopf--schwarz { background: var(--schwarz); color: var(--gelb) !important; box-shadow: 0 6px 0 #000, 0 10px 20px rgba(0,0,0,.25); }
+.rr-knopf--grau { background: rgba(255,255,255,.9); color: #1b2a4a !important; box-shadow: 0 6px 0 #9aa8bd; }
+.rr-rund {
+  font: inherit; width: 50px; height: 50px; border-radius: 50%; border: 3px solid rgba(255,255,255,.85);
+  background: rgba(10,30,70,.55); color: #fff; font-size: 20px; cursor: pointer; display: grid; place-items: center; flex: none;
+}
+.rr-chip { background: rgba(10,30,70,.55); border-radius: 999px; padding: 10px 16px; font-size: 16px; }
+
+/* ---------- Menü ---------- */
+.rr-oben { position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: flex-start;
+  padding: max(12px, env(safe-area-inset-top)) 14px 0; gap: 10px; z-index: 2; }
+.rr-oben__rechts { display: flex; gap: 8px; align-items: center; }
+.rr-level { display: flex; align-items: center; gap: 10px; background: rgba(10,30,70,.6); border-radius: 18px; padding: 8px 14px 8px 8px; min-width: 0; }
+.rr-level__zahl { width: 58px; height: 58px; border-radius: 14px; background: var(--gelb); color: #111 !important; display: grid; place-items: center;
+  font-size: 28px; line-height: .9; text-align: center; box-shadow: 0 4px 0 var(--gelb-d); flex: none; }
+.rr-level__zahl small { display: block; font-size: 10px; color: #111 !important; }
+.rr-level__rest { display: grid; gap: 3px; min-width: 120px; }
+.rr-level__rest b { font-size: 17px; }
+.rr-level__rest small { font-size: 11px; opacity: .85; font-family: system-ui, sans-serif; font-weight: 700; }
+.rr-xp { height: 12px; border-radius: 6px; background: rgba(255,255,255,.25); overflow: hidden; }
+.rr-xp i { display: block; height: 100%; background: linear-gradient(90deg, var(--gelb), #fff36b); border-radius: 6px; transition: width 1.2s cubic-bezier(.2,.8,.2,1); }
+
+.rr-menue { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; padding: 90px 14px 18px; overflow-y: auto; }
+.rr-titel { margin: 0; font-size: clamp(54px, 10vw, 110px); line-height: .9; font-style: italic; letter-spacing: -2px; color: #fff;
+  -webkit-text-stroke: 4px #111; paint-order: stroke fill; text-shadow: 0 8px 0 #111, 0 14px 30px rgba(0,0,0,.35); transform: rotate(-4deg); }
+.rr-titel span { color: var(--gelb) !important; }
+.rr-rekorde { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.rr-rekorde span { background: rgba(10,30,70,.55); border-radius: 999px; padding: 6px 12px; font-size: 14px; }
+.rr-los { animation: rr-puls 1.4s ease-in-out infinite; }
+@keyframes rr-puls { 50% { transform: scale(1.06); } }
+.rr-wahl { background: rgba(10,30,70,.62); border-radius: 22px; padding: 12px 16px 14px; display: grid; gap: 6px; max-width: 720px; width: 100%;
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.rr-wahl__titel { font-size: 13px; letter-spacing: 1px; text-transform: uppercase; opacity: .85; }
+.rr-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.rr-wahlknopf { font: inherit; border: 3px solid rgba(255,255,255,.5); background: rgba(255,255,255,.12); color: #fff;
+  border-radius: 12px; padding: 8px 12px; min-width: 52px; font-size: 17px; cursor: pointer; }
+.rr-wahlknopf.an { background: var(--gelb); color: #111 !important; border-color: #fff; box-shadow: 0 3px 0 var(--gelb-d); }
+.rr-reihe-knoepfe { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+
+/* ---------- Fenster (Meine Reihen, Garage, Pause) ---------- */
+.rr-panel, .rr-pause, .rr-ende { position: absolute; inset: 0; display: grid; place-items: center; padding: 14px; z-index: 5; }
+.rr-panel, .rr-pause { background: rgba(5,15,40,.55); }
+.rr-karte { position: relative; background: linear-gradient(#22408a, #142a5e); border: 4px solid #fff; border-radius: 26px; padding: 22px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.45); display: grid; gap: 12px; justify-items: center; max-width: 100%; max-height: 100%; overflow-y: auto; }
+.rr-karte h2 { margin: 0; font-size: 34px; font-style: italic; color: var(--gelb) !important; -webkit-text-stroke: 2px #111; paint-order: stroke fill; }
+.rr-karte--breit { width: min(860px, 100%); }
+.rr-karte__zu { position: absolute; top: 10px; right: 10px; }
+.rr-klein { margin: 0; font-family: system-ui, sans-serif; font-weight: 700; font-size: 14px; opacity: .85; text-align: center; }
+.rr-raster { display: grid; gap: 4px; width: 100%; }
+.rr-raster__zeile { display: grid; grid-template-columns: 52px repeat(10, 1fr); gap: 4px; }
+.rr-raster__kopf { display: grid; place-items: center; font-size: 15px; line-height: 1; }
+.rr-raster__kopf small { font-size: 10px; opacity: .8; font-family: system-ui, sans-serif; }
+.rr-feld { border-radius: 8px; display: grid; place-items: center; padding: 3px 0; line-height: 1; min-height: 38px; }
+.rr-feld b { font-size: 15px; } .rr-feld small { font-size: 9px; opacity: .8; font-family: system-ui, sans-serif; }
+.rr-feld--neu { background: rgba(255,255,255,.12); } .rr-feld--schwach { background: #d32f2f; } .rr-feld--mittel { background: #f57c00; }
+.rr-feld--gut { background: #7cb342; } .rr-feld--top { background: #12a150; box-shadow: inset 0 0 0 2px var(--gelb); }
+.rr-skins { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; width: 100%; }
+.rr-skin { font: inherit; border: 3px solid rgba(255,255,255,.4); background: rgba(255,255,255,.1); color: #fff; border-radius: 16px;
+  padding: 10px; display: grid; gap: 4px; justify-items: center; cursor: pointer; }
+.rr-skin.an { border-color: var(--gelb); background: rgba(255,212,0,.18); }
+.rr-skin.zu { opacity: .5; cursor: default; }
+.rr-skin small { font-size: 12px; font-family: system-ui, sans-serif; font-weight: 800; }
+.rr-skin__bild { display: grid; justify-items: center; gap: 2px; padding: 4px; }
+.rr-skin__bild i { display: block; width: 26px; height: 22px; border-radius: 4px; border: 2px solid #111; }
+.rr-skin__bild i:nth-child(2) { width: 34px; height: 28px; }
+.rr-skin__bild .rr-skin__brett { width: 70px !important; height: 12px !important; border-radius: 8px; margin-top: 2px; }
+.rr-pause .rr-karte { min-width: 280px; }
+
+/* ---------- Fahrt ---------- */
+.rr-hud { position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center;
+  padding: max(10px, env(safe-area-inset-top)) 12px 0; z-index: 2; }
+.rr-fortschritt { background: rgba(10,30,70,.55); border-radius: 999px; padding: 8px 16px; font-size: 18px; }
+.rr-punkte { background: var(--schwarz); color: var(--gelb) !important; border-radius: 16px; padding: 6px 14px; font-size: 26px; line-height: 1;
+  text-align: right; border: 3px solid var(--gelb); animation: rr-pop .3s; }
+.rr-punkte small { display: block; font-size: 9px; letter-spacing: 1px; color: var(--gelb) !important; }
+@keyframes rr-pop { 40% { transform: scale(1.15); } }
+.rr-mitte { position: absolute; top: 70px; left: 0; right: 0; display: grid; justify-items: center; gap: 8px; pointer-events: none; z-index: 1; }
+.rr-serie { background: linear-gradient(#ff9100, #ff3d00); border: 3px solid #fff; border-radius: 999px; padding: 4px 16px; font-size: 20px; animation: rr-pop .3s; }
+.rr-serie b { color: var(--gelb) !important; }
+.rr-serie--feuer { box-shadow: 0 0 24px #ff9100, 0 0 4px #fff; }
+.rr-frage { background: rgba(255,255,255,.95); border: 5px solid #111; border-radius: 26px; padding: 8px 26px 10px; min-width: 260px;
+  box-shadow: 0 8px 0 #111, 0 18px 40px rgba(0,0,0,.3); display: grid; justify-items: center; gap: 6px; animation: rr-rein .25s cubic-bezier(.2,1.4,.4,1); }
+@keyframes rr-rein { from { transform: scale(.6); opacity: 0; } }
+.rr-frage__text { font-size: clamp(54px, 9vw, 92px); line-height: 1; color: #111 !important; letter-spacing: -1px; }
+.rr-zeit { width: 100%; height: 14px; background: #dfe6f0; border-radius: 7px; overflow: hidden; }
+.rr-zeit i { display: block; height: 100%; width: 100%; transform-origin: left; background: linear-gradient(90deg, var(--gruen), #9cff57); border-radius: 7px; }
+.rr-zeit i[data-knapp="1"] { background: linear-gradient(90deg, var(--rot), #ff9100); }
+.rr-antwort { min-width: 160px; text-align: center; font-size: clamp(40px, 6vw, 64px); line-height: 1.05; color: var(--blau-d) !important;
+  border-bottom: 5px dashed #b9c5d6; padding: 0 10px; }
+.rr-frage--gut { border-color: var(--gruen-d); background: #e6ffef; }
+.rr-frage--gut .rr-antwort { color: var(--gruen-d) !important; border-color: transparent; }
+.rr-frage--schlecht { border-color: var(--rot-d); background: #ffe9e9; animation: rr-wackel .4s; }
+.rr-frage--schlecht .rr-antwort { color: var(--rot-d) !important; border-color: transparent; font-size: clamp(34px, 5vw, 54px); }
+@keyframes rr-wackel { 20%, 60% { transform: translateX(-12px); } 40%, 80% { transform: translateX(12px); } }
+.rr-rueck { font-size: clamp(30px, 5vw, 48px); font-style: italic; -webkit-text-stroke: 2px #111; paint-order: stroke fill;
+  animation: rr-steigt .9s ease-out forwards; display: flex; gap: 12px; align-items: baseline; }
+.rr-rueck--gut { color: var(--gelb) !important; } .rr-rueck--schlecht { color: #fff !important; }
+.rr-rueck b { color: #fff !important; font-size: .7em; }
+@keyframes rr-steigt { from { transform: translateY(20px) scale(.7); opacity: 0; } 20% { transform: none; opacity: 1; } to { transform: translateY(-14px); opacity: 1; } }
+.rr-toast { position: fixed; top: 42%; left: 0; right: 0; text-align: center; font-size: clamp(40px, 8vw, 84px); font-style: italic;
+  color: var(--gelb) !important; -webkit-text-stroke: 3px #111; paint-order: stroke fill; text-shadow: 0 0 30px #ff9100;
+  animation: rr-knall 1.4s ease-out forwards; }
+@keyframes rr-knall { from { transform: scale(.3) rotate(-10deg); opacity: 0; } 15% { transform: scale(1.15) rotate(-4deg); opacity: 1; }
+  80% { transform: scale(1) rotate(-4deg); opacity: 1; } to { transform: scale(1.4) rotate(-4deg); opacity: 0; } }
+.rr-zaehler { position: absolute; inset: 0; display: grid; place-items: center; font-size: clamp(120px, 24vw, 260px); font-style: italic;
+  color: var(--gelb) !important; -webkit-text-stroke: 6px #111; paint-order: stroke fill; animation: rr-knall .65s ease-out forwards; }
+
+/* Zifferblock: gross, unten; quer rechts unten, damit der Fahrer frei bleibt */
+.rr-ziffern { position: absolute; left: 50%; transform: translateX(-50%); bottom: max(12px, env(safe-area-inset-bottom));
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: min(420px, calc(100% - 24px)); z-index: 3; }
+.rr-ziffer { font: inherit; font-size: clamp(30px, 6vw, 42px); height: clamp(60px, 9.5vh, 86px); border: 0; border-radius: 18px; cursor: pointer;
+  background: #fff; color: #111 !important; box-shadow: 0 6px 0 #9aa8bd, 0 10px 18px rgba(0,0,0,.2); touch-action: manipulation; }
+.rr-ziffer:active { transform: translateY(5px); box-shadow: 0 1px 0 #9aa8bd; background: var(--gelb); }
+.rr-ziffer--weg { background: #e1e7f0; } .rr-ziffer--ok { background: var(--gruen); color: #fff !important; box-shadow: 0 6px 0 var(--gruen-d); }
+@media (orientation: landscape) and (min-width: 700px) {
+  .rr-ziffern { left: auto; right: max(16px, env(safe-area-inset-right)); transform: none; width: min(340px, 34vw); }
+  .rr-ziffer { height: clamp(58px, 12vh, 92px); }
+  .rr--fahrt .rr-mitte { right: min(360px, 36vw); }
+}
+@media (orientation: portrait) {
+  .rr-mitte { top: 66px; }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .rr-frage__text { font-size: 44px; } .rr-antwort { font-size: 34px; } .rr-ziffer { height: 50px; font-size: 26px; } .rr-ziffern { gap: 6px; }
+}
+
+/* ---------- Ende ---------- */
+.rr-ende { background: radial-gradient(ellipse at center, rgba(5,15,40,.1), rgba(5,15,40,.55)); }
+.rr-karte--ende { width: min(560px, 100%); animation: rr-rein .4s cubic-bezier(.2,1.4,.4,1); }
+.rr-ende__platz { background: var(--gelb); color: #111 !important; border-radius: 12px; padding: 4px 14px; font-size: 20px; box-shadow: 0 4px 0 var(--gelb-d); }
+.rr-ende__titel { font-size: clamp(42px, 8vw, 64px) !important; line-height: 1; text-align: center; }
+.rr-sterne { display: flex; gap: 8px; font-size: 54px; line-height: 1; }
+.rr-sterne span { color: rgba(255,255,255,.25) !important; }
+.rr-sterne span.an { color: var(--gelb) !important; -webkit-text-stroke: 2px #111; animation: rr-stern .5s both cubic-bezier(.2,1.6,.4,1); }
+@keyframes rr-stern { from { transform: scale(0) rotate(-90deg); } }
+.rr-rekord, .rr-levelup { background: linear-gradient(90deg, #ff9100, #ff3d00); border-radius: 12px; padding: 6px 14px; font-size: 18px; animation: rr-puls 1s infinite; }
+.rr-levelup { background: linear-gradient(90deg, var(--gruen-d), var(--gruen)); }
+.rr-neu { font-size: 15px; color: var(--gelb) !important; text-align: center; }
+.rr-werte { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; width: 100%; }
+.rr-werte div { background: rgba(255,255,255,.1); border-radius: 12px; padding: 8px 4px; text-align: center; display: grid; }
+.rr-werte b { font-size: 22px; } .rr-werte small { font-size: 11px; font-family: system-ui, sans-serif; font-weight: 700; opacity: .8; }
+.rr-xpzeile { font-size: 24px; color: var(--gelb) !important; }
+.rr-fehlerliste { width: 100%; background: rgba(255,59,59,.18); border-radius: 12px; padding: 8px 10px; display: grid; gap: 6px; }
+.rr-fehlerliste small { font-size: 12px; font-family: system-ui, sans-serif; font-weight: 800; }
+.rr-fehlerliste div { display: flex; flex-wrap: wrap; gap: 6px; }
+.rr-fehlerliste span { background: rgba(0,0,0,.3); border-radius: 8px; padding: 4px 8px; font-size: 16px; }
+.rr-fehlerliste b { color: var(--gelb) !important; }
+.rr-ende__knoepfe { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+@media (max-width: 520px) {
+  .rr-werte { grid-template-columns: repeat(2, 1fr); }
+  .rr-karte { padding: 16px; }
+  .rr-raster__zeile { grid-template-columns: 38px repeat(10, 1fr); gap: 2px; }
+  .rr-feld small { display: none; } .rr-feld b { font-size: 12px; } .rr-feld { min-height: 30px; }
+  .rr-level__rest { min-width: 90px; }
+}
+@media (prefers-reduced-motion: reduce) { .rr-los, .rr-rekord, .rr-levelup { animation: none; } }
+/* Ende: Karte links, damit man den jubelnden Fahrer daneben sieht */
+.rr-karte--ende { gap: 8px; padding: 16px 20px; }
+.rr-karte--ende h2.rr-ende__titel { font-size: clamp(36px, 6vw, 54px) !important; }
+.rr-karte--ende .rr-sterne { font-size: 44px; }
+@media (orientation: landscape) and (min-width: 900px) {
+  .rr-ende { justify-items: start; padding-left: max(24px, 4vw); }
+}

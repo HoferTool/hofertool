@@ -15,6 +15,7 @@ import { abwesenheit } from "../daten/abwesenheit.js";
 import NcFunktionen, { ncAnsicht } from "../seiten/NcFunktionen.jsx";
 import { statistikZurueck } from "../seiten/Statistik.jsx";
 import Kalkulation, { kalkulationZurueck } from "../seiten/Kalkulation.jsx";
+import Reihen from "../seiten/Reihen.jsx";
 import QmAlternativ from "../seiten/QmAlternativ.jsx";
 import "../seiten/Kalender.jsx";
 import Einlagen from "../seiten/Einlagen.jsx";
@@ -160,7 +161,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.545.0";
+const APP_VERSION = "1.546.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3126,6 +3127,11 @@ function empfangSehen(u) {
 function kalkulationSehen(u) {
   return !!(u && u.einstellungen && u.einstellungen.kalkulationSehen);
 }
+// 1×1 Rider zum Reihen lernen: nur mit dem Vermerk reihenSehen am Konto
+// (Wunsch Patrick 14. November 2026: „nur für Patrick Ruch“)
+function reihenSehen(u) {
+  return !!(u && u.einstellungen && u.einstellungen.reihenSehen);
+}
 // Den Reiter QM sieht vorerst nur, wer den Vermerk qmSehen am Konto hat
 // (Wunsch Patrick 10. November 2026: „aktuell nur für Patrick Ruch“).
 function qmSehen(u) {
@@ -3189,6 +3195,7 @@ function seiteSichtbar(pfad) {
   if (pfad === "infoboard" || pfad === "pausenraum") return infoboardSichtbar();
   if (pfad === "bildschirme") return SEITEN.some((s) => s.gruppe === "bildschirme" && seiteSichtbar(s.pfad));
   if (pfad === "kalkulation") return kalkulationSehen(profil) && !istExtern();
+  if (pfad === "reihen") return reihenSehen(profil) && !istExtern();
   // QMS (bis 1.473.x „QM alternativ“): nur mit Vermerk qmSehen, nie Externe
   if (pfad === "qmalt") return qmSehen(profil) && !istExtern();
   // Den Bereich Empfang sehen nur Personen mit dem Vermerk empfangSehen am
@@ -10642,6 +10649,10 @@ SYM.pausenraum = svg('<path d="M4 10h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path
 SYM.kalkulation = svg('<rect x="4.5" y="2.5" width="15" height="19" rx="2"/>'
   + '<path d="M8 7h8M8 11h8M8 15h4"/><path d="M13.5 18h3"/><path d="M14 15h3"/>');
 
+// 1×1 Rider: Snowboard schräg mit Bindungen
+SYM.reihen = svg('<rect x="2.5" y="9.5" width="19" height="5" rx="2.5" transform="rotate(-25 12 12)"/>'
+  + '<path d="M9 9.2l1.2 2.6M13.6 7.1l1.2 2.6"/>');
+
 // QS: Lupe mit Häkchen, wie Prüfen
 SYM.qs = svg('<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.3 15.3L20.5 20.5"/>'
   + '<path d="M7.8 10.6l2 2 3.6-3.8"/>');
@@ -10771,6 +10782,8 @@ const SEITEN = [
   // (Wunsch Patrick 30. Oktober 2026: „Reiter selber brauchts nicht“)
   // Werkzeug-Konturscanner für 3D-gedruckte Einlagen (Wunsch Patrick 30. Oktober 2026)
   { pfad: "einlagen",     titel: "Einlagen Generator", zeichen: SYM.einlagen, zeige: reactSeite(Einlagen) },
+  // Reihen lernen als 3D-Snowboard-Spiel, nur für Patrick (seit 1.546.0)
+  { pfad: "reihen",       titel: "1×1 Rider",    zeichen: SYM.reihen, zeige: reactSeite(Reihen) },
   // Alle Bildschirme unter einem Punkt im Menü (seit 1.315.0, Wunsch Patrick
   // 30. Oktober 2026: „Alle Bildschirme zu einem Reiter machen“). Die Seiten
   // darunter behalten ihre Adressen (#/infoboard …), weil die Geräte an der

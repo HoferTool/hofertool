@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.546.0** (14. November 2026): Neuer Menüpunkt **1×1 Rider**, nur für Patrick (Vermerk `reihenSehen` am Konto): Reihen 1 bis 9 auf Tempo wie im Schultest (3 Sekunden je Aufgabe, einstellbar 2–8 s oder ohne Zeit) als 3D-Snowboard-Abfahrt mit three.js: das Tor mit der Aufgabe fährt auf den Fahrer zu, richtig = Sprung mit Drehung, falsch = Sturz und die Lösung steht da. Punkte mit Zeitbonus und Serien-Multiplikator bis ×5, Levels mit Rängen, Ausrüstung in der Garage je Level (eigene Farben, keine fremden Figuren oder Logos), Tage am Stück, Rekorde, „Meine Reihen“ als Raster, Fehler-Training mit den schwachen Aufgaben. Stand am Gerät und am Konto (`reihen_stand`), geschrieben erst am Ende einer Runde (Wunsch Patrick: „App zum Reihen lernen für meinen Sohn … er liebt Fortnite, YB, Snowboarden, Roblox … coole 3D-Grafik … Punkte sammeln und Levels hochsteigen“).
 - **1.540.0** (13. November 2026): Seitenleiste etwas breiter (236 statt 208 Punkte), damit die Todos besser Platz haben (Wunsch Patrick: „etwas breiter, aber nicht zu viel“).
 - **1.538.0** (13. November 2026): Schnellvorschau der Planwand im hellen Modus gräulich statt weiss, mit kräftigerem Rand und Schatten, hebt sich von der Seitenleiste mit den Todos ab (Wunsch Patrick).
 - **1.537.1** (13. November 2026): Seitenleiste: Titel „Todos“ oben über Zahlen und Liste, mehr Abstand zu den Menüpunkten, beim Rollen rollt nur die Todo-Liste, nicht die Menüpunkte (Patrick).
