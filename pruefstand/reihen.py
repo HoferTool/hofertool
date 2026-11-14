@@ -31,11 +31,11 @@ def frage(pg):
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage", "--use-gl=swiftshader", "--enable-unsafe-swiftshader"])
     ctx, pg, pf = oeffnen(br, {"width": 1400, "height": 900}, mit=False)
-    pruefe(pg.locator("[data-nav='reihen']").count() == 0, "ohne Vermerk kein 1×1 Rider, auch für Admins")
+    pruefe(pg.locator("[data-nav='reihen']").count() == 0, "ohne Vermerk kein Reihen-Spiel, auch für Admins")
     ctx.close()
 
     ctx, pg, pf = oeffnen(br, {"width": 1400, "height": 900})
-    pruefe(pg.locator("[data-nav='reihen']").count() > 0, "1×1 Rider im Menü mit Vermerk")
+    pruefe(pg.locator("[data-nav='reihen']").count() > 0, "Beser Reihen lernen im Menü mit Vermerk")
     pg.evaluate("location.hash='#/reihen'"); pg.wait_for_selector("[data-rr-los]", timeout=15000); pg.wait_for_timeout(1500)
     pg.screenshot(path=BILD + "/rr-menue-pc.png")
     # Nur die 7er, 10 Aufgaben, 3 Sekunden
@@ -108,7 +108,7 @@ with sync_playwright() as p:
         pg.screenshot(path=BILD + f"/rr-menue-{name}.png")
         pruefe(pg.evaluate("document.querySelector('.rr-menue').scrollHeight <= innerHeight + 2"), f"{name}: Menü ohne Rollen")
         pg.tap("[data-rr-zeit='0']")  # ohne Zeit, sonst läuft sie beim Bildschirmfoto ab
-        pg.tap("[data-rr-los]", force=True); pg.wait_for_selector("[data-rr-frage]", timeout=6000); pg.wait_for_timeout(400)
+        pg.tap("[data-rr-los]", force=True); pg.wait_for_selector("[data-rr-frage]", timeout=6000); pg.wait_for_timeout(1500)
         pg.screenshot(path=BILD + f"/rr-fahrt-{name}.png")
         box = pg.locator("[data-rr-ziffern]").bounding_box(); fr = pg.locator(".rr-frage").bounding_box()
         pruefe(box["y"] + box["height"] <= kw.get("h", 2000) and fr["y"] + fr["height"] < box["y"] or box["x"] > fr["x"] + fr["width"], f"{name}: Frage und Zifferblock überlappen nicht")

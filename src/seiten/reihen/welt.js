@@ -148,13 +148,21 @@ export function weltBauen(canvas) {
 
   // ---------- Fahrer aus Klötzen ----------
   const fahrer = new THREE.Group(); welt.add(fahrer);
+  fahrer.scale.setScalar(1.4); // grösser, damit man ihn gut sieht
   const koerper = new THREE.Group(); fahrer.add(koerper);
   const mat = {
     jacke: new THREE.MeshLambertMaterial(), hose: new THREE.MeshLambertMaterial(), helm: new THREE.MeshLambertMaterial(),
     brille: new THREE.MeshLambertMaterial({ emissive: 0x000000 }), brett: new THREE.MeshLambertMaterial(), brett2: new THREE.MeshLambertMaterial(),
     haut: new THREE.MeshLambertMaterial({ color: 0xf1c27d }), schwarz: new THREE.MeshLambertMaterial({ color: 0x1a1a1a }),
   };
-  const box = (b, h, t, m, x, y, z, eltern) => { const k = new THREE.Mesh(new THREE.BoxGeometry(b, h, t), m); k.position.set(x, y, z); (eltern || koerper).add(k); return k; };
+  // Dunkler Umriss um jeden Klotz (Rückseite etwas grösser), damit der Fahrer
+  // sich auch in hellen Anzügen klar vom weissen Schnee abhebt
+  const umriss = new THREE.MeshBasicMaterial({ color: 0x0b1530, side: THREE.BackSide });
+  const box = (b, h, t, m, x, y, z, eltern) => {
+    const geo = new THREE.BoxGeometry(b, h, t), k = new THREE.Mesh(geo, m); k.position.set(x, y, z);
+    const r = new THREE.Mesh(geo, umriss); r.scale.set(1 + 0.09 / b, 1 + 0.09 / h, 1 + 0.09 / t); k.add(r);
+    (eltern || koerper).add(k); return k;
+  };
   // Brett längs zur Fahrt, Fahrer steht quer darauf
   const brett = new THREE.Group(); fahrer.add(brett);
   box(0.62, 0.09, 2.3, mat.brett, 0, 0.06, 0, brett);
@@ -175,7 +183,7 @@ export function weltBauen(canvas) {
   box(0.5, 0.18, 0.08, mat.brille, 0, 0.05, -0.32, kopf);
   box(0.2, 0.12, 0.04, mat.schwarz, 0, -0.16, -0.29, kopf); // Lächeln, als Klotz
   koerper.rotation.y = 0; kopf.rotation.y = 0;
-  const schatten = new THREE.Mesh(new THREE.CircleGeometry(1.1, 20), new THREE.MeshBasicMaterial({ color: 0x223355, transparent: true, opacity: 0.22, depthWrite: false }));
+  const schatten = new THREE.Mesh(new THREE.CircleGeometry(1.5, 24), new THREE.MeshBasicMaterial({ color: 0x1a2a50, transparent: true, opacity: 0.38, depthWrite: false }));
   schatten.rotation.x = -Math.PI / 2; schatten.position.y = 0.02; welt.add(schatten);
 
   let skin = null;
@@ -190,12 +198,12 @@ export function weltBauen(canvas) {
   const polMat = new THREE.MeshLambertMaterial({ map: streifenTextur() });
   function torBauen() {
     const g = new THREE.Group();
-    const p1 = new THREE.Mesh(new THREE.BoxGeometry(0.32, 4.6, 0.32), polMat), p2 = p1.clone();
-    p1.position.set(-3.6, 2.3, 0); p2.position.set(3.6, 2.3, 0); g.add(p1, p2);
+    const p1 = new THREE.Mesh(new THREE.BoxGeometry(0.32, 5.8, 0.32), polMat), p2 = p1.clone();
+    p1.position.set(-3.6, 2.9, 0); p2.position.set(3.6, 2.9, 0); g.add(p1, p2);
     const c = leinwand(1024, 300), textur = new THREE.CanvasTexture(c); textur.colorSpace = THREE.SRGBColorSpace; textur.anisotropy = 4;
     const banner = new THREE.Mesh(new THREE.BoxGeometry(7.4, 2.1, 0.18), [stangeMat, stangeMat, stangeMat, stangeMat,
       new THREE.MeshBasicMaterial({ map: textur }), new THREE.MeshBasicMaterial({ map: textur })]);
-    banner.position.y = 4.4; g.add(banner);
+    banner.position.y = 5.3; // über dem grösseren Fahrer g.add(banner);
     g.visible = false; welt.add(g);
     return { g, banner, leinwand: c, textur, zustand: "aus", z: -D0, start: 0, dauer: 0, weg: 0 };
   }
@@ -235,6 +243,11 @@ export function weltBauen(canvas) {
   let schnitt = false, sprung = null, sturz = null, jubel = 0, wackeln = 0, t = 0, ohneZeit = false;
   const kamPos = new THREE.Vector3(5.5, 2.8, 6), kamZiel = new THREE.Vector3(0, 1.2, 0), blick = new THREE.Vector3(0, 1.2, 0);
   kamera.position.copy(kamPos);
+  // Freier Streifen zwischen Aufgabe und Zifferblock (Pixel ab oben). Ist er
+  // gesetzt, schiebt die Kamera das Bild so, dass der Fahrer darin steht und
+  // nicht unter dem Zifferblock verschwindet (Wunsch Patrick 14. November 2026)
+  let frei = null, schieben = 0;
+  const fussPunkt = new THREE.Vector3();
 
   function groesse() {
     const b = canvas.clientWidth || 1, h = canvas.clientHeight || 1;
@@ -357,13 +370,30 @@ export function weltBauen(canvas) {
       const quer = kamera.aspect > 1.2;
       kamZiel.set(quer ? 3.2 : 1.2, 2.4, -7); blick.set(quer ? 2.6 : 0, 1.7, 0);
     } else {
-      kamZiel.set(fahrer.position.x * 0.4, 3.6, 8.2); blick.set(fahrer.position.x * 0.5, 1.6, -10);
+      // Näher dran und tiefer, der Fahrer steht gross im unteren Drittel
+      // hochkant etwas weiter weg, sonst füllt er den schmalen Streifen ganz
+      if (kamera.aspect < 0.8) { kamZiel.set(fahrer.position.x * 0.5, 4.2, 9.4); blick.set(fahrer.position.x * 0.6, 2, -10); }
+      else { kamZiel.set(fahrer.position.x * 0.5, 3.4, 6.6); blick.set(fahrer.position.x * 0.6, 1.9, -10); }
     }
     if (schnitt) { kamPos.copy(kamZiel); schnitt = false; }
     kamPos.lerp(kamZiel, Math.min(1, dt * 2.5));
     kamera.position.copy(kamPos);
     if (wackeln > 0) { wackeln -= dt; kamera.position.x += zufall(-1, 1) * wackeln * 0.6; kamera.position.y += zufall(-1, 1) * wackeln * 0.6; }
     kamera.lookAt(blick);
+    let schiebZiel = 0;
+    if (frei && modus !== "menu" && modus !== "ende") {
+      kamera.clearViewOffset(); kamera.updateMatrixWorld();
+      const h = canvas.clientHeight || 1;
+      fussPunkt.set(fahrer.position.x, 0, 0); welt.localToWorld(fussPunkt); fussPunkt.project(kamera);
+      const py = (1 - fussPunkt.y) / 2 * h;
+      const ziel = frei.unten - Math.max(14, (frei.unten - frei.oben) * 0.06);
+      schiebZiel = Math.max(0, Math.min(h * 0.45, py - ziel)); // nur nach oben schieben
+    }
+    schieben += (schiebZiel - schieben) * Math.min(1, dt * 6);
+    if (schieben > 0.5) {
+      const b = canvas.clientWidth || 1, h = canvas.clientHeight || 1;
+      kamera.setViewOffset(b, h, 0, schieben, b, h);
+    } else kamera.clearViewOffset();
     renderer.render(szene, kamera);
   }
   raf = requestAnimationFrame(schritt);
@@ -374,6 +404,7 @@ export function weltBauen(canvas) {
       // Kamera springt beim Wechsel von und zum Ende, sonst flöge sie durch den Fahrer
       if (m === "ende" || modus === "ende") schnitt = true;
       modus = m; jubel = 0; if (m === "menu") zielTempo = 9; if (m === "ende") { zielTempo = 0; for (const tor of tore) if (tor.g.visible) { tor.zustand = "weg"; tor.weg = 0; } } },
+    frei(oben, unten) { frei = unten > oben + 40 ? { oben, unten } : null; },
     pause(w) { pause = !!w; if (w) zielTempo = 0; },
     serie(n) { serie = n; },
     // Neues Tor mit Aufgabe; dauerS = 0 heisst ohne Zeit

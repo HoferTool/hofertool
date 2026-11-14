@@ -7,7 +7,7 @@ const Spiel = lazy(() => import("./reihen/Spiel.jsx"));
 
 export default function Reihen() {
   return (
-    <Suspense fallback={<div className="leer" style={{ padding: 40 }}>1×1 Rider lädt …</div>}>
+    <Suspense fallback={<div className="leer" style={{ padding: 40 }}>Beser Reihen lernen lädt …</div>}>
       <Spiel />
     </Suspense>
   );

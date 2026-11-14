@@ -53,6 +53,21 @@ export default function Spiel() {
     return () => { document.body.classList.remove("rr-offen"); if (w) w.zerstoeren(); weltRef.current = null; clearTimeout(r.current.warte); };
   }, []);
   useEffect(() => { if (weltRef.current) weltRef.current.skin(skin); }, [skin]);
+  // Wo zwischen Aufgabe und Zifferblock Platz für den Fahrer ist
+  useEffect(() => {
+    if (schirm !== "fahrt") { if (weltRef.current) weltRef.current.frei(0, 0); return; }
+    const messen = () => {
+      const c = canvasRef.current, w = weltRef.current; if (!c || !w) return;
+      const cr = c.getBoundingClientRect(), fr = document.querySelector(".rr-frage"), zf = document.querySelector("[data-rr-ziffern]");
+      const oben = fr ? fr.getBoundingClientRect().bottom - cr.top : 0;
+      let unten = cr.height;
+      if (zf) { const z = zf.getBoundingClientRect(), mitte = cr.left + cr.width / 2; if (z.left < mitte && z.right > mitte) unten = z.top - cr.top; }
+      w.frei(oben, unten);
+    };
+    const z1 = setTimeout(messen, 60), z2 = setTimeout(messen, 400);
+    window.addEventListener("resize", messen);
+    return () => { clearTimeout(z1); clearTimeout(z2); window.removeEventListener("resize", messen); };
+  }, [schirm]);
   useEffect(() => { tonAn(einst.ton); }, [einst.ton]);
 
   const aendern = (fn) => setStand((s) => { const n = structuredClone(s); fn(n); standSpeichern(n, false); return n; });
@@ -331,7 +346,7 @@ function Menue({ stand, lv, einst, einstSetzen, fehlerZahl, starten, panel, setP
         </div>
       </div>
       <div className="rr-menue">
-        <h1 className="rr-titel"><span>1×1</span> RIDER</h1>
+        <h1 className="rr-titel">BESER<br /><span>REIHEN</span> LERNEN</h1>
         <div className="rr-rekorde">
           <span>🏆 {zahl(stand.punkteRekord)}</span><span>⚡ Serie {stand.serieRekord}</span><span>🏂 {stand.runden} Runden</span>
         </div>

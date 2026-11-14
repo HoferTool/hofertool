@@ -161,7 +161,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.548.0";
+const APP_VERSION = "1.549.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -10783,7 +10783,7 @@ const SEITEN = [
   // Werkzeug-Konturscanner für 3D-gedruckte Einlagen (Wunsch Patrick 30. Oktober 2026)
   { pfad: "einlagen",     titel: "Einlagen Generator", zeichen: SYM.einlagen, zeige: reactSeite(Einlagen) },
   // Reihen lernen als 3D-Snowboard-Spiel, nur für Patrick (seit 1.546.0)
-  { pfad: "reihen",       titel: "1×1 Rider",    zeichen: SYM.reihen, zeige: reactSeite(Reihen) },
+  { pfad: "reihen",       titel: "Beser Reihen lernen", zeichen: SYM.reihen, zeige: reactSeite(Reihen) },
   // Alle Bildschirme unter einem Punkt im Menü (seit 1.315.0, Wunsch Patrick
   // 30. Oktober 2026: „Alle Bildschirme zu einem Reiter machen“). Die Seiten
   // darunter behalten ihre Adressen (#/infoboard …), weil die Geräte an der

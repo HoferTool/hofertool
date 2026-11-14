@@ -51,7 +51,7 @@ body.rr-offen { overflow: hidden; }
 
 .rr-menue { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 14px; padding: 90px 14px 18px; overflow-y: auto; }
-.rr-titel { margin: 0; font-size: clamp(54px, 10vw, 110px); line-height: .9; font-style: italic; letter-spacing: -2px; color: #fff;
+.rr-titel { margin: 0; font-size: clamp(38px, 8.5vw, 92px); line-height: .95; text-align: center; font-style: italic; letter-spacing: -2px; color: #fff;
   -webkit-text-stroke: 4px #111; paint-order: stroke fill; text-shadow: 0 8px 0 #111, 0 14px 30px rgba(0,0,0,.35); transform: rotate(-4deg); }
 .rr-titel span { color: var(--gelb) !important; }
 .rr-rekorde { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
@@ -149,6 +149,9 @@ body.rr-offen { overflow: hidden; }
 }
 @media (orientation: portrait) {
   .rr-mitte { top: 66px; }
+  /* Zifferblock flacher, damit über ihm mehr Platz für den Fahrer bleibt */
+  .rr-ziffer { height: clamp(52px, 7.4vh, 76px); }
+  .rr-ziffern { gap: 8px; }
 }
 @media (max-height: 520px) and (orientation: landscape) {
   .rr-frage__text { font-size: 44px; } .rr-antwort { font-size: 34px; } .rr-ziffer { height: 50px; font-size: 26px; } .rr-ziffern { gap: 6px; }
