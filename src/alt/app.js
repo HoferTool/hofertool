@@ -15,6 +15,7 @@ import { abwesenheit } from "../daten/abwesenheit.js";
 import NcFunktionen, { ncAnsicht } from "../seiten/NcFunktionen.jsx";
 import { statistikZurueck } from "../seiten/Statistik.jsx";
 import Kalkulation, { kalkulationZurueck } from "../seiten/Kalkulation.jsx";
+import Lager from "../seiten/Lager.jsx";
 import Reihen from "../seiten/Reihen.jsx";
 import QmAlternativ from "../seiten/QmAlternativ.jsx";
 import "../seiten/Kalender.jsx";
@@ -162,7 +163,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.556.2";
+const APP_VERSION = "1.557.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3196,6 +3197,8 @@ function seiteSichtbar(pfad) {
   if (pfad === "infoboard" || pfad === "pausenraum") return infoboardSichtbar();
   if (pfad === "bildschirme") return SEITEN.some((s) => s.gruppe === "bildschirme" && seiteSichtbar(s.pfad));
   if (pfad === "kalkulation") return kalkulationSehen(profil) && !istExtern();
+  // Lager für eigene Teile, provisorisch nur Admins (seit 1.557.0)
+  if (pfad === "lager") return istAdmin() && !istExtern();
   if (pfad === "reihen") return reihenSehen(profil) && !istExtern();
   // QMS (bis 1.473.x „QM alternativ“): nur mit Vermerk qmSehen, nie Externe
   if (pfad === "qmalt") return qmSehen(profil) && !istExtern();
@@ -10654,6 +10657,10 @@ SYM.kalkulation = svg('<rect x="4.5" y="2.5" width="15" height="19" rx="2"/>'
 SYM.reihen = svg('<path d="M12 2.5l1.6 2.2 2.7-.6.6 2.7 2.4 1.3-1 2.5 1 2.5-2.4 1.3-.6 2.7-2.7-.6L12 21.5l-1.6-2.2-2.7.6-.6-2.7-2.4-1.3 1-2.5-1-2.5 2.4-1.3.6-2.7 2.7.6z"/>'
   + '<path d="M9.6 9.6l4.8 4.8M14.4 9.6l-4.8 4.8"/>');
 
+// Lager: Regal mit Kisten
+SYM.lager = svg('<path d="M3.5 3v18M20.5 3v18M3.5 11h17M3.5 19h17"/>'
+  + '<rect x="6" y="6" width="5" height="5" rx=".6"/><rect x="12.5" y="7.5" width="4" height="3.5" rx=".6"/><rect x="7.5" y="14" width="6" height="5" rx=".6"/>');
+
 // QS: Lupe mit Häkchen, wie Prüfen
 SYM.qs = svg('<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.3 15.3L20.5 20.5"/>'
   + '<path d="M7.8 10.6l2 2 3.6-3.8"/>');
@@ -10772,6 +10779,8 @@ const SEITEN = [
   // QMS (Wunsch Patrick 10. November 2026)
   // QMS: schlankes QM-System nach ISO 9001 (seit 1.463.0, bis 1.473.x „QM alternativ“)
   { pfad: "qmalt",        titel: "QMS", zeichen: SYM.qs, zeige: reactSeite(QmAlternativ) },
+  // Lager für eigene Teile, provisorisch nur Admins (Wunsch Patrick 15. November 2026)
+  { pfad: "lager",        titel: "Lager",        zeichen: SYM.lager, zeige: reactSeite(Lager) },
   { pfad: "bestellungen", titel: "Bestellungen", zeichen: SYM.bestellungen, zeige: seiteBestellungen },
   // Material: Lager, Bestellungen und Bedarf der Aufträge (seit 1.67.0)
   { pfad: "material",     titel: "Material",     zeichen: SYM.material, zeige: reactSeite(Material) },
