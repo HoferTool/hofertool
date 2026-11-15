@@ -129,7 +129,7 @@ function lieferantenFenster(neu) {
 
 // ---------- Todo ----------
 
-function Todos({ d, neu, titel }) {
+function Todos({ d, neu, titel, oeffnen = planwandFensterOeffnen }) {
   const heute = d.heute;
   const bald = alt.plusTage(heute, 7);
   const posten = [];
@@ -137,7 +137,7 @@ function Todos({ d, neu, titel }) {
     if (String(j.problem || "").trim()) posten.push({ k: "p" + j.id, art: "problem", rot: true, sort: "0" + (j.problem_at || ""),
       titel: (j.maschine_nr ? j.maschine_nr + " · " : "") + j.problem,
       unter: [j.job_number, j.problem_at ? alt.datumZeitKurz(j.problem_at) : "", j.problem_von].filter(Boolean).join(" · "),
-      haken: () => alt.problemQuittieren(j, null, neu), auf: () => planwandFensterOeffnen(j) });
+      haken: () => alt.problemQuittieren(j, null, neu), auf: () => oeffnen(j) });
   }
   for (const z of d.zeilen) {
     if (!zuBestellen(z) || (z.start > bald && !z.zuSpaet)) continue;
@@ -145,12 +145,12 @@ function Todos({ d, neu, titel }) {
       titel: "Material " + (z.stand === "offen" ? "offen" : z.stand === "teil" ? "reicht nicht" : "fehlt") + ": Start " + tagText(z.start) + (z.maschine ? " auf " + z.maschine : ""),
       unter: [z.j.job_number, z.j.material_bez, z.stand === "offen" ? "„" + z.j.material_menge + "“" : "", z.stand === "teil" ? "fehlen noch " + zahl(z.fehltKg) + " kg" : "",
         z.zuSpaet ? "kommt zu spät" : ""].filter(Boolean).join(" · "),
-      auf: () => planwandFensterOeffnen(z.j) });
+      auf: () => oeffnen(z.j) });
   }
   for (const j of d.offen) {
     if (j.plan_status !== "laeuft" || j.wbg_url) continue;
     posten.push({ k: "w" + j.id, art: "wbg", sort: "3" + j.job_number,
-      titel: (j.maschine_nr ? j.maschine_nr + " " : "") + "läuft ohne WBG", unter: j.job_number, auf: () => planwandFensterOeffnen(j) });
+      titel: (j.maschine_nr ? j.maschine_nr + " " : "") + "läuft ohne WBG", unter: j.job_number, auf: () => oeffnen(j) });
   }
   // „Nur für mich“ sieht nur, wer es geschrieben hat (seit 1.521.0)
   const ich = alt.meineProfilId();
@@ -507,5 +507,9 @@ export function NavTodos() {
   }, []);
   if (!d) return null;
   const neu = () => window.dispatchEvent(new Event("hofer-planer-neu"));
-  return <div className="nav-todo" id="nav-todo"><Todos d={d} neu={neu} titel="Todos" /></div>;
+  // Antippen springt zur Planwand beim Balken statt der schmalen Pad-Planwand
+  // (seit 1.556.1, Patrick 15. November 2026: „soll zur Planwand gehen und
+  // nicht so komisch öffnen“)
+  const oeffnen = (j) => alt.balkenZeigen(j.id);
+  return <div className="nav-todo" id="nav-todo"><Todos d={d} neu={neu} titel="Todos" oeffnen={oeffnen} /></div>;
 }

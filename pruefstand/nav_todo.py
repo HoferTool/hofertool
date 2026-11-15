@@ -73,6 +73,10 @@ with sync_playwright() as p:
             pruefe(not pg.is_visible("#nav-todo"), "zugeklappt ausgeblendet")
             pg.click("#nav-klapp"); pg.wait_for_timeout(1200)
             pruefe(pg.is_visible("#nav-todo"), "aufgeklappt wieder da")
+            # seit 1.556.1: Antippen springt zur Planwand, nicht die Pad-Planwand
+            pg.click("#nav-todo [data-pltodo='m'] .pl-todo__text"); pg.wait_for_timeout(1500)
+            pruefe("#/planwand" in pg.url, "Todo führt zur Planwand " + pg.url)
+            pruefe(pg.locator(".pad-pw-huelle").count() == 0, "keine schmale Pad-Planwand")
             pg.set_viewport_size({"width": 390, "height": 844}); pg.wait_for_timeout(500)
             pruefe(not pg.is_visible("#nav-todo"), "am Handy nicht")
         pruefe(not pf, "keine Fehler im Browser " + str(pf[:2]))
