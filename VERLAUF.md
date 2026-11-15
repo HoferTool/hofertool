@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.558.0** (15. November 2026): Neuer Menüpunkt **Prüfmittel** (provisorisch, nur Admins): jedes Prüfmittel mit Nr., Mass und Ort (Schrank, Maschine, Person, extern), Übersicht „Wo ist was“, Austragen und Zurück mit Verlauf, Prüfintervall, Einfügen aus Gewatec/Excel.
 - **1.551.0** (14. November 2026): Beser Reihen lernen mit **Profilen** für mehrere Kinder: Knopf oben links im Menü (Name, „wechseln ▾“) zum Wählen, Umbenennen und Anlegen, ohne PIN; jedes Profil hat eigene Punkte, Levels, Garage, Rekorde und Fehler; mit mehreren Profilen fragt das Spiel beim Öffnen „Wer spielt?“, auch im Direktlink. Der bisherige Stand ist Profil „Spieler 1“ (Wunsch Patrick: „ich habe 2 Söhne, die üben“).
 - **1.550.0** (14. November 2026): Direktlink zum Reihen-Spiel (`#/reihen`) öffnet nur das Spiel: kein ✕, Escape und andere Adressen führen nicht ins HoferTool zurück, auch nach Neuladen; über das Menü wie bisher.
 - **1.549.0** (14. November 2026): Reihen-Spiel heisst jetzt **Beser Reihen lernen** (Menü und Titel, so geschrieben auf Wunsch Patrick). Der Snowboarder ist grösser, mit dunklem Umriss, und in der Fahrt rückt das Bild nach oben, bis er zwischen Aufgabe und Zifferblock frei steht; hochkant ist der Zifferblock flacher und die Kamera etwas weiter weg (Patrick: „das Eingabefeld für die Zahlen verdeckt alles“). Tore höher, damit sie nicht in den Fahrer ragen.

@@ -56,6 +56,7 @@ import { materialFuerPlanwand, postenLaden, materialZerlegen, nochGebraucht, wer
   werkstoffNummernLaden, werkstoffBeide } from "../daten/material.js";
 import { postenFenster } from "../material/PostenFenster.jsx";
 import Material from "../seiten/Material.jsx";
+import Pruefmittel from "../seiten/Pruefmittel.jsx";
 import { sicherungWaechter } from "../teile/sicherung.js";
 import { einlesenWaechter } from "../einrichtblatt/vorlesen.js";
 import { drehungWaechter } from "../daten/zeichnungDrehen.js";
@@ -163,7 +164,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.557.0";
+const APP_VERSION = "1.558.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3200,6 +3201,8 @@ function seiteSichtbar(pfad) {
   // Lager für eigene Teile, provisorisch nur Admins (seit 1.557.0)
   if (pfad === "lager") return istAdmin() && !istExtern();
   if (pfad === "reihen") return reihenSehen(profil) && !istExtern();
+  // Prüfmittel vorerst nur für Admins (provisorisch, Wunsch Patrick 15. November 2026)
+  if (pfad === "pruefmittel") return istAdmin() && !istExtern();
   // QMS (bis 1.473.x „QM alternativ“): nur mit Vermerk qmSehen, nie Externe
   if (pfad === "qmalt") return qmSehen(profil) && !istExtern();
   // Den Bereich Empfang sehen nur Personen mit dem Vermerk empfangSehen am
@@ -10650,6 +10653,10 @@ SYM.pausenraum = svg('<path d="M4 10h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path
   + '<path d="M8 3.5c-.8 1 .8 2 0 3.2M12 3.5c-.8 1 .8 2 0 3.2"/>');
 
 // Kalkulation: Blatt mit Franken-Zeichen und Summenstrich
+// Prüfmittel: Grenzlehrdorn mit Griff in der Mitte
+SYM.pruefmittel = svg('<path d="M3 12h4M17 12h4"/><rect x="7" y="9" width="10" height="6" rx="1.5"/>'
+  + '<path d="M3 10.5v3M21 10v4"/><path d="M10 9v6M14 9v6"/>');
+
 SYM.kalkulation = svg('<rect x="4.5" y="2.5" width="15" height="19" rx="2"/>'
   + '<path d="M8 7h8M8 11h8M8 15h4"/><path d="M13.5 18h3"/><path d="M14 15h3"/>');
 
@@ -10784,6 +10791,8 @@ const SEITEN = [
   { pfad: "bestellungen", titel: "Bestellungen", zeichen: SYM.bestellungen, zeige: seiteBestellungen },
   // Material: Lager, Bestellungen und Bedarf der Aufträge (seit 1.67.0)
   { pfad: "material",     titel: "Material",     zeichen: SYM.material, zeige: reactSeite(Material) },
+  // Prüfmittel mit Ort (Schrank, Maschine, Person, extern), provisorisch nur Admins (seit 1.558.0)
+  { pfad: "pruefmittel",  titel: "Prüfmittel",   zeichen: SYM.pruefmittel, zeige: reactSeite(Pruefmittel) },
   // Der Rechner ist seit 1.378.0 der letzte Reiter von HOFER-NC-PRO
   // (Wunsch Patrick 3. November 2026), #/rechner führt dorthin
   { pfad: "nc",           titel: "NC-PRO", zeichen: SYM.nc,     zeige: reactSeite(NcFunktionen) },
