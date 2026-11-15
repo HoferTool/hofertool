@@ -162,7 +162,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.551.0";
+const APP_VERSION = "1.552.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -10650,9 +10650,9 @@ SYM.pausenraum = svg('<path d="M4 10h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path
 SYM.kalkulation = svg('<rect x="4.5" y="2.5" width="15" height="19" rx="2"/>'
   + '<path d="M8 7h8M8 11h8M8 15h4"/><path d="M13.5 18h3"/><path d="M14 15h3"/>');
 
-// 1×1 Rider: Snowboard schräg mit Bindungen
-SYM.reihen = svg('<rect x="2.5" y="9.5" width="19" height="5" rx="2.5" transform="rotate(-25 12 12)"/>'
-  + '<path d="M9 9.2l1.2 2.6M13.6 7.1l1.2 2.6"/>');
+// Beser Reihen lernen: Zahnrad mit Mal-Zeichen (seit 1.552.0 im Hofer-Stil)
+SYM.reihen = svg('<path d="M12 2.5l1.6 2.2 2.7-.6.6 2.7 2.4 1.3-1 2.5 1 2.5-2.4 1.3-.6 2.7-2.7-.6L12 21.5l-1.6-2.2-2.7.6-.6-2.7-2.4-1.3 1-2.5-1-2.5 2.4-1.3.6-2.7 2.7.6z"/>'
+  + '<path d="M9.6 9.6l4.8 4.8M14.4 9.6l-4.8 4.8"/>');
 
 // QS: Lupe mit Häkchen, wie Prüfen
 SYM.qs = svg('<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.3 15.3L20.5 20.5"/>'

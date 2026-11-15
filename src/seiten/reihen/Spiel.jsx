@@ -1,8 +1,8 @@
 // =================================================================
 //  1×1 RIDER (seit 1.546.0, Wunsch Patrick 14. November 2026)
 //  Reihen 1 bis 9 auf Tempo wie im Schultest: eine Aufgabe, 3 Sekunden
-//  (einstellbar), dann kommt die nächste. Als Snowboard-Abfahrt in 3D:
-//  das Tor mit der Aufgabe fährt auf den Fahrer zu, richtig = Sprung mit
+//  (einstellbar), dann kommt die nächste. Seit 1.552.0 im Hofer-Stil: ein
+//  Stapler fährt durch die Werkhalle, der Kran mit der Aufgabe kommt auf ihn zu, richtig = Sprung mit
 //  Drehung, falsch = Sturz und die Lösung steht da. Punkte, Serien mit
 //  Multiplikator, Levels mit Rängen und Ausrüstung, Tage am Stück,
 //  Fehler gezielt üben. Nur für Patrick Ruch (Vermerk reihenSehen).
@@ -370,10 +370,11 @@ function Menue({ stand, lv, profilName, profile, pid, profilWaehlen, profilNeu, 
           {!reihenAllein && <button className="rr-rund" data-rr-zu onClick={() => { location.hash = "#/dashboard"; }} aria-label="Schliessen">✕</button>}
         </div>
       </div>
+      <img className="rr-logo" src={import.meta.env.BASE_URL + "logo-weiss.svg"} alt="Hofer + Co." />
       <div className="rr-menue">
         <h1 className="rr-titel">BESER<br /><span>REIHEN</span> LERNEN</h1>
         <div className="rr-rekorde">
-          <span>🏆 {zahl(stand.punkteRekord)}</span><span>⚡ Serie {stand.serieRekord}</span><span>🏂 {stand.runden} Runden</span>
+          <span>🏆 {zahl(stand.punkteRekord)}</span><span>⚡ Serie {stand.serieRekord}</span><span>🔩 {stand.runden} Runden</span>
         </div>
         <button className="rr-knopf rr-knopf--gross rr-los" data-rr-los onClick={() => starten(false)}>LOS GEHT'S!</button>
         <div className="rr-wahl">
@@ -402,7 +403,7 @@ function Menue({ stand, lv, profilName, profile, pid, profilWaehlen, profilNeu, 
             🎯 Fehler-Training{fehlerZahl ? " (" + fehlerZahl + ")" : ""}
           </button>
           <button className="rr-knopf rr-knopf--blau" onClick={() => setPanel("reihen")}>📊 Meine Reihen</button>
-          <button className="rr-knopf rr-knopf--schwarz" data-rr-garage onClick={() => setPanel("garage")}>🏂 Garage</button>
+          <button className="rr-knopf rr-knopf--schwarz" data-rr-garage onClick={() => setPanel("garage")}>🦺 Spind</button>
         </div>
       </div>
       {panel === "reihen" && <MeineReihen stand={stand} zu={() => setPanel(null)} />}
@@ -454,7 +455,7 @@ function Profile({ profile, pid, wer, waehlen, neu, umbenennen, zu }) {
           })}
         </div>
         <button className="rr-knopf rr-knopf--grau" data-rr-profilneu onClick={() => { const id = neu(); setBearbeite(id); setName(""); }}>+ Neues Profil</button>
-        <p className="rr-klein">Jedes Profil hat eigene Punkte, Levels, Garage und Fehler.</p>
+        <p className="rr-klein">Jedes Profil hat eigene Punkte, Levels, Spind und Fehler.</p>
       </div>
     </div>
   );
@@ -503,8 +504,8 @@ function Garage({ lv, skin, waehlen, zu }) {
     <div className="rr-panel" onClick={zu}>
       <div className="rr-karte rr-karte--breit" onClick={(e) => e.stopPropagation()}>
         <button className="rr-rund rr-karte__zu" onClick={zu}>✕</button>
-        <h2>Garage</h2>
-        <p className="rr-klein">Neue Ausrüstung gibt es mit jedem Level. Du bist Level {lv.level}.</p>
+        <h2>Spind</h2>
+        <p className="rr-klein">Neue Overalls und Stapler gibt es mit jedem Level. Du bist Level {lv.level}.</p>
         <div className="rr-skins">
           {SKINS.map((k) => {
             const frei = lv.level >= k.ab;
@@ -527,11 +528,11 @@ function Garage({ lv, skin, waehlen, zu }) {
 }
 
 function Ende({ e, stand, lv, nochmal, fehlerUeben, menue }) {
-  const titel = e.quote >= 0.9 ? "VICTORY!" : e.quote >= 0.7 ? "STARK GEFAHREN!" : "WEITER SO!";
+  const titel = e.quote >= 0.9 ? "GUTTEIL!" : e.quote >= 0.7 ? "STARK GEDREHT!" : "WEITER SO!";
   return (
     <div className="rr-ende">
       <div className="rr-karte rr-karte--ende">
-        <div className="rr-ende__platz">{e.quote >= 0.9 ? "#1" : e.quote >= 0.7 ? "TOP 3" : "TOP 10"}</div>
+        <div className="rr-ende__platz">{e.quote >= 0.9 ? "IN TOLERANZ ✓" : e.quote >= 0.7 ? "FAST IN TOLERANZ" : "NACHARBEIT"}</div>
         <h2 className="rr-ende__titel" data-rr-ende>{titel}</h2>
         <div className="rr-sterne">{[0, 1, 2].map((i) => <span key={i} className={i < e.sterne ? "an" : ""} style={{ animationDelay: (0.3 + i * 0.25) + "s" }}>★</span>)}</div>
         {e.neuRekord && e.punkte > 0 && <div className="rr-rekord">🏆 NEUER REKORD!</div>}
@@ -544,7 +545,7 @@ function Ende({ e, stand, lv, nochmal, fehlerUeben, menue }) {
         <div className="rr-xpzeile">+{zahl(e.xp)} XP</div>
         <LevelAnzeige stand={stand} lv={lv} />
         {e.levelUp > 0 && <div className="rr-levelup">LEVEL UP! Level {e.levelUp} · {rang(e.levelUp)}</div>}
-        {e.neueSkins.length > 0 && <div className="rr-neu">Neu in der Garage: {e.neueSkins.map((k) => k.name).join(", ")}</div>}
+        {e.neueSkins.length > 0 && <div className="rr-neu">Neu im Spind: {e.neueSkins.map((k) => k.name).join(", ")}</div>}
         {e.fehler.length > 0 && (
           <div className="rr-fehlerliste">
             <small>Diese üben wir noch:</small>
