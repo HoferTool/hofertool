@@ -1,5 +1,5 @@
 // =================================================================
-//  BESER REIHEN LERNEN: die 3D-Welt mit three.js
+//  HOFER + CO ZAHLENSPRINT: die 3D-Welt mit three.js
 //  Seit 1.552.0 im Stil von Hofer + Co (Wunsch Patrick 15. November 2026:
 //  „das Spiel umbauen auf Hofer + Co mit HoferTool-Stil und Themen“):
 //  Ein Mechaniker im Hofer-Overall fährt mit dem Stapler durch die
@@ -159,16 +159,26 @@ export function weltBauen(canvas) {
   stirn.position.set(0, 11, -330); szene.add(stirn);
   const hallentor = new THREE.Mesh(new THREE.PlaneGeometry(16, 7), new THREE.MeshBasicMaterial({ color: 0xc9d2dd, fog: false }));
   hallentor.position.set(0, 3.5, -329.5); szene.add(hallentor);
-  // Logo als Bild in eine Leinwand zeichnen (die SVG hat keine feste Grösse)
-  const logoBild = new Image();
-  logoBild.onload = () => {
-    const c = leinwand(1286, 480);
-    c.getContext("2d").drawImage(logoBild, 0, 0, 1286, 480);
-    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-    const logo = new THREE.Mesh(new THREE.PlaneGeometry(40, 40 * 240 / 643), new THREE.MeshBasicMaterial({ map: t, transparent: true, fog: false }));
-    logo.position.set(0, 14.5, -329.4); szene.add(logo);
-  };
-  logoBild.src = import.meta.env.BASE_URL + "logo-weiss.svg";
+  // Hofer-Logo: einmal als Schild (Hofer-Blau, weisses Logo) gezeichnet und
+  // überall in der Halle verwendet: Stirnwand, Wandbanner, Deckenbanner, Krane
+  // (Wunsch Patrick 15. November 2026: „das Logo soll in der Halle ersichtlich sein“)
+  const logoC = leinwand(1024, 400), logoT = new THREE.CanvasTexture(logoC);
+  logoT.colorSpace = THREE.SRGBColorSpace; logoT.anisotropy = 4;
+  {
+    const k = logoC.getContext("2d");
+    k.fillStyle = "#003884"; k.fillRect(0, 0, 1024, 400);
+    k.strokeStyle = "rgba(255,255,255,0.55)"; k.lineWidth = 10; k.strokeRect(14, 14, 996, 372);
+    const logoBild = new Image();
+    logoBild.onload = () => {
+      const b = 800, h = b * 240 / 643;
+      k.drawImage(logoBild, (1024 - b) / 2, (400 - h) / 2, b, h);
+      logoT.needsUpdate = true;
+    };
+    logoBild.src = import.meta.env.BASE_URL + "logo-weiss.svg";
+  }
+  const logoMat = new THREE.MeshBasicMaterial({ map: logoT, side: THREE.DoubleSide });
+  const logoFern = new THREE.Mesh(new THREE.PlaneGeometry(64, 25), new THREE.MeshBasicMaterial({ map: logoT, fog: false }));
+  logoFern.position.set(0, 15, -329.4); szene.add(logoFern);
 
   const deko = [];
   const mat = (c, extra) => new THREE.MeshLambertMaterial(Object.assign({ color: c }, extra || {}));
@@ -247,6 +257,19 @@ export function weltBauen(canvas) {
   for (let i = 0; i < 16; i++) {
     const seite = i % 2 ? 1 : -1, n = Math.floor(i / 2);
     const s = stuetze(); s.position.set(seite * 19.5, 0, -n * (LANG / 8)); welt.add(s); deko.push({ o: s, art: "stuetze" });
+  }
+
+  // Grosse Logo-Banner an beiden Wänden und unter der Decke, ziehen mit vorbei
+  for (let i = 0; i < 8; i++) {
+    const seite = i % 2 ? 1 : -1, z = -Math.floor(i / 2) * (LANG / 4) - 20;
+    const b = new THREE.Mesh(new THREE.PlaneGeometry(20, 7.8), logoMat);
+    b.rotation.y = seite * -Math.PI / 2; b.position.set(seite * 45.6, 15, z); welt.add(b); deko.push({ o: b, art: "logo" });
+  }
+  for (let i = 0; i < 3; i++) {
+    const g = new THREE.Group();
+    const b = new THREE.Mesh(new THREE.PlaneGeometry(14, 5.5), logoMat); g.add(b);
+    for (const x of [-5, 5]) { const s = new THREE.Mesh(new THREE.BoxGeometry(0.06, 6, 0.06), schwarzM); s.position.set(x, 5.75, 0); g.add(s); }
+    g.position.set(0, 14.5, -40 - i * (LANG / 3)); welt.add(g); deko.push({ o: g, art: "logo" });
   }
 
   // ---------- Stapler mit Mechaniker aus Klötzen ----------
@@ -335,6 +358,9 @@ export function weltBauen(canvas) {
     const banner = new THREE.Mesh(new THREE.BoxGeometry(7.4, 2.1, 0.18), [stangeMat, stangeMat, stangeMat, stangeMat,
       new THREE.MeshBasicMaterial({ map: t }), new THREE.MeshBasicMaterial({ map: t })]);
     banner.position.y = 5.2; g.add(banner);
+    // Logo-Schild oben auf dem Kranträger
+    const schildLogo = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 1.72), logoMat); schildLogo.position.set(0, 7.85, 0); g.add(schildLogo);
+    const halter = new THREE.Mesh(new THREE.BoxGeometry(4.5, 0.12, 0.3), gelbM); halter.position.set(0, 6.98, 0); g.add(halter);
     g.visible = false; welt.add(g);
     return { g, banner, leinwand: c, textur: t, zustand: "aus", z: -D0, start: 0, dauer: 0, weg: 0 };
   }

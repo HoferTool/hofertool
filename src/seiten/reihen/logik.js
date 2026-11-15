@@ -1,5 +1,5 @@
 // =================================================================
-//  BESER REIHEN LERNEN (früher 1×1 Rider): Aufgaben, Punkte, Levels und der gespeicherte Stand
+//  HOFER + CO ZAHLENSPRINT (früher 1×1 Rider, Beser Reihen lernen): Aufgaben, Punkte, Levels und der gespeicherte Stand
 //  (seit 1.546.0, Wunsch Patrick 14. November 2026: „App zum Reihen
 //  lernen für meinen Sohn … die Tests sind auf Geschwindigkeit, 3 Sek.
 //  für eine Aufgabe … er muss Punkte sammeln und Levels hochsteigen“).

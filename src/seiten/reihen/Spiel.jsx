@@ -1,5 +1,5 @@
 // =================================================================
-//  1×1 RIDER (seit 1.546.0, Wunsch Patrick 14. November 2026)
+//  HOFER + CO ZAHLENSPRINT (früher 1×1 Rider, Beser Reihen lernen; seit 1.546.0, Wunsch Patrick 14. November 2026)
 //  Reihen 1 bis 9 auf Tempo wie im Schultest: eine Aufgabe, 3 Sekunden
 //  (einstellbar), dann kommt die nächste. Seit 1.552.0 im Hofer-Stil: ein
 //  Stapler fährt durch die Werkhalle, der Kran mit der Aufgabe kommt auf ihn zu, richtig = Sprung mit
@@ -372,7 +372,7 @@ function Menue({ stand, lv, profilName, profile, pid, profilWaehlen, profilNeu, 
       </div>
       <img className="rr-logo" src={import.meta.env.BASE_URL + "logo-weiss.svg"} alt="Hofer + Co." />
       <div className="rr-menue">
-        <h1 className="rr-titel">BESER<br /><span>REIHEN</span> LERNEN</h1>
+        <h1 className="rr-titel">HOFER + CO<br /><span>ZAHLEN</span>SPRINT</h1>
         <div className="rr-rekorde">
           <span>🏆 {zahl(stand.punkteRekord)}</span><span>⚡ Serie {stand.serieRekord}</span><span>🔩 {stand.runden} Runden</span>
         </div>

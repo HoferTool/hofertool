@@ -162,7 +162,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.552.0";
+const APP_VERSION = "1.553.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3128,7 +3128,7 @@ function empfangSehen(u) {
 function kalkulationSehen(u) {
   return !!(u && u.einstellungen && u.einstellungen.kalkulationSehen);
 }
-// 1×1 Rider zum Reihen lernen: nur mit dem Vermerk reihenSehen am Konto
+// Hofer + Co Zahlensprint zum Reihen lernen: nur mit dem Vermerk reihenSehen am Konto
 // (Wunsch Patrick 14. November 2026: „nur für Patrick Ruch“)
 function reihenSehen(u) {
   return !!(u && u.einstellungen && u.einstellungen.reihenSehen);
@@ -10650,7 +10650,7 @@ SYM.pausenraum = svg('<path d="M4 10h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path
 SYM.kalkulation = svg('<rect x="4.5" y="2.5" width="15" height="19" rx="2"/>'
   + '<path d="M8 7h8M8 11h8M8 15h4"/><path d="M13.5 18h3"/><path d="M14 15h3"/>');
 
-// Beser Reihen lernen: Zahnrad mit Mal-Zeichen (seit 1.552.0 im Hofer-Stil)
+// Hofer + Co Zahlensprint: Zahnrad mit Mal-Zeichen (seit 1.552.0 im Hofer-Stil)
 SYM.reihen = svg('<path d="M12 2.5l1.6 2.2 2.7-.6.6 2.7 2.4 1.3-1 2.5 1 2.5-2.4 1.3-.6 2.7-2.7-.6L12 21.5l-1.6-2.2-2.7.6-.6-2.7-2.4-1.3 1-2.5-1-2.5 2.4-1.3.6-2.7 2.7.6z"/>'
   + '<path d="M9.6 9.6l4.8 4.8M14.4 9.6l-4.8 4.8"/>');
 
@@ -10784,7 +10784,7 @@ const SEITEN = [
   // Werkzeug-Konturscanner für 3D-gedruckte Einlagen (Wunsch Patrick 30. Oktober 2026)
   { pfad: "einlagen",     titel: "Einlagen Generator", zeichen: SYM.einlagen, zeige: reactSeite(Einlagen) },
   // Reihen lernen als 3D-Snowboard-Spiel, nur für Patrick (seit 1.546.0)
-  { pfad: "reihen",       titel: "Beser Reihen lernen", zeichen: SYM.reihen, zeige: reactSeite(Reihen) },
+  { pfad: "reihen",       titel: "Hofer + Co Zahlensprint", zeichen: SYM.reihen, zeige: reactSeite(Reihen) },
   // Alle Bildschirme unter einem Punkt im Menü (seit 1.315.0, Wunsch Patrick
   // 30. Oktober 2026: „Alle Bildschirme zu einem Reiter machen“). Die Seiten
   // darunter behalten ihre Adressen (#/infoboard …), weil die Geräte an der

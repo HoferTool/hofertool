@@ -35,7 +35,7 @@ with sync_playwright() as p:
     ctx.close()
 
     ctx, pg, pf = oeffnen(br, {"width": 1400, "height": 900})
-    pruefe(pg.locator("[data-nav='reihen']").count() > 0, "Beser Reihen lernen im Menü mit Vermerk")
+    pruefe(pg.locator("[data-nav='reihen']").count() > 0, "Zahlensprint im Menü mit Vermerk")
     pg.evaluate("location.hash='#/reihen'"); pg.wait_for_selector("[data-rr-los]", timeout=15000); pg.wait_for_timeout(1500)
     pg.screenshot(path=BILD + "/rr-menue-pc.png")
     # Nur die 7er, 10 Aufgaben, 3 Sekunden

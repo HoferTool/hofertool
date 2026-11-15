@@ -1,4 +1,4 @@
-// Töne für den 1×1 Rider, ganz ohne Dateien mit WebAudio erzeugt.
+// Töne für den Hofer + Co Zahlensprint, ganz ohne Dateien mit WebAudio erzeugt.
 // iPad und iPhone geben erst nach einem Tipp Ton frei, darum startet
 // entsperren() beim Knopf „Los“.
 let ctx = null, an = true, master = null;
