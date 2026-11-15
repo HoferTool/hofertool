@@ -47,6 +47,7 @@ export default function Spiel() {
   const [lauf, setLauf] = useState(null);           // Werte der laufenden Runde
   const [ergebnis, setErgebnis] = useState(null);
   const [kein3d, setKein3d] = useState(false);
+  const [demo, setDemo] = useState(null);           // Werbe-Demo nach 1 Minute ohne Spielen: {a, b, antwort, spruch, punkte, serie}
   const balkenRef = useRef(null);
   const r = useRef({});                             // Zeit und Ablauf ohne neu zeichnen
 
@@ -230,9 +231,87 @@ export default function Spiel() {
     else if (R.eingabe.length >= l.length) antworten(false, false);
   }, [antworten]);
 
+  // ---------- Demo ----------
+  // Wunsch Patrick 15. November 2026: „wenn 1 Minute nicht gespielt wird,
+  // eine Demo laufen lassen, welche das Spiel bewirbt; bei Berührung
+  // zurückspringen“. Nur im Menü ohne offenes Fenster. Der Stapler fährt
+  // durch die Halle und löst Aufgaben, die Ebene darüber wirbt fürs Spiel.
+  // Ohne Ton, ohne Punkte: der Stand des Profils bleibt unberührt.
+  const ruhig = schirm === "menu" && !panel && !demo;
+  useEffect(() => {
+    if (!ruhig) return;
+    const ms = (window.TEST && window.TEST.reihenDemoMs) || 60000;
+    let z = 0;
+    const neu = () => { clearTimeout(z); z = setTimeout(() => { if (!document.hidden) demoStarten(); else neu(); }, ms); };
+    const ereignisse = ["pointerdown", "keydown", "wheel", "touchstart"];
+    ereignisse.forEach((n) => window.addEventListener(n, neu, true));
+    neu();
+    return () => { clearTimeout(z); ereignisse.forEach((n) => window.removeEventListener(n, neu, true)); };
+  }, [ruhig]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function demoStarten() {
+    const w = weltRef.current;
+    if (w) { w.modus("fahrt"); w.serie(0); }
+    const D = r.current.demo = { serie: 0, punkte: 0, spruch: 0, nr: 0, z: [] };
+    const spaeter = (fn, ms) => D.z.push(setTimeout(fn, ms));
+    const runde = () => {
+      const a = 2 + Math.floor(Math.random() * 8), b = 2 + Math.floor(Math.random() * 8), l = a * b;
+      D.nr++;
+      setDemo({ a, b, nr: D.nr, antwort: "", spruch: D.spruch, punkte: D.punkte, serie: D.serie });
+      if (weltRef.current) weltRef.current.tor(a + " × " + b, 2.2);
+      // Die Lösung „tippt“ sich Ziffer für Ziffer ein, wie beim Spielen
+      const ziffern = String(l);
+      [...ziffern].forEach((_, i) => spaeter(() => setDemo((d) => d && { ...d, antwort: ziffern.slice(0, i + 1) }), 900 + i * 220));
+      spaeter(() => {
+        D.serie++; D.punkte += 100 + Math.round(Math.random() * 60) * D.serie;
+        if (weltRef.current) weltRef.current.richtig(a + " × " + b + " = " + l, D.serie);
+        setDemo((d) => d && { ...d, gut: true, punkte: D.punkte, serie: D.serie });
+      }, 1000 + ziffern.length * 220);
+      spaeter(() => { if (D.serie % 2 === 0) D.spruch++; runde(); }, 2200 + ziffern.length * 220);
+    };
+    runde();
+  }
+  function demoBeenden() {
+    const D = r.current.demo; if (D) D.z.forEach(clearTimeout);
+    r.current.demo = null;
+    if (weltRef.current) weltRef.current.modus("menu");
+    setDemo(null);
+  }
+  useEffect(() => () => { const D = r.current.demo; if (D) D.z.forEach(clearTimeout); }, []);
+  // Wie beim Spielen: der Stapler steht im freien Streifen zwischen Aufgabe und „Tippe zum Starten“
+  const demoAn = !!demo;
+  useEffect(() => {
+    if (!demoAn) return;
+    const messen = () => {
+      const c = canvasRef.current, w = weltRef.current, m = document.querySelector(".rr-demo__mitte"), u = document.querySelector(".rr-demo__tipp");
+      if (!c || !w || !m || !u) return;
+      const cr = c.getBoundingClientRect();
+      w.frei(m.getBoundingClientRect().bottom - cr.top, u.getBoundingClientRect().top - cr.top);
+    };
+    const z1 = setTimeout(messen, 60), z2 = setTimeout(messen, 700);
+    window.addEventListener("resize", messen);
+    return () => { clearTimeout(z1); clearTimeout(z2); window.removeEventListener("resize", messen); if (weltRef.current) weltRef.current.frei(0, 0); };
+  }, [demoAn]);
+  // Jede Berührung, Taste oder Mausrad springt zurück ins Menü. Die erste
+  // Berührung löst nichts im Menü aus: der Klick danach wird geschluckt.
+  useEffect(() => {
+    if (!demo) return;
+    const zurueck = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      demoBeenden();
+      const schlucken = (k) => { k.preventDefault(); k.stopPropagation(); };
+      window.addEventListener("click", schlucken, { capture: true, once: true });
+      setTimeout(() => window.removeEventListener("click", schlucken, { capture: true }), 600);
+    };
+    const n = ["pointerdown", "keydown", "wheel"];
+    n.forEach((x) => window.addEventListener(x, zurueck, { capture: true, passive: false }));
+    return () => n.forEach((x) => window.removeEventListener(x, zurueck, { capture: true }));
+  }, [demo === null]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Tastatur am Computer; Escape geht Schritt für Schritt zurück
   useEffect(() => {
     const k = (e) => {
+      if (r.current.demo) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === "Escape") {
         e.preventDefault(); e.stopPropagation();
@@ -268,7 +347,9 @@ export default function Spiel() {
       <canvas ref={canvasRef} className="rr-welt" />
       {kein3d && <div className="rr-welt rr-welt--ersatz" />}
 
-      {schirm === "menu" && (
+      {schirm === "menu" && demo && <Demo d={demo} />}
+
+      {schirm === "menu" && !demo && (
         <Menue stand={stand} lv={lv} profilName={profilName} profile={profile} pid={pid}
           profilWaehlen={profilWaehlen} profilNeu={() => { const p = profilNeu(); setProfilStand((n) => n + 1); return p.id; }}
           umbenennen={(id, name) => { profilUmbenennen(id, name); setProfilStand((n) => n + 1); }} einst={einst} einstSetzen={einstSetzen} fehlerZahl={fehlerZahl}
@@ -319,6 +400,36 @@ export default function Spiel() {
     </div>
   );
   return createPortal(inhalt, document.body);
+}
+
+const SPRUECHE = [
+  "Reihen üben wie ein Profi",
+  "Punkte sammeln, Level steigen",
+  "Vom Lehrling zum Mathe-Monster",
+  "Wer knackt den Rekord?",
+  "Serien jagen bis ×5",
+  "Schneller als die Stoppuhr",
+];
+
+function Demo({ d }) {
+  return (
+    <div className="rr-demo" data-rr-demo>
+      <div className="rr-demo__kopf">
+        <h1 className="rr-titel">HOFER + CO<br /><span>ZAHLEN</span>SPRINT</h1>
+        <div className="rr-demo__spruch" key={"s" + d.spruch}>{SPRUECHE[d.spruch % SPRUECHE.length]}</div>
+      </div>
+      <div className="rr-demo__mitte">
+        {d.serie >= 2 && <div className={"rr-serie" + (d.serie >= 5 ? " rr-serie--feuer" : "")} key={"z" + d.serie}>🔥 {d.serie}</div>}
+        <div className={"rr-frage" + (d.gut ? " rr-frage--gut" : "")} key={"f" + d.nr}>
+          <div className="rr-frage__text">{d.a} × {d.b}</div>
+          <div className="rr-antwort">{d.antwort || " "}</div>
+        </div>
+        {d.punkte > 0 && <div className="rr-demo__punkte" key={"p" + d.punkte}>{zahl(d.punkte)} <small>PUNKTE</small></div>}
+      </div>
+      <div className="rr-demo__tipp"><span>👆</span> Tippe zum Starten</div>
+      <img className="rr-logo" src={import.meta.env.BASE_URL + "logo-weiss.svg"} alt="Hofer + Co." />
+    </div>
+  );
 }
 
 function Ziffern({ taste }) {

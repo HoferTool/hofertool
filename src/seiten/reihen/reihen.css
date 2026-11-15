@@ -229,3 +229,21 @@ body.rr-offen { overflow: hidden; }
   width: clamp(110px, 14vw, 170px); height: auto; pointer-events: none; z-index: 1;
   background: rgba(0,56,132,.88); border-radius: 12px; padding: 8px 12px; box-shadow: 0 6px 18px rgba(0,20,60,.35); }
 @media (max-width: 1000px) { .rr-logo { display: none; } }
+
+/* ---------- Demo nach 1 Minute ohne Spielen (seit 1.554.0) ---------- */
+.rr-demo { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 14px;
+  padding: max(28px, env(safe-area-inset-top)) 16px max(28px, env(safe-area-inset-bottom)); cursor: pointer; z-index: 5;
+  background: radial-gradient(ellipse at 50% 120%, rgba(0,56,132,.55), transparent 60%); }
+.rr-demo__kopf { display: flex; flex-direction: column; align-items: center; gap: 12px; animation: rr-rein .6s; }
+.rr-demo__kopf .rr-titel { font-size: clamp(40px, 9vw, 104px); }
+.rr-demo__spruch { background: #003884; color: #fff !important; border: 3px solid #fff; border-radius: 999px; padding: 8px 22px;
+  font-size: clamp(18px, 3vw, 30px); font-weight: 800; text-align: center; box-shadow: 0 8px 24px rgba(0,0,0,.35); animation: rr-rein .5s; }
+.rr-demo__mitte { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.rr-demo__mitte .rr-frage { transform: scale(.72); margin: -14px 0; }
+.rr-demo__punkte { color: #fff !important; font-size: clamp(28px, 4vw, 44px); font-weight: 900; text-shadow: 0 3px 0 #111, 0 0 18px rgba(0,0,0,.5); animation: rr-pop .3s; }
+.rr-demo__punkte small { font-size: .45em; color: var(--gelb) !important; }
+@media (max-height: 560px) { .rr-demo__mitte .rr-frage { transform: scale(.55); margin: -26px 0; } }
+.rr-demo__tipp { margin-top: auto; background: var(--gelb); color: #111 !important; border: 4px solid #111; border-radius: 999px; padding: 12px 30px;
+  font-size: clamp(22px, 3.4vw, 36px); font-weight: 900; box-shadow: 0 6px 0 #111; animation: rr-puls 1.4s infinite; }
+.rr-demo__tipp span { display: inline-block; animation: rr-pop 1.4s infinite; }
+@media (prefers-reduced-motion: reduce) { .rr-demo__tipp, .rr-demo__tipp span { animation: none; } }
