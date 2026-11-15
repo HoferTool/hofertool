@@ -40,6 +40,13 @@ with sync_playwright() as p:
         q = f.evaluate("([x, y]) => { const r = $('view').getBoundingClientRect(); return [r.left + x * st.warp.ppm * st.viewScale, r.top + y * st.warp.ppm * st.viewScale]; }", [x, y])
         bx = pg.frames[1].frame_element().bounding_box()
         return bx["x"] + q[0], bx["y"] + q[1]
+    def form0(schritt):
+        # Auf GitHub fehlte die Form ab und zu (nur dort); dann Schritt und Zustand nennen statt nur „undefined“
+        z = f.evaluate("""(() => { const e = st.edit; return { q: e.strokes[0] ? e.strokes[0].poly : null, tool: e.tool, art: e.traceArt, fillet: e.fillet,
+          poly: e.poly && e.poly.pts.length, strokes: e.strokes.length, ssel: e.ssel != null, toast: ($('toast') || {}).textContent || "", zoom: st.zoom }; })()""")
+        if z["q"] is None:
+            del z["q"]; raise AssertionError("keine gezeichnete Form %s: %s" % (schritt, json.dumps(z)))
+        return z["q"]
     def klick(x, y):
         a, b = schirm(x, y); pg.mouse.click(a, b); pg.wait_for_timeout(150)
     f.evaluate("document.getElementById('view').scrollIntoView({block: 'center'})"); pg.wait_for_timeout(300)
@@ -70,24 +77,20 @@ with sync_playwright() as p:
     # Ecke runden: obere und rechte Linie anklicken, R 10
     f.click("#traceFillet"); f.fill("#traceR", "10")
     klick(100, 80); klick(120, 105); pg.wait_for_timeout(1500)
-    # Auf GitHub fehlte hier dreimal die Form (nur dort); Zustand nennen statt nur „undefined“
-    zst = f.evaluate("""(() => { const e = st.edit; return { tool: e.tool, art: e.traceArt, fillet: e.fillet, poly: e.poly && e.poly.pts.length,
-      strokes: e.strokes.length, ssel: e.ssel != null, werkzeuge: (scanState().result || {tools: []}).tools.length, zoom: st.zoom }; })()""")
-    if not zst["strokes"]: raise AssertionError("keine gezeichnete Form vor dem Runden: %s, Werkzeug %s" % (json.dumps(zst), t))
-    q = f.evaluate("st.edit.strokes[0].poly")
+    q = form0("nach Ecke runden, Werkzeug %s" % (t,))
     ecke = min(math.hypot(x - 120, y - 80) for x, y in q)
     pruefe(len(q) > 6 and 3.5 < ecke < 4.5, "Ecke mit R 10 gerundet: %d Punkte, Abstand zur alten Ecke %.2f (soll 4.14)" % (len(q), ecke))
     pruefe(all(abs(math.hypot(x - 110, y - 90) - 10) < 0.01 for x, y in q if x > 110 and y < 90), "Bogenpunkte liegen auf dem Radius")
     if BILD: pg.screenshot(path=BILD + "-radius.png")
     # zu grosser Radius meldet und ändert nichts
     f.fill("#traceR", "100"); klick(60, 100); klick(90, 120); pg.wait_for_timeout(600)
-    pruefe(len(f.evaluate("st.edit.strokes[0].poly")) == len(q) and "zu gross" in f.inner_text("#toast"), "zu grosser Radius: Meldung, Form bleibt")
+    pruefe(len(form0("nach zu grossem Radius")) == len(q) and "zu gross" in f.inner_text("#toast"), "zu grosser Radius: Meldung, Form bleibt")
     # Radius 0 über zwei nicht benachbarte Linien: Bogen wieder zur spitzen Ecke
     f.fill("#traceR", "0"); klick(90, 80); klick(120, 110); pg.wait_for_timeout(1200)
-    q2 = f.evaluate("st.edit.strokes[0].poly")
+    q2 = form0("nach R 0")
     pruefe(len(q2) == 4 and min(math.hypot(x - 120, y - 80) for x, y in q2) < 0.01, "R 0 setzt wieder die spitze Ecke: %d Punkte" % len(q2))
     f.evaluate("undo()"); pg.wait_for_timeout(500)
-    pruefe(len(f.evaluate("st.edit.strokes[0].poly")) == len(q), "Rückgängig holt den Radius zurück")
+    pruefe(len(form0("nach Rückgängig")) == len(q), "Rückgängig holt den Radius zurück")
     # Doppelklick schliesst eine Form
     f.click("#traceDraw")
     for x, y in [(20, 30), (50, 30)]: klick(x, y)
@@ -97,9 +100,11 @@ with sync_playwright() as p:
     f.click("#traceRect"); klick(140, 30); a, b = schirm(170, 50); pg.mouse.move(a, b); pg.wait_for_timeout(200)
     if BILD: pg.screenshot(path=BILD + "-rechteck.png")
     klick(170, 50); pg.wait_for_timeout(1500)
+    form0("nach Rechteck")
     r = f.evaluate("(() => { const s = st.edit.strokes[st.edit.strokes.length - 1]; const b = bbox(s.poly); return [s.trace, s.poly.length, b[2]-b[0], b[3]-b[1], st.edit.strokes.length]; })()")
     pruefe(r[0] and r[1] == 4 and abs(r[2] - 30) < 0.5 and abs(r[3] - 20) < 0.5 and r[4] == 3, "Rechteck mit zwei Ecken: %s" % r)
     f.click("#traceCirc"); klick(150, 100); klick(160, 100); pg.wait_for_timeout(1500)
+    form0("nach Kreis")
     c = f.evaluate("(() => { const s = st.edit.strokes[st.edit.strokes.length - 1]; const b = bbox(s.poly); return [s.trace, b[2]-b[0], b[3]-b[1]]; })()")
     pruefe(c[0] and abs(c[1] - 20) < 0.3 and abs(c[2] - 20) < 0.3, "Kreis Mitte + Rand: Ø %.1f" % c[1])
     nt = f.evaluate("scanState().result.tools.length")
