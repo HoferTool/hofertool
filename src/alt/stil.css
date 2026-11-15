@@ -14059,17 +14059,43 @@ body.dunkel .umzug-wiese--schnee { filter: brightness(.82) saturate(.9); }
 @keyframes wm-bimmeln { from { transform: rotate(-18deg); } to { transform: rotate(18deg); } }
 .wm-seil { z-index: 3; }
 .wm-seil path { stroke: #6e4a22; }
-.wm-person { position: absolute; z-index: 4; transform-origin: 50% 100%; animation: wm-gehen .5s ease-in-out infinite alternate; }
-@keyframes wm-gehen { from { transform: rotate(4deg) translateY(0); } to { transform: rotate(6deg) translateY(-2.5%); } }
-.wm-person__bild { position: absolute; inset: 0; filter: drop-shadow(0 3px 4px rgba(0,0,0,.35)); }
+/* Gehen seit 1.556.0 natürlicher: er lehnt sich ins Seil (Neigung um die
+   Füsse), wippt im Schritt (2 Schritte je Sekunde, unten beim Auftreten),
+   wiegt den Oberkörper leicht, und die Beine heben sich abwechselnd nach
+   vorne und schieben dann nach hinten weg. --vor gibt die Richtung nach
+   vorne im Bild an, das im Zug nach links gegengespiegelt ist. */
+.wm-person { position: absolute; z-index: 4; transform-origin: 50% 100%; transform: rotate(7deg); transition: transform .45s ease-out; }
+.wm-gang { position: absolute; inset: 0; transform-origin: 50% 62%; animation: wm-wippen-gang 1s linear infinite; }
+@keyframes wm-wippen-gang {
+  0%, 50%, 100% { transform: translateY(0) rotate(0deg); animation-timing-function: ease-out; }
+  25% { transform: translateY(-2.2%) rotate(-1.2deg); animation-timing-function: ease-in; }
+  75% { transform: translateY(-2.2%) rotate(1.2deg); animation-timing-function: ease-in; }
+}
+.wm-person__bild { position: absolute; inset: 0; filter: drop-shadow(0 3px 4px rgba(0,0,0,.35)); --vor: -1; }
 /* Das Bild nie spiegeln: im nach links gespiegelten Zug zurückdrehen */
-.wm-links .wm-person__bild { transform: scaleX(-1); }
+.wm-links .wm-person__bild { transform: scaleX(-1); --vor: 1; }
 .wm-person__bild img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; user-select: none; }
-.wm-bein { animation: wm-schwingen 1s ease-in-out infinite alternate; }
-.wm-bein--2 { animation-direction: alternate-reverse; }
-@keyframes wm-schwingen { from { transform: rotate(-7deg); } to { transform: rotate(7deg); } }
-/* Beim Halt steht er da wie auf dem Bild, die Hühner wippen weiter */
-.wm-steht .wm-person, .wm-steht .wm-bein, .wm-steht .wm-schlitten, .wm-steht .wm-glocke { animation: none; }
+.wm-bein { animation: wm-schritt 1s linear infinite; }
+.wm-bein--2 { animation-delay: -.5s; }
+@keyframes wm-schritt {
+  0% { transform: translateY(0) rotate(calc(var(--vor) * -5deg)); animation-timing-function: ease-out; }
+  22% { transform: translateY(-4.5%) rotate(calc(var(--vor) * 6deg)); animation-timing-function: ease-in; }
+  45% { transform: translateY(0) rotate(calc(var(--vor) * 7deg)); animation-timing-function: linear; }
+  100% { transform: translateY(0) rotate(calc(var(--vor) * -5deg)); }
+}
+/* Mütze über dem Kopf, dreht mit dem Zug (Zipfel hinten); im Zug nach
+   links auf den Kopf zurückgeschoben, weil der nicht genau in der Mitte ist */
+.wm-muetze { position: absolute; inset: 0; pointer-events: none; transform-origin: 47.7% 3%; animation: wm-zipfel 1s ease-in-out infinite; }
+.wm-muetze svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.wm-links .wm-muetze { left: 4.66%; right: -4.66%; }
+@keyframes wm-zipfel { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-2deg); } }
+.wm-licht { animation: wm-blinken 1.2s steps(1) infinite; }
+@keyframes wm-blinken { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+.wm-atem { position: absolute; z-index: 5; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(255,255,255,.95), rgba(255,255,255,.4) 60%, rgba(255,255,255,0) 72%); }
+/* Beim Halt steht er gerade da wie auf dem Bild, die Hühner wippen weiter */
+.wm-steht .wm-person { transform: rotate(0deg); }
+.wm-steht .wm-gang, .wm-steht .wm-bein, .wm-steht .wm-schlitten, .wm-steht .wm-muetze, .wm-steht .wm-glocke { animation: none; }
 .wm-blase { position: absolute; z-index: 8; pointer-events: none; padding: .45em .75em; border-radius: 1em;
   background: #fff; color: #1b2a3a !important; -webkit-text-fill-color: #1b2a3a; font-weight: 700; line-height: 1.25;
   box-shadow: 0 4px 14px rgba(0,0,0,.28); border: 2px solid #1b2a3a; transform-origin: 0 100%; }

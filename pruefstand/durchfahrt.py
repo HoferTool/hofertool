@@ -46,7 +46,7 @@ def beobachten(pg, name, wurzel, tafel):
                      bilder: z.querySelectorAll('.wm-person img').length,
                      oben: p.top - k.top, unten: k.bottom - p.bottom, hoch: k.height,
                      blase: b ? b.textContent : '', blaseRaus: b ? (() => { const r = b.getBoundingClientRect();
-                        return r.left < k.left - 1 || r.right > k.right + 1 || r.top < k.top - 1 || r.bottom > k.bottom + 1; })() : false } }""", wurzel)
+                        const raus = r.left < k.left - 1 || r.right > k.right + 1 || r.top < k.top - 1 || r.bottom > k.bottom + 1; return raus ? JSON.stringify([r.left,r.right,r.top,r.bottom,k.left,k.right,k.top,k.bottom]) : false; })() : false } }""", wurzel)
         if info:
             richtung.add("links" if info["links"] else "rechts")
             bild = max(bild, info["bilder"])
@@ -56,7 +56,7 @@ def beobachten(pg, name, wurzel, tafel):
             if info["blase"]:
                 sprueche.add(info["blase"])
                 if not info["steht"]: fehler.append(f"{name}: Spruch ohne Halt"); break
-                if info["blaseRaus"]: fehler.append(f"{name}: Sprechblase ausserhalb des Bands"); break
+                if info["blaseRaus"]: fehler.append(f"{name}: Sprechblase ausserhalb des Bands {info['blaseRaus']}"); break
                 if BILDER and len(sprueche) <= 2:
                     pg.wait_for_timeout(400)
                     pg.screenshot(path=os.path.join(BILDER, f"durchfahrt_{name}_{len(sprueche)}.png"))
