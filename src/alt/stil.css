@@ -14104,3 +14104,18 @@ body.dunkel .umzug-wiese--schnee { filter: brightness(.82) saturate(.9); }
   border-right: 2px solid #1b2a3a; border-bottom: 2px solid #1b2a3a; transform: rotate(45deg); }
 .wm-blase--rechts::after { left: 14px; transform: rotate(45deg) skew(10deg, 10deg); }
 .wm-blase--links::after { right: 14px; }
+
+/* Todos beim Ein- und Ausklappen der Seitenleiste (seit 1.556.2, Patrick
+   15. November 2026: „die Animation passt mir nicht von Todos, wenn man das
+   Menü einklappt und ausfährt“): vorher stand die Liste schon beim Ausfahren
+   in der noch schmalen Leiste, brach Wort für Wort um und sprang, beim
+   Einklappen war sie auf einmal weg. Jetzt behält sie ihre volle Breite (die
+   Leiste schneidet ab), blendet beim Ausfahren erst ein, wenn die Leiste
+   breit ist, und beim Einklappen zuerst weich aus. */
+@media (min-width: 780px) {
+  body.nav--klappt-auf .nav-todo, body.nav--klappt-zu .nav-todo { width: 220px; flex-shrink: 0; box-sizing: border-box; }
+  body.nav--klappt-auf .nav-todo { animation: nav-todo-auf .4s cubic-bezier(.16, 1, .3, 1) .38s both; }
+  body.nav--klappt-zu:not(.nav--schmal) .nav-todo { display: flex; animation: nav-todo-zu .18s ease-in both; }
+  @keyframes nav-todo-auf { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  @keyframes nav-todo-zu { to { opacity: 0; transform: translateY(6px); } }
+}
