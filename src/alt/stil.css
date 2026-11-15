@@ -8793,37 +8793,6 @@ body .ib-text__blatt, body .ib-text__blatt * { color: var(--tf, #111) !important
 .kopfkarte:not(.kopfkarte--geburtstag)::before,
 .kopfkarte:not(.kopfkarte--geburtstag)::after { content: none; animation: none; }
 .durchfahrt { position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
-/* Seniorenmobil mit Tennisballkanone (seit 1.442.0, Wunsch Patrick
-   6. November 2026: „Entferne die Zombies und das Halloween Thema …
-   eine Person auf einem Grossvater Mobil … Tennisballkanone … die Bälle
-   sollen über das ganze Infoboard fliegen“; 1.324.0 bis 1.441.x Zombies).
-   Strasse unten im Band, das Mobil fährt darauf, die Bälle fliegen in
-   .gm-baelle (im Infoboard über der ganzen Tafel). Gesteuert von
-   src/seiten/start/Durchfahrt.jsx. */
-.gm-strasse { position: absolute; left: 0; right: 0; bottom: 0; height: 9%; min-height: 6px; z-index: 1; pointer-events: none;
-  background: repeating-linear-gradient(90deg, rgba(255,255,255,.55) 0 22px, transparent 22px 44px) center 45% / 100% 2px no-repeat,
-              linear-gradient(180deg, rgba(40,48,58,.55), rgba(20,26,34,.75)); }
-/* Seit 1.495.0 statt des Mobils ein Tänzer (Wunsch Patrick 12. November
-   2026), der Nocco-Dosen wirft; Tanzen per JS an .gm-koerper. */
-.gm-taenzer { position: absolute; left: 0; z-index: 3; pointer-events: none; will-change: transform; transform-origin: 50% 50%; }
-.gm-koerper { position: absolute; inset: 0; transform-origin: 50% 100%; will-change: transform; }
-.gm-koerper img, .gm-koerper svg { width: 100%; height: 100%; display: block; object-fit: contain;
-  filter: drop-shadow(0 0 2px rgba(255,255,255,.75)) drop-shadow(0 3px 4px rgba(0,0,0,.4)); user-select: none; }
-.gm-hand { position: absolute; width: 1px; height: 1px; }
-.gm-note { position: absolute; z-index: 4; pointer-events: none; line-height: 1; font-weight: 700; color: #fff !important;
-  text-shadow: 0 1px 3px rgba(0,0,0,.55); }
-.gm-dose { position: absolute; left: 0; top: 0; will-change: transform; pointer-events: none;
-  background: center / 100% 100% no-repeat; }
-.gm-puff { position: absolute; z-index: 4; pointer-events: none; border-radius: 50%;
-  background: radial-gradient(circle, rgba(255,255,255,.95), rgba(235,240,245,.6) 45%, rgba(255,255,255,0) 70%); }
-.gm-baelle { position: absolute; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; }
-.gm-baelle--tafel { z-index: 60; }
-/* Anzeige des Infoboards: liegende und fliegende Bälle auf zwei Leinwänden (1.477.0) */
-.gm-leinwand { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
-.gm-ball { position: absolute; left: 0; top: 0; border-radius: 50%; will-change: transform; pointer-events: none;
-  box-shadow: 0 3px 6px rgba(0,0,0,.35);
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath d='M6 7 C16 14 16 26 6 33' stroke='%23fff' stroke-width='2.6' fill='none'/%3E%3Cpath d='M34 7 C24 14 24 26 34 33' stroke='%23fff' stroke-width='2.6' fill='none'/%3E%3C/svg%3E") center / 100% 100% no-repeat,
-              radial-gradient(circle at 35% 30%, #f6fc86, #d3e12c 60%, #9aab17); }
 @media (prefers-reduced-motion: reduce) { .durchfahrt { display: none; } }
 
 /* Erfassen: am Tag eines Auftragswechsels zwei Felder, oben der alte,
@@ -13112,30 +13081,6 @@ body.dunkel .wz5-neu { background: #1d4a2b; }
 body.dunkel .wz5-aendern { background: #1d355e; }
 body.dunkel .wz5-fehler { background: #5c211c; }
 body.dunkel .wz5-ok { color: #7fd99a !important; }
-
-/* Tristan mit Schaufel und Tonne räumt den vollen Haufen Nocco-Dosen im
-   Infoboard weg (seit 1.496.0, Wunsch Patrick 12. November 2026).
-   Läuft unten über die Tafel, gesteuert von Durchfahrt.jsx. */
-.tr-tristan { position: absolute; left: 0; bottom: 0; z-index: 2; pointer-events: none; will-change: transform; transform-origin: 50% 50%; }
-.tr-tristan svg { width: 100%; height: 100%; display: block; overflow: visible;
-  filter: drop-shadow(0 0 2px rgba(255,255,255,.7)) drop-shadow(0 4px 6px rgba(0,0,0,.45)); }
-.tr-tristan svg * { transform-box: view-box; }
-.tr-figur { animation: tr-hopp .5s ease-in-out infinite alternate; }
-.tr-bein { transform-origin: 52px 192px; animation: tr-schritt 1s ease-in-out infinite alternate; }
-.tr-bein--vorne { animation-delay: -1s; }
-.tr-schaufel { transform-origin: 66px 112px; animation: tr-schaufeln .9s ease-in-out infinite alternate; }
-.tr-tonne { transform-origin: 226px 288px; }
-@keyframes tr-hopp { from { transform: translateY(0); } to { transform: translateY(-4px); } }
-@keyframes tr-schritt { from { transform: rotate(-16deg); } to { transform: rotate(16deg); } }
-@keyframes tr-schaufeln { from { transform: rotate(-9deg); } to { transform: rotate(7deg); } }
-.tr-tristan--foto .tr-figur { animation-duration: .45s; }
-/* Nach links gespiegelt: die Schrift auf der Tonne bleibt lesbar */
-.tr-links .tr-schild { transform: scaleX(-1); transform-origin: 226px 0; }
-/* Ganze Person als Foto (seit 1.504.0): nackte Arme zum T-Shirt, Jeans */
-.tr-tristan--foto .tr-arm { stroke: #d99a74; }
-.tr-tristan--foto .tr-bein path:first-child { stroke: #2c3a55; }
-/* Tänzer getroffen: Sterne über dem Kopf */
-.gm-bumm { z-index: 4; }
 /* ---------- Pad Mode: 508 Werkzeuge mit Marke (seit 1.495.0) ---------- */
 #pad .pad-wz5 { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 12px 16px 28px; display: flex; flex-direction: column; gap: 14px;
   width: 100%; max-width: 1400px; margin: 0 auto; box-sizing: border-box; color: #e6eef7; }
@@ -13209,8 +13154,8 @@ body.dunkel .wz5p-wahl__karte img, body.dunkel .wz5p-wahl__leer { background: #0
 body.dunkel .wz5p-raus__liste li { background: #1a2230; }
 body.dunkel #pad .pad-wz5__zahl { background: #4b82c4; }
 
-/* Infoboard: der Tänzer tanzt seit 1.498.0 vor Kopf und Solaranlage,
-   Füsse unten über dem Kalender, grösser (Wunsch Patrick 12. November 2026) */
+/* Infoboard: der Zug mit dem Schlitten läuft vor Kopf und Solaranlage,
+   Füsse unten über dem Kalender (seit 1.498.0) */
 .durchfahrt--tief { z-index: 5; }
 
 /* ---------- Rundes Magazin der 508 (seit 1.500.0) ---------- */
@@ -14052,3 +13997,84 @@ body.dunkel .cam-sim__k { color: #9fc3e8 !important; }
 body.dunkel .cam-sim__schritt { background: #101820; }
 .cam-sim__name { word-break: break-word; }
 .cam-sim__info { color: var(--gedaempft, #6b7a8a); margin-top: 6px; }
+
+/* ---------- Person zieht den Schlitten mit den Hühnern (seit 1.555.0) ----------
+   Wunsch Patrick 15. November 2026, gesteuert von start/Durchfahrt.jsx.
+   Boden, Hühner, Staub, Federn und Schnee wie beim Umzug der Hühner. */
+.umzug-wiese { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; pointer-events: none;
+  background: var(--gras) repeat-x left top / auto 70%, linear-gradient(180deg, transparent 0 45%, #5fa83a 45%, #3f7f27 100%); }
+body.dunkel .umzug-wiese { filter: brightness(.7) saturate(.85); }
+.umzug { position: absolute; left: 0; z-index: 2; pointer-events: none; will-change: transform; }
+.umzug svg { display: block; overflow: visible; }
+.umzug-seil { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; }
+.umzug-seil path { fill: none; stroke: #8a6a3a; stroke-width: 2; stroke-linecap: round; }
+.umzug-stall { position: absolute; z-index: 2; }
+.umzug-stall svg, .umzug-huhn svg, .umzug-kueken svg { width: 100%; height: 100%; }
+.umzug-stall__kasten { transform-box: fill-box; transform-origin: 50% 100%; animation: umzug-wackeln .9s ease-in-out infinite alternate; }
+@keyframes umzug-wackeln { from { transform: rotate(-.8deg) translateY(0); } to { transform: rotate(.8deg) translateY(-1.5px); } }
+.umzug-stall__rad { transform-box: fill-box; transform-origin: 50% 50%; animation: umzug-rad 1s linear infinite; }
+@keyframes umzug-rad { to { transform: rotate(360deg); } }
+.umzug-stall__kueken { animation: umzug-gucken 2.6s ease-in-out infinite; }
+.umzug-stall__gucker { animation: umzug-gucken 3.4s ease-in-out infinite reverse; }
+@keyframes umzug-gucken { 0%, 30% { transform: translateY(10px); } 45%, 85% { transform: translateY(0); } 100% { transform: translateY(10px); } }
+.umzug-huhn { position: absolute; }
+.umzug-huhn__koerper { width: 100%; height: 100%; transform-origin: 50% 100%;
+  animation: umzug-nicken var(--schritt, .35s) ease-in-out infinite alternate; animation-delay: inherit; }
+@keyframes umzug-nicken { from { transform: translateY(0) rotate(0deg); } to { transform: translateY(-4%) rotate(-2deg); } }
+.umzug-huhn--zieht .umzug-huhn__koerper { animation-name: umzug-ziehen; }
+@keyframes umzug-ziehen { from { transform: translateY(0) rotate(7deg); } to { transform: translateY(-3%) rotate(10deg); } }
+.umzug .huhn-bein { transform-box: fill-box; transform-origin: 50% 0; animation: umzug-bein var(--schritt, .35s) ease-in-out infinite alternate; }
+.umzug .huhn-bein--2 { animation-direction: alternate-reverse; }
+@keyframes umzug-bein { from { transform: rotate(-24deg); } to { transform: rotate(24deg); } }
+/* Der Flügel des Infoboard-Huhns schlägt im Flug, beim Gehen nur leicht */
+.umzug .ib-huhn__fluegel { transform-box: fill-box; transform-origin: 85% 30%; animation: umzug-fluegel .7s ease-in-out infinite alternate; }
+@keyframes umzug-fluegel { from { transform: rotate(-4deg); } to { transform: rotate(6deg); } }
+.umzug-kueken { position: absolute; z-index: 3; animation: umzug-nachrennen 1.8s ease-in-out infinite alternate; }
+.umzug-kueken svg { animation: umzug-huepfen .22s ease-in-out infinite alternate; }
+.umzug-kueken .huhn-bein { animation-duration: .16s; }
+@keyframes umzug-nachrennen { from { transform: translateX(0); } to { transform: translateX(30%); } }
+@keyframes umzug-huepfen { from { transform: translateY(0); } to { transform: translateY(-14%); } }
+.umzug-staub { position: absolute; z-index: 4; border-radius: 50%; pointer-events: none; filter: blur(1.5px);
+  background: radial-gradient(ellipse, rgba(214,190,150,.85) 0%, rgba(214,190,150,.35) 50%, transparent 72%); }
+.umzug-rauch { position: absolute; z-index: 4; border-radius: 50%; pointer-events: none; filter: blur(2px);
+  background: radial-gradient(circle, rgba(240,240,245,.8) 0%, rgba(230,232,240,.35) 50%, transparent 72%); }
+.umzug-feder { position: absolute; z-index: 4; pointer-events: none; opacity: 0; }
+/* Im Winter (15. Oktober bis Ende März, seit 1.212.0, Wunsch Patrick
+   26. Oktober 2026): Schnee statt Wiese, Schneefall, Pulverschnee. */
+.umzug-wiese--schnee { background: var(--gras) repeat-x left top / auto 70%, linear-gradient(180deg, transparent 0 45%, #f7fbff 45%, #d6e3f1 100%); }
+body.dunkel .umzug-wiese--schnee { filter: brightness(.82) saturate(.9); }
+.umzug-staub--schnee { background: radial-gradient(ellipse, rgba(255,255,255,.95) 0%, rgba(240,246,255,.5) 50%, transparent 72%); }
+.umzug-flocke { position: absolute; z-index: 5; border-radius: 50%; pointer-events: none; background: #fff;
+  box-shadow: 0 0 3px rgba(255,255,255,.8); will-change: transform; }
+@media (prefers-reduced-motion: reduce) { .durchfahrt { display: none; } }
+.wm-schlitten { position: absolute; z-index: 2; animation: wm-holpern .5s ease-in-out infinite alternate; }
+@keyframes wm-holpern { from { transform: translateY(0) rotate(0deg); } to { transform: translateY(-1.5%) rotate(-.6deg); } }
+.wm-ebene { position: absolute; inset: 0; }
+.wm-ebene svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.wm-huhn { z-index: auto; }
+.wm-huhn .umzug-huhn__koerper { animation-name: wm-wippen; }
+@keyframes wm-wippen { from { transform: translateY(0) rotate(-2deg); } to { transform: translateY(-5%) rotate(3deg); } }
+.wm-links .wm-schrift { transform: scaleX(-1); transform-box: fill-box; transform-origin: center; }
+.wm-glocke { transform-box: fill-box; transform-origin: 50% 0; animation: wm-bimmeln .45s ease-in-out infinite alternate; }
+@keyframes wm-bimmeln { from { transform: rotate(-18deg); } to { transform: rotate(18deg); } }
+.wm-seil { z-index: 3; }
+.wm-seil path { stroke: #6e4a22; }
+.wm-person { position: absolute; z-index: 4; transform-origin: 50% 100%; animation: wm-gehen .5s ease-in-out infinite alternate; }
+@keyframes wm-gehen { from { transform: rotate(4deg) translateY(0); } to { transform: rotate(6deg) translateY(-2.5%); } }
+.wm-person__bild { position: absolute; inset: 0; filter: drop-shadow(0 3px 4px rgba(0,0,0,.35)); }
+/* Das Bild nie spiegeln: im nach links gespiegelten Zug zurückdrehen */
+.wm-links .wm-person__bild { transform: scaleX(-1); }
+.wm-person__bild img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; user-select: none; }
+.wm-bein { animation: wm-schwingen 1s ease-in-out infinite alternate; }
+.wm-bein--2 { animation-direction: alternate-reverse; }
+@keyframes wm-schwingen { from { transform: rotate(-7deg); } to { transform: rotate(7deg); } }
+/* Beim Halt steht er da wie auf dem Bild, die Hühner wippen weiter */
+.wm-steht .wm-person, .wm-steht .wm-bein, .wm-steht .wm-schlitten, .wm-steht .wm-glocke { animation: none; }
+.wm-blase { position: absolute; z-index: 8; pointer-events: none; padding: .45em .75em; border-radius: 1em;
+  background: #fff; color: #1b2a3a !important; -webkit-text-fill-color: #1b2a3a; font-weight: 700; line-height: 1.25;
+  box-shadow: 0 4px 14px rgba(0,0,0,.28); border: 2px solid #1b2a3a; transform-origin: 0 100%; }
+.wm-blase--links { transform-origin: 100% 100%; }
+.wm-blase::after { content: ""; position: absolute; bottom: -10px; width: 16px; height: 16px; background: #fff;
+  border-right: 2px solid #1b2a3a; border-bottom: 2px solid #1b2a3a; transform: rotate(45deg); }
+.wm-blase--rechts::after { left: 14px; transform: rotate(45deg) skew(10deg, 10deg); }
+.wm-blase--links::after { right: 14px; }

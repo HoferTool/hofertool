@@ -1,89 +1,164 @@
 // =================================================================
-//  TÄNZER MIT NOCCO-DOSEN, IM BAND OBEN
+//  HYROX-ZIEHER MIT SCHLITTEN VOLLER HÜHNER, IM BAND OBEN
 //  Geschichte (alles Wunsch Patrick): 1.130.0 bis 1.149.0 liefen hier
 //  Hühner, 1.150.0 Ferrari und Mario, 1.151.0 bis 1.210.x Jiviano auf
 //  dem Jetski, 1.211.0 bis 1.323.x zogen Hühner mit ihrem Stall um,
-//  1.324.0 bis 1.441.x schlurften Zombies und Halloween-Kreaturen vorbei
-//  (im Git-Verlauf, mit spukGaeste.js).
-//  Seit 1.442.0 (6. November 2026: „Entferne die Zombies und das
-//  Halloween Thema … eine Person auf einem Grossvater Mobil wie das im
-//  Bild … eine Tennisballkanone drauf, vorne beim Korb … herumfahren und
-//  Tennisbälle verschiessen. Die Bälle sollen über das ganze Infoboard
-//  fliegen“): Ein Grossvater mit Mütze, Brille und Schnauz fährt auf
-//  einem roten Elektromobil (vier Räder, schwarzer Sitz mit Kopfstütze,
-//  Lenksäule mit Spiegeln, Drahtkorb vorne) über eine Strasse unten im
-//  Band, mal nach links, mal nach rechts. Auf dem Korb sitzt die Kanone;
-//  unterwegs und bei kurzen Halten schiesst sie Tennisbälle ab. Im
-//  Infoboard fliegen die Bälle über die ganze Tafel und springen an den
-//  Rändern ab, auf der Startseite nur im Band.
-//  Seit 1.477.0 (10. November 2026: „lass die Tennisbälle auf dem
-//  Infoboard nicht verschwinden, es soll sich mit Tennisbällen füllen,
-//  wenn es voll ist, soll es überlaufen“) bleiben die Bälle in der Anzeige
-//  des Infoboards liegen: sie rollen auf den Haufen und stapeln sich, bis
-//  er oben ankommt. Danach gibt es oben keine Decke mehr und keine Wände
-//  über dem Rand: neue Bälle kullern über den Haufen und fallen seitlich
-//  aus der Tafel. Gezeichnet auf zwei Leinwänden: liegende Bälle einmal
-//  auf eine feste (sie bewegen sich nie mehr), fliegende jedes Bild neu,
-//  so bleibt es auch mit über tausend Bällen flüssig. In der Gestaltung
-//  und auf der Startseite verschwinden die Bälle weiter, damit man dort
-//  die Dokumente sieht. Neues Laden der Anzeige leert die Tafel.
-//  Seit 1.481.0 (11. November 2026: „wenn es bis unter den Kalender
-//  gefüllt ist, sollen die Tennisbälle abfliessen und neu füllen“) läuft
-//  nichts mehr oben über: reicht der Haufen bis an die Unterkante des
-//  Bands mit Geburtstagen und Terminen, öffnet sich der Boden, alle Bälle
-//  rinnen von unten her aus der Tafel, und danach füllt sie sich neu.
-//  Seit 1.495.0 (12. November 2026: „Nimm die Tennisballkanone raus und
-//  lass ihn tanzend durchlaufen, er soll noch Nocco-Getränke werfen“)
-//  statt Mobil und Kanone ein Tänzer (Foto nur in der Datenbank,
-//  app_config.durchfahrt_taenzer; ohne Foto eine gezeichnete Figur): er
-//  läuft hüpfend und schwingend durchs Band, dreht sich ab und zu um sich
-//  selbst, Noten steigen von den Kopfhörern auf, und statt Tennisbällen
-//  wirft er Nocco-Dosen, die im Infoboard genauso liegen bleiben, sich
-//  stapeln und unter dem Kalender abfliessen.
-//  Alles in einer Schleife mit requestAnimationFrame statt React-Zustand,
-//  damit die Seite dafür nie neu zeichnet.
+//  1.324.0 bis 1.441.x schlurften Zombies vorbei, 1.442.0 bis 1.494.x
+//  fuhr ein Grossvater mit Tennisballkanone, 1.495.0 bis 1.554.x tanzte
+//  ein Tänzer mit Nocco-Dosen durch, und im Infoboard räumte Tristan den
+//  Haufen Dosen weg (alles im Git-Verlauf).
+//  Seit 1.555.0 (15. November 2026: „Nimm den Dosenwerfer und den Dosen-
+//  aufsammler wieder weg … Lass ihn lustige Sachen zum Thema Zerspanen
+//  und Crossfit sagen. Wenn er anhält, sagt er das.“, dann „Mache es
+//  umgekehrt: die Person zieht den Schlitten und die Hühner sitzen drin.
+//  Die Person sieht wie auf dem Bild aus.“): Die Person aus Patricks
+//  Bild (HYROX-Shirt) zieht am Seil um die Hüfte einen roten Schlitten,
+//  in dem drei Hühner sitzen, mal nach links, mal nach rechts. Einmal je
+//  Fahrt hält er an und sagt in einer Sprechblase einen Spruch (SPRUECHE).
+//  Das Bild steht nur in der Datenbank (app_config, Schlüssel
+//  durchfahrt_person, als data:-Bild, freigestellt, sonst unverändert),
+//  nie im Repository, weil das öffentlich ist. Die App zeigt es dreimal
+//  übereinander, je zugeschnitten auf Oberkörper, linkes und rechtes
+//  Bein, damit die Beine im Gehen schwingen. Es wird nie gespiegelt:
+//  fährt der Schlitten nach links, dreht sich nur die Zeichnung um.
+//  Die Hühner tragen die Verkleidung des Tages aus feste.js. Vom
+//  15. Oktober bis Ende März im Schnee, sonst auf der Wiese.
+//  Gesteuert mit Zeitgebern und el.animate statt React-Zustand, damit
+//  die Seite dafür nie neu zeichnet.
 // =================================================================
 import { useEffect, useRef } from "react";
 import { alt } from "../../bruecke.jsx";
+import { festFuer, teilchen } from "../../infoboard/feste.js";
 
 const zufall = (a, b) => a + Math.random() * (b - a);
 const ganz = (a, b) => Math.floor(zufall(a, b + 1));
+const eins = (liste) => liste[ganz(0, liste.length - 1)];
 
-// Das Foto des Tänzers steht nur in der Datenbank (app_config,
-// Schlüssel durchfahrt_taenzer, als data:-Bild), nie im Repository, weil
-// das öffentlich ist. Einmal je Laden der App geholt.
-let fotoHolen = null;
-const taenzerFoto = () => {
-  if (!fotoHolen) fotoHolen = (async () => {
+// Was er sagt, wenn er anhält: Zerspanen und Crossfit
+export const SPRUECHE = [
+  "Sled Pull mit drei Hühnern. HYROX-Station erledigt!",
+  "Rentiere? Zu teuer. Ich hab die bessere Stückzeit.",
+  "WOD heute: 21 Kamine, 15 Säcke, 9 Burpees. For Time!",
+  "Wer brav war, kriegt neue Wendeplatten. Wer nicht: Späne.",
+  "Mein Sixpack? Plangedreht, Ra 0,4.",
+  "Kettlebell-Swing mit dem Geschenksack. 24 Kilo Messing, bleifrei!",
+  "Hühner, ihr könntet auch mal mitziehen! F0.2, nicht F0.0!",
+  "Box Jump aufs Dach, Wall Ball durch den Kamin. Lieferung fertig.",
+  "Toleranz ±0,01. Beim Drehteil und beim Körperfett.",
+  "Erst rüsten, dann läuft, dann Sled Pull.",
+  "Mehr Späne, mehr Gains!",
+  "No pain, no gain. No Span, no Plan.",
+  "Klimmzüge? Ich zieh lieber am Spannzangenhebel. 500 Wiederholungen.",
+  "Der Schlitten läuft auf Hartmetallkufen. Standzeit: bis Ostern.",
+  "Kühlschmierstoff im Proteinshake? Nur für die Hühner.",
+  "Double Unders mit dem Zugseil. Die Hühner finden's weniger lustig.",
+  "Muskelkater? Nein, das ist nur das Gewinde M8x1.",
+  "Bizeps wie ein Spannfutter: hält alles, rutscht nix.",
+  "Die Hühner sitzen, ich ziehe. Das nennt man Leistungsträger.",
+  "Cardio ist, wenn die Maschine Störung hat und ich hinrenne.",
+  "Mein Puls ist wie die Spindel: 8'000, und noch Luft nach oben.",
+];
+
+// Das Bild steht nur in der Datenbank, einmal je Laden der App geholt
+let personHolen = null;
+const personFoto = () => {
+  if (!personHolen) personHolen = (async () => {
     try {
       if (!alt.db) return null;
-      const r = await alt.db.from("app_config").select("wert").eq("schluessel", "durchfahrt_taenzer").maybeSingle();
+      const r = await alt.db.from("app_config").select("wert").eq("schluessel", "durchfahrt_person").maybeSingle();
       const w = r && r.data && r.data.wert;
       return typeof w === "string" && w.startsWith("data:image/") ? w : null;
     } catch { return null; }
   })();
-  return fotoHolen;
+  return personHolen;
 };
 
-// Ohne Foto (Prüfstand, keine Verbindung): gezeichnete Figur mit
-// Kopfhörern, dunklem Pulli und schwarzer Hose, gleiches Seitenverhältnis
-// wie das Foto (102 × 300), Hand vorne rechts.
-const FIGUR = `<svg viewBox="0 0 102 300" xmlns="http://www.w3.org/2000/svg">
-  <path d="M30 196 L28 296 L50 296 L52 214 L56 296 L78 296 L76 196 Z" fill="#17181c"/>
-  <path d="M22 84 C24 64 40 58 52 58 C66 58 80 64 84 84 L86 204 L20 204 Z" fill="#1f2a44"/>
-  <path d="M40 66 L42 116 M64 66 L62 116" stroke="#e9eef4" stroke-width="2.5"/>
-  <path d="M84 96 L94 140" stroke="#1f2a44" stroke-width="13" stroke-linecap="round"/>
-  <circle cx="94" cy="142" r="7" fill="#e8b494"/>
-  <path d="M24 98 L18 176" stroke="#1f2a44" stroke-width="13" stroke-linecap="round"/>
-  <circle cx="19" cy="182" r="7" fill="#e8b494"/>
-  <rect x="44" y="46" width="14" height="14" fill="#e3a98a"/>
-  <circle cx="51" cy="32" r="17" fill="#f0c4a4"/>
-  <path d="M36 40 C38 54 64 54 66 40 C62 50 40 50 36 40 Z" fill="#a8693a"/>
-  <path d="M33 30 C33 8 69 8 69 30" stroke="#222" stroke-width="5" fill="none"/>
-  <rect x="28" y="26" width="9" height="15" rx="4" fill="#2b2b2f"/><rect x="65" y="26" width="9" height="15" rx="4" fill="#2b2b2f"/>
+// Ohne Bild (Prüfstand, keine Verbindung): eine gezeichnete Figur im
+// selben Seitenverhältnis wie das Bild (537 × 1252), gleich eingeteilt.
+const FIGUR = "data:image/svg+xml," + encodeURIComponent(`<svg viewBox="0 0 537 1252" xmlns="http://www.w3.org/2000/svg">
+  <g stroke="#1a1a1a" stroke-width="8">
+  <path d="M120 790 L110 1160 L190 1160 L230 790 Z M300 790 L360 1160 L440 1160 L420 790 Z" fill="#e0a070"/>
+  <path d="M100 1150 H200 V1220 H40 C40 1180 70 1160 100 1150 Z M350 1150 H450 C490 1170 510 1200 510 1240 H350 Z" fill="#1f1f1f"/>
+  <path d="M90 590 H440 L430 790 H275 L265 760 L255 790 H100 Z" fill="#1f1f1f"/>
+  <path d="M60 300 C40 380 40 480 120 560 L160 540 C110 470 120 400 140 330 Z M470 300 C500 380 500 480 420 560 L380 540 C430 470 420 400 400 330 Z" fill="#e0a070"/>
+  <path d="M140 230 C200 200 340 200 400 230 L420 600 H120 Z" fill="#1f1f1f"/>
+  <ellipse cx="268" cy="110" rx="78" ry="100" fill="#e0a070"/>
+  <path d="M190 90 C190 20 350 20 346 90 C330 50 210 50 190 90 Z" fill="#2a2018"/></g>
+  <text x="268" y="360" text-anchor="middle" font-family="Arial" font-weight="700" font-size="60" fill="#fff" letter-spacing="10">HYROX</text>
+</svg>`);
+// Einteilung im Bild (Anteile von Breite und Höhe): Oberkörper bis 64 %,
+// Beine ab 61.5 %, getrennt bei 48.4 %, Hüftgelenke, Kopf, Seil an der Hüfte
+const BILD = { b: 537, h: 1252 };
+const TEIL = { oberBis: 800 / 1252, beinAb: 770 / 1252, mitte: 260 / 537,
+  huefteL: [170 / 537, 780 / 1252], huefteR: [360 / 537, 780 / 1252],
+  kopf: [262 / 537, 110 / 1252], seil: [268 / 537, 600 / 1252] };
+
+// Schlitten mit Kufen und Deichsel nach rechts, viewBox 0 -20 240 220.
+// Hinten: Lehne und Sack mit Geschenk, Drehteil und Kettlebell.
+const HINTEN = `<svg viewBox="0 -20 240 220" xmlns="http://www.w3.org/2000/svg">
+  <path d="M8 120 C4 88 12 62 30 56 C42 52 50 62 48 78 L50 120 Z" fill="#a31c25" stroke="#6e1218" stroke-width="2.2"/>
+  <path d="M14 112 C10 90 16 70 30 64" stroke="#f2c230" stroke-width="2.4" fill="none"/>
+  <g transform="rotate(-8 50 60)">
+    <rect x="28" y="30" width="22" height="20" rx="2" fill="#2a8f4a" stroke="#1d6634" stroke-width="1.4"/>
+    <path d="M39 30 V50 M28 40 H50" stroke="#f2c230" stroke-width="3"/>
+    <path d="M39 30 C33 22 30 28 39 30 C48 22 45 28 39 30 Z" fill="#f2c230"/>
+  </g>
+  <g transform="rotate(-32 22 44)">
+    <rect x="4" y="38" width="26" height="12" rx="1.5" fill="#cfd5dd" stroke="#7d8692" stroke-width="1.2"/>
+    <rect x="30" y="40.5" width="11" height="7" fill="#b4bbc5" stroke="#7d8692" stroke-width="1.2"/>
+    <rect x="41" y="42" width="7" height="4" fill="#9aa2ad" stroke="#7d8692" stroke-width="1"/>
+    <path d="M10 38 V50 M16 38 V50 M22 38 V50" stroke="#e9edf2" stroke-width="1.2"/>
+  </g>
+  <path d="M52 40 C52 28 70 28 70 40" stroke="#2b2b2f" stroke-width="4.5" fill="none"/>
+  <circle cx="61" cy="50" r="11" fill="#2b2b2f"/><path d="M55 46 C57 43 61 42 64 43" stroke="#6a6a72" stroke-width="2" fill="none"/>
+  <path d="M22 116 C12 86 24 56 46 54 C66 52 82 66 84 88 L86 116 Z" fill="#8a5a2b" stroke="#5e3b1a" stroke-width="2"/>
+  <path d="M30 60 C40 66 56 66 70 60" stroke="#5e3b1a" stroke-width="2.4" fill="none"/>
+  <path d="M40 80 C46 92 44 104 38 112 M62 76 C70 88 70 102 66 112" stroke="#6e4522" stroke-width="1.4" fill="none" opacity=".7"/>
 </svg>`;
-// Wo die Hand ist, in Anteilen des Bilds (Foto wie Zeichnung)
-const HAND = { x: .89, y: .48 };
+// Vorne: Schlittenwand, Kufen, Ring an der Deichsel
+const VORNE = `<svg viewBox="0 -20 240 220" xmlns="http://www.w3.org/2000/svg">
+  <g stroke="#7a7f88" stroke-width="5" stroke-linecap="round"><path d="M34 174 V188 M88 174 V188 M150 174 V188 M196 170 V186"/></g>
+  <path d="M4 190 H198 C220 190 232 178 230 164 C229 155 221 152 217 159" stroke="#d9a520" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+  <path d="M6 112 L188 112 C204 112 214 122 216 136 L218 150 C212 166 198 176 178 176 L28 176 C14 176 6 168 6 154 Z" fill="#c8202b" stroke="#7d1219" stroke-width="2.4"/>
+  <path d="M14 121 H186 C198 121 206 128 208 140" stroke="#f2c230" stroke-width="3" fill="none"/>
+  <path d="M14 167 H170" stroke="#f2c230" stroke-width="2" fill="none"/>
+  <path d="M20 140 C26 130 38 132 36 142 C34 150 24 148 26 142" stroke="#f2c230" stroke-width="2.2" fill="none"/>
+  <path d="M200 156 C194 148 202 140 208 146" stroke="#f2c230" stroke-width="2.2" fill="none"/>
+  <g class="wm-schrift"><text x="112" y="152" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="800" fill="#f2c230" letter-spacing="1">HOFER + CO</text></g>
+  <circle cx="232" cy="152" r="4.5" fill="none" stroke="#3d3d3d" stroke-width="2.5"/>
+  <g class="wm-glocke"><circle cx="214" cy="150" r="5" fill="#f2c230" stroke="#b5891a" stroke-width="1.2"/><circle cx="214" cy="153" r="1.4" fill="#7a5a10"/></g>
+</svg>`;
+const VB = { x0: 0, y0: -20, b: 240, h: 220 };
+// Wo die Hühner sitzen (Mitte x, Unterkante y in Einheiten der viewBox)
+const SITZE = [{ x: 104, y: 120, g: .9 }, { x: 186, y: 119, g: .85 }, { x: 146, y: 126, g: 1 }];
+
+// Gefieder: Körper und Flügel (null = das weisse Huhn wie es ist)
+const GEFIEDER = [null, null, ["#c47a3a", "#9a5a26"], ["#e8c27a", "#c99a4a"], ["#6b5a50", "#4a3d36"]];
+const huhnSvg = (fest, gefieder) => {
+  let s = fest.huhn;
+  if (gefieder) s = s.replaceAll("#f4f1ea", gefieder[0]).replaceAll("#d9d3c5", gefieder[1]);
+  return s;
+};
+
+// Schnee liegt vom 15. Oktober bis Ende März (Wunsch Patrick: „es ist aber Winter“)
+export const schneeZeit = (d = new Date()) => {
+  const x = (d.getMonth() + 1) * 100 + d.getDate();
+  return x >= 1015 || x <= 331;
+};
+const WEHEN = `url("data:image/svg+xml,${encodeURIComponent(
+  "<svg xmlns='http://www.w3.org/2000/svg' width='120' height='14' viewBox='0 0 120 14'>" +
+  "<path d='M0 14 L0 9 C10 2 22 3 30 8 C38 12 46 4 58 5 C70 6 74 12 86 9 C96 6 104 2 114 6 L120 9 L120 14 Z' fill='#f7fbff'/></svg>")}")`;
+const GRAS = `url("data:image/svg+xml,${encodeURIComponent(
+  "<svg xmlns='http://www.w3.org/2000/svg' width='60' height='14' viewBox='0 0 60 14'>" +
+  "<path d='M0 14 L3 5 L5 14 L8 2 L10 14 L14 6 L16 14 L19 3 L22 14 L26 7 L28 14 L31 1 L34 14 L37 6 L40 14 " +
+  "L43 3 L46 14 L49 7 L51 14 L54 2 L57 14 L60 6 L60 14 Z' fill='#5fa83a'/></svg>")}")`;
+
+// Sprüche der Reihe nach gemischt, damit keiner gleich wiederkommt
+let stapel = [];
+const naechsterSpruch = () => {
+  if (!stapel.length) stapel = [...SPRUECHE].sort(() => Math.random() - .5);
+  return stapel.pop();
+};
 
 export default function Durchfahrt({ tief = false } = {}) {
   const ref = useRef(null);
@@ -92,720 +167,270 @@ export default function Durchfahrt({ tief = false } = {}) {
     if (!band) return;
     if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     let aus = false;
-
-    // Boden unten im Band
-    const strasse = document.createElement("div");
-    strasse.className = "gm-strasse";
-    if (!tief) band.appendChild(strasse);
-
-    // Wohin die Dosen fliegen: im Infoboard über die ganze Tafel (das
-    // Blatt in Punkten der Tafel, als Ganzes skaliert), sonst im Band
-    const tafel = band.closest("[data-ibtafel]");
-    const raum = document.createElement("div");
-    raum.className = "gm-baelle" + (tafel ? " gm-baelle--tafel" : "");
-    (tafel || band).appendChild(raum);
-    // Nur in der Anzeige des Infoboards bleiben die Dosen liegen
-    const fuellen = !!tafel && !!band.closest(".ib-voll");
-    const haufen = fuellen ? haufenAnlegen(raum) : null;
-
-    // Der Tänzer: aussen nur Ort und Blickrichtung, innen das Tanzen
-    const mobil = document.createElement("div");
-    mobil.className = "gm-taenzer";
-    mobil.style.visibility = "hidden";
-    const koerper = document.createElement("div");
-    koerper.className = "gm-koerper";
-    koerper.innerHTML = FIGUR;
-    const hand = document.createElement("i");
-    hand.className = "gm-hand";
-    hand.style.left = HAND.x * 100 + "%"; hand.style.top = HAND.y * 100 + "%";
-    koerper.appendChild(hand);
-    mobil.appendChild(koerper);
-    band.appendChild(mobil);
-    taenzerFoto().then((url) => {
-      if (!url || aus) return;
-      const img = new Image();
-      img.alt = ""; img.draggable = false; img.src = url;
-      img.onload = () => { if (!aus) koerper.replaceChild(img, koerper.querySelector("svg")); };
+    const uhren = new Set();
+    const warte = (ms) => new Promise((ok) => {
+      const t = setTimeout(() => { uhren.delete(t); ok(); }, ms);
+      uhren.add(t);
     });
+    const wach = async () => { while (!aus && document.hidden) await warte(1000); };
+    let foto = null;
+    const blasen = new Set();
+    personFoto().then((u) => { foto = u; });
 
-    // Masse, neu bei jeder Runde (das Band ändert seine Grösse mit dem Fenster)
-    let breit = 0, hoch = 0, H = 0, W = 0, boden = 0;
-    const messen = () => {
-      breit = band.clientWidth; hoch = band.clientHeight;
-      // Im Infoboard tanzt er seit 1.498.0 eine Ebene tiefer, auf der
-      // Höhe der Solaranlage direkt über dem Kalender, und ist grösser
-      // (Wunsch Patrick 12. November 2026: „sieht man schlecht“)
-      boden = tief ? 2 : Math.max(3, hoch * .045);
-      H = tief ? Math.max(60, Math.min(340, hoch * .66))
-        : Math.max(46, Math.min(190, (hoch - boden) * .76));
-      W = H * 102 / 300;
-      mobil.style.width = W + "px";
-      mobil.style.height = H + "px";
-      mobil.style.bottom = boden + "px";
+    // Boden: auf der Startseite Schnee oder Wiese, im Infoboard keiner
+    // (dort fährt er über Kopf und Solaranlage, Kufen über dem Kalender)
+    const schnee = schneeZeit();
+    const wiese = document.createElement("div");
+    wiese.className = "umzug-wiese" + (schnee ? " umzug-wiese--schnee" : "");
+    wiese.style.setProperty("--gras", schnee ? WEHEN : GRAS);
+    const wieseHoch = () => tief ? 0 : Math.max(10, Math.round((band.clientHeight || 120) * .13));
+    const wieseSetzen = () => { wiese.style.height = wieseHoch() + "px"; };
+    if (!tief) band.appendChild(wiese);
+    wieseSetzen();
+    const wo = new ResizeObserver(wieseSetzen);
+    wo.observe(band);
+
+    // Pulverschnee (oder Staub), wo die Kufen gleiten
+    const staub = (x, y, g) => {
+      const d = document.createElement("div");
+      d.className = "umzug-staub" + (schnee ? " umzug-staub--schnee" : "");
+      d.style.cssText = `left:${x - g / 2}px;bottom:${y}px;width:${g}px;height:${g * .6}px`;
+      band.appendChild(d);
+      const a = d.animate([{ opacity: .6, transform: "scale(.4)" }, { opacity: 0, transform: `translate(0,${-g * .4}px) scale(1.7)` }],
+        { duration: zufall(700, 1100), easing: "ease-out", fill: "forwards" });
+      a.onfinish = () => d.remove();
+    };
+    // Eine Feder fällt bis auf den Boden, liegt kurz und verblasst
+    const feder = (x, y, boden, farbe) => {
+      const t = teilchen("feder", farbe, zufall(8, 14) * (tief ? 2 : 1));
+      const f = document.createElement("div");
+      f.className = "umzug-feder";
+      f.style.cssText = `width:${t.w}px;height:${t.h}px;left:${x}px;bottom:${y}px;${t.stil || ""}`;
+      band.appendChild(f);
+      const fall = Math.max(0, y - boden), dx = zufall(-30, 30), liegt = (Math.random() < .5 ? 90 : -90) + zufall(-15, 15);
+      const a = f.animate([
+        { opacity: 0, transform: "translate(0,0) rotate(0deg)" },
+        { opacity: .9, transform: `translate(${dx * .3}px,${-zufall(4, 12)}px) rotate(${zufall(-40, 40)}deg)`, offset: .12 },
+        { opacity: .85, transform: `translate(${dx}px,${fall}px) rotate(${liegt}deg)`, offset: .7 },
+        { opacity: 0, transform: `translate(${dx}px,${fall}px) rotate(${liegt}deg)` },
+      ], { duration: zufall(3500, 5500), easing: "ease-in-out", fill: "forwards" });
+      a.onfinish = () => f.remove();
+    };
+    // Schneeflocken über das ganze Band
+    const flocke = () => {
+      const breit = band.clientWidth, hoch = band.clientHeight;
+      if (!breit || !hoch) return;
+      const g = zufall(2.5, 6.5) * (tief ? 1.8 : 1);
+      const f = document.createElement("div");
+      f.className = "umzug-flocke";
+      f.style.cssText = `left:${zufall(-20, breit + 20)}px;top:${-g}px;width:${g}px;height:${g}px;opacity:${zufall(.55, .95).toFixed(2)}`;
+      band.appendChild(f);
+      const weit = hoch - wieseHoch() * zufall(.3, .9);
+      const wind = zufall(-40, 10), wackeln = zufall(6, 16);
+      const a = f.animate([
+        { transform: "translate(0,0)" },
+        { transform: `translate(${wind * .33 + wackeln}px,${weit * .33}px)` },
+        { transform: `translate(${wind * .66 - wackeln}px,${weit * .66}px)` },
+        { transform: `translate(${wind}px,${weit}px)`, opacity: 0 },
+      ], { duration: zufall(5000, 9000) * Math.max(.6, hoch / 160), easing: "linear", fill: "forwards" });
+      a.onfinish = () => f.remove();
+    };
+    if (schnee) (async () => {
+      while (!aus) {
+        await wach();
+        if (aus) return;
+        flocke();
+        await warte(zufall(110, 260) * (tief ? 2 : 1) * Math.max(.4, 1200 / Math.max(300, band.clientWidth || 1200)));
+      }
+    })();
+
+    // Sprechblase beim Halt, im Band ausserhalb des gespiegelten Zugs
+    const sprechen = (text, kopfX, kopfY, kopfB, rechts, H) => {
+      const breit = band.clientWidth, hoch = band.clientHeight;
+      const b = document.createElement("div");
+      b.className = "wm-blase " + (rechts ? "wm-blase--rechts" : "wm-blase--links");
+      b.textContent = text;
+      const schrift = Math.max(12, Math.min(28, H * .085));
+      b.style.fontSize = schrift + "px";
+      b.style.maxWidth = Math.max(140, Math.min(breit * .6, schrift * 22)) + "px";
+      // Die Blase liegt über dem Inhalt (Logo, Uhr), nicht dahinter wie
+      // der Zug: darum neben das Band in dessen Eltern, gleiche Lage
+      const ziel = band.parentElement || band;
+      b.style.marginLeft = (ziel === band ? 0 : band.offsetLeft) + "px";
+      b.style.marginBottom = (ziel === band ? 0 : ziel.clientHeight - band.offsetTop - band.offsetHeight) + "px";
+      ziel.appendChild(b);
+      blasen.add(b);
+      const w = b.offsetWidth, h = b.offsetHeight;
+      let x = rechts ? kopfX + kopfB * .62 : kopfX - kopfB * .62 - w;
+      x = Math.max(4, Math.min(breit - w - 4, x));
+      let y = kopfY - h * .35;                       // Unterkante über dem Boden
+      y = Math.max(2, Math.min(hoch - h - 2, y));
+      b.style.left = x + "px"; b.style.bottom = y + "px";
+      b.animate([{ opacity: 0, transform: "scale(.6)" }, { opacity: 1, transform: "scale(1)" }],
+        { duration: 260, easing: "cubic-bezier(.3,1.4,.5,1)", fill: "forwards" });
+      return b;
     };
 
-    // Stelle auf dem Bildschirm → Punkt im Raum der Dosen
-    const raumMass = () => {
-      const r = raum.getBoundingClientRect();
-      const k = raum.offsetWidth ? r.width / raum.offsetWidth : 1;
-      return { r, k, w: raum.offsetWidth, h: raum.offsetHeight };
-    };
+    const fahrt = async () => {
+      const breit = band.clientWidth, hoch = band.clientHeight;
+      if (!breit || !hoch) return;
+      const fest = festFuer(new Date());
+      // H = Höhe der viewBox des Schlittens; die Person ist etwas grösser
+      const H = tief ? Math.max(70, Math.min(300, hoch * .62)) : Math.max(42, Math.min(150, hoch * .64));
+      const k = H / VB.h;                                  // Punkte je Einheit
+      const P = H * 1.08, Pb = P * BILD.b / BILD.h;        // Person
+      const boden = tief ? 2 : wieseHoch() * .45;          // dort stehen Füsse und Kufen
+      const rechts = Math.random() < .5;
 
-    const dosen = [];
-    let wurfAb = -9;
-    const wurf = (tempoMobil, richtung, jetzt) => {
-      if ((haufen ? haufen.fliegt.length > 70 : dosen.length > 40) || !raum.isConnected) return;
-      const m = raumMass();
-      if (!m.w || !m.h) return;
-      const p = hand.getBoundingClientRect();
-      const x = (p.left - m.r.left) / m.k;
-      const y = (p.top - m.r.top) / m.k;
-      // Grösse: im Band passend zur Hand, auf der Tafel gut sichtbar
-      const bandK = band.offsetWidth ? band.getBoundingClientRect().width / band.offsetWidth : 1;
-      const klein = H * .16 * bandK / m.k;
-      const gross = tafel ? Math.max(klein * 1.6, m.w * .03) : klein;
-      const a = zufall(25, 62) * Math.PI / 180;
-      const g = tafel ? m.h * zufall(.5, .7) : Math.max(500, m.h * 3);
-      const tempo = tafel ? m.w * zufall(.5, 1) : m.w * zufall(.28, .55);
-      const vx = richtung * Math.cos(a) * tempo + tempoMobil * .5, vy = -Math.sin(a) * tempo;
-      const sorte = ganz(0, SORTEN.length - 1);
-      if (haufen) haufen.neu(x, y, klein, haufen.durchmesser(m.w), vx, vy, g, sorte);
-      else {
+      const zug = document.createElement("div");
+      zug.className = "umzug wm-zug" + (rechts ? "" : " wm-links");
+      zug.dataset.fest = fest.name;
+
+      // Schlitten: hinten Lehne und Sack, dann die Hühner, vorne die Wand
+      const schlitten = document.createElement("div");
+      schlitten.className = "wm-schlitten";
+      const sb = VB.b * k, sh = VB.h * k;
+      schlitten.style.cssText = `left:0;bottom:${-8 * k}px;width:${sb}px;height:${sh}px`;
+      schlitten.innerHTML = `<div class="wm-ebene">${HINTEN}</div>`;
+      const teile = [];
+      SITZE.forEach((sitz) => {
+        const gef = eins(GEFIEDER);
+        const ch = 80 * sitz.g, cb = ch * 1.24;            // Einheiten der viewBox
         const el = document.createElement("div");
-        el.className = "gm-dose";
-        el.style.backgroundImage = `url(${dosenBild(64, sorte).url})`;
-        raum.appendChild(el);
-        dosen.push({ el, x, y, d: klein, ziel: gross, alt: 0, ende: 9, dreh: 0, spin: richtung * zufall(400, 900), sprung: 0, g, vx, vy });
-      }
-      wurfAb = jetzt / 1000;
-    };
+        el.className = "umzug-huhn wm-huhn";
+        el.style.cssText = `left:${(sitz.x - cb / 2 - VB.x0) / VB.b * 100}%;top:${(sitz.y - ch * .75 - VB.y0) / VB.h * 100}%;` +
+          `width:${cb / VB.b * 100}%;height:${ch / VB.h * 100}%;--schritt:${zufall(.45, .7).toFixed(2)}s;animation-delay:${-zufall(0, .6).toFixed(2)}s`;
+        el.innerHTML = `<div class="umzug-huhn__koerper">${huhnSvg(fest, gef)}</div>`;
+        schlitten.appendChild(el);
+        teile.push({ x: (sitz.x - VB.x0) * k, farbe: gef ? gef[0] : "#f4f1ea" });
+      });
+      const vorne = document.createElement("div");
+      vorne.className = "wm-ebene";
+      vorne.innerHTML = VORNE;
+      schlitten.appendChild(vorne);
+      zug.appendChild(schlitten);
 
-    // Musiknoten steigen von den Kopfhörern auf
-    const note = () => {
-      const r = koerper.getBoundingClientRect(), pr = band.getBoundingClientRect();
-      const bandK = band.offsetWidth ? pr.width / band.offsetWidth : 1;
-      if (!r.width) return;
-      const n = document.createElement("div");
-      n.className = "gm-note";
-      n.textContent = Math.random() < .5 ? "♪" : "♫";
-      const gr = H * zufall(.1, .16);
-      n.style.cssText = `font-size:${gr}px;left:${(r.left + r.width * zufall(.2, .8) - pr.left) / bandK}px;top:${(r.top - pr.top) / bandK}px`;
-      band.appendChild(n);
-      const dx = zufall(-1, 1) * H * .3;
-      n.animate([{ transform: "translate(0,0) rotate(-10deg)", opacity: 0 }, { opacity: 1, offset: .2 },
-        { transform: `translate(${dx}px, ${-H * .45}px) rotate(12deg)`, opacity: 0 }],
-        { duration: 1800, easing: "ease-out", fill: "forwards" }).onfinish = () => n.remove();
-    };
-
-    // Runde: pause → laufen (mit Halten zum Tanzen und Werfen) → pause …
-    let phase = "pause", bis = performance.now() + zufall(800, 2000);
-    let x = 0, dir = 1, v = 0, halte = [], salve = 0, naechsterWurf = 0, naechsterLaufwurf = 0;
-    let drehAb = -9, naechsteDrehung = 0, naechsteNote = 0;
-    // Von Tristans Dose getroffen: fällt um, bleibt kurz liegen, steht auf
-    let umfallAb = -99;
-    const UMFALL = 2.8;
-    if (haufen) {
-      haufen.ziel = () => {
-        if (phase === "pause" || performance.now() / 1000 - umfallAb < UMFALL + .5) return null;
-        const m = raumMass();
-        if (!m.w) return null;
-        const r = mobil.getBoundingClientRect();
-        if (!r.width) return null;
-        const bandK = band.offsetWidth ? band.getBoundingClientRect().width / band.offsetWidth : 1;
-        return { x: (r.left + r.width / 2 - m.r.left) / m.k, y: (r.top + r.height * .45 - m.r.top) / m.k,
-          b: r.width / m.k, h: r.height * .8 / m.k, vx: phase === "laufen" ? dir * v * bandK / m.k : 0 };
+      // Die Person vor dem Schlitten, dreimal das Bild: Beine und Oberkörper
+      const px = sb + H * .32;
+      const person = document.createElement("div");
+      person.className = "wm-person";
+      person.style.cssText = `left:${px}px;bottom:0;width:${Pb}px;height:${P}px`;
+      const bild = document.createElement("div");
+      bild.className = "wm-person__bild";
+      const quelle = foto || FIGUR;
+      const pct = (v) => (v * 100).toFixed(2) + "%";
+      const stueck = (klasse, clip, ursprung) => {
+        const img = new Image();
+        img.alt = ""; img.draggable = false; img.src = quelle;
+        img.className = klasse;
+        img.style.clipPath = clip;
+        if (ursprung) img.style.transformOrigin = `${pct(ursprung[0])} ${pct(ursprung[1])}`;
+        bild.appendChild(img);
       };
-      haufen.getroffen = () => {
-        umfallAb = performance.now() / 1000;
-        const r = koerper.getBoundingClientRect(), pr = band.getBoundingClientRect();
-        const bandK = band.offsetWidth ? pr.width / band.offsetWidth : 1;
-        const n = document.createElement("div");
-        n.className = "gm-note gm-bumm";
-        n.textContent = "💫";
-        n.style.cssText = `font-size:${H * .22}px;left:${(r.left + r.width * .3 - pr.left) / bandK}px;top:${(r.top - pr.top) / bandK}px`;
-        band.appendChild(n);
-        n.animate([{ transform: "scale(.4)", opacity: 0 }, { transform: "scale(1.2)", opacity: 1, offset: .15 },
-          { transform: "translateY(" + H * .5 + "px) scale(1)", opacity: 1, offset: .5 }, { transform: "translateY(" + H * .6 + "px) scale(.9)", opacity: 0 }],
-          { duration: 2400, easing: "ease-out", fill: "forwards" }).onfinish = () => n.remove();
+      stueck("wm-bein", `inset(${pct(TEIL.beinAb)} ${pct(1 - TEIL.mitte)} 0 0)`, TEIL.huefteL);
+      stueck("wm-bein wm-bein--2", `inset(${pct(TEIL.beinAb)} 0 0 ${pct(TEIL.mitte)})`, TEIL.huefteR);
+      stueck("wm-ober", `inset(0 0 ${pct(1 - TEIL.oberBis)} 0)`);
+      person.appendChild(bild);
+
+      const lang = px + Pb + H * .05;
+      const zh = Math.max(sh, P) + 4;
+      zug.style.cssText = `width:${lang}px;height:${zh}px;bottom:${boden}px`;
+      // Seil vom Ring an der Deichsel zur Hüfte (hinter der Person)
+      const ring = { x: 232 * k, y: (200 - 152) * k - 8 * k };
+      const huefte = { x: px + TEIL.seil[0] * Pb, y: P * (1 - TEIL.seil[1]) };
+      const seil = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      seil.setAttribute("class", "umzug-seil wm-seil");
+      seil.setAttribute("viewBox", `0 0 ${lang} ${zh}`);
+      const ax = ring.x, ay = zh - ring.y, bx = huefte.x, by = zh - huefte.y;
+      seil.innerHTML = `<path style="stroke-width:${Math.max(1.6, H * .018).toFixed(1)}px" d="M${ax.toFixed(1)} ${ay.toFixed(1)} Q${((ax + bx) / 2).toFixed(1)} ${(Math.max(ay, by) + H * .03).toFixed(1)} ${bx.toFixed(1)} ${by.toFixed(1)}"/>`;
+      zug.appendChild(seil);
+      zug.appendChild(person);
+      band.appendChild(zug);
+
+      // Weg: hinein bis zum Halt, stehen und sprechen, weiter hinaus
+      const von = rechts ? -lang - 20 : breit + 20, bis = rechts ? breit + 20 : -lang - 20;
+      const kopfPos = px + TEIL.kopf[0] * Pb;                       // im Zug von links
+      const kopfImZug = rechts ? kopfPos : lang - kopfPos;
+      const haltX = breit * zufall(.3, .6) - kopfImZug;
+      const tempo = (breit + lang) / (zufall(14000, 18000) * Math.max(1, (breit + lang) / 1700)); // Punkte je ms
+      const t1 = Math.abs(haltX - von) / tempo * 1.3, t2 = Math.abs(bis - haltX) / tempo * 1.3;
+      const halt = 5200;
+      const dauer = t1 + halt + t2;
+      const spiegel = rechts ? "" : " scaleX(-1)";
+      const a = zug.animate([
+        { transform: `translateX(${von}px)${spiegel}`, easing: "cubic-bezier(.3,.55,.45,1)" },
+        { transform: `translateX(${haltX}px)${spiegel}`, offset: t1 / dauer },
+        { transform: `translateX(${haltX}px)${spiegel}`, offset: (t1 + halt) / dauer, easing: "cubic-bezier(.55,0,.7,.45)" },
+        { transform: `translateX(${bis}px)${spiegel}` },
+      ], { duration: dauer, easing: "linear", fill: "forwards" });
+      const imBand = (x) => {
+        const m = new DOMMatrix(getComputedStyle(zug).transform);
+        return m.e + (rechts ? x : lang - x);
       };
-      if (window.TEST && window.TEST.dosen) window.TEST.dosen.umgefallen = () => performance.now() / 1000 - umfallAb < UMFALL;
-    }
-    const neueRunde = () => {
-      messen();
-      dir = Math.random() < .5 ? 1 : -1;
-      x = dir > 0 ? -W - 20 : breit + 20;
-      v = H * zufall(.55, .85);
-      halte = [];
-      for (let n = ganz(1, 2), i = 0; i < n; i++) halte.push(breit * zufall(.15, .85) - W / 2);
-      halte.sort((a, b) => dir > 0 ? a - b : b - a);
-      mobil.style.visibility = "";
-      const jetzt = performance.now();
-      naechsterLaufwurf = jetzt + zufall(1200, 2600);
-      naechsteDrehung = jetzt + zufall(2500, 5000);
-      phase = "laufen";
-    };
 
-    let vorher = performance.now();
-    let rahmen = 0;
-    const schritt = (jetzt) => {
-      if (aus) return;
-      const dt = Math.min(.05, (jetzt - vorher) / 1000);
-      vorher = jetzt;
-      const t = jetzt / 1000;
+      // Halt: er steht wie auf dem Bild und sagt etwas
+      (async () => {
+        // an der Uhr der Bewegung warten, nicht an einem langen Zeitgeber
+        while (!aus && zug.isConnected && (a.currentTime || 0) < t1) await warte(80);
+        if (aus || !zug.isConnected) return;
+        zug.classList.add("wm-steht");
+        await warte(250);
+        if (aus || !zug.isConnected) return;
+        const kopfY = boden + P * (1 - TEIL.kopf[1]);
+        const blase = sprechen(naechsterSpruch(), imBand(kopfPos), kopfY, P * .16, rechts, H);
+        await warte(halt - 600);
+        const weg = blase.animate([{ opacity: 1 }, { opacity: 0, transform: "scale(.85)" }], { duration: 220, fill: "forwards" });
+        weg.onfinish = () => { blase.remove(); blasen.delete(blase); };
+        await warte(250);
+        zug.classList.remove("wm-steht");
+      })();
 
-      const umP = t - umfallAb;
-      const liegt = umP >= 0 && umP < UMFALL;
-      if (liegt) { /* getroffen: steht still, wirft nicht */ }
-      else if (phase === "pause" && jetzt > bis) neueRunde();
-      else if (phase === "laufen") {
-        x += dir * v * dt;
-        if (halte.length && (dir > 0 ? x >= halte[0] : x <= halte[0])) {
-          halte.shift();
-          phase = "halt"; salve = haufen ? ganz(6, 11) : ganz(2, 5); naechsterWurf = jetzt + 600;
-        } else if (jetzt > naechsterLaufwurf) {
-          wurf(dir * v, dir, jetzt);
-          naechsterLaufwurf = jetzt + (haufen ? zufall(450, 1000) : zufall(1500, 3200));
-        }
-        if (dir > 0 ? x > breit + 20 : x < -W - 20) {
-          phase = "pause"; bis = jetzt + zufall(2500, 6000);
-          mobil.style.visibility = "hidden";
-        }
-      } else if (phase === "halt" && jetzt > naechsterWurf) {
-        if (salve > 0) {
-          wurf(0, dir, jetzt); salve--;
-          naechsterWurf = jetzt + (haufen ? zufall(220, 420) : zufall(380, 700));
-        } else {
-          phase = "laufen";
-          naechsterLaufwurf = jetzt + zufall(1500, 3000);
-        }
-      }
-
-      // Tanzen: hüpfen im Takt, Hüften schwingen, ab und zu eine
-      // Drehung um sich selbst, beim Wurf nach vorne lehnen
-      if (liegt) {
-        // Nach hinten umkippen, liegen bleiben (zuckt ein wenig), aufstehen
-        let wink;
-        if (umP < .35) wink = (umP / .35) ** 2 * 88;
-        else if (umP < UMFALL - .55) wink = 88 + Math.sin(umP * 30) * Math.max(0, 1.2 - umP) * 3;
-        else wink = 88 * (1 - (umP - (UMFALL - .55)) / .55);
-        koerper.style.transform = `rotate(${(-wink).toFixed(1)}deg)`;
-        naechsterWurf = jetzt + 500; naechsterLaufwurf = jetzt + 900;
-      } else if (phase !== "pause") {
-        const takt = t * Math.PI * (phase === "halt" ? 4.4 : 3.6);
-        const hopp = Math.abs(Math.sin(takt));
-        const stark = phase === "halt" ? 1.5 : 1;
-        let drehX = 1;
-        if (jetzt > naechsteDrehung) { drehAb = t; naechsteDrehung = jetzt + zufall(3500, 7000); }
-        const dp = (t - drehAb) / .7;
-        if (dp >= 0 && dp < 1) drehX = Math.cos(dp * Math.PI * 2);
-        const wp = (t - wurfAb) / .32;
-        const lehne = wp >= 0 && wp < 1 ? Math.sin(wp * Math.PI) * 15 : 0;
-        const schwung = Math.sin(takt / 2) * 8 * stark + lehne;
-        const tief = 1 - (1 - hopp) * .05;
-        koerper.style.transform = `translateY(${(-hopp * H * .07 * stark).toFixed(1)}px) rotate(${schwung.toFixed(1)}deg)` +
-          ` scale(${drehX.toFixed(3)}, ${tief.toFixed(3)})`;
-        if (jetzt > naechsteNote) { note(); naechsteNote = jetzt + zufall(500, 1100); }
-      }
-      mobil.style.transform = `translateX(${x.toFixed(1)}px)` + (dir < 0 ? " scaleX(-1)" : "");
-
-      if (haufen) haufen.schritt(dt);
-      // Dosen: Wurf mit Schwerkraft, wirbeln, springen an allen Rändern ab
-      if (dosen.length) {
-        const w = raum.offsetWidth, h = raum.offsetHeight;
-        for (let i = dosen.length - 1; i >= 0; i--) {
-          const b = dosen[i];
-          b.alt += dt;
-          if (b.d < b.ziel) b.d = Math.min(b.ziel, b.d + (b.ziel - b.d) * dt * 6 + dt * 4);
-          const r = b.d / 2;
-          b.vy += b.g * dt;
-          b.x += b.vx * dt; b.y += b.vy * dt;
-          if (b.x < r) { b.x = r; b.vx = Math.abs(b.vx) * .7; }
-          if (b.x > w - r) { b.x = w - r; b.vx = -Math.abs(b.vx) * .7; }
-          if (b.y < r) { b.y = r; b.vy = Math.abs(b.vy) * .7; }
-          if (b.y > h - r) {
-            b.y = h - r; b.vy = -Math.abs(b.vy) * .5; b.vx *= .8; b.sprung++; b.spin *= .6;
-            if (Math.abs(b.vy) < 60) b.vy = 0;
+      const spuren = [30 * k, 120 * k, 200 * k, px + Pb * .3, px + Pb * .75];
+      let naechsterStaub = 0, naechsteFeder = performance.now() + zufall(800, 2500);
+      const nebenbei = async () => {
+        while (!aus && zug.isConnected) {
+          await warte(90);
+          if (aus || !zug.isConnected) return;
+          if (zug.classList.contains("wm-steht")) continue;
+          const jetzt = performance.now();
+          if (jetzt > naechsterStaub) {
+            spuren.forEach((r) => { const x = imBand(r); if (x > -20 && x < breit + 20) staub(x + zufall(-4, 4), boden - 2, H * zufall(.1, .17)); });
+            naechsterStaub = jetzt + zufall(160, 320);
           }
-          b.dreh += b.spin * dt;
-          // Nach dem dritten Aufprall oder 9 Sekunden blendet sie aus
-          if (b.sprung >= 3 && b.ende > b.alt + .6) b.ende = b.alt + .6;
-          if (b.alt >= b.ende) { b.el.remove(); dosen.splice(i, 1); continue; }
-          const sicht = Math.min(1, (b.ende - b.alt) / .6);
-          const bw = b.d * 1.3, bh = bw; // Bild quadratisch, Dose darin
-          const st = b.el.style;
-          st.width = bw.toFixed(1) + "px"; st.height = bh.toFixed(1) + "px"; st.opacity = sicht.toFixed(2);
-          st.transform = `translate(${(b.x - bw / 2).toFixed(1)}px,${(b.y - bh / 2).toFixed(1)}px) rotate(${b.dreh.toFixed(0)}deg)`;
+          if (jetzt > naechsteFeder) {
+            const t = eins(teile);
+            const x = imBand(t.x);
+            if (x > 0 && x < breit) feder(x, boden + H * zufall(.45, .6), boden - 2, t.farbe);
+            naechsteFeder = jetzt + zufall(1500, 4000);
+          }
         }
-      }
-      rahmen = requestAnimationFrame(schritt);
+      };
+      nebenbei();
+      await new Promise((ok) => { a.onfinish = ok; a.oncancel = ok; });
+      zug.remove();
     };
-    rahmen = requestAnimationFrame(schritt);
-    // Nach einem versteckten Tab nicht auf einmal nachholen
-    const sichtbar = () => { vorher = performance.now(); };
-    document.addEventListener("visibilitychange", sichtbar);
+
+    (async () => {
+      await warte(zufall(800, 2000));
+      while (!aus) {
+        await wach();
+        if (aus) return;
+        await fahrt();
+        await warte(zufall(4000, 9000));
+      }
+    })();
+
+    if (window.TEST) window.TEST.weihnachtsmann = { SPRUECHE };
 
     return () => {
       aus = true;
-      cancelAnimationFrame(rahmen);
-      document.removeEventListener("visibilitychange", sichtbar);
-      raum.remove();
+      uhren.forEach(clearTimeout);
+      uhren.clear();
+      wo.disconnect();
       band.getAnimations({ subtree: true }).forEach((a) => a.cancel());
       band.replaceChildren();
+      blasen.forEach((b) => b.remove());
     };
   }, [tief]);
   return <div className={"durchfahrt" + (tief ? " durchfahrt--tief" : "")} ref={ref} aria-hidden="true" />;
-}
-
-// Nocco-Sorten: Farbe der Dose, Schrift, Streifen
-const SORTEN = [
-  { grund: "#ffd21f", hell: "#fff27a", schrift: "#1b3fae", band: "#1b3fae" },   // Caribbean
-  { grund: "#ff4f9a", hell: "#ff9cc6", schrift: "#ffffff", band: "#ffd400" },   // Miami
-  { grund: "#7ccf3c", hell: "#c3f08a", schrift: "#ffffff", band: "#1f6b22" },   // Limón
-  { grund: "#ff7a1a", hell: "#ffb36b", schrift: "#ffffff", band: "#b8160f" },   // Blood Orange
-  { grund: "#5cc8f2", hell: "#b5e9ff", schrift: "#ffffff", band: "#1d5fae" },   // Ice Soda
-  { grund: "#26282e", hell: "#5a5e68", schrift: "#ffffff", band: "#e8c440" },   // Black
-];
-
-// Eine Nocco-Dose als Bild (stehend, Blechränder oben und unten,
-// „NOCCO“ senkrecht), einmal je Sorte und Grösse gezeichnet. Das Bild ist
-// quadratisch um die Mitte, damit es sich frei drehen lässt; px ist der
-// Durchmesser des Kreises, mit dem die Dose im Haufen rechnet.
-const dosenVorrat = new Map();
-function dosenBild(px, sorte) {
-  const k = px + ":" + sorte;
-  if (dosenVorrat.has(k)) return dosenVorrat.get(k);
-  const f = SORTEN[sorte] || SORTEN[0];
-  const s = Math.ceil(px * 1.3);
-  const c = document.createElement("canvas");
-  c.width = c.height = s;
-  const g = c.getContext("2d"), m = s / 2;
-  const bw = px * .56, bh = px * 1.1, x0 = m - bw / 2, y0 = m - bh / 2;
-  const rund = (x, y, w, h, r) => { g.beginPath(); g.roundRect ? g.roundRect(x, y, w, h, r) : g.rect(x, y, w, h); };
-  g.save();
-  g.shadowColor = "rgba(0,0,0,.35)"; g.shadowBlur = px * .1; g.shadowOffsetY = px * .05;
-  // Körper mit Licht von links (Zylinder)
-  const lg = g.createLinearGradient(x0, 0, x0 + bw, 0);
-  lg.addColorStop(0, f.grund); lg.addColorStop(.28, f.hell); lg.addColorStop(.55, f.grund); lg.addColorStop(1, shade(f.grund));
-  g.fillStyle = lg; rund(x0, y0, bw, bh, bw * .14); g.fill();
-  g.restore();
-  // Blech oben und unten
-  const blech = g.createLinearGradient(x0, 0, x0 + bw, 0);
-  blech.addColorStop(0, "#9aa1a9"); blech.addColorStop(.3, "#f3f5f7"); blech.addColorStop(.6, "#b9c0c7"); blech.addColorStop(1, "#6d747c");
-  g.fillStyle = blech;
-  rund(x0 + bw * .04, y0, bw * .92, bh * .09, bw * .1); g.fill();
-  rund(x0 + bw * .04, y0 + bh * .93, bw * .92, bh * .07, bw * .1); g.fill();
-  // Streifen und Schrift
-  g.fillStyle = f.band; g.fillRect(x0, y0 + bh * .8, bw, bh * .05);
-  g.save();
-  g.translate(m, m - bh * .02); g.rotate(-Math.PI / 2);
-  g.fillStyle = f.schrift;
-  g.font = `900 ${(bw * .52).toFixed(1)}px "Arial Black", Arial, sans-serif`;
-  g.textAlign = "center"; g.textBaseline = "middle";
-  g.fillText("NOCCO", 0, 0, bh * .66);
-  g.restore();
-  g.fillStyle = f.schrift; g.globalAlpha = .9;
-  g.font = `700 ${(bw * .17).toFixed(1)}px Arial, sans-serif`;
-  g.textAlign = "center"; g.textBaseline = "middle";
-  g.fillText("BCAA", m, y0 + bh * .88);
-  g.globalAlpha = 1;
-  // Glanz
-  g.fillStyle = "rgba(255,255,255,.28)";
-  g.fillRect(x0 + bw * .16, y0 + bh * .1, bw * .08, bh * .68);
-  const erg = { bild: c, faktor: s / px, url: c.toDataURL() };
-  dosenVorrat.set(k, erg);
-  return erg;
-}
-function shade(hex) {
-  const n = parseInt(hex.slice(1), 16);
-  const d = (v) => Math.round(v * .6).toString(16).padStart(2, "0");
-  return "#" + d(n >> 16) + d((n >> 8) & 255) + d(n & 255);
-}
-
-// Tristan mit Schaufel und Tonne (seit 1.496.0). Ein Foto steht nur in
-// der Datenbank (app_config, Schlüssel infoboard_tristan, als data:-Bild),
-// nie im Repository; ohne Foto die gezeichnete Figur. Alles in einem SVG
-// 340 × 300, nach rechts schauend: Tristan links, die Tonne rechts davor.
-let tristanHolen = null;
-const tristanFoto = () => {
-  if (!tristanHolen) tristanHolen = (async () => {
-    try {
-      if (!alt.db) return null;
-      const r = await alt.db.from("app_config").select("wert").eq("schluessel", "infoboard_tristan").maybeSingle();
-      const w = r && r.data && r.data.wert;
-      return typeof w === "string" && w.startsWith("data:image/") ? w : null;
-    } catch { return null; }
-  })();
-  return tristanHolen;
-};
-const TRISTAN = `<svg viewBox="0 0 340 300" xmlns="http://www.w3.org/2000/svg">
-  <g class="tr-figur">
-    <g class="tr-bein tr-bein--hinten"><path d="M44 190 L42 280" stroke="#3a3f47" stroke-width="19" stroke-linecap="round"/>
-      <path d="M32 282 h26 a8 8 0 0 1 0 14 h-26 z" fill="#15171b"/></g>
-    <g class="tr-bein tr-bein--vorne"><path d="M60 190 L62 280" stroke="#454b55" stroke-width="19" stroke-linecap="round"/>
-      <path d="M52 282 h26 a8 8 0 0 1 0 14 h-26 z" fill="#1d2025"/></g>
-    <path class="tr-arm" d="M66 112 L148 152" stroke="#1a477f" stroke-width="15" stroke-linecap="round"/>
-    <circle cx="149" cy="152" r="8" fill="#e8b494"/>
-    <g class="tr-oben"><path d="M30 108 C32 92 44 88 56 88 C70 88 82 94 84 108 L86 200 L28 200 Z" fill="#1d4f91"/>
-    <rect x="28" y="160" width="58" height="7" fill="#e8eef5" opacity=".9"/>
-    <path d="M56 90 L56 200" stroke="#163d70" stroke-width="2"/>
-    <rect x="50" y="76" width="13" height="14" fill="#e3a98a"/>
-    <g class="tr-kopf"><circle cx="58" cy="62" r="20" fill="#f0c4a4"/>
-    <path d="M38 60 C36 38 56 32 70 38 C78 42 80 50 78 56 C70 50 54 50 40 64 Z" fill="#3b2a1e"/>
-    <circle cx="70" cy="62" r="2.2" fill="#2a2a2a"/>
-    <path d="M66 73 C70 75 74 74 76 71" stroke="#9c5b3e" stroke-width="2" fill="none" stroke-linecap="round"/>
-    <circle cx="46" cy="64" r="4" fill="#e3a98a"/></g></g>
-    <g class="tr-foto"></g>
-  </g>
-  <g class="tr-tonne">
-    <rect x="166" y="276" width="10" height="6" fill="#2b2f35"/><rect x="276" y="276" width="10" height="6" fill="#2b2f35"/>
-    <circle cx="172" cy="288" r="11" fill="#1c1f24"/><circle cx="172" cy="288" r="4" fill="#9aa1a9"/>
-    <circle cx="280" cy="288" r="11" fill="#1c1f24"/><circle cx="280" cy="288" r="4" fill="#9aa1a9"/>
-    <path d="M154 140 L298 140 L290 280 L162 280 Z" fill="#2f6f45"/>
-    <path d="M154 140 L298 140 L294 200 L158 200 Z" fill="#ffffff" opacity=".07"/>
-    <path d="M170 150 L176 272 M200 150 L202 272 M252 150 L250 272 M282 150 L276 272" stroke="#245a37" stroke-width="4"/>
-    <rect x="148" y="130" width="156" height="14" rx="5" fill="#3e8a58"/>
-    <path d="M140 150 L156 150" stroke="#2b2f35" stroke-width="6" stroke-linecap="round"/>
-    <g class="tr-schild"><text x="226" y="222" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="24" fill="#ffffff">LEERGUT</text>
-    <text x="226" y="252" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" fill="#d7f0df">♻</text></g>
-  </g>
-  <g class="tr-schaufel">
-    <path class="tr-arm" d="M62 112 L104 150" stroke="#1d4f91" stroke-width="15" stroke-linecap="round"/>
-    <path d="M100 146 L300 264" stroke="#a36a35" stroke-width="7" stroke-linecap="round"/>
-    <path d="M88 132 L104 148" stroke="#2b2f35" stroke-width="9" stroke-linecap="round"/>
-    <circle cx="106" cy="152" r="8" fill="#e8b494"/>
-    <path d="M292 246 L338 262 L330 296 L282 282 Z" fill="#8f98a3" stroke="#5d6670" stroke-width="3" stroke-linejoin="round"/>
-  </g>
-</svg>`;
-// Masse im SVG: Tonne von 154 bis 298, Rand oben bei 130
-// So viele liegende Dosen, dann kommt Tristan mit Schaufel und Tonne
-const TRISTAN_AB = 20;
-const TR = { breite: 340, hoehe: 300, tonneMitte: 226, tonneBreit: 144, tonneOben: 134 };
-
-function tristanAnlegen(raum) {
-  const el = document.createElement("div");
-  el.className = "tr-tristan";
-  el.style.visibility = "hidden";
-  el.innerHTML = TRISTAN;
-  raum.appendChild(el);
-  tristanFoto().then((url) => {
-    if (!url) return;
-    // Seit 1.504.0 ist das Foto die ganze Person bis zur Hüfte
-    // (freigestellt, nach rechts schauend; Wunsch Patrick 12. November
-    // 2026: „baue die ganze Person von Tristan ein, nicht nur den Kopf“):
-    // es ersetzt Kittel und Kopf, Beine und Arme mit der Schaufel bleiben
-    // gezeichnet und laufen weiter (Jeans und nackte Arme, CSS)
-    el.querySelector(".tr-oben").innerHTML = "";
-    el.querySelector(".tr-foto").innerHTML = `<image href="${url}" x="16" y="18" width="84" height="186" preserveAspectRatio="xMidYMax meet"/>`;
-    el.classList.add("tr-tristan--foto");
-  });
-  let an = false, x = 0, dir = 1, k = 1, tempo = 0, w = 0, h = 0, plopps = 0;
-  const tonne = () => {
-    if (!an) return null;
-    const mitte = dir > 0 ? TR.tonneMitte : TR.breite - TR.tonneMitte;
-    return { x: x + mitte * k, w: TR.tonneBreit * k, oben: h - (TR.hoehe - TR.tonneOben) * k, dir };
-  };
-  return {
-    los(breite, hoehe) {
-      w = breite; h = hoehe;
-      k = h * .15 / TR.hoehe;
-      el.style.width = TR.breite * k + "px"; el.style.height = TR.hoehe * k + "px";
-      dir = Math.random() < .5 ? 1 : -1;
-      x = dir > 0 ? -TR.breite * k : w;
-      tempo = w / 13;
-      el.classList.toggle("tr-links", dir < 0);
-      el.style.visibility = ""; el.style.transform = `translateX(${x}px)` + (dir < 0 ? " scaleX(-1)" : "");
-      an = true;
-    },
-    schritt(dt) {
-      if (!an) return;
-      x += dir * tempo * dt;
-      el.style.transform = `translateX(${x.toFixed(1)}px)` + (dir < 0 ? " scaleX(-1)" : "");
-      if (dir > 0 ? x > w + 4 : x < -TR.breite * k - 4) { an = false; el.style.visibility = "hidden"; }
-    },
-    tonne,
-    unterwegs: () => an,
-    // Die Tonne wackelt ab und zu, wenn Dosen hineinfallen
-    plopp() {
-      if (++plopps % 7) return;
-      const t = el.querySelector(".tr-tonne");
-      if (t && t.animate) t.animate([{ transform: "translateY(0)" }, { transform: "translateY(3px)" }, { transform: "translateY(0)" }], { duration: 220 });
-    },
-  };
-}
-
-// Der Haufen in der Anzeige des Infoboards: fliegende Dosen (im Haufen
-// gerechnet als Kreise, darum der Name Bälle unten) mit
-// Schwerkraft und Stössen untereinander; wer zur Ruhe kommt, bleibt für
-// immer liegen (wird nur noch angestossen, bewegt sich aber nicht mehr),
-// das hält den Stapel ruhig und die Rechnung klein.
-function haufenAnlegen(raum) {
-  const fest = document.createElement("canvas"), los = document.createElement("canvas");
-  fest.className = los.className = "gm-leinwand";
-  raum.append(fest, los);
-  const gf = fest.getContext("2d"), gl = los.getContext("2d");
-  let w = 0, h = 0, q = 1, sprites = new Map(), D = 0, zelle = 1;
-  const fliegt = [], gitter = new Map();
-  let liegen = 0, raus = 0, voll = false, runden = 0, zurueck = 0, zurueckWarte = 0;
-  // Gezielte Würfe auf den Tänzer (seit 1.500.0): ziel() liefert ihn im
-  // Raum der Dosen, getroffen() lässt ihn umfallen; beides setzt Durchfahrt
-  let treffer = 0, trefferWarte = 0;
-  // Beim Abfliessen fallen alle liegenden Bälle durch den offenen Boden,
-  // die untersten zuerst; danach füllt sich die Tafel wieder
-  let abfluss = [], grenze = 0, grenzeAm = 0;
-  const schluessel = (x, y) => (Math.floor(x / zelle) + 1000) * 100000 + Math.floor(y / zelle) + 1000;
-
-  const vorbereiten = () => {
-    if (w) return true;
-    w = raum.offsetWidth; h = raum.offsetHeight;
-    if (!w || !h) { w = 0; return false; }
-    const r = raum.getBoundingClientRect();
-    q = Math.min(2, Math.max(1, (r.width / w) * (window.devicePixelRatio || 1)));
-    for (const c of [fest, los]) { c.width = Math.round(w * q); c.height = Math.round(h * q); }
-    gf.setTransform(q, 0, 0, q, 0, 0); gl.setTransform(q, 0, 0, q, 0, 0);
-    return true;
-  };
-  const durchmesser = (breite) => Math.max(18, breite * .04);
-  const zeichne = (g, b) => {
-    let sp = sprites.get(b.s);
-    if (!sp) { sp = dosenBild(Math.round(D * q), b.s); sprites.set(b.s, sp); }
-    const s = b.d * sp.faktor;
-    g.save(); g.translate(b.x, b.y); g.rotate(b.dreh);
-    g.drawImage(sp.bild, -s / 2, -s / 2, s, s);
-    g.restore();
-  };
-  // Bis wohin der Haufen wachsen darf: Unterkante des Bands mit
-  // Geburtstagen und Terminen (wächst mit seinen Einträgen, darum alle
-  // paar Sekunden neu gemessen); ohne Band 622 von 1920 Punkten
-  const grenzeMessen = () => {
-    const jetzt = performance.now();
-    if (grenze && jetzt - grenzeAm < 3000) return grenze;
-    grenzeAm = jetzt;
-    const band = raum.parentElement && raum.parentElement.querySelector('[data-ib="band"]');
-    const r = raum.getBoundingClientRect(), k = r.width / w || 1;
-    const unten = band ? (band.getBoundingClientRect().bottom - r.top) / k : 0;
-    grenze = unten > 0 && unten < h * .8 ? unten : h * 622 / 1920;
-    return grenze;
-  };
-  // Seit 1.496.0 (12. November 2026: „unten im Infoboard noch Tristan
-  // Ecker mit einer Schaufel, der die Nocco-Dosen wegwischt in eine
-  // Tonne, die er vor sich hin schiebt“) fliesst der volle Haufen nicht
-  // mehr einfach unten hinaus: Tristan kommt von einer Seite, schiebt die
-  // Tonne quer über die Tafel, und wo sie hinkommt, fällt die ganze Säule
-  // Dosen in die Tonne, die untersten schaufelt er hinein.
-  const tristan = tristanAnlegen(raum);
-  const abfliessen = () => {
-    voll = true; runden++;
-    abfluss = [];
-    tristan.los(w, h);
-  };
-  // Alles, was die Tonne erreicht hat, fällt hinein
-  const zurTonne = () => {
-    const t = tristan.tonne();
-    if (!t) return;
-    let weg = false;
-    for (const [k, l] of gitter) {
-      for (let i = l.length - 1; i >= 0; i--) {
-        const b = l[i];
-        if ((b.x - t.x) * t.dir > t.w * .5 + D * .5) continue;
-        l.splice(i, 1); liegen--; weg = true;
-        // Untere zuerst, die Säule darüber rutscht nach
-        b.warte = (h - b.y) / h * .7 + Math.random() * .08;
-        b.zuX = (Math.random() - .5) * t.w * .5;
-        b.vx = 0; b.vy = 0; b.inTonne = false;
-        // Was unter dem Rand der Tonne liegt, fliegt mit der Schaufel hinein
-        const steigen = b.y - (t.oben - D * 1.2);
-        if (steigen > 0) b.vy = -Math.sqrt(2 * b.g * steigen) * zufall(1, 1.15);
-        // Ab und zu wirft Tristan eine Dose hoch zum Tänzer zurück (seit
-        // 1.499.0, Wunsch Patrick 12. November 2026: „ab und zu kann er eine
-        // zurückwerfen“), seit 1.504.0 öfter, und ab und zu zielt er auf
-        // den Tänzer und trifft ihn, der fällt um (Wunsch Patrick
-        // 12. November 2026: „öfter zurückwerfen, und ab und zu soll er
-        // den Werfer treffen und der fällt dann um“)
-        if (steigen > 0 && zurueckWarte <= 0 && Math.random() < .5) {
-          zurueckWarte = zufall(.6, 1.4); zurueck++;
-          b.zurueck = true; b.warte = 0;
-          const z = haufen.ziel && haufen.ziel();
-          if (z && trefferWarte <= 0 && (haufen.immerTreffen || Math.random() < .3)) {
-            // Wurfbahn genau auf den Tänzer, noch im Steigen, dorthin, wo
-            // er sein wird, wenn die Dose ankommt
-            trefferWarte = haufen.immerTreffen ? 0 : zufall(5, 10);
-            const hoch = Math.max(D * 2, b.y - z.y);
-            const T = Math.sqrt(2 * hoch / b.g) * zufall(.75, .9);
-            b.vx = (z.x + z.vx * T - b.x) / T;
-            b.vy = (z.y - b.y - .5 * b.g * T * T) / T;
-            b.zielen = true;
-          } else {
-            b.vy = -Math.sqrt(2 * b.g * (b.y + D * 3)) * zufall(1.05, 1.15);
-            b.vx = (w * zufall(.3, .7) - b.x) * zufall(.35, .5);
-          }
-        }
-        abfluss.push(b);
-      }
-      if (!l.length) gitter.delete(k);
-    }
-    if (weg) { gf.clearRect(0, 0, w, h); for (const l of gitter.values()) for (const b of l) zeichne(gf, b); }
-  };
-  const hinlegen = (b) => {
-    const k = schluessel(b.x, b.y);
-    const l = gitter.get(k);
-    if (l) l.push(b); else gitter.set(k, [b]);
-    liegen++;
-    zeichne(gf, b);
-    // Seit 1.497.1 kommt Tristan schon bei rund 20 liegenden Dosen
-    // (Wunsch Patrick 12. November 2026: „früher schaufeln, schon wenn ca. 20
-    // Dosen liegen“); reicht der Haufen vorher bis unter den Kalender, auch
-    if (!voll && (liegen >= TRISTAN_AB || b.y - b.d / 2 < grenzeMessen())) b.oben = true;
-  };
-
-  const neu = (x, y, d, ziel, vx, vy, g, sorte = ganz(0, SORTEN.length - 1)) => {
-    if (!vorbereiten()) return;
-    if (!D) { D = ziel; zelle = D * 1.05; }
-    // Steckt die Mündung schon im Haufen, kommt der Ball oben auf ihm
-    // heraus, statt zwischen liegenden Bällen festzuhängen
-    while (y > -D && belegt(x, y)) y -= D * .5;
-    fliegt.push({ x, y, d, ziel: D, vx, vy, g, s: sorte, dreh: Math.random() * 6.28, ruhe: 0, alt: 0 });
-  };
-
-  const belegt = (x, y) => {
-    const cx = Math.floor(x / zelle), cy = Math.floor(y / zelle);
-    for (let ix = cx - 1; ix <= cx + 1; ix++) for (let iy = cy - 1; iy <= cy + 1; iy++) {
-      const l = gitter.get((ix + 1000) * 100000 + iy + 1000);
-      if (l) for (const o of l) if ((o.x - x) ** 2 + (o.y - y) ** 2 < D * D * .8) return true;
-    }
-    return false;
-  };
-  const stoss = (b, x, y, rs) => {
-    const dx = b.x - x, dy = b.y - y, rr = b.d / 2 + rs;
-    const d2 = dx * dx + dy * dy;
-    if (d2 >= rr * rr) return 0;
-    let dist = Math.sqrt(d2), nx, ny;
-    if (dist < .001) { nx = Math.random() - .5; ny = -1; dist = .001; } else { nx = dx / dist; ny = dy / dist; }
-    const tief = rr - dist;
-    b.x += nx * tief; b.y += ny * tief;
-    const vn = b.vx * nx + b.vy * ny;
-    if (vn < 0) { b.vx -= 1.3 * vn * nx; b.vy -= 1.3 * vn * ny; }
-    return ny < -.25 ? 2 : 1; // 2 = liegt auf etwas
-  };
-
-  const schritt = (dt) => {
-    if ((!fliegt.length && !abfluss.length && !voll) || !D) return;
-    let oben = false;
-    const n = 3, t = dt / n;
-    for (let s = 0; s < n; s++) {
-      for (let i = fliegt.length - 1; i >= 0; i--) {
-        const b = fliegt[i];
-        if (b.d < b.ziel) b.d = Math.min(b.ziel, b.d + (b.ziel - b.d) * t * 6 + t * 4);
-        const r = b.d / 2;
-        b.vy += b.g * t;
-        b.x += b.vx * t; b.y += b.vy * t;
-        b.auf = false;
-        if (b.x < r) { b.x = r; b.vx = Math.abs(b.vx) * .5; }
-        if (b.x > w - r) { b.x = w - r; b.vx = -Math.abs(b.vx) * .5; }
-        if (b.y < r) { b.y = r; b.vy = Math.abs(b.vy) * .6; }
-        // Beim Abfliessen ist der Boden offen
-        if (!voll && b.y > h - r) {
-          b.y = h - r; b.vy = -Math.abs(b.vy) * .35; b.auf = true;
-          if (Math.abs(b.vy) < 40) b.vy = 0;
-        }
-        // Stösse mit liegenden Bällen ringsum
-        const cx = Math.floor(b.x / zelle), cy = Math.floor(b.y / zelle);
-        for (let ix = cx - 1; ix <= cx + 1; ix++) for (let iy = cy - 1; iy <= cy + 1; iy++) {
-          const l = gitter.get((ix + 1000) * 100000 + iy + 1000);
-          if (l) for (const o of l) if (stoss(b, o.x, o.y, o.d / 2) === 2) b.auf = true;
-        }
-        // Raus aus der Tafel: weg
-        if (b.x < -r * 2 || b.x > w + r * 2 || b.y > h + r * 2) { fliegt.splice(i, 1); raus++; }
-      }
-      // Fliegende untereinander, beide weichen je zur Hälfte
-      for (let i = 0; i < fliegt.length; i++) for (let j = i + 1; j < fliegt.length; j++) {
-        const a = fliegt[i], b = fliegt[j];
-        const dx = b.x - a.x, dy = b.y - a.y, rr = (a.d + b.d) / 2;
-        const d2 = dx * dx + dy * dy;
-        if (d2 >= rr * rr || d2 < 1e-6) continue;
-        const dist = Math.sqrt(d2), nx = dx / dist, ny = dy / dist, tief = (rr - dist) / 2;
-        a.x -= nx * tief; a.y -= ny * tief; b.x += nx * tief; b.y += ny * tief;
-        const vn = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
-        if (vn < 0) {
-          const j2 = -.65 * vn;
-          a.vx -= j2 * nx; a.vy -= j2 * ny; b.vx += j2 * nx; b.vy += j2 * ny;
-        }
-        if (ny > .25) b.auf = true; else if (ny < -.25) a.auf = true;
-      }
-    }
-    // Rollen bremst, auf einer Kuppe kippt er zur Seite; wer ruhig
-    // liegt, bleibt liegen
-    for (let i = fliegt.length - 1; i >= 0; i--) {
-      const b = fliegt[i];
-      if (b.auf) {
-        b.vx *= Math.max(0, 1 - 2.2 * dt);
-        if (Math.abs(b.vx) < 4) b.vx += (Math.random() - .5) * 30;
-      }
-      b.dreh += b.vx * dt / (b.d / 2);
-      // Sicherung: wer nach 20 Sekunden noch nicht liegt, verschwindet
-      b.alt += dt;
-      if (b.alt > 20) { fliegt.splice(i, 1); continue; }
-      // Zur Ruhe gekommen = liegt auf etwas und ist in 0.4 s kaum vom
-      // Fleck gekommen (zwischen vielen Bällen zittert er sonst ewig)
-      const frei = b.auf && b.d >= b.ziel * .99 && !voll;
-      if (!frei) { b.ruhe = 0; b.rx = b.x; b.ry = b.y; }
-      else {
-        if (!b.ruhe) { b.rx = b.x; b.ry = b.y; }
-        b.ruhe += dt;
-        if (b.ruhe > .4) {
-          if (Math.hypot(b.x - b.rx, b.y - b.ry) < D * .15) {
-            fliegt.splice(i, 1); hinlegen(b);
-            if (b.oben) oben = true;
-            continue;
-          }
-          b.ruhe = 0;
-        }
-      }
-    }
-    if (oben) abfliessen();
-    trefferWarte -= dt;
-    if (voll) { zurueckWarte -= dt; tristan.schritt(dt); zurTonne(); }
-    // Die Dosen auf dem Weg in die Tonne: ohne Stösse, jede für sich,
-    // sie ziehen zur Tonne hin und verschwinden hinter ihrem Rand
-    const tn = tristan.tonne();
-    for (let i = abfluss.length - 1; i >= 0; i--) {
-      const b = abfluss[i];
-      if (b.warte > 0) { b.warte -= dt; continue; }
-      b.vy += b.g * dt; b.y += b.vy * dt;
-      if (b.zurueck) {
-        b.x += b.vx * dt; b.dreh += 9 * dt;
-        // Trifft die gezielte Dose den Tänzer, prallt sie ab und er fällt um
-        const z = b.zielen && haufen.ziel && haufen.ziel();
-        if (z && Math.abs(b.x - z.x) < z.b / 2 + b.d / 2 && Math.abs(b.y - z.y) < z.h / 2 + b.d / 2) {
-          b.zielen = false; treffer++;
-          b.vx = -b.vx * .3 + (Math.random() - .5) * D * 4; b.vy = Math.abs(b.vy) * .2;
-          if (haufen.getroffen) haufen.getroffen();
-        }
-        if ((b.vy < 0 && b.y < -b.d * 2) || b.y > h + b.d) { abfluss.splice(i, 1); raus++; }
-        continue;
-      }
-      if (tn) b.x += (tn.x + b.zuX - b.x) * Math.min(1, dt * 3.5);
-      else b.x += b.vx * dt;
-      b.dreh += 3 * dt;
-      const drin = tn && b.vy > 0 && b.y > tn.oben + D * .4 && Math.abs(b.x - tn.x) < tn.w * .5;
-      if (drin || b.y > h + b.d) { abfluss.splice(i, 1); raus++; if (drin) tristan.plopp(); }
-    }
-    // Tristan ist durch und alles ist in der Tonne: die Tafel füllt sich wieder
-    if (voll && !abfluss.length && !tristan.unterwegs()) voll = false;
-    gl.clearRect(0, 0, w, h);
-    for (const b of abfluss) zeichne(gl, b);
-    for (const b of fliegt) zeichne(gl, b);
-  };
-
-  const haufen = { fliegt, neu, schritt, durchmesser, voll: () => voll, liegen: () => liegen, raus: () => raus,
-    runden: () => runden, grenze: () => grenzeMessen(), abfluss: () => abfluss.length, tristan: () => tristan.unterwegs(), zurueck: () => zurueck,
-    treffer: () => treffer, ziel: null, getroffen: null, immerTreffen: false };
-  // Für den Prüfstand: viele Bälle auf einmal oben einwerfen
-  if (window.TEST) window.TEST.dosen = window.TEST.tennis = Object.assign(haufen, {
-    regen: (anzahl) => {
-      if (!vorbereiten()) return;
-      for (let i = 0; i < anzahl; i++) neu(w * (.3 + Math.random() * .4), D * (1 + Math.random() * 3), durchmesser(w), durchmesser(w),
-        (Math.random() - .5) * 200, 0, h * .6);
-    },
-  });
-  return haufen;
 }

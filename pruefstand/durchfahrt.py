@@ -1,9 +1,11 @@
-# Startseite und Infoboard: Im Band oben läuft ein Tänzer durch und wirft
-# Nocco-Dosen (seit 1.495.0, Wunsch Patrick 12. November 2026; 1.442.0 bis
-# 1.494.x Seniorenmobil mit Tennisballkanone). Auf der Startseite bleiben
-# die Dosen im Band, im Infoboard fliegen sie über die ganze Tafel. Die
-# Pausen werden hier verkürzt.
-import os, time
+# Startseite und Infoboard: Im Band oben zieht die Person aus Patricks Bild
+# einen Schlitten mit drei Hühnern drin, mal nach links, mal nach rechts,
+# hält einmal an und sagt einen Spruch zu Zerspanen und Crossfit (seit
+# 1.555.0, Wunsch Patrick 15. November 2026; 1.495.0 bis 1.554.x Tänzer mit
+# Nocco-Dosen). Die Pausen werden hier verkürzt.
+# Bild nur zum Anschauen: PERSON_FOTO=<Datei mit data:-Adresse> (das Bild
+# steht nie im Repository, nur in der Datenbank).
+import os, time, json
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
@@ -14,7 +16,11 @@ def seite(br, vp, hash_=""):
     pg = br.new_context(viewport=vp).new_page()
     pg.on("pageerror", lambda e: fehler.append("SEITENFEHLER: " + str(e)[:160]))
     pg.add_init_script("""(() => { const st = window.setTimeout;
-      window.setTimeout = (f, ms, ...r) => st(f, ms > 4000 ? 300 : ms, ...r); })();""")
+      window.setTimeout = (f, ms, ...r) => st(f, ms > 5500 ? 300 : ms, ...r); })();""")
+    if os.environ.get("PERSON_FOTO"):
+        url = open(os.environ["PERSON_FOTO"]).read().strip()
+        pg.add_init_script("""(() => { const t = setInterval(() => { if (window.TEST && TEST.daten) {
+          TEST.daten.app_config.push({ schluessel: 'durchfahrt_person', wert: %s }); clearInterval(t); } }, 5); })();""" % json.dumps(url))
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200,
         content_type="application/javascript", body=FAKE))
     for u in ["**://fonts.googleapis.com/**","**://fonts.gstatic.com/**",
@@ -26,33 +32,42 @@ def seite(br, vp, hash_=""):
     return pg
 
 def beobachten(pg, name, wurzel, tafel):
-    # Im Infoboard tanzt er seit 1.498.0 ohne eigene Strasse (Durchfahrt tief)
-    pg.wait_for_selector(wurzel + " .durchfahrt .gm-taenzer", state="attached", timeout=20000)
-    if pg.locator(".spuk, .spuk-erde, .spuk-grab").count(): fehler.append(f"{name}: Zombies noch da")
-    richtung, baelle, weit = set(), 0, False
-    for i in range(1200):
-        info = pg.evaluate("""(w) => { const m = document.querySelector(w + ' .gm-taenzer');
-            if (!m || m.style.visibility === 'hidden') return null;
-            const r = m.getBoundingClientRect(), k = document.querySelector(w + ' .durchfahrt').getBoundingClientRect();
-            return { x: r.left, unten: k.bottom - r.bottom, hoch: k.height, oben: r.top - k.top,
-                     spiegel: m.style.transform.includes('scaleX(-1)') } }""", wurzel)
-        b = pg.evaluate("""([w, t]) => { const k = document.querySelector(w + ' .durchfahrt').getBoundingClientRect();
-            const bs = [...document.querySelectorAll(w + ' .gm-dose')].map(e => e.getBoundingClientRect());
-            return { n: bs.length, weit: bs.some(r => r.top > k.bottom + 40) } }""", [wurzel, tafel])
-        baelle = max(baelle, b["n"]); weit = weit or b["weit"]
-        if info and i % 10 == 0:
-            if info["oben"] < -2: fehler.append(f"{name}: Mobil ragt oben aus dem Band")
-            if not (0 <= info["unten"] <= info["hoch"] * .15): fehler.append(f"{name}: Mobil nicht auf der Strasse ({info['unten']:.0f})")
-            richtung.add("links" if info["spiegel"] else "rechts")
-        if BILDER and info and i in (60, 120):
-            pg.screenshot(path=os.path.join(BILDER, f"durchfahrt_{name}_{i}.png"))
-        if len(richtung) == 2 and baelle >= 2 and (weit or not tafel) and i > 80: break
+    pg.wait_for_selector(wurzel + " .durchfahrt .wm-zug", state="attached", timeout=20000)
+    if pg.locator(".gm-taenzer, .gm-dose, .tr-tristan").count(): fehler.append(f"{name}: Tänzer oder Dosen noch da")
+    richtung, sprueche, bild = set(), set(), 0
+    for i in range(1500):
+        info = pg.evaluate("""(w) => { const z = document.querySelector(w + ' .wm-zug');
+            if (!z) return null;
+            const k = document.querySelector(w + ' .durchfahrt').getBoundingClientRect();
+            const p = z.querySelector('.wm-person').getBoundingClientRect();
+            const b = document.querySelector(w + ' .wm-blase');
+            return { links: z.classList.contains('wm-links'), steht: z.classList.contains('wm-steht'),
+                     huehner: z.querySelectorAll('.wm-schlitten .umzug-huhn').length,
+                     bilder: z.querySelectorAll('.wm-person img').length,
+                     oben: p.top - k.top, unten: k.bottom - p.bottom, hoch: k.height,
+                     blase: b ? b.textContent : '', blaseRaus: b ? (() => { const r = b.getBoundingClientRect();
+                        return r.left < k.left - 1 || r.right > k.right + 1 || r.top < k.top - 1 || r.bottom > k.bottom + 1; })() : false } }""", wurzel)
+        if info:
+            richtung.add("links" if info["links"] else "rechts")
+            bild = max(bild, info["bilder"])
+            if info["huehner"] != 3: fehler.append(f"{name}: {info['huehner']} Hühner im Schlitten"); break
+            if info["oben"] < -4: fehler.append(f"{name}: Person ragt oben aus dem Band ({info['oben']:.0f})"); break
+            if not tafel and info["unten"] < -2: fehler.append(f"{name}: Person unter dem Band"); break
+            if info["blase"]:
+                sprueche.add(info["blase"])
+                if not info["steht"]: fehler.append(f"{name}: Spruch ohne Halt"); break
+                if info["blaseRaus"]: fehler.append(f"{name}: Sprechblase ausserhalb des Bands"); break
+                if BILDER and len(sprueche) <= 2:
+                    pg.wait_for_timeout(400)
+                    pg.screenshot(path=os.path.join(BILDER, f"durchfahrt_{name}_{len(sprueche)}.png"))
+        if len(richtung) == 2 and len(sprueche) >= 2: break
         pg.wait_for_timeout(100)
-    if not baelle: fehler.append(f"{name}: keine Bälle")
-    if tafel and not weit: fehler.append(f"{name}: Bälle fliegen nicht über die Tafel")
-    if not tafel and weit: fehler.append(f"{name}: Bälle verlassen das Band")
+    alle = pg.evaluate("TEST.weihnachtsmann && TEST.weihnachtsmann.SPRUECHE")
+    if not alle or any(s not in alle for s in sprueche): fehler.append(f"{name}: unbekannter Spruch {sprueche}")
+    if bild != 3: fehler.append(f"{name}: Bild nicht dreiteilig ({bild})")
     if len(richtung) < 2: fehler.append(f"{name}: fährt nur nach {richtung}")
-    print(name, "Bälle", baelle, "Richtungen", sorted(richtung), "weit", weit)
+    if len(sprueche) < 2: fehler.append(f"{name}: nur {len(sprueche)} Sprüche")
+    print(name, "Richtungen", sorted(richtung), "Sprüche", len(sprueche))
 
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox","--disable-dev-shm-usage"])

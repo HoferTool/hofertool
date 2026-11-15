@@ -271,7 +271,7 @@ function Kopf() {
           <Wetter ohneId />
         </section>
         <Solaranlage ohneId />
-        {/* Tänzer über Kopf und Solaranlage, Füsse unten über dem Kalender */}
+        {/* Person mit Schlitten voller Hühner über Kopf und Solaranlage, Füsse unten über dem Kalender */}
         <Durchfahrt tief />
       </div>
     </div>
