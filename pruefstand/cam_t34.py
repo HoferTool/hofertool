@@ -1,4 +1,5 @@
-# HOFERCAM (seit 1.582.0): Platz 34, T3400 oder T3421–T3423 montiert
+# HOFERCAM (seit 1.582.0): Platz 34, T3400 oder T3421–T3423 montiert;
+# seit 1.584.0 zeigt das Maschinenbild nur die montierte Einheit
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -28,7 +29,15 @@ with sync_playwright() as p:
     pruefe("T342x-Block nicht montiert", pg.locator("[data-camblock-nichtmontiert]").count() == 1)
     # neuer Querblock: bis T3400 möglich
     pg.click("#cam-neu-seite")
+    pg.hover("[data-block='1'] [data-camblock-platzfeld]"); pg.wait_for_timeout(300)
+    href = pg.get_attribute("#cam-bild image", "href") if pg.locator("#cam-bild image").count() else ""
+    pruefe("Maschinenbild ohne T3421–T3423", "star-sb20rg-t3400.png" in (href or ""))
+    pg.locator("#cam-bild").screenshot(path=S + "bild_t3400.png")
     pg.select_option("[data-cam='t34']", "3421")
+    pg.hover("[data-block='1'] [data-camblock-platzfeld]"); pg.wait_for_timeout(300)
+    href = pg.get_attribute("#cam-bild image", "href") if pg.locator("#cam-bild image").count() else ""
+    pruefe("Maschinenbild mit T3421–T3423", (href or "").endswith("star-sb20rg.png"))
+    pg.locator("#cam-bild").screenshot(path=S + "bild_t3421.png")
     pruefe("Nach Rückwechsel T342x wieder ok", pg.locator("[data-camblock-nichtmontiert]").count() == 0)
     pg.wait_for_timeout(800); print(pg.locator("#cam-kanaele").count(), pg.evaluate("document.querySelector('#rech-inhalt')?.innerText.slice(0,300)"))
     pg.screenshot(path=S + "t34.png")

@@ -269,7 +269,7 @@ function PlatzWahl({ wert, plaetze, waehlen, vorschau }) {
 
 // Seit 1.426.0: Bild der Maschine oben rechts, solange die Maus über
 // einer Bearbeitung steht, mit dem Bereich ihres Werkzeugs markiert
-function MaschinenBild({ block }) {
+function MaschinenBild({ block, t34 }) {
   // Fährt die Maus darunter, wird es fast durchsichtig, damit
   // die Felder dahinter lesbar und bedienbar bleiben (Klicks gehen durch)
   const ref = useRef(null);
@@ -335,7 +335,9 @@ function MaschinenBild({ block }) {
           <rect x="0" y="0" width="512" height="512" fill="#fff" />
           <rect x={r.x - 3} y={r.y - 3} width={r.w + 6} height={r.h + 6} rx="6" fill="#000" />
         </mask></defs>
-        <image href={import.meta.env.BASE_URL + "hilfe/star-sb20rg.png"} x="0" y="0" width="512" height="512" />
+        {/* Seit 1.584.0 (Patrick 16. November 2026: „im Werkzeug-Auswahlbild nur die Einheit anzeigen,
+            welche montiert ist“): mit T3400 ein Bild ohne T3421–T3423 */}
+        <image href={import.meta.env.BASE_URL + (t34 === "3400" ? "hilfe/star-sb20rg-t3400.png" : "hilfe/star-sb20rg.png")} x="0" y="0" width="512" height="512" />
         <rect x="0" y="0" width="512" height="512" fill="rgba(20,30,45,.45)" mask="url(#cam-bild-maske)" />
         <rect className={"cam-bild__rahmen" + (r.verdeckt ? " cam-bild__rahmen--verdeckt" : "")} x={r.x} y={r.y} width={r.w} height={r.h} rx="5" />
         <rect className="cam-bild__schildgrund" x={sx} y={sy} width={sb} height={sh} rx="8" />
@@ -712,7 +714,7 @@ export default function HoferCam() {
         // Seit 1.426.6 wieder nur, solange die Maus über einer Bearbeitung ist
         // (Patrick: „doch nicht eingeblendet bleiben“)
         const bb = bloecke.find((x) => x.id === ueber);
-        return <MaschinenBild block={bb && vorPlatz && vorPlatz.id === bb.id ? { ...bb, platz: vorPlatz.platz } : bb} />;
+        return <MaschinenBild t34={t34Von(w)} block={bb && vorPlatz && vorPlatz.id === bb.id ? { ...bb, platz: vorPlatz.platz } : bb} />;
       })()}
       <div className="cam-bearb" id="cam-bearb">
         <div className="cam-bearb__kopf">
