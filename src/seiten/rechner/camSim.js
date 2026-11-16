@@ -374,16 +374,46 @@ export function simAufbauen(wRoh) {
     if (!s.punkte.length && !s.status) s.status = "leer";
     schritte.push(s);
   });
-  // Kanal 1 zuerst, dann Kanal 2, je in der Reihenfolge der Bearbeitungen
-  const sortiert = [...schritte.filter((s) => s.kanal === 1), ...schritte.filter((s) => s.kanal === 2)];
+  // Seit 1.558.3 (Patrick 16. November 2026: „beim Abstechen und Übergabe
+  // sehe ich dann, dass das Werkstück vom Rest der 3 m langen Stange
+  // abgetrennt wird“): nach Kanal 1 sticht das Ende ab wie im Programm,
+  // G00X#510Z[#530+#528], G1X#524, die Gegenspindel zieht das Teil weg
+  const ab1 = abstechSchritt(A, W + Math.abs(num(w.plan) || 0), B, num(w.X) || 0);
+  // Kanal 1 zuerst, dann Abstechen, dann Kanal 2, je in der Reihenfolge der Bearbeitungen
+  const sortiert = [...schritte.filter((s) => s.kanal === 1), ab1, ...schritte.filter((s) => s.kanal === 2)];
   let ab = 0;
   sortiert.forEach((s) => { s.von = ab; ab += s.punkte.length; s.bis = ab; });
   const zMax = Math.min(300, Math.max(W + B + 3, ...sortiert.filter((s) => s.kanal === 1 && !s.achse).flatMap((s) => s.punkte.filter((p) => p.vor).map((p) => p.z + 1))));
   const hatC = sortiert.some((s) => s.modus === "c");
+  // Stange: auf der Maschine 3 m lang; gezeichnet so lang, dass sie hinter
+  // der Führungsbüchse aus dem Bild läuft
+  const zStange = zMax + Math.max(80, 4 * (zMax - vorne + A));
   return {
-    roh: { A, W, B, vorne }, schritte: sortiert, gesamt: ab, zMax, hatK2: sortiert.some((s) => s.kanal === 2),
+    roh: { A, W, B, vorne }, schritte: sortiert, gesamt: ab, zMax, zStange, hatK2: sortiert.some((s) => s.kanal === 2),
     vox: hatC ? { z0: vorne - 0.5, z1: Math.min(zMax, Math.max(W + B + 1, cZ)) } : null,
   };
+}
+
+// Abstechen am Ende von Kanal 1: Stahl der Breite B, Bezugskante hinten
+// bei Z = W + B (wie im Programm), schneidet von #510 bis #524; danach
+// zieht die Gegenspindel das Teil 8 mm nach vorne weg (Übergabe)
+const UEBERGABE = 8;
+function abstechSchritt(A, W, B, X) {
+  const Bw = B > 0 ? B : 2;
+  const z = W + Bw, r0 = (A + 1) / 2, r1 = Math.max(-0.5, X / 2);
+  const punkte = [{ z, r: r0, vor: false, nr: 0 }];
+  const n = Math.max(20, Math.ceil((r0 - r1) / 0.05));
+  for (let k = 1; k <= n; k++) punkte.push({ z, r: r0 + (r1 - r0) * k / n, vor: true, nr: 1 });
+  for (let k = 1; k <= 24; k++) punkte.push({ z, r: r1, vor: false, nr: 2, ab: UEBERGABE * k / 24 });
+  return { i: "ab", id: "abstechen", kanal: 1, titel: "Abstechen und Übergabe", art: "abstech", modus: "abstech", wz: null,
+    breite: Bw, punkte, status: "", zeilen: ["G00X#510Z[#530+#528]", "G1X#524F#522", "Übergabe an die Gegenspindel"] };
+}
+function abstechen(st, s, p) {
+  if (!p.vor) return;
+  const { aussen, innen, z0 } = st;
+  const ka = Math.max(0, Math.round((p.z - s.breite - z0) / RASTER)), kb = Math.min(aussen.length - 1, Math.round((p.z - z0) / RASTER));
+  const r = Math.max(0, p.r);
+  for (let k = ka; k <= kb; k++) if (aussen[k] > r) aussen[k] = Math.max(r, innen[k]);
 }
 
 // Werkzeughüllen einmal je Simulation
@@ -496,8 +526,8 @@ export function materialStand(sim, n, cache = new Map()) {
   const { A, W, vorne } = sim.roh;
   let lauf = cache.get("__lauf");
   if (!lauf || lauf.n > n) {
-    const z0 = vorne - 1, zellen = Math.ceil((sim.zMax - z0) / RASTER) + 1;
-    const k1 = { z0, aussen: new Float32Array(zellen), innen: new Float32Array(zellen), ende: sim.zMax };
+    const z0 = vorne - 1, zEnde = sim.zStange || sim.zMax, zellen = Math.ceil((zEnde - z0) / RASTER) + 1;
+    const k1 = { z0, aussen: new Float32Array(zellen), innen: new Float32Array(zellen), ende: zEnde };
     for (let k = 0; k < zellen; k++) k1.aussen[k] = z0 + k * RASTER < vorne - 1e-9 ? 0 : A / 2;
     lauf = { n: 0, k1, k2: null, vox: sim.vox ? voxelNeu(sim) : null, letzt: null };
     cache.set("__lauf", lauf);
@@ -511,7 +541,8 @@ export function materialStand(sim, n, cache = new Map()) {
     const bis = Math.min(n, s.bis);
     if (s.von >= lauf.n) lauf.letzt = null;
     for (let i = Math.max(s.von, lauf.n); i < bis; i++) {
-      if (s.modus === "c") voxelSchritt(lauf, s, i, h);
+      if (s.modus === "abstech") abstechen(st, s, s.punkte[i - s.von]);
+      else if (s.modus === "c") voxelSchritt(lauf, s, i, h);
       else abtragen(st, s, s.punkte[i - s.von], h);
     }
   }

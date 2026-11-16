@@ -32,24 +32,29 @@ with sync_playwright() as p:
     pg.fill("[data-camwz='r']", "0.4"); pg.click("[data-camwz-sl='ur']")
     pruefe("Keine Fehler mehr", pg.locator("[data-camwz] .cam-feld--fehler").count() == 0)
     t = pg.text_content("[data-camwz-auf='0']")
-    pruefe("Knopf zeigt Werkzeug: " + t, "D 55°" in t and "R0.4" in t and "unten rechts" in t)
-    # Ausrichtung: bei „unten rechts“ zeigt die Spitze nach unten rechts,
-    # die Platte liegt oben links davon
+    pruefe("Knopf zeigt Werkzeug: " + t, "D 55°" in t and "R0.4" in t and "unten links" in t)
+    # Seit 1.558.3 wie an der Maschine (Büchse links, +Z nach links): die
+    # gespeicherte Lage „ur“ zeigt sich unten links, die Platte oben rechts
     def lage():
         return pg.evaluate("""() => { const s = document.querySelector('[data-camwz-skizze]');
           const c = s.querySelector('.cam-wz__spitze'); const pts = s.querySelector('.cam-wz__platte').getAttribute('points')
             .split(' ').map(x => x.split(',').map(Number));
           const mz = pts.reduce((a, q) => a + q[0], 0) / pts.length, my = pts.reduce((a, q) => a + q[1], 0) / pts.length;
           return [Number(c.getAttribute('cx')) - mz, Number(c.getAttribute('cy')) - my]; }""")
-    d = lage(); pruefe("Spitze unten rechts der Platte %s" % d, d[0] > 0 and d[1] > 0)
-    pg.click("[data-camwz-sl='ol']"); d = lage(); pruefe("Spitze oben links %s" % d, d[0] < 0 and d[1] < 0)
+    d = lage(); pruefe("Spitze unten links der Platte %s" % d, d[0] < 0 and d[1] > 0)
+    pruefe("Rohteilbild: Platte ausserhalb", pg.get_attribute("[data-camwz-lagebild]", "data-hinein") == "0")
+    pg.locator(".cam-wz").screenshot(path="/tmp/claude-0/-home-user/e193e6f8-e4d3-5775-9ccb-4db292d1b235/scratchpad/wz_ur.png")
+    pruefe("Knöpfe wie an der Maschine (erster = or)", pg.get_attribute(".kt-lage [data-camwz-sl]", "data-camwz-sl") == "or")
+    pg.click("[data-camwz-sl='ol']"); d = lage(); pruefe("Spitze oben rechts %s" % d, d[0] > 0 and d[1] < 0)
+    pruefe("Rohteilbild: ol ragt ins Material", pg.get_attribute("[data-camwz-lagebild]", "data-hinein") == "1")
+    pg.locator(".cam-wz").screenshot(path="/tmp/claude-0/-home-user/e193e6f8-e4d3-5775-9ccb-4db292d1b235/scratchpad/wz_ol.png")
     pg.click("[data-camwz-sl='u']"); d = lage(); pruefe("Spitze unten %s" % d, abs(d[0]) < 1 and d[1] > 0)
     pg.click("[data-camwz-form='E']")
     pruefe("Einstech: Breite fehlt", pg.locator(".cam-feld--fehler [data-camwz='breite']").count() == 1)
     pg.fill("[data-camwz='breite']", "2"); pg.click("[data-camwz-sl='ur']")
     pruefe("Einstech vollständig", pg.locator("[data-camwz] .cam-feld--fehler").count() == 0)
     pruefe("Einstech im Knopf", "Einstechplatte B2" in pg.text_content("[data-camwz-auf='0']"))
-    d = lage(); pruefe("Einstech Spitze unten rechts %s" % d, d[0] > 0 and d[1] > 0)
+    d = lage(); pruefe("Einstech Spitze unten links %s" % d, d[0] < 0 and d[1] > 0)
     pruefe("NC-Programm unverändert", k1() == vorher)
     # Frontwerkzeug: zuerst Bohr-/Fräswerkzeug
     pg.click("#cam-neu-front"); pg.click("[data-camwz-auf='1']")

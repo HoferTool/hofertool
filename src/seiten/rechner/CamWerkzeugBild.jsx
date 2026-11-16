@@ -8,7 +8,7 @@
 //  Spitzenwinkel an der Spitze). Die Zeichnung folgt den Werten live.
 // =================================================================
 
-import { FRAESER, LAGE_NAME, PLATTEN, SPITZEN, fraeserUmriss, plattenForm, plattenUmriss, wzArt, wzArten, wzFehler, wzFelder } from "./camWerkzeug.js";
+import { FRAESER, LAGE_NAME, LAGEN_MASCHINE, PLATTEN, SPITZEN, fraeserUmriss, plattenForm, plattenUmriss, wzArt, wzArten, wzFehler, wzFelder } from "./camWerkzeug.js";
 
 const BW = 340, BH = 240; // Massbild in Punkten (1 Punkt = 1 Pixel)
 
@@ -29,7 +29,9 @@ function FormBild({ art, id }) {
   const zs = alle.map((q) => q.z), xs = alle.map((q) => q.x);
   const minZ = Math.min(...zs), maxZ = Math.max(...zs), minX = Math.min(...xs), maxX = Math.max(...xs);
   const m = Math.min((W - 8) / (maxZ - minZ || 1), (H - 8) / (maxX - minX || 1));
-  const tz = (z) => 4 + (z - minZ) * m + ((W - 8) - (maxZ - minZ) * m) / 2;
+  // Drehplatten wie an der Maschine gesehen: +Z nach links
+  const tz = art === "dreh" ? (z) => 4 + (maxZ - z) * m + ((W - 8) - (maxZ - minZ) * m) / 2
+    : (z) => 4 + (z - minZ) * m + ((W - 8) - (maxZ - minZ) * m) / 2;
   const tx = (x) => 4 + (maxX - x) * m + ((H - 8) - (maxX - minX) * m) / 2;
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} aria-hidden="true">
@@ -70,9 +72,12 @@ function DrehBild({ wz, f, aendern, felder }) {
   // Platte in der Mitte, rundherum Platz für die Felder
   const RAND = 50;
   const m = Math.min((BW - 2 * RAND) / (maxZ - minZ || 1), (BH - 2 * RAND) / (maxX - minX || 1));
-  const tz = (z) => RAND + (z - minZ) * m + ((BW - 2 * RAND) - (maxZ - minZ) * m) / 2;
+  // Wie an der Maschine gesehen: +Z zeigt nach links (Büchse links)
+  const tz = (z) => RAND + (maxZ - z) * m + ((BW - 2 * RAND) - (maxZ - minZ) * m) / 2;
   const tx = (x) => RAND + (maxX - x) * m + ((BH - 2 * RAND) - (maxX - minX) * m) / 2;
-  const s = SPITZEN.find((x) => x.id === wz.sl) || { id: "ul", z: -1, r: -1 };
+  // s.z hier in Bildrichtung (+ = rechts), darum gespiegelt
+  const s0 = SPITZEN.find((x) => x.id === wz.sl) || { id: "ul", z: -1, r: -1 };
+  const s = { ...s0, z: -s0.z };
   const n = Math.hypot(s.z, s.r) || 1;
   // Richtung von der Platte zur Spitze in Bildpunkten (y nach unten)
   const dir = s.id === "m" ? { x: 0.7, y: 0.7 } : { x: s.z / n, y: -s.r / n };
@@ -128,8 +133,8 @@ function DrehBild({ wz, f, aendern, felder }) {
         <polygon className="cam-wz__platte" points={punkte(p, tz, tx)} />
         {teile}
         <circle className="cam-wz__spitze" cx={spitze.x} cy={spitze.y} r="3.5" />
-        <g className="cam-mass__achsen"><line x1="12" y1={BH - 12} x2="40" y2={BH - 12} /><line x1="12" y1={BH - 12} x2="12" y2={BH - 40} />
-          <text x="44" y={BH - 9}>Z</text><text x="8" y={BH - 44}>X</text></g>
+        <g className="cam-mass__achsen"><line x1="40" y1={BH - 12} x2="12" y2={BH - 12} /><line x1="40" y1={BH - 12} x2="40" y2={BH - 40} />
+          <text x="2" y={BH - 9}>Z</text><text x="36" y={BH - 44}>X</text></g>
         {form.art !== "rund" && <text className="cam-mass__notiz" x={BW - 8} y={BH - 8} textAnchor="end">● gedachte Spitze</text>}
       </svg>
       {eingaben}
@@ -193,6 +198,40 @@ function FraesBild({ wz, f, aendern, felder }) {
     </div>);
 }
 
+// Kleines Bild wie an der Maschine (seit 1.558.3, Wunsch Patrick
+// 16. November 2026: „ein Bild vom Rohteil, und wie mein Werkzeug dann je
+// nach Schneidenlage steht“): links die Führungsbüchse, daraus das Rohteil,
+// vorne rechts die Stirn bei Z0; die gedachte Spitze der Platte sitzt an
+// der Ecke Stirn / Aussendurchmesser. Ragt die Platte ins Material, ist
+// die Lage für das Aussendrehen an der Stirn falsch.
+function LageBild({ wz }) {
+  const p = plattenUmriss(wz);
+  if (!p.length) return null;
+  const W = 200, H = 130, ACHSE = 112, OBEN = 52, STIRN = 120, BU = 36;
+  const ausdehnung = Math.max(...p.map((q) => Math.max(Math.abs(q.z), Math.abs(q.x)))) || 1;
+  const m = 46 / ausdehnung;
+  // Bild: Z nach links, X nach oben, Spitze an der Ecke (STIRN, OBEN)
+  const bild = p.map((q) => (STIRN - q.z * m).toFixed(1) + "," + (OBEN - q.x * m).toFixed(1)).join(" ");
+  const e = 0.05 * ausdehnung;
+  const hinein = p.some((q) => q.z > e && q.x < -e);
+  return (
+    <div className="cam-lagebild" data-camwz-lagebild data-hinein={hinein ? "1" : "0"}>
+      <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} aria-label="Lage der Platte am Rohteil">
+        <rect className="cam-lagebild__stange" x={BU - 4} y={OBEN} width={STIRN - BU + 4} height={ACHSE - OBEN + 20} />
+        <rect className="cam-lagebild__buechse" x={6} y={OBEN - 16} width={BU - 6} height={H - OBEN + 16} />
+        <line className="cam-lagebild__achse" x1="2" y1={ACHSE} x2={W - 2} y2={ACHSE} />
+        <polygon className={"cam-wz__platte" + (hinein ? " cam-lagebild__falsch" : "")} points={bild} />
+        <circle className="cam-wz__spitze" cx={STIRN} cy={OBEN} r="3" />
+        <text className="cam-lagebild__text" x={BU + 6} y={OBEN + 16}>Rohteil</text>
+        <text className="cam-lagebild__text" x={STIRN - 4} y={ACHSE - 6} textAnchor="end">Z0</text>
+        <text className="cam-lagebild__text cam-lagebild__klein" x="8" y={OBEN - 20}>Büchse</text>
+      </svg>
+      <span className={"klein" + (hinein ? " cam-lagebild__warn" : "")}>{hinein
+        ? "Platte ragt so ins Material: diese Lage passt nicht für aussen an der Stirn."
+        : "So steht die Platte aussen an der Stirn."}</span>
+    </div>);
+}
+
 export function WerkzeugFeld({ b, setze, zu }) {
   const arten = wzArten(b.art);
   const art = wzArt(b);
@@ -224,16 +263,17 @@ export function WerkzeugFeld({ b, setze, zu }) {
         {art === "dreh" && form && form.art !== "rund" && <div className={"cam-wz__lage" + (f.sl ? " cam-feld--fehler" : "")}>
           <span className="klein">Schneidenlage{wz.sl ? ": " + LAGE_NAME[wz.sl] : " wählen"}</span>
           <div className="kt-lage" role="group" aria-label="Schneidenlage">
-            {SPITZEN.map((s) => (
+            {LAGEN_MASCHINE.map((id) => SPITZEN.find((x) => x.id === id)).map((s) => (
               <button key={s.id} data-camwz-sl={s.id} className={"kt-lage__knopf" + (wz.sl === s.id ? " aktiv" : "")}
                 title={LAGE_NAME[s.id]} onClick={() => aendern("sl", s.id)}>
                 <svg viewBox="-12 -12 24 24" width="30" height="30" aria-hidden="true">
                   <circle r="6" className="kt-lage__platte" />
-                  <circle cx={s.z * 6} cy={-s.r * 6} r="2.6" className="kt-lage__punkt" />
+                  <circle cx={-s.z * 6} cy={-s.r * 6} r="2.6" className="kt-lage__punkt" />
                 </svg>
               </button>))}
           </div>
-          <span className="klein cam-wz__lagetext">Punkt = Lage der gedachten Spitze zur Schneidenmitte. Die Platte dreht sich im Bild mit.</span>
+          <span className="klein cam-wz__lagetext">Punkt = Lage der gedachten Spitze zur Schneidenmitte, wie an der Maschine gesehen (Führungsbüchse links). Die Platte dreht sich im Bild mit.</span>
+          {wz.sl && <LageBild wz={wz} />}
         </div>}
       </div>}
       {!wz.form && <p className="klein cam-wz__hinweis">Form antippen, dann die Masse direkt im Bild eintragen.</p>}

@@ -66,7 +66,7 @@ with sync_playwright() as p:
           return v.feld[(iz * v.nu + iu) * v.nu + iw]; }""", [z, u, w])
     sim = pg.evaluate("() => { const s = document.querySelector('#cam-sim-bild').__sim; return s.schritte.map((x) => ({ art: x.art, status: x.status, modus: x.modus, n: x.punkte.length, kanal: x.kanal })); }")
     print(sim)
-    pruefe("Alle drei mit Material (modus c)", all(x["modus"] == "c" and not x["status"] for x in sim))
+    pruefe("Alle drei mit Material (modus c)", all(x["modus"] == "c" and not x["status"] for x in sim if x["art"] != "abstech"))
     # C0 bei +X, die vier Bohrungen bei 0°, 90°, 180°, 270°
     pruefe("Bohrung oben (+X) bei Z6", weg(6, 6, 0) == 1)
     pruefe("Bohrung unten (−X) bei Z6", weg(6, -6, 0) == 1)

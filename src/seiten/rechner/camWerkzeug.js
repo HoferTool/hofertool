@@ -117,8 +117,14 @@ export function wzText(b) {
   if (wz.laenge) teile.push("L" + wz.laenge);
   return teile.join(" · ");
 }
-export const LAGE_NAME = { ol: "oben links", o: "oben", or: "oben rechts", l: "links", m: "Mitte",
-  r: "rechts", ul: "unten links", u: "unten", ur: "unten rechts" };
+// Namen wie an der Maschine gesehen (seit 1.558.3): Führungsbüchse links,
+// Teil vorne rechts, +Z zeigt nach links. Gespeichert bleibt die Lage wie
+// in HOFERCONTUR (Z nach rechts), darum sind links und rechts vertauscht.
+// Patrick 16. November 2026: „dann würden auch die Schneidenlagen ändern“
+export const LAGE_NAME = { ol: "oben rechts", o: "oben", or: "oben links", l: "rechts", m: "Mitte",
+  r: "links", ul: "unten rechts", u: "unten", ur: "unten links" };
+// Knöpfe der Schneidenlage in der Anordnung wie an der Maschine
+export const LAGEN_MASCHINE = ["or", "o", "ol", "r", "m", "l", "ur", "u", "ul"];
 
 // Umriss der Platte in mm, Z nach rechts, X nach oben, die gedachte
 // Spitze im Nullpunkt. Die Schneidenlage gibt die Richtung, in die die
