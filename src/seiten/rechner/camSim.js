@@ -352,6 +352,8 @@ export function simAufbauen(wRoh) {
         an = an ?? 0;
         const sg = weg != null && weg > an ? -1 : 1;
         zTeil = (p) => sg * (p.z - an) - 0.5;
+        // Seit 1.585.0: Spitze vor der Drehebene, siehe unten bei den festen Frontwerkzeugen
+        if (kanal === 1 && art === "quer" && sg === 1) s.dzVorne = -(an + 0.5);
       }
       s.punkte = roh.map((p) => {
         // Kanal 2: das Teil fährt in X, das Werkzeug steht → Lage im Teil −X
@@ -385,6 +387,12 @@ export function simAufbauen(wRoh) {
         const zErst = wa === "dreh" ? ersteVorZ(roh, zeilen) : null;
         const z0 = zErst ?? an, luft = zErst != null ? 0 : 0.5;
         s.punkte = roh.map((p) => ({ z: sg * (p.z - z0) - luft, r: Math.abs(p.x || 0) / 2, vor: p.vor, nr: p.nr }));
+        // Seit 1.585.0 (Patrick 16. November 2026: „die Vorposition ist bei
+        // Z5.0 programmiert, das Werkzeug wird bei Z5.0 mit einem Abstand von
+        // 0.5 mm zum Werkstück montiert“): an der Hauptspindel ist Z die Lage
+        // der Stirn vor der Drehebene, die Spitze steht also fest
+        // z0 + Luft vor der Drehebene, nicht an der Bohreinheit geschätzt
+        if (kanal === 1) s.dzVorne = -(z0 + luft);
         // Seit 1.567.0 (Patrick 16. November 2026: „bei T1200 Front
         // Innendrehen nur die Werkzeugbahn“): eine Drehplatte am festen
         // Frontwerkzeug dreht wie ein Drehwerkzeug, X aus dem Programm

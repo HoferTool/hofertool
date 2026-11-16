@@ -48,7 +48,9 @@ export const TRAEGER_PLAETZE = [100, 200, 300, 400, 500, 600, 3100, 3200, 3300, 
 // ab: Abstecher T100 (seit 1.584.2, Patrick 16. November 2026: „die Platte
 // muss mindestens 1 mm mehr als die Hälfte vom Rohmaterialdurchmesser aus
 // dem Halter vorstehen“), {vor: Vorstand = A/2 + 1, b: Breite B aus G266}
-export function traegerQuader(o, aktiv, m = MASCHINE_SB20RG, t34 = "3421", ab = null) {
+// spitze: aktives Frontwerkzeug mit Spitze aus dem Programm (seit 1.585.0),
+// {dz: Spitze vor der Drehebene, L: Länge des gezeichneten Werkzeugs}
+export function traegerQuader(o, aktiv, m = MASCHINE_SB20RG, t34 = "3421", ab = null, spitze = null) {
   const q = [];
   const box = (z0, z1, x0, x1, y0, y1, art) => q.push({ z0: o.z + z0, z1: o.z + z1, x0: o.x + x0, x1: o.x + x1, y0: o.y + y0, y1: o.y + y1, art });
   // Seit 1.584.1 (Patrick 16. November 2026): die Schäfte 12 × 12 stecken
@@ -81,6 +83,8 @@ export function traegerQuader(o, aktiv, m = MASCHINE_SB20RG, t34 = "3421", ab = 
   const dz = m.front.dz, sch = m.front.schaft, xu = -3 * m.front.teilungX - 14;
   if (t34 !== "3400") box(dz - sch - m.front.block, dz - sch, xu, 16, m.t342y - 12, m.t342y + 12, "gehaeuse");
   box(dz - sch - m.front.block, dz - sch, xu, 16, m.t1100y - 16, m.t1100y + 16, "gehaeuse");
+  const la = spitze ? platzLage(aktiv, m) : null;
+  if (la && la.art === "front" && spitze.dz - spitze.L > dz - sch) box(dz - sch, spitze.dz - spitze.L, la.x - 6, la.x + 6, la.y - 6, la.y + 6, "halter");
   return q;
 }
 

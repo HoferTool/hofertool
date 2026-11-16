@@ -486,7 +486,7 @@ function Simulation({ w, zu }) {
     for (const x of sim.schritte) {
       if (x.kanal !== 1) continue;
       const l = platzLage(x.platz);
-      if (l) for (const p of x.punkte) z = Math.max(z, p.z - l.dz + 2);
+      if (l) for (const p of x.punkte) z = Math.max(z, p.z - (x.dzVorne ?? l.dz) + 2);
     }
     return z + BUECHSE_L + MASCHINE_SB20RG.kopf.abstand;
   }, [sim]);
@@ -584,7 +584,17 @@ function Simulation({ w, zu }) {
       const l = sAkt ? platzLage(sAkt.platz) : null;
       if (l && pAkt) {
         const X = pAkt.mx != null ? pAkt.mx : pAkt.r, Y = pAkt.my != null ? pAkt.my : 0;
-        traeger = { z: pAkt.z - l.dz, x: X - l.x, y: Y - l.y, aktiv: sAkt.platz };
+        traeger = { z: pAkt.z - (sAkt.dzVorne ?? l.dz), x: X - l.x, y: Y - l.y, aktiv: sAkt.platz };
+        // Frontwerkzeug mit Spitze vor der Drehebene aus dem Programm: Halter
+        // von der Bohreinheit bis hinter das gezeichnete Werkzeug
+        if (sAkt.dzVorne != null && l.art === "front") {
+          let L = 8;
+          if (sAkt.wz && (sAkt.modus === "bohr" || sAkt.modus === "c")) {
+            const u = bohrerHuelle(sAkt.wz).umriss;
+            L = Math.max(...[...u.schaft, ...u.schneide].map((q) => q.x));
+          }
+          traeger.spitze = { dz: sAkt.dzVorne, L };
+        }
         roll = ((pAkt.c || 0) * Math.PI) / 180;
       } else if (!sAkt) {
         // noch nichts gefahren: T100 über dem Rohteil an der Stirn
@@ -607,6 +617,8 @@ function Simulation({ w, zu }) {
       // Bei Front- und angetriebenen Werkzeugen fährt das Teil weiter durch
       // die feste Büchse: sie bleibt in der Ansicht stehen wie das Werkzeug
       if (wzJetzt && zDreh != null && akt && akt.kanal === 1 && akt.art !== "dreh" && akt.art !== "seite" && akt.modus !== "abstech" && !akt.achse) zb += wzJetzt.z - zDreh;
+      // Seit 1.585.0: Spitze steht fest vor der Drehebene (Z aus dem Programm)
+      if (wzJetzt && akt && akt.kanal === 1 && akt.dzVorne != null) zb = wzJetzt.z - akt.dzVorne + 2;
       // mit Maschine steht die Büchse fest am Träger, 2 mm hinter den Drehwerkzeugen
       if (traeger) zb = traeger.z + 2;
       ueber.buechse = { z: zb, ri: A / 2, ra: BUECHSE_R, L: BUECHSE_L };
@@ -618,7 +630,7 @@ function Simulation({ w, zu }) {
     let maschine = null, gegen = null;
     if (kanal === 1 && maschineAn) {
       maschine = {
-        quader: traeger ? traegerQuader(traeger, traeger.aktiv, undefined, sim.t34, { vor: A / 2 + 1, b: Math.max(0.5, sim.roh.B || 2) }) : [], roll, grob: laeuft,
+        quader: traeger ? traegerQuader(traeger, traeger.aktiv, undefined, sim.t34, { vor: A / 2 + 1, b: Math.max(0.5, sim.roh.B || 2) }, traeger.spitze) : [], roll, grob: laeuft,
         kopf: { z: kopfZ, ri: A / 2, nase: k.nase, naseL: k.naseL, r: k.r, L: k.L },
       };
       maschine.koepfe = [maschine.kopf];
