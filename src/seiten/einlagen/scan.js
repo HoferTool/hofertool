@@ -121,3 +121,30 @@ export function umrissPfad(daten) {
   const rand = Math.max(b[2] - b[0], b[3] - b[1]) * 0.06;
   return { d, box: [b[0] - rand, b[1] - rand, b[2] - b[0] + 2 * rand, b[3] - b[1] + 2 * rand].map(f).join(" ") };
 }
+
+// Masse ändern bei gespeicherten Taschen und Kreisen (Wunsch Patrick 16. November 2026: „Bei Taschen und Kreisen
+// soll man auch bei den gespeicherten Werkzeugen die Masse ändern können“). Erkannt wird nur, was eindeutig ist:
+// ein Rechteck füllt seinen Rahmen fast ganz aus, ein Kreis hat überall denselben Abstand zur Mitte.
+function flaeche(r) { let a = 0; for (let i = 0; i < r.length; i++) { const p = r[i], q = r[(i + 1) % r.length]; a += p[0] * q[1] - q[0] * p[1]; } return Math.abs(a) / 2; }
+export function formArt(daten) {
+  const pl = (daten && daten.polys) || [];
+  if (pl.length !== 1 || (pl[0].holes || []).length || !Array.isArray(pl[0].outer) || pl[0].outer.length < 4) return null;
+  const o = pl[0].outer, b = bbox(o), bw = b[2] - b[0], bh = b[3] - b[1];
+  if (!(bw > 0.5 && bh > 0.5)) return null;
+  if (o.length >= 24) {
+    const cx = (b[0] + b[2]) / 2, cy = (b[1] + b[3]) / 2, r = o.map((p) => Math.hypot(p[0] - cx, p[1] - cy)), m = r.reduce((s, x) => s + x, 0) / r.length;
+    if (Math.abs(bw - bh) < 0.03 * bw && r.every((x) => Math.abs(x - m) < m * 0.02)) return { art: "kreis", d: r3(bw) };
+  }
+  if (flaeche(o) >= 0.97 * bw * bh) return { art: "rechteck", b: r3(bw), l: r3(bh) };
+  return null;
+}
+// Neue Daten mit Breite b und Länge l (beim Kreis b = l = Ø), um die Mitte des Rahmens gestreckt
+export function formMassSetzen(daten, b, l) {
+  const o = daten.polys[0].outer, bb = bbox(o), cx = (bb[0] + bb[2]) / 2, cy = (bb[1] + bb[3]) / 2;
+  const sx = b / (bb[2] - bb[0]), sy = l / (bb[3] - bb[1]), f = (p) => [r3((p[0] - cx) * sx), r3((p[1] - cy) * sy)];
+  return {
+    ...daten, polys: [{ outer: o.map(f), holes: [] }],
+    grips: (daten.grips || []).map((g) => ({ ...g, x: r3((g.x - cx) * sx), y: r3((g.y - cy) * sy) })),
+    mass: [r3(b), r3(l)],
+  };
+}
