@@ -360,8 +360,12 @@ export function simAufbauen(wRoh) {
       // Bohr- und Fräswerkzeuge an Front: Teil 0.5 mm vor „Anfahren Z“,
       // tiefer ins Teil = weg von „Zurück Z“
       if (art === "front" || ohneG50) {
+        // Seit 1.567.1: an der Hauptspindel heisst tiefer immer grösseres Z
+        // (das Teil fährt zum Werkzeug, Patrick 16. November 2026: bei T1200
+        // mit Anfahren -0.5 und Zurück 0 fuhr es vom Teil weg); an der
+        // Gegenspindel wie bisher weg von „Zurück Z“
         const an = num(b.anZ) ?? 0, weg = num(b.wegZ);
-        const sg = weg != null && weg > an ? -1 : 1;
+        const sg = kanal === 1 ? 1 : weg != null && weg > an ? -1 : 1;
         s.punkte = roh.map((p) => ({ z: sg * (p.z - an) - 0.5, r: Math.abs(p.x || 0) / 2, vor: p.vor, nr: p.nr }));
         // Seit 1.567.0 (Patrick 16. November 2026: „bei T1200 Front
         // Innendrehen nur die Werkzeugbahn“): eine Drehplatte am festen

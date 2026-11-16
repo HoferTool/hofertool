@@ -419,7 +419,18 @@ function Simulation({ w, zu }) {
       const schieb = (l) => l.map((p) => (p.z < grenze ? { z: p.z - wegZ, r: p.r } : p));
       umriss = { aussen: schieb(umriss.aussen), innen: schieb(umriss.innen) };
     }
-    const bereich = kanal === 2 ? { zmin: -3, zmax: W + 1, rmax: A / 2 + 2 } : { zmin: vorne - 4, zmax: sim.zMax + 4, rmax: Math.max(A / 2 + 2, BUECHSE_R + 1) };
+    const bereich0 = kanal === 2 ? { zmin: -3, zmax: W + 1, rmax: A / 2 + 2 } : { zmin: vorne - 4, zmax: sim.zMax + 4, rmax: Math.max(A / 2 + 2, BUECHSE_R + 1) };
+    // Seit 1.567.1 (Patrick 16. November 2026: „es muss sich immer das
+    // Werkstück bewegen in Z, nicht das Werkzeug“): die Ansicht folgt dem
+    // Werkzeug in Z, es steht in der Mitte still, das Teil fährt
+    let wzJetzt = null;
+    for (const x of sim.schritte) {
+      if (x.kanal !== kanal || x.von >= n || !x.punkte.length || x.achse) continue;
+      wzJetzt = x.punkte[Math.min(n, x.bis) - x.von - 1];
+    }
+    const zMitte = (bereich0.zmin + bereich0.zmax) / 2;
+    const dz = wzJetzt ? wzJetzt.z - zMitte : 0;
+    const bereich = { ...bereich0, zmin: bereich0.zmin + dz, zmax: bereich0.zmax + dz };
     // Bahn und Werkzeug des aktuellen Schritts
     const ueber = { bahnen: [], werkzeuge: [], stangen: [], spitze: null, buechse: null };
     if (akt && akt.kanal === kanal && akt.punkte.length && n > akt.von) {
@@ -463,13 +474,17 @@ function Simulation({ w, zu }) {
     // Teil dort, wo sie beim letzten Drehwerkzeug war, am Anfang 2 mm
     // hinter der Stirn des Rohteils.
     if (kanal === 1) {
-      let zb = vorne + 2;
+      let zb = vorne + 2, zDreh = null;
       for (const x of sim.schritte) {
         if (x.kanal !== 1 || x.von >= n || !x.punkte.length) continue;
         if (x.art !== "dreh" && x.art !== "seite" && x.modus !== "abstech") continue;
         const q = x.punkte[Math.min(n, x.bis) - x.von - 1];
         zb = q.z + 2 + (x.art === "seite" && x.wz ? bohrerHuelle(x.wz).R : 0);
+        zDreh = q.z;
       }
+      // Bei Front- und angetriebenen Werkzeugen fährt das Teil weiter durch
+      // die feste Büchse: sie bleibt in der Ansicht stehen wie das Werkzeug
+      if (wzJetzt && zDreh != null && akt && akt.kanal === 1 && akt.art !== "dreh" && akt.art !== "seite" && akt.modus !== "abstech" && !akt.achse) zb += wzJetzt.z - zDreh;
       ueber.buechse = { z: zb, ri: A / 2, ra: BUECHSE_R, L: BUECHSE_L };
     }
     // Mit Bohrungen und Fräsungen aus C und Y: Strahlen statt Maler
