@@ -55,6 +55,17 @@ with sync_playwright() as p:
     pruefe("Einstech vollständig", pg.locator("[data-camwz] .cam-feld--fehler").count() == 0)
     pruefe("Einstech im Knopf", "Einstechplatte B2" in pg.text_content("[data-camwz-auf='0']"))
     d = lage(); pruefe("Einstech Spitze unten links %s" % d, d[0] < 0 and d[1] > 0)
+    # Utilis Multidec (1.559.0): 27° Spitze, 2° schräg, Freiwinkel 61°
+    pg.click("[data-camwz-form='U']"); pg.fill("[data-camwz='r']", "0.2"); pg.click("[data-camwz-sl='ur']")
+    pruefe("Multidec vollständig mit Vorgaben", pg.locator("[data-camwz] .cam-feld--fehler").count() == 0)
+    pruefe("Freiwinkel 61°", "61°" in pg.text_content("[data-camwz-freiwinkel]"))
+    pg.fill("[data-camwz='winkel']", "27"); pg.fill("[data-camwz='schraeg']", "2")
+    pruefe("Multidec im Knopf", "Utilis Multidec 27° schräg 2°" in pg.text_content("[data-camwz-auf='0']"))
+    pruefe("Multidec ausserhalb des Materials", pg.get_attribute("[data-camwz-lagebild]", "data-hinein") == "0")
+    pg.locator(".cam-wz").screenshot(path="/tmp/claude-0/-home-user/e193e6f8-e4d3-5775-9ccb-4db292d1b235/scratchpad/wz_multidec.png")
+    pg.fill("[data-camwz='schraeg']", "5"); pruefe("Freiwinkel 58°", "58°" in pg.text_content("[data-camwz-freiwinkel]"))
+    pg.fill("[data-camwz='winkel']", "120"); pruefe("Spitzenwinkel 120 rot", pg.locator(".cam-feld--fehler [data-camwz='winkel']").count() == 1)
+    pg.fill("[data-camwz='winkel']", "27"); pg.fill("[data-camwz='schraeg']", "2")
     pruefe("NC-Programm unverändert", k1() == vorher)
     # Frontwerkzeug: zuerst Bohr-/Fräswerkzeug
     pg.click("#cam-neu-front"); pg.click("[data-camwz-auf='1']")

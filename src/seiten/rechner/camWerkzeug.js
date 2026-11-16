@@ -30,7 +30,23 @@ export const PLATTEN = [
   { id: "R", name: "R rund", winkel: 180, art: "rund" },
   { id: "G", name: "Gewindeplatte 60°", winkel: 60, art: "gewinde" },
   { id: "E", name: "Einstechplatte", winkel: 90, art: "einstech" },
+  // Seit 1.559.0 (Patrick 16. November 2026: „Drehplatte mit 27°
+  // Spitzenwinkel, steht 2° schräg, Freiwinkel dann 61°“, „nenne sie Utilis
+  // Multidec“): Spitzenwinkel und Schräglage einstellbar, Vorgabe 27° / 2°
+  { id: "U", name: "Utilis Multidec", winkel: 27, schraeg: 2, art: "frei" },
 ];
+// Spitzenwinkel und Schräglage der Utilis Multidec (leer = Vorgabe)
+export function plattenWinkel(wz) {
+  const f = plattenForm(wz.form);
+  if (!f) return { winkel: 0, schraeg: 0 };
+  if (f.art !== "frei") return { winkel: f.winkel, schraeg: 0 };
+  const w = zahlOk(wz.winkel) && zahlV(wz.winkel) > 0 && zahlV(wz.winkel) < 90 ? zahlV(wz.winkel) : f.winkel;
+  const sr = String(wz.schraeg ?? "").trim().replace(",", ".");
+  const sg = /^-?(\d+(\.\d*)?|\.\d+)$/.test(sr) ? Number(sr) : f.schraeg;
+  return { winkel: w, schraeg: sg };
+}
+// Freiwinkel = Winkel der Nebenschneide zur Drehachse: 90 − Schräg − Spitzenwinkel
+export const freiWinkel = (wz) => { const { winkel, schraeg } = plattenWinkel(wz); return Math.round((90 - schraeg - winkel) * 100) / 100; };
 export const FRAESER = [
   { id: "bohrer", name: "Bohrer" },
   { id: "schaft", name: "Schaftfräser" },
@@ -63,6 +79,9 @@ export function wzFelder(wz, art) {
     if (f.art === "einstech") return [{ name: "breite", text: "Breite", einheit: "mm" }, { name: "r", text: "Eckradius", einheit: "mm", frei: true }];
     if (f.art === "rund") return [{ name: "r", text: "Radius", einheit: "mm" }];
     if (f.art === "gewinde") return [{ name: "r", text: "Radius", einheit: "mm", frei: true }];
+    if (f.art === "frei") return [{ name: "r", text: "Radius", einheit: "mm" },
+      { name: "winkel", text: "Spitzenwinkel", einheit: "Grad", frei: true, ph: "27" },
+      { name: "schraeg", text: "Schräg", einheit: "Grad", frei: true, ph: "2", minus: true }];
     return [{ name: "r", text: "Radius", einheit: "mm" }];
   }
   const f = wz.form;
@@ -86,8 +105,10 @@ export function wzFehler(b) {
   for (const fe of wzFelder(wz, art)) {
     const x = wz[fe.name];
     if (String(x ?? "").trim() === "") { if (!fe.frei) f[fe.name] = "fehlt"; continue; }
+    if (fe.minus) { if (!/^-?(\d+(\.\d*)?|\.\d+)$/.test(String(x).trim().replace(",", ".")) || Math.abs(zahlV(x)) >= 45) f[fe.name] = "−45 bis 45"; continue; }
     if (!zahlOk(x)) { f[fe.name] = "Zahl"; continue; }
     const v = zahlV(x);
+    if (art === "dreh" && fe.name === "winkel" && !(v > 0 && v < 90)) { f[fe.name] = "1 bis 89"; continue; }
     if (fe.name === "winkel" ? !(v > 0 && v < 180) : fe.name === "r" ? v < 0 : !(v > 0)) f[fe.name] = "ungültig";
   }
   if (art === "dreh" && plattenForm(wz.form)?.art !== "rund" && !wz.sl) f.sl = "fehlt";
@@ -103,7 +124,8 @@ export function wzText(b) {
   const art = wzArt(b);
   if (art === "dreh") {
     const f = plattenForm(wz.form);
-    const teile = [f.art === "einstech" ? "Einstechplatte" + (wz.breite ? " B" + wz.breite : "") : f.name];
+    const teile = [f.art === "einstech" ? "Einstechplatte" + (wz.breite ? " B" + wz.breite : "")
+      : f.art === "frei" ? f.name + " " + plattenWinkel(wz).winkel + "° schräg " + plattenWinkel(wz).schraeg + "°" : f.name];
     if (wz.r) teile.push("R" + wz.r);
     const s = SPITZEN.find((x) => x.id === wz.sl);
     if (s) teile.push("Lage " + LAGE_NAME[s.id]);
@@ -167,12 +189,30 @@ export function plattenUmriss(wz, gross = 8) {
   // von der Platte zur Spitze
   const n = Math.hypot(s.z, s.r) || 1;
   const dz = s.id === "m" ? 1 : s.z / n, dx = s.id === "m" ? -1 : s.r / n;
-  const hb = Math.atan2(dx, dz) + Math.PI; // Richtung in die Platte hinein
-  const e = f.winkel * Math.PI / 180 / 2;
+  let hb = Math.atan2(dx, dz) + Math.PI; // Richtung in die Platte hinein
+  const { winkel, schraeg } = plattenWinkel(wz);
+  const e = winkel * Math.PI / 180 / 2;
   const L = f.art === "gewinde" ? gross * 0.7 : gross;
-  const a = { z: L * Math.cos(hb + e), x: L * Math.sin(hb + e) };
-  const c = { z: L * Math.cos(hb - e), x: L * Math.sin(hb - e) };
-  const p = f.art === "rhombus" ? [{ z: 0, x: 0 }, a, { z: a.z + c.z, x: a.x + c.x }, c] : [{ z: 0, x: 0 }, a, c];
+  let a = { z: L * Math.cos(hb + e), x: L * Math.sin(hb + e) };
+  let c = { z: L * Math.cos(hb - e), x: L * Math.sin(hb - e) };
+  if (f.art === "frei") {
+    const sw = schraeg * Math.PI / 180, ew = winkel * Math.PI / 180;
+    if (s.z !== 0 && s.r !== 0) {
+      // Schräge Lage (etwa „ur“, an der Maschine unten links): Hauptschneide
+      // von der Spitze quer zur Achse, um „Schräg“ von der Stirn weg
+      // geneigt (Einstellwinkel 90° + Schräg), Nebenschneide um den
+      // Spitzenwinkel weiter, sie steht im Freiwinkel zur Achse
+      a = { z: -s.z * L * Math.sin(sw), x: -s.r * L * Math.cos(sw) };
+      c = { z: -s.z * L * Math.sin(sw + ew), x: -s.r * L * Math.cos(sw + ew) };
+      hb = Math.atan2(a.x + c.x, a.z + c.z);
+    } else {
+      // Gerade Lagen: Winkelhalbierende wie sonst, um „Schräg“ gedreht
+      hb += sw;
+      a = { z: L * Math.cos(hb + e), x: L * Math.sin(hb + e) };
+      c = { z: L * Math.cos(hb - e), x: L * Math.sin(hb - e) };
+    }
+  }
+  const p = f.art === "rhombus" || f.art === "frei" ? [{ z: 0, x: 0 }, a, { z: a.z + c.z, x: a.x + c.x }, c] : [{ z: 0, x: 0 }, a, c];
   const rund = eckenRunden(p, r, [0]);
   // Seit 1.547.0: die gedachte Spitze ist der Schnittpunkt der Tangenten
   // parallel zu Z und X an den Schneidenradius (so rechnet die Maschine

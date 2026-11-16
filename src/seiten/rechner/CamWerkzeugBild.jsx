@@ -8,7 +8,7 @@
 //  Spitzenwinkel an der Spitze). Die Zeichnung folgt den Werten live.
 // =================================================================
 
-import { FRAESER, LAGE_NAME, LAGEN_MASCHINE, PLATTEN, SPITZEN, fraeserUmriss, plattenForm, plattenUmriss, wzArt, wzArten, wzFehler, wzFelder } from "./camWerkzeug.js";
+import { FRAESER, LAGE_NAME, freiWinkel, LAGEN_MASCHINE, PLATTEN, SPITZEN, fraeserUmriss, plattenForm, plattenUmriss, wzArt, wzArten, wzFehler, wzFelder } from "./camWerkzeug.js";
 
 const BW = 340, BH = 240; // Massbild in Punkten (1 Punkt = 1 Pixel)
 
@@ -259,7 +259,18 @@ export function WerkzeugFeld({ b, setze, zu }) {
           </button>))}
       </div>
       {wz.form && <div className="cam-wz__inhalt">
-        {art === "dreh" ? <DrehBild wz={wz} f={f} aendern={aendern} felder={felder} /> : <FraesBild wz={wz} f={f} aendern={aendern} felder={felder} />}
+        {art === "dreh" ? <div className="cam-wz__drehspalte"><DrehBild wz={wz} f={f} aendern={aendern} felder={felder} />
+          {form && form.art === "frei" && <div className="cam-wz__frei" data-camwz-frei>
+            {felder.filter((fe) => fe.name !== "r").map((fe) => (
+              <label key={fe.name} className={"cam-wz__freifeld" + (f[fe.name] ? " cam-feld--fehler" : "")} title={f[fe.name] || ""}>
+                <span>{fe.text}</span>
+                <input type="text" data-camwz={fe.name} value={wz[fe.name] ?? ""} inputMode="decimal" placeholder={fe.ph}
+                  onChange={(e) => aendern(fe.name, e.target.value)} /><small className="cam-einheit">°</small>
+              </label>))}
+            <span className="cam-wz__freiwinkel" data-camwz-freiwinkel>Freiwinkel {freiWinkel(wz)}°</span>
+            <span className="klein cam-wz__lagetext">Schräg = Neigung der Hauptschneide gegen die Stirn (Einstellwinkel 90° + Schräg), Freiwinkel = 90° − Schräg − Spitzenwinkel.</span>
+          </div>}</div>
+          : <FraesBild wz={wz} f={f} aendern={aendern} felder={felder} />}
         {art === "dreh" && form && form.art !== "rund" && <div className={"cam-wz__lage" + (f.sl ? " cam-feld--fehler" : "")}>
           <span className="klein">Schneidenlage{wz.sl ? ": " + LAGE_NAME[wz.sl] : " wählen"}</span>
           <div className="kt-lage" role="group" aria-label="Schneidenlage">

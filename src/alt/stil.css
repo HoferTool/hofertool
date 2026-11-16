@@ -14234,3 +14234,10 @@ body.dunkel .pm-maschinenwahl .typwahl__knopf.aktiv { background: var(--marke-he
 .cam-lagebild__warn { color: #b3261e !important; font-weight: 600; }
 body.dunkel .cam-lagebild svg { background: #e9eef4; }
 body.dunkel .cam-lagebild__text { fill: #2b3744 !important; }
+/* HOFERCAM: Utilis Multidec, Spitzenwinkel und Schräg (seit 1.559.0) */
+.cam-wz__drehspalte { display: flex; flex-direction: column; gap: 6px; }
+.cam-wz__frei { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; max-width: 340px; }
+.cam-wz__freifeld { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; }
+.cam-wz__freifeld input { width: 52px; }
+.cam-wz__freifeld.cam-feld--fehler input { border-color: #b3261e; background: #fdecea; }
+.cam-wz__freiwinkel { font-weight: 600; font-size: 13px; }
