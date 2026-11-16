@@ -212,7 +212,20 @@ export function plattenUmriss(wz, gross = 8) {
       c = { z: L * Math.cos(hb - e), x: L * Math.sin(hb - e) };
     }
   }
-  const p = f.art === "rhombus" || f.art === "frei" ? [{ z: 0, x: 0 }, a, { z: a.z + c.z, x: a.x + c.x }, c] : [{ z: 0, x: 0 }, a, c];
+  let p = f.art === "rhombus" ? [{ z: 0, x: 0 }, a, { z: a.z + c.z, x: a.x + c.x }, c] : [{ z: 0, x: 0 }, a, c];
+  if (f.art === "frei") {
+    // Seit 1.562.0 nach Patricks Zeichnung CUT-1317-12 (Utilis Multidec,
+    // 16. November 2026): schmale Klinge in echten mm. Die Seite a läuft von
+    // der Spitze 11 mm in die Platte, die Seite c geht im Spitzenwinkel bis
+    // 5.5 mm hoch (dort rund 3 mm breit), dann parallel zu a bis 11 mm
+    const la = Math.hypot(a.z, a.x) || 1, lc = Math.hypot(c.z, c.x) || 1;
+    const ua = { z: a.z / la, x: a.x / la }, uc = { z: c.z / lc, x: c.x / lc };
+    const ew = winkel * Math.PI / 180, H = 11, H1 = 5.5;
+    const q1 = { z: ua.z * H, x: ua.x * H };
+    const q2 = { z: uc.z * H1 / Math.cos(ew), x: uc.x * H1 / Math.cos(ew) };
+    const q3 = { z: q2.z + ua.z * (H - H1), x: q2.x + ua.x * (H - H1) };
+    p = [{ z: 0, x: 0 }, q1, q3, q2];
+  }
   const rund = eckenRunden(p, r, [0]);
   // Seit 1.547.0: die gedachte Spitze ist der Schnittpunkt der Tangenten
   // parallel zu Z und X an den Schneidenradius (so rechnet die Maschine
