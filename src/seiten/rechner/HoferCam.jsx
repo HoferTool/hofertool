@@ -12,7 +12,7 @@ import { ZiehListe } from "../../teile/ZiehListe.jsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { NcAblage, NcStand } from "./NcAblage.jsx";
-import { dateiBeobachten, dateienFuerName, dateienLaden, dateienSchreiben, dateienWaehlen, dateiMerken, dateiVergessen, dateiVon, kannSchreiben, schreibrechtHolen } from "./camDatei.js";
+import { dateiBeobachten, dateiFehler, dateienFuerName, dateienLaden, dateienSchreiben, dateienWaehlen, dateiMerken, dateiVergessen, dateiVon, kannSchreiben, schreibrechtHolen } from "./camDatei.js";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
 import { NC_QUELLEN, hatSpann, ncAktuell, ncZeilen } from "./ncAktuell.js";
@@ -204,12 +204,23 @@ function DateiSchild({ k }) {
   useEffect(() => { dateienLaden(); return dateiBeobachten(() => neu((n) => n + 1)); }, []);
   const d = dateiVon(k);
   if (!d) return null;
-  return (
-    <span className="cam-datei" data-cam-datei={k} title={"„Speichern“ schreibt Kanal " + k + " auch in die Datei " + d.name + ", aus der er eingelesen wurde"}>
+  const grund = dateiFehler(k);
+  // Seit 1.565.1: ging das Schreiben schief, steht der Grund hier, und
+  // „Jetzt schreiben“ versucht es mit einem frischen Klick nochmals
+  const jetzt = async () => {
+    const recht = await schreibrechtHolen();
+    const { gut, fehler } = await dateienSchreiben(programmeMitHand(gemerkt), null, recht);
+    if (gut.length) alt.meldung("Datei aktualisiert: " + gut.join(", ") + ".", "gut");
+    if (fehler.length && alt.fehlerMerken) alt.fehlerMerken("HOFERCAM Datei schreiben", fehler.join("; "), navigator.userAgent);
+  };
+  return (<>
+    <span className={"cam-datei" + (grund ? " cam-datei--fehler" : "")} data-cam-datei={k} title={"„Speichern“ schreibt Kanal " + k + " auch in die Datei " + d.name + ", aus der er eingelesen wurde"}>
       ↻ {d.name}
       <button className="linkknopf" data-cam-datei-weg={k} title="Datei nicht mehr aktualisieren" onClick={() => dateiVergessen(k)}>✕</button>
     </span>
-  );
+    {grund && <span className="cam-datei-grund" data-cam-datei-grund={k}>Nicht aktualisiert: {grund}
+      {" "}<button className="knopf knopf--klein" data-cam-datei-jetzt={k} onClick={jetzt}>Jetzt in Datei schreiben</button></span>}
+  </>);
 }
 
 // 3D-Simulation und Programm einlesen, im Reiter und im eigenen Fenster
@@ -618,7 +629,10 @@ export default function HoferCam() {
             // Seit 1.562.0: auch die eingelesenen Dateien aktualisieren
             const { gut, fehler: nicht } = await dateienSchreiben(programmeMitHand(gemerkt), name, recht);
             if (gut.length) alt.meldung("Datei aktualisiert: " + gut.join(", ") + ".", "gut");
-            if (nicht.length) alt.meldung("Nicht aktualisiert: " + nicht.join(", ") + ".", "warn");
+            if (nicht.length) {
+              alt.meldung("Nicht aktualisiert: " + nicht.join(", ") + ".", "warn");
+              if (alt.fehlerMerken) alt.fehlerMerken("HOFERCAM Datei schreiben", nicht.join("; "), navigator.userAgent);
+            }
           }}
           nachOeffnen={(z) => dateienFuerName(z.name)} />
       </div>

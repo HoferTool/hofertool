@@ -14253,3 +14253,6 @@ body.dunkel .cam-frei { background: #3a2c52; color: #e6dbf7 !important; }
   background: #e8f1fb; color: #1d4f86; font-size: 12px; font-weight: 600; max-width: 220px; overflow-wrap: anywhere; }
 .cam-datei .linkknopf { padding: 0 2px; }
 body.dunkel .cam-datei { background: #17324f; }
+.cam-datei--fehler { background: #fde8e6; color: #9c1c13; }
+.cam-datei-grund { display: block; width: 100%; margin-top: 4px; padding: 4px 8px; border-radius: 6px; background: #fde8e6; color: #9c1c13; font-size: 12px; overflow-wrap: anywhere; }
+body.dunkel .cam-datei--fehler, body.dunkel .cam-datei-grund { background: #4a1c18; }

@@ -23,6 +23,11 @@ const hoerer = new Set();
 const melden = () => hoerer.forEach((f) => f());
 export const dateiBeobachten = (f) => { hoerer.add(f); return () => hoerer.delete(f); };
 export const dateiVon = (k) => aktuell[k] || null;
+// Seit 1.565.1: Grund, warum eine Datei beim letzten Speichern nicht
+// geschrieben wurde, bleibt beim Kanal stehen (Patrick: „Meldung kommt und
+// verschwindet gleich wieder“), bis es klappt
+let grund = {};
+export const dateiFehler = (k) => grund[k] || "";
 
 let geladen = null;
 export function dateienLaden() {
@@ -51,6 +56,7 @@ export async function dateienWaehlen(fenster, mehrere) {
 // Nach dem Einlesen: Kanal k gehört jetzt zu dieser Datei (ohne Griff,
 // etwa hineingezogen, ist der Kanal von keiner Datei mehr)
 export async function dateiMerken(k, griff, text, o) {
+  delete grund[k];
   if (griff) aktuell = { ...aktuell, [k]: { griff, name: griff.name, crlf: /\r\n/.test(text), o } };
   else { const { [k]: weg, ...rest } = aktuell; aktuell = rest; }
   await ablegen();
@@ -63,6 +69,7 @@ export async function dateienFuerName(name) {
   let x = null;
   try { x = name ? await idbTun("get", JE_NAME(name)) : null; } catch (f) { /* ohne IndexedDB */ }
   aktuell = x || {};
+  grund = {};
   await ablegen();
 }
 
@@ -76,8 +83,8 @@ export async function schreibrechtHolen() {
     try {
       let p = await d.griff.queryPermission({ mode: "readwrite" });
       if (p !== "granted") p = await d.griff.requestPermission({ mode: "readwrite" });
-      ok[k] = p === "granted";
-    } catch (f) { ok[k] = false; }
+      ok[k] = p === "granted" ? true : "Chrome hat das Schreiben nicht erlaubt (" + p + ")";
+    } catch (f) { ok[k] = "Chrome hat nicht nach dem Schreibrecht gefragt: " + ((f && (f.name + ": " + f.message)) || f); }
   }
   return ok;
 }
@@ -89,19 +96,27 @@ export async function dateienSchreiben(prog, name, recht) {
   for (const k of [1, 2]) {
     const d = aktuell[k];
     if (!d) continue;
+    const vorher = fehler.length;
+    await einSchreiben(k, d, prog, recht, gut, fehler);
+    if (fehler.length > vorher) grund[k] = fehler[fehler.length - 1]; else delete grund[k];
+  }
+  if (name && (aktuell[1] || aktuell[2])) { try { await idbTun("put", aktuell, JE_NAME(name)); } catch (f) { /* ohne IndexedDB */ } }
+  melden();
+  return { gut, fehler };
+}
+async function einSchreiben(k, d, prog, recht, gut, fehler) {
+  {
     const zeilen = prog["k" + k];
     const o = Number(((zeilen.find((z) => /^O\d{1,4}/i.test(z.trim())) || "").trim().match(/^O(\d{1,4})/i) || [])[1]);
     // Programmnummer geändert: nicht in eine fremde Datei schreiben
-    if (d.o && o && o !== d.o) { fehler.push(d.name + " (Programm-Nr. jetzt O" + String(o).padStart(4, "0") + ", Datei bleibt)"); continue; }
-    if (recht && recht[k] === false) { fehler.push(d.name + " (kein Schreibrecht)"); continue; }
+    if (d.o && o && o !== d.o) { fehler.push(d.name + ": Programm-Nr. jetzt O" + String(o).padStart(4, "0") + " statt O" + String(d.o).padStart(4, "0") + ", Datei bleibt"); return; }
+    if (recht && recht[k] !== undefined && recht[k] !== true) { fehler.push(d.name + ": " + recht[k]); return; }
     try {
       const nl = d.crlf ? "\r\n" : "\n";
       const s = await d.griff.createWritable();
       await s.write(zeilen.join(nl) + nl);
       await s.close();
       gut.push(d.name);
-    } catch (f) { fehler.push(d.name + " (" + (f && f.message ? f.message : f) + ")"); }
+    } catch (f) { fehler.push(d.name + ": " + ((f && (f.name + ": " + f.message)) || f)); }
   }
-  if (name && (aktuell[1] || aktuell[2])) { try { await idbTun("put", aktuell, JE_NAME(name)); } catch (f) { /* ohne IndexedDB */ } }
-  return { gut, fehler };
 }
