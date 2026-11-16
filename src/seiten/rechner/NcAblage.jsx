@@ -53,7 +53,11 @@ function ListeFenster({ titel, kurz, zeilen, zu, oeffnen, loeschen }) {
 // art: "bohren" oder "entgraten"; daten: was gespeichert wird; laden(daten)
 // setzt die Eingaben; gespeichert/setGespeichert hält der Reiter, damit
 // der Stand auch nach einem Reiterwechsel bleibt.
-export function NcAblage({ art, kurz, wort, daten, nc, laden, gespeichert, setGespeichert }) {
+// vorSpeichern / nachSpeichern / nachOeffnen (seit 1.562.0, HOFERCAM):
+// vorSpeichern läuft gleich nach dem Klick (Schreibrecht für Dateien braucht
+// den Klick), nachSpeichern(name, ergebnis von vorSpeichern) nach dem
+// Speichern, nachOeffnen(zeile) nach Öffnen
+export function NcAblage({ art, kurz, wort, daten, nc, laden, gespeichert, setGespeichert, vorSpeichern, nachSpeichern, nachOeffnen }) {
   const kontoName = "ncliste_" + art;
   const kontoListe = () => { try { return JSON.parse(alt.einstellungWert(kontoName, "[]")) || []; } catch (e) { return []; } };
   const name = gespeichert ? gespeichert.name : "";
@@ -64,6 +68,7 @@ export function NcAblage({ art, kurz, wort, daten, nc, laden, gespeichert, setGe
       felder: [{ name: "name", label: "Name, z. B. HOCO Nr.", pflicht: true, wert: name }], bestaetigen: "Speichern" });
     if (!w) return;
     const neu = w.name.trim();
+    const vor = vorSpeichern ? await vorSpeichern() : undefined;
     const { data: da, error: fl } = await alt.db.from(TABELLE).select("id, name, geaendert_am, geaendert_von")
       .eq("art", art).ilike("name", neu.replace(/[%_\\]/g, "\\$&")).maybeSingle();
     if (fl && ohneTabelle(fl)) {
@@ -72,6 +77,7 @@ export function NcAblage({ art, kurz, wort, daten, nc, laden, gespeichert, setGe
       alt.einstellungSetzenWert(kontoName, JSON.stringify([...liste, zeile]));
       setGespeichert({ ...zeile, id: "konto", konto: true });
       alt.meldung("„" + neu + "“ an deinem Konto gespeichert.", "gut");
+      if (nachSpeichern) await nachSpeichern(neu, vor);
       return;
     }
     // Wie bei der Kontur: hat jemand anderes inzwischen dasselbe
@@ -91,6 +97,7 @@ export function NcAblage({ art, kurz, wort, daten, nc, laden, gespeichert, setGe
     if (r.error) { alt.meldung("Speichern ging nicht: " + (r.error.message || r.error), "fehler"); return; }
     setGespeichert(r.data);
     alt.meldung("„" + neu + "“ mit NC-Programm gespeichert.", "gut");
+    if (nachSpeichern) await nachSpeichern(neu, vor);
   };
 
   const oeffnen = async () => {
@@ -107,7 +114,7 @@ export function NcAblage({ art, kurz, wort, daten, nc, laden, gespeichert, setGe
     if (!zeilen.length) { alt.meldung("Noch nichts gespeichert.", "warn"); return; }
     fensterOeffnen((zu) => (
       <ListeFenster titel={"Gespeichert: " + wort} kurz={kurz} zeilen={zeilen} zu={zu}
-        oeffnen={(z) => { laden(z.daten || {}); setGespeichert(z); }}
+        oeffnen={(z) => { laden(z.daten || {}); setGespeichert(z); if (nachOeffnen) nachOeffnen(z); }}
         loeschen={async (z) => {
           if (!(await alt.nachfragen({ titel: "Löschen", text: "„" + z.name + "“ löschen?", bestaetigen: "Löschen", gefahr: true }))) return false;
           if (z.konto) {

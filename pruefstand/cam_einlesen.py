@@ -119,6 +119,23 @@ with sync_playwright() as p:
     pruefe("Ende und T2900 nicht als Bearbeitung", "Werkzeug" not in (pg.text_content("#cam-ein-stand") or "") or "T2000" not in (pg.text_content("#cam-ein-stand") or ""))
     pg.click("[data-camblock-standard='0']")
     pruefe("Mit Vorlage aufbauen: Felder wieder da", pg.locator("[data-camblock-frei]").count() == 2 and pg.locator(".cam-block[data-block='0'] [data-camblock='anZ']").count() == 1)
+    # Seit 1.562.0: Einlesen über die Dateiwahl des Browsers, Speichern schreibt in die Datei zurück
+    pg.evaluate("""(txt) => { window.__geschrieben = {};
+      window.showOpenFilePicker = async () => [{ name: 'O0077.NC',
+        getFile: async () => new File([txt], 'O0077.NC'),
+        queryPermission: async () => 'prompt', requestPermission: async () => 'granted',
+        createWritable: async () => { let t = ''; return { write: async (x) => { t += x; }, close: async () => { window.__geschrieben['O0077.NC'] = t; } }; } }]; }""",
+        "\r\n".join(alt1) + "\r\n")
+    pg.click("[data-cam-einlesen='1']"); pg.wait_for_selector("[data-cam-datei='1']")
+    pruefe("Schild: Kanal 1 gehört zu O0077.NC", "O0077.NC" in pg.text_content("[data-cam-datei='1']"))
+    pg.click("#camab-speichern"); pg.wait_for_selector(".dialog input")
+    pg.fill(".dialog input", "12345-0001"); pg.click(".dialog .knopf--haupt"); pg.wait_for_timeout(800)
+    if pg.locator(".dialog .knopf--haupt").count(): pg.click(".dialog .knopf--haupt"); pg.wait_for_timeout(800)
+    gs = pg.evaluate("() => window.__geschrieben['O0077.NC'] || ''")
+    pruefe("Speichern schreibt die Datei (CRLF, wie angezeigt)", gs.endswith("\r\n") and gs.split("\r\n")[:-1] == lies(1))
+    pg.click("[data-cam-datei-weg='1']"); pg.wait_for_timeout(200)
+    pruefe("✕ löst die Datei", pg.locator("[data-cam-datei='1']").count() == 0)
+    pg.evaluate("() => { delete window.showOpenFilePicker; }")
     # Seit 1.548.1: im eigenen Fenster auch 3D-Simulation und Einlesen
     pg.click("[data-cam-verwerfen='1']")
     with pg.expect_popup() as auf:

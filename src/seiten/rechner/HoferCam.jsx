@@ -12,6 +12,7 @@ import { ZiehListe } from "../../teile/ZiehListe.jsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { NcAblage, NcStand } from "./NcAblage.jsx";
+import { dateiBeobachten, dateienFuerName, dateienLaden, dateienSchreiben, dateienWaehlen, dateiMerken, dateiVergessen, dateiVon, kannSchreiben, schreibrechtHolen } from "./camDatei.js";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
 import { NC_QUELLEN, hatSpann, ncAktuell, ncZeilen } from "./ncAktuell.js";
@@ -178,6 +179,39 @@ function ImFenster() {
   </>);
 }
 
+// Seit 1.562.0: in Chrome und Edge öffnet „Einlesen“ die Dateiwahl des
+// Browsers, damit „Speichern“ die Datei später wieder beschreiben kann
+// (camDatei.js); sonst wie bisher das Dateifeld. Hineinziehen geht weiter
+// über das Dateifeld, dann ohne Zurückschreiben.
+function EinlesenKnopf({ id, kanal, merkmal, einlesen, title, children }) {
+  return (
+    <label className="knopf knopf--klein" id={id} {...merkmal} title={title}
+      onClick={(e) => {
+        const f = e.currentTarget.ownerDocument.defaultView || window;
+        if (!kannSchreiben(f) || e.target.tagName === "INPUT") return;
+        e.preventDefault();
+        dateienWaehlen(f, !kanal).then((liste) => liste.length && einlesen(liste, kanal))
+          .catch((x) => alt.meldung("Datei öffnen ging nicht: " + (x && x.message ? x.message : x), "fehler"));
+      }}>
+      {children}
+      <input type="file" multiple={!kanal} hidden data-ablegen="direkt" onChange={(e) => { einlesen(e.target.files, kanal); e.target.value = ""; }} />
+    </label>
+  );
+}
+// Welche Datei „Speichern“ für diesen Kanal aktualisiert
+function DateiSchild({ k }) {
+  const [, neu] = useState(0);
+  useEffect(() => { dateienLaden(); return dateiBeobachten(() => neu((n) => n + 1)); }, []);
+  const d = dateiVon(k);
+  if (!d) return null;
+  return (
+    <span className="cam-datei" data-cam-datei={k} title={"„Speichern“ schreibt Kanal " + k + " auch in die Datei " + d.name + ", aus der er eingelesen wurde"}>
+      ↻ {d.name}
+      <button className="linkknopf" data-cam-datei-weg={k} title="Datei nicht mehr aktualisieren" onClick={() => dateiVergessen(k)}>✕</button>
+    </span>
+  );
+}
+
 // 3D-Simulation und Programm einlesen, im Reiter und im eigenen Fenster
 function FensterKnoepfe({ w, einlesen, eigen }) {
   return (<>
@@ -185,11 +219,8 @@ function FensterKnoepfe({ w, einlesen, eigen }) {
     <button className="knopf knopf--klein" id={eigen ? "cam-sim-auf" : "cam-sim-auf-fenster"} data-cam-sim="1"
       title="Drehen, Bohren und Fräsen in 3D, Kanal 1 und Kanal 2, mit den Werkzeugen der Bearbeitungen"
       onClick={() => simulationOeffnen(w)}>🧊 3D-Simulation</button>
-    <label className="knopf knopf--klein" id={eigen ? "cam-einlesen" : "cam-einlesen-fenster"} data-cam-einlesen-alle="1"
-      title="Bestehendes Programm (Kanal 1 und / oder Kanal 2) einlesen, Abweichungen zum Standard violett">
-      📂 Programm einlesen
-      <input type="file" multiple hidden data-ablegen="direkt" onChange={(e) => { einlesen(e.target.files); e.target.value = ""; }} />
-    </label>
+    <EinlesenKnopf id={eigen ? "cam-einlesen" : "cam-einlesen-fenster"} merkmal={{ "data-cam-einlesen-alle": "1" }} einlesen={einlesen}
+      title="Bestehendes Programm (Kanal 1 und / oder Kanal 2) einlesen, Abweichungen zum Standard violett">📂 Programm einlesen</EinlesenKnopf>
   </>);
 }
 
@@ -391,8 +422,9 @@ function Kanaele({ prog, sync, fehler, bereich, bereich2, w, handSetzen, einlese
             <button className="knopf knopf--klein" data-cam-kopieren="1" onClick={(e) => kopieren(e, prog.k1, 1)}>Kopieren</button>
             <button className="knopf knopf--klein" data-cam-laden="1" onClick={(e) => herunterladen(e, prog.k1, prog.nr1)}>Herunterladen</button>
             {/* Seit 1.542.0: jeder Kanal für sich, die Dateien liegen oft in verschiedenen Ordnern */}
-            {einlesen && <label className="knopf knopf--klein" data-cam-einlesen="1" title="Programm für Kanal 1 aus einer Datei einlesen, der andere Kanal bleibt">📂 Einlesen
-              <input type="file" hidden data-ablegen="direkt" onChange={(e) => { einlesen(e.target.files, 1); e.target.value = ""; }} /></label>}
+            {einlesen && <EinlesenKnopf kanal={1} merkmal={{ "data-cam-einlesen": "1" }} einlesen={einlesen}
+              title="Programm für Kanal 1 aus einer Datei einlesen, der andere Kanal bleibt">📂 Einlesen</EinlesenKnopf>}
+            <DateiSchild k={1} />
           </span>
         </div>
         <div className="cam-spalte cam-spalte--kopf">
@@ -401,8 +433,9 @@ function Kanaele({ prog, sync, fehler, bereich, bereich2, w, handSetzen, einlese
             <button className="knopf knopf--klein" data-cam-kopieren="2" onClick={(e) => kopieren(e, prog.k2, 2)}>Kopieren</button>
             <button className="knopf knopf--klein" data-cam-laden="2" onClick={(e) => herunterladen(e, prog.k2, prog.nr2)}>Herunterladen</button>
             {/* Seit 1.542.0: jeder Kanal für sich, die Dateien liegen oft in verschiedenen Ordnern */}
-            {einlesen && <label className="knopf knopf--klein" data-cam-einlesen="2" title="Programm für Kanal 2 aus einer Datei einlesen, der andere Kanal bleibt">📂 Einlesen
-              <input type="file" hidden data-ablegen="direkt" onChange={(e) => { einlesen(e.target.files, 2); e.target.value = ""; }} /></label>}
+            {einlesen && <EinlesenKnopf kanal={2} merkmal={{ "data-cam-einlesen": "2" }} einlesen={einlesen}
+              title="Programm für Kanal 2 aus einer Datei einlesen, der andere Kanal bleibt">📂 Einlesen</EinlesenKnopf>}
+            <DateiSchild k={2} />
           </span>
         </div>
         {sync.reihen.map((r, i) => (
@@ -510,13 +543,18 @@ export default function HoferCam() {
   // diesen Kanal, egal welche O-Nummer sie trägt; der andere Kanal bleibt
   const einlesen = async (dateien, kanalVorgabe) => {
     const gelesen = [];
-    for (const d of [...(dateien || [])].slice(0, kanalVorgabe ? 1 : undefined)) {
-      let r = programmLesen(await d.text());
+    // Einträge sind Dateien (Dateifeld) oder {datei, griff} (Dateiwahl des Browsers)
+    for (const x of [...(dateien || [])].slice(0, kanalVorgabe ? 1 : undefined)) {
+      const d = x.datei || x;
+      const roh = await d.text();
+      let r = programmLesen(roh);
       if (r.fehler) { alt.meldung(d.name + ": " + r.fehler, "fehler"); continue; }
+      r = { ...r, griff: x.griff || null, roh, o: r.kanal === 2 ? r.nr + 1000 : r.nr };
       if (kanalVorgabe && r.kanal !== kanalVorgabe) r = { ...r, kanal: kanalVorgabe, felder: w.nr ? {} : { nr: r.felder.nr } };
       gelesen.push(r);
     }
     if (!gelesen.length) return;
+    for (const r of gelesen) await dateiMerken(r.kanal, r.griff, r.roh, r.o);
     gelesen.sort((a, b) => a.kanal - b.kanal);
     // Seit 1.542.0 (Wunsch Patrick 14. November 2026: „es soll die Kopf-
     // und Enddaten der Bearbeitungen sowie die Werkzeuge auch erkennen“):
@@ -554,7 +592,8 @@ export default function HoferCam() {
     alt.meldung("Eingelesen: " + gelesen.map((r) => "Kanal " + r.kanal + " (O" + String(r.kanal === 2 ? r.nr + 1000 : r.nr).padStart(4, "0") + ")").join(", ")
       + ", " + (bloecke.length === 1 ? "1 Bearbeitung" : bloecke.length + " Bearbeitungen") + " erkannt"
       + (unklar.length ? ", nicht erkannt: " + unklar.join(", ") + " (stehen nur im Programm)" : "")
-      + ". Violett = anders als der Standard.", unklar.length ? "warn" : "gut");
+      + ". Violett = anders als der Standard."
+      + (gelesen.some((r) => r.griff) ? " „Speichern“ aktualisiert auch die Datei." : ""), unklar.length ? "warn" : "gut");
   };
   einlesenJetzt = einlesen;
 
@@ -567,7 +606,14 @@ export default function HoferCam() {
         {alt.istAdmin && alt.istAdmin() && <button className="knopf knopf--klein" id="cam-typ-einst" title="Kopf, Ende, Bearbeitungen, Plätze und Vorgaben dieses Maschinentyps einstellen"
           onClick={camTypFensterOeffnen}>⚙ Maschinentyp</button>}
         <NcAblage art="cam" kurz="camab" wort="HOFERCAM" daten={w} nc={ncBeide} laden={laden}
-          gespeichert={gespeichert} setGespeichert={setGespeichert} />
+          gespeichert={gespeichert} setGespeichert={setGespeichert}
+          vorSpeichern={schreibrechtHolen} nachSpeichern={async (name, recht) => {
+            // Seit 1.562.0: auch die eingelesenen Dateien aktualisieren
+            const { gut, fehler: nicht } = await dateienSchreiben(programmeMitHand(gemerkt), name, recht);
+            if (gut.length) alt.meldung("Datei aktualisiert: " + gut.join(", ") + ".", "gut");
+            if (nicht.length) alt.meldung("Nicht aktualisiert: " + nicht.join(", ") + ".", "warn");
+          }}
+          nachOeffnen={(z) => dateienFuerName(z.name)} />
       </div>
       <NcStand kurz="camab" gespeichert={gespeichert} nc={ncBeide} />
 
