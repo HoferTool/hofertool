@@ -88,8 +88,8 @@ export function traegerQuader(o, aktiv, m = MASCHINE_SB20RG, t34 = "3421", ab = 
   const dz = m.front.dz, sch = m.front.schaft, xu = -3 * m.front.teilungX - 14;
   if (t34 !== "3400") box(dz - sch - m.front.block, dz - sch, xu, 16, m.t342y - 12, m.t342y + 12, "gehaeuse");
   box(dz - sch - m.front.block, dz - sch, xu, 16, m.t1100y - 16, m.t1100y + 16, "gehaeuse");
-  const la = spitze ? platzLage(aktiv, m) : null;
-  if (la && la.art === "front" && spitze.dz - spitze.L > dz - sch) box(dz - sch, spitze.dz - spitze.L, la.x - 6, la.x + 6, la.y - 6, la.y + 6, "halter");
+  // Seit 1.586.1 ohne Halter zwischen Bohreinheit und Frontwerkzeug
+  // (Patrick 16. November 2026: „keinen Schaft bei T1100–T1400 machen“)
   return q;
 }
 
