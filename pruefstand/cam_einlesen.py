@@ -101,6 +101,24 @@ with sync_playwright() as p:
     pg.wait_for_selector("#cam-ein-stand")
     pg.screenshot(path="/tmp/claude-0/cam_einlesen_dunkel.png")
     pg.evaluate("document.body.classList.remove('dunkel')")
+    # Seit 1.561.0: älteres Programm ohne Vorlage, Werkzeuge „wie eingelesen“
+    alt1 = ["%", "O0077(12345-0001)", "G266A8.0W20.0S2500X-1.0Z155.0F0.04B1.5", "N1", "M3S500",
+            "T200(PLANDREHEN)", "M3S3000T2", "G0X9.0Z0.0", "G1X-0.5F0.05", "G0X30.0Z0.0", "T0", "M01",
+            "T3200(FRAESEN)", "G0T32", "M36S3500", "G0X9.0Y-10.0Z6.0", "G1X3.5F1.0", "G1Y10.0F0.05", "G0X30.0", "M38", "T0", "M01",
+            "T100(ABSTECHEN)", "G00G99X#510Z[#530+#528]T01", "G1X#524F#522", "M99P1", "%"]
+    alt2 = ["%", "O1077(12345-0001)", "G28W0", "M75", "/T2200(BOHREN)", "/M3S2800T22", "/G0Z50.0", "/G83W8.0Q2000P200F0.05",
+            "/G80", "/G0Z20.0", "M76", "G28W0.0", "T0", "M1", "M75", "/T2900(AUSWERFEN)", "/M14", "M76", "T0", "M1",
+            "T2000(ABGREIFEN)", "G131", "M99", "%"]
+    open(ORDNER + "/O0077.NC", "w").write("\r\n".join(alt1) + "\r\n")
+    open(ORDNER + "/O1077.NC", "w").write("\r\n".join(alt2) + "\r\n")
+    pg.click("[data-cam-verwerfen='1']"); pg.click("[data-cam-verwerfen='2']") if pg.locator("[data-cam-verwerfen='2']").count() else None
+    pg.set_input_files("#cam-einlesen input", [ORDNER + "/O0077.NC", ORDNER + "/O1077.NC"]); pg.wait_for_timeout(600)
+    pruefe("Altes Programm: 3 Bearbeitungen wie eingelesen", pg.locator("[data-camblock-frei]").count() == 3 and pg.locator(".cam-block").count() == 3)
+    t1 = [z.strip() for z in lies(1) if z.strip()]
+    pruefe("Wie eingelesen: Code unverändert im Programm", "G0X9.0Y-10.0Z6.0" in t1 and "M36S3500" in t1)
+    pruefe("Ende und T2900 nicht als Bearbeitung", "Werkzeug" not in (pg.text_content("#cam-ein-stand") or "") or "T2000" not in (pg.text_content("#cam-ein-stand") or ""))
+    pg.click("[data-camblock-standard='0']")
+    pruefe("Mit Vorlage aufbauen: Felder wieder da", pg.locator("[data-camblock-frei]").count() == 2 and pg.locator(".cam-block[data-block='0'] [data-camblock='anZ']").count() == 1)
     # Seit 1.548.1: im eigenen Fenster auch 3D-Simulation und Einlesen
     pg.click("[data-cam-verwerfen='1']")
     with pg.expect_popup() as auf:

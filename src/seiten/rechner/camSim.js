@@ -352,11 +352,14 @@ export function simAufbauen(wRoh) {
       if (wa === "dreh") s.status = "nurBahnA";
       if (s.modus) for (const p of s.punkte) if (p.vor) cZ = Math.max(cZ, p.t[0] + (num(bRoh.wz?.d) || 6) / 2 + 0.5);
     } else {
-      const roh = bahnLesen(zeilen, { ...v }, { mitG50: art === "k2" });
+      // Seit 1.561.0: Kanal 2 wie eingelesen ohne G50 (ältere Programme
+      // bohren direkt mit der Gegenspindel) rechnet wie ein Frontwerkzeug
+      const ohneG50 = art === "k2" && b.frei && !zeilen.some((z) => /G50/i.test(z));
+      const roh = bahnLesen(zeilen, { ...v }, { mitG50: art === "k2" && !ohneG50 });
       s.zeilen = zeilen;
       // Bohr- und Fräswerkzeuge an Front: Teil 0.5 mm vor „Anfahren Z“,
       // tiefer ins Teil = weg von „Zurück Z“
-      if (art === "front") {
+      if (art === "front" || ohneG50) {
         const an = num(b.anZ) ?? 0, weg = num(b.wegZ);
         const sg = weg != null && weg > an ? -1 : 1;
         s.punkte = roh.map((p) => ({ z: sg * (p.z - an) - 0.5, r: Math.abs(p.x || 0) / 2, vor: p.vor, nr: p.nr }));

@@ -192,6 +192,7 @@ export function drehzahl(b, w = {}) {
 
 export function blockFehler(b, w = {}) {
   const f = {};
+  if (b.frei) return f;
   b = wirksamB(b); w = wirksamW(w);
   if (b.art === "k2a") {
     if (!/^\d+$/.test(String(b.S).trim()) || Number(b.S) <= 0) f.S = "ganze Zahl";
@@ -307,7 +308,12 @@ function blockWerte(b, w, marke) {
   };
   return { art, werte, bed, listen };
 }
+// Bearbeitung „wie eingelesen“ (seit 1.561.0): der NC-Code steht
+// unverändert im Programm, ohne Vorlage, im Kanal ihrer Art
+const freiZeilen = (b) => String(b.code || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
+const freiK2 = (b) => b.art === "k2" || b.art === "k2a";
 export function blockZeilen(b, w = {}, marke) {
+  if (b.frei) return freiK2(b) ? [] : freiZeilen(b);
   const x = blockWerte(b, w, marke);
   return vorlageFuellen(typ().vorlagen[x.art + ".k1"], { ...x, schraeg });
 }
@@ -319,6 +325,7 @@ export function blockZeilen(b, w = {}, marke) {
 // die Bezeichnung in beiden Kanälen „MIT GEGENSPINDEL“ angehängt
 export const mitGegen = (bez) => (bez ? bez + " " : "") + "MIT GEGENSPINDEL";
 export function blockZeilen2(b, marke, w = {}) {
+  if (b.frei) return freiK2(b) ? freiZeilen(b) : [];
   const x = blockWerte(b, w, marke);
   return vorlageFuellen(typ().vorlagen[x.art + ".k2"], { ...x, schraeg });
 }

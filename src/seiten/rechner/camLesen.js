@@ -211,6 +211,30 @@ function besteVorlage(arten, zeilen, kanal) {
   return best;
 }
 const zuSchlecht = (best, s) => !best || best.r.fehl > Math.max(8, s.length / 2);
+
+// Seit 1.561.0 (Patrick 16. November 2026, O0014/O1014 von 2016: „du
+// erkennst viele Bearbeitungen nicht, warum?“): ältere Programme sind
+// nicht nach der Vorlage gebaut. Ein Werkzeug, das zu keiner Vorlage
+// passt, wird trotzdem eine Bearbeitung „wie eingelesen“ (frei: true):
+// Platz und Art aus dem Werkzeugaufruf, der NC-Code ist das ganze Stück
+// vom Werkzeugaufruf bis M1, das Programm schreibt es unverändert.
+const zahlIn = (zeilen, re) => { for (const z of zeilen) { const m = z.replace(/^\//, "").match(re); if (m) return m[1]; } return null; };
+function freiBlock(art, s, platz) {
+  const b = { ...neuerBlock([], art), platz: String(platz), frei: true, code: s.join("\n") };
+  delete b.id;
+  const t = s.find((z) => /^\/?T\d{3,4}/i.test(z)) || "";
+  b.bez = (t.match(/\(([^)]*)\)/) || [])[1]?.trim().toUpperCase() || "";
+  const S = zahlIn(s, /^(?:G9[67])?M(?:0?[34]|3[67])S(\d+)/i);
+  if (S) { b.sArt = "S"; b.S = S; b.g96 = false; }
+  // Frontwerkzeuge: Anfahren = erstes G0Z, Zurück = letztes G0Z (für die Simulation)
+  const zs = s.map((z) => z.replace(/^\//, "").match(/^G0+Z(-?[\d.]+)/i)).filter(Boolean).map((m) => m[1]);
+  if (zs.length) { b.anZ = zs[0]; b.wegZ = zs[zs.length - 1]; }
+  if (art === "front" || art === "quer") b.spindel = "haupt";
+  return b;
+}
+// Teile von Ende-Abschnitten älterer Programme ohne „(Start Ende)“
+const istEnde1 = (s) => s.some((z) => /#524|M99/i.test(z));
+const istEnde2 = (s) => s.some((z) => /M99|G131|^\/?T29\d\d/i.test(z));
 const istT2000 = (z) => /^\/?T2000\(/i.test(z);
 
 // k1, k2: eingelesene Zeilen je Kanal (oder null). Ergebnis: Bearbeitungen
@@ -228,21 +252,35 @@ export function bloeckeLesen(k1, k2) {
   const liste = [];
   t1.ab.forEach((s, i) => {
     const platz = s[0].match(/^T(\d{3,4})/i)[1];
-    const arten = K1_ARTEN[gruppeVon(platz)];
+    const gr = gruppeVon(platz);
+    const arten = K1_ARTEN[gr];
     const best = arten && besteVorlage(arten, s, 1);
-    if (zuSchlecht(best, s)) { unklar.push(werkzeug(s)); return; }
+    if (zuSchlecht(best, s)) {
+      if (istEnde1(s)) return;
+      if (arten && gr !== "k2") { liste.push({ b: freiBlock(gr, s, platz), p1: i, p2: null }); return; }
+      unklar.push(werkzeug(s)); return;
+    }
     liste.push({ best, p1: i, p2: null });
   });
   // Die Marke Ende der Frontangetriebenen an der Gegenspindel steht in
   // Kanal 2 nach dem M1
-  const m3 = new Set(liste.filter((x) => x.best.art === "querGegen").map((x) => String(x.best.r.werte.M3 || "").toUpperCase()));
+  const m3 = new Set(liste.filter((x) => x.best?.art === "querGegen").map((x) => String(x.best.r.werte.M3 || "").toUpperCase()));
   const t2 = k2 ? abschnitteVon(mitte(k2), (z) => /^M75$/i.test(z),
     (z, s) => /^M0?5$/i.test(z) || (s.some(istT2000) && m3.has(markeVon(z)))) : { ab: [], zwischen: [] };
   const gegen2 = [];
   t2.ab.forEach((s, pos) => {
-    if (s.some(istT2000)) { gegen2.push({ s, pos, frei: true }); return; }
+    if (s.some(istT2000)) { if (!istEnde2(s)) gegen2.push({ s, pos, frei: true }); return; }
     const best = besteVorlage(["k2", "k2a"], s, 2);
-    if (zuSchlecht(best, s)) { unklar.push(werkzeug(s)); return; }
+    if (zuSchlecht(best, s)) {
+      if (istEnde2(s)) return;
+      const platz = (werkzeug(s).match(/^T(\d{3,4})/i) || [])[1];
+      if (platz && gruppeVon(platz) === "k2") {
+        // angetrieben, wenn M36/M37 eingeschaltet wird
+        const art = s.some((z) => /^\/?M3[67]S/i.test(z)) ? "k2a" : "k2";
+        liste.push({ b: freiBlock(art, s, platz), p1: null, p2: pos }); return;
+      }
+      unklar.push(werkzeug(s)); return;
+    }
     const b = blockAus(best.art, null, best.r);
     b.code = (best.r.liste || []).join("\n");
     liste.push({ b, p1: null, p2: pos });

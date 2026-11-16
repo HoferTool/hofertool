@@ -676,6 +676,13 @@ export default function HoferCam() {
                   <PlatzWahl wert={b.platz} plaetze={plaetzeVon(k2 ? "k2" : seite ? "seite" : quer ? "quer" : front ? "front" : "dreh")}
                     waehlen={(p) => { blockAendern(b.id, "platz", p); setUeber(b.id); }}
                     vorschau={(p) => { setVorPlatz(p ? { id: b.id, platz: p } : null); if (p) setUeber(b.id); }} /></label>
+                {/* Seit 1.561.0: Bearbeitung wie eingelesen, ohne Vorlage */}
+                {b.frei ? <span className="cam-frei klein" data-camblock-frei={i}
+                  title="Diese Bearbeitung passt zu keiner Vorlage des Maschinentyps (etwa ein älteres Programm). Ihr NC-Code steht unverändert im Programm, die Felder der Vorlage wirken nicht.">
+                  Wie eingelesen{b.bez ? ": " + b.bez : ""}
+                  <button className="knopf knopf--klein" data-camblock-standard={i}
+                    title="Felder der Vorlage einschalten; der Code bleibt im NC-Feld und wird in die Vorlage eingebaut"
+                    onClick={() => blockAendern(b.id, "frei", false)}>Mit Vorlage aufbauen</button></span> : <>
                 <label className="cam-feld cam-feld--text" title="Steht in Klammern hinter dem Werkzeugaufruf"><span>Bezeichnung</span>
                   <input data-camblock="bez" value={b.bez} style={{ width: 190 }}
                     onChange={(e) => blockAendern(b.id, "bez", e.target.value.toUpperCase())} /></label>
@@ -763,6 +770,7 @@ export default function HoferCam() {
                     {feld("wegA", "Weg Winkel", "Wegfahren: G1X[#531+0.2],A…  leer = ohne Winkel", 54)}
                     {feld("wegF", "Weg F", "Wegfahren: Vorschub F", 60)}
                   </>}
+                </>}
                 </>}
                 {eigeneFelder(b.art).map((f) => <EigenFeld key={f.id} f={f} o={b} merkmal="data-camblock-eigen"
                   setze={(ph, x) => blockAendern(b.id, "eigen", { ...(b.eigen || {}), [ph]: x })} />)}
