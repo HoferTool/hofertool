@@ -106,7 +106,7 @@ with sync_playwright() as p:
     nach = pg.locator("[data-sp='es-eier']").inner_text().count("🔩")
     # Trifft der Schuss alle Spänemonster, geht es ins nächste Lager mit
     # neuen Teilen (3 → 4) — das zählt auch als geschossen
-    lager = pg.evaluate("""() => { const s = [...document.querySelectorAll('span')].find(e => e.textContent.startsWith('Lager'));
+    lager = pg.evaluate("""() => { const s = [...document.querySelectorAll('span')].find(e => e.textContent.startsWith('Lager') && e.querySelector('b'));
       return s ? parseInt(s.querySelector('b').textContent) : 1; }""")
     pruefe(nach == eier - 1 or lager > 1, "Drehteil geschossen: %d → %d (Lager %d)" % (eier, nach, lager))
     pg.click("[data-ib='gross-zu']"); pg.wait_for_timeout(300)
