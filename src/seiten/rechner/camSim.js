@@ -315,7 +315,7 @@ export function simAufbauen(wRoh) {
     const kanal = art === "k2" || art === "k2a" || gegen ? 2 : 1;
     const wzOk = wzVollstaendig(bRoh);
     const wa = wzOk ? wzArt(bRoh) : null;
-    const s = { i, id: b.id, kanal, titel, art, gegen, wz: wzOk ? bRoh.wz : null, wzArt: wa, punkte: [], modus: null, status: "" };
+    const s = { i, id: b.id, kanal, titel, platz: Number(b.platz) || 0, art, gegen, wz: wzOk ? bRoh.wz : null, wzArt: wa, punkte: [], modus: null, status: "" };
     let zeilen = kanal === 2 ? blockZeilen2(b, marken[b.id], w) : blockZeilen(b, w, marken[b.id]);
     if (ANGETRIEBEN.has(art)) {
       // Frontangetrieben an der Gegenspindel: X und Y stehen in Kanal 1,
@@ -360,7 +360,8 @@ export function simAufbauen(wRoh) {
         // Achse zum Schaft hin: quer nach aussen (+X der Maschine), längs zur Spindel hin
         const ax = s.achse === "quer" ? [0, dreh[0], dreh[1]] : [kanal === 1 ? -1 : 1, 0, 0];
         const anz = kanal === 2 ? [W - t[0], t[1], -t[2]] : t;
-        return { z: anz[0], r: Math.hypot(anz[1], anz[2]), phi: Math.atan2(anz[2], anz[1]), t, ax, vor: p.vor, nr: p.nr };
+        // mx, my, c: Lage an der Maschine (für den Werkzeugträger in der Ansicht)
+        return { z: anz[0], r: Math.hypot(anz[1], anz[2]), phi: Math.atan2(anz[2], anz[1]), t, ax, vor: p.vor, nr: p.nr, mx: uM, my: p.y || 0, c: p.c || 0 };
       });
       s.modus = wa === "fraes" ? "c" : null;
       if (wa === "dreh") s.status = "nurBahnA";
@@ -431,7 +432,7 @@ function abstechSchritt(A, W, B, X) {
   const n = Math.max(20, Math.ceil((r0 - r1) / 0.05));
   for (let k = 1; k <= n; k++) punkte.push({ z, r: r0 + (r1 - r0) * k / n, vor: true, nr: 1 });
   for (let k = 1; k <= 24; k++) punkte.push({ z, r: r1, vor: false, nr: 2, ab: UEBERGABE * k / 24 });
-  return { i: "ab", id: "abstechen", kanal: 1, titel: "Abstechen und Übergabe", art: "abstech", modus: "abstech", wz: null,
+  return { i: "ab", id: "abstechen", kanal: 1, titel: "Abstechen und Übergabe", platz: 100, art: "abstech", modus: "abstech", wz: null,
     breite: Bw, punkte, status: "", zeilen: ["G00X#510Z[#530+#528]", "G1X#524F#522", "Übergabe an die Gegenspindel"] };
 }
 function abstechen(st, s, p) {
