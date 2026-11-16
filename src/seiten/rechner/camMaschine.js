@@ -48,11 +48,18 @@ export const TRAEGER_PLAETZE = [100, 200, 300, 400, 500, 600, 3100, 3200, 3300, 
 export function traegerQuader(o, aktiv, m = MASCHINE_SB20RG, t34 = "3421") {
   const q = [];
   const box = (z0, z1, x0, x1, y0, y1, art) => q.push({ z0: o.z + z0, z1: o.z + z1, x0: o.x + x0, x1: o.x + x1, y0: o.y + y0, y1: o.y + y1, art });
+  // Seit 1.584.1 (Patrick 16. November 2026): die Schäfte 12 × 12 stecken
+  // in Y zwischen den blauen Halteplatten (7 Platten je zwischen zwei
+  // Plätzen), die Schneidplatte steht in X zur Hälfte aus dem Schaft
+  const pl = 6;                                           // Schneidplatte in X, zur Hälfte im Schaft
+  for (let k = 0; k <= 6; k++) {
+    const y = (k - 0.5) * m.dreh.teilung;
+    box(-12, 0, 12, 80, y - 6.4, y + 6.4, "platte");      // Halteplatte zwischen den Schäften, 12 mm in Z wie der Schaft, Schäfte ragen unten heraus
+  }
   for (let k = 0; k < 6; k++) {
     const y = k * m.dreh.teilung, t = (k + 1) * 100;
-    box(-24, 0, 4, 80, y - 5, y + 5, "platte");          // Halteplatte, 10 mm weiter herunter (Patrick)
-    box(-12, 0, 1.6, 10, y - 6, y + 6, "halter");        // Schaft 12 × 12 (Patrick), oben in der Platte
-    if (t !== aktiv) box(-3, 0, 0, 1.6, y - 3, y + 1, "schneide");
+    box(-12, 0, pl / 2, 40, y - 6, y + 6, "halter");      // Schaft 12 × 12 (Patrick)
+    if (t !== aktiv) box(-5, 0, 0, pl, y - 3, y + 3, "schneide");
   }
   // Querangetrieben: nur das Gehäuse; Werkzeuge ausser T100–T600 zeichnet
   // die Simulation nur, wenn sie arbeiten (Patrick 16. November 2026)
