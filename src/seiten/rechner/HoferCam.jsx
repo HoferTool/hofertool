@@ -519,6 +519,7 @@ export default function HoferCam() {
   const setAktiv = (id) => { if (id === aktivId) return; aktivId = id; setAktivRoh(id); melden(); };
   useGemerkt();
   const [gespeichert, setGespeichertRoh] = useState(gespeichertCam);
+  const [kopfZu, setKopfZu] = useState(() => { try { return localStorage.getItem("hofer.cam.kopfZu") === "1"; } catch { return false; } });
   const setGespeichert = (z) => { gespeichertCam = z; setGespeichertRoh(z); };
   const laden = (d) => {
     // Felder, die es beim Speichern noch nicht gab, bekommen die Vorgabe
@@ -662,7 +663,19 @@ export default function HoferCam() {
       </div>
       <NcStand kurz="camab" gespeichert={gespeichert} nc={ncBeide} />
 
-      <div className="cam-gruppen">
+      {/* Seit 1.581.0 (Wunsch Patrick 16. November 2026: „den Eingabebereich
+          für die Kopfdaten soll auch eingeklappt werden können“): Pfeil
+          klappt die Felder ein, eingeklappt steht eine Zeile mit den
+          Werten; gemerkt je Gerät */}
+      <div className="cam-kopfdaten">
+        <button className="linkknopf cam-kopfdaten__knopf" id="cam-kopf-zu" aria-expanded={!kopfZu}
+          onClick={() => { const z = !kopfZu; setKopfZu(z); try { localStorage.setItem("hofer.cam.kopfZu", z ? "1" : "0"); } catch { /* egal */ } }}>
+          {kopfZu ? "▸" : "▾"} Kopfdaten</button>
+        {kopfZu && <span className="cam-kopfdaten__werte klein" id="cam-kopf-werte">
+          {FELDER.flatMap((g) => g.felder).filter((d) => !feldAus("kopf", d.name) && String(w[d.name] ?? "").trim() !== "")
+            .map((d) => d.text + " " + w[d.name]).join(" · ") || "noch leer"}</span>}
+      </div>
+      {!kopfZu && <div className="cam-gruppen">
         {FELDER.map((g) => ({ ...g, felder: g.felder.filter((d) => !feldAus("kopf", d.name)) })).filter((g) => g.felder.length).map((g) => (
           <fieldset key={g.gruppe} className="cam-gruppe">
             <legend>{g.gruppe}</legend>
@@ -681,7 +694,7 @@ export default function HoferCam() {
           {eigeneFelder("kopf").map((f) => <EigenFeld key={f.id} f={f} o={w} merkmal="data-cam-eigen"
             setze={(ph, x) => setze("eigen", { ...(w.eigen || {}), [ph]: x })} />)}
         </fieldset>}
-      </div>
+      </div>}
 
       {(() => {
         // Seit 1.426.6 wieder nur, solange die Maus über einer Bearbeitung ist

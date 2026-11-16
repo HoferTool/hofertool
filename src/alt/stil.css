@@ -14229,3 +14229,8 @@ body.dunkel .eba-pf-ausr button { background: #1d2733; }
 .cam-block__vorlageknopf { justify-content: flex-start; flex-wrap: wrap; align-items: center; }
 .cam-block__vorlageknopf .cam-wz-knopf { margin-right: 0; }
 .cam-marken-frei { color: var(--gedaempft); }
+
+/* HOFERCAM: Kopfdaten einklappbar (seit 1.581.0) */
+.cam-kopfdaten { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 4px 0; }
+.cam-kopfdaten__knopf { font-weight: 600; }
+.cam-kopfdaten__werte { color: var(--gedaempft); overflow-wrap: anywhere; }
