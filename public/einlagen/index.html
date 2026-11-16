@@ -585,6 +585,7 @@ header.bar { align-items: center; }
           <select id="lgShape" aria-label="Form der Griffmulde"><option value="slot">Nut (Langloch)</option><option value="oval">Oval</option></select>
           <label>Länge <input id="lgL" type="number" min="4" max="300" step="1" value="40"> mm</label>
           <label>Breite <input id="lgW" type="number" min="4" max="150" step="1" value="22"> mm</label>
+          <label>Tiefe <input id="lgD" type="number" min="0.5" max="200" step="any" placeholder="20"> mm</label>
           <button class="btn small" id="lgDel" type="button" disabled>Griffmulde löschen</button>
         </div>
       </div>
@@ -2178,7 +2179,7 @@ const lay = { base: { W: 300, H: 200, T: 30, R: 5 }, conn: connDefaults(), newDe
 const LAY_HINTS = {
   move: "Werkzeug antippen und ziehen verschiebt es, der runde Anfasser dreht es stufenlos, Winkel auch mit Komma eintippen. Die Zahl auf einer Tasche (Tiefe) oder „Höhe“ unten antippen ändert sie. „Spiegeln“ (Taste M) spiegelt das gewählte Teil. Am PC: Pfeiltasten verschieben um 1 mm (mit Umschalt 10 mm), R dreht um 90°.",
   key: "Nagel: Schlüsselloch antippen und ziehen. Hilfslinien zeigen die Mitte und alle Abstände, nahe der Mitte rastet es ein. Das erste Loch verschiebt die ganze Reihe, die weiteren ändern den Abstand der Löcher.",
-  grip: "Irgendwo auf die Einlage tippen setzt eine Griffmulde, frei und unabhängig von den Werkzeugen, mit eigener Tiefe (rechts bei der Auswahl). Mulde ziehen verschiebt sie, eckige Anfasser ändern Länge und Breite, der runde dreht stufenlos. Form, Länge und Breite auch oben eintippen."
+  grip: "Irgendwo auf die Einlage tippen setzt eine Griffmulde, frei und unabhängig von den Werkzeugen. Tiefe, Form, Länge und Breite oben eintippen. Mulde ziehen verschiebt sie, eckige Anfasser ändern Länge und Breite, der runde dreht stufenlos. Liegt sie an einem Werkzeug, wird die Tasche abgestuft: die Mulde behält ihre Tiefe."
 };
 // Werkzeugtasche plus Griffmulden als eine Kontur (über ein feines Raster vereinigt, Ergebnis wird zwischengespeichert)
 const shapeCache = new WeakMap(), offCache = new WeakMap();
@@ -2208,14 +2209,36 @@ function griffWerkzeug(g) {
 function freieGriffeAn(it) {
   if (istGriff(it) || it.text || !lay.items.some(istGriff)) return [];
   return lay.items.filter(g => istGriff(g) && g !== lay.noUnion && griffWerkzeug(g) === it).map(g => {
-    const q = toLocal(it, [g.x, g.y]); return { shape: g.griff.shape, L: g.griff.L, W: g.griff.W, x: q[0], y: q[1], ang: g.ang - it.ang };
+    const q = toLocal(it, [g.x, g.y]); return { shape: g.griff.shape, L: g.griff.L, W: g.griff.W, x: q[0], y: q[1], ang: g.ang - it.ang, d: g.depth };
   });
+}
+// Tiefe der Griffmulde (seit 1.572.0, Wunsch Patrick 16. November 2026: „Griffmulde Tiefe soll auch definiert werden können“):
+// hat eine Mulde an einem Werkzeug eine andere Tiefe als das Werkzeug, wird die Tasche abgestuft: oben alles zusammen,
+// darunter je Tiefe nur, was so tief geht. Nur wenn jede Stufe eine einzige Fläche ohne Loch ist und die Tasche weder
+// Kantenbruch noch runden Boden noch Schräge hat; sonst bekommt die Mulde die Tiefe des Werkzeugs wie bisher.
+function griffStufen(it, T) {
+  if (istGriff(it) || it.text || leanVec(it) || edgeEff(it) || troughEff(it)) return null;
+  const fg = freieGriffeAn(it).map(g => ({ ...g, d: Math.min(Number.isFinite(+g.d) && +g.d > 0 ? +g.d : it.depth, T - 0.2) }));
+  const dT = Math.min(it.depth, T - 0.2), tiefen = [...new Set([dT, ...fg.map(g => g.d)])].sort((a, b) => a - b);
+  if (tiefen.length < 2 || fg.every(g => Math.abs(g.d - dT) < 1e-6)) return null;
+  const bp = basePolys(it), alt = it.grips || [], a = it.ang * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+  const tf = q => [it.x + q[0] * c - q[1] * s, it.y + q[0] * s + q[1] * c];
+  const stufen = [];
+  for (const d of tiefen) {
+    const gr = fg.filter(g => g.d >= d - 1e-6).map(({ d: _, ...g }) => g), mitWz = dT >= d - 1e-6;
+    let polys = mitWz ? unionShape(bp, alt.concat(gr)) : gr.length ? unionShape([], gr) : [];
+    // tiefere Stufen ein Zehntel nach innen, damit sich ihr Rand nirgends mit dem der Stufe darüber kreuzt
+    if (stufen.length && polys.length === 1) polys = offsetShape(polys, -0.15);
+    if (polys.length !== 1 || polys[0].holes.length) return null;
+    stufen.push({ d, ring: polys[0].outer.map(tf) });
+  }
+  return stufen;
 }
 function itemShape(it) {
   if (istGriff(it)) return lay.noUnion !== it && griffWerkzeug(it) ? [] : basePolys(it);
   const bp = basePolys(it), grips = lay.noUnion === it ? [] : [...(it.grips || []), ...freieGriffeAn(it)];
   if (!grips.length) return bp;
-  const sig = JSON.stringify(grips), c = shapeCache.get(it);
+  const sig = JSON.stringify(grips.map(({ d, ...gp }) => gp)), c = shapeCache.get(it);
   if (c && c.sig === sig && c.src === bp) return c.polys;
   const polys = unionShape(bp, grips); shapeCache.set(it, { sig, src: bp, polys }); return polys;
 }
@@ -2345,6 +2368,10 @@ function curGrip() {
 function syncLayGrip() {
   const cg = curGrip(); $("lgDel").disabled = !cg;
   if (cg) { $("lgShape").value = cg.gp.shape; $("lgL").value = cg.gp.L; $("lgW").value = cg.gp.W; }
+  // Tiefe: freie Mulde ihre eigene; eine Mulde von früher hängt am Werkzeug und hat dessen Tiefe
+  $("lgD").disabled = !!(cg && !cg.frei); $("lgD").placeholder = de(lay.newDepth, 1).replace(",0", "");
+  $("lgD").value = cg ? cg.it.depth : "";
+  $("lgD").title = cg && !cg.frei ? "Diese Griffmulde gehört fest zum Werkzeug und hat seine Tiefe." : "Tiefe der Griffmulde ab Oberkante";
 }
 function layGripDown(e) {
   const mm = toLay(e), tol = (e.pointerType === "touch" ? 24 : 12) / lay.scale, cg = curGrip();
@@ -2369,7 +2396,7 @@ function layGripDown(e) {
     // Frei an der getippten Stelle, unabhängig von den Werkzeugen
     layPush();
     const griff = { shape: $("lgShape").value, L: Math.max(4, num("lgL", 40)), W: Math.max(4, num("lgW", 22)) };
-    const it = { id: lay.nextId++, name: "Griffmulde", griff, polys: gripPoly(griff), grips: [], x: Math.round(mm[0] * 10) / 10, y: Math.round(mm[1] * 10) / 10, ang: 0, depth: lay.newDepth };
+    const it = { id: lay.nextId++, name: "Griffmulde", griff, polys: gripPoly(griff), grips: [], x: Math.round(mm[0] * 10) / 10, y: Math.round(mm[1] * 10) / 10, ang: 0, depth: Math.max(0.5, num("lgD", lay.newDepth)) };
     lay.items.push(it); lay.gsel = { i: lay.items.length - 1, frei: true }; lay.sel = lay.items.length - 1;
     lay.drag = { grip: true, mode: "move", dx: 0, dy: 0, moved: true };
   }
@@ -3057,6 +3084,10 @@ function layRender() {
   });
   if (lay.mode === "grip") lay.items.forEach((gi, i) => (istGriff(gi) ? [{ ...gi.griff, x: 0, y: 0, ang: 0, frei: true }] : gi.grips || []).forEach((gp, j) => {
     const gw = gripWorld(gi, gp), sel = lay.gsel && lay.gsel.i === i && (gp.frei ? lay.gsel.frei : lay.gsel.g === j);
+    if (gp.frei) { // Tiefe der Mulde anschreiben, auch wenn sie in einer Werkzeugtasche liegt
+      const t = `Mulde ${de(gi.depth)} mm`; g.font = `600 ${10 * px}px Barlow, sans-serif`; const tw = g.measureText(t).width;
+      g.fillStyle = "rgba(255,255,255,.9)"; g.fillRect(gw.x - tw / 2 - 3 * px, gw.y - 7 * px, tw + 6 * px, 13 * px); g.fillStyle = "#17201C"; g.fillText(t, gw.x - tw / 2, gw.y + 3 * px);
+    }
     g.save(); g.setLineDash(sel ? [] : [4 * px, 3 * px]); g.lineWidth = (sel ? 2.5 : 1.5) * px; g.strokeStyle = sel ? accent : "#fff"; g.stroke(gripPath(gw)); g.restore();
     if (sel) {
       const hs = gripHandles(gw, px), a = gw.ang * Math.PI / 180, r = 6 * px;
@@ -3213,6 +3244,11 @@ document.querySelectorAll(".ltool").forEach(b => b.addEventListener("click", () 
   layRender(); syncLayGrip();
 }));
 $("lgDel").addEventListener("click", delLayGrip);
+$("lgD").addEventListener("change", () => {
+  const cg = curGrip(); if (!cg || !cg.frei) return; const v = num("lgD", cg.it.depth);
+  if (!(v > 0)) { $("lgD").value = cg.it.depth; return; }
+  layPush(); cg.it.depth = Math.round(v * 10) / 10; layChanged(); syncLayGrip();
+});
 ["lgShape", "lgL", "lgW"].forEach(id => $(id).addEventListener("change", () => {
   const cg = curGrip(); if (!cg) return;
   layPush(); const g = cg.frei ? cg.it.griff : cg.gp; g.shape = $("lgShape").value; g.L = Math.max(4, num("lgL", 40)); g.W = Math.max(4, num("lgW", 22)); if (cg.frei) griffSetzen(cg.it); layChanged();
@@ -3299,7 +3335,12 @@ function buildTris() {
   };
   layIssues().forEach((l, i) => { if (l.some(x => x.startsWith("Kante"))) skipEdge.add(i); });
   lay.items.forEach((it, idx) => {
-    const d = Math.min(it.depth, T - 0.2); if (d <= 0) return;
+    const d = Math.min(it.depth, T - 0.2); if (d <= 0 && !freieGriffeAn(it).length) return;
+    const stf = griffStufen(it, T);
+    if (stf) { // abgestufte Tasche: Ringe wie beim Kantenbruch, oben die ganze Fläche
+      const L = stf.map((st, k) => ({ ring: st.ring, z: k ? T - stf[k - 1].d : T }));
+      pockets.push({ outer: stf[stf.length - 1].ring, holes: [], d: stf[stf.length - 1].d, lean: null, levels: L, trough: null }); return;
+    }
     const ef = skipEdge.has(idx) ? null : edgeEff(it, d), lv = ef ? edgeLevels(it, ef, T) : null;
     const tf = troughEff(it, d), tl = tf ? troughLevels(it, tf, T) : null;
     const lean = leanVec(it);
