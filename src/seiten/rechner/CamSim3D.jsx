@@ -562,7 +562,7 @@ function Simulation({ w, zu }) {
         ueber.stangen.push({ a: pkt(Lc), b: pkt(Lc + d * 1.5), d: d * 1.15, farbe: "rgba(180,190,200,.95)", rand: "#5b6875" });
       } else if (akt.modus === "abstech") {
         const Bw = akt.breite;
-        ueber.werkzeuge.push({ pts: [{ z: p.z - Bw, r: p.r }, { z: p.z, r: p.r }, { z: p.z, r: p.r + 9 }, { z: p.z - Bw, r: p.r + 9 }],
+        ueber.werkzeuge.push({ pts: [{ z: p.z - Bw, r: p.r }, { z: p.z, r: p.r }, { z: p.z, r: p.r + A / 2 + 4 }, { z: p.z - Bw, r: p.r + A / 2 + 4 }],
           farbe: "rgba(224,161,42,.92)", rand: "#7a5410" });
       } else if (akt.wz && akt.modus === "bohr") {
         const u = bohrerHuelle(akt.wz).umriss;
@@ -618,7 +618,7 @@ function Simulation({ w, zu }) {
     let maschine = null, gegen = null;
     if (kanal === 1 && maschineAn) {
       maschine = {
-        quader: traeger ? traegerQuader(traeger, traeger.aktiv, undefined, sim.t34) : [], roll, grob: laeuft,
+        quader: traeger ? traegerQuader(traeger, traeger.aktiv, undefined, sim.t34, { vor: A / 2 + 1, b: Math.max(0.5, sim.roh.B || 2) }) : [], roll, grob: laeuft,
         kopf: { z: kopfZ, ri: A / 2, nase: k.nase, naseL: k.naseL, r: k.r, L: k.L },
       };
       maschine.koepfe = [maschine.kopf];

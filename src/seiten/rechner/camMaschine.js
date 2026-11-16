@@ -45,7 +45,10 @@ export const TRAEGER_PLAETZE = [100, 200, 300, 400, 500, 600, 3100, 3200, 3300, 
 // {z, x, y}. Rückgabe: [{z0, z1, x0, x1, y0, y1, art}] in Teil-Z und Maschinen-X/Y.
 // aktiv = Platz, der gerade arbeitet: seine Schneide zeichnet die Simulation selbst
 // t34 = "3400": T3400 querangetrieben montiert, sonst die Einheit T3421–T3423
-export function traegerQuader(o, aktiv, m = MASCHINE_SB20RG, t34 = "3421") {
+// ab: Abstecher T100 (seit 1.584.2, Patrick 16. November 2026: „die Platte
+// muss mindestens 1 mm mehr als die Hälfte vom Rohmaterialdurchmesser aus
+// dem Halter vorstehen“), {vor: Vorstand = A/2 + 1, b: Breite B aus G266}
+export function traegerQuader(o, aktiv, m = MASCHINE_SB20RG, t34 = "3421", ab = null) {
   const q = [];
   const box = (z0, z1, x0, x1, y0, y1, art) => q.push({ z0: o.z + z0, z1: o.z + z1, x0: o.x + x0, x1: o.x + x1, y0: o.y + y0, y1: o.y + y1, art });
   // Seit 1.584.1 (Patrick 16. November 2026): die Schäfte 12 × 12 stecken
@@ -58,6 +61,12 @@ export function traegerQuader(o, aktiv, m = MASCHINE_SB20RG, t34 = "3421") {
   }
   for (let k = 0; k < 6; k++) {
     const y = k * m.dreh.teilung, t = (k + 1) * 100;
+    if (k === 0 && ab) {
+      // Abstecher: Platte steht A/2 + 1 aus dem Halter, Breite B, 3 mm im Halter
+      box(-12, 0, ab.vor, ab.vor + 40, y - 6, y + 6, "halter");
+      if (t !== aktiv) box(-ab.b, 0, 0, ab.vor + 3, y - 3, y + 3, "schneide");
+      continue;
+    }
     box(-12, 0, pl / 2, 40, y - 6, y + 6, "halter");      // Schaft 12 × 12 (Patrick)
     if (t !== aktiv) box(-5, 0, 0, pl, y - 3, y + 3, "schneide");
   }
