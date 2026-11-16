@@ -12,7 +12,7 @@ import { ZiehListe } from "../../teile/ZiehListe.jsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { NcAblage, NcStand } from "./NcAblage.jsx";
-import { dateiBeobachten, dateiFehler, dateienFuerName, dateienLaden, dateienSchreiben, dateienWaehlen, dateiMerken, dateiVergessen, dateiVon, kannSchreiben, schreibrechtHolen } from "./camDatei.js";
+import { dateiBeobachten, dateiFehler, dateiNeuWaehlen, dateienFuerName, dateienLaden, dateienSchreiben, dateienWaehlen, dateiMerken, dateiVergessen, dateiVon, kannSchreiben, schreibrechtHolen } from "./camDatei.js";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
 import { NC_QUELLEN, hatSpann, ncAktuell, ncZeilen } from "./ncAktuell.js";
@@ -219,7 +219,12 @@ function DateiSchild({ k }) {
       <button className="linkknopf" data-cam-datei-weg={k} title="Datei nicht mehr aktualisieren" onClick={() => dateiVergessen(k)}>✕</button>
     </span>
     {grund && <span className="cam-datei-grund" data-cam-datei-grund={k}>Nicht aktualisiert: {grund}
-      {" "}<button className="knopf knopf--klein" data-cam-datei-jetzt={k} onClick={jetzt}>Jetzt in Datei schreiben</button></span>}
+      {" "}<button className="knopf knopf--klein" data-cam-datei-jetzt={k} onClick={jetzt}>Jetzt in Datei schreiben</button>
+      {" "}<button className="knopf knopf--klein" data-cam-datei-neu={k} title="Speichern-Fenster des Browsers: dieselbe Datei wählen und Ersetzen bestätigen"
+        onClick={async (e) => {
+          try { if (await dateiNeuWaehlen(k, e.currentTarget.ownerDocument.defaultView)) await jetzt(); }
+          catch (x) { alt.meldung("Speichern-Fenster ging nicht: " + (x && x.message ? x.message : x), "fehler"); }
+        }}>Datei neu wählen und schreiben</button></span>}
   </>);
 }
 

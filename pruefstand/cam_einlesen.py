@@ -146,6 +146,16 @@ with sync_playwright() as p:
     pg.evaluate("() => { window.__nein = false; }")
     pg.click("[data-cam-datei-jetzt='1']"); pg.wait_for_timeout(500)
     pruefe("Jetzt in Datei schreiben", pg.evaluate("() => !!window.__geschrieben['O0077.NC']") and pg.locator("[data-cam-datei-grund]").count() == 0)
+    # 1.566.1: InvalidStateError (Netzlaufwerk) → zweiter Versuch
+    pg.evaluate("""() => { const alt = window.showOpenFilePicker; window.showOpenFilePicker = async () => { const l = await alt();
+      const cw = l[0].createWritable; let n = 0; l[0].createWritable = async (o) => { if (n++ === 0) { const e = new Error('state had changed'); e.name = 'InvalidStateError'; throw e; } return cw(o); };
+      l[0].requestPermission = async () => 'granted'; return l; }; }""")
+    pg.click("[data-cam-einlesen='1']"); pg.wait_for_timeout(300)
+    pg.evaluate("() => { window.__geschrieben = {}; }")
+    pg.click("#camab-speichern"); pg.wait_for_selector(".dialog input")
+    pg.fill(".dialog input", "12345-0001"); pg.click(".dialog .knopf--haupt"); pg.wait_for_timeout(800)
+    if pg.locator(".dialog .knopf--haupt").count(): pg.click(".dialog .knopf--haupt"); pg.wait_for_timeout(800)
+    pruefe("InvalidStateError: zweiter Versuch schreibt", pg.evaluate("() => !!window.__geschrieben['O0077.NC']") and pg.locator("[data-cam-datei-grund]").count() == 0)
     pg.click("[data-cam-datei-weg='1']"); pg.wait_for_timeout(200)
     pruefe("✕ löst die Datei", pg.locator("[data-cam-datei='1']").count() == 0)
     pg.evaluate("() => { delete window.showOpenFilePicker; }")

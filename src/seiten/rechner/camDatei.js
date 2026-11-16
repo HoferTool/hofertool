@@ -111,12 +111,40 @@ async function einSchreiben(k, d, prog, recht, gut, fehler) {
     // Programmnummer geändert: nicht in eine fremde Datei schreiben
     if (d.o && o && o !== d.o) { fehler.push(d.name + ": Programm-Nr. jetzt O" + String(o).padStart(4, "0") + " statt O" + String(d.o).padStart(4, "0") + ", Datei bleibt"); return; }
     if (recht && recht[k] !== undefined && recht[k] !== true) { fehler.push(d.name + ": " + recht[k]); return; }
-    try {
-      const nl = d.crlf ? "\r\n" : "\n";
-      const s = await d.griff.createWritable();
-      await s.write(zeilen.join(nl) + nl);
-      await s.close();
-      gut.push(d.name);
-    } catch (f) { fehler.push(d.name + ": " + ((f && (f.name + ": " + f.message)) || f)); }
+    const nl = d.crlf ? "\r\n" : "\n";
+    const inhalt = zeilen.join(nl) + nl;
+    // Seit 1.566.1 (Patrick 16. November 2026, Laufwerk W:): Chrome meldet
+    // auf Netzlaufwerken oft InvalidStateError („state had changed since it
+    // was read from disk“). Dann nochmals mit frisch gelesenem Stand, dann
+    // mit „bestehende Daten behalten“ und von vorne überschreiben
+    const wege = [
+      async () => { const s = await d.griff.createWritable(); await s.write(inhalt); await s.close(); },
+      async () => { await d.griff.getFile(); const s = await d.griff.createWritable(); await s.write(inhalt); await s.close(); },
+      async () => { await d.griff.getFile(); const s = await d.griff.createWritable({ keepExistingData: true });
+        await s.truncate(0); await s.write({ type: "write", position: 0, data: inhalt }); await s.close(); },
+    ];
+    let letzter = null;
+    for (const weg of wege) {
+      try { await weg(); gut.push(d.name); return; } catch (f) { letzter = f; if (!(f && f.name === "InvalidStateError")) break; }
+    }
+    fehler.push(d.name + ": " + ((letzter && (letzter.name + ": " + letzter.message)) || letzter));
   }
+}
+
+// Letzter Ausweg (1.566.1): die Datei im Speichern-Fenster des Browsers neu
+// wählen (startet im Ordner der Datei, Name vorgeschlagen); der neue Griff
+// ersetzt den alten, danach wird geschrieben
+export async function dateiNeuWaehlen(k, fenster) {
+  const d = aktuell[k];
+  if (!d) return false;
+  let neu;
+  try {
+    neu = await (fenster || window).showSaveFilePicker({ suggestedName: d.name, startIn: d.griff });
+  } catch (f) {
+    if (f && f.name === "AbortError") return false;
+    try { neu = await (fenster || window).showSaveFilePicker({ suggestedName: d.name }); } catch (g) { if (g && g.name === "AbortError") return false; throw g; }
+  }
+  aktuell = { ...aktuell, [k]: { ...d, griff: neu, name: neu.name } };
+  await ablegen();
+  return true;
 }
