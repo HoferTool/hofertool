@@ -128,25 +128,26 @@ export function levelAus(xp) {
   const von = xpFuerLevel(L), bis = xpFuerLevel(L + 1);
   return { level: L, von, bis, anteil: (xp - von) / (bis - von) };
 }
-// Ränge wie der Weg in der Werkstatt (seit 1.552.0 im Hofer-Stil)
-const RAENGE = [[1, "Neuling"], [3, "Lehrling"], [5, "Dreher"], [8, "Einrichter"], [11, "Polymech"],
-  [15, "CNC-Profi"], [20, "Programmierer"], [25, "Werkmeister"], [30, "Legende"], [40, "Mathe-Monster"]];
+// Ränge im Affenwald (seit 1.578.0)
+const RAENGE = [[1, "Äffchen"], [3, "Kletteraffe"], [5, "Lianenschwinger"], [8, "Bananenprofi"], [11, "Dschungelflitzer"],
+  [15, "Baumkronen-Ass"], [20, "Gorilla-Boss"], [25, "Dschungelkönig"], [30, "Legende"], [40, "Mathe-Monster"]];
 export function rang(L) { let r = RAENGE[0][1]; for (const [ab, n] of RAENGE) if (L >= ab) r = n; return r; }
 
 // ---------- Ausrüstung, frei ab Level ----------
-// Overall, Helm, Schutzbrille und Stapler in den Farben der Werkstoffe
-// wie auf der Planwand. brett = Stapler, brett2 = Gegengewicht, Dach, Streifen.
+// Look des Makaken: Fell, Gesicht, Shirt (shirt2 = Streifen und Nummer),
+// Cap mit Schild und Sonnenbrille (0 = keine). Eigene Farben, keine Logos.
+// Die Kennungen "hofer" und "gelbschwarz" bleiben wegen gespeicherter Stände.
 export const SKINS = [
-  { id: "hofer", name: "Hofer-Blau", ab: 1, jacke: 0x003884, hose: 0x002b66, helm: 0xffffff, brille: 0xffcc00, brett: 0xffcc00, brett2: 0x0b55b8, spur: [0x003884, 0xffffff] },
-  { id: "gelbschwarz", name: "Sicherheit", ab: 2, jacke: 0xffcc00, hose: 0x1b1b1b, helm: 0xffcc00, brille: 0x1b1b1b, brett: 0x1b1b1b, brett2: 0xffcc00, spur: [0xffcc00, 0x222222] },
-  { id: "v2a", name: "V2A Rot", ab: 3, jacke: 0xd8362c, hose: 0x5a1210, helm: 0xffffff, brille: 0x222222, brett: 0xd8362c, brett2: 0xeeeeee, spur: [0xd8362c, 0xffffff] },
-  { id: "messing", name: "Messing", ab: 5, jacke: 0xf28c1b, hose: 0x6b3a05, helm: 0xf2b53a, brille: 0x003884, brett: 0xf2b53a, brett2: 0x6b3a05, spur: [0xf2b53a, 0xf28c1b] },
-  { id: "stahl", name: "Stahl", ab: 6, jacke: 0x2f6fd0, hose: 0x1b2a4a, helm: 0x9aa3ad, brille: 0x5ad1ff, brett: 0x5d6673, brett2: 0x2f6fd0, spur: [0x9aa3ad, 0x2f6fd0] },
-  { id: "titan", name: "Titan", ab: 8, jacke: 0x8e5bd0, hose: 0x2e1658, helm: 0xc9b6f0, brille: 0x00e5ff, brett: 0x5b2fa0, brett2: 0xc9b6f0, spur: [0x8e5bd0, 0x00e5ff] },
-  { id: "gold", name: "Gold", ab: 10, jacke: 0xffc107, hose: 0x5d4300, helm: 0xffe082, brille: 0x111111, brett: 0xffb300, brett2: 0xffffff, spur: [0xffd54f, 0xffffff] },
-  { id: "neusilber", name: "Neusilber", ab: 15, jacke: 0xf2d33a, hose: 0x7a6a10, helm: 0xdfe4ea, brille: 0x003884, brett: 0xdfe4ea, brett2: 0xf2d33a, spur: [0xf2d33a, 0xdfe4ea] },
-  { id: "regenbogen", name: "Werkstoff-Mix", ab: 20, jacke: 0xd8362c, hose: 0x2f6fd0, helm: 0xf2d33a, brille: 0x1fd16b, brett: 0x8e5bd0, brett2: 0xf28c1b, spur: [0xd8362c, 0xf28c1b, 0xf2d33a, 0x1fd16b, 0x2f6fd0, 0x8e5bd0] },
-  { id: "diamant", name: "Diamant-Platte", ab: 30, jacke: 0xe3f2fd, hose: 0x90caf9, helm: 0x42a5f5, brille: 0xffffff, brett: 0x0d47a1, brett2: 0xe3f2fd, spur: [0xe3f2fd, 0x84ffff] },
+  { id: "hofer", name: "Gelb-Schwarz", ab: 1, fell: 0x8a7a66, gesicht: 0xd9675e, shirt: 0xffd400, shirt2: 0x111111, cap: 0x111111, schild: 0xffd400, brille: 0, spur: [0xffd400, 0x111111] },
+  { id: "gelbschwarz", name: "Auswärts Schwarz", ab: 2, fell: 0x8a7a66, gesicht: 0xd9675e, shirt: 0x111111, shirt2: 0xffd400, cap: 0xffd400, schild: 0x111111, brille: 0x111111, spur: [0x111111, 0xffd400] },
+  { id: "dschungel", name: "Dschungel-Tarn", ab: 3, fell: 0x6e5a44, gesicht: 0xd9675e, shirt: 0x3f6b2a, shirt2: 0xffd400, cap: 0x2c4a1c, schild: 0xffd400, brille: 0, spur: [0x3f6b2a, 0xffd400] },
+  { id: "banane", name: "Bananen-Gelb", ab: 5, fell: 0x9c8a72, gesicht: 0xe07a6c, shirt: 0xffe14d, shirt2: 0x6b4a10, cap: 0xffe14d, schild: 0x6b4a10, brille: 0x6b4a10, spur: [0xffe14d, 0xffffff] },
+  { id: "schnee", name: "Schneeaffe", ab: 6, fell: 0xd8d2c8, gesicht: 0xe58a7c, shirt: 0xffd400, shirt2: 0x111111, cap: 0xffffff, schild: 0x111111, brille: 0x5ad1ff, spur: [0xffffff, 0x5ad1ff] },
+  { id: "nacht", name: "Nachtaffe", ab: 8, fell: 0x3a332c, gesicht: 0xb8584f, shirt: 0x111111, shirt2: 0x8e5bd0, cap: 0x111111, schild: 0x8e5bd0, brille: 0x00e5ff, spur: [0x8e5bd0, 0x00e5ff] },
+  { id: "gold", name: "Gold-Makak", ab: 10, fell: 0xc9a24a, gesicht: 0xe07a6c, shirt: 0xffc107, shirt2: 0x111111, cap: 0xffc107, schild: 0x111111, brille: 0x111111, spur: [0xffd54f, 0xffffff] },
+  { id: "kapitaen", name: "Captain", ab: 15, fell: 0x8a7a66, gesicht: 0xd9675e, shirt: 0xffd400, shirt2: 0x111111, cap: 0xffd400, schild: 0xffd400, brille: 0xd8362c, spur: [0xffd400, 0xd8362c] },
+  { id: "regenbogen", name: "Papagei-Mix", ab: 20, fell: 0x8a7a66, gesicht: 0xd9675e, shirt: 0xd8362c, shirt2: 0x2f6fd0, cap: 0x1fd16b, schild: 0xf2d33a, brille: 0x8e5bd0, spur: [0xd8362c, 0xf28c1b, 0xf2d33a, 0x1fd16b, 0x2f6fd0, 0x8e5bd0] },
+  { id: "diamant", name: "Diamant-Makak", ab: 30, fell: 0xcfe6f5, gesicht: 0xf0a0a0, shirt: 0xe3f2fd, shirt2: 0x0d47a1, cap: 0x42a5f5, schild: 0xffffff, brille: 0xffffff, spur: [0xe3f2fd, 0x84ffff] },
 ];
 export function skinVon(id) { return SKINS.find((s) => s.id === id) || SKINS[0]; }
 
@@ -214,7 +215,7 @@ export function punkteFuer(ms, zeitS, serie) {
   const bonus = zeitS ? Math.max(0, Math.round(100 * (1 - ms / (zeitS * 1000)))) : Math.max(0, Math.round(100 * (1 - ms / 6000)));
   return { punkte: (100 + bonus) * multiplikator(serie), bonus };
 }
-export const SERIEN_TEXT = { 5: "VOLLGAS ×2", 10: "TURBO-DREHZAHL ×3", 15: "PRÄZISION ×4", 20: "LEGENDÄR ×5" };
+export const SERIEN_TEXT = { 5: "AFFENSTARK ×2", 10: "LIANEN-TURBO ×3", 15: "BANANEN-RAUSCH ×4", 20: "DSCHUNGELKÖNIG ×5" };
 
 export function heute() {
   const d = new Date();

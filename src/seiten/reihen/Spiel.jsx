@@ -1,9 +1,9 @@
 // =================================================================
 //  HOFER + CO ZAHLENSPRINT (früher 1×1 Rider, Beser Reihen lernen; seit 1.546.0, Wunsch Patrick 14. November 2026)
 //  Reihen 1 bis 9 auf Tempo wie im Schultest: eine Aufgabe, 3 Sekunden
-//  (einstellbar), dann kommt die nächste. Seit 1.552.0 im Hofer-Stil: ein
-//  Stapler fährt durch die Werkhalle, der Kran mit der Aufgabe kommt auf ihn zu, richtig = Sprung mit
-//  Drehung, falsch = Sturz und die Lösung steht da. Punkte, Serien mit
+//  (einstellbar), dann kommt die nächste. Seit 1.578.0 im Affenwald: ein
+//  Makak in Gelb-Schwarz rennt durch den 3D-Dschungel, das Tor mit der Aufgabe kommt auf ihn zu,
+//  richtig = Sprung mit Drehung, falsch = Sturz und die Lösung steht da. Punkte, Serien mit
 //  Multiplikator, Levels mit Rängen und Ausrüstung, Tage am Stück,
 //  Fehler gezielt üben. Nur für Patrick Ruch (Vermerk reihenSehen).
 //  Läuft als Ebene über der ganzen App (Portal), damit auf iPad und
@@ -234,8 +234,8 @@ export default function Spiel() {
   // ---------- Demo ----------
   // Wunsch Patrick 15. November 2026: „wenn 1 Minute nicht gespielt wird,
   // eine Demo laufen lassen, welche das Spiel bewirbt; bei Berührung
-  // zurückspringen“. Nur im Menü ohne offenes Fenster. Der Stapler fährt
-  // durch die Halle und löst Aufgaben, die Ebene darüber wirbt fürs Spiel.
+  // zurückspringen“. Nur im Menü ohne offenes Fenster. Der Makak rennt
+  // durch den Dschungel und löst Aufgaben, die Ebene darüber wirbt fürs Spiel.
   // Ohne Ton, ohne Punkte: der Stand des Profils bleibt unberührt.
   const ruhig = schirm === "menu" && !panel && !demo;
   useEffect(() => {
@@ -278,7 +278,7 @@ export default function Spiel() {
     setDemo(null);
   }
   useEffect(() => () => { const D = r.current.demo; if (D) D.z.forEach(clearTimeout); }, []);
-  // Wie beim Spielen: der Stapler steht im freien Streifen zwischen Aufgabe und „Tippe zum Starten“
+  // Wie beim Spielen: der Makak steht im freien Streifen zwischen Aufgabe und „Tippe zum Starten“
   const demoAn = !!demo;
   useEffect(() => {
     if (!demoAn) return;
@@ -403,19 +403,19 @@ export default function Spiel() {
 }
 
 const SPRUECHE = [
-  "Reihen üben wie ein Profi",
-  "Punkte sammeln, Level steigen",
-  "Vom Lehrling zum Mathe-Monster",
+  "Reihen üben im Affenwald",
+  "Punkte sammeln, Bananen jagen",
+  "Vom Äffchen zum Mathe-Monster",
   "Wer knackt den Rekord?",
   "Serien jagen bis ×5",
-  "Schneller als die Stoppuhr",
+  "Schneller als jeder Makak",
 ];
 
 function Demo({ d }) {
   return (
     <div className="rr-demo" data-rr-demo>
       <div className="rr-demo__kopf">
-        <h1 className="rr-titel">HOFER + CO<br /><span>ZAHLEN</span>SPRINT</h1>
+        <h1 className="rr-titel">HOFER + CO<br /><span>ZAHLEN</span>SPRINT<small>im Affenwald</small></h1>
         <div className="rr-demo__spruch" key={"s" + d.spruch}>{SPRUECHE[d.spruch % SPRUECHE.length]}</div>
       </div>
       <div className="rr-demo__mitte">
@@ -483,7 +483,7 @@ function Menue({ stand, lv, profilName, profile, pid, profilWaehlen, profilNeu, 
       </div>
       <img className="rr-logo" src={import.meta.env.BASE_URL + "logo-weiss.svg"} alt="Hofer + Co." />
       <div className="rr-menue">
-        <h1 className="rr-titel">HOFER + CO<br /><span>ZAHLEN</span>SPRINT</h1>
+        <h1 className="rr-titel">HOFER + CO<br /><span>ZAHLEN</span>SPRINT<small>im Affenwald</small></h1>
         <div className="rr-rekorde">
           <span>🏆 {zahl(stand.punkteRekord)}</span><span>⚡ Serie {stand.serieRekord}</span><span>🔩 {stand.runden} Runden</span>
         </div>
@@ -514,7 +514,7 @@ function Menue({ stand, lv, profilName, profile, pid, profilWaehlen, profilNeu, 
             🎯 Fehler-Training{fehlerZahl ? " (" + fehlerZahl + ")" : ""}
           </button>
           <button className="rr-knopf rr-knopf--blau" onClick={() => setPanel("reihen")}>📊 Meine Reihen</button>
-          <button className="rr-knopf rr-knopf--schwarz" data-rr-garage onClick={() => setPanel("garage")}>🦺 Spind</button>
+          <button className="rr-knopf rr-knopf--schwarz" data-rr-garage onClick={() => setPanel("garage")}>🐒 Look</button>
         </div>
       </div>
       {panel === "reihen" && <MeineReihen stand={stand} zu={() => setPanel(null)} />}
@@ -566,7 +566,7 @@ function Profile({ profile, pid, wer, waehlen, neu, umbenennen, zu }) {
           })}
         </div>
         <button className="rr-knopf rr-knopf--grau" data-rr-profilneu onClick={() => { const id = neu(); setBearbeite(id); setName(""); }}>+ Neues Profil</button>
-        <p className="rr-klein">Jedes Profil hat eigene Punkte, Levels, Spind und Fehler.</p>
+        <p className="rr-klein">Jedes Profil hat eigene Punkte, Levels, Looks und Fehler.</p>
       </div>
     </div>
   );
@@ -615,8 +615,8 @@ function Garage({ lv, skin, waehlen, zu }) {
     <div className="rr-panel" onClick={zu}>
       <div className="rr-karte rr-karte--breit" onClick={(e) => e.stopPropagation()}>
         <button className="rr-rund rr-karte__zu" onClick={zu}>✕</button>
-        <h2>Spind</h2>
-        <p className="rr-klein">Neue Overalls und Stapler gibt es mit jedem Level. Du bist Level {lv.level}.</p>
+        <h2>Look</h2>
+        <p className="rr-klein">Neue Shirts und Caps gibt es mit jedem Level. Du bist Level {lv.level}.</p>
         <div className="rr-skins">
           {SKINS.map((k) => {
             const frei = lv.level >= k.ab;
@@ -624,8 +624,8 @@ function Garage({ lv, skin, waehlen, zu }) {
               <button key={k.id} data-rr-skin={k.id} className={"rr-skin" + (k.id === skin.id ? " an" : "") + (frei ? "" : " zu")}
                 disabled={!frei} onClick={() => waehlen(k.id)}>
                 <span className="rr-skin__bild">
-                  <i style={{ background: farbe(k.helm) }} /><i style={{ background: farbe(k.jacke) }} /><i style={{ background: farbe(k.hose) }} />
-                  <i className="rr-skin__brett" style={{ background: "linear-gradient(90deg," + farbe(k.brett) + " 35%," + farbe(k.brett2) + " 35% 65%," + farbe(k.brett) + " 65%)" }} />
+                  <i style={{ background: "linear-gradient(180deg," + farbe(k.cap) + " 60%," + farbe(k.schild) + " 60%)" }} /><i style={{ background: "repeating-linear-gradient(90deg," + farbe(k.shirt) + " 0 6px," + farbe(k.shirt2) + " 6px 9px)" }} /><i style={{ background: farbe(k.fell) }} />
+                  <i className="rr-skin__brett" style={{ background: "linear-gradient(90deg," + farbe(k.fell) + " 30%," + farbe(k.gesicht) + " 30% 70%," + farbe(k.fell) + " 70%)" }} />
                 </span>
                 <b>{k.name}</b>
                 <small>{frei ? (k.id === skin.id ? "Gewählt" : "Wählen") : "🔒 ab Level " + k.ab}</small>
@@ -639,11 +639,11 @@ function Garage({ lv, skin, waehlen, zu }) {
 }
 
 function Ende({ e, stand, lv, nochmal, fehlerUeben, menue }) {
-  const titel = e.quote >= 0.9 ? "GUTTEIL!" : e.quote >= 0.7 ? "STARK GEDREHT!" : "WEITER SO!";
+  const titel = e.quote >= 0.9 ? "AFFENSTARK!" : e.quote >= 0.7 ? "STARK GEKLETTERT!" : "WEITER SO!";
   return (
     <div className="rr-ende">
       <div className="rr-karte rr-karte--ende">
-        <div className="rr-ende__platz">{e.quote >= 0.9 ? "IN TOLERANZ ✓" : e.quote >= 0.7 ? "FAST IN TOLERANZ" : "NACHARBEIT"}</div>
+        <div className="rr-ende__platz">{e.quote >= 0.9 ? "BANANE VERDIENT 🍌" : e.quote >= 0.7 ? "FAST GANZ OBEN" : "NOCHMALS KLETTERN"}</div>
         <h2 className="rr-ende__titel" data-rr-ende>{titel}</h2>
         <div className="rr-sterne">{[0, 1, 2].map((i) => <span key={i} className={i < e.sterne ? "an" : ""} style={{ animationDelay: (0.3 + i * 0.25) + "s" }}>★</span>)}</div>
         {e.neuRekord && e.punkte > 0 && <div className="rr-rekord">🏆 NEUER REKORD!</div>}
@@ -656,7 +656,7 @@ function Ende({ e, stand, lv, nochmal, fehlerUeben, menue }) {
         <div className="rr-xpzeile">+{zahl(e.xp)} XP</div>
         <LevelAnzeige stand={stand} lv={lv} />
         {e.levelUp > 0 && <div className="rr-levelup">LEVEL UP! Level {e.levelUp} · {rang(e.levelUp)}</div>}
-        {e.neueSkins.length > 0 && <div className="rr-neu">Neu im Spind: {e.neueSkins.map((k) => k.name).join(", ")}</div>}
+        {e.neueSkins.length > 0 && <div className="rr-neu">Neuer Look: {e.neueSkins.map((k) => k.name).join(", ")}</div>}
         {e.fehler.length > 0 && (
           <div className="rr-fehlerliste">
             <small>Diese üben wir noch:</small>
