@@ -363,8 +363,10 @@ export function simAufbauen(wRoh) {
         const an = num(b.anZ) ?? 0, weg = num(b.wegZ);
         const sg = weg != null && weg > an ? -1 : 1;
         s.punkte = roh.map((p) => ({ z: sg * (p.z - an) - 0.5, r: Math.abs(p.x || 0) / 2, vor: p.vor, nr: p.nr }));
-        s.modus = wa === "fraes" ? "bohr" : null;
-        if (wa === "dreh") s.status = "nurBahn";
+        // Seit 1.567.0 (Patrick 16. November 2026: „bei T1200 Front
+        // Innendrehen nur die Werkzeugbahn“): eine Drehplatte am festen
+        // Frontwerkzeug dreht wie ein Drehwerkzeug, X aus dem Programm
+        s.modus = wa === "fraes" ? "bohr" : wa === "dreh" ? "dreh" : null;
       } else if (art === "k2") {
         s.punkte = roh.map((p) => ({ z: p.z, r: Math.abs(p.x) / 2, vor: p.vor, nr: p.nr }));
         s.modus = wa === "fraes" ? "bohr" : wa === "dreh" ? "dreh" : null;
