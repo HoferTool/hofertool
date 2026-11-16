@@ -66,6 +66,16 @@ with sync_playwright() as p:
     pg.fill("[data-camwz='schraeg']", "5"); pruefe("Freiwinkel 58°", "58°" in pg.text_content("[data-camwz-freiwinkel]"))
     pg.fill("[data-camwz='winkel']", "120"); pruefe("Spitzenwinkel 120 rot", pg.locator(".cam-feld--fehler [data-camwz='winkel']").count() == 1)
     pg.fill("[data-camwz='winkel']", "27"); pg.fill("[data-camwz='schraeg']", "2")
+    # Freie Platte (1.564.0): zwei von drei Winkeln, der dritte ergibt sich
+    pg.click("[data-camwz-form='F']"); pg.fill("[data-camwz='r']", "0.4"); pg.click("[data-camwz-sl='ur']")
+    pg.fill("[data-camwz='schraeg']", ""); pg.fill("[data-camwz='winkel']", "35"); pg.fill("[data-camwz='freiw']", "50")
+    pruefe("Freie Platte: Neigung 5 ergibt sich", pg.get_attribute("[data-camwz='schraeg']", "placeholder") == "5"
+           and pg.locator("[data-camwz] .cam-feld--fehler").count() == 0)
+    pruefe("Freie Platte im Knopf", "Freie Platte 35° Neigung 5° frei 50°" in pg.text_content("[data-camwz-auf='0']"))
+    pg.fill("[data-camwz='schraeg']", "10"); pruefe("Summe nicht 90 rot", pg.locator(".cam-feld--fehler [data-camwz='freiw']").count() == 1)
+    pg.fill("[data-camwz='winkel']", ""); pruefe("Spitzenwinkel ergibt sich 30", pg.get_attribute("[data-camwz='winkel']", "placeholder") == "30")
+    pg.locator(".cam-wz").screenshot(path="/tmp/claude-0/-home-user/e193e6f8-e4d3-5775-9ccb-4db292d1b235/scratchpad/wz_frei.png")
+    pg.click("[data-camwz-form='U']"); pg.fill("[data-camwz='r']", "0.2"); pg.click("[data-camwz-sl='ur']")
     pruefe("NC-Programm unverändert", k1() == vorher)
     # Frontwerkzeug: zuerst Bohr-/Fräswerkzeug
     pg.click("#cam-neu-front"); pg.click("[data-camwz-auf='1']")

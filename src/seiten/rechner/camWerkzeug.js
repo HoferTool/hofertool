@@ -33,13 +33,29 @@ export const PLATTEN = [
   // Seit 1.559.0 (Patrick 16. November 2026: „Drehplatte mit 27°
   // Spitzenwinkel, steht 2° schräg, Freiwinkel dann 61°“, „nenne sie Utilis
   // Multidec“): Spitzenwinkel und Schräglage einstellbar, Vorgabe 27° / 2°
-  { id: "U", name: "Utilis Multidec", winkel: 27, schraeg: 2, art: "frei" },
+  { id: "U", name: "Utilis Multidec", winkel: 27, schraeg: 2, art: "frei", klinge: true },
+  // Seit 1.564.0 (Patrick 16. November 2026: „eine Drehplatte, welche ich
+  // anpassen kann, mit Spitzenwinkel, Neigung und Freiwinkel“): Rhombus mit
+  // freien Winkeln; zwei der drei Winkel genügen, der dritte ergibt sich aus
+  // Spitzenwinkel + Neigung + Freiwinkel = 90°
+  { id: "F", name: "Freie Platte", winkel: 55, schraeg: 0, art: "frei", dreiWinkel: true },
 ];
+const winkelZahl = (x) => { const t = String(x ?? "").trim().replace(",", "."); return /^-?(\d+(\.\d*)?|\.\d+)$/.test(t) ? Number(t) : null; };
 // Spitzenwinkel und Schräglage der Utilis Multidec (leer = Vorgabe)
 export function plattenWinkel(wz) {
   const f = plattenForm(wz.form);
   if (!f) return { winkel: 0, schraeg: 0 };
   if (f.art !== "frei") return { winkel: f.winkel, schraeg: 0 };
+  if (f.dreiWinkel) {
+    let w = winkelZahl(wz.winkel), n = winkelZahl(wz.schraeg);
+    const fw = winkelZahl(wz.freiw);
+    if (w === null && n !== null && fw !== null) w = 90 - n - fw;
+    if (n === null && w !== null && fw !== null) n = 90 - w - fw;
+    if (w === null && n === null && fw !== null) n = f.schraeg, w = 90 - n - fw;
+    if (w === null || !(w > 0 && w < 90)) w = f.winkel;
+    if (n === null) n = f.schraeg;
+    return { winkel: w, schraeg: n };
+  }
   const w = zahlOk(wz.winkel) && zahlV(wz.winkel) > 0 && zahlV(wz.winkel) < 90 ? zahlV(wz.winkel) : f.winkel;
   const sr = String(wz.schraeg ?? "").trim().replace(",", ".");
   const sg = /^-?(\d+(\.\d*)?|\.\d+)$/.test(sr) ? Number(sr) : f.schraeg;
@@ -79,6 +95,13 @@ export function wzFelder(wz, art) {
     if (f.art === "einstech") return [{ name: "breite", text: "Breite", einheit: "mm" }, { name: "r", text: "Eckradius", einheit: "mm", frei: true }];
     if (f.art === "rund") return [{ name: "r", text: "Radius", einheit: "mm" }];
     if (f.art === "gewinde") return [{ name: "r", text: "Radius", einheit: "mm", frei: true }];
+    if (f.dreiWinkel) {
+      const { winkel, schraeg } = plattenWinkel(wz);
+      return [{ name: "r", text: "Radius", einheit: "mm" },
+        { name: "winkel", text: "Spitzenwinkel", einheit: "Grad", frei: true, ph: String(winkel) },
+        { name: "schraeg", text: "Neigung", einheit: "Grad", frei: true, ph: String(schraeg), minus: true },
+        { name: "freiw", text: "Freiwinkel", einheit: "Grad", frei: true, ph: String(Math.round((90 - schraeg - winkel) * 100) / 100), minus: true }];
+    }
     if (f.art === "frei") return [{ name: "r", text: "Radius", einheit: "mm" },
       { name: "winkel", text: "Spitzenwinkel", einheit: "Grad", frei: true, ph: "27" },
       { name: "schraeg", text: "Schräg", einheit: "Grad", frei: true, ph: "2", minus: true }];
@@ -105,11 +128,19 @@ export function wzFehler(b) {
   for (const fe of wzFelder(wz, art)) {
     const x = wz[fe.name];
     if (String(x ?? "").trim() === "") { if (!fe.frei) f[fe.name] = "fehlt"; continue; }
+    if (fe.name === "freiw") { if (!/^-?(\d+(\.\d*)?|\.\d+)$/.test(String(x).trim().replace(",", ".")) || zahlV(x) <= -45 || zahlV(x) >= 90) f[fe.name] = "−45 bis 89"; continue; }
     if (fe.minus) { if (!/^-?(\d+(\.\d*)?|\.\d+)$/.test(String(x).trim().replace(",", ".")) || Math.abs(zahlV(x)) >= 45) f[fe.name] = "−45 bis 45"; continue; }
     if (!zahlOk(x)) { f[fe.name] = "Zahl"; continue; }
     const v = zahlV(x);
     if (art === "dreh" && fe.name === "winkel" && !(v > 0 && v < 90)) { f[fe.name] = "1 bis 89"; continue; }
     if (fe.name === "winkel" ? !(v > 0 && v < 180) : fe.name === "r" ? v < 0 : !(v > 0)) f[fe.name] = "ungültig";
+  }
+  if (art === "dreh" && plattenForm(wz.form)?.dreiWinkel && !f.winkel && !f.schraeg && !f.freiw) {
+    // alle drei eingetragen: müssen zusammen 90° geben; sonst muss der
+    // Spitzenwinkel, der sich ergibt, zwischen 0 und 90° liegen
+    const w = winkelZahl(wz.winkel), n = winkelZahl(wz.schraeg), fw = winkelZahl(wz.freiw);
+    if (w !== null && n !== null && fw !== null && Math.abs(w + n + fw - 90) > 0.01) f.freiw = "Summe muss 90° sein";
+    else if (w === null && fw !== null) { const g = 90 - (n ?? 0) - fw; if (!(g > 0 && g < 90)) f.freiw = "Spitzenwinkel wäre " + g + "°"; }
   }
   if (art === "dreh" && plattenForm(wz.form)?.art !== "rund" && !wz.sl) f.sl = "fehlt";
   if (art === "fraes" && wz.form === "eck" && !f.r && !f.d && zahlV(wz.r) * 2 > zahlV(wz.d)) f.r = "grösser als Ø/2";
@@ -125,6 +156,7 @@ export function wzText(b) {
   if (art === "dreh") {
     const f = plattenForm(wz.form);
     const teile = [f.art === "einstech" ? "Einstechplatte" + (wz.breite ? " B" + wz.breite : "")
+      : f.dreiWinkel ? f.name + " " + plattenWinkel(wz).winkel + "° Neigung " + plattenWinkel(wz).schraeg + "° frei " + freiWinkel(wz) + "°"
       : f.art === "frei" ? f.name + " " + plattenWinkel(wz).winkel + "° schräg " + plattenWinkel(wz).schraeg + "°" : f.name];
     if (wz.r) teile.push("R" + wz.r);
     const s = SPITZEN.find((x) => x.id === wz.sl);
@@ -212,8 +244,8 @@ export function plattenUmriss(wz, gross = 8) {
       c = { z: L * Math.cos(hb - e), x: L * Math.sin(hb - e) };
     }
   }
-  let p = f.art === "rhombus" ? [{ z: 0, x: 0 }, a, { z: a.z + c.z, x: a.x + c.x }, c] : [{ z: 0, x: 0 }, a, c];
-  if (f.art === "frei") {
+  let p = f.art === "rhombus" || (f.art === "frei" && !f.klinge) ? [{ z: 0, x: 0 }, a, { z: a.z + c.z, x: a.x + c.x }, c] : [{ z: 0, x: 0 }, a, c];
+  if (f.klinge) {
     // Seit 1.562.0 nach Patricks Zeichnung CUT-1317-12 (Utilis Multidec,
     // 16. November 2026): schmale Klinge in echten mm. Die Seite a läuft von
     // der Spitze 11 mm in die Platte, die Seite c geht im Spitzenwinkel bis

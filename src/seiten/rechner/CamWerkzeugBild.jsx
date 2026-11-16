@@ -267,8 +267,10 @@ export function WerkzeugFeld({ b, setze, zu }) {
                 <input type="text" data-camwz={fe.name} value={wz[fe.name] ?? ""} inputMode="decimal" placeholder={fe.ph}
                   onChange={(e) => aendern(fe.name, e.target.value)} /><small className="cam-einheit">°</small>
               </label>))}
-            <span className="cam-wz__freiwinkel" data-camwz-freiwinkel>Freiwinkel {freiWinkel(wz)}°</span>
-            <span className="klein cam-wz__lagetext">Schräg = Neigung der Hauptschneide gegen die Stirn (Einstellwinkel 90° + Schräg), Freiwinkel = 90° − Schräg − Spitzenwinkel.</span>
+            {!form.dreiWinkel && <span className="cam-wz__freiwinkel" data-camwz-freiwinkel>Freiwinkel {freiWinkel(wz)}°</span>}
+            <span className="klein cam-wz__lagetext">{form.dreiWinkel
+              ? "Zwei Winkel eintragen, der dritte ergibt sich: Spitzenwinkel + Neigung + Freiwinkel = 90°. Neigung = Hauptschneide gegen die Stirn, Freiwinkel = Nebenschneide zur Drehachse."
+              : "Schräg = Neigung der Hauptschneide gegen die Stirn (Einstellwinkel 90° + Schräg), Freiwinkel = 90° − Schräg − Spitzenwinkel."}</span>
           </div>}</div>
           : <FraesBild wz={wz} f={f} aendern={aendern} felder={felder} />}
         {art === "dreh" && form && form.art !== "rund" && <div className={"cam-wz__lage" + (f.sl ? " cam-feld--fehler" : "")}>
