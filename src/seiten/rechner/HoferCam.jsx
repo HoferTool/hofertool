@@ -719,27 +719,24 @@ export default function HoferCam() {
           );
           return { key: b.id, inhalt: (
             <div key={b.id} className={"cam-block" + (b.id === aktiv ? " cam-block--aktiv" : "")} data-block={i} data-blockid={b.id}
-              onFocusCapture={() => setAktiv(b.id)} onPointerDown={() => setAktiv(b.id)}
-              onPointerEnter={(e) => { if (e.pointerType === "mouse") setUeber(b.id); }}
-              onPointerLeave={(e) => {
-                // Seit 1.426.2: solange die Auswahl Platz / Spindel offen
-                // ist (die Liste liegt ausserhalb), bleibt das Bild stehen
-                const a = e.currentTarget.ownerDocument.activeElement;
-                if (a && a.tagName === "SELECT" && e.currentTarget.contains(a)) return;
-                setUeber((x) => (x === b.id ? null : x));
-              }}
-              onBlurCapture={(e) => { if (e.target.tagName === "SELECT" && !e.currentTarget.matches(":hover")) setUeber((x) => (x === b.id ? null : x)); }}>
+              onFocusCapture={() => setAktiv(b.id)} onPointerDown={() => setAktiv(b.id)}>
               <div className="cam-block__zeile">
                 {/* Seit 1.399.0 (Wunsch Patrick 5. November 2026): NC-Code mit
                     dem Pfeil ein- und ausklappen, gemerkt am Block (zu) */}
                 <button className="cam-block__pfeil" data-camblock-pfeil={i} title={b.zu ? "NC-Code zeigen" : "NC-Code einklappen"}
                   aria-expanded={!b.zu} onClick={() => blockAendern(b.id, "zu", !b.zu)}>{b.zu ? "▸" : "▾"}</button>
                 {(front || (quer && !seite)) && <label className="cam-feld" title="Hauptspindel oder Gegenspindel"><span>Spindel</span>
-                  <select data-camblock="spindel" value={b.spindel || "haupt"} onChange={(e) => { blockAendern(b.id, "spindel", e.target.value); setUeber(b.id); }}>
+                  <select data-camblock="spindel" value={b.spindel || "haupt"} onChange={(e) => blockAendern(b.id, "spindel", e.target.value)}>
                     <option value="haupt">Hauptspindel</option>
                     <option value="gegen">Gegenspindel (Kanal 2 mit T2000)</option>
                   </select></label>}
-                <label className="cam-feld" title={k2 ? "Werkzeugplatz Kanal 2" : quer ? "Werkzeugplatz (angetrieben, Weg mit der Gegenspindel)" : front ? "Werkzeugplatz (Frontwerkzeug fest)" : "Werkzeugplatz (Drehwerkzeug Kanal 1)"}><span>Platz</span>
+                {/* Seit 1.566.0 (Patrick 16. November 2026: „nur wenn ich wirklich
+                    mit der Maus auf das Feld Platz fahre“): das Maschinenbild
+                    kommt nur über dem Feld Platz samt seiner offenen Liste */}
+                <label className="cam-feld" data-camblock-platzfeld={i}
+                  onPointerEnter={(e) => { if (e.pointerType === "mouse") setUeber(b.id); }}
+                  onPointerLeave={() => setUeber((x) => (x === b.id ? null : x))}
+                  title={k2 ? "Werkzeugplatz Kanal 2" : quer ? "Werkzeugplatz (angetrieben, Weg mit der Gegenspindel)" : front ? "Werkzeugplatz (Frontwerkzeug fest)" : "Werkzeugplatz (Drehwerkzeug Kanal 1)"}><span>Platz</span>
                   <PlatzWahl wert={b.platz} plaetze={plaetzeVon(k2 ? "k2" : seite ? "seite" : quer ? "quer" : front ? "front" : "dreh")}
                     waehlen={(p) => { blockAendern(b.id, "platz", p); setUeber(b.id); }}
                     vorschau={(p) => { setVorPlatz(p ? { id: b.id, platz: p } : null); if (p) setUeber(b.id); }} /></label>

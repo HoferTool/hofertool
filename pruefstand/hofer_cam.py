@@ -265,8 +265,10 @@ with sync_playwright() as p:
         and pg.locator(".cam-zeile--fehler").count() == 0)
     # Seit 1.426.0: Bild der Maschine beim Darüberfahren
     pg.hover("[data-block='2'] [data-camblock='bez']"); pg.wait_for_timeout(150)
+    pruefe("Kein Bild ausserhalb des Felds Platz (1.566.0)", pg.locator("#cam-bild").count() == 0)
+    pg.hover("[data-camblock-platzfeld='2']"); pg.wait_for_timeout(150)
     pruefe("Bild Kanal 2", pg.get_attribute("#cam-bild", "data-bereich") == "Kanal 2" and "T2100" in pg.text_content("#cam-bild"))
-    pg.evaluate("window.scrollTo(0, 0)"); pg.hover("[data-block='0'] [data-camblock='bez']"); pg.wait_for_timeout(150)
+    pg.evaluate("window.scrollTo(0, 0)"); pg.hover("[data-camblock-platzfeld='0']"); pg.wait_for_timeout(150)
     ueberlapp = pg.evaluate("""() => { const a = document.querySelector('#cam-bild').getBoundingClientRect();
         return [...document.querySelectorAll('.cam-bearb__kopf .knopf, .cam-block[data-block="0"] :is(input, select, textarea, button)')].some(k => { const b = k.getBoundingClientRect();
           return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top; }); }""")
@@ -275,7 +277,7 @@ with sync_playwright() as p:
         and pg.get_attribute("#cam-bild .cam-bild__rahmen", "x") == "112")
     pg.screenshot(path="hofer_cam_bild.png")
     # Seit 1.426.2: Platz wählen zeigt gleich das richtige Werkzeug
-    pg.hover("[data-block='2'] [data-camblock='bez']")
+    pg.hover("[data-camblock-platzfeld='2']")
     platz_waehlen(2, "2400"); pg.wait_for_timeout(150)
     pg.click("[data-block='2'] .cam-wahl__knopf"); pg.hover("[data-block='2'] .cam-wahl__punkt[data-platz='2200']"); pg.wait_for_timeout(150)
     pruefe("Vorschau beim Darüberfahren", "T2200" in pg.text_content("#cam-bild") and pg.get_attribute("[data-block='2'] [data-camblock='platz']", "data-wert") == "2400")
