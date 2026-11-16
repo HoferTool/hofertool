@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.572.0** (16. November 2026): Einlagen Generator: Griffmulde mit eigener Tiefe (Feld Tiefe oben), an einem Werkzeug abgestufte Tasche (Wunsch Patrick).
 - **1.571.0** (16. November 2026): Einlagen Generator: bei gespeicherten Taschen Breite und Länge, bei Kreisen den Ø direkt in der Liste ändern (Wunsch Patrick).
 - **1.570.0** (16. November 2026): Einlagen Generator: Griffmulden frei auf der Einlage statt an ein Werkzeug gebunden, Tiefe und Höhe direkt im Bild antippen und ändern, Teile spiegeln (Wunsch Patrick).
 - **1.569.0** (16. November 2026): Einlagen Generator: Werkzeuge in der Einlage stufenlos drehen (ohne Einrasten, Winkel mit Komma), Länge und Breite der Einlage und des gewählten Werkzeugs als Masslinien (Wunsch Patrick).

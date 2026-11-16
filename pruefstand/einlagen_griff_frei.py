@@ -1,5 +1,5 @@
-# Einlagen Generator: Griffmulden frei auf der Einlage, nicht an ein Werkzeug gebunden
-# (1.570.0, Wunsch Patrick 16. November 2026).
+# Einlagen Generator: Griffmulden frei auf der Einlage, nicht an ein Werkzeug gebunden, mit eigener Tiefe
+# (1.570.0 / 1.572.0, Wunsch Patrick 16. November 2026).
 import os, time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -62,6 +62,20 @@ with sync_playwright() as p:
     bw = f().evaluate("(() => { const b = itemBB(lay.items[0]); return b[2] - b[0]; })()")
     pruefe(bw > 75, "Tasche des Werkzeugs um die Mulde breiter: %s" % bw)
     if BILD: pg.locator("iframe.einlagen-rahmen").screenshot(path=BILD + "-angebaut.png")
+    # eigene Tiefe an der Werkzeugtasche (1.572.0): abgestufte Tasche, Mulde 8 mm, Werkzeug 15 mm
+    pruefe(f().evaluate("(syncLayGrip(), document.getElementById('lgD').value)") == "8", "Feld Tiefe zeigt 8")
+    zs = f().evaluate("(() => { const s = new Set(); buildTris().forEach(t => t.forEach(p => s.add(Math.round(p[2] * 100) / 100))); return [...s].sort((a, b) => a - b); })()")
+    pruefe(30 - 8 in zs and 30 - 15 in zs, "Stufen auf 22 und 15 mm Höhe: %s" % zs)
+    pruefe(f().evaluate(DICHT_JS), "abgestufte Tasche: Netz geschlossen")
+    f().evaluate("() => { const e = document.getElementById('lgD'); e.value = '22'; e.dispatchEvent(new Event('change')); }"); pg.wait_for_timeout(200)
+    zs = f().evaluate("(() => { const s = new Set(); buildTris().forEach(t => t.forEach(p => s.add(Math.round(p[2] * 100) / 100))); return [...s].sort((a, b) => a - b); })()")
+    pruefe(f().evaluate("lay.items.find(i => i.griff).depth") == 22 and 30 - 22 in zs and 30 - 15 in zs, "Mulde tiefer als Werkzeug (22): %s" % zs)
+    pruefe(f().evaluate(DICHT_JS), "tiefere Mulde: Netz geschlossen")
+    f().evaluate("() => { const e = document.getElementById('lgD'); e.value = '8'; e.dispatchEvent(new Event('change')); }"); pg.wait_for_timeout(200)
+    if BILD:
+        f().evaluate("document.querySelector('[data-lview=\"3d\"]').click()"); pg.wait_for_timeout(1500)
+        pg.locator("iframe.einlagen-rahmen").screenshot(path=BILD + "-3d.png")
+        f().evaluate("document.querySelector('[data-lview=\"2d\"]').click()"); pg.wait_for_timeout(300)
     f().evaluate("(() => { const it = lay.items.find(i => i.griff); it.x = 200; it.y = 120; layChanged(); })()"); pg.wait_for_timeout(200)
     if BILD: pg.locator("iframe.einlagen-rahmen").screenshot(path=BILD + "-griff.png")
     # löschen und Rückgängig
