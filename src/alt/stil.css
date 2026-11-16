@@ -13998,119 +13998,54 @@ body.dunkel .cam-sim__schritt { background: #101820; }
 .cam-sim__name { word-break: break-word; }
 .cam-sim__info { color: var(--gedaempft, #6b7a8a); margin-top: 6px; }
 
-/* ---------- Person zieht den Schlitten mit den Hühnern (seit 1.555.0) ----------
-   Wunsch Patrick 15. November 2026, gesteuert von start/Durchfahrt.jsx.
-   Boden, Hühner, Staub, Federn und Schnee wie beim Umzug der Hühner. */
-.umzug-wiese { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; pointer-events: none;
-  background: var(--gras) repeat-x left top / auto 70%, linear-gradient(180deg, transparent 0 45%, #5fa83a 45%, #3f7f27 100%); }
-body.dunkel .umzug-wiese { filter: brightness(.7) saturate(.85); }
-.umzug { position: absolute; left: 0; z-index: 2; pointer-events: none; will-change: transform; }
-.umzug svg { display: block; overflow: visible; }
-.umzug-seil { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; }
-.umzug-seil path { fill: none; stroke: #8a6a3a; stroke-width: 2; stroke-linecap: round; }
-.umzug-stall { position: absolute; z-index: 2; }
-.umzug-stall svg, .umzug-huhn svg, .umzug-kueken svg { width: 100%; height: 100%; }
-.umzug-stall__kasten { transform-box: fill-box; transform-origin: 50% 100%; animation: umzug-wackeln .9s ease-in-out infinite alternate; }
-@keyframes umzug-wackeln { from { transform: rotate(-.8deg) translateY(0); } to { transform: rotate(.8deg) translateY(-1.5px); } }
-.umzug-stall__rad { transform-box: fill-box; transform-origin: 50% 50%; animation: umzug-rad 1s linear infinite; }
-@keyframes umzug-rad { to { transform: rotate(360deg); } }
-.umzug-stall__kueken { animation: umzug-gucken 2.6s ease-in-out infinite; }
-.umzug-stall__gucker { animation: umzug-gucken 3.4s ease-in-out infinite reverse; }
-@keyframes umzug-gucken { 0%, 30% { transform: translateY(10px); } 45%, 85% { transform: translateY(0); } 100% { transform: translateY(10px); } }
-.umzug-huhn { position: absolute; }
-.umzug-huhn__koerper { width: 100%; height: 100%; transform-origin: 50% 100%;
-  animation: umzug-nicken var(--schritt, .35s) ease-in-out infinite alternate; animation-delay: inherit; }
-@keyframes umzug-nicken { from { transform: translateY(0) rotate(0deg); } to { transform: translateY(-4%) rotate(-2deg); } }
-.umzug-huhn--zieht .umzug-huhn__koerper { animation-name: umzug-ziehen; }
-@keyframes umzug-ziehen { from { transform: translateY(0) rotate(7deg); } to { transform: translateY(-3%) rotate(10deg); } }
-.umzug .huhn-bein { transform-box: fill-box; transform-origin: 50% 0; animation: umzug-bein var(--schritt, .35s) ease-in-out infinite alternate; }
-.umzug .huhn-bein--2 { animation-direction: alternate-reverse; }
-@keyframes umzug-bein { from { transform: rotate(-24deg); } to { transform: rotate(24deg); } }
-/* Der Flügel des Infoboard-Huhns schlägt im Flug, beim Gehen nur leicht */
-.umzug .ib-huhn__fluegel { transform-box: fill-box; transform-origin: 85% 30%; animation: umzug-fluegel .7s ease-in-out infinite alternate; }
-@keyframes umzug-fluegel { from { transform: rotate(-4deg); } to { transform: rotate(6deg); } }
-.umzug-kueken { position: absolute; z-index: 3; animation: umzug-nachrennen 1.8s ease-in-out infinite alternate; }
-.umzug-kueken svg { animation: umzug-huepfen .22s ease-in-out infinite alternate; }
-.umzug-kueken .huhn-bein { animation-duration: .16s; }
-@keyframes umzug-nachrennen { from { transform: translateX(0); } to { transform: translateX(30%); } }
-@keyframes umzug-huepfen { from { transform: translateY(0); } to { transform: translateY(-14%); } }
-.umzug-staub { position: absolute; z-index: 4; border-radius: 50%; pointer-events: none; filter: blur(1.5px);
-  background: radial-gradient(ellipse, rgba(214,190,150,.85) 0%, rgba(214,190,150,.35) 50%, transparent 72%); }
-.umzug-rauch { position: absolute; z-index: 4; border-radius: 50%; pointer-events: none; filter: blur(2px);
-  background: radial-gradient(circle, rgba(240,240,245,.8) 0%, rgba(230,232,240,.35) 50%, transparent 72%); }
-.umzug-feder { position: absolute; z-index: 4; pointer-events: none; opacity: 0; }
-/* Im Winter (15. Oktober bis Ende März, seit 1.212.0, Wunsch Patrick
-   26. Oktober 2026): Schnee statt Wiese, Schneefall, Pulverschnee. */
-.umzug-wiese--schnee { background: var(--gras) repeat-x left top / auto 70%, linear-gradient(180deg, transparent 0 45%, #f7fbff 45%, #d6e3f1 100%); }
-body.dunkel .umzug-wiese--schnee { filter: brightness(.82) saturate(.9); }
-.umzug-staub--schnee { background: radial-gradient(ellipse, rgba(255,255,255,.95) 0%, rgba(240,246,255,.5) 50%, transparent 72%); }
-.umzug-flocke { position: absolute; z-index: 5; border-radius: 50%; pointer-events: none; background: #fff;
-  box-shadow: 0 0 3px rgba(255,255,255,.8); will-change: transform; }
+/* ---------- Hühner im Band, je Jahreszeit (seit 1.573.0) ----------
+   Wunsch Patrick 16. November 2026: wieder die Hühner vom Anfang (1.130.x),
+   weisslich, die herumlaufen, Eier legen und Federn verlieren; dazu je
+   Jahreszeit Schnee, Blätter, Blüten, Blümchen und ein Wasserball.
+   Gesteuert von start/Durchfahrt.jsx, hier nur Form und Farbe. */
+.durchfahrt .huhn { position: absolute; left: 0; bottom: 0; will-change: transform; }
+.durchfahrt .huhn__dreh { width: 100%; height: 100%; transition: transform .28s ease-in-out; }
+.durchfahrt .huhn__koerper {
+  width: 100%; height: 100%;
+  background: rgba(255, 255, 255, .8);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-14 -14 124 114'%3E%3Cdefs%3E%3Cfilter id='w' x='-30%25' y='-30%25' width='160%25' height='160%25'%3E%3CfeGaussianBlur stdDeviation='3.2'/%3E%3C/filter%3E%3Cmask id='m'%3E%3Crect x='-14' y='-14' width='124' height='114' fill='%23fff'/%3E%3Ccircle cx='75' cy='26' r='2.6' fill='%23000'/%3E%3C/mask%3E%3C/defs%3E%3Cg filter='url(%23w)' mask='url(%23m)'%3E%3Cg fill='%23fff'%3E%3Cpath d='M22 50 L5 24 L15 33 L11 15 L23 32 L24 17 L31 38 Z'/%3E%3Cellipse cx='46' cy='54' rx='30' ry='21'/%3E%3Cellipse cx='67' cy='40' rx='11' ry='15'/%3E%3Ccircle cx='72' cy='28' r='12'/%3E%3Ccircle cx='67' cy='15' r='4.5'/%3E%3Ccircle cx='73.5' cy='13.5' r='4.5'/%3E%3Ccircle cx='79.5' cy='16.5' r='4'/%3E%3Cpath d='M82 25 L96 30 L82 35 Z'/%3E%3Cellipse cx='80' cy='40' rx='3.2' ry='5.5'/%3E%3Crect x='39' y='72' width='3.5' height='12'/%3E%3Crect x='51' y='72' width='3.5' height='12'/%3E%3Crect x='34' y='82.5' width='11' height='3'/%3E%3Crect x='47' y='82.5' width='11' height='3'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-14 -14 124 114'%3E%3Cdefs%3E%3Cfilter id='w' x='-30%25' y='-30%25' width='160%25' height='160%25'%3E%3CfeGaussianBlur stdDeviation='7'/%3E%3C/filter%3E%3Cmask id='m'%3E%3Crect x='-14' y='-14' width='124' height='114' fill='%23fff'/%3E%3C/mask%3E%3C/defs%3E%3Cg filter='url(%23w)' mask='url(%23m)'%3E%3Cg fill='%23fff'%3E%3Cpath d='M22 50 L5 24 L15 33 L11 15 L23 32 L24 17 L31 38 Z'/%3E%3Cellipse cx='46' cy='54' rx='30' ry='21'/%3E%3Cellipse cx='67' cy='40' rx='11' ry='15'/%3E%3Ccircle cx='72' cy='28' r='12'/%3E%3Ccircle cx='67' cy='15' r='4.5'/%3E%3Ccircle cx='73.5' cy='13.5' r='4.5'/%3E%3Ccircle cx='79.5' cy='16.5' r='4'/%3E%3Cpath d='M82 25 L96 30 L82 35 Z'/%3E%3Cellipse cx='80' cy='40' rx='3.2' ry='5.5'/%3E%3Crect x='39' y='72' width='3.5' height='12'/%3E%3Crect x='51' y='72' width='3.5' height='12'/%3E%3Crect x='34' y='82.5' width='11' height='3'/%3E%3Crect x='47' y='82.5' width='11' height='3'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+          mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-14 -14 124 114'%3E%3Cdefs%3E%3Cfilter id='w' x='-30%25' y='-30%25' width='160%25' height='160%25'%3E%3CfeGaussianBlur stdDeviation='3.2'/%3E%3C/filter%3E%3Cmask id='m'%3E%3Crect x='-14' y='-14' width='124' height='114' fill='%23fff'/%3E%3Ccircle cx='75' cy='26' r='2.6' fill='%23000'/%3E%3C/mask%3E%3C/defs%3E%3Cg filter='url(%23w)' mask='url(%23m)'%3E%3Cg fill='%23fff'%3E%3Cpath d='M22 50 L5 24 L15 33 L11 15 L23 32 L24 17 L31 38 Z'/%3E%3Cellipse cx='46' cy='54' rx='30' ry='21'/%3E%3Cellipse cx='67' cy='40' rx='11' ry='15'/%3E%3Ccircle cx='72' cy='28' r='12'/%3E%3Ccircle cx='67' cy='15' r='4.5'/%3E%3Ccircle cx='73.5' cy='13.5' r='4.5'/%3E%3Ccircle cx='79.5' cy='16.5' r='4'/%3E%3Cpath d='M82 25 L96 30 L82 35 Z'/%3E%3Cellipse cx='80' cy='40' rx='3.2' ry='5.5'/%3E%3Crect x='39' y='72' width='3.5' height='12'/%3E%3Crect x='51' y='72' width='3.5' height='12'/%3E%3Crect x='34' y='82.5' width='11' height='3'/%3E%3Crect x='47' y='82.5' width='11' height='3'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-14 -14 124 114'%3E%3Cdefs%3E%3Cfilter id='w' x='-30%25' y='-30%25' width='160%25' height='160%25'%3E%3CfeGaussianBlur stdDeviation='7'/%3E%3C/filter%3E%3Cmask id='m'%3E%3Crect x='-14' y='-14' width='124' height='114' fill='%23fff'/%3E%3C/mask%3E%3C/defs%3E%3Cg filter='url(%23w)' mask='url(%23m)'%3E%3Cg fill='%23fff'%3E%3Cpath d='M22 50 L5 24 L15 33 L11 15 L23 32 L24 17 L31 38 Z'/%3E%3Cellipse cx='46' cy='54' rx='30' ry='21'/%3E%3Cellipse cx='67' cy='40' rx='11' ry='15'/%3E%3Ccircle cx='72' cy='28' r='12'/%3E%3Ccircle cx='67' cy='15' r='4.5'/%3E%3Ccircle cx='73.5' cy='13.5' r='4.5'/%3E%3Ccircle cx='79.5' cy='16.5' r='4'/%3E%3Cpath d='M82 25 L96 30 L82 35 Z'/%3E%3Cellipse cx='80' cy='40' rx='3.2' ry='5.5'/%3E%3Crect x='39' y='72' width='3.5' height='12'/%3E%3Crect x='51' y='72' width='3.5' height='12'/%3E%3Crect x='34' y='82.5' width='11' height='3'/%3E%3Crect x='47' y='82.5' width='11' height='3'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  transform-origin: 50% 100%;
+  transition: rotate .2s ease-in-out;
+  transform-origin: 50% 100%;
+  transition: rotate .2s ease-in-out;
+  animation: huhn-nicken .45s ease-in-out infinite alternate; }
+.durchfahrt .huhn__koerper--rennt { animation-duration: .16s; }
+.durchfahrt .huhn__koerper--pickt { rotate: 24deg; }
+@keyframes huhn-nicken { from { translate: 0 0; } to { translate: 0 -4px; } }
+.durchfahrt .huhn-ei {
+  position: absolute; bottom: 4px; width: 38px; height: 48px; opacity: 0;
+  background: radial-gradient(50% 50% at 50% 55%, rgba(255, 255, 255, .85) 60%, transparent 100%),
+              radial-gradient(50% 50% at 50% 55%, rgba(255, 255, 255, .6) 45%, transparent 90%);
+  border-radius: 50% 50% 48% 48% / 60% 60% 40% 40%;
+  filter: blur(.6px); transform-origin: 50% 100%; }
+.durchfahrt--tief .huhn-ei { width: 54px; height: 68px; }
+.durchfahrt .huhn-feder {
+  position: absolute; opacity: 0; z-index: 20;
+  background: rgba(255, 255, 255, .9);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 100'%3E%3Cfilter id='w'%3E%3CfeGaussianBlur stdDeviation='1.5'/%3E%3C/filter%3E%3Cpath filter='url(%23w)' d='M20 2 C34 20 36 55 22 92 L20 98 L18 92 C4 55 6 20 20 2Z'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 100'%3E%3Cfilter id='w'%3E%3CfeGaussianBlur stdDeviation='1.5'/%3E%3C/filter%3E%3Cpath filter='url(%23w)' d='M20 2 C34 20 36 55 22 92 L20 98 L18 92 C4 55 6 20 20 2Z'/%3E%3C/svg%3E");
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%; }
+/* Schnee, Blätter und Blüten fallen von oben */
+.hof-fall { position: absolute; top: 0; z-index: 25; pointer-events: none; opacity: 0; will-change: transform; transform: translateY(-100%); }
+.hof-fall svg { display: block; }
+.hof-fall--schnee { border-radius: 50%; background: radial-gradient(circle, #fff 0 45%, rgba(255,255,255,.55) 70%, transparent 72%); top: -10px; }
+.hof-fall--blatt, .hof-fall--bluete { top: -30px; filter: drop-shadow(0 1px 1px rgba(0,0,0,.18)); }
+/* Blümchen wachsen vom unteren Rand */
+.hof-blume { position: absolute; bottom: -2px; z-index: 22; pointer-events: none; transform-origin: 50% 100%; opacity: 0; }
+.hof-blume svg { display: block; }
+/* Wasserball */
+.hof-ball { position: absolute; left: 0; bottom: 2px; z-index: 24; pointer-events: none; transform-origin: 50% 100%;
+  filter: drop-shadow(0 3px 3px rgba(0,0,0,.25)); }
+.hof-ball svg { display: block; overflow: visible; }
+.hof-ball__dreh { transform-box: view-box; transform-origin: 50% 50%; }
 @media (prefers-reduced-motion: reduce) { .durchfahrt { display: none; } }
-.wm-schlitten { position: absolute; z-index: 2; animation: wm-holpern .5s ease-in-out infinite alternate; }
-@keyframes wm-holpern { from { transform: translateY(0) rotate(0deg); } to { transform: translateY(-1.5%) rotate(-.6deg); } }
-.wm-ebene { position: absolute; inset: 0; }
-.wm-ebene svg { width: 100%; height: 100%; display: block; overflow: visible; }
-.wm-huhn { z-index: auto; }
-.wm-huhn .umzug-huhn__koerper { animation-name: wm-wippen; }
-@keyframes wm-wippen { from { transform: translateY(0) rotate(-2deg); } to { transform: translateY(-5%) rotate(3deg); } }
-.wm-links .wm-schrift { transform: scaleX(-1); transform-box: fill-box; transform-origin: center; }
-.wm-glocke { transform-box: fill-box; transform-origin: 50% 0; animation: wm-bimmeln .45s ease-in-out infinite alternate; }
-@keyframes wm-bimmeln { from { transform: rotate(-18deg); } to { transform: rotate(18deg); } }
-.wm-seil { z-index: 3; }
-.wm-seil path { stroke: #6e4a22; }
-/* Gehen seit 1.556.0 natürlicher: er lehnt sich ins Seil (Neigung um die
-   Füsse), wippt im Schritt (2 Schritte je Sekunde, unten beim Auftreten),
-   wiegt den Oberkörper leicht, und die Beine heben sich abwechselnd nach
-   vorne und schieben dann nach hinten weg. --vor gibt die Richtung nach
-   vorne im Bild an, das im Zug nach links gegengespiegelt ist. */
-.wm-person { position: absolute; z-index: 4; transform-origin: 50% 100%; transform: rotate(7deg); transition: transform .45s ease-out; }
-.wm-gang { position: absolute; inset: 0; transform-origin: 50% 62%; animation: wm-wippen-gang 1s linear infinite; }
-@keyframes wm-wippen-gang {
-  0%, 50%, 100% { transform: translateY(0) rotate(0deg); animation-timing-function: ease-out; }
-  25% { transform: translateY(-2.2%) rotate(-1.2deg); animation-timing-function: ease-in; }
-  75% { transform: translateY(-2.2%) rotate(1.2deg); animation-timing-function: ease-in; }
-}
-.wm-person__bild { position: absolute; inset: 0; filter: drop-shadow(0 3px 4px rgba(0,0,0,.35)); --vor: -1; }
-/* Das Bild nie spiegeln: im nach links gespiegelten Zug zurückdrehen */
-.wm-links .wm-person__bild { transform: scaleX(-1); --vor: 1; }
-.wm-person__bild img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; user-select: none; }
-.wm-bein { animation: wm-schritt 1s linear infinite; }
-.wm-bein--2 { animation-delay: -.5s; }
-@keyframes wm-schritt {
-  0% { transform: translateY(0) rotate(calc(var(--vor) * -5deg)); animation-timing-function: ease-out; }
-  22% { transform: translateY(-4.5%) rotate(calc(var(--vor) * 6deg)); animation-timing-function: ease-in; }
-  45% { transform: translateY(0) rotate(calc(var(--vor) * 7deg)); animation-timing-function: linear; }
-  100% { transform: translateY(0) rotate(calc(var(--vor) * -5deg)); }
-}
-/* Mütze über dem Kopf, dreht mit dem Zug (Zipfel hinten); im Zug nach
-   links auf den Kopf zurückgeschoben, weil der nicht genau in der Mitte ist */
-.wm-muetze { position: absolute; inset: 0; pointer-events: none; transform-origin: 47.7% 3%; animation: wm-zipfel 1s ease-in-out infinite; }
-.wm-muetze svg { width: 100%; height: 100%; display: block; overflow: visible; }
-.wm-links .wm-muetze { left: 4.66%; right: -4.66%; }
-@keyframes wm-zipfel { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-2deg); } }
-.wm-licht { animation: wm-blinken 1.2s steps(1) infinite; }
-@keyframes wm-blinken { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
-.wm-atem { position: absolute; z-index: 5; border-radius: 50%; pointer-events: none;
-  background: radial-gradient(circle, rgba(255,255,255,.95), rgba(255,255,255,.4) 60%, rgba(255,255,255,0) 72%); }
-/* Beim Halt steht er gerade da wie auf dem Bild, die Hühner wippen weiter */
-.wm-steht .wm-person { transform: rotate(0deg); }
-.wm-steht .wm-gang, .wm-steht .wm-bein, .wm-steht .wm-schlitten, .wm-steht .wm-muetze, .wm-steht .wm-glocke { animation: none; }
-.wm-blase { position: absolute; z-index: 8; pointer-events: none; padding: .45em .75em; border-radius: 1em;
-  background: #fff; color: #1b2a3a !important; -webkit-text-fill-color: #1b2a3a; font-weight: 700; line-height: 1.25;
-  box-shadow: 0 4px 14px rgba(0,0,0,.28); border: 2px solid #1b2a3a; transform-origin: 0 100%; }
-.wm-blase::after { content: ""; position: absolute; bottom: calc(var(--spitze-y, 20px) - var(--spitze, 12px) * .5);
-  width: var(--spitze, 12px); height: var(--spitze, 12px); background: #fff; }
-.wm-blase--rechts { transform-origin: 0 50%; }
-.wm-blase--links { transform-origin: 100% 50%; }
-.wm-blase--rechts::after { left: calc(var(--spitze, 12px) * -1 + 1px);
-  clip-path: polygon(0 50%, 100% 0, 100% 100%); background: #1b2a3a; }
-.wm-blase--links::after { right: calc(var(--spitze, 12px) * -1 + 1px);
-  clip-path: polygon(100% 50%, 0 0, 0 100%); background: #1b2a3a; }
-.wm-blase::before { content: ""; position: absolute; z-index: 1; bottom: calc(var(--spitze-y, 20px) - var(--spitze, 12px) * .5 + 3px);
-  width: calc(var(--spitze, 12px) - 2px); height: calc(var(--spitze, 12px) - 6px); background: #fff; }
-.wm-blase--rechts::before { left: calc(var(--spitze, 12px) * -1 + 4px); clip-path: polygon(0 50%, 100% 0, 100% 100%); }
-.wm-blase--links::before { right: calc(var(--spitze, 12px) * -1 + 4px); clip-path: polygon(100% 50%, 0 0, 0 100%); }
 
 /* Todos beim Ein- und Ausklappen der Seitenleiste (seit 1.556.2, Patrick
    15. November 2026: „die Animation passt mir nicht von Todos, wenn man das
