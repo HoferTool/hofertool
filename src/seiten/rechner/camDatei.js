@@ -137,12 +137,16 @@ async function einSchreiben(k, d, prog, recht, gut, fehler) {
 export async function dateiNeuWaehlen(k, fenster) {
   const d = aktuell[k];
   if (!d) return false;
+  // Seit 1.566.2: nur ein Aufruf, ohne startIn mit dem alten Griff (Patrick
+  // 16. November 2026: der zweite Versuch hatte keinen Klick mehr und
+  // Chrome lehnte ab); „id“ lässt Chrome sich den zuletzt benutzten Ordner
+  // merken
   let neu;
   try {
-    neu = await (fenster || window).showSaveFilePicker({ suggestedName: d.name, startIn: d.griff });
+    neu = await (fenster || window).showSaveFilePicker({ suggestedName: d.name, id: "hofercam-k" + k });
   } catch (f) {
     if (f && f.name === "AbortError") return false;
-    try { neu = await (fenster || window).showSaveFilePicker({ suggestedName: d.name }); } catch (g) { if (g && g.name === "AbortError") return false; throw g; }
+    throw f;
   }
   aktuell = { ...aktuell, [k]: { ...d, griff: neu, name: neu.name } };
   await ablegen();
