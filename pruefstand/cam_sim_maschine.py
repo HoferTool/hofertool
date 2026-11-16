@@ -71,6 +71,10 @@ with sync_playwright() as p:
     pg.click("[data-cam-sim-schritt='0']"); pg.wait_for_timeout(200)
     t = T(); print("T100", t)
     pruefe("T100: Träger in Y bei 0 und X wie Werkzeug (G0X30. = R15)", t and abs(t["y"]) < 1e-6 and abs(t["x"] - 15) < 0.01 and t["aktiv"] == 100)
+    # Seit 1.586.0: nur benutzte Drehhalter (hier T100) haben Schaft und Platte
+    hy = pg.evaluate("() => document.querySelector('#cam-sim-bild').__quader.filter((q) => q.art === 'halter' && q.z1 <= document.querySelector('#cam-sim-bild').__traeger.z + 0.01).map((q) => Math.round((q.y0 + q.y1) / 2 - document.querySelector('#cam-sim-bild').__traeger.y))")
+    print("Drehhalter bei y", hy)
+    pruefe("Nur T100 hat Schaft (T200–T600 nicht im Programm)", hy == [0])
     k0 = pg.evaluate("() => document.querySelector('#cam-sim-bild').__kopf.z")
     pg.locator("#cam-sim").screenshot(path=S + "maschine_t100.png")
     # mitten im Querbohren

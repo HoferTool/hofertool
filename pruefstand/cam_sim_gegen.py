@@ -56,6 +56,21 @@ with sync_playwright() as p:
     print(namen)
     pg.click("[data-cam-sim-schritt='0']"); pg.wait_for_timeout(200)
     pruefe("Vor der Übergabe keine Gegenspindel", E("gegen") is None)
+    # Seit 1.586.0: Vorposition (G0Z-10.) und Überfahren (G1Z8.) vor dem Abstechen
+    ab = pg.evaluate("() => document.querySelector('#cam-sim-bild').__sim.schritte.find((x) => x.modus === 'abstech')")
+    def gehe(k):
+        pg.evaluate("(n) => { const r = document.querySelector('#cam-sim-regler'); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(r, n); r.dispatchEvent(new Event('input', { bubbles: true })); }", ab["von"] + k + 1)
+        pg.wait_for_timeout(250)
+    pk = ab["punkte"]
+    kv = max(i for i, q in enumerate(pk) if q["nr"] == 1)
+    gehe(kv); g = E("gegen"); print("Vorposition", g)
+    pruefe("Vorposition: Gegenspindel 10 mm vor der Stirn", g and abs(g["z"] + 10) < 1e-6)
+    pg.locator("#cam-sim").screenshot(path=S + "uebergabe_vorposition.png")
+    ku = max(i for i, q in enumerate(pk) if q["nr"] == 2)
+    gehe(ku); g = E("gegen"); print("Überfahren", g)
+    pruefe("Überfahren: Gegenspindel 8 mm über dem Teil", g and abs(g["z"] - 8) < 1e-6)
+    pg.locator("#cam-sim").screenshot(path=S + "uebergabe_ueber.png")
+    pruefe("Beim Überfahren noch nicht abgestochen", all(not q["vor"] for q in pk[:ku + 1]))
     pg.click("[data-cam-sim-schritt='ab']"); pg.wait_for_timeout(300)
     g = E("gegen"); print("Übergabe", g)
     pruefe("Übergabe: Gegenspindel greift vorne über das Teil", g and g["dir"] == -1)

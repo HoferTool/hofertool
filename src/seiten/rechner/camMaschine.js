@@ -50,7 +50,11 @@ export const TRAEGER_PLAETZE = [100, 200, 300, 400, 500, 600, 3100, 3200, 3300, 
 // dem Halter vorstehen“), {vor: Vorstand = A/2 + 1, b: Breite B aus G266}
 // spitze: aktives Frontwerkzeug mit Spitze aus dem Programm (seit 1.585.0),
 // {dz: Spitze vor der Drehebene, L: Länge des gezeichneten Werkzeugs}
-export function traegerQuader(o, aktiv, m = MASCHINE_SB20RG, t34 = "3421", ab = null, spitze = null) {
+// benutzt: Set der Plätze im Programm; seit 1.586.0 fehlen Schaft und Platte
+// von T100–T600, die nicht vorkommen (Patrick 16. November 2026: „wenn bei
+// den Drehhaltern das Werkzeug im Programm nicht verwendet wird, blende es
+// in der Simulation aus“), ohne Set alle wie bisher
+export function traegerQuader(o, aktiv, m = MASCHINE_SB20RG, t34 = "3421", ab = null, spitze = null, benutzt = null) {
   const q = [];
   const box = (z0, z1, x0, x1, y0, y1, art) => q.push({ z0: o.z + z0, z1: o.z + z1, x0: o.x + x0, x1: o.x + x1, y0: o.y + y0, y1: o.y + y1, art });
   // Seit 1.584.1 (Patrick 16. November 2026): die Schäfte 12 × 12 stecken
@@ -63,6 +67,7 @@ export function traegerQuader(o, aktiv, m = MASCHINE_SB20RG, t34 = "3421", ab = 
   }
   for (let k = 0; k < 6; k++) {
     const y = k * m.dreh.teilung, t = (k + 1) * 100;
+    if (benutzt && !benutzt.has(t) && t !== aktiv) continue;
     if (k === 0 && ab) {
       // Abstecher: Platte steht A/2 + 1 aus dem Halter, Breite B, 3 mm im Halter
       box(-12, 0, ab.vor, ab.vor + 40, y - 6, y + 6, "halter");

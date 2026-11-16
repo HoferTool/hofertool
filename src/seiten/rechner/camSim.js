@@ -413,7 +413,8 @@ export function simAufbauen(wRoh) {
   // sehe ich dann, dass das Werkstück vom Rest der 3 m langen Stange
   // abgetrennt wird“): nach Kanal 1 sticht das Ende ab wie im Programm,
   // G00X#510Z[#530+#528], G1X#524, die Gegenspindel zieht das Teil weg
-  const ab1 = abstechSchritt(A, W + Math.abs(num(w.plan) || 0), B, num(w.X) || 0);
+  const greif = Math.max(1, Math.min(W - 0.5, num(w.ueber) || Math.max(2, W / 2)));
+  const ab1 = abstechSchritt(A, W + Math.abs(num(w.plan) || 0), B, num(w.X) || 0, Math.abs(num(w.annaehern) ?? 10), greif);
   // Kanal 1 zuerst, dann Abstechen, dann Kanal 2, je in der Reihenfolge der Bearbeitungen
   const sortiert = [...schritte.filter((s) => s.kanal === 1), ab1, ...schritte.filter((s) => s.kanal === 2)];
   let ab = 0;
@@ -428,7 +429,7 @@ export function simAufbauen(wRoh) {
     // Platz 34: T3400 oder T3421–T3423 montiert, die Simulation zeigt nur das Montierte
     t34: String(wRoh?.t34) === "3400" ? "3400" : "3421",
     // so weit greift die Gegenspindel über das Teil („Über das Teil Z“)
-    greif: Math.max(1, Math.min(W - 0.5, num(w.ueber) || Math.max(2, W / 2))),
+    greif,
     vox: hatC ? { z0: vorne - 0.5, z1: Math.min(zMax, Math.max(W + B + 1, cZ)) } : null,
   };
 }
@@ -437,15 +438,28 @@ export function simAufbauen(wRoh) {
 // bei Z = W + B (wie im Programm), schneidet von #510 bis #524; danach
 // zieht die Gegenspindel das Teil 8 mm nach vorne weg (Übergabe)
 const UEBERGABE = 8;
-function abstechSchritt(A, W, B, X) {
+// Seit 1.586.0 (Patrick 16. November 2026: „kannst du das Übergeben mit
+// Vorposition und Überfahren vor dem Abstechen auch simulieren?“): wie im
+// Ende der Kanäle; Kanal 1 fährt den Abstecher vor (G00X#510Z[#530+#528]),
+// die Gegenspindel kommt im Eilgang bis „Annähern Z“ vor die Stirn
+// (G0Z-10.), fährt im Vorschub „Über das Teil Z“ darüber (G1G98Z…F5000.),
+// spannt, dann sticht Kanal 1 ab und die Gegenspindel zieht das Teil weg.
+// g = Lage der Spannzange der Gegenspindel im Teil (0 = Stirn)
+function abstechSchritt(A, W, B, X, ann, greif) {
   const Bw = B > 0 ? B : 2;
   const z = W + Bw, r0 = (A + 1) / 2, r1 = Math.max(-0.5, X / 2);
-  const punkte = [{ z, r: r0, vor: false, nr: 0 }];
+  const gFern = -(ann + 40);
+  const punkte = [{ z, r: r0, vor: false, nr: 0, g: gFern }];
+  for (let k = 1; k <= 12; k++) punkte.push({ z, r: r0, vor: false, nr: 1, g: gFern + (-ann - gFern) * k / 12 });
+  const n1 = Math.max(12, Math.ceil((greif + ann) / 1.5));
+  for (let k = 1; k <= n1; k++) punkte.push({ z, r: r0, vor: false, nr: 2, g: -ann + (greif + ann) * k / n1 });
   const n = Math.max(20, Math.ceil((r0 - r1) / 0.05));
-  for (let k = 1; k <= n; k++) punkte.push({ z, r: r0 + (r1 - r0) * k / n, vor: true, nr: 1 });
-  for (let k = 1; k <= 24; k++) punkte.push({ z, r: r1, vor: false, nr: 2, ab: UEBERGABE * k / 24 });
+  for (let k = 1; k <= n; k++) punkte.push({ z, r: r0 + (r1 - r0) * k / n, vor: true, nr: 3, g: greif });
+  for (let k = 1; k <= 24; k++) punkte.push({ z, r: r1, vor: false, nr: 4, ab: UEBERGABE * k / 24, g: greif });
+  const zahl = (x) => (Number.isInteger(x) ? x + "." : String(x));
   return { i: "ab", id: "abstechen", kanal: 1, titel: "Abstechen und Übergabe", platz: 100, art: "abstech", modus: "abstech", wz: null,
-    breite: Bw, punkte, status: "", zeilen: ["G00X#510Z[#530+#528]", "G1X#524F#522", "Übergabe an die Gegenspindel"] };
+    breite: Bw, punkte, status: "", zeilen: ["G00X#510Z[#530+#528]", "Kanal 2: G0Z-" + zahl(ann) + " (Gegenspindel vor die Stirn)",
+      "Kanal 2: G1G98Z" + zahl(greif) + "F5000. (über das Teil)", "G1X#524F#522", "Übergabe an die Gegenspindel"] };
 }
 function abstechen(st, s, p) {
   if (!p.vor) return;

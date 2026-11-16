@@ -630,13 +630,14 @@ function Simulation({ w, zu }) {
     let maschine = null, gegen = null;
     if (kanal === 1 && maschineAn) {
       maschine = {
-        quader: traeger ? traegerQuader(traeger, traeger.aktiv, undefined, sim.t34, { vor: A / 2 + 1, b: Math.max(0.5, sim.roh.B || 2) }, traeger.spitze) : [], roll, grob: laeuft,
+        quader: traeger ? traegerQuader(traeger, traeger.aktiv, undefined, sim.t34, { vor: A / 2 + 1, b: Math.max(0.5, sim.roh.B || 2) }, traeger.spitze, new Set(sim.schritte.filter((x) => x.kanal === 1).map((x) => x.platz))) : [], roll, grob: laeuft,
         kopf: { z: kopfZ, ri: A / 2, nase: k.nase, naseL: k.naseL, r: k.r, L: k.L },
       };
       maschine.koepfe = [maschine.kopf];
       // Übergabe: die Gegenspindel greift vorne über das Teil und zieht es weg
       if (abS && n > abS.von) {
-        gegen = { z: sim.greif - wegZ, ri: A / 2, nase: Math.max(gs.nase, A / 2 + 4), naseL: gs.naseL, r: gs.r, L: gs.L, dir: -1 };
+        const pa = abS.punkte[Math.min(n, abS.bis) - abS.von - 1];
+        gegen = { z: (pa && pa.g != null ? pa.g : sim.greif) - wegZ, ri: A / 2, nase: Math.max(gs.nase, A / 2 + 4), naseL: gs.naseL, r: gs.r, L: gs.L, dir: -1 };
         maschine.koepfe.push(gegen);
       }
     } else if (kanal === 2 && maschineAn) {
@@ -661,7 +662,7 @@ function Simulation({ w, zu }) {
       }
       maschine = { quader, roll, grob: laeuft, koepfe: [gegen] };
     }
-    cv.__traeger = traeger; cv.__kopf = maschine ? maschine.kopf || null : null; cv.__roll = roll; cv.__gegen = gegen;
+    cv.__traeger = traeger; cv.__kopf = maschine ? maschine.kopf || null : null; cv.__roll = roll; cv.__gegen = gegen; cv.__quader = maschine ? maschine.quader : null;
     cv.__stand = stand; cv.__sim = sim; cv.__strahl = !!strahl; cv.__buechse = ueber.buechse; cv.__weg = wegZ; // für den Prüfstand
     // Rohmaterial: Stirn vorne nur vorne (Kanal 1), vor der Übergabe
     const roh = { R: A / 2, vorne: kanal === 1 && !wegZ ? vorne : null };
