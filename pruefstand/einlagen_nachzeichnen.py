@@ -43,7 +43,8 @@ with sync_playwright() as p:
     def form0(schritt):
         # Auf GitHub fehlte die Form ab und zu (nur dort); dann Schritt und Zustand nennen statt nur „undefined“
         z = f.evaluate("""(() => { const e = st.edit; return { q: e.strokes[0] ? e.strokes[0].poly : null, tool: e.tool, art: e.traceArt, fillet: e.fillet,
-          poly: e.poly && e.poly.pts.length, strokes: e.strokes.length, ssel: e.ssel != null, toast: ($('toast') || {}).textContent || "", zoom: st.zoom }; })()""")
+          poly: e.poly && e.poly.pts.length, strokes: e.strokes.length, undo: e.undo.length, n: e.strokes.map(k => k.poly.length), ssel: e.ssel != null, toast: ($('toast') || {}).textContent || "", zoom: st.zoom }; })()""")
+        print("Form %s: %s" % (schritt, json.dumps({k: v for k, v in z.items() if k != "q"})), flush=True)
         if z["q"] is None:
             del z["q"]; raise AssertionError("keine gezeichnete Form %s: %s" % (schritt, json.dumps(z)))
         return z["q"]

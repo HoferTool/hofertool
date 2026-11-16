@@ -101,10 +101,13 @@ with sync_playwright() as p:
     pg.click("#cam-sim-start")
     # Einzeln (1.560.0): hält am Ende der Bearbeitung an
     sch = pg.evaluate("() => document.querySelector('#cam-sim-bild').__sim.schritte.map((x) => [x.von, x.bis])")
-    pg.click("#cam-sim-anfang"); pg.check("#cam-sim-einzeln"); pg.click("#cam-sim-start"); pg.wait_for_timeout(6000)
+    pg.click("#cam-sim-anfang"); pg.check("#cam-sim-einzeln"); pg.click("#cam-sim-start")
+    # Auf GitHub ist das Abspielen langsamer: warten, bis es von selbst anhält (statt fester 6 Sekunden)
+    halt = "() => document.querySelector('#cam-sim-start').textContent.includes('Abspielen')"
+    pg.wait_for_timeout(500); pg.wait_for_function(halt, timeout=40000)
     n1 = int(pg.get_attribute("#cam-sim-bild", "data-cam-sim-n"))
     pruefe("Einzeln: hält nach Bearbeitung 1 an (%d, Ende %d)" % (n1, sch[0][1]), n1 == sch[0][1] and "Abspielen" in pg.text_content("#cam-sim-start"))
-    pg.click("#cam-sim-start"); pg.wait_for_timeout(8000)
+    pg.click("#cam-sim-start"); pg.wait_for_timeout(500); pg.wait_for_function(halt, timeout=40000)
     n2 = int(pg.get_attribute("#cam-sim-bild", "data-cam-sim-n"))
     pruefe("Einzeln: dann nach Bearbeitung 2 (%d, Ende %d)" % (n2, sch[1][1]), n2 == sch[1][1])
     pg.uncheck("#cam-sim-einzeln")

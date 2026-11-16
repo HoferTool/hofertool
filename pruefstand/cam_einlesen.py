@@ -155,7 +155,7 @@ with sync_playwright() as p:
     pg.click("#camab-speichern"); pg.wait_for_selector(".dialog input")
     pg.fill(".dialog input", "12345-0001"); pg.click(".dialog .knopf--haupt"); pg.wait_for_timeout(800)
     if pg.locator(".dialog .knopf--haupt").count(): pg.click(".dialog .knopf--haupt"); pg.wait_for_timeout(800)
-    pruefe("InvalidStateError: zweiter Versuch schreibt", pg.evaluate("() => !!window.__geschrieben['O0077.NC']") and pg.locator("[data-cam-datei-grund]").count() == 0)
+    pruefe("InvalidState (Netzlaufwerk): zweiter Versuch schreibt", pg.evaluate("() => !!window.__geschrieben['O0077.NC']") and pg.locator("[data-cam-datei-grund]").count() == 0)
     pg.click("[data-cam-datei-weg='1']"); pg.wait_for_timeout(200)
     pruefe("✕ löst die Datei", pg.locator("[data-cam-datei='1']").count() == 0)
     pg.evaluate("() => { delete window.showOpenFilePicker; }")
