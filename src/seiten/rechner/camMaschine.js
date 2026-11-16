@@ -49,24 +49,18 @@ export function traegerQuader(o, aktiv, m = MASCHINE_SB20RG) {
   const box = (z0, z1, x0, x1, y0, y1, art) => q.push({ z0: o.z + z0, z1: o.z + z1, x0: o.x + x0, x1: o.x + x1, y0: o.y + y0, y1: o.y + y1, art });
   for (let k = 0; k < 6; k++) {
     const y = k * m.dreh.teilung, t = (k + 1) * 100;
-    box(-24, 0, 14, 80, y - 5, y + 5, "platte");         // Halteplatte
-    box(-12, 0, 1.6, 40, y - 6, y + 6, "halter");        // Schaft 12 × 12 (Patrick)
+    box(-24, 0, 4, 80, y - 5, y + 5, "platte");          // Halteplatte, 10 mm weiter herunter (Patrick)
+    box(-12, 0, 1.6, 10, y - 6, y + 6, "halter");        // Schaft 12 × 12 (Patrick), oben in der Platte
     if (t !== aktiv) box(-3, 0, 0, 1.6, y - 3, y + 1, "schneide");
   }
-  // Querangetrieben: Gehäuse oben, Werkzeug senkrecht nach unten
+  // Querangetrieben: nur das Gehäuse; Werkzeuge ausser T100–T600 zeichnet
+  // die Simulation nur, wenn sie arbeiten (Patrick 16. November 2026)
   for (let k = 0; k < 4; k++) {
-    const y = m.quer.y0 + k * m.quer.teilung, t = 3100 + k * 100, dz = m.quer.dz;
+    const y = m.quer.y0 + k * m.quer.teilung, dz = m.quer.dz;
     box(dz - 8, dz + 8, 24, 70, y - 9, y + 9, "gehaeuse");
-    if (t !== aktiv) box(dz - 2.5, dz + 2.5, 0, 24, y - 2.5, y + 2.5, "werkzeug");
   }
-  // Block mit den Frontwerkzeugen: Spitzen bei dz, Schäfte nach vorne weg
+  // Bohreinheit der Frontwerkzeuge, Spitzen bei dz
   const dz = m.front.dz, sch = m.front.schaft, xu = -3 * m.front.teilungX - 14;
   box(dz - sch - m.front.block, dz - sch, xu, 16, m.t342y - 14, m.t1100y + 16, "gehaeuse");
-  for (let k = 0; k < 7; k++) {
-    const t = k < 3 ? 3421 + k : 1100 + (k - 3) * 100;
-    if (t === aktiv) continue;
-    const l = platzLage(t, m);
-    box(dz - sch, dz, l.x - 3, l.x + 3, l.y - 3, l.y + 3, "werkzeug");
-  }
   return q;
 }
