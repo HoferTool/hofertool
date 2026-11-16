@@ -23,7 +23,7 @@ import { wzFehler, wzText } from "./camWerkzeug.js";
 import { WerkzeugFeld } from "./CamWerkzeugBild.jsx";
 import { simulationOeffnen } from "./CamSim3D.jsx";
 import { VORLAGEN, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen } from "./camVorlagen.js";
-import { FELDER, HD_STUFEN, plaetzeVon, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, markenPaare, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
+import { FELDER, HD_STUFEN, plaetzeVon, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, markenPaare, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Seit 1.427.0 (Wunsch Patrick 5. November 2026: „vordefinierte
 // Bearbeitungen aus einer Liste einfügen … in eine bestehende
@@ -542,8 +542,11 @@ export default function HoferCam() {
     if (j < 0 || j >= bloecke.length) return;
     const neu = [...bloecke];
     [neu[i], neu[j]] = [neu[j], neu[i]];
-    setzeBloecke(neu);
+    setzeBloecke(markenOrdnen({ ...w, bloecke: neu }));
   };
+  // Seit 1.579.0: nach jedem Umstellen die Wartemarken der Reihe nach neu
+  const ordnenMitMarken = (neu) => setzeBloecke(markenOrdnen({ ...w, bloecke: neu }));
+  const frei = freieMarken(w);
   const fehler = pruefen(w);
   // Seit 1.441.0: Einstellungen des Maschinentyps laden und nach dem
   // Speichern neu rechnen
@@ -713,7 +716,7 @@ export default function HoferCam() {
         {/* Seit 1.405.0 (Wunsch Patrick 5. November 2026): Bearbeitungen am
             Griff ⠿ untereinander verschieben, statt Pfeilen */}
         <ZiehListe nurGriff darf={bloecke.length > 1} className="cam-zieh"
-          ordnen={(ids) => setzeBloecke(ids.map((id) => bloecke.find((x) => x.id === id)).filter(Boolean))}
+          ordnen={(ids) => ordnenMitMarken(ids.map((id) => bloecke.find((x) => x.id === id)).filter(Boolean))}
           eintraege={bloecke.map((b, i) => {
           const bf = blockFehler(b, w);
           const front = b.art === "front";
@@ -863,7 +866,7 @@ export default function HoferCam() {
                   <button className="knopf knopf--klein" title="Nach oben" disabled={i === 0} onClick={() => blockSchieben(i, -1)}>↑</button>
                   <button className="knopf knopf--klein" title="Nach unten" disabled={i === bloecke.length - 1} onClick={() => blockSchieben(i, 1)}>↓</button>
                   <button className="knopf knopf--klein" title="Bearbeitung entfernen" data-camblock-weg={i}
-                    onClick={() => setzeBloecke(bloecke.filter((x) => x.id !== b.id))}>✕</button>
+                    onClick={() => ordnenMitMarken(bloecke.filter((x) => x.id !== b.id))}>✕</button>
                 </span>
               </div>
               {b.zu
@@ -880,6 +883,11 @@ export default function HoferCam() {
                     <button className="knopf knopf--klein" data-cammodul-auf={i}
                       title="Den aktuellen NC-Code aus Bohren / Fräsen, Entgraten, C-Achse, Gravur oder DXF übernehmen"
                       onClick={() => setVorlageBei(vorlageBei === "m" + b.id ? null : "m" + b.id)}>+ Aus Modul</button>
+                    {!b.frei && <button className="knopf knopf--klein" data-cammarken-auf={i} disabled={frei.length < 2}
+                      title={"Zwei freie Wartemarken nach der Zeile mit der Schreibmarke einsetzen; alle Marken der Bearbeitungen werden der Reihe nach neu vergeben (Kopf und Ende bleiben). Frei: " + (frei.join(", ") || "keine")}
+                      onClick={() => { const nb = wartemarkenEinsetzen(w, b.id, marke.current[b.id], zeilenEinsetzen); if (nb) setzeBloecke(nb); }}>+ Wartemarken</button>}
+                    {!b.frei && <span className="klein cam-marken-frei" data-cammarken-frei title={frei.join(", ")}>
+                      {frei.length ? "frei ab " + frei[0] + " · noch " + frei.length : "keine Marke mehr frei"}</span>}
                   </div>
                   {vorlageBei === "w" + b.id && <WerkzeugFeld b={b} setze={(wz) => blockAendern(b.id, "wz", wz)} zu={() => setVorlageBei(null)} />}
                   {vorlageBei === b.id && <VorlageFeld code={b.code} pos={marke.current[b.id]}

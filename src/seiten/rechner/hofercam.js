@@ -379,6 +379,98 @@ export function markenVergeben(bloecke, belegtZeilen = []) {
   return marken;
 }
 
+// Seit 1.579.0 (Wunsch Patrick 16. November 2026: „Button für Wartecodes
+// … in 10er-Schritten … wenn ich Bearbeitungen in ihrer Reihenfolge ändere,
+// sollen die Codes neu vergeben werden, damit immer die tiefen am Anfang
+// stehen und die hohen am Schluss … die Codes im Kopf und Ende nicht
+// anfassen“): Marken in Kopf und Ende bleiben, ebenso Marken unter dem
+// Beginn des Typs (M20, M200–M299 …) und alles in Bearbeitungen „wie
+// eingelesen“; alle anderen Marken der Bearbeitungen werden der Reihe
+// nach ab dem Beginn in Zehnerschritten neu vergeben. Dieselbe alte Marke
+// bekommt überall dieselbe neue, damit Paare über Bearbeitungen hinweg
+// zusammenbleiben. An der Gegenspindel zählen Marke Start (und Marke 2)
+// vor dem NC-Code, Marke Ende danach, leere werden dabei fest gesetzt.
+function kopfEndeMarken(w) {
+  w = wirksamW(w);
+  const k1 = kanal1(w), k2 = kanal2(w);
+  return new Set([...k1.kopf, ...k1.ende, ...k2.kopf, ...k2.ende].map(markeVon).filter(Boolean));
+}
+// alle Marken einer Zeile (ausserhalb von Klammern) ersetzen
+function markenErsetzen(zeile, fn) {
+  return String(zeile).replace(/(\([^)]*\)?)|[mM](\d+)/g, (alles, kl, d) => {
+    if (kl) return kl;
+    if (d.length > 3 || !istMarkeNr(Number(d))) return alles;
+    return fn("M" + Number(d));
+  });
+}
+const textMarken = (t, fn) => String(t || "").split(/\r?\n/).map((z) => markenErsetzen(z, fn)).join("\n");
+export function markenOrdnen(w) {
+  const bloecke = w.bloecke || [];
+  const { ab, schritt } = typ().marken;
+  const kopfEnde = kopfEndeMarken(w);
+  const fest = (m) => kopfEnde.has(m) || Number(m.slice(1)) < ab;
+  const reserviert = new Set(kopfEnde);
+  const sammeln = (t) => textMarken(t, (m) => { if (fest(m)) reserviert.add(m); return m; });
+  bloecke.forEach((b) => {
+    if (b.frei) { sammeln(b.code); return; }
+    sammeln(b.code);
+    [...Object.values(b.k1 || {}), ...Object.values(b.k2 || {})].forEach(sammeln);
+    if (anGegenspindel(b)) [b.m1, b.m2, b.m3].map(markeNorm).filter((m) => m && fest(m)).forEach((m) => reserviert.add(m));
+  });
+  let n = ab;
+  const naechste = () => {
+    while (reserviert.has("M" + n) && n <= 999) n += schritt;
+    if (n > 999) return null;
+    const m = "M" + n; n += schritt; return m;
+  };
+  const neu = new Map();
+  const zu = (m) => {
+    if (fest(m)) return m;
+    if (!neu.has(m)) neu.set(m, naechste() || m);
+    return neu.get(m);
+  };
+  // leere Marke an der Gegenspindel: eigener Platz in der Reihe
+  const slot = (wert) => { const m = markeNorm(wert); return m ? zu(m) : naechste() || ""; };
+  const felder = (obj) => {
+    if (!obj) return obj;
+    const r = {};
+    Object.entries(obj).forEach(([k, v]) => {
+      const [x, y] = k.split("-");
+      r[(x ? zu(x) : x) + "-" + (y ? zu(y) : y)] = textMarken(v, zu);
+    });
+    return r;
+  };
+  return bloecke.map((b) => {
+    if (b.frei) return b;
+    const r = { ...b };
+    const gegen = anGegenspindel(b);
+    if (gegen) { r.m1 = slot(b.m1); if (b.art === "quer") r.m2 = slot(b.m2); }
+    r.code = textMarken(b.code, zu);
+    if (b.k1) r.k1 = felder(b.k1);
+    if (b.k2) r.k2 = felder(b.k2);
+    if (gegen) { if (b.art === "quer") r.m3 = slot(b.m3); else r.m2 = slot(b.m2); }
+    return r;
+  });
+}
+// freie Marken ab dem Beginn des Typs in Zehnerschritten (für die Liste)
+export function freieMarken(w) {
+  const { ab, schritt } = typ().marken;
+  const belegt = new Set(kopfEndeMarken(w));
+  const p = programme(w);
+  [...p.k1, ...p.k2].forEach((z) => markenErsetzen(z, (m) => { belegt.add(m); return m; }));
+  const r = [];
+  for (let n = ab; n <= 999; n += schritt) if (!belegt.has("M" + n)) r.push("M" + n);
+  return r;
+}
+// Knopf „+ Wartemarken“: zwei freie Marken nach der Zeile mit der
+// Schreibmarke einsetzen, danach alles der Reihe nach neu vergeben
+export function wartemarkenEinsetzen(w, id, pos, einsetzen) {
+  const frei = freieMarken(w);
+  if (frei.length < 2) return null;
+  const bloecke = (w.bloecke || []).map((b) => (b.id === id ? { ...b, code: einsetzen(b.code, [frei[0], frei[1]], pos) } : b));
+  return markenOrdnen({ ...w, bloecke });
+}
+
 // Ganze Programme je Kanal; die Bearbeitungen stehen zwischen Kopf und Ende
 export function programme(w) {
   w = wirksamW(w);
