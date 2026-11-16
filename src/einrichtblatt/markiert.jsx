@@ -24,10 +24,27 @@ export function textHtml(text) {
 // Nur erlaubtes behalten: Text, Zeilenumbrüche und Spans mit Farbe,
 // Dicke und Grösse. Was Browser beim Tippen einfügen (div, b, font,
 // &nbsp;), wird dabei vereinheitlicht.
+// Ausrichtung links / Mitte / rechts gilt fürs ganze Feld (seit 1.576.0,
+// Wunsch Patrick 16. November 2026: „überall, wo man mit Farbpalette und
+// dick bearbeiten kann, auch zentrieren oder rechts/links bündig“). Sie
+// steht als Vermerk vorne im HTML, so braucht es keine neue Spalte.
+const AUSR = /^\s*<!--ausr:(left|center|right)-->/;
+export function ausrVon(html) {
+  const m = AUSR.exec(String(html || ""));
+  return m ? m[1] : "";
+}
+function ohneAusr(html) { return String(html || "").replace(AUSR, ""); }
+// Für die Anzeige über innerHTML: Vermerk als Block mit text-align
+export function anzeigeHtml(html) {
+  const a = ausrVon(html);
+  return a ? '<div style="text-align:' + a + '">' + ohneAusr(html) + "</div>" : String(html || "");
+}
+
 export function htmlSauber(html) {
-  if (!html) return { html: "", text: "", formatiert: false };
+  if (!html) return { html: "", text: "", formatiert: false, ausr: "" };
+  const ausr = ausrVon(html);
   const t = document.createElement("template");
-  t.innerHTML = String(html);
+  t.innerHTML = ohneAusr(html);
   // Jeder Text bekommt die Schrift aller Spans darüber zusammen (innen
   // gewinnt). So entstehen beim mehrmaligen Formatieren keine
   // verschachtelten Spans, und gleiche Nachbarn werden ein Span.
@@ -86,7 +103,8 @@ export function htmlSauber(html) {
   raus();
   text = text.slice(0, ende);
   if (!formatiert) h = textHtml(text);
-  return { html: h, text, formatiert };
+  if (ausr) { h = "<!--ausr:" + ausr + "-->" + h; formatiert = true; }
+  return { html: h, text, formatiert, ausr };
 }
 
 // Gilt die Formatierung noch für diesen Text?
@@ -98,7 +116,11 @@ export function fmtGueltig(html, text) {
 
 // Text mit Formatierung zum Anzeigen (auf dem Blatt, im Druck, im Pad)
 export function MitFormat({ html, text }) {
-  if (fmtGueltig(html, text)) return <span className="eba-fmt" dangerouslySetInnerHTML={{ __html: htmlSauber(html).html }} />;
+  if (fmtGueltig(html, text)) {
+    const s = htmlSauber(html);
+    return <span className={"eba-fmt" + (s.ausr ? " eba-fmt--ausr" : "")} style={s.ausr ? { textAlign: s.ausr } : undefined}
+      data-ausr={s.ausr || undefined} dangerouslySetInnerHTML={{ __html: ohneAusr(s.html) }} />;
+  }
   return text == null ? "" : String(text);
 }
 
@@ -129,6 +151,26 @@ export function markierung(feld) {
   if (feld && g.el !== feld) return null;
   if (!g.el.contains(g.range.commonAncestorContainer)) return null;
   return g;
+}
+
+// Das Feld, in dem zuletzt die Schreibmarke stand (auch ohne Markierung):
+// Ausrichten braucht keinen markierten Text
+export function aktivesFeld(feld) {
+  const g = gemerkt;
+  if (!g || !g.el.isConnected) return null;
+  if (feld && g.el !== feld) return null;
+  return g.el;
+}
+
+// Ganzes Feld links, zentriert oder rechts. Gibt false zurück, wenn kein
+// Feld gewählt ist.
+export function feldAusrichten(a, feld) {
+  const el = aktivesFeld(feld);
+  if (!el) return false;
+  el.dataset.ausr = a;
+  el.style.textAlign = a;
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  return true;
 }
 
 // Grösse an der Markierung in Punkten, für − und +
@@ -205,7 +247,13 @@ export function RichFeld({ text, html, aendern, einzeilig, nurLesen, className, 
   const soll = fmtGueltig(html, text) ? htmlSauber(html).html : textHtml(text);
   useLayoutEffect(() => {
     const el = ref.current;
-    if (el && soll !== zuletzt.current) { el.innerHTML = soll; zuletzt.current = soll; }
+    if (el && soll !== zuletzt.current) {
+      const a = ausrVon(soll);
+      el.innerHTML = ohneAusr(soll);
+      if (a) el.dataset.ausr = a; else delete el.dataset.ausr;
+      el.style.textAlign = a;
+      zuletzt.current = soll;
+    }
   }, [soll]);
   const lesen = () => {
     const el = ref.current;
@@ -213,8 +261,11 @@ export function RichFeld({ text, html, aendern, einzeilig, nurLesen, className, 
     let s = htmlSauber(el.innerHTML);
     if (einzeilig && /\n/.test(s.text)) s = htmlSauber(s.html.replace(/<br>/g, " "));
     if (!s.text) { el.innerHTML = ""; }
-    zuletzt.current = s.formatiert ? htmlSauber(s.html).html : textHtml(s.text);
-    aendern(s.text, s.formatiert ? s.html : null);
+    const a = el.dataset.ausr || "";
+    let h = s.formatiert ? s.html : null;
+    if (a && s.text) h = "<!--ausr:" + a + "-->" + (s.formatiert ? s.html : textHtml(s.text));
+    zuletzt.current = h ? htmlSauber(h).html : textHtml(s.text);
+    aendern(s.text, h);
   };
   return <div ref={ref} contentEditable suppressContentEditableWarning data-rich="" role="textbox"
     aria-multiline={einzeilig ? undefined : "true"} data-platzhalter={platzhalter || ""}
@@ -254,6 +305,10 @@ export function MarkierLeiste({ ohneMarkierung, hinweis, feld, start = 12, min =
     if (ohneMarkierung && ohneMarkierung(z)) return;
     sagen();
   };
+  const ausrichten = (a) => {
+    if (feldAusrichten(a, feld)) return;
+    alt.meldung("Zuerst ins Feld tippen, dann links, Mitte oder rechts wählen.", "warn");
+  };
   const gr = (d) => {
     const g = markierteGroesse(feld, start);
     if (!g) { sagen(); return; }
@@ -278,11 +333,24 @@ export function MarkierLeiste({ ohneMarkierung, hinweis, feld, start = 12, min =
         <button type="button" data-pf-geogr="minus" aria-label="Kleiner" onMouseDown={behalten} onClick={() => gr(-1)}>−</button>
         <button type="button" data-pf-geogr="plus" aria-label="Grösser" onMouseDown={behalten} onClick={() => gr(1)}>+</button>
       </span>
+      <span className="eba-pf-ausr" data-pf-ausr="">
+        {AUSR_KNOEPFE.map(([a, titel]) => <button key={a} type="button" title={titel} aria-label={titel}
+          data-pf-ausr-knopf={a} onMouseDown={behalten} onClick={() => ausrichten(a)}><AusrZeichen a={a} /></button>)}
+      </span>
     </span>
   );
 }
 
+// Knöpfe und Zeichen für die Ausrichtung (auch in der Schreibleiste)
+export const AUSR_KNOEPFE = [["left", "Linksbündig"], ["center", "Zentriert"], ["right", "Rechtsbündig"]];
+export function AusrZeichen({ a }) {
+  const x = (i) => (a === "left" ? 1 : a === "right" ? 15 - [14, 9, 14, 9][i] : (15 - [14, 9, 14, 9][i]) / 2 + 0.5);
+  return <svg width="16" height="14" viewBox="0 0 16 14" aria-hidden="true">
+    {[0, 1, 2, 3].map((i) => <rect key={i} x={x(i)} y={1 + i * 3.4} width={[14, 9, 14, 9][i]} height="1.8" rx=".9" fill="currentColor" />)}
+  </svg>;
+}
+
 // Text mit Formatierung als HTML zum Hineinsetzen (gültig oder nur Text)
 export function formatHtml(html, text) {
-  return fmtGueltig(html, text) ? htmlSauber(html).html : textHtml(text);
+  return fmtGueltig(html, text) ? anzeigeHtml(htmlSauber(html).html) : textHtml(text);
 }

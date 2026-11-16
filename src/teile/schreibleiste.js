@@ -28,6 +28,15 @@ const FARBEN = [["Schwarz", null, "#000000"], ["Rot", "#e03030"], ["Blau", "#1f5
 const MIT_FORMAT = "[data-stilfeld], .nb-text__feld, .nb-tab__zelle";
 const HINWEIS = "Zuerst den Text im Feld markieren, dann Farbe, Fett oder Grösse wählen.";
 const GR_MIN = 8, GR_MAX = 60;
+const AUSR = [["left", "Linksbündig"], ["center", "Zentriert"], ["right", "Rechtsbündig"]];
+function ausrSvg(a) {
+  const br = [14, 9, 14, 9];
+  const r = br.map((b, i) => {
+    const x = a === "left" ? 1 : a === "right" ? 15 - b : (16 - b) / 2;
+    return '<rect x="' + x + '" y="' + (1 + i * 3.4) + '" width="' + b + '" height="1.8" rx=".9" fill="currentColor"/>';
+  }).join("");
+  return '<svg width="16" height="14" viewBox="0 0 16 14" aria-hidden="true">' + r + "</svg>";
+}
 
 // Das Feld zum Schreiben, zu dem dieses Element gehört, oder null
 function feldVon(el) {
@@ -137,6 +146,18 @@ export function schreibleisteAnbinden(d) {
     feld.dispatchEvent(new w.Event("input", { bubbles: true }));
   }
 
+  // Zeile links, zentriert oder rechts (seit 1.576.0): wirkt auf die Zeile
+  // mit der Schreibmarke oder alle markierten Zeilen, wie in Word
+  function ausrichten(a) {
+    if (!feld) return;
+    if (gemerkt && feld.contains(gemerkt.commonAncestorContainer)) zurueck(gemerkt);
+    else if (d.activeElement !== feld) feld.focus({ preventScroll: true });
+    const befehl = a === "center" ? "justifyCenter" : a === "right" ? "justifyRight" : "justifyLeft";
+    try { d.execCommand("styleWithCSS", false, true); d.execCommand(befehl, false, null); } catch (f) { /* egal */ }
+    try { d.execCommand("styleWithCSS", false, false); } catch (f) { /* egal */ }
+    feld.dispatchEvent(new w.Event("input", { bubbles: true }));
+  }
+
   function knopf(text, titel, tun, klasse) {
     const b = d.createElement("button");
     b.type = "button";
@@ -178,6 +199,7 @@ export function schreibleisteAnbinden(d) {
     fmt.appendChild(knopf("A−", "Kleiner", () => groesseAendern(-2)));
     fmt.appendChild(knopf("A+", "Grösser", () => groesseAendern(2)));
     fmt.appendChild(knopf("Normal", "Grösse wieder normal", () => formatieren({ groesse: null })));
+    AUSR.forEach(([a, titel, breiten]) => fmt.appendChild(knopf(ausrSvg(a, breiten), titel, () => ausrichten(a), "schreibleiste__ausr")));
     leiste.appendChild(fmt);
     leiste.addEventListener("mousedown", (e) => { if (e.target.tagName !== "INPUT") e.preventDefault(); });
     d.body.appendChild(leiste);
@@ -202,8 +224,16 @@ export function schreibleisteAnbinden(d) {
   function zeigen(f) {
     feld = f;
     format = !!(f && f.isContentEditable && f.matches(MIT_FORMAT));
-    if (!f) { if (leiste) leiste.hidden = true; gemerkt = null; return; }
+    if (!f) {
+      // In der Reihe der Knöpfe B / I / U nur unsichtbar, nicht weg: sonst
+      // rutscht beim Antippen von „Speichern“ alles darunter nach oben,
+      // und der Tipp geht daneben
+      if (leiste && leiste.classList.contains("schreibleiste--drin") && leiste.isConnected) leiste.style.visibility = "hidden";
+      else if (leiste) leiste.hidden = true;
+      gemerkt = null; return;
+    }
     if (!leiste) bauen();
+    leiste.style.visibility = "";
     // Hat das Feld schon seine Knöpfe B / I / U (TextMitStil, Notizbuch),
     // kommt die Leiste gleich dort in die Reihe, statt sie zu überdecken;
     // im Notizbuch schlösse ein Tipp ausserhalb sonst das Textfeld

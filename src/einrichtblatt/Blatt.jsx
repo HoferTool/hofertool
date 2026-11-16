@@ -29,7 +29,7 @@ import { pdfSeitenAlsBilder } from "../teile/drucken.js";
 import { vorlageFuer, reihenMitRest, platzName, platzGruppe, freiFeld, leerOhneTnr } from "./vorlagen.js";
 import { TextBlatt, textBearbeiten } from "../infoboard/TextFeld.jsx";
 import { ohneFa } from "./excelEinlesen.js";
-import { RichFeld, MitFormat, fmtGueltig, markiertFormatieren, markierteGroesse, markierungVergessen,
+import { RichFeld, MitFormat, fmtGueltig, ausrVon, markiertFormatieren, markierteGroesse, markierungVergessen,
   MarkierLeiste as GemeinsameLeiste } from "./markiert.jsx";
 import { betrachter } from "../teile/Betrachter.jsx";
 import { spezialPdfsLaden } from "../daten/spezialwerkzeuge.js";
@@ -205,7 +205,11 @@ function EineZeile({ text, min = 7, stil, html }) {
     ro.observe(el.parentElement);
     return () => ro.disconnect();
   }, [text, min, gr, stil && stil.fett, html]);
-  return <span ref={ref} className="eba-eine-zeile" data-eba-eine-zeile="" style={stilCss(stil, true)}><MitFormat html={html} text={text} /></span>;
+  const zeile = <span ref={ref} className="eba-eine-zeile" data-eba-eine-zeile="" style={stilCss(stil, true)}><MitFormat html={html} text={text} /></span>;
+  // Ausgerichtet (1.576.0): die Zeile bleibt so breit wie ihr Text, damit
+  // das Einpassen gleich misst; ein Block darum herum richtet sie aus
+  const a = fmtGueltig(html, text) ? ausrVon(html) : "";
+  return a ? <span className="eba-ausr-block" style={{ textAlign: a }}>{zeile}</span> : zeile;
 }
 
 // Eingetippte T-Nr. ordentlich schreiben: „3121“ oder „t 3121“ → „T3121“
@@ -370,8 +374,12 @@ function GeoText({ text, mitBild, farbe, fett, groesse, html }) {
     ro.observe(feld);
     return () => ro.disconnect();
   }, [text, mitBild, fett, groesse, html]);
+  // Ausgerichtet (1.576.0): fast so breit wie das Feld, damit links und
+  // rechts wirken und das Einpassen trotzdem nichts zu breit findet
+  const a = fmtGueltig(html, text) ? ausrVon(html) : "";
+  const st = Object.assign({}, farbe ? { color: farbe, WebkitTextFillColor: farbe } : {}, a ? { width: "calc(100% - 4px)", textAlign: a } : {});
   return <span ref={ref} className={"eba-geo" + (fett ? " eba-geo--fett" : "")} data-geo=""
-    style={farbe ? { color: farbe, WebkitTextFillColor: farbe } : undefined}><MitFormat html={html} text={text} /></span>;
+    style={Object.keys(st).length ? st : undefined}><MitFormat html={html} text={text} /></span>;
 }
 
 // Ein Eingabefeld im Kopf

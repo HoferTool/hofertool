@@ -21,7 +21,11 @@
 import { useEffect, useRef, useState } from "react";
 
 const ALT_FETT = /\*\*([^*\n]+?)\*\*/g;
-const IST_HTML = /<(b|i|u|s|br|strong|em|strike|del|span|font)\b[^>]*>/i;
+const IST_HTML = /<(b|i|u|s|br|strong|em|strike|del|span|font|div)\b[^>]*>/i;
+// Ausrichtung je Zeile (seit 1.576.0, Wunsch Patrick 16. November 2026:
+// „zentrieren oder rechts/links bündig“): gespeichert als
+// <div style="text-align:center|right">, links ist wie bisher ohne
+const AUSR_OK = /^(center|right)$/;
 
 // Farbe und Grösse aus der Schreibleiste (seit 1.434.0, Wunsch Patrick
 // 6. November 2026: „das Zeugs mit Farben und dick soll überall
@@ -76,8 +80,16 @@ function serialisieren(knoten) {
       if (kursiv) innen = "<i>" + innen + "</i>";
       if (fett) innen = "<b>" + innen + "</b>";
     }
+    const block = tag === "div" || tag === "p";
+    const ausr = block && AUSR_OK.test((st.textAlign || k.getAttribute("align") || "").trim()) ? (st.textAlign || k.getAttribute("align")).trim() : "";
+    if (ausr) {
+      // Ein Block beginnt von selbst auf einer neuen Zeile
+      aus += '<div style="text-align:' + ausr + '">' + (innen.replace(/(<br>)+$/, "") || "<br>") + "</div>";
+      return;
+    }
     // Zeilen als <div> oder <p>: Zeilenumbruch davor, ausser ganz am Anfang
-    if ((tag === "div" || tag === "p") && nr > 0 && !/<br>$/.test(aus)) aus += "<br>";
+    // oder gleich nach einem ausgerichteten Block
+    if (block && nr > 0 && !/(<br>|<\/div>)$/.test(aus)) aus += "<br>";
     aus += innen;
   });
   return aus;
@@ -86,7 +98,7 @@ function serialisieren(knoten) {
 // Fürs Speichern: ohne Auszeichnung reiner Text mit Zeilenumbrüchen
 export function stilWert(el) {
   const html = sauber(el.innerHTML);
-  if (/<(b|i|u|s|span)[ >]/.test(html)) return html.trim();
+  if (/<(b|i|u|s|span|div)[ >]/.test(html)) return html.trim();
   const tmp = document.createElement("div");
   tmp.innerHTML = html.replace(/<br>/g, "\n");
   return tmp.textContent.trim();
@@ -101,6 +113,11 @@ function zuReact(knoten, weg) {
     else if (k.nodeType === 1) {
       const tag = k.tagName.toLowerCase();
       if (tag === "br") teile.push(<br key={key} />);
+      else if (tag === "div") {
+        const a = ((k.style && k.style.textAlign) || "").trim();
+        // als Block-Span, weil FettText auch in <p> steht
+        teile.push(<span key={key} style={AUSR_OK.test(a) ? { display: "block", textAlign: a } : { display: "block" }}>{zuReact(k, key)}</span>);
+      }
       else if (tag === "b") teile.push(<strong key={key}>{zuReact(k, key)}</strong>);
       else if (tag === "i") teile.push(<em key={key}>{zuReact(k, key)}</em>);
       else if (tag === "u") teile.push(<u key={key}>{zuReact(k, key)}</u>);
