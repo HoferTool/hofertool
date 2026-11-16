@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.570.0** (16. November 2026): Einlagen Generator: Griffmulden frei auf der Einlage statt an ein Werkzeug gebunden, Tiefe und Höhe direkt im Bild antippen und ändern, Teile spiegeln (Wunsch Patrick).
 - **1.569.0** (16. November 2026): Einlagen Generator: Werkzeuge in der Einlage stufenlos drehen (ohne Einrasten, Winkel mit Komma), Länge und Breite der Einlage und des gewählten Werkzeugs als Masslinien (Wunsch Patrick).
 - **1.558.1** (16. November 2026): Prüfstand `spiele.py` sucht die Anzeige „Lager“ der Späneschleuder nur noch dort, wo eine Zahl steht; der Spaltenkopf „Lagerort“ der neuen Seite Lager brachte den Test sonst jedes Mal zum Absturz.
 - **1.558.0** (15. November 2026): Neuer Menüpunkt **Prüfmittel** (provisorisch, nur Admins): jedes Prüfmittel mit Nr., Mass und Ort (Schrank, Maschine, Person, extern), Übersicht „Wo ist was“, Austragen und Zurück mit Verlauf, Prüfintervall, Einfügen aus Gewatec/Excel.
