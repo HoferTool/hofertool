@@ -228,6 +228,8 @@ export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehl
           );
         })}
         {mass.ruhig && (aufbau.effekte || effektProbe) && <Wetterhimmel breite={mass.breite} hoehe={mass.hoehe} probe={effektProbe} />}
+        {/* Schnee, Laub oder Blüten über die ganze Tafel, nur am Infoboard (seit 1.575.0) */}
+        {!mass.ruhig && !mass.hell && !nacht && <Durchfahrt nurHimmel tief />}
         {gross && !nacht && <KachelGross feld={gross} breite={mass.breite} hoehe={mass.hoehe} zu={grossZu}
           inhaltZeigen={(f, b, h) => <FeldInhalt feld={f} format={b > h ? "a3" : "a4"} breite={b} hoehe={h} grund={farben.grund} />} />}
       </div>}
@@ -266,13 +268,13 @@ function Kopf() {
       <div className="ib-kopf__innen" ref={innen}
         style={{ transform: k < 1 ? "scale(" + k + ")" : undefined, width: k < 1 ? breite / k : breite }}>
         <section className="kopfkarte">
+          {/* Hühner wie im Band der Startseite, nur im blauen Band (seit 1.575.0) */}
+          <Durchfahrt ohneHimmel />
           <Uhr ohneId />
           <img className="kopfkarte__logo" src={alt.LOGO_WEISS} alt="Hofer + Co." />
           <Wetter ohneId />
         </section>
         <Solaranlage ohneId />
-        {/* Hühner und Jahreszeit über Kopf und Solaranlage, Füsse unten über dem Kalender */}
-        <Durchfahrt tief />
       </div>
     </div>
   );

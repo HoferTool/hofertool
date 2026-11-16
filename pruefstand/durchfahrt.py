@@ -65,11 +65,31 @@ with sync_playwright() as p:
     pg = seite(br, {"width":390,"height":844}, "sommer")
     beobachten(pg, "handy", "#inhalt", False, "sommer")
     pg.context.close()
-    for zeit in ["winter", "sommer"]:
-        pg = seite(br, {"width":1080,"height":1920}, zeit, "#/infoboard")
-        pg.wait_for_selector(".ib-gestalten [data-ibtafel]")
-        beobachten(pg, "infoboard", ".ib-gestalten [data-ibtafel]", True, zeit)
-        pg.context.close()
+    # Infoboard seit 1.575.0: Hühner nur im blauen Band wie auf der
+    # Startseite, Schnee über die ganze Tafel, Solaranlage ohne Hühner
+    pg = seite(br, {"width":1080,"height":1920}, "sommer", "#/infoboard")
+    pg.wait_for_selector(".ib-gestalten [data-ibtafel]")
+    beobachten(pg, "infoboard", ".ib-gestalten [data-ibtafel] .kopfkarte", False, "sommer")
+    pg.context.close()
+    pg = seite(br, {"width":1080,"height":1920}, "winter", "#/infoboard")
+    pg.wait_for_selector(".ib-gestalten [data-ibtafel] .durchfahrt--himmel", state="attached", timeout=20000)
+    pg.wait_for_timeout(4000)
+    info = pg.evaluate("""() => { const t = document.querySelector('.ib-gestalten [data-ibtafel]');
+        const h = t.querySelector('.durchfahrt--himmel'), b = t.querySelector('.kopfkarte .durchfahrt');
+        const hr = h.getBoundingClientRect(), tr = t.getBoundingClientRect();
+        return { schnee: h.querySelectorAll('.hof-fall--schnee').length, huhnHimmel: h.querySelectorAll('.huhn').length,
+                 fallBand: b ? b.querySelectorAll('.hof-fall').length : -1, band: !!b,
+                 solarHuhn: t.querySelectorAll('.ib-kopf .durchfahrt').length - 1,
+                 ganz: hr.height >= tr.height * .95 } }""")
+    print("infoboard winter", info)
+    if not info["band"]: fehler.append("infoboard: keine Hühner im Band")
+    if info["schnee"] < 3: fehler.append("infoboard: kein Schnee über die Tafel")
+    if info["huhnHimmel"]: fehler.append("infoboard: Hühner ausserhalb des Bands")
+    if info["fallBand"]: fehler.append("infoboard: Schnee doppelt im Band")
+    if info["solarHuhn"]: fehler.append("infoboard: noch Hühner über der Solaranlage")
+    if not info["ganz"]: fehler.append("infoboard: Schnee nicht über die ganze Tafel")
+    if BILDER: pg.screenshot(path=os.path.join(BILDER, "huehner_infoboard_winter.png"))
+    pg.context.close()
     br.close()
 
 print("Fehler:", "keine" if not fehler else "\n" + "\n".join(fehler[:20]))

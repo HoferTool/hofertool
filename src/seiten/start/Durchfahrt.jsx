@@ -21,7 +21,12 @@
 //      wieder, und immer wieder hüpft ein Wasserball durch
 //  Alles mit Zeitgebern und el.animate statt React-Zustand, damit die
 //  Startseite dafür nie neu zeichnet. Läuft im Band der Startseite und
-//  im Kopf des Infoboards (`tief`, dort vor Kopf und Solaranlage).
+//  seit 1.575.0 genauso im blauen Band oben im Infoboard (`ohneHimmel`),
+//  dort fällt Schnee, Laub oder Blüten über die ganze Tafel
+//  (`nurHimmel`, Wunsch Patrick 16. November 2026: „auf dem Infobildschirm
+//  gleich wie bei Start, nur beim oberen Balken, der Solarbalken wieder
+//  normal, Schnee oder Blätter über den ganzen Bildschirm … etwas
+//  professioneller“).
 // =================================================================
 import { useEffect, useRef } from "react";
 
@@ -48,38 +53,40 @@ export const schneeZeit = (d = new Date()) => jahreszeit(d) === "winter";
 const svg = (inhalt, vb) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" width="100%" height="100%">${inhalt}</svg>`;
 
 // Blatt in Herbstfarben
-const BLATT_FARBEN = ["#e07a1f", "#c8471d", "#e8a93a", "#a8521d", "#d9622b", "#b8862f"];
+// Seit 1.575.0 alles weisslich, keine Farben (Wunsch Patrick 16. November 2026:
+// „keine Farben, alles so weisslich, etwas durchsichtiger, aber nur ein wenig“)
+const BLATT_FARBEN = ["rgba(255,255,255,.85)", "rgba(255,255,255,.7)", "rgba(240,246,255,.8)"];
 const blattSvg = (f) => svg(
   `<path d="M20 2 C31 9 36 20 32 30 C29 37 24 40 20 46 C16 40 11 37 8 30 C4 20 9 9 20 2 Z" fill="${f}"/>` +
-  `<path d="M20 6 L20 48 M20 18 L13 13 M20 18 L27 13 M20 28 L11 22 M20 28 L29 22" stroke="rgba(80,40,10,.45)" stroke-width="1.4" fill="none"/>`,
+  `<path d="M20 6 L20 48 M20 18 L13 13 M20 18 L27 13 M20 28 L11 22 M20 28 L29 22" stroke="rgba(255,255,255,.55)" stroke-width="1.4" fill="none"/>`,
   "0 0 40 50");
 // Blüte für den Frühling
-const BLUETE_FARBEN = ["#ffd1dc", "#ffffff", "#ffc2d6", "#fde2ee"];
+const BLUETE_FARBEN = ["rgba(255,255,255,.85)", "rgba(255,255,255,.7)"];
 const blueteSvg = (f) => svg(
   [0, 72, 144, 216, 288].map((w) => `<ellipse cx="20" cy="10" rx="6.5" ry="9" fill="${f}" transform="rotate(${w} 20 20)"/>`).join("") +
-  `<circle cx="20" cy="20" r="4" fill="#f6c64a"/>`, "0 0 40 40");
+  `<circle cx="20" cy="20" r="4" fill="rgba(255,255,255,.95)"/>`, "0 0 40 40");
 // Blümchen mit Stiel, wächst von unten
-const BLUMEN = [["#ffd23f", "#ff7a00"], ["#ffffff", "#f6c64a"], ["#ff6fa3", "#ffe066"], ["#7fb8ff", "#ffffff"], ["#ff5a5f", "#ffd23f"], ["#c99bff", "#fff2a8"]];
+const BLUMEN = [["rgba(255,255,255,.8)", "rgba(255,255,255,.95)"], ["rgba(255,255,255,.65)", "rgba(255,255,255,.9)"]];
 const blumeSvg = ([blatt, mitte]) => svg(
-  `<path d="M20 30 C19 42 21 50 20 60" stroke="#3f8f2e" stroke-width="2.6" fill="none" stroke-linecap="round"/>` +
-  `<path d="M20 47 C13 44 9 46 7 49 C12 51 16 50 20 47 Z" fill="#4fa83a"/>` +
-  `<path d="M20 41 C27 38 31 40 33 43 C28 45 24 44 20 41 Z" fill="#4fa83a"/>` +
+  `<path d="M20 30 C19 42 21 50 20 60" stroke="rgba(255,255,255,.6)" stroke-width="2.6" fill="none" stroke-linecap="round"/>` +
+  `<path d="M20 47 C13 44 9 46 7 49 C12 51 16 50 20 47 Z" fill="rgba(255,255,255,.55)"/>` +
+  `<path d="M20 41 C27 38 31 40 33 43 C28 45 24 44 20 41 Z" fill="rgba(255,255,255,.55)"/>` +
   [0, 60, 120, 180, 240, 300].map((w) => `<ellipse cx="20" cy="12" rx="5" ry="8" fill="${blatt}" transform="rotate(${w} 20 20)"/>`).join("") +
   `<circle cx="20" cy="20" r="5" fill="${mitte}"/>`, "0 0 40 60");
 // Wasserball mit Streifen, die Streifen drehen sich, der Glanz bleibt oben
-const BALL_STREIFEN = ["#e63946", "#ffffff", "#ffd23f", "#ffffff", "#2a7de1", "#ffffff"];
+const BALL_STREIFEN = ["rgba(255,255,255,.85)", "rgba(255,255,255,.55)", "rgba(255,255,255,.85)", "rgba(255,255,255,.55)", "rgba(255,255,255,.85)", "rgba(255,255,255,.55)"];
 const ballSvg = () => svg(
   `<g class="hof-ball__dreh">` +
   BALL_STREIFEN.map((f, i) => {
     const a = (i * 60 - 90) * Math.PI / 180, b = ((i + 1) * 60 - 90) * Math.PI / 180;
     return `<path d="M50 50 L${50 + 48 * Math.cos(a)} ${50 + 48 * Math.sin(a)} A48 48 0 0 1 ${50 + 48 * Math.cos(b)} ${50 + 48 * Math.sin(b)} Z" fill="${f}"/>`;
   }).join("") +
-  `<circle cx="50" cy="50" r="9" fill="#ffffff" stroke="#d0d6de" stroke-width="1.5"/></g>` +
-  `<circle cx="50" cy="50" r="48" fill="none" stroke="rgba(0,0,0,.18)" stroke-width="2"/>` +
+  `<circle cx="50" cy="50" r="9" fill="rgba(255,255,255,.9)" stroke="rgba(255,255,255,.6)" stroke-width="1.5"/></g>` +
+  `<circle cx="50" cy="50" r="48" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="2"/>` +
   `<ellipse cx="35" cy="28" rx="14" ry="8" fill="rgba(255,255,255,.55)" transform="rotate(-30 35 28)"/>`,
   "0 0 100 100");
 
-export default function Durchfahrt({ tief = false } = {}) {
+export default function Durchfahrt({ tief = false, nurHimmel = false, ohneHimmel = false } = {}) {
   const ref = useRef(null);
   useEffect(() => {
     const hof = ref.current;
@@ -248,7 +255,7 @@ export default function Durchfahrt({ tief = false } = {}) {
         await warte(zufall(30000, 150000));
       }
     };
-    for (let i = 0; i < MAX; i++) leben(i);
+    if (!nurHimmel) for (let i = 0; i < MAX; i++) leben(i);
 
     // ---------- Was von oben fällt: Schnee, Blätter, Blüten ----------
     const fallen = (art) => {
@@ -276,7 +283,7 @@ export default function Durchfahrt({ tief = false } = {}) {
         bilder.push({
           transform: `translate(${wind * p + Math.sin(p * Math.PI * 3) * schwung}px, ${tiefe * p}px) rotate(${drehen * p}deg)` +
             (art === "blatt" ? ` rotateX(${Math.sin(p * Math.PI * 4) * 60}deg)` : ""),
-          opacity: i === 0 ? 0 : i === 6 ? 0 : art === "schnee" ? .9 : .95,
+          opacity: i === 0 ? 0 : i === 6 ? 0 : .8,
         });
       }
       const a = t.animate(bilder, { duration: dauer, easing: "linear", fill: "forwards" });
@@ -301,10 +308,10 @@ export default function Durchfahrt({ tief = false } = {}) {
       const neig = zufall(4, 9);
       const a = b.animate([
         { transform: "translateY(100%) scale(.4) rotate(0deg)", opacity: 0 },
-        { transform: "translateY(-4%) scale(1.08) rotate(0deg)", opacity: 1, offset: auf * .75 / d, easing: "ease-out" },
-        { transform: `translateY(0) scale(1) rotate(${-neig}deg)`, opacity: 1, offset: auf / d },
-        { transform: `translateY(0) scale(1) rotate(${neig}deg)`, opacity: 1, offset: (auf + stehen * .5) / d },
-        { transform: `translateY(0) scale(1) rotate(${-neig * .6}deg)`, opacity: 1, offset: (auf + stehen) / d, easing: "ease-in" },
+        { transform: "translateY(-4%) scale(1.08) rotate(0deg)", opacity: .85, offset: auf * .75 / d, easing: "ease-out" },
+        { transform: `translateY(0) scale(1) rotate(${-neig}deg)`, opacity: .85, offset: auf / d },
+        { transform: `translateY(0) scale(1) rotate(${neig}deg)`, opacity: .85, offset: (auf + stehen * .5) / d },
+        { transform: `translateY(0) scale(1) rotate(${-neig * .6}deg)`, opacity: .85, offset: (auf + stehen) / d, easing: "ease-in" },
         { transform: "translateY(100%) scale(.5) rotate(0deg)", opacity: 0 },
       ], { duration: d, easing: "ease-in-out", fill: "forwards" });
       a.onfinish = () => { b.remove(); blumen--; };
@@ -379,9 +386,8 @@ export default function Durchfahrt({ tief = false } = {}) {
         else await warte(10000);
       }
     };
-    himmel();
-    garten();
-    strand();
+    if (!ohneHimmel) himmel();
+    if (!nurHimmel) { garten(); strand(); }
 
     return () => {
       aus = true;
@@ -389,6 +395,6 @@ export default function Durchfahrt({ tief = false } = {}) {
       uhren.clear();
       hof.replaceChildren();
     };
-  }, [tief]);
-  return <div className={"durchfahrt" + (tief ? " durchfahrt--tief" : "")} ref={ref} aria-hidden="true" />;
+  }, [tief, nurHimmel, ohneHimmel]);
+  return <div className={"durchfahrt" + (tief ? " durchfahrt--tief" : "") + (nurHimmel ? " durchfahrt--himmel" : "")} ref={ref} aria-hidden="true" />;
 }
