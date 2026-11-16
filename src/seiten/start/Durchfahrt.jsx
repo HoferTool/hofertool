@@ -14,7 +14,9 @@
 //  Die Person sieht wie auf dem Bild aus.“): Die Person aus Patricks
 //  Bild (HYROX-Shirt) zieht am Seil um die Hüfte einen roten Schlitten,
 //  in dem drei Hühner sitzen, mal nach links, mal nach rechts. Einmal je
-//  Fahrt hält er an und sagt in einer Sprechblase einen Spruch (SPRUECHE).
+//  Fahrt hält er an und sagt in einer Sprechblase einen Spruch (SPRUECHE,
+//  seit 1.568.0 zu Personal, Zerspanen und Hühnern; die Blase steht neben
+//  dem Mund und zeigt mit der Spitze darauf).
 //  Das Bild steht nur in der Datenbank (app_config, Schlüssel
 //  durchfahrt_person, als data:-Bild, freigestellt, sonst unverändert),
 //  nie im Repository, weil das öffentlich ist. Die App zeigt es dreimal
@@ -41,29 +43,31 @@ const zufall = (a, b) => a + Math.random() * (b - a);
 const ganz = (a, b) => Math.floor(zufall(a, b + 1));
 const eins = (liste) => liste[ganz(0, liste.length - 1)];
 
-// Was er sagt, wenn er anhält: Zerspanen und Crossfit
+// Was er sagt, wenn er anhält: Personal, Zerspanen und Hühner
+// (seit 1.568.0, Wunsch Patrick 16. November 2026; vorher Crossfit)
 export const SPRUECHE = [
-  "Sled Pull mit drei Hühnern. HYROX-Station erledigt!",
-  "Rentiere? Zu teuer. Ich hab die bessere Stückzeit.",
-  "WOD heute: 21 Kamine, 15 Säcke, 9 Burpees. For Time!",
-  "Wer brav war, kriegt neue Wendeplatten. Wer nicht: Späne.",
-  "Mein Sixpack? Plangedreht, Ra 0,4.",
-  "Kettlebell-Swing mit dem Geschenksack. 24 Kilo Messing, bleifrei!",
-  "Hühner, ihr könntet auch mal mitziehen! F0.2, nicht F0.0!",
-  "Box Jump aufs Dach, Wall Ball durch den Kamin. Lieferung fertig.",
-  "Toleranz ±0,01. Beim Drehteil und beim Körperfett.",
-  "Erst rüsten, dann läuft, dann Sled Pull.",
-  "Mehr Späne, mehr Gains!",
-  "No pain, no gain. No Span, no Plan.",
-  "Klimmzüge? Ich zieh lieber am Spannzangenhebel. 500 Wiederholungen.",
-  "Der Schlitten läuft auf Hartmetallkufen. Standzeit: bis Ostern.",
-  "Kühlschmierstoff im Proteinshake? Nur für die Hühner.",
-  "Double Unders mit dem Zugseil. Die Hühner finden's weniger lustig.",
-  "Muskelkater? Nein, das ist nur das Gewinde M8x1.",
-  "Bizeps wie ein Spannfutter: hält alles, rutscht nix.",
-  "Die Hühner sitzen, ich ziehe. Das nennt man Leistungsträger.",
-  "Cardio ist, wenn die Maschine Störung hat und ich hinrenne.",
-  "Mein Puls ist wie die Spindel: 8'000, und noch Luft nach oben.",
+  "Personalplanung: drei Hühner im Schlitten, einer zieht. Passt.",
+  "Die Hühner sind in der Pause. Seit 7 Uhr.",
+  "Wer zuletzt stempelt, legt das erste Ei.",
+  "Teamsitzung: Gack. Gack. Gack. Protokoll folgt.",
+  "Neue Lernende? Die Hühner zeigen ihnen das Picken.",
+  "Ferienantrag der Hühner: KW 52 und 53. Genehmigt!",
+  "Sag nie zu einem Dreher, die Maschine läuft von allein.",
+  "Mitarbeiter des Monats: das Huhn mit der Schutzbrille.",
+  "Ich bin nicht müde, ich bin im Einrichtmodus.",
+  "Toleranz ±0,01. Bei den Hühnern ±1 Ei.",
+  "Späne sind kein Abfall. Das ist Konfetti für Dreher.",
+  "Stückzeit 12 Sekunden. Das Huhn braucht 24 Stunden pro Ei.",
+  "Plattenwechsel gemacht, Hühnerstall gemistet. Gleiche Handgriffe.",
+  "Ein Dreher ohne Späne im Socken ist kein Dreher.",
+  "Wenn die Maschine piepst, ist es Störung. Wenn das Huhn piepst, Kaffeepause.",
+  "Ra 0,4 auf dem Teil. Ra 400 auf dem Hühnerstall.",
+  "Kühlschmierstoff? Die Hühner nennen's Wellness.",
+  "Das Ei ist rund, das Teil ist rund. Ich bin zuständig.",
+  "Die Hühner wollten Homeoffice. Jetzt sitzen sie im Schlitten.",
+  "Qualitätskontrolle: jedes Ei mit dem Messschieber geprüft.",
+  "Rüsten dauert. Hühner zum Schlitten bringen dauert länger.",
+  "Wer hat das letzte Werkzeug verbraucht? Gack!",
 ];
 
 // Das Bild steht nur in der Datenbank, einmal je Laden der App geholt
@@ -110,6 +114,7 @@ const MUETZE = `<svg viewBox="0 0 537 1252" xmlns="http://www.w3.org/2000/svg" o
 // Einteilung im Bild (Anteile von Breite und Höhe): Oberkörper bis 64 %,
 // Beine ab 61.5 %, getrennt bei 48.4 %, Hüftgelenke, Kopf, Seil an der Hüfte
 const BILD = { b: 537, h: 1252 };
+const MUND = [268 / 537, 192 / 1252];
 const TEIL = { oberBis: 800 / 1252, beinAb: 770 / 1252, mitte: 260 / 537,
   huefteL: [170 / 537, 780 / 1252], huefteR: [360 / 537, 780 / 1252],
   kopf: [262 / 537, 110 / 1252], seil: [268 / 537, 600 / 1252] };
@@ -314,12 +319,27 @@ export default function Durchfahrt({ tief = false } = {}) {
       ziel.appendChild(b);
       blasen.add(b);
       const w = b.offsetWidth, h = b.offsetHeight;
-      let x = rechts ? kopfX + kopfB * .62 : kopfX - kopfB * .62 - w;
+      // Seit 1.568.0 neben dem Mund statt über dem Kopf: die Spitze zeigt
+      // seitlich genau auf den Mund (Patrick: „Sprechblase stimmt nicht
+      // ganz zum Mund“)
+      const spitze = Math.max(9, schrift * .9);
       // Rand lassen: beim Erscheinen wächst die Blase kurz über 100 %
       const rx = 4 + w * .05, ry = 2 + h * .05;
+      // Passt sie vorne nicht ins Band, steht sie auf der anderen Seite,
+      // sonst deckte sie das Gesicht zu
+      const xR = kopfX + kopfB + spitze, xL = kopfX - kopfB - spitze - w;
+      let seiteR = rechts;
+      if (seiteR && xR > breit - w - rx && xL >= rx) seiteR = false;
+      else if (!seiteR && xL < rx && xR <= breit - w - rx) seiteR = true;
+      b.className = "wm-blase " + (seiteR ? "wm-blase--rechts" : "wm-blase--links");
+      let x = seiteR ? xR : xL;
       x = Math.max(rx, Math.min(breit - w - rx, x));
-      let y = kopfY - h * .35;                       // Unterkante über dem Boden
+      let y = kopfY - h * .5;
       y = Math.max(ry, Math.min(hoch - h - ry, y));
+      // Höhe der Spitze an der Blase (von unten), so dass sie auf den Mund zeigt
+      const sy = Math.max(schrift * .5, Math.min(h - schrift * .5, kopfY - y));
+      b.style.setProperty("--spitze-y", sy + "px");
+      b.style.setProperty("--spitze", spitze + "px");
       b.style.left = x + "px"; b.style.bottom = y + "px";
       b.animate([{ opacity: 0, transform: "scale(.6)" }, { opacity: 1, transform: "scale(1)" }],
         { duration: 260, easing: "cubic-bezier(.3,1.4,.5,1)", fill: "forwards" });
@@ -448,8 +468,9 @@ export default function Durchfahrt({ tief = false } = {}) {
         zug.classList.add("wm-steht");
         await warte(250);
         if (aus || !zug.isConnected) return;
-        const kopfY = boden + P * (1 - TEIL.kopf[1]);
-        const blase = sprechen(naechsterSpruch(), imBand(kopfPos), kopfY, P * .16, rechts, H);
+        // Mund im Bild (stehend, nie gespiegelt): Mitte des Gesichts, unter der Nase
+        const mundY = boden + P * (1 - MUND[1]);
+        const blase = sprechen(naechsterSpruch(), imBand(px + MUND[0] * Pb), mundY, Pb * .13, rechts, H);
         await warte(halt - 600);
         const weg = blase.animate([{ opacity: 1 }, { opacity: 0, transform: "scale(.85)" }], { duration: 220, fill: "forwards" });
         weg.onfinish = () => { blase.remove(); blasen.delete(blase); };

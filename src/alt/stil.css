@@ -14099,11 +14099,18 @@ body.dunkel .umzug-wiese--schnee { filter: brightness(.82) saturate(.9); }
 .wm-blase { position: absolute; z-index: 8; pointer-events: none; padding: .45em .75em; border-radius: 1em;
   background: #fff; color: #1b2a3a !important; -webkit-text-fill-color: #1b2a3a; font-weight: 700; line-height: 1.25;
   box-shadow: 0 4px 14px rgba(0,0,0,.28); border: 2px solid #1b2a3a; transform-origin: 0 100%; }
-.wm-blase--links { transform-origin: 100% 100%; }
-.wm-blase::after { content: ""; position: absolute; bottom: -10px; width: 16px; height: 16px; background: #fff;
-  border-right: 2px solid #1b2a3a; border-bottom: 2px solid #1b2a3a; transform: rotate(45deg); }
-.wm-blase--rechts::after { left: 14px; transform: rotate(45deg) skew(10deg, 10deg); }
-.wm-blase--links::after { right: 14px; }
+.wm-blase::after { content: ""; position: absolute; bottom: calc(var(--spitze-y, 20px) - var(--spitze, 12px) * .5);
+  width: var(--spitze, 12px); height: var(--spitze, 12px); background: #fff; }
+.wm-blase--rechts { transform-origin: 0 50%; }
+.wm-blase--links { transform-origin: 100% 50%; }
+.wm-blase--rechts::after { left: calc(var(--spitze, 12px) * -1 + 1px);
+  clip-path: polygon(0 50%, 100% 0, 100% 100%); background: #1b2a3a; }
+.wm-blase--links::after { right: calc(var(--spitze, 12px) * -1 + 1px);
+  clip-path: polygon(100% 50%, 0 0, 0 100%); background: #1b2a3a; }
+.wm-blase::before { content: ""; position: absolute; z-index: 1; bottom: calc(var(--spitze-y, 20px) - var(--spitze, 12px) * .5 + 3px);
+  width: calc(var(--spitze, 12px) - 2px); height: calc(var(--spitze, 12px) - 6px); background: #fff; }
+.wm-blase--rechts::before { left: calc(var(--spitze, 12px) * -1 + 4px); clip-path: polygon(0 50%, 100% 0, 100% 100%); }
+.wm-blase--links::before { right: calc(var(--spitze, 12px) * -1 + 4px); clip-path: polygon(100% 50%, 0 0, 0 100%); }
 
 /* Todos beim Ein- und Ausklappen der Seitenleiste (seit 1.556.2, Patrick
    15. November 2026: „die Animation passt mir nicht von Todos, wenn man das
