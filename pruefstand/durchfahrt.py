@@ -1,8 +1,8 @@
 # Startseite und Infoboard: Im Band oben laufen wieder die weisslichen
 # Hühner vom Anfang herum, legen Eier und verlieren Federn, dazu je
 # Jahreszeit Schnee, Blätter, Blüten, Blümchen von unten und im Sommer ein
-# Wasserball (seit 1.573.0, Wunsch Patrick 16. November 2026; 1.555.0 bis
-# 1.572.x die Person mit dem Schlitten). Die Pausen werden hier verkürzt.
+# Wasserball (seit 1.574.0, Wunsch Patrick 16. November 2026; 1.555.0 bis
+# 1.573.x die Person mit dem Schlitten). Die Pausen werden hier verkürzt.
 # BILDER=<Ordner> legt Bildschirmfotos ab.
 import os, time, json
 from pruefstand import server_starten, FAKE, CH, PORT
