@@ -640,6 +640,22 @@ export default function HoferCam() {
             }
           }}
           nachOeffnen={(z) => dateienFuerName(z.name)} />
+        {/* Seit 1.577.0 (Wunsch Patrick 16. November 2026: „einen Button
+            Schliessen, damit das aktuelle geschlossen wird und die
+            Grundmaske wieder erscheint“): leert alles wie beim ersten
+            Öffnen; nicht Gespeichertes fragt einmal nach */}
+        <button className="linkknopf" id="camab-schliessen" title="Aktuelles Programm schliessen, leere Maske zeigen"
+          onClick={async () => {
+            const leer = JSON.stringify(w) === JSON.stringify(vorgabe());
+            const offen = !leer && !(gespeichert && gespeichert.nc === ncBeide);
+            if (offen && !(await alt.nachfragen({ titel: "Schliessen",
+              text: "Das Programm ist nicht gespeichert. Trotzdem schliessen? Die Eingaben gehen verloren.",
+              bestaetigen: "Schliessen", gefahr: true }))) return;
+            setGespeichert(null);
+            setAktiv(null);
+            await Promise.all([dateiVergessen(1), dateiVergessen(2)]);
+            laden(vorgabe());
+          }}>Schliessen</button>
       </div>
       <NcStand kurz="camab" gespeichert={gespeichert} nc={ncBeide} />
 
