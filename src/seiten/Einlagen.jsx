@@ -27,7 +27,7 @@ import { useEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import {
   scanLesen, scanAblegen, scanWeg, verknuepftLesen, verknuepftSetzen, signatur, projektOhneFoto,
-  foto, werkzeugDaten, finden, umrissPfad, tiefeOk, vorgabeTiefe,
+  foto, werkzeugDaten, finden, umrissPfad, tiefeOk, vorgabeTiefe, formArt, formMassSetzen,
 } from "./einlagen/scan.js";
 
 // Bedienung im Rahmen sieht die App nicht von selbst; ohne Weitergabe
@@ -422,6 +422,26 @@ export default function Einlagen() {
     alt.meldung("Tiefe von „" + x.name + "“: " + roh + " mm.", "gut");
   }
 
+  // Masse einer gespeicherten Tasche (Rechteck) oder eines Kreises ändern, mit Rückgängig (Wunsch Patrick 16. November 2026)
+  async function massAendern(x, feld, welches) {
+    const d = x.daten || {}, f = formArt(d), roh = String(feld.value).replace(",", ".").trim();
+    if (!f) return;
+    const jetzt = f.art === "kreis" ? f.d : f[welches];
+    if (roh === "" || !Number.isFinite(+roh) || +roh < 1 || +roh > 1000) {
+      if (roh !== "") alt.meldung("Das Mass muss eine Zahl von 1 bis 1'000 mm sein.", "warn");
+      feld.value = jetzt; return;
+    }
+    if (Math.abs(+roh - jetzt) < 0.0005) return;
+    const b = f.art === "kreis" ? +roh : welches === "b" ? +roh : f.b, l = f.art === "kreis" ? +roh : welches === "l" ? +roh : f.l;
+    const daten = formMassSetzen(d, b, l);
+    const { data, error } = await alt.db.from("einlagen_werkzeuge").update({ daten }).eq("id", x.id).select("geaendert_am").maybeSingle();
+    if (error || !data) { alt.meldung("Mass nicht gespeichert" + (error ? ": " + alt.fehlertext(error) : "."), "fehler"); feld.value = jetzt; return; }
+    alt.merkeSchritt("Masse „" + x.name + "“", alt.rueckSetz("einlagen_werkzeuge", { daten: d }, { id: x.id }));
+    setListe((li) => li && li.art === "werkzeuge"
+      ? { ...li, zeilen: li.zeilen.map((y) => (y.id === x.id ? { ...y, daten, geaendert_am: data.geaendert_am } : y)) } : li);
+    alt.meldung("„" + x.name + "“: " + (f.art === "kreis" ? "Ø " + roh : alt.zahlText(b) + " × " + alt.zahlText(l)) + " mm.", "gut");
+  }
+
   // Gespeicherte Einlage oder gespeichertes Werkzeug umbenennen, mit Rückgängig (Wunsch Patrick 13. November 2026)
   async function umbenennen(x, art) {
     const einlage = art === "einlagen", tabelle = einlage ? "einlagen" : "einlagen_werkzeuge";
@@ -559,14 +579,23 @@ export default function Einlagen() {
           {!liste.zeilen ? <p className="einlagen__stand">Lädt …</p>
             : !liste.zeilen.length ? <p className="einlagen__stand">Noch kein Werkzeug gespeichert. Beim Erfassen „Werkzeug speichern“ antippen.</p>
             : liste.zeilen.map((x) => {
-              const d = x.daten || {}, u = umrissPfad(d), m = d.mass || [];
+              const d = x.daten || {}, u = umrissPfad(d), m = d.mass || [], fa = formArt(d);
+              const massFeld = (welches, wert, text) => (
+                <label className="einlagen__tiefe">{text}
+                  <input key={x.id + ":" + welches + ":" + wert} type="number" inputMode="decimal" min="1" max="1000" step="any"
+                    defaultValue={wert} data-wz={"mass-" + welches} aria-label={text + " von " + x.name + " in mm"}
+                    onBlur={(e) => massAendern(x, e.target, welches)}
+                    onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }} /> mm
+                </label>);
               return (
                 <div key={x.id} className="einlagen__zeile einlagen__wz">
                   {u ? <svg className="einlagen__umriss" viewBox={u.box} aria-hidden="true"><path d={u.d} fillRule="evenodd" /></svg>
                     : <span className="einlagen__umriss" />}
                   <div className="einlagen__wz-text">
                     <b>{x.name}</b>
-                    {m.length === 2 && <span>{alt.zahlText(Math.round(m[0]))} × {alt.zahlText(Math.round(m[1]))} mm</span>}
+                    {fa && fa.art === "kreis" ? massFeld("d", fa.d, "Ø")
+                      : fa ? <span className="einlagen__masse">{massFeld("b", fa.b, "Breite")}{massFeld("l", fa.l, "Länge")}</span>
+                      : m.length === 2 && <span>{alt.zahlText(Math.round(m[0]))} × {alt.zahlText(Math.round(m[1]))} mm</span>}
                     <label className="einlagen__tiefe">Tiefe
                       <input key={x.id + ":" + d.depth} type="number" inputMode="decimal" min="0.5" max="200" step="0.5"
                         defaultValue={d.depth || ""} data-wz="tiefe" aria-label={"Tiefe von " + x.name + " in mm"}

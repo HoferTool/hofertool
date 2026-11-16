@@ -14263,3 +14263,7 @@ body.dunkel .cam-datei { background: #17324f; }
 .cam-datei--fehler { background: #fde8e6; color: #9c1c13; }
 .cam-datei-grund { display: block; width: 100%; margin-top: 4px; padding: 4px 8px; border-radius: 6px; background: #fde8e6; color: #9c1c13; font-size: 12px; overflow-wrap: anywhere; }
 body.dunkel .cam-datei--fehler, body.dunkel .cam-datei-grund { background: #4a1c18; }
+/* Masse gespeicherter Taschen und Kreise (1.571.0) */
+.einlagen__masse { display: inline-flex; flex-wrap: wrap; gap: 4px 10px; }
+.einlagen__masse .einlagen__tiefe { font-size: .85rem; }
+.einlagen__wz-text > .einlagen__tiefe { font-size: .85rem; }
