@@ -283,6 +283,20 @@ function imTeil(p, kanal, uMasch, wMasch, zTeil, W) {
 }
 
 // Alles für die Ansicht: Rohteil und je Bearbeitung die Bahn im Teil
+// Seit 1.567.2 (Patrick 16. November 2026: „nimm nicht den Wert der
+// Vorposition, sondern den Z-Wert der ersten nicht G0-Bewegung“): Lage der
+// Stirn = Z am Ende der ersten Vorschubbewegung (Drehplatte am festen
+// Frontwerkzeug); bei einem Bohrzyklus dort, wo er anfängt
+function ersteVorZ(roh, zeilen) {
+  const k = roh.findIndex((p) => p.vor && p.z != null);
+  if (k < 0) return null;
+  const nr = roh[k].nr;
+  if (/G8[3-9]/i.test(String(zeilen[nr] || "")) && k > 0) return roh[k - 1].z;
+  let j = k;
+  while (j + 1 < roh.length && roh[j + 1].vor && roh[j + 1].nr === nr) j++;
+  return roh[j].z;
+}
+
 export function simAufbauen(wRoh) {
   const w = wirksamW(wRoh);
   const A = num(w.A) || 10, W = num(w.W) || 10, B = num(w.B) || 0;
@@ -366,7 +380,10 @@ export function simAufbauen(wRoh) {
         // Gegenspindel wie bisher weg von „Zurück Z“
         const an = num(b.anZ) ?? 0, weg = num(b.wegZ);
         const sg = kanal === 1 ? 1 : weg != null && weg > an ? -1 : 1;
-        s.punkte = roh.map((p) => ({ z: sg * (p.z - an) - 0.5, r: Math.abs(p.x || 0) / 2, vor: p.vor, nr: p.nr }));
+        // nur Drehplatten: beim Bohren ist die erste Vorschubbewegung die Bohrung selbst
+        const zErst = wa === "dreh" ? ersteVorZ(roh, zeilen) : null;
+        const z0 = zErst ?? an, luft = zErst != null ? 0 : 0.5;
+        s.punkte = roh.map((p) => ({ z: sg * (p.z - z0) - luft, r: Math.abs(p.x || 0) / 2, vor: p.vor, nr: p.nr }));
         // Seit 1.567.0 (Patrick 16. November 2026: „bei T1200 Front
         // Innendrehen nur die Werkzeugbahn“): eine Drehplatte am festen
         // Frontwerkzeug dreht wie ein Drehwerkzeug, X aus dem Programm
