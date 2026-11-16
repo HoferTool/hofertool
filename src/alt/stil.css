@@ -14241,3 +14241,6 @@ body.dunkel .cam-lagebild__text { fill: #2b3744 !important; }
 .cam-wz__freifeld input { width: 52px; }
 .cam-wz__freifeld.cam-feld--fehler input { border-color: #b3261e; background: #fdecea; }
 .cam-wz__freiwinkel { font-weight: 600; font-size: 13px; }
+/* HOFERCAM-Simulation: Legende Rohmaterial / bearbeitet (seit 1.560.0) */
+.cam-sim__legende { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 4px 0; }
+.cam-sim__farbe { display: inline-block; width: 14px; height: 14px; border-radius: 3px; border: 1px solid #5b6875; margin-left: 4px; }

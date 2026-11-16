@@ -63,7 +63,12 @@ const GLANZ = (() => { const v = [LICHT[0], LICHT[1], LICHT[2] + 1]; const l = M
 // Körper mit Bohrungen und Fräsungen: je Bildpunkt ein Strahl durch das
 // Material (Drehteil aus aussen/innen, dazu das Zellenraster). q = Bildpunkte
 // je Punkt am Schirm (beim Abspielen gröber, damit es flüssig bleibt).
-function strahlenMalen(g, W, H, { st, vox, kanal2, Wt, bereich, dreh, zoom, schnitt, q, bu }) {
+// Seit 1.560.0 (Patrick 16. November 2026: „das Rohteil in einer anderen
+// Farbe als das Fertigteil“): noch unbearbeitete Flächen des Rohmaterials
+// (Aussen-Ø der Stange, Stirn der Stange vorne) erdig, alles Bearbeitete
+// hell metallisch
+const FARBE_ROH = [160, 146, 120], FARBE_BEARB = [176, 190, 206];
+function strahlenMalen(g, W, H, { st, vox, kanal2, Wt, bereich, dreh, zoom, schnitt, q, bu, roh }) {
   const ab = abbildung(W, H, { bereich, dreh, zoom });
   const { zm, s, ox, oy, r1, r2, r3 } = ab;
   const iw = Math.max(40, Math.round(W * q)), ih = Math.max(30, Math.round(H * q));
@@ -186,7 +191,9 @@ function strahlenMalen(g, W, H, { st, vox, kanal2, Wt, bereich, dreh, zoom, schn
       if (nv[2] < 0) nv = nv.map((c) => -c);
       const diff = Math.max(0, nv[0] * LICHT[0] + nv[1] * LICHT[1] + nv[2] * LICHT[2]);
       const glanz = Math.pow(Math.max(0, nv[0] * GLANZ[0] + nv[1] * GLANZ[1] + nv[2] * GLANZ[2]), 40);
-      const basis = buechse ? [112, 124, 140] : warum === 3 ? [226, 176, 120] : warum === 4 ? [168, 186, 212] : [176, 190, 206];
+      const istRoh = roh && !buechse && ((warum === 1 && aw(z) >= roh.R - 0.02)
+        || (warum === 5 && roh.vorne != null && Math.abs(z - roh.vorne) < 2 * RASTER));
+      const basis = buechse ? [112, 124, 140] : warum === 3 ? [226, 176, 120] : warum === 4 ? [168, 186, 212] : istRoh ? FARBE_ROH : FARBE_BEARB;
       const hell = 0.5 + 0.6 * diff;
       const o = (j * iw + i) * 4;
       px[o] = Math.min(255, basis[0] * hell + 255 * glanz * 0.55);
@@ -200,7 +207,7 @@ function strahlenMalen(g, W, H, { st, vox, kanal2, Wt, bereich, dreh, zoom, schn
   g.drawImage(bild, 0, 0, W, H);
 }
 
-function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, hinweis }) {
+function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, hinweis, roh }) {
   g.clearRect(0, 0, W, H);
   const { zmin, zmax, rmax } = bereich;
   const zm = (zmin + zmax) / 2;
@@ -228,7 +235,7 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
     const glanz = Math.pow(Math.max(0, n[0] * Hh[0] + n[1] * Hh[1] + n[2] * Hh[2]), 40);
     liste.push({ pts, art, hell: 0.5 + 0.6 * diff, glanz, tiefe: pts.reduce((m, p) => m + p.t, 0) / pts.length });
   };
-  if (strahl) strahlenMalen(g, W, H, { ...strahl, bereich, dreh, zoom, schnitt, bu: ueber.buechse });
+  if (strahl) strahlenMalen(g, W, H, { ...strahl, bereich, dreh, zoom, schnitt, bu: ueber.buechse, roh });
   else if (umriss) {
     const { aussen, innen } = umriss;
     const zug = [...aussen, ...innen.slice().reverse()];
@@ -240,6 +247,9 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
       const p = zug[i], q = zug[(i + 1) % zug.length];
       if (p.r < 1e-6 && q.r < 1e-6) continue;
       if (Math.hypot(p.z - q.z, p.r - q.r) < 1e-9) continue;
+      // Rohmaterial: Aussen-Ø der Stange oder ihre Stirn vorne
+      const istRoh = roh && i < aussen.length - 1 && ((p.r >= roh.R - 0.02 && q.r >= roh.R - 0.02)
+        || (roh.vorne != null && Math.abs(p.z - roh.vorne) < 0.03 && Math.abs(q.z - roh.vorne) < 0.03));
       // lange Stücke (die Stange) unterteilen, sonst sortiert der Maler
       // sie falsch gegen die Führungsbüchse
       const teile = Math.max(1, Math.ceil(Math.abs(q.z - p.z) / lang));
@@ -248,7 +258,7 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
         const b = { z: p.z + ((q.z - p.z) * (t + 1)) / teile, r: p.r + ((q.r - p.r) * (t + 1)) / teile };
         for (let j = 0; j < schritte; j++) {
           const f0 = von + ((bis - von) * j) / schritte, f1 = von + ((bis - von) * (j + 1)) / schritte;
-          flaeche([ansicht(a.z, a.r, f0), ansicht(b.z, b.r, f0), ansicht(b.z, b.r, f1), ansicht(a.z, a.r, f1)], "mantel");
+          flaeche([ansicht(a.z, a.r, f0), ansicht(b.z, b.r, f0), ansicht(b.z, b.r, f1), ansicht(a.z, a.r, f1)], istRoh ? "roh" : "mantel");
         }
       }
     }
@@ -301,7 +311,7 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
   const P = (p) => ({ x: ox + p.x * s, y: oy - p.y * s });
   g.lineJoin = "round"; g.lineWidth = 0.7;
   for (const f of liste) {
-    const basis = f.art === "schnitt" ? [226, 176, 120] : f.art === "buechse" ? [112, 124, 140] : [176, 190, 206];
+    const basis = f.art === "schnitt" ? [226, 176, 120] : f.art === "buechse" ? [112, 124, 140] : f.art === "roh" ? FARBE_ROH : FARBE_BEARB;
     const c = `rgb(${basis.map((q) => Math.min(255, Math.round(q * f.hell + 255 * f.glanz * 0.55))).join(",")})`;
     g.beginPath();
     f.pts.forEach((p, i) => { const q = P(p); if (i) g.lineTo(q.x, q.y); else g.moveTo(q.x, q.y); });
@@ -360,6 +370,11 @@ function Simulation({ w, zu }) {
   const [n, setN] = useState(sim.gesamt);
   const [laeuft, setLaeuft] = useState(false);
   const [tempo, setTempo] = useState("3");
+  // Seit 1.560.0 (Patrick 16. November 2026: „Option, um nur Bearbeitung
+  // für Bearbeitung laufen zu lassen“): hält am Ende jeder Bearbeitung an,
+  // Abspielen fährt mit der nächsten weiter; je Gerät gemerkt
+  const [einzeln, setEinzeln] = useState(() => { try { return localStorage.getItem("hofer.camSim.einzeln") === "1"; } catch { return false; } });
+  const ziel = useRef(0);
   const [dreh, setDreh] = useState(SCHRAEG);
   const [zoom, setZoom] = useState(1);
   const [schnitt, setSchnitt] = useState(true);
@@ -461,7 +476,9 @@ function Simulation({ w, zu }) {
     const vx = stand.vox && stand.vox.weg > 0 ? stand.vox : null;
     const strahl = vx && umriss ? { st, vox: vx, kanal2: kanal === 2, Wt: W, q: laeuft ? 0.45 : 1 } : null;
     cv.__stand = stand; cv.__sim = sim; cv.__strahl = !!strahl; cv.__buechse = ueber.buechse; cv.__weg = wegZ; // für den Prüfstand
-    malen(g, breite, HOCH, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, hinweis: umriss ? "" : "Kein Material" });
+    // Rohmaterial: Stirn vorne nur vorne (Kanal 1), vor der Übergabe
+    const roh = { R: A / 2, vorne: kanal === 1 && !wegZ ? vorne : null };
+    malen(g, breite, HOCH, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, roh, hinweis: umriss ? "" : "Kein Material" });
   }, [sim, stand, n, kanal, akt, dreh, zoom, schnitt, breite, laeuft]);
 
   useEffect(() => {
@@ -472,15 +489,16 @@ function Simulation({ w, zu }) {
     const win = (leinwand.current && leinwand.current.ownerDocument.defaultView) || window;
     const weiter = () => {
       setN((x) => {
-        const neu = Math.min(gesamt, x + Math.max(1, Math.round(Number(tempo) * 6)));
-        if (neu >= gesamt) setLaeuft(false);
+        const bis = einzeln && ziel.current > 0 ? Math.min(gesamt, ziel.current) : gesamt;
+        const neu = Math.min(bis, x + Math.max(1, Math.round(Number(tempo) * 6)));
+        if (neu >= bis) setLaeuft(false);
         return neu;
       });
       id = win.requestAnimationFrame(weiter);
     };
     id = win.requestAnimationFrame(weiter);
     return () => win.cancelAnimationFrame(id);
-  }, [laeuft, tempo, gesamt]);
+  }, [laeuft, tempo, gesamt, einzeln]);
 
   // Drehen und Zoomen wie in der 3D-Ansicht der Kontur
   const runter = (e) => {
@@ -525,7 +543,15 @@ function Simulation({ w, zu }) {
           <canvas ref={leinwand} className="cam-sim__bild" id="cam-sim-bild" data-cam-sim-n={n} style={{ height: HOCH + "px", width: "100%" }}
             onPointerDown={runter} onPointerMove={bewegen} onPointerUp={hoch} onPointerCancel={hoch} />
           <div className="cam-sim__knoepfe">
-            <button className="knopf knopf--klein knopf--primaer" id="cam-sim-start" onClick={() => { if (n >= gesamt) setN(0); setLaeuft(!laeuft); }}>
+            <button className="knopf knopf--klein knopf--primaer" id="cam-sim-start" onClick={() => {
+              if (laeuft) { setLaeuft(false); return; }
+              const ab = n >= gesamt ? 0 : n;
+              if (n >= gesamt) setN(0);
+              // Ende der Bearbeitung, in der es weitergeht
+              const s = schritte.find((x) => x.punkte.length && x.bis > ab);
+              ziel.current = s ? s.bis : gesamt;
+              setLaeuft(true);
+            }}>
               {laeuft ? "⏸ Pause" : "▶ Abspielen"}</button>
             <button className="knopf knopf--klein" id="cam-sim-anfang" onClick={() => { setLaeuft(false); setN(0); }}>⏮ Rohteil</button>
             <button className="knopf knopf--klein" id="cam-sim-ende" onClick={() => { setLaeuft(false); setN(gesamt); }}>Fertigteil ⏭</button>
@@ -533,6 +559,8 @@ function Simulation({ w, zu }) {
               <select value={tempo} onChange={(e) => setTempo(e.target.value)}>
                 {TEMPI.map(([x, t]) => <option key={x} value={x}>{t}</option>)}
               </select></label>
+            <label className="schalter" title="Abspielen hält am Ende jeder Bearbeitung an, nochmals Abspielen fährt die nächste"><input type="checkbox" id="cam-sim-einzeln" checked={einzeln}
+              onChange={(e) => { setEinzeln(e.target.checked); try { localStorage.setItem("hofer.camSim.einzeln", e.target.checked ? "1" : "0"); } catch { /* egal */ } }} /><span>Einzeln</span></label>
             <label className="schalter"><input type="checkbox" id="cam-sim-schnitt" checked={schnitt} onChange={(e) => setSchnitt(e.target.checked)} /><span>Aufgeschnitten</span></label>
             <button className="knopf knopf--klein" onClick={() => { setDreh(SCHRAEG); setZoom(1); }}>Schräg</button>
             <button className="knopf knopf--klein" onClick={() => setDreh(SEITE)}>Von der Seite</button>
@@ -555,6 +583,8 @@ function Simulation({ w, zu }) {
                 {s.status && <small>{STATUS[s.status]}</small>}
               </button>);
           })}
+          <p className="klein cam-sim__legende" data-cam-sim-legende><span className="cam-sim__farbe" style={{ background: `rgb(${FARBE_ROH})` }} />Rohmaterial
+            <span className="cam-sim__farbe" style={{ background: `rgb(${FARBE_BEARB})` }} />bearbeitet</p>
           <p className="klein cam-sim__info">Ohne Halter, ohne Kollisionsprüfung. Gerechnet wird das erzeugte Programm, ohne Änderungen von Hand im Programmfenster.</p>
         </div>
       </div>
