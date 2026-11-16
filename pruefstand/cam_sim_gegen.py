@@ -1,0 +1,73 @@
+# HOFERCAM 3D-Simulation, Gegenspindel (seit 1.583.0): greift bei der
+# Übergabe über das Teil, fährt in Kanal 2 mit dem Teil, die Einheit
+# T2100–T2400 steht, ihr Gehäuse sitzt hinter der Spitze des Werkzeugs.
+import time
+from pruefstand import server_starten, FAKE, CH, PORT
+from playwright.sync_api import sync_playwright
+server_starten(); time.sleep(0.4)
+fehler = []
+def pruefe(name, ok):
+    print(("ok   " if ok else "FALSCH ") + name)
+    if not ok: fehler.append(name)
+S = "/tmp/claude-0/-home-user/e193e6f8-e4d3-5775-9ccb-4db292d1b235/scratchpad/"
+G87 = """G0Z6.
+#100=4(ANZAHL)
+#101=360/#100
+#102=#100-1
+WHILE[#102GE#0]DO1
+G1X19.F0.5
+G87X8.F0.02
+G80
+G1X19.F0.5
+G1H#101F1.
+#102=#102-1
+END1"""
+def werkzeug(pg, i, form, d, winkel=None, laenge="12"):
+    pg.click(f"[data-camwz-auf='{i}']"); pg.click(f"[data-camwz-form='{form}']")
+    pg.fill("[data-camwz='d']", d)
+    if winkel: pg.fill("[data-camwz='winkel']", winkel)
+    pg.fill("[data-camwz='laenge']", laenge)
+    pg.click(".cam-wz [title='Schliessen']")
+with sync_playwright() as p:
+    br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
+    pg = br.new_context(viewport={"width": 1440, "height": 900}).new_page()
+    pg.on("pageerror", lambda e: fehler.append("SEITENFEHLER: " + str(e)[:160]))
+    pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FAKE))
+    for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
+        pg.route(u, lambda r: r.abort())
+    pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
+    pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#nc'")
+    pg.wait_for_selector("[data-unter='nc/cam']"); pg.click("[data-unter='nc/cam']")
+    pg.wait_for_selector("#cam-kanaele")
+    for n, x in [("A", "17"), ("W", "15"), ("B", "1.5"), ("X", "-0.8"), ("S", "3000"), ("Z", "160"), ("F", "0.03"), ("ueber", "8")]:
+        pg.fill(f"[data-cam='{n}']", x)
+    pg.click("#cam-neu-dreh")
+    pg.fill("[data-block='0'] [data-camblock='code']", "G1X12.F0.1\nG1Z8.\nG1X17.5")
+    pg.click("[data-camwz-auf='0']"); pg.click("[data-camwz-form='C']")
+    pg.fill("[data-camwz='r']", "0.4"); pg.click("[data-camwz-sl='ur']")
+    pg.click(".cam-wz [title='Schliessen']")
+    pg.click("#cam-neu-k2a")
+    pg.fill("[data-block='1'] [data-camblock='code']", "G0X8.\nG0Z1.\nG1Z-3.F50.\nG0Z1.")
+    werkzeug(pg, 1, "bohrer", "3", "118")
+    pg.click("#cam-sim-auf")
+    pg.wait_for_selector("#cam-sim-bild"); pg.wait_for_timeout(400)
+    E = lambda a: pg.evaluate("() => document.querySelector('#cam-sim-bild').__" + a)
+    namen = pg.evaluate("() => document.querySelector('#cam-sim-bild').__sim.schritte.map((x) => x.titel + ' K' + x.kanal)")
+    print(namen)
+    pg.click("[data-cam-sim-schritt='0']"); pg.wait_for_timeout(200)
+    pruefe("Vor der Übergabe keine Gegenspindel", E("gegen") is None)
+    pg.click("[data-cam-sim-schritt='ab']"); pg.wait_for_timeout(300)
+    g = E("gegen"); print("Übergabe", g)
+    pruefe("Übergabe: Gegenspindel greift vorne über das Teil", g and g["dir"] == -1)
+    pg.locator("#cam-sim").screenshot(path=S + "gegen_uebergabe.png")
+    pg.click("[data-cam-sim-schritt='1']"); pg.wait_for_timeout(300)
+    g = E("gegen"); t = E("traeger"); print("Kanal 2", g, t)
+    pruefe("Kanal 2: Gegenspindel 8 mm über dem Teil (Z2 = 15 - 8)", g and g["dir"] == 1 and abs(g["z"] - 7) < 1e-9)
+    pruefe("Kanal 2: Einheit am angetriebenen Werkzeug", t and 2100 <= t["aktiv"] <= 2400)
+    pruefe("Kanal 2: Werkzeug bei X8 steht 4 mm neben der Achse", t and abs((t["x"] ** 2 + t["y"] ** 2) ** 0.5 - 4) < 0.01)
+    pg.locator("#cam-sim").screenshot(path=S + "gegen_k2.png")
+    pg.click("#cam-sim-maschine"); pg.wait_for_timeout(200)
+    pruefe("Ohne Maschine keine Gegenspindel", E("gegen") is None)
+    pg.click("#cam-sim-maschine")
+    br.close()
+print("Fehler:", ", ".join(fehler) if fehler else "keine")

@@ -419,6 +419,8 @@ export function simAufbauen(wRoh) {
     roh: { A, W, B, vorne }, schritte: sortiert, gesamt: ab, zMax, zStange, hatK2: sortiert.some((s) => s.kanal === 2),
     // Platz 34: T3400 oder T3421–T3423 montiert, die Simulation zeigt nur das Montierte
     t34: String(wRoh?.t34) === "3400" ? "3400" : "3421",
+    // so weit greift die Gegenspindel über das Teil („Über das Teil Z“)
+    greif: Math.max(1, Math.min(W - 0.5, num(w.ueber) || Math.max(2, W / 2))),
     vox: hatC ? { z0: vorne - 0.5, z1: Math.min(zMax, Math.max(W + B + 1, cZ)) } : null,
   };
 }

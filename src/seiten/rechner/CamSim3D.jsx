@@ -13,7 +13,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { RASTER, materialStand, simAufbauen, umrissVon, plattenHuelle, bohrerHuelle } from "./camSim.js";
-import { MASCHINE_SB20RG, platzLage, traegerQuader } from "./camMaschine.js";
+import { MASCHINE_SB20RG, GEGEN_SB20RG, platzLage, traegerQuader, gegenEinheit, gegenQuader } from "./camMaschine.js";
 
 // Seit 1.558.3 wie an der Maschine: Führungsbüchse links, das Teil schaut
 // nach rechts, schräg von vorne auf die Stirn (Patrick 16. November 2026:
@@ -288,8 +288,9 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
       for (const x of [b.x0, b.x1]) rechteck([b.z0, x, b.y0], [dz, 0, 0], [0, 0, dy], b.art);
       for (const y of [b.y0, b.y1]) rechteck([b.z0, b.x0, y], [dz, 0, 0], [0, dx, 0], b.art);
     }
-    const k = maschine.kopf;
-    if (k) {
+    // Spindelstock und Gegenspindel (seit 1.583.0), dir −1 = Körper nach −z
+    for (const k of maschine.koepfe || (maschine.kopf ? [maschine.kopf] : [])) {
+      const d = k.dir || 1;
       const N = maschine.grob ? 24 : 40;
       const rohr = (z1, z2, r) => {
         const st = teile(z2 - z1);
@@ -308,10 +309,10 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
         }
       };
       ring(k.z, k.ri, k.nase);
-      rohr(k.z, k.z + k.naseL, k.nase);
-      ring(k.z + k.naseL, k.nase, k.r);
-      rohr(k.z + k.naseL, k.z + k.naseL + k.L, k.r);
-      ring(k.z + k.naseL + k.L, k.ri, k.r);
+      rohr(k.z, k.z + d * k.naseL, k.nase);
+      ring(k.z + d * k.naseL, k.nase, k.r);
+      rohr(k.z + d * k.naseL, k.z + d * (k.naseL + k.L), k.r);
+      ring(k.z + d * (k.naseL + k.L), k.ri, k.r);
     }
     ziel = liste;
   }
@@ -613,12 +614,42 @@ function Simulation({ w, zu }) {
     // Mit Bohrungen und Fräsungen aus C und Y: Strahlen statt Maler
     const vx = stand.vox && stand.vox.weg > 0 ? stand.vox : null;
     const strahl = vx && umriss ? { st, vox: vx, kanal2: kanal === 2, Wt: W, q: laeuft ? 0.45 : 1 } : null;
-    const k = MASCHINE_SB20RG.kopf;
-    const maschine = kanal === 1 && maschineAn ? {
-      quader: traeger ? traegerQuader(traeger, traeger.aktiv, undefined, sim.t34) : [], roll, grob: laeuft,
-      kopf: { z: kopfZ, ri: A / 2, nase: k.nase, naseL: k.naseL, r: k.r, L: k.L },
-    } : null;
-    cv.__traeger = traeger; cv.__kopf = maschine ? maschine.kopf : null; cv.__roll = roll;
+    const k = MASCHINE_SB20RG.kopf, gs = GEGEN_SB20RG.spindel;
+    let maschine = null, gegen = null;
+    if (kanal === 1 && maschineAn) {
+      maschine = {
+        quader: traeger ? traegerQuader(traeger, traeger.aktiv, undefined, sim.t34) : [], roll, grob: laeuft,
+        kopf: { z: kopfZ, ri: A / 2, nase: k.nase, naseL: k.naseL, r: k.r, L: k.L },
+      };
+      maschine.koepfe = [maschine.kopf];
+      // Übergabe: die Gegenspindel greift vorne über das Teil und zieht es weg
+      if (abS && n > abS.von) {
+        gegen = { z: sim.greif - wegZ, ri: A / 2, nase: Math.max(gs.nase, A / 2 + 4), naseL: gs.naseL, r: gs.r, L: gs.L, dir: -1 };
+        maschine.koepfe.push(gegen);
+      }
+    } else if (kanal === 2 && maschineAn) {
+      // Seit 1.583.0: Gegenspindel fährt mit dem Teil (steht im Teil fest),
+      // die Werkzeuge stehen; die Einheit des Werkzeugs, das gerade arbeitet
+      gegen = { z: W - sim.greif, ri: A / 2, nase: Math.max(gs.nase, A / 2 + 4), naseL: gs.naseL, r: gs.r, L: gs.L, dir: 1 };
+      let sAkt = null, pAkt = null;
+      for (const x of sim.schritte) {
+        if (x.kanal !== 2 || x.von >= n || !x.punkte.length) continue;
+        sAkt = x; pAkt = x.punkte[Math.min(n, x.bis) - x.von - 1];
+      }
+      const e = sAkt ? gegenEinheit(sAkt.art, sAkt.platz) : null;
+      let quader = [];
+      if (e && pAkt) {
+        // Lage an der Maschine: angetriebene aus X / Y, sonst über der Achse in +X
+        const yM = pAkt.mx != null ? pAkt.mx : pAkt.r, wM = pAkt.my != null ? pAkt.my : 0;
+        const rM = Math.hypot(yM, wM);
+        if (pAkt.phi != null && rM > 1e-6) roll = Math.atan2(wM, yM) - pAkt.phi;
+        const ph = (pAkt.phi || 0) + roll, r = pAkt.r || 0;
+        traeger = { z: pAkt.z, x: r * Math.cos(ph), y: r * Math.sin(ph), aktiv: sAkt.platz };
+        quader = gegenQuader(traeger, e);
+      }
+      maschine = { quader, roll, grob: laeuft, koepfe: [gegen] };
+    }
+    cv.__traeger = traeger; cv.__kopf = maschine ? maschine.kopf || null : null; cv.__roll = roll; cv.__gegen = gegen;
     cv.__stand = stand; cv.__sim = sim; cv.__strahl = !!strahl; cv.__buechse = ueber.buechse; cv.__weg = wegZ; // für den Prüfstand
     // Rohmaterial: Stirn vorne nur vorne (Kanal 1), vor der Übergabe
     const roh = { R: A / 2, vorne: kanal === 1 && !wegZ ? vorne : null };
@@ -705,7 +736,7 @@ function Simulation({ w, zu }) {
               </select></label>
             <label className="schalter" title="Abspielen hält am Ende jeder Bearbeitung an, nochmals Abspielen fährt die nächste"><input type="checkbox" id="cam-sim-einzeln" checked={einzeln}
               onChange={(e) => { setEinzeln(e.target.checked); try { localStorage.setItem("hofer.camSim.einzeln", e.target.checked ? "1" : "0"); } catch { /* egal */ } }} /><span>Einzeln</span></label>
-            <label className="schalter" title="Werkzeugträger von Kanal 1 und Spindelstock zeigen"><input type="checkbox" id="cam-sim-maschine" checked={maschineAn}
+            <label className="schalter" title="Werkzeugträger, Spindelstock und Gegenspindel zeigen"><input type="checkbox" id="cam-sim-maschine" checked={maschineAn}
               onChange={(e) => { setMaschineAn(e.target.checked); try { localStorage.setItem("hofer.camSim.maschine", e.target.checked ? "1" : "0"); } catch { /* egal */ } }} /><span>Maschine</span></label>
             <label className="schalter"><input type="checkbox" id="cam-sim-schnitt" checked={schnitt} onChange={(e) => setSchnitt(e.target.checked)} /><span>Aufgeschnitten</span></label>
             <button className="knopf knopf--klein" onClick={() => { setDreh(SCHRAEG); setZoom(1); }}>Schräg</button>
