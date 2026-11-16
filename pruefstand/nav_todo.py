@@ -73,6 +73,15 @@ with sync_playwright() as p:
             pruefe(not pg.is_visible("#nav-todo"), "zugeklappt ausgeblendet")
             pg.click("#nav-klapp"); pg.wait_for_timeout(1200)
             pruefe(pg.is_visible("#nav-todo"), "aufgeklappt wieder da")
+            # seit 1.573.0: eigenes Todo mit ✕ löschen
+            vorher = pg.locator("#nav-todo [data-pltodo='eigen']").count()
+            pruefe(pg.locator("#nav-todo [data-pltodo='m'] [data-pltodoweg]").count() == 0, "nur eigene haben ✕")
+            pg.locator("#nav-todo [data-pltodo='eigen']", has_text="Gühring").locator("[data-pltodoweg]").click()
+            pg.wait_for_selector("[data-ja]", timeout=5000); pg.click("[data-ja]"); pg.wait_for_timeout(1500)
+            t2 = pg.inner_text("#nav-todo")
+            pruefe("Gühring wegen Termin anrufen" not in t2, "Todo gelöscht")
+            pruefe(pg.locator("#nav-todo [data-pltodo='eigen']").count() == vorher - 1, "eines weniger")
+            pruefe(not any(x.get("id") == "t1" for x in pg.evaluate("TEST.daten.planer_todos")), "auch in der Datenbank weg")
             # seit 1.556.1: Antippen springt zur Planwand, nicht die Pad-Planwand
             pg.click("#nav-todo [data-pltodo='m'] .pl-todo__text"); pg.wait_for_timeout(1500)
             pruefe("#/planwand" in pg.url, "Todo führt zur Planwand " + pg.url)

@@ -14267,3 +14267,12 @@ body.dunkel .cam-datei--fehler, body.dunkel .cam-datei-grund { background: #4a1c
 .einlagen__masse { display: inline-flex; flex-wrap: wrap; gap: 4px 10px; }
 .einlagen__masse .einlagen__tiefe { font-size: .85rem; }
 .einlagen__wz-text > .einlagen__tiefe { font-size: .85rem; }
+
+/* ---------- Todo löschen (1.573.0, Wunsch Patrick 16. November 2026) ---------- */
+.pl-todo__weg { flex: none; width: 28px; height: 28px; border: 0; border-radius: 8px; background: transparent;
+  color: #8a97ab; font: inherit; font-size: .95rem; line-height: 1; cursor: pointer; }
+.pl-todo__weg:hover { background: #fdecea; color: #d4322a; }
+#pad .pl-todo__weg { width: 36px; height: 36px; font-size: 1.1rem; color: #9fb0c8; }
+.nav-todo .pl-todo__weg { width: 20px; height: 20px; font-size: .75rem; border-radius: 5px; margin-top: -1px; }
+body.dunkel .pl-todo__weg:hover { background: #3a1a1e; }
+body.dunkel .pl-todo__weg:hover * , body.dunkel .pl-todo__weg:hover { color: #ff8a80 !important; }

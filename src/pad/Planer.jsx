@@ -167,7 +167,7 @@ function Todos({ d, neu, titel, oeffnen = planwandFensterOeffnen }) {
       unter: t.erledigt_am ? "erledigt " + alt.datumZeitKurz(t.erledigt_am) + (t.erledigt_von ? " · " + t.erledigt_von : "")
         : [t.faellig ? "fällig " + tagText(t.faellig) : "", t.fuer_alle === false ? "nur für mich" : t.erstellt_name].filter(Boolean).join(" · "),
       haken: async () => { try { await todoHaken(t, !t.erledigt_am); neu(); } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); } },
-      auf: () => todoBearbeiten(t, neu) });
+      auf: () => todoBearbeiten(t, neu), weg: () => todoWeg(t, neu) });
   }
   // Gemeldete Probleme zuerst, gleich darunter die eigenen, dann was von
   // selbst kommt (Patrick 13. November 2026: „eigene sollen gleich unter
@@ -208,6 +208,8 @@ function Todos({ d, neu, titel, oeffnen = planwandFensterOeffnen }) {
                   {{ problem: "PROBLEM", m: "M", wbg: "WBG", eigen: "EIGEN" }[p.art]}</span>{p.titel}</span>
                 {p.unter && <span className="pl-todo__unter">{p.unter}</span>}
               </button>
+              {p.weg && <button className="pl-todo__weg" data-pltodoweg="" title="Todo löschen" aria-label="Todo löschen"
+                onClick={p.weg}>✕</button>}
             </div>
           ))}
         </div>
@@ -249,11 +251,23 @@ function Abgeschlossen({ start, zu, neu }) {
                 t.fuer_alle === false ? "nur für mich" : ""].filter(Boolean).join(" · ")}</small>
             </span>
             <button className="knopf knopf--still" data-plwieder={t.id} onClick={() => wiederOffen(t)}>↶ Wieder offen</button>
+            <button className="pl-todo__weg" data-plabgweg={t.id} title="Todo löschen" aria-label="Todo löschen"
+              onClick={() => todoWeg(t, () => { setTodos((x) => x.filter((y) => y.id !== t.id)); neu(); })}>✕</button>
           </div>
         ))}
       </div>
     </div>
   );
+}
+
+// Eigenes Todo löschen mit dem ✕ am Eintrag, eine Rückfrage, mit
+// Rückgängig (seit 1.573.0, Wunsch Patrick 16. November 2026: „man soll
+// todos auch löschen können“; vorher nur über leeren Text, was die
+// Pflicht im Feld verhinderte)
+async function todoWeg(t, neu) {
+  if (!(await alt.nachfragen({ titel: "Todo löschen?", text: t.text, bestaetigen: "Löschen", gefahr: true }))) return;
+  try { await todoLoeschen(t); alt.meldung("Todo gelöscht.", "gut"); neu(); }
+  catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
 }
 
 async function todoBearbeiten(t, neu) {
