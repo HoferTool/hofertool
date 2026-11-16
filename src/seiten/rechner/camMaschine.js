@@ -44,7 +44,8 @@ export const TRAEGER_PLAETZE = [100, 200, 300, 400, 500, 600, 3100, 3200, 3300, 
 // Quader des Trägers, verschoben um o = Lage der Null des Trägers
 // {z, x, y}. Rückgabe: [{z0, z1, x0, x1, y0, y1, art}] in Teil-Z und Maschinen-X/Y.
 // aktiv = Platz, der gerade arbeitet: seine Schneide zeichnet die Simulation selbst
-export function traegerQuader(o, aktiv, m = MASCHINE_SB20RG) {
+// t34 = "3400": T3400 querangetrieben montiert, sonst die Einheit T3421–T3423
+export function traegerQuader(o, aktiv, m = MASCHINE_SB20RG, t34 = "3421") {
   const q = [];
   const box = (z0, z1, x0, x1, y0, y1, art) => q.push({ z0: o.z + z0, z1: o.z + z1, x0: o.x + x0, x1: o.x + x1, y0: o.y + y0, y1: o.y + y1, art });
   for (let k = 0; k < 6; k++) {
@@ -55,12 +56,14 @@ export function traegerQuader(o, aktiv, m = MASCHINE_SB20RG) {
   }
   // Querangetrieben: nur das Gehäuse; Werkzeuge ausser T100–T600 zeichnet
   // die Simulation nur, wenn sie arbeiten (Patrick 16. November 2026)
-  for (let k = 0; k < 4; k++) {
+  const nQuer = t34 === "3400" ? 4 : 3;
+  for (let k = 0; k < nQuer; k++) {
     const y = m.quer.y0 + k * m.quer.teilung, dz = m.quer.dz;
     box(dz - 8, dz + 8, 24, 70, y - 9, y + 9, "gehaeuse");
   }
   // Bohreinheit der Frontwerkzeuge, Spitzen bei dz
   const dz = m.front.dz, sch = m.front.schaft, xu = -3 * m.front.teilungX - 14;
-  box(dz - sch - m.front.block, dz - sch, xu, 16, m.t342y - 14, m.t1100y + 16, "gehaeuse");
+  if (t34 !== "3400") box(dz - sch - m.front.block, dz - sch, xu, 16, m.t342y - 12, m.t342y + 12, "gehaeuse");
+  box(dz - sch - m.front.block, dz - sch, xu, 16, m.t1100y - 16, m.t1100y + 16, "gehaeuse");
   return q;
 }

@@ -14234,3 +14234,7 @@ body.dunkel .eba-pf-ausr button { background: #1d2733; }
 .cam-kopfdaten { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 4px 0; }
 .cam-kopfdaten__knopf { font-weight: 600; }
 .cam-kopfdaten__werte { color: var(--gedaempft); overflow-wrap: anywhere; }
+
+/* HOFERCAM: Werkzeug nicht montiert (Platz 34) */
+.cam-fehltext { color: #c62828; margin-left: 6px; font-weight: 600; }
+body.dunkel .cam-fehltext { color: #ff8a80 !important; }

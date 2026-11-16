@@ -23,7 +23,7 @@ import { wzFehler, wzText } from "./camWerkzeug.js";
 import { WerkzeugFeld } from "./CamWerkzeugBild.jsx";
 import { simulationOeffnen } from "./CamSim3D.jsx";
 import { VORLAGEN, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen } from "./camVorlagen.js";
-import { FELDER, HD_STUFEN, plaetzeVon, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, markenPaare, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
+import { FELDER, HD_STUFEN, plaetzeVon, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, markenPaare, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Seit 1.427.0 (Wunsch Patrick 5. November 2026: „vordefinierte
 // Bearbeitungen aus einer Liste einfügen … in eine bestehende
@@ -109,8 +109,8 @@ function ModulFeld({ code, pos, einsetzen, zu }) {
 }
 
 // Knopf „+ …“ mit der Spanne der Plätze, etwa „T100–T600“
-function spanne(gruppe) {
-  const l = plaetzeVon(gruppe);
+function spanne(gruppe, w) {
+  const l = w ? montiert(gruppe, w) : plaetzeVon(gruppe);
   return l.length ? "T" + l[0] + (l.length > 1 ? "–T" + l[l.length - 1] : "") : "";
 }
 
@@ -599,6 +599,9 @@ export default function HoferCam() {
     let neu = { ...w, ...kopf };
     for (const r of gelesen) neu = { ...neu, ...r.felder };
     neu.bloecke = bloecke;
+    // Seit 1.582.0: Bestückung von Platz 34 aus dem Programm
+    if (bloecke.some((b) => String(b.platz) === "3400")) neu.t34 = "3400";
+    else if (bloecke.some((b) => /^342[1-3]$/.test(String(b.platz)))) neu.t34 = "3421";
     const p = programme(neu);
     let hand = { ...(w.hand || {}) };
     for (const k of [1, 2]) {
@@ -673,7 +676,7 @@ export default function HoferCam() {
           {kopfZu ? "▸" : "▾"} Kopfdaten</button>
         {kopfZu && <span className="cam-kopfdaten__werte klein" id="cam-kopf-werte">
           {FELDER.flatMap((g) => g.felder).filter((d) => !feldAus("kopf", d.name) && String(w[d.name] ?? "").trim() !== "")
-            .map((d) => d.text + " " + w[d.name]).join(" · ") || "noch leer"}</span>}
+            .map((d) => d.text + " " + w[d.name]).concat(t34Von(w) === "3400" ? "T3400 montiert" : "T3421–T3423 montiert").join(" · ")}</span>}
       </div>
       {!kopfZu && <div className="cam-gruppen">
         {FELDER.map((g) => ({ ...g, felder: g.felder.filter((d) => !feldAus("kopf", d.name)) })).filter((g) => g.felder.length).map((g) => (
@@ -689,6 +692,15 @@ export default function HoferCam() {
             ))}
           </fieldset>
         ))}
+        <fieldset className="cam-gruppe">
+          <legend>Bestückung</legend>
+          <label className="cam-feld" title="Auf Platz 34 ist entweder das Querwerkzeug T3400 oder die Einheit mit T3421–T3423 montiert, beides geht nicht">
+            <span>Platz 34</span>
+            <select data-cam="t34" value={t34Von(w)} onChange={(e) => setze("t34", e.target.value)}>
+              <option value="3421">T3421–T3423 (frontangetrieben)</option>
+              <option value="3400">T3400 (querangetrieben)</option>
+            </select></label>
+        </fieldset>
         {eigeneFelder("kopf").length > 0 && <fieldset className="cam-gruppe" id="cam-eigene">
           <legend>Eigene Felder</legend>
           {eigeneFelder("kopf").map((f) => <EigenFeld key={f.id} f={f} o={w} merkmal="data-cam-eigen"
@@ -706,14 +718,15 @@ export default function HoferCam() {
         <div className="cam-bearb__kopf">
           <b>Bearbeitungen Kanal 1</b>
           <button className="knopf knopf--klein" id="cam-neu-dreh"
-            onClick={() => { const nb = neuerBlock(bloecke); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Drehwerkzeug {spanne("dreh")}</button>
+            onClick={() => { const nb = neuerBlock(bloecke, "dreh", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Drehwerkzeug {spanne("dreh")}</button>
           <button className="knopf knopf--klein" id="cam-neu-front"
-            onClick={() => { const nb = neuerBlock(bloecke, "front"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Frontwerkzeug {spanne("front")}</button>
+            onClick={() => { const nb = neuerBlock(bloecke, "front", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Frontwerkzeug {spanne("front")}</button>
           {/* Seit 1.415.0: angetriebene T3421–T3423 an der Gegenspindel */}
           <button className="knopf knopf--klein" id="cam-neu-seite"
-            onClick={() => { const nb = neuerBlock(bloecke, "seite"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Querangetrieben {spanne("seite")}</button>
-          <button className="knopf knopf--klein" id="cam-neu-quer"
-            onClick={() => { const nb = neuerBlock(bloecke, "quer"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Frontangetrieben {spanne("quer")}</button>
+            onClick={() => { const nb = neuerBlock(bloecke, "seite", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Querangetrieben {spanne("seite", w)}</button>
+          {/* Seit 1.582.0 nur, wenn T3421–T3423 montiert sind */}
+          {t34Von(w) !== "3400" && <button className="knopf knopf--klein" id="cam-neu-quer"
+            onClick={() => { const nb = neuerBlock(bloecke, "quer", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Frontangetrieben {spanne("quer", w)}</button>}
         </div>
         {/* Seit 1.425.3 (Wunsch Patrick 5. November 2026): Kanal 2 in einer
             eigenen Zeile darunter */}
@@ -721,9 +734,9 @@ export default function HoferCam() {
           <b>Bearbeitungen Kanal 2</b>
           {/* Seit 1.420.0: Drehwerkzeug nur in Kanal 2 */}
           <button className="knopf knopf--klein" id="cam-neu-k2"
-            onClick={() => { const nb = neuerBlock(bloecke, "k2"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Stehende Werkzeuge {spanne("k2")}</button>
+            onClick={() => { const nb = neuerBlock(bloecke, "k2", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Stehende Werkzeuge {spanne("k2")}</button>
           <button className="knopf knopf--klein" id="cam-neu-k2a"
-            onClick={() => { const nb = neuerBlock(bloecke, "k2a"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Angetrieben {spanne("k2")}</button>
+            onClick={() => { const nb = neuerBlock(bloecke, "k2a", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Angetrieben {spanne("k2")}</button>
         </div>
         {bloecke.length === 0 && <p className="klein">Noch keine Bearbeitung. Sie kommt zwischen „(Ende Kopf)“ und „(Start Ende)“.</p>}
         {/* Seit 1.405.0 (Wunsch Patrick 5. November 2026): Bearbeitungen am
@@ -770,13 +783,14 @@ export default function HoferCam() {
                 {/* Seit 1.566.0 (Patrick 16. November 2026: „nur wenn ich wirklich
                     mit der Maus auf das Feld Platz fahre“): das Maschinenbild
                     kommt nur über dem Feld Platz samt seiner offenen Liste */}
-                <label className="cam-feld" data-camblock-platzfeld={i}
+                <label className={"cam-feld" + (bf.platz ? " cam-feld--fehler" : "")} data-camblock-platzfeld={i}
                   onPointerEnter={(e) => { if (e.pointerType === "mouse") setUeber(b.id); }}
                   onPointerLeave={() => setUeber((x) => (x === b.id ? null : x))}
                   title={k2 ? "Werkzeugplatz Kanal 2" : quer ? "Werkzeugplatz (angetrieben, Weg mit der Gegenspindel)" : front ? "Werkzeugplatz (Frontwerkzeug fest)" : "Werkzeugplatz (Drehwerkzeug Kanal 1)"}><span>Platz</span>
-                  <PlatzWahl wert={b.platz} plaetze={plaetzeVon(k2 ? "k2" : seite ? "seite" : quer ? "quer" : front ? "front" : "dreh")}
+                  <PlatzWahl wert={b.platz} plaetze={montiert(k2 ? "k2" : seite ? "seite" : quer ? "quer" : front ? "front" : "dreh", w)}
                     waehlen={(p) => { blockAendern(b.id, "platz", p); setUeber(b.id); }}
-                    vorschau={(p) => { setVorPlatz(p ? { id: b.id, platz: p } : null); if (p) setUeber(b.id); }} /></label>
+                    vorschau={(p) => { setVorPlatz(p ? { id: b.id, platz: p } : null); if (p) setUeber(b.id); }} />
+                  {bf.platz && <small className="cam-fehltext" data-camblock-nichtmontiert={i}>nicht montiert</small>}</label>
                 {/* Seit 1.561.0: Bearbeitung wie eingelesen, ohne Vorlage */}
                 {b.frei ? <span className="cam-frei klein" data-camblock-frei={i}
                   title="Diese Bearbeitung passt zu keiner Vorlage des Maschinentyps (etwa ein älteres Programm). Ihr NC-Code steht unverändert im Programm, die Felder der Vorlage wirken nicht.">

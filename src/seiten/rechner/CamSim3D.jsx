@@ -615,7 +615,7 @@ function Simulation({ w, zu }) {
     const strahl = vx && umriss ? { st, vox: vx, kanal2: kanal === 2, Wt: W, q: laeuft ? 0.45 : 1 } : null;
     const k = MASCHINE_SB20RG.kopf;
     const maschine = kanal === 1 && maschineAn ? {
-      quader: traeger ? traegerQuader(traeger, traeger.aktiv) : [], roll, grob: laeuft,
+      quader: traeger ? traegerQuader(traeger, traeger.aktiv, undefined, sim.t34) : [], roll, grob: laeuft,
       kopf: { z: kopfZ, ri: A / 2, nase: k.nase, naseL: k.naseL, r: k.r, L: k.L },
     } : null;
     cv.__traeger = traeger; cv.__kopf = maschine ? maschine.kopf : null; cv.__roll = roll;

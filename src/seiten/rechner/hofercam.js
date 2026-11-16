@@ -136,6 +136,21 @@ function kanal2(w) {
 
 // Seit 1.441.0 je Maschinentyp änderbar (camTyp.js)
 export const plaetzeVon = (gruppe) => typ().plaetze[gruppe] || [];
+// Seit 1.582.0 (Wunsch Patrick 16. November 2026: „oben in den Kopfdaten
+// soll ausgewählt werden können, ob T3400 montiert ist oder T3421–T3423,
+// beides geht nicht“): w.t34 "3400" oder "3421" (leer = T3421–T3423)
+export const t34Von = (w) => (w && String(w.t34) === "3400" ? "3400" : "3421");
+export function montiert(gruppe, w) {
+  const l = plaetzeVon(gruppe);
+  const t = t34Von(w);
+  if (gruppe === "seite" && t !== "3400") return l.filter((p) => String(p) !== "3400");
+  if (gruppe === "quer" && t === "3400") return [];
+  return l;
+}
+export function nichtMontiert(b, w) {
+  const p = String(b.platz ?? ""), t = t34Von(w);
+  return (p === "3400" && t !== "3400") || (/^342[1-3]$/.test(p) && t === "3400");
+}
 // Die SB-20RG hat nur vier Hochdruck-Stufen (Patrick 7. November 2026: „es gibt nur 4 nicht 6“).
 export const HD_STUFEN = ["", "1", "2", "3", "4"];
 
@@ -159,10 +174,10 @@ export const HD_STUFEN = ["", "1", "2", "3", "4"];
 
 const neueId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
-export function neuerBlock(bloecke = [], art = "dreh") {
+export function neuerBlock(bloecke = [], art = "dreh", w = null) {
   const belegt = new Set(bloecke.map((b) => b.platz));
   const gruppe = art === "k2a" ? "k2" : art;
-  const l = plaetzeVon(gruppe);
+  const l = w ? montiert(gruppe, w) : plaetzeVon(gruppe);
   const platz = l.find((p) => !belegt.has(p)) || l[0] || "";
   const nb = { id: neueId(), art, platz, bez: "", ...(typ().bloecke[art] || {}), eigen: eigeneVorgaben(art), code: "" };
   // Front- und frontangetriebene Werkzeuge zuerst an der Hauptspindel (1.417.0)
@@ -192,6 +207,7 @@ export function drehzahl(b, w = {}) {
 
 export function blockFehler(b, w = {}) {
   const f = {};
+  if (nichtMontiert(b, w)) f.platz = "T" + b.platz + " ist nicht montiert (Kopfdaten: Platz 34)";
   if (b.frei) return f;
   b = wirksamB(b); w = wirksamW(w);
   if (b.art === "k2a") {
