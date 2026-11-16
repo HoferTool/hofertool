@@ -14222,3 +14222,10 @@ body.dunkel .pl-todo__weg:hover * , body.dunkel .pl-todo__weg:hover { color: #ff
 .eba-pf-ausr button.aktiv { background: #1f6feb; border-color: #1f6feb; color: #fff; }
 body.dunkel .eba-pf-ausr button { background: #1d2733; }
 .schreibleiste__ausr { display: inline-flex; align-items: center; justify-content: center; }
+
+/* HOFERCAM: alle Knöpfe über dem NC-Code vorne gleich neben „Werkzeug“
+   (seit 1.579.1, Wunsch Patrick 16. November 2026: „bring alle Buttons
+   nach vorne neben den Button Werkzeuge“) */
+.cam-block__vorlageknopf { justify-content: flex-start; flex-wrap: wrap; align-items: center; }
+.cam-block__vorlageknopf .cam-wz-knopf { margin-right: 0; }
+.cam-marken-frei { color: var(--gedaempft); }
