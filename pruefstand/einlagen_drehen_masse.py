@@ -51,6 +51,34 @@ with sync_playwright() as p:
     pruefe(any(x.endswith(" mm") and x[0].isdigit() and "·" not in x for x in texte), "Masse des gewählten Werkzeugs stehen")
     if BILD:
         pg.locator("iframe.einlagen-rahmen").screenshot(path=BILD + "-einlage.png")
+    # Tiefe direkt auf der Tasche ändern (1.570.0): Zahl antippen, eintippen, Enter
+    klick = """(was) => { const l = lay.etiketten.find(x => was === 'h' ? x.hoehe : x.i === 0), r = lcv.getBoundingClientRect(), s = lay.scale, M = lay.M;
+      const p = [r.left + ((l.r[0] + l.r[2]) / 2 + M) * s, r.top + ((l.r[1] + l.r[3]) / 2 + M) * s];
+      const ev = t => lcv.dispatchEvent(new PointerEvent(t, {clientX: p[0], clientY: p[1], pointerId: 1, bubbles: true})); ev('pointerdown'); ev('pointerup'); }"""
+    f().evaluate(klick, "t"); pg.wait_for_timeout(200)
+    ed = f().locator("#layMassEdit")
+    pruefe(ed.count() == 1 and ed.input_value() == "15", "Tippen auf die Zahl öffnet das Feld mit 15")
+    ed.fill("7.5"); ed.press("Enter"); pg.wait_for_timeout(200)
+    pruefe(f().evaluate("lay.items[0].depth") == 7.5 and f().locator("#layMassEdit").count() == 0, "Tiefe 7.5 übernommen")
+    pos = f().evaluate("[lay.items[0].x, lay.items[0].y]")
+    pruefe(pos == [150, 100], "Tippen auf die Zahl verschiebt nichts: %s" % pos)
+    f().evaluate(klick, "h"); pg.wait_for_timeout(200)
+    ed = f().locator("#layMassEdit"); ed.fill("24"); ed.press("Enter"); pg.wait_for_timeout(200)
+    pruefe(f().evaluate("lay.base.T") == 24 and f().evaluate("document.getElementById('baseT').value") == "24", "Höhe 24 im Bild geändert")
+    f().evaluate(klick, "t"); pg.wait_for_timeout(200)
+    f().locator("#layMassEdit").fill("3"); f().locator("#layMassEdit").press("Escape"); pg.wait_for_timeout(200)
+    pruefe(f().evaluate("lay.items[0].depth") == 7.5, "Escape verwirft")
+    # Spiegeln: ein unsymmetrisches L
+    f().evaluate("""() => { lay.items = [{id: 1, name: 'L', polys: [{outer: [[-20,-20],[-10,-20],[-10,10],[20,10],[20,20],[-20,20]], holes: []}], x: 150, y: 100, ang: 0, depth: 10, grips: []}]; lay.sel = 0; layChanged(); }""")
+    vor = f().evaluate("itemBB(lay.items[0])")
+    pruefe(not f().evaluate("document.getElementById('layMir').disabled"), "Knopf Spiegeln da")
+    f().evaluate("document.getElementById('layMir').click()"); pg.wait_for_timeout(200)
+    o = f().evaluate("lay.items[0].polys[0].outer")
+    pruefe([10, -20] in o and [-20, 10] in o and [-10, -20] not in o, "gespiegelt: %s" % o)
+    pruefe(f().evaluate("itemBB(lay.items[0])") == vor, "bleibt an Ort")
+    pruefe(f().evaluate("area(lay.items[0].polys[0].outer) > 0"), "Umlaufsinn bleibt")
+    f().evaluate("layUndo()"); pg.wait_for_timeout(200)
+    pruefe([-10, -20] in f().evaluate("lay.items[0].polys[0].outer"), "Rückgängig")
     pruefe(not pf, "keine Seitenfehler: " + str(pf))
     br.close()
 print("Fehler: " + (", ".join(fehler) if fehler else "keine"))

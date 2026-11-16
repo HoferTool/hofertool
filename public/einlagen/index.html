@@ -567,6 +567,7 @@ header.bar { align-items: center; }
         </div>
         <div class="seg" role="group" aria-label="Auswahl">
           <button class="tool" id="layRot" type="button" disabled title="Um 90° drehen (Taste R)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>Drehen</button>
+          <button class="tool" id="layMir" type="button" disabled title="Spiegeln links ↔ rechts (Taste M)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18" stroke-dasharray="2 2"/><path d="M9 7 3 17h6z"/><path d="m15 7 6 10h-6z"/></svg>Spiegeln</button>
           <button class="tool" id="layDup" type="button" disabled title="Kopie einfügen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>Kopie</button>
           <button class="tool" id="layDel" type="button" disabled title="Aus der Einlage entfernen (Entf)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>Entfernen</button>
         </div>
@@ -587,7 +588,7 @@ header.bar { align-items: center; }
           <button class="btn small" id="lgDel" type="button" disabled>Griffmulde löschen</button>
         </div>
       </div>
-      <p class="edithint" id="layHint">Werkzeug antippen und ziehen verschiebt es, der runde Anfasser dreht es stufenlos, Winkel auch mit Komma eintippen. Am PC: Pfeiltasten verschieben um 1 mm (mit Umschalt 10 mm), R dreht um 90°.</p>
+      <p class="edithint" id="layHint">Werkzeug antippen und ziehen verschiebt es, der runde Anfasser dreht es stufenlos, Winkel auch mit Komma eintippen. Die Zahl auf einer Tasche (Tiefe) oder „Höhe“ unten antippen ändert sie. „Spiegeln“ (Taste M) spiegelt das gewählte Teil. Am PC: Pfeiltasten verschieben um 1 mm (mit Umschalt 10 mm), R dreht um 90°.</p>
       <div class="viewwrap" id="lay2dWrap"><div class="viewer" id="layViewer"><canvas id="layView" aria-label="Einlage mit Werkzeugtaschen"></canvas></div></div>
       <div class="viewwrap" id="lay3dWrap" hidden>
         <div class="viewer" id="lay3dViewer"><canvas id="lay3d" aria-label="3D-Ansicht der Einlage"></canvas></div>
@@ -2175,9 +2176,9 @@ const LAY_APP = "werkzeug-einlage";
 const lay = { base: { W: 300, H: 200, T: 30, R: 5 }, conn: connDefaults(), newDepth: 20, items: [], sel: -1, drag: null, undo: [], nextId: 1, scale: 1, M: 10,
   mode: "move", gsel: null, noUnion: null };
 const LAY_HINTS = {
-  move: "Werkzeug antippen und ziehen verschiebt es, der runde Anfasser dreht es stufenlos, Winkel auch mit Komma eintippen. Am PC: Pfeiltasten verschieben um 1 mm (mit Umschalt 10 mm), R dreht um 90°.",
+  move: "Werkzeug antippen und ziehen verschiebt es, der runde Anfasser dreht es stufenlos, Winkel auch mit Komma eintippen. Die Zahl auf einer Tasche (Tiefe) oder „Höhe“ unten antippen ändert sie. „Spiegeln“ (Taste M) spiegelt das gewählte Teil. Am PC: Pfeiltasten verschieben um 1 mm (mit Umschalt 10 mm), R dreht um 90°.",
   key: "Nagel: Schlüsselloch antippen und ziehen. Hilfslinien zeigen die Mitte und alle Abstände, nahe der Mitte rastet es ein. Das erste Loch verschiebt die ganze Reihe, die weiteren ändern den Abstand der Löcher.",
-  grip: "An die Kante eines Werkzeugs tippen setzt eine Griffmulde, ausgerichtet an der Kante. Mulde ziehen verschiebt sie, eckige Anfasser ändern Länge und Breite, der runde dreht. Die Mulde bekommt die Tiefe ihres Werkzeugs und wandert mit ihm mit."
+  grip: "Irgendwo auf die Einlage tippen setzt eine Griffmulde, frei und unabhängig von den Werkzeugen, mit eigener Tiefe (rechts bei der Auswahl). Mulde ziehen verschiebt sie, eckige Anfasser ändern Länge und Breite, der runde dreht stufenlos. Form, Länge und Breite auch oben eintippen."
 };
 // Werkzeugtasche plus Griffmulden als eine Kontur (über ein feines Raster vereinigt, Ergebnis wird zwischengespeichert)
 const shapeCache = new WeakMap(), offCache = new WeakMap();
@@ -2190,12 +2191,33 @@ function basePolys(it) {
   const c = offCache.get(it); if (c && c.off === off && c.src === it.polys) return c.polys;
   const polys = offsetShape(it.polys, off); offCache.set(it, { off, src: it.polys, polys }); return polys;
 }
+// Eine freie Griffmulde, die ein Werkzeug berührt, wird Teil von dessen Tasche (gleiche Tiefe wie das Werkzeug,
+// sonst entstünden zwei Taschen übereinander); liegt sie frei, ist sie eine eigene Tasche mit eigener Tiefe.
+function baseWorld(it) {
+  const a = it.ang * Math.PI / 180, c = Math.cos(a), s = Math.sin(a), tf = p => [it.x + p[0] * c - p[1] * s, it.y + p[0] * s + p[1] * c];
+  return basePolys(it).map(pl => ({ outer: pl.outer.map(tf), holes: pl.holes.map(h => h.map(tf)) }));
+}
+function griffWerkzeug(g) {
+  const gw = baseWorld(g), gb = bbox(gw.flatMap(pl => pl.outer));
+  return lay.items.find(it => {
+    if (it === g || istGriff(it) || it.text) return false;
+    const w = baseWorld(it), b = bbox(w.flatMap(pl => pl.outer));
+    return !(b[2] < gb[0] || gb[2] < b[0] || b[3] < gb[1] || gb[3] < b[1]) && polysOverlap(w, gw);
+  }) || null;
+}
+function freieGriffeAn(it) {
+  if (istGriff(it) || it.text || !lay.items.some(istGriff)) return [];
+  return lay.items.filter(g => istGriff(g) && g !== lay.noUnion && griffWerkzeug(g) === it).map(g => {
+    const q = toLocal(it, [g.x, g.y]); return { shape: g.griff.shape, L: g.griff.L, W: g.griff.W, x: q[0], y: q[1], ang: g.ang - it.ang };
+  });
+}
 function itemShape(it) {
-  const bp = basePolys(it);
-  if (!it.grips || !it.grips.length || lay.noUnion === it) return bp;
-  const sig = JSON.stringify(it.grips), c = shapeCache.get(it);
+  if (istGriff(it)) return lay.noUnion !== it && griffWerkzeug(it) ? [] : basePolys(it);
+  const bp = basePolys(it), grips = lay.noUnion === it ? [] : [...(it.grips || []), ...freieGriffeAn(it)];
+  if (!grips.length) return bp;
+  const sig = JSON.stringify(grips), c = shapeCache.get(it);
   if (c && c.sig === sig && c.src === bp) return c.polys;
-  const polys = unionShape(bp, it.grips); shapeCache.set(it, { sig, src: bp, polys }); return polys;
+  const polys = unionShape(bp, grips); shapeCache.set(it, { sig, src: bp, polys }); return polys;
 }
 // Geschlossene Linienzüge (Rasterkoordinaten) in Konturen mit Löchern ordnen
 function loopsToPolys(raw, toMM, tol) {
@@ -2300,7 +2322,26 @@ function nearestEdge(mm, maxD) {
   }));
   return best;
 }
-function curGrip() { const s = lay.gsel, it = s && lay.items[s.i]; return it && it.grips && it.grips[s.g] ? { it, gp: it.grips[s.g] } : null; }
+// Freie Griffmulde (seit 1.570.0, Wunsch Patrick 16. November 2026: „Griffmulden sollen frei platziert werden können
+// und sind nicht werkzeugabhängig“): ein eigenes Teil der Einlage mit `griff: {shape, L, W}`, Umriss in `polys`,
+// eigener Tiefe, Lage x/y und Winkel wie ein Werkzeug. Griffmulden an Werkzeugen von früher bleiben, wie sie sind.
+function gripPoly(g) {
+  const hl = g.L / 2, hw = g.W / 2, n = 24, pts = [];
+  if (g.shape === "oval") for (let k = 0; k < 2 * n; k++) { const t = k / n * Math.PI; pts.push([hl * Math.cos(t), hw * Math.sin(t)]); }
+  else {
+    const k0 = Math.max(0, hl - hw);
+    for (let k = 0; k <= n; k++) { const t = -Math.PI / 2 + k / n * Math.PI; pts.push([k0 + hw * Math.cos(t), hw * Math.sin(t)]); }
+    for (let k = 0; k <= n; k++) { const t = Math.PI / 2 + k / n * Math.PI; pts.push([-k0 + hw * Math.cos(t), hw * Math.sin(t)]); }
+  }
+  return [{ outer: pts.map(q => [Math.round(q[0] * 1000) / 1000, Math.round(q[1] * 1000) / 1000]), holes: [] }];
+}
+function griffSetzen(it) { it.polys = gripPoly(it.griff); }
+const istGriff = it => !!(it && it.griff && Number.isFinite(+it.griff.L) && Number.isFinite(+it.griff.W));
+function curGrip() {
+  const s = lay.gsel, it = s && lay.items[s.i];
+  if (s && s.frei) return istGriff(it) ? { it, gp: { shape: it.griff.shape, L: it.griff.L, W: it.griff.W, x: 0, y: 0, ang: 0 }, frei: true } : null;
+  return it && it.grips && it.grips[s.g] ? { it, gp: it.grips[s.g] } : null;
+}
 function syncLayGrip() {
   const cg = curGrip(); $("lgDel").disabled = !cg;
   if (cg) { $("lgShape").value = cg.gp.shape; $("lgL").value = cg.gp.L; $("lgW").value = cg.gp.W; }
@@ -2309,24 +2350,28 @@ function layGripDown(e) {
   const mm = toLay(e), tol = (e.pointerType === "touch" ? 24 : 12) / lay.scale, cg = curGrip();
   if (cg) {
     const hd = gripHandles(gripWorld(cg.it, cg.gp), 1 / lay.scale).find(h => dist(h.p, mm) < tol);
-    if (hd) { layPush(); lay.drag = { grip: true, mode: hd.type, moved: false }; lay.noUnion = cg.it; lcv.setPointerCapture(e.pointerId); e.preventDefault(); layRender(); return; }
+    if (hd) { layPush(); lay.drag = { grip: true, mode: hd.type, moved: false }; lay.noUnion = cg.frei ? null : cg.it; lcv.setPointerCapture(e.pointerId); e.preventDefault(); layRender(); return; }
   }
   let hit = null;
-  for (let i = lay.items.length - 1; i >= 0 && !hit; i--) (lay.items[i].grips || []).forEach((gp, j) => { if (!hit && inGrip(gripWorld(lay.items[i], gp), mm[0], mm[1])) hit = { i, g: j }; });
-  if (hit) {
+  for (let i = lay.items.length - 1; i >= 0 && !hit; i--) {
+    const it = lay.items[i];
+    if (istGriff(it)) { if (inGrip(gripWorld(it, { ...it.griff, x: 0, y: 0, ang: 0 }), mm[0], mm[1])) hit = { i, frei: true }; continue; }
+    (it.grips || []).forEach((gp, j) => { if (!hit && inGrip(gripWorld(it, gp), mm[0], mm[1])) hit = { i, g: j }; });
+  }
+  if (hit && hit.frei) {
+    layPush(); lay.gsel = hit; lay.sel = hit.i; const it = lay.items[hit.i];
+    lay.drag = { grip: true, mode: "move", dx: mm[0] - it.x, dy: mm[1] - it.y, moved: false };
+  } else if (hit) {
     layPush(); lay.gsel = hit; lay.sel = hit.i;
     const it = lay.items[hit.i], gw = gripWorld(it, it.grips[hit.g]);
     lay.drag = { grip: true, mode: "move", dx: mm[0] - gw.x, dy: mm[1] - gw.y, moved: false }; lay.noUnion = it;
   } else {
-    const ed = nearestEdge(mm, 15);
-    if (!ed) { lay.gsel = null; layRender(); syncLayGrip(); toast("Zum Setzen an die Kante eines Werkzeugs tippen."); return; }
+    // Frei an der getippten Stelle, unabhängig von den Werkzeugen
     layPush();
-    const it = lay.items[ed.i], loc = toLocal(it, ed.pt);
-    let a = normAng(ed.ang - it.ang); if (a > 90) a -= 180; if (a < -90) a += 180;
-    it.grips = it.grips || [];
-    it.grips.push({ shape: $("lgShape").value, L: Math.max(4, num("lgL", 40)), W: Math.max(4, num("lgW", 22)), x: Math.round(loc[0] * 10) / 10, y: Math.round(loc[1] * 10) / 10, ang: a });
-    lay.gsel = { i: ed.i, g: it.grips.length - 1 }; lay.sel = ed.i;
-    lay.drag = { grip: true, mode: "move", dx: 0, dy: 0, moved: true }; lay.noUnion = it;
+    const griff = { shape: $("lgShape").value, L: Math.max(4, num("lgL", 40)), W: Math.max(4, num("lgW", 22)) };
+    const it = { id: lay.nextId++, name: "Griffmulde", griff, polys: gripPoly(griff), grips: [], x: Math.round(mm[0] * 10) / 10, y: Math.round(mm[1] * 10) / 10, ang: 0, depth: lay.newDepth };
+    lay.items.push(it); lay.gsel = { i: lay.items.length - 1, frei: true }; lay.sel = lay.items.length - 1;
+    lay.drag = { grip: true, mode: "move", dx: 0, dy: 0, moved: true };
   }
   lcv.setPointerCapture(e.pointerId); e.preventDefault();
   layRender(); layRenderList(); laySyncInputs(); syncLayGrip();
@@ -2334,10 +2379,17 @@ function layGripDown(e) {
 function layGripMove(e) {
   const d = lay.drag, cg = curGrip(); if (!cg) return;
   const { it, gp } = cg, mm = toLay(e), gw = gripWorld(it, gp), a = gw.ang * Math.PI / 180, c = Math.cos(a), s = Math.sin(a), vx = mm[0] - gw.x, vy = mm[1] - gw.y;
+  if (cg.frei) {
+    if (d.mode === "move") { it.x = Math.round((mm[0] - d.dx) * 10) / 10; it.y = Math.round((mm[1] - d.dy) * 10) / 10; }
+    else if (d.mode === "L") { it.griff.L = Math.max(4, Math.round(Math.abs(vx * c + vy * s) * 4) / 2); griffSetzen(it); }
+    else if (d.mode === "W") { it.griff.W = Math.max(4, Math.round(Math.abs(-vx * s + vy * c) * 4) / 2); griffSetzen(it); }
+    else it.ang = normAng(Math.atan2(vy, vx) * 180 / Math.PI + 90);
+    d.moved = true; layRender(); syncLayGrip(); laySyncInputs(); return;
+  }
   if (d.mode === "move") { const loc = toLocal(it, [mm[0] - d.dx, mm[1] - d.dy]); gp.x = Math.round(loc[0] * 10) / 10; gp.y = Math.round(loc[1] * 10) / 10; }
   else if (d.mode === "L") gp.L = Math.max(4, Math.round(Math.abs(vx * c + vy * s) * 4) / 2);
   else if (d.mode === "W") gp.W = Math.max(4, Math.round(Math.abs(-vx * s + vy * c) * 4) / 2);
-  else { const deg = normAng(Math.atan2(vy, vx) * 180 / Math.PI + 90), sn = Math.round(deg / 15) * 15; gp.ang = normAng((Math.abs(deg - sn) < 4 ? sn : deg) - it.ang); }
+  else gp.ang = normAng(Math.atan2(vy, vx) * 180 / Math.PI + 90 - it.ang);
   d.moved = true; layRender(); syncLayGrip();
 }
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -2938,7 +2990,7 @@ function laySyncInputs() {
     document.querySelectorAll("[data-k]").forEach(el => { const [f, x] = el.dataset.k.split("-"); el.checked = !!k[f][x]; });
     document.querySelectorAll("[data-kall]").forEach(el => { const f = el.dataset.kall, n = KANT_SEITEN.filter(x => k[f][x]).length; el.checked = n === 4; el.indeterminate = n > 0 && n < 4; });
     $("kInfo").innerHTML = an ? kanteInfo() : ""; } $("newDepth").value = lay.newDepth;
-  ["itName", "itX", "itY", "itA", "itD", "itE", "itF", "itOff", "itLean", "layEdgeAll", "layOffAll", "layLeanAll", "layRot", "layDup", "layDel", "layDepthAll", "layToolSave"].forEach(id => $(id).disabled = !it);
+  ["itName", "itX", "itY", "itA", "itD", "itE", "itF", "itOff", "itLean", "layEdgeAll", "layOffAll", "layLeanAll", "layRot", "layMir", "layDup", "layDel", "layDepthAll", "layToolSave"].forEach(id => $(id).disabled = !it);
   const tx = it && it.text;
   $("itNone").hidden = !!it; $("itTextBox").hidden = !tx; $("itToolBox").hidden = !!tx; $("itNameRow").hidden = !!tx; $("layToolSave").disabled = !it || !!tx;
   $("itTitle").textContent = tx ? "Auswahl: Beschriftung" : it ? "Auswahl: Werkzeug" : "Auswahl";
@@ -2978,7 +3030,7 @@ function layRender() {
       r.forEach((q, i) => i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1])); g.closePath(); g.stroke(); g.restore(); });
   }
   if (lay.mode === "key") layDrawKeyGuides(g, px, accent);
-  const iss = layIssues();
+  const iss = layIssues(); lay.etiketten = [];
   lay.items.forEach((it, i) => {
     const w = itemWorld(it), p = new Path2D();
     w.forEach(pl => [pl.outer, ...pl.holes].forEach(r => { p.moveTo(r[0][0], r[0][1]); for (let k = 1; k < r.length; k++) p.lineTo(r[k][0], r[k][1]); p.closePath(); }));
@@ -2996,13 +3048,15 @@ function layRender() {
       if (i === lay.sel) { const [a, b, c, d] = bbox(w.flatMap(pl => pl.outer)); g.save(); g.setLineDash([4 * px, 3 * px]); g.lineWidth = 1.2 * px; g.strokeStyle = accent; g.strokeRect(a - 2, b - 2, c - a + 4, d - b + 4); g.restore(); }
       return;
     }
+    if (!w.length) return; // freie Griffmulde, die schon Teil einer Werkzeugtasche ist
     const [a, b, c, d] = bbox(w.flatMap(pl => pl.outer)), label = `${i + 1} · ${de(it.depth)} mm`;
     g.font = `600 ${11 * px}px Barlow, sans-serif`; const tw = g.measureText(label).width;
     g.fillStyle = "rgba(255,255,255,.88)"; g.fillRect((a + c) / 2 - tw / 2 - 4 * px, (b + d) / 2 - 8 * px, tw + 8 * px, 15 * px);
+    lay.etiketten.push({ i, r: [(a + c) / 2 - tw / 2 - 4 * px, (b + d) / 2 - 8 * px, (a + c) / 2 + tw / 2 + 4 * px, (b + d) / 2 + 7 * px] });
     g.fillStyle = "#17201C"; g.fillText(label, (a + c) / 2 - tw / 2, (b + d) / 2 + 3 * px);
   });
-  if (lay.mode === "grip") lay.items.forEach((gi, i) => (gi.grips || []).forEach((gp, j) => {
-    const gw = gripWorld(gi, gp), sel = lay.gsel && lay.gsel.i === i && lay.gsel.g === j;
+  if (lay.mode === "grip") lay.items.forEach((gi, i) => (istGriff(gi) ? [{ ...gi.griff, x: 0, y: 0, ang: 0, frei: true }] : gi.grips || []).forEach((gp, j) => {
+    const gw = gripWorld(gi, gp), sel = lay.gsel && lay.gsel.i === i && (gp.frei ? lay.gsel.frei : lay.gsel.g === j);
     g.save(); g.setLineDash(sel ? [] : [4 * px, 3 * px]); g.lineWidth = (sel ? 2.5 : 1.5) * px; g.strokeStyle = sel ? accent : "#fff"; g.stroke(gripPath(gw)); g.restore();
     if (sel) {
       const hs = gripHandles(gw, px), a = gw.ang * Math.PI / 180, r = 6 * px;
@@ -3040,8 +3094,11 @@ function layDrawMasse(g, px, it) {
   const o = Math.min(M * 0.5, 7 * px + 1);
   mass(0, -o, B.W, -o, `Breite ${de(B.W, 0)} mm`, "#5B6661", "#fff");
   mass(-o, 0, -o, B.H, `Länge ${de(B.H, 0)} mm`, "#5B6661", "#fff");
-  g.font = `500 ${11 * px}px "JetBrains Mono", monospace`; g.fillStyle = "#8A9590";
-  g.fillText(`Höhe ${de(B.T)} mm`, 0, B.H + 7.5);
+  { // Höhe der Einlage: antippen ändert sie (wie die Tiefe auf jeder Tasche)
+    const t = `Höhe ${de(B.T)} mm ✎`; g.font = `600 ${11 * px}px Barlow, sans-serif`; const tw = g.measureText(t).width, y = B.H + o + 1 * px;
+    g.fillStyle = "#fff"; g.fillRect(-3 * px, y - 7.5 * px, tw + 6 * px, 14 * px); g.fillStyle = "#5B6661"; g.textBaseline = "middle"; g.fillText(t, 0, y); g.textBaseline = "alphabetic";
+    lay.etiketten.push({ hoehe: true, r: [-3 * px, y - 7.5 * px, tw + 3 * px, y + 6.5 * px] });
+  }
   if (it && !it.text) {
     const [a, b, c, d] = bbox(itemWorld(it).flatMap(pl => pl.outer)), accent = css("--accent"), k = 6 * px;
     const yo = b - k > 2 * k ? b - k : d + k, xo = a - k > 2 * k ? a - k : c + k;
@@ -3058,9 +3115,10 @@ function layRenderList() {
   { const cmx = connModel(), cw = cmx.warns; connWarnRender(cw); if ($("keyInfo")) $("keyInfo").innerHTML = keyInfo(cmx); if ($("wedgeInfo")) $("wedgeInfo").innerHTML = wedgeInfo(); }
   if (!n) { $("layList").innerHTML = `<p class="help">Noch keine Werkzeuge. Über „Aktuellen Scan einfügen“ oder „Projekte importieren“ hinzufügen.</p>`; return; }
   const rows = lay.items.map((it, i) => {
-    const [a, b, c, d] = itemBB(it);
+    const gw = istGriff(it) ? griffWerkzeug(it) : null;
+    const [a, b, c, d] = gw ? [0, 0, it.griff.L, it.griff.W] : itemBB(it);
     const ng = (it.grips || []).length;
-    return `<tr data-i="${i}" class="${i === lay.sel ? "sel" : ""}"><td>${i + 1}</td><td>${it.text ? "Beschriftung „" + esc(it.text.s.replace(/\n/g, " ")) + "“" : esc(it.name)}${it.off ? ` <span class="help">${it.off > 0 ? "+" : ""}${de(it.off)} mm</span>` : ""}${it.lean ? ` <span class="help">schräg ${de(it.lean, 0)}°</span>` : ""}${ng ? ` <span class="help">+ ${ng} Griffmulde${ng > 1 ? "n" : ""}</span>` : ""}</td><td class="num">${de(c - a)} × ${de(d - b)}</td><td class="num">${de(it.depth)}</td><td>${iss[i].length ? `<span class="warn">${esc(iss[i].join(", "))}</span>` : "ok"}</td></tr>`;
+    return `<tr data-i="${i}" class="${i === lay.sel ? "sel" : ""}"><td>${i + 1}</td><td>${it.text ? "Beschriftung „" + esc(it.text.s.replace(/\n/g, " ")) + "“" : esc(it.name)}${it.off ? ` <span class="help">${it.off > 0 ? "+" : ""}${de(it.off)} mm</span>` : ""}${it.lean ? ` <span class="help">schräg ${de(it.lean, 0)}°</span>` : ""}${ng ? ` <span class="help">+ ${ng} Griffmulde${ng > 1 ? "n" : ""}</span>` : ""}</td><td class="num">${de(c - a)} × ${de(d - b)}</td><td class="num">${gw ? `wie ${lay.items.indexOf(gw) + 1}` : de(it.depth)}</td><td>${iss[i].length ? `<span class="warn">${esc(iss[i].join(", "))}</span>` : "ok"}</td></tr>`;
   }).join("");
   $("layList").innerHTML = `<table><thead><tr><th>Nr.</th><th>Name</th><th>Größe (mm)</th><th>Tiefe (mm)</th><th>Prüfung</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
@@ -3077,6 +3135,7 @@ function layKey(e) {
   const stp = e.shiftKey ? 10 : 1, mv = { ArrowLeft: [-stp, 0], ArrowRight: [stp, 0], ArrowUp: [0, -stp], ArrowDown: [0, stp] }[e.key];
   if (mv) { e.preventDefault(); layPush(); it.x += mv[0]; it.y += mv[1]; layChanged(); }
   else if (e.key === "r" || e.key === "R") { e.preventDefault(); layPush(); it.ang = normAng(it.ang + 90); layChanged(); }
+  else if (e.key === "m" || e.key === "M") { e.preventDefault(); teilSpiegeln(); }
   else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); layPush(); lay.items.splice(lay.sel, 1); lay.sel = -1; layChanged(); }
   else if (e.key === "Escape") { lay.sel = -1; layChanged(); }
 }
@@ -3086,6 +3145,8 @@ lcv.addEventListener("pointerdown", e => {
   if (lay.mode === "grip") { layGripDown(e); return; }
   if (lay.mode === "key") { layKeyDown(e); return; }
   const mm = toLay(e), tol = (e.pointerType === "touch" ? 24 : 12) / lay.scale, cur = lay.items[lay.sel];
+  const lab = (lay.etiketten || []).slice().reverse().find(l => mm[0] >= l.r[0] && mm[0] <= l.r[2] && mm[1] >= l.r[1] && mm[1] <= l.r[3]);
+  if (lab && lab.hoehe) { e.preventDefault(); masszahlBearbeiten(lab); return; }
   if (cur && dist(layHandle(cur), mm) < tol) { layPush(); lay.drag = { mode: "rot", moved: false }; }
   else {
     let hit = -1;
@@ -3095,7 +3156,8 @@ lcv.addEventListener("pointerdown", e => {
       else if (w.some(pl => inPoly(mm, pl.outer))) { hit = i; break; }
     }
     lay.sel = hit;
-    if (hit >= 0) { layPush(); const h = lay.items[hit]; lay.drag = { mode: "move", dx: mm[0] - h.x, dy: mm[1] - h.y, moved: false }; }
+    if (hit < 0 && lab) hit = lab.i;
+    if (hit >= 0) { layPush(); const h = lay.items[hit]; lay.drag = { mode: "move", dx: mm[0] - h.x, dy: mm[1] - h.y, moved: false, lab: lab && lab.i === hit ? lab : null }; }
   }
   if (lay.drag) { lcv.setPointerCapture(e.pointerId); e.preventDefault(); }
   layRender(); layRenderList(); laySyncInputs();
@@ -3112,10 +3174,36 @@ lcv.addEventListener("pointermove", e => {
   }
   d.moved = true; layRender(); laySyncInputs();
 });
-const layEnd = () => { const d = lay.drag; if (!d) return; lay.drag = null; lay.noUnion = null; if (!d.moved) lay.undo.pop(); layChanged(); syncLayGrip(); };
+const layEnd = () => { const d = lay.drag; if (!d) return; lay.drag = null; lay.noUnion = null; if (!d.moved) lay.undo.pop(); layChanged(); syncLayGrip(); if (!d.moved && d.lab) masszahlBearbeiten(d.lab); };
+// Tiefe einer Tasche oder Höhe der Einlage direkt im Bild ändern (seit 1.570.0, Wunsch Patrick 16. November 2026:
+// „Höhen sollen auch hier bearbeitet werden können“): die Zahl antippen, eintippen, Enter oder daneben tippen übernimmt, Escape verwirft.
+function masszahlBearbeiten(lab) {
+  const alt = document.getElementById("layMassEdit"); if (alt) alt.remove();
+  const it = lab.hoehe ? null : lay.items[lab.i]; if (!lab.hoehe && !it) return;
+  const vw = $("layViewer"), cr = lcv.getBoundingClientRect(), vr = vw.getBoundingClientRect(), s = lay.scale, M = lay.M;
+  if (getComputedStyle(vw).position === "static") vw.style.position = "relative";
+  const inp = document.createElement("input");
+  inp.id = "layMassEdit"; inp.type = "number"; inp.step = "any"; inp.min = "0"; inp.value = lab.hoehe ? lay.base.T : it.depth;
+  inp.setAttribute("aria-label", lab.hoehe ? "Höhe der Einlage in mm" : "Tiefe der Tasche in mm");
+  const cx = (lab.r[0] + lab.r[2]) / 2, cy = (lab.r[1] + lab.r[3]) / 2;
+  Object.assign(inp.style, { position: "absolute", width: "86px", height: "30px", font: "600 15px Barlow, sans-serif", textAlign: "center",
+    left: (cr.left - vr.left + (cx + M) * s - 43) + "px", top: (cr.top - vr.top + (cy + M) * s - 15) + "px", zIndex: 5,
+    border: "2px solid " + css("--accent"), borderRadius: "6px", background: "#fff", color: "#17201C" });
+  let fertig = false;
+  const zu = ok => {
+    if (fertig) return; fertig = true; const v = parseFloat(String(inp.value).replace(",", ".")); inp.remove();
+    if (!ok || !Number.isFinite(v)) return;
+    if (lab.hoehe) { const T = Math.max(2, Math.min(200, Math.round(v * 10) / 10)); if (T === lay.base.T) return; layPush(); lay.base = { ...lay.base, T }; if ($("baseT")) $("baseT").value = T; }
+    else { const dd = Math.max(0, Math.round(v * 10) / 10); if (dd === it.depth) return; layPush(); it.depth = dd; }
+    layChanged();
+  };
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); zu(true); } else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); zu(false); } e.stopPropagation(); });
+  inp.addEventListener("blur", () => zu(true));
+  vw.appendChild(inp); inp.focus(); inp.select();
+}
 function delLayGrip() {
   const cg = curGrip(); if (!cg) return;
-  layPush(); cg.it.grips.splice(lay.gsel.g, 1); lay.gsel = null; layChanged(); syncLayGrip();
+  layPush(); if (cg.frei) { lay.items.splice(lay.gsel.i, 1); lay.sel = -1; } else cg.it.grips.splice(lay.gsel.g, 1); lay.gsel = null; layChanged(); syncLayGrip();
 }
 document.querySelectorAll(".ltool").forEach(b => b.addEventListener("click", () => {
   lay.mode = b.dataset.lmode; lay.gsel = null;
@@ -3127,7 +3215,7 @@ document.querySelectorAll(".ltool").forEach(b => b.addEventListener("click", () 
 $("lgDel").addEventListener("click", delLayGrip);
 ["lgShape", "lgL", "lgW"].forEach(id => $(id).addEventListener("change", () => {
   const cg = curGrip(); if (!cg) return;
-  layPush(); cg.gp.shape = $("lgShape").value; cg.gp.L = Math.max(4, num("lgL", 40)); cg.gp.W = Math.max(4, num("lgW", 22)); layChanged();
+  layPush(); const g = cg.frei ? cg.it.griff : cg.gp; g.shape = $("lgShape").value; g.L = Math.max(4, num("lgL", 40)); g.W = Math.max(4, num("lgW", 22)); if (cg.frei) griffSetzen(cg.it); layChanged();
 }));
 lcv.addEventListener("pointerup", layEnd);
 lcv.addEventListener("pointercancel", layEnd);
@@ -3394,7 +3482,7 @@ function scanUpdate() {
   lay.items.forEach(it => {
     if (!it.scan || !it.scan.startsWith(st.scanId + ":")) return;
     const f = neu[+it.scan.split(":")[1]];
-    if (f) { it.polys = f.polys; n++; }
+    if (f) { const sp = r => r.map(q => [-q[0], q[1]]).reverse(); it.polys = it.gespiegelt ? f.polys.map(pl => ({ outer: sp(pl.outer), holes: pl.holes.map(sp) })) : f.polys; n++; }
   });
   lay.nextId = 1 + lay.items.reduce((m, it) => Math.max(m, +it.id || 0), 0);
   setMode("layout");
@@ -3559,6 +3647,18 @@ $("itLean").addEventListener("change", () => { const it = lay.items[lay.sel]; if
 $("layOffAll").addEventListener("click", () => { const it = lay.items[lay.sel]; if (!it || it.text) return; layPush(); lay.items.forEach(o => { if (!o.text) o.off = it.off || 0; }); layChanged(); });
 $("layLeanAll").addEventListener("click", () => { const it = lay.items[lay.sel]; if (!it || it.text) return; layPush(); lay.items.forEach(o => { if (!o.text) o.lean = it.lean || 0; }); layChanged(); });
 $("layRot").addEventListener("click", () => { const it = lay.items[lay.sel]; if (!it) return; layPush(); it.ang = normAng(it.ang + 90); layChanged(); });
+// Spiegeln links ↔ rechts um die eigene Mitte (seit 1.570.0, Wunsch Patrick 16. November 2026: „die Teile sollen auch gespiegelt werden können“)
+function teilSpiegeln() {
+  const it = lay.items[lay.sel]; if (!it) return;
+  if (it.text) { toast("Eine Beschriftung lässt sich nicht spiegeln."); return; }
+  layPush();
+  const sp = r => r.map(q => [-q[0], q[1]]).reverse();
+  it.polys = it.polys.map(pl => ({ outer: sp(pl.outer), holes: pl.holes.map(sp) }));
+  it.grips = (it.grips || []).map(gp => ({ ...gp, x: -gp.x, ang: normAng(-gp.ang) }));
+  it.gespiegelt = !it.gespiegelt;
+  layChanged(); toast("Gespiegelt.");
+}
+$("layMir").addEventListener("click", teilSpiegeln);
 $("layDel").addEventListener("click", () => { if (!lay.items[lay.sel]) return; layPush(); lay.items.splice(lay.sel, 1); lay.sel = -1; layChanged(); });
 $("layDup").addEventListener("click", () => {
   const it = lay.items[lay.sel]; if (!it) return;
