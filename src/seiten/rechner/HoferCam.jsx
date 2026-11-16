@@ -270,19 +270,26 @@ function MaschinenBild({ block }) {
   }, [!!block]);
   // Seit 1.426.7 (Patrick: „möglichst gross, soll aber nicht T3421–T3423
   // überdecken“): Grösse aus dem Platz rechts neben bzw. über den Knöpfen
-  // der Bearbeitungen, neu bei Rollen und Fenstergrösse
+  // der Bearbeitungen.
+  // Seit 1.565.0 (Patrick 16. November 2026: „immer gleich gross, wie wenn
+  // ich zuoberst stehe und die erste Bearbeitung anwähle“): gerechnet wird
+  // immer so, als stünde die Seite ganz oben und die Maus über der ersten
+  // Bearbeitung; neu nur bei anderer Fenstergrösse, nicht beim Rollen und
+  // nicht je Bearbeitung
   const [mass, setMass] = useState(null);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     const d = el.ownerDocument, win = d.defaultView;
     const rechnen = () => {
-      // Seit 1.427.3 (Patrick: „Bild kleiner, dass es den Bearbeitungsreiter
-      // nicht überdeckt“): frei bleiben die Knöpfe der Bearbeitungen und
-      // alle Felder der Bearbeitung unter der Maus; gesucht ist die grösste
-      // Breite, bei der das Bild oben rechts nichts davon berührt
-      const sel = ".cam-bearb__kopf .knopf" + (block ? `, .cam-block[data-blockid="${block.id}"] :is(input, select, textarea, button, .cam-vorlage)` : "");
-      const k = [...d.querySelectorAll(sel)].map((x) => x.getBoundingClientRect()).filter((x) => x.width && x.height);
+      const erster = d.querySelector(".cam-block[data-blockid]");
+      const sel = ".cam-bearb__kopf .knopf" + (erster ? `, .cam-block[data-blockid="${erster.getAttribute("data-blockid")}"] :is(input, select, textarea, button)` : "");
+      // Gerollte Strecke aller Vorfahren: Lage wie ganz oben gerollt
+      const kopf = d.querySelector(".cam-bearb__kopf") || erster;
+      let gerollt = 0;
+      for (let x = kopf && kopf.parentElement; x; x = x.parentElement) gerollt += x.scrollTop || 0;
+      const k = [...d.querySelectorAll(sel)].map((x) => x.getBoundingClientRect()).filter((x) => x.width && x.height)
+        .map((x) => ({ left: x.left, right: x.right, top: x.top + gerollt, bottom: x.bottom + gerollt }));
       const vw = win.innerWidth, vh = win.innerHeight, oben = 70, rand = 16, text = 44;
       const hoechst = Math.min(900, vw - 2 * rand - 12, vh - oben - text - rand);
       const frei = (s) => {
@@ -294,9 +301,9 @@ function MaschinenBild({ block }) {
       setMass(Math.max(120, s));
     };
     rechnen();
-    win.addEventListener("resize", rechnen); win.addEventListener("scroll", rechnen, true);
-    return () => { win.removeEventListener("resize", rechnen); win.removeEventListener("scroll", rechnen, true); };
-  }, [block?.id]);
+    win.addEventListener("resize", rechnen);
+    return () => { win.removeEventListener("resize", rechnen); };
+  }, [!!block]);
   if (!block) return null;
   const r = bildBereich(block);
   // Seit 1.426.3 (Patrick: „soll gut lesbar sein“): grösser, Rest des
