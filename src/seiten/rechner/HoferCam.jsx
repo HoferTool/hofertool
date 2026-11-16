@@ -23,7 +23,7 @@ import { wzFehler, wzText } from "./camWerkzeug.js";
 import { WerkzeugFeld } from "./CamWerkzeugBild.jsx";
 import { simulationOeffnen } from "./CamSim3D.jsx";
 import { VORLAGEN, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen } from "./camVorlagen.js";
-import { FELDER, HD_STUFEN, plaetzeVon, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, markenPaare, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
+import { FELDER, HD_STUFEN, abVersatz, AB_VERSATZ_VORGABE, plaetzeVon, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, markenPaare, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Seit 1.427.0 (Wunsch Patrick 5. November 2026: „vordefinierte
 // Bearbeitungen aus einer Liste einfügen … in eine bestehende
@@ -678,7 +678,8 @@ export default function HoferCam() {
           {kopfZu ? "▸" : "▾"} Kopfdaten</button>
         {kopfZu && <span className="cam-kopfdaten__werte klein" id="cam-kopf-werte">
           {FELDER.flatMap((g) => g.felder).filter((d) => !feldAus("kopf", d.name) && String(w[d.name] ?? "").trim() !== "")
-            .map((d) => d.text + " " + w[d.name]).concat(t34Von(w) === "3400" ? "T3400 montiert" : "T3421–T3423 montiert").join(" · ")}</span>}
+            .map((d) => d.text + " " + w[d.name]).concat(t34Von(w) === "3400" ? "T3400 montiert" : "T3421–T3423 montiert")
+            .concat(w.abArt === "versetzt" ? "Abstecher versetzt " + (String(w.abVersatz ?? "").trim() || AB_VERSATZ_VORGABE) : "Abstecher normal").join(" · ")}</span>}
       </div>
       {!kopfZu && <div className="cam-gruppen">
         {FELDER.map((g) => ({ ...g, felder: g.felder.filter((d) => !feldAus("kopf", d.name)) })).filter((g) => g.felder.length).map((g) => (
@@ -702,6 +703,17 @@ export default function HoferCam() {
               <option value="3421">T3421–T3423 (frontangetrieben)</option>
               <option value="3400">T3400 (querangetrieben)</option>
             </select></label>
+          <label className="cam-feld" title="Versetzter Abstecher: die Platte sitzt rechts am Schaft, um den Versatz minus Abstechbreite B weiter vorne. Der Kopf fährt dann mit G0X[#531+4.]Z-… um diesen Wert vor, beim normalen Z-0.">
+            <span>Abstecher T100</span>
+            <select data-cam="abArt" value={w.abArt === "versetzt" ? "versetzt" : "normal"} onChange={(e) => setze("abArt", e.target.value)}>
+              <option value="normal">normal</option>
+              <option value="versetzt">versetzt</option>
+            </select></label>
+          {w.abArt === "versetzt" && <label className="cam-feld" title="Versatz der Platte zum Schaft, wirksam im Programm ist Versatz minus Abstechbreite B">
+            <span>Versatz <span className="cam-einheit">[mm]</span></span>
+            <input data-cam="abVersatz" value={w.abVersatz ?? ""} placeholder={String(AB_VERSATZ_VORGABE)} inputMode="decimal" style={{ width: 70 }}
+              onChange={(e) => setze("abVersatz", e.target.value)} />
+            <span className="klein" data-cam="abWirksam">wirksam Z-{abVersatz(w)}</span></label>}
         </fieldset>
         {eigeneFelder("kopf").length > 0 && <fieldset className="cam-gruppe" id="cam-eigene">
           <legend>Eigene Felder</legend>

@@ -100,6 +100,18 @@ const nr4 = (n) => String(n).padStart(4, "0");
 const v = (w, n) => zahl(w[n]) ?? String(w[n] ?? "");
 const ohneMinus = (t) => String(t).replace(/^-/, "").replace(/\.$/, "");
 
+// Seit 1.587.0 (Patrick 16. November 2026): Abstecher T100 normal oder
+// versetzt. Beim versetzten sitzt die Platte rechts am Schaft, um den
+// Versatz (Vorgabe 12 mm) minus Abstechbreite B weiter vorne; diesen
+// wirksamen Versatz fährt der Kopf mit G0X[#531+4.]Z-… vor, normal Z-0.
+export const AB_VERSATZ_VORGABE = 12;
+export function abVersatz(w) {
+  if (!w || w.abArt !== "versetzt") return 0;
+  const v = Number(zahl(w.abVersatz) ?? AB_VERSATZ_VORGABE), b = Number(zahl(w.B) ?? 0);
+  return Math.max(0, Math.round((v - b) * 1000) / 1000);
+}
+const mitPunkt = (n) => (Number.isInteger(n) ? n + "." : String(n));
+
 // Seit 1.441.0 stehen Kopf und Ende als Vorlage in camTyp.js und sind je
 // Maschinentyp änderbar; die Vorgabe gibt genau das alte Programm aus
 function kopfWerte(w) {
@@ -110,7 +122,7 @@ function kopfWerte(w) {
     NR: nr4(nr), NR2: nr4(nr + 1000), NAME: w.hoco ? "(" + w.hoco + ")" : "", HOCO: String(w.hoco || ""),
     DATUM_KUERZEL: [datum, kuerzel].filter(Boolean).join(" "), DATUM: datum, KUERZEL: kuerzel,
     A: v(w, "A"), W: v(w, "W"), S: String(w.S ?? "").trim(), X: v(w, "X"), Z: v(w, "Z"), F: v(w, "F"), B: v(w, "B"),
-    SCHLICHT: v(w, "schlicht"), PLAN: v(w, "plan"),
+    SCHLICHT: v(w, "schlicht"), PLAN: v(w, "plan"), ABZ: mitPunkt(abVersatz(w)),
     // Seit 1.419.1: Annähern positiv eingeben, im Programm immer mit Minus
     ANNAEHERN: an, ANNAEHERN_MM: ohneMinus(an), UEBER: ue, UEBER_MM: ohneMinus(ue),
   };

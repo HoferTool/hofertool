@@ -113,9 +113,16 @@ export function kopfLesen(k1, k2) {
     for (const [n, feld] of Object.entries(map)) if (w[n] != null && w[n] !== "") f[feld] = w[n];
     if (w.ANNAEHERN) f.annaehern = ohneMinus(w.ANNAEHERN);
     if (w.NAME) f.hoco = w.NAME.replace(/^\(|\)$/g, "");
+    if (w.ABZ != null && w.ABZ !== "") f._abz = Number(String(w.ABZ).replace(/\.$/, ""));
   };
   if (k1) { nimm(vorlageLesen(t.k1kopf, teil(k1, true)).werte); nimm(vorlageLesen(t.k1ende, teil(k1, false)).werte); }
   if (k2) { nimm(vorlageLesen(t.k2kopf, teil(k2, true)).werte); nimm(vorlageLesen(t.k2ende, teil(k2, false)).werte); }
+  // Abstecher: Z-0. = normal, sonst versetzt mit Versatz = Wert + B
+  if (f._abz != null && !Number.isNaN(f._abz)) {
+    if (f._abz > 0) { f.abArt = "versetzt"; f.abVersatz = String(Math.round((f._abz + (Number(f.B) || 0)) * 1000) / 1000); }
+    else f.abArt = "normal";
+  }
+  delete f._abz;
   // Zahlen ohne den Punkt, den die App selbst wieder anhängt, bleiben so
   return f;
 }

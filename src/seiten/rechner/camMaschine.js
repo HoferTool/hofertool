@@ -71,7 +71,8 @@ export function traegerQuader(o, aktiv, m = MASCHINE_SB20RG, t34 = "3421", ab = 
     if (k === 0 && ab) {
       // Abstecher: Platte steht A/2 + 1 aus dem Halter, Breite B, 3 mm im Halter
       box(-12, 0, ab.vor, ab.vor + 40, y - 6, y + 6, "halter");
-      if (t !== aktiv) box(-ab.b, 0, 0, ab.vor + 3, y - 3, y + 3, "schneide");
+      // seit 1.587.0 versetzt: Platte rechts am Schaft um ab.dz vor der Ebene
+      if (t !== aktiv) box((ab.dz || 0) - ab.b, ab.dz || 0, 0, ab.vor + 3, y - 3, y + 3, "schneide");
       continue;
     }
     box(-12, 0, pl / 2, 40, y - 6, y + 6, "halter");      // Schaft 12 × 12 (Patrick)

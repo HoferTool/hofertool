@@ -99,9 +99,27 @@ with sync_playwright() as p:
     p0 = s3["punkte"][0]["z"]
     pruefe("T1100: Drehebene im Teil bei Z5 (Stirn 5 mm draussen)", t and abs(t["z"] - (p0 + 5.5)) < 0.3 and abs(bu["z"] - (t["z"] + 2)) < 1e-9)
     pg.locator("#cam-sim").screenshot(path=S + "maschine_t1100.png")
+    # Seit 1.587.0: versetzter Abstecher, Versatz 12, B 1.5 → Platte 10.5 vor der Drehebene
+    pg.click("#cam-sim [title='Schliessen']")
+    pg.wait_for_timeout(300)
+    pg.select_option("[data-cam='abArt']", "versetzt"); pg.fill("[data-cam='abVersatz']", "12")
+    k1 = pg.evaluate("() => [...document.querySelectorAll('[data-kanal=\"1\"]')].map((e) => e.textContent).join('\\n')")
+    pruefe("Kopf: G0X[#531+4.]Z-10.5", "G0X[#531+4.]Z-10.5" in k1)
+    pruefe("Abstechen im Ende unverändert", "G00G99X#510Z[#530+#528]T1" in k1)
+    pg.click("#cam-sim-auf"); pg.wait_for_selector("#cam-sim-bild"); pg.wait_for_timeout(400)
+    pg.click("[data-cam-sim-schritt='ab']"); pg.wait_for_timeout(300)
+    t = T(); bu = pg.evaluate("() => document.querySelector('#cam-sim-bild').__buechse")
+    sa = pg.evaluate("() => document.querySelector('#cam-sim-bild').__sim.schritte.find((x) => x.modus === 'abstech')")
+    pa = sa["punkte"][-1]["z"]
+    print("versetzt", t, bu, pa)
+    pruefe("Versetzt: Drehebene 10.5 hinter der Platte, Büchse 2 dahinter", t and abs(t["z"] - (pa + 10.5)) < 1e-6 and abs(bu["z"] - (t["z"] + 2)) < 1e-6)
+    pg.locator("#cam-sim").screenshot(path=S + "abstecher_versetzt.png")
+    pg.click("[data-cam-sim-schritt='0']"); pg.wait_for_timeout(300)
+    pg.locator("#cam-sim").screenshot(path=S + "abstecher_versetzt_t100.png")
+    bu = pg.evaluate("() => document.querySelector('#cam-sim-bild').__buechse")
     pg.click("#cam-sim-maschine"); pg.wait_for_timeout(200)
     bu2 = pg.evaluate("() => document.querySelector('#cam-sim-bild').__buechse")
-    pruefe("Ohne Maschine Büchse gleich", bu2 and abs(bu2["z"] - bu["z"]) < 0.3)
+    print("ohne", bu2); pruefe("Ohne Maschine Büchse gleich", bu2 and abs(bu2["z"] - bu["z"]) < 0.3)  # beim Abstechen
     pruefe("Ohne Maschine kein Träger", T() is None)
     pg.click("#cam-sim-maschine")
     br.close()

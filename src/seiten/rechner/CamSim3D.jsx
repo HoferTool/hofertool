@@ -481,11 +481,17 @@ function Simulation({ w, zu }) {
   const stand = useMemo(() => materialStand(sim, n, cache.current), [sim, n]);
   // Spindelstock: fährt mit dem Material, steht also im Teil fest, hinter
   // der Führungsbüchse, auch wenn das Teil am weitesten draussen ist
+  // Seit 1.587.0: beim versetzten Abstecher sitzt die Platte von T100 um
+  // den wirksamen Versatz vor der Ebene der Drehwerkzeuge
+  const lageVon = (platz) => {
+    const l = platzLage(platz);
+    return l && Number(platz) === 100 && sim.abVersatz ? { ...l, dz: -sim.abVersatz } : l;
+  };
   const kopfZ = useMemo(() => {
     let z = sim.zMax + 2;
     for (const x of sim.schritte) {
       if (x.kanal !== 1) continue;
-      const l = platzLage(x.platz);
+      const l = lageVon(x.platz);
       if (l) for (const p of x.punkte) z = Math.max(z, p.z - (x.dzVorne ?? l.dz) + 2);
     }
     return z + BUECHSE_L + MASCHINE_SB20RG.kopf.abstand;
@@ -581,7 +587,7 @@ function Simulation({ w, zu }) {
         if (x.kanal !== 1 || x.von >= n || !x.punkte.length) continue;
         sAkt = x; pAkt = x.punkte[Math.min(n, x.bis) - x.von - 1];
       }
-      const l = sAkt ? platzLage(sAkt.platz) : null;
+      const l = sAkt ? lageVon(sAkt.platz) : null;
       if (l && pAkt) {
         const X = pAkt.mx != null ? pAkt.mx : pAkt.r, Y = pAkt.my != null ? pAkt.my : 0;
         traeger = { z: pAkt.z - (sAkt.dzVorne ?? l.dz), x: X - l.x, y: Y - l.y, aktiv: sAkt.platz };
@@ -611,7 +617,7 @@ function Simulation({ w, zu }) {
         if (x.kanal !== 1 || x.von >= n || !x.punkte.length) continue;
         if (x.art !== "dreh" && x.art !== "seite" && x.modus !== "abstech") continue;
         const q = x.punkte[Math.min(n, x.bis) - x.von - 1];
-        zb = q.z + 2 + (x.art === "seite" && x.wz ? bohrerHuelle(x.wz).R : 0);
+        zb = q.z + 2 + (x.art === "seite" && x.wz ? bohrerHuelle(x.wz).R : 0) + (x.platz === 100 ? sim.abVersatz || 0 : 0);
         zDreh = q.z;
       }
       // Bei Front- und angetriebenen Werkzeugen fährt das Teil weiter durch
@@ -630,7 +636,7 @@ function Simulation({ w, zu }) {
     let maschine = null, gegen = null;
     if (kanal === 1 && maschineAn) {
       maschine = {
-        quader: traeger ? traegerQuader(traeger, traeger.aktiv, undefined, sim.t34, { vor: A / 2 + 1, b: Math.max(0.5, sim.roh.B || 2) }, traeger.spitze, new Set(sim.schritte.filter((x) => x.kanal === 1).map((x) => x.platz))) : [], roll, grob: laeuft,
+        quader: traeger ? traegerQuader(traeger, traeger.aktiv, undefined, sim.t34, { vor: A / 2 + 1, b: Math.max(0.5, sim.roh.B || 2), dz: -(sim.abVersatz || 0) }, traeger.spitze, new Set(sim.schritte.filter((x) => x.kanal === 1).map((x) => x.platz))) : [], roll, grob: laeuft,
         kopf: { z: kopfZ, ri: A / 2, nase: k.nase, naseL: k.naseL, r: k.r, L: k.L },
       };
       maschine.koepfe = [maschine.kopf];

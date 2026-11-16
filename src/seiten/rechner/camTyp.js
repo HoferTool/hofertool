@@ -66,7 +66,7 @@ M200
 M20
 M25
 M3S1000
-G0X[#531+4.]Z-12.
+G0X[#531+4.]Z-{ABZ}
 M27
 M1
 (Ende Kopf)`,
@@ -463,6 +463,7 @@ export const PLATZHALTER_KOPF = [
   ["A", "A Material-Ø"], ["W", "W Teilelänge"], ["S", "S Abstechdrehzahl"], ["X", "X Abstechende"],
   ["Z", "Z Start"], ["F", "F Vorschub Abstechen"], ["B", "B Stahlbreite"],
   ["SCHLICHT", "Schlichtzugabe Z"], ["PLAN", "Zugabe Plan hinten W"],
+  ["ABZ", "Versatz Abstecher minus B (10.), normal 0."],
   ["ANNAEHERN", "Annähern Z mit Minus (-10.)"], ["ANNAEHERN_MM", "Annähern ohne Minus und Punkt (10)"],
   ["UEBER", "Über das Teil Z"], ["UEBER_MM", "Über das Teil ohne Minus und Punkt"],
 ];
