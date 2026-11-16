@@ -128,6 +128,11 @@ let gespeichertCam = null;
 const hoerer = new Set();
 const melden = () => hoerer.forEach((f) => f());
 let fensterZu = null;
+// Seit 1.548.1 (Patrick 16. November 2026: „wenn ich den NC-Code ins eigene
+// Fenster nehme, sind die Knöpfe 3D-Simulation und Programm einlesen nicht
+// mehr vorhanden“): das Einlesen gehört dem Reiter, das eigene Fenster ruft
+// es über diesen Verweis auf
+let einlesenJetzt = null;
 // Angewählte Bearbeitung (Wunsch Patrick 5. November 2026: „der NC-Code-
 // Bereich soll für die aktuell angewählte Bearbeitung hervorgehoben
 // werden“), auch im eigenen Fenster
@@ -165,8 +170,27 @@ function ImFenster() {
   }, [aktivId, bereich && bereich[0]]);
   // Änderungen im eigenen Fenster gehen in „gemerkt“, der Reiter liest sie
   const handSetzen = (hand) => { gemerkt.hand = hand; melden(); };
-  return <Kanaele prog={prog} sync={synchronisieren(prog.k1, prog.k2)} fehler={pruefen(w)} bereich={bereich} bereich2={prog.bereiche2[aktivId]}
-    w={w} handSetzen={handSetzen} />;
+  const einlesen = (dateien, k) => einlesenJetzt && einlesenJetzt(dateien, k);
+  return (<>
+    <FensterKnoepfe w={w} einlesen={einlesen} />
+    <Kanaele prog={prog} sync={synchronisieren(prog.k1, prog.k2)} fehler={pruefen(w)} bereich={bereich} bereich2={prog.bereiche2[aktivId]}
+      w={w} handSetzen={handSetzen} einlesen={einlesen} />
+  </>);
+}
+
+// 3D-Simulation und Programm einlesen, im Reiter und im eigenen Fenster
+function FensterKnoepfe({ w, einlesen, eigen }) {
+  return (<>
+    {/* Seit 1.547.0: 3D-Simulation Drehen und Bohren von vorne (Patrick 14. November 2026, Schritt 2) */}
+    <button className="knopf knopf--klein" id={eigen ? "cam-sim-auf" : "cam-sim-auf-fenster"} data-cam-sim="1"
+      title="Drehen, Bohren und Fräsen in 3D, Kanal 1 und Kanal 2, mit den Werkzeugen der Bearbeitungen"
+      onClick={() => simulationOeffnen(w)}>🧊 3D-Simulation</button>
+    <label className="knopf knopf--klein" id={eigen ? "cam-einlesen" : "cam-einlesen-fenster"} data-cam-einlesen-alle="1"
+      title="Bestehendes Programm (Kanal 1 und / oder Kanal 2) einlesen, Abweichungen zum Standard violett">
+      📂 Programm einlesen
+      <input type="file" multiple hidden data-ablegen="direkt" onChange={(e) => { einlesen(e.target.files); e.target.value = ""; }} />
+    </label>
+  </>);
 }
 
 // Seit 1.426.5 (Patrick: „die Markierung soll schon wechseln, wenn ich in
@@ -532,6 +556,7 @@ export default function HoferCam() {
       + (unklar.length ? ", nicht erkannt: " + unklar.join(", ") + " (stehen nur im Programm)" : "")
       + ". Violett = anders als der Standard.", unklar.length ? "warn" : "gut");
   };
+  einlesenJetzt = einlesen;
 
   return (
     <div className="karte cam">
@@ -792,18 +817,13 @@ export default function HoferCam() {
 
       {fensterZu
         ? <div className="cam-imfenster" id="cam-imfenster">Das NC-Programm ist im eigenen Fenster offen.
-            {" "}<button className="knopf knopf--klein" id="cam-zurueck" onClick={() => fensterZu && fensterZu()}>Zurückholen</button></div>
+            {" "}<button className="knopf knopf--klein" id="cam-zurueck" onClick={() => fensterZu && fensterZu()}>Zurückholen</button>
+            {" "}<FensterKnoepfe w={w} einlesen={einlesen} eigen /></div>
         : <>
           <div className="cam-fensterleiste">
             <button className="knopf knopf--klein" id="cam-fenster" title="Kanäle in einem eigenen Browserfenster, auch auf einem anderen Bildschirm"
               onClick={programmFensterAuf}>⧉ Eigenes Fenster</button>
-            {/* Seit 1.547.0: 3D-Simulation Drehen und Bohren von vorne (Patrick 14. November 2026, Schritt 2) */}
-            <button className="knopf knopf--klein" id="cam-sim-auf" title="Drehen und Bohren von vorne in 3D, Kanal 1 und Kanal 2, mit den Werkzeugen der Bearbeitungen"
-              onClick={() => simulationOeffnen(w)}>🧊 3D-Simulation</button>
-            <label className="knopf knopf--klein" id="cam-einlesen" title="Bestehendes Programm (Kanal 1 und / oder Kanal 2) einlesen, Abweichungen zum Standard violett">
-              📂 Programm einlesen
-              <input type="file" multiple hidden data-ablegen="direkt" onChange={(e) => { einlesen(e.target.files); e.target.value = ""; }} />
-            </label></div>
+            <FensterKnoepfe w={w} einlesen={einlesen} eigen /></div>
           <Kanaele prog={prog} sync={sync} fehler={fehler} bereich={prog.bereiche[aktiv]} bereich2={prog.bereiche2[aktiv]}
             w={w} handSetzen={(h) => setze("hand", h)} einlesen={einlesen} />
         </>}

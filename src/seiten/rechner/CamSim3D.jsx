@@ -389,16 +389,19 @@ function Simulation({ w, zu }) {
   useEffect(() => {
     if (!laeuft) return undefined;
     let id;
+    // Im eigenen Fenster mit dessen Takt, sonst steht es still, wenn das
+    // Hauptfenster verdeckt ist
+    const win = (leinwand.current && leinwand.current.ownerDocument.defaultView) || window;
     const weiter = () => {
       setN((x) => {
         const neu = Math.min(gesamt, x + Math.max(1, Math.round(Number(tempo) * 6)));
         if (neu >= gesamt) setLaeuft(false);
         return neu;
       });
-      id = requestAnimationFrame(weiter);
+      id = win.requestAnimationFrame(weiter);
     };
-    id = requestAnimationFrame(weiter);
-    return () => cancelAnimationFrame(id);
+    id = win.requestAnimationFrame(weiter);
+    return () => win.cancelAnimationFrame(id);
   }, [laeuft, tempo, gesamt]);
 
   // Drehen und Zoomen wie in der 3D-Ansicht der Kontur

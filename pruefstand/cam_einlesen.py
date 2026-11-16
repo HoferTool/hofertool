@@ -100,5 +100,23 @@ with sync_playwright() as p:
     pg.set_input_files("#cam-einlesen input", [ORDNER + "/O0458.NC"])
     pg.wait_for_selector("#cam-ein-stand")
     pg.screenshot(path="/tmp/claude-0/cam_einlesen_dunkel.png")
+    pg.evaluate("document.body.classList.remove('dunkel')")
+    # Seit 1.548.1: im eigenen Fenster auch 3D-Simulation und Einlesen
+    pg.click("[data-cam-verwerfen='1']")
+    with pg.expect_popup() as auf:
+        pg.click("#cam-fenster")
+    pop = auf.value; pop.wait_for_selector("#cam-kanaele")
+    pruefe("Im Tab neben Zurückholen beide Knöpfe", pg.locator("#cam-imfenster #cam-sim-auf").count() == 1
+           and pg.locator("#cam-imfenster #cam-einlesen input").count() == 1)
+    pruefe("Im eigenen Fenster beide Knöpfe", pop.locator("#cam-sim-auf-fenster").count() == 1
+           and pop.locator("#cam-einlesen-fenster input").count() == 1 and pop.locator("[data-cam-einlesen='1'] input").count() == 1)
+    pop.set_input_files("#cam-einlesen-fenster input", [ORDNER + "/O0458.NC"])
+    pop.wait_for_selector("[data-kanal='1'].cam-zeile--ein")
+    pruefe("Einlesen im eigenen Fenster wirkt", pop.locator("[data-kanal='1'].cam-zeile--ein").count() == 2)
+    pop.click("#cam-sim-auf-fenster")
+    pop.wait_for_selector(".cam-sim-huelle canvas", timeout=8000)
+    pruefe("Simulation geht im eigenen Fenster auf", pop.locator(".cam-sim-huelle canvas").count() >= 1)
+    pop.wait_for_timeout(600)
+    pop.screenshot(path="/tmp/claude-0/cam_fenster_sim.png")
     br.close()
 print("Fehler:", "; ".join(fehler) if fehler else "keine")
