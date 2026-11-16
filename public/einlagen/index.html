@@ -587,7 +587,7 @@ header.bar { align-items: center; }
           <button class="btn small" id="lgDel" type="button" disabled>Griffmulde löschen</button>
         </div>
       </div>
-      <p class="edithint" id="layHint">Werkzeug antippen und ziehen verschiebt es, der runde Anfasser dreht es (rastet alle 15° ein). Am PC: Pfeiltasten verschieben um 1 mm (mit Umschalt 10 mm), R dreht um 90°.</p>
+      <p class="edithint" id="layHint">Werkzeug antippen und ziehen verschiebt es, der runde Anfasser dreht es stufenlos, Winkel auch mit Komma eintippen. Am PC: Pfeiltasten verschieben um 1 mm (mit Umschalt 10 mm), R dreht um 90°.</p>
       <div class="viewwrap" id="lay2dWrap"><div class="viewer" id="layViewer"><canvas id="layView" aria-label="Einlage mit Werkzeugtaschen"></canvas></div></div>
       <div class="viewwrap" id="lay3dWrap" hidden>
         <div class="viewer" id="lay3dViewer"><canvas id="lay3d" aria-label="3D-Ansicht der Einlage"></canvas></div>
@@ -635,7 +635,7 @@ header.bar { align-items: center; }
           <div class="row"><label for="itD">Tiefe ab Oberkante</label><div class="unit"><input id="itD" type="number" min="0" max="200" step="0.5" disabled><span>mm</span></div></div>
           <div class="row"><label for="itX">Mitte X</label><div class="unit"><input id="itX" type="number" step="0.5" disabled><span>mm</span></div></div>
           <div class="row"><label for="itY">Mitte Y</label><div class="unit"><input id="itY" type="number" step="0.5" disabled><span>mm</span></div></div>
-          <div class="row"><label for="itA">Winkel</label><div class="unit"><input id="itA" type="number" min="-180" max="180" step="1" disabled><span>°</span></div></div>
+          <div class="row"><label for="itA">Winkel</label><div class="unit"><input id="itA" type="number" min="-180" max="180" step="any" disabled><span>°</span></div></div>
           <div class="contents" id="itToolBox">
             <div class="row"><label for="itOff">Aufmass zur erfassten Kontur</label><div class="unit"><input id="itOff" type="number" min="-5" max="10" step="0.1" disabled><span>mm</span></div></div>
             <p class="help">Verschiebt die Taschenwand gegenüber dem Original, zum Beispiel +1 mm für mehr Luft oder −0,5 mm für einen strammeren Sitz. Gilt zusätzlich zum Spaltmass beim Erfassen.</p>
@@ -2175,7 +2175,7 @@ const LAY_APP = "werkzeug-einlage";
 const lay = { base: { W: 300, H: 200, T: 30, R: 5 }, conn: connDefaults(), newDepth: 20, items: [], sel: -1, drag: null, undo: [], nextId: 1, scale: 1, M: 10,
   mode: "move", gsel: null, noUnion: null };
 const LAY_HINTS = {
-  move: "Werkzeug antippen und ziehen verschiebt es, der runde Anfasser dreht es (rastet alle 15° ein). Am PC: Pfeiltasten verschieben um 1 mm (mit Umschalt 10 mm), R dreht um 90°.",
+  move: "Werkzeug antippen und ziehen verschiebt es, der runde Anfasser dreht es stufenlos, Winkel auch mit Komma eintippen. Am PC: Pfeiltasten verschieben um 1 mm (mit Umschalt 10 mm), R dreht um 90°.",
   key: "Nagel: Schlüsselloch antippen und ziehen. Hilfslinien zeigen die Mitte und alle Abstände, nahe der Mitte rastet es ein. Das erste Loch verschiebt die ganze Reihe, die weiteren ändern den Abstand der Löcher.",
   grip: "An die Kante eines Werkzeugs tippen setzt eine Griffmulde, ausgerichtet an der Kante. Mulde ziehen verschiebt sie, eckige Anfasser ändern Länge und Breite, der runde dreht. Die Mulde bekommt die Tiefe ihres Werkzeugs und wandert mit ihm mit."
 };
@@ -2341,7 +2341,8 @@ function layGripMove(e) {
   d.moved = true; layRender(); syncLayGrip();
 }
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const normAng = a => ((Math.round(a) + 180) % 360 + 360) % 360 - 180;
+// Auf ein Zehntelgrad gerundet: das Drehen in der Einlage ist stufenlos (Wunsch Patrick 16. November 2026)
+const normAng = a => Math.round((((a + 180) % 360 + 360) % 360 - 180) * 10) / 10;
 function itemWorld(it) {
   const a = it.ang * Math.PI / 180, c = Math.cos(a), s = Math.sin(a), tf = p => [it.x + p[0] * c - p[1] * s, it.y + p[0] * s + p[1] * c];
   return itemShape(it).map(pl => ({ outer: pl.outer.map(tf), holes: pl.holes.map(h => h.map(tf)) }));
@@ -2944,7 +2945,7 @@ function laySyncInputs() {
   if (tx) { if (document.activeElement !== $("itTxt")) $("itTxt").value = tx.s; $("itFont").value = tx.font; $("itTh").value = tx.h; $("itBold").checked = !!tx.bold; }
   $("itOff").value = it && !tx ? (+it.off || 0) : ""; $("itLean").value = it && !tx ? (+it.lean || 0) : "";
   $("itF").value = it && it.floor && it.floor.type === "round" ? "round" : "flat"; $("itFr").disabled = !it || $("itF").value !== "round"; $("itFr").value = it && it.floor && it.floor.r > 0 ? it.floor.r : "";
-  if (it) { $("itName").value = it.name; $("itX").value = Math.round(it.x * 10) / 10; $("itY").value = Math.round(it.y * 10) / 10; $("itA").value = it.ang; $("itD").value = it.depth; }
+  if (it) { $("itName").value = it.name; $("itX").value = Math.round(it.x * 10) / 10; $("itY").value = Math.round(it.y * 10) / 10; $("itA").value = Math.round(it.ang * 10) / 10; $("itD").value = it.depth; }
   else ["itName", "itX", "itY", "itA", "itD"].forEach(id => $(id).value = "");
   $("itEs").disabled = !it || !it.edge || it.edge.type === "none" || it.edge.type === undefined;
   if (it) { $("itE").value = it.edge && (it.edge.type === "chamfer" || it.edge.type === "round") ? it.edge.type : "none"; $("itEs").value = it.edge && it.edge.size > 0 ? it.edge.size : 1; } else { $("itE").value = "none"; $("itEs").value = ""; }
@@ -3019,8 +3020,34 @@ function layRender() {
     g.beginPath(); g.moveTo(it.x, it.y); g.lineTo(h[0], h[1]); g.lineWidth = 1.5 * px; g.strokeStyle = accent; g.setLineDash([4 * px, 3 * px]); g.stroke(); g.setLineDash([]);
     g.beginPath(); g.arc(h[0], h[1], 7 * px, 0, 7); g.fillStyle = "#fff"; g.fill(); g.lineWidth = 2 * px; g.strokeStyle = accent; g.stroke();
   }
-  g.font = `500 ${11 * px}px "JetBrains Mono", monospace`; g.fillStyle = "#C9D2CD";
-  g.fillText(`${de(B.W, 0)} × ${de(B.H, 0)} mm · Höhe ${de(B.T)} mm`, 0, B.H + 7.5);
+  layDrawMasse(g, px, it && lay.mode === "move" ? it : null);
+}
+// Masse in der Einlage (Wunsch Patrick 16. November 2026: „Länge und Breite soll man bei der Einlage sehen“):
+// Breite (X) oben und Länge (Y) links am Grundkörper als Masslinie, beim gewählten Werkzeug
+// Breite × Länge seines Umrisses (achsparallel, wie in der Liste) direkt daran.
+function layDrawMasse(g, px, it) {
+  const B = lay.base, M = lay.M, col = "#17201C";
+  const pfeil = (x, y, dx, dy) => { const L = 5 * px, b = 2.2 * px; g.beginPath(); g.moveTo(x, y); g.lineTo(x + dx * L - dy * b, y + dy * L + dx * b); g.lineTo(x + dx * L + dy * b, y + dy * L - dx * b); g.closePath(); g.fill(); };
+  const mass = (x1, y1, x2, y2, txt, farbe, grund) => {
+    const dx = x2 - x1, dy = y2 - y1, l = Math.hypot(dx, dy) || 1, ux = dx / l, uy = dy / l;
+    g.save(); g.strokeStyle = farbe; g.fillStyle = farbe; g.lineWidth = 1 * px;
+    g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); pfeil(x1, y1, ux, uy); pfeil(x2, y2, -ux, -uy);
+    g.font = `600 ${11 * px}px Barlow, sans-serif`; const tw = g.measureText(txt).width;
+    g.translate((x1 + x2) / 2, (y1 + y2) / 2); if (Math.abs(uy) > Math.abs(ux)) g.rotate(-Math.PI / 2);
+    g.fillStyle = grund; g.fillRect(-tw / 2 - 3 * px, -7.5 * px, tw + 6 * px, 14 * px);
+    g.fillStyle = farbe; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(txt, 0, 0); g.restore();
+  };
+  const o = Math.min(M * 0.5, 7 * px + 1);
+  mass(0, -o, B.W, -o, `Breite ${de(B.W, 0)} mm`, "#5B6661", "#fff");
+  mass(-o, 0, -o, B.H, `Länge ${de(B.H, 0)} mm`, "#5B6661", "#fff");
+  g.font = `500 ${11 * px}px "JetBrains Mono", monospace`; g.fillStyle = "#8A9590";
+  g.fillText(`Höhe ${de(B.T)} mm`, 0, B.H + 7.5);
+  if (it && !it.text) {
+    const [a, b, c, d] = bbox(itemWorld(it).flatMap(pl => pl.outer)), accent = css("--accent"), k = 6 * px;
+    const yo = b - k > 2 * k ? b - k : d + k, xo = a - k > 2 * k ? a - k : c + k;
+    mass(a, yo, c, yo, `${de(c - a)} mm`, accent, "rgba(255,255,255,.92)");
+    mass(xo, b, xo, d, `${de(d - b)} mm`, accent, "rgba(255,255,255,.92)");
+  }
 }
 function layRenderList() {
   const B = lay.base, iss = layIssues(), n = lay.items.length;
@@ -3080,8 +3107,8 @@ lcv.addEventListener("pointermove", e => {
   const mm = toLay(e);
   if (d.mode === "move") { it.x = Math.round((mm[0] - d.dx) * 2) / 2; it.y = Math.round((mm[1] - d.dy) * 2) / 2; }
   else {
-    const deg = normAng(Math.atan2(mm[1] - it.y, mm[0] - it.x) * 180 / Math.PI + 90), sn = Math.round(deg / 15) * 15;
-    it.ang = Math.abs(deg - sn) < 4 ? normAng(sn) : deg;
+    // Stufenlos ohne Einrasten (Wunsch Patrick 16. November 2026: „stufenlos in Grad ohne Einrasten“)
+    it.ang = normAng(Math.atan2(mm[1] - it.y, mm[0] - it.x) * 180 / Math.PI + 90);
   }
   d.moved = true; layRender(); laySyncInputs();
 });

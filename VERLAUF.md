@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.569.0** (16. November 2026): Einlagen Generator: Werkzeuge in der Einlage stufenlos drehen (ohne Einrasten, Winkel mit Komma), Länge und Breite der Einlage und des gewählten Werkzeugs als Masslinien (Wunsch Patrick).
 - **1.558.1** (16. November 2026): Prüfstand `spiele.py` sucht die Anzeige „Lager“ der Späneschleuder nur noch dort, wo eine Zahl steht; der Spaltenkopf „Lagerort“ der neuen Seite Lager brachte den Test sonst jedes Mal zum Absturz.
 - **1.558.0** (15. November 2026): Neuer Menüpunkt **Prüfmittel** (provisorisch, nur Admins): jedes Prüfmittel mit Nr., Mass und Ort (Schrank, Maschine, Person, extern), Übersicht „Wo ist was“, Austragen und Zurück mit Verlauf, Prüfintervall, Einfügen aus Gewatec/Excel.
 - **1.551.0** (14. November 2026): Beser Reihen lernen mit **Profilen** für mehrere Kinder: Knopf oben links im Menü (Name, „wechseln ▾“) zum Wählen, Umbenennen und Anlegen, ohne PIN; jedes Profil hat eigene Punkte, Levels, Garage, Rekorde und Fehler; mit mehreren Profilen fragt das Spiel beim Öffnen „Wer spielt?“, auch im Direktlink. Der bisherige Stand ist Profil „Spieler 1“ (Wunsch Patrick: „ich habe 2 Söhne, die üben“).
