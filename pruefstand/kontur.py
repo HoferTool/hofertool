@@ -27,6 +27,8 @@ with sync_playwright() as p:
            and "SCHNEIDENRADIUS 0.200 EINGERECHNET" in c and "G1X" in c)
     pruefe("Stirn mit Radius eingerechnet beginnt bei X-0.400", "G0X-0.400Z-0.500" in c)
     pruefe("Durchmesser 10 genau", "G1Z" in c and "X10.000" in c)
+    # Seit 1.596.0 Radius als Ecke mit ,R (Bahn: R0.5 + Schneidenradius in der äusseren Ecke)
+    pruefe("Radius mit ,R und Fase mit ,C", ",R" in c and ",C" in c and "G2" not in c and "G3" not in c)
     # Rückwärts abfahren (seit 1.431.0)
     vor = [z for z in c.split("\n") if z.startswith("G1") or z.startswith("G2") or z.startswith("G3")]
     pg.check("#kt-rueck"); pg.wait_for_timeout(150)
@@ -45,7 +47,9 @@ with sync_playwright() as p:
     pg.select_option(el1 + "[data-ktfeld='ueb']", "FE"); pg.wait_for_timeout(100)
     pg.select_option(el1 + "[data-ktfeld='fs']", "E0.6×0.3"); pg.wait_for_timeout(100)
     c = code()
-    pruefe("Freistich DIN 509 E", "G1X9.400Z6.846" in c and "G1Z7.600" in c and pg.locator("#kt-fehler").count() == 0)
+    pruefe("Freistich DIN 509 E", "G1X9.400,A-15.000" in c and "G1Z7.600" in c and pg.locator("#kt-fehler").count() == 0)
+    # Seit 1.596.0 Fasen als Ecke mit ,C statt ausgeschrieben
+    pruefe("Fase mit ,C", "G1X10.000,C0.417" in c and "G1X16.000,C0.417" in c)
     pg.select_option(el1 + "[data-ktfeld='ueb']", "FG"); pg.select_option(el1 + "[data-ktfeld='fs']", "P 1"); pg.wait_for_timeout(100)
     pruefe("Gewindefreistich DIN 76", "X8.400" in code() and pg.locator("#kt-fehler").count() == 0)
     pg.select_option(el1 + "[data-ktfeld='ueb']", "FF"); pg.wait_for_timeout(100)

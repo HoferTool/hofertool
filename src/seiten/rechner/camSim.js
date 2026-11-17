@@ -122,6 +122,30 @@ export function bahnLesen(zeilen, v, { mitG50 = false, start = null } = {}) {
     x = ziel.x; z = ziel.z; y = ziel.y; c = ziel.c;
   };
 
+  // Ecke mit ,C (Fase) oder ,R (Radius), seit 1.596.0 aus HOFERCONTUR:
+  // die Zeile fährt erst, wenn die nächste Gerade bekannt ist. Passt es
+  // nicht (Bogen danach, Y oder C ändert, zu kurz), bleibt die Ecke spitz.
+  let ecke = null;
+  const eckeFertig = (nx, nz, linear) => {
+    if (!ecke) return;
+    const e = ecke; ecke = null;
+    const spitz = () => nach(e.x, e.z, e.y, e.c, true, e.nr);
+    if (!linear || nx == null || nz == null || x == null || z == null || polar) return spitz();
+    const S = [z, x / 2], V = [e.z, e.x / 2], N = [nz, nx / 2];
+    const d1 = [V[0] - S[0], V[1] - S[1]], d2 = [N[0] - V[0], N[1] - V[1]];
+    const l1 = Math.hypot(...d1), l2 = Math.hypot(...d2);
+    if (l1 < 1e-9 || l2 < 1e-9) return spitz();
+    const u1 = [d1[0] / l1, d1[1] / l1], u2 = [d2[0] / l2, d2[1] / l2];
+    const kr = u1[0] * u2[1] - u1[1] * u2[0], th = Math.atan2(Math.abs(kr), u1[0] * u2[0] + u1[1] * u2[1]);
+    if (th < 1e-6) return spitz();
+    const t = e.art === "C" ? e.wert : e.wert * Math.tan(th / 2);
+    if (!(t > 0) || t > l1 + 1e-6 || t > l2 + 1e-6) return spitz();
+    const P1 = [V[0] - u1[0] * t, V[1] - u1[1] * t], P2 = [V[0] + u2[0] * t, V[1] + u2[1] * t];
+    nach(2 * P1[1], P1[0], e.y, e.c, true, e.nr);
+    if (e.art === "C") nach(2 * P2[1], P2[0], e.y, e.c, true, e.nr);
+    else bogen({ x: 2 * P2[1], z: P2[0], y: e.y, c: e.c }, { R: e.wert }, kr < 0, e.nr);
+  };
+
   // Schleifen und Sprünge vorbereiten
   const L = zeilen.map(sauber);
   const marke = {};
@@ -168,6 +192,7 @@ export function bahnLesen(zeilen, v, { mitG50 = false, start = null } = {}) {
     const ohneWinkel = s.replace(/,[ACR].*$/, "");
     const a = adressen(ohneWinkel.replace(/G\d+(\.\d)?|M\d+|S\d+|T\d+/g, ""), v);
     if (g.includes(76)) {
+      eckeFertig(null, null, false);
       // Gewindezyklus: die erste Zeile (P…Q…R) hat keinen Weg; die zweite
       // fährt auf Kern-Ø X bis Z und wieder zurück
       if (!("X" in a) || !("Z" in a) || x == null || z == null) continue;
@@ -181,6 +206,7 @@ export function bahnLesen(zeilen, v, { mitG50 = false, start = null } = {}) {
     if (polar) { if ("C" in a) y1 = a.C; if ("H" in a) y1 = y + a.H; }
     else { if ("Y" in a) y1 = a.Y; if ("C" in a) c1 = a.C; if ("H" in a) c1 = c + a.H; }
     if (zyk) {
+      eckeFertig(null, null, false);
       // Bohrzyklus: zuerst im Eilgang auf die Lage, dann bohren und zurück
       if (x == null) x = 0;
       if (z == null) z = 0;
@@ -201,21 +227,35 @@ export function bahnLesen(zeilen, v, { mitG50 = false, start = null } = {}) {
       }
       continue;
     }
-    let x1 = "X" in a ? a.X : x, z1 = "Z" in a ? a.Z : z;
-    if ("U" in a) x1 = (x ?? 0) + a.U;
-    if ("W" in a) z1 = (z ?? 0) + a.W;
+    // Wartet eine Ecke (,C / ,R), gilt ihr Ziel schon als Lage
+    const bx = ecke ? ecke.x : x, bz = ecke ? ecke.z : z;
+    let x1 = "X" in a ? a.X : bx, z1 = "Z" in a ? a.Z : bz;
+    if ("U" in a) x1 = (bx ?? 0) + a.U;
+    if ("W" in a) z1 = (bz ?? 0) + a.W;
     // ,A Winkel bei nur einer Achse: die andere aus dem Winkel
     const winkel = s.match(/,A\s*([-+]?\d*\.?\d+)/);
-    if (winkel && "X" in a && !("Z" in a) && x != null && z != null) {
+    if (winkel && bx != null && bz != null) {
       const w = Number(winkel[1]) * Math.PI / 180;
-      if (Math.abs(Math.tan(w)) > 1e-6) z1 = z + Math.abs((x1 - x) / 2) / Math.tan(w);
+      // Winkel zur +Z-Achse im Gegenuhrzeigersinn, mit Vorzeichen (seit
+      // 1.596.0, vorher immer Richtung +Z bei steigendem X; seit 1.596.0
+      // auch nur Z mit ,A, wie es HOFERCONTUR bei flachen Kegeln schreibt)
+      if ("X" in a && !("Z" in a) && Math.abs(Math.tan(w)) > 1e-6) z1 = bz + ((x1 - bx) / 2) / Math.tan(w);
+      else if ("Z" in a && !("X" in a) && Math.abs(Math.cos(w)) > 1e-6) x1 = bx + 2 * (z1 - bz) * Math.tan(w);
     }
     if (x == null && z == null) { x = x1 ?? 0; z = z1 ?? 0; y = y1; c = c1; continue; }
     if (x1 == null) x1 = x ?? 0;
     if (z1 == null) z1 = z ?? 0;
-    if (modal >= 2 && ("R" in a || "I" in a || "K" in a || "J" in a) && !/,R/.test(s)) bogen({ x: x1, z: z1, y: y1, c: c1 }, a, modal === 2, nr);
-    else nach(x1, z1, y1, c1, modal !== 0, nr);
+    if (modal >= 2 && ("R" in a || "I" in a || "K" in a || "J" in a) && !/,R/.test(s)) {
+      eckeFertig(null, null, false);
+      bogen({ x: x1, z: z1, y: y1, c: c1 }, a, modal === 2, nr);
+    } else {
+      eckeFertig(x1, z1, modal === 1 && ecke && y1 === ecke.y && c1 === ecke.c);
+      const ek = modal === 1 && !polar && s.match(/,([CR])\s*(\d*\.?\d+)/);
+      if (ek) ecke = { x: x1, z: z1, y: y1, c: c1, art: ek[1], wert: Number(ek[2]), nr };
+      else nach(x1, z1, y1, c1, modal !== 0, nr);
+    }
   }
+  eckeFertig(null, null, false);
   return punkte;
 }
 

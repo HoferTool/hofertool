@@ -782,11 +782,11 @@ export default function HoferCam() {
                     dem Pfeil ein- und ausklappen, gemerkt am Block (zu) */}
                 <button className="cam-block__pfeil" data-camblock-pfeil={i} title={b.zu ? "NC-Code zeigen" : "NC-Code einklappen"}
                   aria-expanded={!b.zu} onClick={() => blockAendern(b.id, "zu", !b.zu)}>{b.zu ? "▸" : "▾"}</button>
-                {(front || (quer && !seite)) && <label className="cam-feld" title="Hauptspindel oder Gegenspindel"><span>Spindel</span>
-                  <select data-camblock="spindel" value={b.spindel || "haupt"} onChange={(e) => blockAendern(b.id, "spindel", e.target.value)}>
-                    <option value="haupt">Hauptspindel</option>
-                    <option value="gegen">Gegenspindel (Kanal 2 mit T2000)</option>
-                  </select></label>}
+                {/* Seit 1.596.0 (Wunsch Patrick 17. November 2026: „das Feld
+                    Bezeichnung immer an vorderster Stelle und dann das Werkzeug“) */}
+                {!b.frei && <label className="cam-feld cam-feld--text" title="Steht in Klammern hinter dem Werkzeugaufruf"><span>Bezeichnung</span>
+                  <input data-camblock="bez" value={b.bez} style={{ width: 190 }}
+                    onChange={(e) => blockAendern(b.id, "bez", e.target.value.toUpperCase())} /></label>}
                 {/* Seit 1.566.0 (Patrick 16. November 2026: „nur wenn ich wirklich
                     mit der Maus auf das Feld Platz fahre“): das Maschinenbild
                     kommt nur über dem Feld Platz samt seiner offenen Liste */}
@@ -798,6 +798,11 @@ export default function HoferCam() {
                     waehlen={(p) => { blockAendern(b.id, "platz", p); setUeber(b.id); }}
                     vorschau={(p) => { setVorPlatz(p ? { id: b.id, platz: p } : null); if (p) setUeber(b.id); }} />
                   {bf.platz && <small className="cam-fehltext" data-camblock-nichtmontiert={i}>nicht montiert</small>}</label>
+                {(front || (quer && !seite)) && <label className="cam-feld" title="Hauptspindel oder Gegenspindel"><span>Spindel</span>
+                  <select data-camblock="spindel" value={b.spindel || "haupt"} onChange={(e) => blockAendern(b.id, "spindel", e.target.value)}>
+                    <option value="haupt">Hauptspindel</option>
+                    <option value="gegen">Gegenspindel (Kanal 2 mit T2000)</option>
+                  </select></label>}
                 {/* Seit 1.561.0: Bearbeitung wie eingelesen, ohne Vorlage */}
                 {b.frei ? <span className="cam-frei klein" data-camblock-frei={i}
                   title="Diese Bearbeitung passt zu keiner Vorlage des Maschinentyps (etwa ein älteres Programm). Ihr NC-Code steht unverändert im Programm, die Felder der Vorlage wirken nicht.">
@@ -805,9 +810,6 @@ export default function HoferCam() {
                   <button className="knopf knopf--klein" data-camblock-standard={i}
                     title="Felder der Vorlage einschalten; der Code bleibt im NC-Feld und wird in die Vorlage eingebaut"
                     onClick={() => blockAendern(b.id, "frei", false)}>Mit Vorlage aufbauen</button></span> : <>
-                <label className="cam-feld cam-feld--text" title="Steht in Klammern hinter dem Werkzeugaufruf"><span>Bezeichnung</span>
-                  <input data-camblock="bez" value={b.bez} style={{ width: 190 }}
-                    onChange={(e) => blockAendern(b.id, "bez", e.target.value.toUpperCase())} /></label>
                 {!aus("hd") && <label className="cam-feld" title={k2 ? "Hochdruck M1884D… vor dem Werkzeugaufruf, am Ende M1894 aus" : quer ? "Hochdruck M1883D… ein, am Ende M1893 aus" : front ? "Hochdruck M1882D… ein, am Ende M1892 aus" : "Hochdruck M1881D… ein, am Ende M1891 aus"}><span>Hochdruck</span>
                   <select data-camblock="hd" value={b.hd} onChange={(e) => blockAendern(b.id, "hd", e.target.value)}>
                     {(HD_STUFEN.includes(b.hd || "") ? HD_STUFEN : [...HD_STUFEN, b.hd]).map((h) => <option key={h} value={h}>{h ? "Stufe " + h : "kein"}</option>)}

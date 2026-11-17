@@ -272,14 +272,14 @@ export function konturRechnen(k) {
       const C = o1 && o2 ? naechster(schnitte(o1, o2), ecke) : null;
       if (!C) { fehler.push(`Element ${i + 1}: Radius ${wert} passt nicht in die Ecke.`); continue; }
       T1 = lot(s1, C); T2 = lot(s2, C);
-      neu = { t: "A", a: T1, b: T2, c: C, R: wert, ccw: seite > 0, nr: i + 1, uebergang: true };
+      neu = { t: "A", a: T1, b: T2, c: C, R: wert, ccw: seite > 0, nr: i + 1, uebergang: true, uebArt: "R" };
     } else {
       const k1 = s1.t === "L" ? [plus(ecke, mal(t1, -wert))] : schnitte(s1, { t: "A", c: ecke, R: wert });
       const k2 = s2.t === "L" ? [plus(ecke, mal(t2, wert))] : schnitte(s2, { t: "A", c: ecke, R: wert });
       T1 = naechster(k1, plus(ecke, mal(t1, -wert)));
       T2 = naechster(k2, plus(ecke, mal(t2, wert)));
       if (!T1 || !T2) { fehler.push(`Element ${i + 1}: Fase ${wert} passt nicht.`); continue; }
-      neu = { t: "L", a: T1, b: T2, nr: i + 1, uebergang: true };
+      neu = { t: "L", a: T1, b: T2, nr: i + 1, uebergang: true, uebArt: "C" };
     }
     // Der Übergang darf nicht über das Element hinausreichen
     const zuLang = (s, a, b, T) => (s.t === "L" ? skalar(minus(T, a), minus(b, a)) < -1e-9 || abstand(T, a) > abstand(b, a) + 1e-9 : false);
@@ -405,14 +405,91 @@ export function ncProgrammZeilen(k, bahn) {
   const fVon = (nr) => { const e = zahlVon(el(nr).f); return e && e > 0 ? e : f; };
   let fJetzt = f;
   let p = erst;
-  bahn.forEach((s, i) => {
+  // Fasen und Radien als Ecke mit ,C / ,R, schräge Fasen mit ,A (seit
+  // 1.596.0, Wunsch Patrick 17. November 2026: „bei Fasen mit 45° und
+  // Rundungen mit C und R programmieren und bei Fasen, welche nicht 45°
+  // sind, mit A“). Gesucht wird in der Bahn: Gerade → (Rundung der
+  // Schneide) → Übergang → (Rundung) → Gerade. Die Ecke ist der Schnitt
+  // der beiden Geraden der Bahn; ,C ist der Abstand von dort bis zum
+  // Anfang der Fase, ,R der Radius der Bahn. Passt etwas nicht, bleibt
+  // der Weg ausgeschrieben wie bisher.
+  const auf = (q, g) => Math.abs(kreuz(einheit(minus(g.b, g.a)), minus(q, g.a))) < 1e-5;
+  const eckeSuchen = (i) => {
+    const g1 = bahn[i];
+    if (!g1 || g1.t !== "L" || g1.uebergang) return null;
+    let j = i + 1;
+    while (bahn[j] && bahn[j].ecke) j++;
+    const u = bahn[j];
+    if (!u || !u.uebArt) return null;
+    let m = j + 1;
+    while (bahn[m] && bahn[m].ecke) m++;
+    const g2 = bahn[m];
+    if (!g2 || g2.t !== "L" || g2.uebergang) return null;
+    // Pause am Ende des Elements: dort steht die Ecke nicht als Punkt
+    if (zahlVon(el(g1.nr).pause) > 0) return null;
+    const V = schnitte(g1, g2)[0];
+    if (!V) return null;
+    // Die Ecke muss vor der ersten Geraden weiter und vor der zweiten liegen
+    if (skalar(minus(V, g1.a), minus(g1.b, g1.a)) < 0 || skalar(minus(g2.b, V), minus(g2.b, g2.a)) < 0) return null;
+    if (u.uebArt === "R") {
+      if (u.t !== "A" || j !== i + 1 || m !== j + 1) return null;
+      return { bis: m, V, zusatz: `,R${z3(u.R)}` };
+    }
+    if (u.t !== "L") return null;
+    const P1 = schnitte(u, g1)[0], P2 = schnitte(u, g2)[0];
+    if (!P1 || !P2 || !auf(P1, g1) || !auf(P2, g2)) return null;
+    const c1 = abstand(P1, V), c2 = abstand(P2, V);
+    if (c1 < 1e-4 || c2 < 1e-4) return null;
+    if (Math.abs(c1 - c2) < 5e-4) return { bis: m, V, zusatz: `,C${z3((c1 + c2) / 2)}` };
+    return { bis: m, V: P1, P2 };
+  };
+  const zeilenAus = [];
+  for (let i = 0; i < bahn.length; i++) {
+    const ec = eckeSuchen(i);
+    if (!ec) { zeilenAus.push({ s: bahn[i], i }); continue; }
+    zeilenAus.push({ s: bahn[i], i, ziel: ec.V, zusatz: ec.zusatz || "" });
+    if (ec.P2) {
+      // Schräge Fase: zuerst bis an den Anfang der Fase, dann mit dem
+      // Winkel der Fase nur bis zu einer Achse (wie beim Wegfahren
+      // G1X[#531+0.2],A45.). Winkel zur +Z-Achse, Gegenuhrzeigersinn.
+      const u = bahn.slice(i + 1, ec.bis).find((x) => x.uebArt);
+      zeilenAus.push({ s: u, i: ec.bis - 1, ziel: ec.P2, winkel: true });
+    }
+    i = ec.bis - 1;
+  }
+  zeilenAus.forEach(({ s, i, ziel, zusatz, winkel }) => {
+    // Schräge Gerade (Fase, die nicht 45° ist, Kegel, Schräge im
+    // Freistich): nur eine Achse mit dem Winkel ,A zur +Z-Achse im
+    // Gegenuhrzeigersinn, wie beim Wegfahren meist X. Nur ganz flache
+    // Schrägen (unter 5° zur Achse) mit Z, sonst macht die Rundung von X
+    // in Z zu viel aus.
+    const schraeg = (q) => {
+      const d = minus(q, p);
+      if (Math.abs(d.r) < 5e-7 || Math.abs(d.z) < 5e-7) return "";
+      const w = (Math.atan2(d.r, d.z) * 180) / Math.PI;
+      const achse = Math.abs(d.r) >= Math.tan(grad(5)) * Math.abs(d.z) ? `X${z3(q.r * 2)}` : `Z${z3(q.z)}`;
+      return `G1${achse},A${z3(w)}`;
+    };
     const xz = (q) => (Math.abs(q.r - p.r) > 5e-7 ? `X${z3(q.r * 2)}` : "") + (Math.abs(q.z - p.z) > 5e-7 ? `Z${z3(q.z)}` : "");
     const fs = fVon(s.nr);
     const fText = fs && fs !== fJetzt ? "F" + fs : "";
     let zeile = "";
+    if (winkel) {
+      zeile = schraeg(ziel) || `G1${xz(ziel)}`;
+      { zeilen.push(zeile + fText); nrs.push(s.nr || 0); if (fText) fJetzt = fs; }
+      p = ziel;
+      return;
+    }
+    if (ziel) {
+      const t = xz(ziel);
+      if (t) zeile = `G1${t}${zusatz}`;
+      if (zeile) { zeilen.push(zeile + fText); nrs.push(s.nr || 0); if (fText) fJetzt = fs; }
+      p = ziel;
+      return;
+    }
     if (s.t === "L") {
       const t = xz(s.b);
-      if (t) zeile = `G1${t}`;
+      if (t) zeile = schraeg(s.b) || `G1${t}`;
     } else {
       let g = s.ccw ? 3 : 2;
       if (tausch) g = g === 2 ? 3 : 2;
