@@ -73,8 +73,18 @@ with sync_playwright() as p:
             pruefe(pg.evaluate("document.body.classList.contains('nav--todos')"), "Start mit Todos")
             pruefe(not pg.is_visible(".nav > .nav__punkt"), "Menüpunkte verborgen")
             pg.evaluate("TEST.todoMenueMs = 2500")
+            # seit 1.608.1: Todos bleiben beim Wechsel immer sichtbar und stehen unter dem Menü
+            pg.evaluate("""window.__todoProbe = []; (function t(){ const e = document.getElementById('nav-todo');
+              if (e) window.__todoProbe.push([e.offsetHeight, +getComputedStyle(e).opacity]);
+              if (window.__todoProbe.length < 60) requestAnimationFrame(t); })()""")
             pg.click("#nav-klapp"); pg.wait_for_timeout(600)
-            pruefe(pg.is_visible(".nav > .nav__punkt") and not pg.is_visible("#nav-todo"), "☰ zeigt das Menü")
+            pruefe(pg.is_visible(".nav > .nav__punkt") and pg.is_visible("#nav-todo"), "☰ zeigt das Menü, Todos darunter")
+            pruefe(all(h > 0 and o > 0.99 for h, o in pg.evaluate("window.__todoProbe")), "Todos verschwinden beim Wechsel nie")
+            unter = pg.evaluate("""document.getElementById('nav-todo').getBoundingClientRect().top >
+              [...document.querySelectorAll('.nav > .nav__punkt')].pop().getBoundingClientRect().top""")
+            pruefe(unter, "Todos stehen unter den Menüpunkten")
+            pg.wait_for_timeout(1300)
+            pruefe(pg.evaluate("[...document.querySelectorAll('.nav__text')].every(e => +getComputedStyle(e).opacity > .99)"), "Menü ganz da")
             pruefe(not pg.evaluate("document.body.classList.contains('nav--schmal')"), "Admin klappt nie ein")
             pg.screenshot(path=f"{BILD}/nav_todo_menue.png")
             pg.mouse.move(900, 500); pg.wait_for_timeout(3000)
