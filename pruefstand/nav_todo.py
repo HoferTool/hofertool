@@ -72,7 +72,6 @@ with sync_playwright() as p:
             # seit 1.606.0: Admins sehen zuerst die Todos, ☰ zeigt das Menü 1 Minute
             pruefe(pg.evaluate("document.body.classList.contains('nav--todos')"), "Start mit Todos")
             pruefe(not pg.is_visible(".nav > .nav__punkt"), "Menüpunkte verborgen")
-            pg.evaluate("TEST.todoMenueMs = 2500")
             # seit 1.608.1: Todos bleiben beim Wechsel immer sichtbar und stehen unter dem Menü
             pg.evaluate("""window.__todoProbe = []; (function t(){ const e = document.getElementById('nav-todo');
               if (e) window.__todoProbe.push([e.offsetHeight, +getComputedStyle(e).opacity]);
@@ -89,9 +88,9 @@ with sync_playwright() as p:
             pruefe(not pg.evaluate("document.body.classList.contains('nav--schmal')"), "Admin klappt nie ein")
             pg.screenshot(path=f"{BILD}/nav_todo_menue.png")
             pg.mouse.move(900, 500); pg.wait_for_timeout(3000)
-            pruefe(pg.is_visible("#nav-todo") and not pg.is_visible(".nav > .nav__punkt"), "nach der Zeit wieder Todos")
-            pg.click("#nav-klapp"); pg.wait_for_timeout(500); pg.click("#nav-klapp"); pg.wait_for_timeout(500)
-            pruefe(pg.is_visible("#nav-todo"), "☰ nochmals = zurück zu den Todos")
+            pruefe(pg.is_visible(".nav > .nav__punkt"), "Menü bleibt ohne Zeit offen")
+            pg.click("#nav-klapp"); pg.wait_for_timeout(1200)
+            pruefe(pg.is_visible("#nav-todo") and not pg.is_visible(".nav > .nav__punkt"), "☰ nochmals = zurück zu den Todos")
             # Knopf zeigt drei Striche als Bild (das Zeichen ☰ sprang nach der Drehung)
             pg.mouse.move(900, 500); pg.wait_for_timeout(400); vor = pg.locator("#nav-klapp").screenshot()
             pg.evaluate("document.body.classList.add('nav--klappt-auf')"); pg.wait_for_timeout(900)

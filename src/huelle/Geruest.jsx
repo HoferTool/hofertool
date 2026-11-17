@@ -36,18 +36,17 @@ function NavTodoPlatz() {
 // eine Minute (seit 1.606.0, Wunsch Patrick 17. November 2026: „admins
 // das Menü nicht einklappen können … oben auf den Button kommt das Menü,
 // sonst steht ganz oben Todos … nach 1 min verschwindet es wieder“).
-// Die Minute zählt ab der letzten Bewegung in der Leiste, damit das
-// Menü nicht mitten im Suchen verschwindet.
-export const TODO_MENUE_MS = 60000;
+// Seit 1.610.0 ohne Zeit: das Menü bleibt, bis man ☰ nochmals drückt
+// (Patrick 17. November 2026: „immer“, beim Arbeiten auf der Seite war
+// das Menü sonst nach einer Minute weg).
 function todoModusDarf() {
   return planerSichtbar() && !(alt.istArchiv && alt.istArchiv()) && !istPlanerTab();
 }
-let menueUhr = 0, wechselUhr = 0;
+let wechselUhr = 0;
 let menueSetzen = () => {};
 const WECHSEL = ["nav--zum-menue", "nav--menue-weg"];
 const ruhig = () => matchMedia("(prefers-reduced-motion: reduce)").matches || !!(window.TEST && window.TEST.ohneWechsel);
 function menueZeigen(an) {
-  clearTimeout(menueUhr);
   const b = document.body;
   if (!todoModusDarf()) { b.classList.remove("nav--todos", "nav--zeigt-menue", ...WECHSEL); return; }
   b.classList.remove("nav--schmal", "nav--klappt-auf", "nav--klappt-zu");
@@ -57,7 +56,6 @@ function menueZeigen(an) {
     b.classList.toggle("nav--zeigt-menue", an);
     menueSetzen(an);
   };
-  if (an) menueUhr = setTimeout(() => menueZeigen(false), (window.TEST && window.TEST.todoMenueMs) || TODO_MENUE_MS);
   // Wechsel wie Auf- und Zuklappen (Patrick 17. November 2026). Die Todos
   // bleiben dabei immer sichtbar und gleiten an ihre neue Stelle (seit
   // 1.607.1, Patrick: „soll nicht kurz verschwinden“): zum Menü fliegen die
@@ -105,9 +103,6 @@ function todoGleiten(vorher, ms) {
 // anwenden: Admins mit Todos klappen nie ein.
 export function navTodoAnwenden() {
   if (todoModusDarf()) menueZeigen(document.body.classList.contains("nav--zeigt-menue"));
-}
-function menueNochDa() {
-  if (document.body.classList.contains("nav--zeigt-menue")) menueZeigen(true);
 }
 
 let wurzel = null;
@@ -267,7 +262,7 @@ function Geruest() {
   useLayoutEffect(() => {
     menueSetzen = setMenueAuf;
     menueZeigen(false);
-    return () => { clearTimeout(menueUhr); menueSetzen = () => {};
+    return () => { menueSetzen = () => {};
       document.body.classList.remove("nav--todos", "nav--zeigt-menue"); };
   }, []);
   const klappen = () => {
@@ -332,8 +327,7 @@ function Geruest() {
         </button>
       </header>
       <div className="rahmen">
-        <nav className="nav" aria-label="Hauptnavigation"
-          onPointerMove={menueNochDa} onPointerDown={menueNochDa} onWheel={menueNochDa} onKeyDown={menueNochDa}>
+        <nav className="nav" aria-label="Hauptnavigation">
           {navSeiten.map((s, i) => (
             <Fragment key={s.pfad}>
               <a className={"nav__punkt" + (aktiv === s.pfad ? " aktiv" : "")}

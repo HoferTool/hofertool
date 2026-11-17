@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.610.0** (17. November 2026): Seitenleiste der Admins: das Menü nach ☰ bleibt offen, bis man ☰ nochmals drückt, es springt nicht mehr nach 1 Minute zu den Todos zurück (Patrick: „warum verschwindet der Reiter immer wieder?“, „immer“).
 - **1.609.0** (17. November 2026): HOFER2DTO3D: Drehen mit der Maus frei in alle Richtungen (Trackball statt Orbit, ohne Nachlaufen), und die 3Dconnexion SpaceMouse geht in Chrome und Edge (Knopf „SpaceMouse“, einmal koppeln), Wunsch Patrick.
 - **1.608.1** (17. November 2026): Seitenleiste der Admins: bei offenem Menü stehen die Todos wieder darunter wie früher, und beim Wechsel verschwinden sie nicht mehr kurz, sondern gleiten an ihre neue Stelle (Wunsch Patrick).
 - **1.607.0** (17. November 2026): Menüpunkt **Qualitätssicherung** wieder da, mit den Reitern Ausschussmeldungen (wie die frühere Seite QS) und Prüfmittel (nur Admins, vorher eigener Menüpunkt). Seitenleiste der Admins: Wechsel Todos ↔ Menü mit Animation, Todos rutschen runter, Menü fliegt ein wie beim Aufklappen, zurück umgekehrt (Wunsch Patrick).
