@@ -28,6 +28,8 @@ import Entgraten from "./rechner/Entgraten.jsx";
 import HoferCam from "./rechner/HoferCam.jsx";
 import Werkzeuge508 from "./rechner/Werkzeuge508.jsx";
 import Rechner, { REITER as RECHNER_REITER, rechnerAnsicht } from "./Rechner.jsx";
+import { ModulTabKopf, istModulTab, modulTabArt } from "./rechner/modulTab.jsx";
+import { NC_QUELLEN } from "./rechner/ncAktuell.js";
 
 export const REITER = [
   ["kontur", "HOFERCONTUR"], ["cam", "HOFERCAM"], ["bohren", "Bohren / Fräsen"], ["entgraten", "Entgraten"], ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"], ["wz508", "508 Werkzeuge"], ["rechner", "Rechner"],
@@ -100,7 +102,25 @@ function tutorialBeimAnwaehlen() {
   tutorialOeffnen();
 }
 
+// Seit 1.588.0: ein Modul leer im eigenen Tab für HOFERCAM (modulTab.jsx)
+function ModulTab() {
+  const art = modulTabArt();
+  const Inhalt = NC_QUELLEN.some(([k]) => k === art) ? INHALT[art] : null;
+  useEffect(() => { document.title = "NC-PRO · " + (NC_QUELLEN.find(([k]) => k === art) || [, art])[1] + " · Hofer Tool"; }, [art]);
+  if (!Inhalt) return <section className="karte"><h2>Unbekanntes Modul</h2></section>;
+  return (
+    <>
+      <ModulTabKopf art={art} />
+      <div id="rech-inhalt"><Inhalt /></div>
+    </>
+  );
+}
+
 export default function NcFunktionen() {
+  return istModulTab() ? <ModulTab /> : <NcSeite />;
+}
+
+function NcSeite() {
   const [ansicht, setAnsicht] = useState(ncAnsicht());
   const [neu, setNeu] = useState(0);
   const [, neuZeichnen] = useState(0);

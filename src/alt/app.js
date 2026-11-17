@@ -88,6 +88,7 @@ import "../daten/mailkonto.js";
 import { istModulFehler } from "../teile/modulFehler.js";
 import { reihenAllein, istReihenAdresse } from "../seiten/reihen/allein.js";
 import { istVollbildTab, vollbildNachholen, vollbildVerlassenFragen } from "../planwand/vollbildTab.js";
+import { istModulTab, modulTabVerlassenFragen } from "../seiten/rechner/modulTab.jsx";
 
 const BOOT = document.getElementById("boot");
 const WURZEL = document.getElementById("root");
@@ -164,7 +165,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.587.1";
+const APP_VERSION = "1.588.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -212,6 +213,12 @@ function escapeZurueck() {
     if (!ARCHIV && profil && istVollbildTab() && !document.querySelector("#pad")) {
       e.preventDefault();
       vollbildVerlassenFragen();
+      return;
+    }
+    // Modul im eigenen Tab für HOFERCAM (seit 1.588.0): Tab schliessen
+    if (!ARCHIV && profil && istModulTab()) {
+      e.preventDefault();
+      modulTabVerlassenFragen();
       return;
     }
     if (wo === "bestellungen" && best.ansicht && best.ansicht !== "offen") {
@@ -11328,7 +11335,9 @@ function zeichneSeite() {
   document.body.classList.toggle("pw-seite", pfad === "planwand");
   // Planwand im eigenen Vollbild-Tab ohne Kopf und Menü (seit 1.522.0)
   const vollbild = pfad === "planwand" && !ARCHIV && istVollbildTab();
-  document.body.classList.toggle("pw-vollbild", vollbild);
+  // Ein Modul im eigenen Tab für HOFERCAM (seit 1.588.0) ebenso ohne Kopf und Menü
+  const modulTab = pfad === "nc" && !ARCHIV && istModulTab();
+  document.body.classList.toggle("pw-vollbild", vollbild || modulTab);
   if (vollbild) { document.title = "Planwand · Hofer Tool"; vollbildNachholen(); }
   // Eine React-Seite im Bereich zuerst sauber abbauen, bevor die
   // nächste Seite ihn überschreibt

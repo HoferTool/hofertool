@@ -18,6 +18,7 @@ import { inEigenesFenster } from "../../teile/eigenesFenster.js";
 import { schnittAusStep, konturAusSchnitt, elementeAusZug, modellUndKanten } from "./step.js";
 import Modell3D from "./Modell3D.jsx";
 import { ncMelden } from "./ncAktuell.js";
+import { istModulTab as imModulTab } from "./modulTab.jsx";
 import { konturRechnen, bahnRechnen, ncProgrammZeilen, bogenWinkel, umkehren, startRichtung, SPITZEN, FREISTICHE, freistichMasse, istFreistich } from "./kontur.js";
 
 const VORGABE = {
@@ -35,7 +36,9 @@ let gemerkt = null;
 function laden() {
   if (gemerkt) return gemerkt;
   try {
-    const t = alt.einstellungWert && alt.einstellungWert("kontur", "");
+    // Im eigenen Tab für HOFERCAM (seit 1.588.0) leer anfangen und die
+    // Kontur am Konto nicht anfassen
+    const t = !imModulTab() && alt.einstellungWert && alt.einstellungWert("kontur", "");
     if (t) gemerkt = { ...VORGABE, ...JSON.parse(t) };
   } catch (e) { /* kaputter Eintrag: Vorgabe */ }
   if (!gemerkt) gemerkt = JSON.parse(JSON.stringify(VORGABE));
@@ -168,7 +171,7 @@ function KonturRechner({ imFenster }) {
     gemerkt = ganz;
     setK(ganz);
     clearTimeout(speichern.current);
-    speichern.current = setTimeout(() => {
+    if (!imModulTab()) speichern.current = setTimeout(() => {
       try { alt.einstellungSetzenWert("kontur", JSON.stringify(ganz)); } catch (e) { /* ohne Konto nur hier */ }
     }, 800);
   };

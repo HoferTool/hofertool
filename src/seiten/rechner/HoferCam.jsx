@@ -15,7 +15,7 @@ import { NcAblage, NcStand } from "./NcAblage.jsx";
 import { dateiBeobachten, dateiFehler, dateiNeuWaehlen, dateienFuerName, dateienLaden, dateienSchreiben, dateienWaehlen, dateiMerken, dateiVergessen, dateiVon, kannSchreiben, schreibrechtHolen } from "./camDatei.js";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
-import { NC_QUELLEN, hatSpann, ncAktuell, ncZeilen } from "./ncAktuell.js";
+import { ModulWahl, modulEmpfaenger } from "./modulTab.jsx";
 import { TYP_NAME, eigeneFelder, eigenWert, feldAus, typBeobachten, wirksamB, wirksamW } from "./camTyp.js";
 import { camTypFensterOeffnen, camTypLaden } from "./CamTypFenster.jsx";
 import { bloeckeLesen, kopfLesen } from "./camLesen.js";
@@ -73,40 +73,21 @@ function VorlageFeld({ code, pos, einsetzen, zu }) {
 // Seit 1.545.0: Werkzeug je Bearbeitung wahlweise festlegen; seit 1.546.0
 // mit Bildern zur Wahl und Massbild zum Eintippen (CamWerkzeugBild.jsx).
 
-// Seit 1.436.0 (Wunsch Patrick 6. November 2026): den gerade erzeugten
-// NC-Code aus Bohren / Fräsen, Entgraten, C-Achse, Gravur oder DXF in die
-// Bearbeitung übernehmen, eingesetzt wie eine Vorlage nach der Zeile mit
-// der Schreibmarke. Den Code melden die Reiter in ncAktuell.js.
-function ModulFeld({ code, pos, einsetzen, zu }) {
-  const da = NC_QUELLEN.filter(([k]) => ncAktuell(k)?.text);
-  const [id, setId] = useState(da.length ? da.slice().sort((x, y) => ncAktuell(y[0]).zeit - ncAktuell(x[0]).zeit)[0][0] : "");
-  const [ohne, setOhne] = useState(true);
-  const quelle = id ? ncAktuell(id) : null;
-  const zeilen = quelle ? ncZeilen(quelle.text, ohne) : [];
-  return (
-    <div className="cam-vorlage" data-cammodul>
-      <div className="cam-vorlage__kopf">
-        <b>Aus Modul</b>
-        <select data-cammodul-wahl value={id} onChange={(e) => setId(e.target.value)}>
-          {!da.length && <option value="">– kein Modul offen gewesen –</option>}
-          {NC_QUELLEN.map(([k, n]) => <option key={k} value={k} disabled={!ncAktuell(k)?.text}>
-            {n}{ncAktuell(k)?.text ? "" : " (noch nicht geöffnet)"}</option>)}
-        </select>
-        {hatSpann() && <label className="cam-feld cam-feld--haken" title="Vor- und Nachspann für die Maschine aus den Modulen weglassen">
-          <input type="checkbox" data-cammodul-ohne checked={ohne} onChange={(e) => setOhne(e.target.checked)} />
-          <span>ohne Vor- und Nachspann</span></label>}
-        <button className="knopf knopf--klein" title="Schliessen" onClick={zu}>✕</button>
-      </div>
-      <div className="cam-vorlage__fuss">
-        {zeilen.length
-          ? <code className="cam-vorlage__vorschau cam-modul__vorschau" data-cammodul-vorschau>{zeilen.join("\n")}</code>
-          : <span className="cam-vorlage__fehler klein">Zuerst den Reiter des Moduls öffnen und dort den Code erzeugen, dann hier übernehmen.</span>}
-        <button className="knopf knopf--klein knopf--primaer" data-cammodul-einfuegen disabled={!zeilen.length}
-          onClick={() => { einsetzen(zeilenEinsetzen(code, zeilen, pos)); zu(); }}>Übernehmen</button>
-      </div>
-    </div>
-  );
-}
+// „+ Aus Modul“: seit 1.436.0 der zuletzt erzeugte Code der Reiter, seit
+// 1.588.0 das Modul leer in einem eigenen Tab (modulTab.jsx, Wunsch Patrick
+// 17. November 2026). Der Tab setzt seinen Code über diese Stelle ein, auch
+// wenn HOFERCAM gerade nicht der offene Reiter ist.
+modulEmpfaenger((id, zeilen, pos) => {
+  const bl = gemerkt.bloecke || [];
+  const i = bl.findIndex((x) => x.id === id);
+  if (i < 0) return { ok: false, text: "Diese Bearbeitung gibt es in HOFERCAM nicht mehr (anderes Programm geöffnet oder gelöscht)." };
+  if (!zeilen.length) return { ok: false, text: "Kein NC-Code zum Einfügen." };
+  const neu = bl.slice();
+  neu[i] = { ...bl[i], code: zeilenEinsetzen(bl[i].code, zeilen, pos) };
+  gemerkt.bloecke = neu;
+  melden();
+  return { ok: true, text: zeilen.length + " Zeilen in HOFERCAM eingefügt." };
+});
 
 // Knopf „+ …“ mit der Spanne der Plätze, etwa „T100–T600“
 function spanne(gruppe, w) {
@@ -558,7 +539,8 @@ export default function HoferCam() {
   const prog = useMemo(() => programmeMitHand(w), [w, typStand]);
   // Änderungen aus dem eigenen Fenster kommen über „gemerkt“
   useEffect(() => {
-    const f = () => setW((x) => (x.hand === gemerkt.hand ? x : { ...x, hand: gemerkt.hand }));
+    // seit 1.588.0 auch die Bearbeitungen, wenn ein Modul-Tab Code einfügt
+    const f = () => setW((x) => (x.hand === gemerkt.hand && x.bloecke === gemerkt.bloecke ? x : { ...x, hand: gemerkt.hand, bloecke: gemerkt.bloecke }));
     hoerer.add(f); return () => { hoerer.delete(f); };
   }, []);
   const sync = useMemo(() => synchronisieren(prog.k1, prog.k2), [prog]);
@@ -933,8 +915,7 @@ export default function HoferCam() {
                   {vorlageBei === "w" + b.id && <WerkzeugFeld b={b} setze={(wz) => blockAendern(b.id, "wz", wz)} zu={() => setVorlageBei(null)} />}
                   {vorlageBei === b.id && <VorlageFeld code={b.code} pos={marke.current[b.id]}
                     einsetzen={(t) => blockAendern(b.id, "code", t)} zu={() => setVorlageBei(null)} />}
-                  {vorlageBei === "m" + b.id && <ModulFeld code={b.code} pos={marke.current[b.id]}
-                    einsetzen={(t) => blockAendern(b.id, "code", t)} zu={() => setVorlageBei(null)} />}
+                  {vorlageBei === "m" + b.id && <ModulWahl blockId={b.id} pos={() => marke.current[b.id]} zu={() => setVorlageBei(null)} />}
                   <textarea className="cam-block__code" data-camblock="code" rows={4} spellCheck={false}
                     onSelect={(e) => { marke.current[b.id] = e.target.selectionStart; }}
                     placeholder={gegen ? "NC-Code für Kanal 2 (zwei Marken direkt nacheinander, z.B. M350 und M360, geben Platz für Kanal 1)" : "NC-Code der Bearbeitung hier einfügen (aus Kontur, Bohren / Fräsen …; zwei Marken direkt nacheinander geben Platz für Kanal 2)"}

@@ -350,9 +350,10 @@ def s_cam_bearb(pg, a):
 def s_cam_modul(pg, a):
     a.hin("[data-block='0'] [data-camblock='code']", ms=200)
     a.hin("[data-cammodul-auf='0']", ms=700)
-    if pg.locator("[data-cammodul-wahl]").count():
-        pg.select_option("[data-cammodul-wahl]", "bohren"); pg.wait_for_timeout(900)
-        a.hin("[data-cammodul-einfuegen]", ms=900)
+    # Seit 1.588.0 Knöpfe je Modul (öffnen einen eigenen Tab), nur zeigen
+    if pg.locator("[data-cammodul-wahl='bohren']").count():
+        a.hin("[data-cammodul-wahl='bohren']", ms=900)
+        a.hin("[data-cammodul] .cam-vorlage__kopf .knopf", ms=300)
     a.hin("[data-camvorlage-auf='0']", ms=900)
     if pg.locator("[data-camvorlage] .cam-vorlage__kopf .knopf").count(): a.hin("[data-camvorlage] .cam-vorlage__kopf .knopf", ms=300)
 

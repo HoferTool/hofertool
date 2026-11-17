@@ -14238,3 +14238,10 @@ body.dunkel .eba-pf-ausr button { background: #1d2733; }
 /* HOFERCAM: Werkzeug nicht montiert (Platz 34) */
 .cam-fehltext { color: #c62828; margin-left: 6px; font-weight: 600; }
 body.dunkel .cam-fehltext { color: #ff8a80 !important; }
+
+/* Modul im eigenen Tab für HOFERCAM (seit 1.588.0, Wunsch Patrick 17. November 2026) */
+.cam-modul__wahl { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 0 2px; }
+.nc-modultab { flex-wrap: wrap; gap: 10px; }
+.nc-modultab .ncpro-titel { font-size: 1.25rem; }
+.nc-modultab__knoepfe { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-left: auto; }
+.nc-modultab__hinweis { font-weight: 400; opacity: .75; }

@@ -16,8 +16,15 @@ export const NC_QUELLEN = [
 ];
 const SCHLUESSEL = "hofer.ncAktuell";
 let stand = null;
+// Im eigenen Tab eines Moduls für HOFERCAM (modulTab.jsx, seit 1.588.0)
+// nichts aus dem Speicher des Tabs lesen oder hineinschreiben: der Tab
+// hat beim Öffnen eine Kopie davon und soll leer anfangen
+const imModulTab = () => /^#\/?nc\/modul\//.test(location.hash);
+const hoerer = new Set();
+export function ncBeobachten(f) { hoerer.add(f); return () => { hoerer.delete(f); }; }
 const lesen = () => {
   if (stand) return stand;
+  if (imModulTab()) { stand = {}; return stand; }
   try { stand = JSON.parse(sessionStorage.getItem(SCHLUESSEL) || "{}") || {}; } catch (e) { stand = {}; }
   return stand;
 };
@@ -26,6 +33,8 @@ export function ncMelden(art, text) {
   const s = lesen();
   if (s[art] && s[art].text === text) return;
   s[art] = { text: String(text || ""), zeit: Date.now() };
+  hoerer.forEach((f) => f());
+  if (imModulTab()) return;
   try { sessionStorage.setItem(SCHLUESSEL, JSON.stringify(s)); } catch (e) { /* voll oder gesperrt: bleibt im Speicher */ }
 }
 
