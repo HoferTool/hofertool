@@ -14304,3 +14304,24 @@ body:not(.dunkel) .cam .cam-kanaele { background: #fff; border-color: #bccad8; b
 body:not(.dunkel) .cam .cam-spalte--kopf { background: #d9e5f2; border-left: 5px solid #3d73b3; color: #0d2f57; }
 body:not(.dunkel) .cam .cam-spalte--kopf ~ .cam-spalte--kopf { background: #d6ece8; border-left-color: #2a9a8c; color: #0e3d37; }
 body:not(.dunkel) .cam .cam-nr { color: #7d8a97; }
+
+/* HOFERCAM: noch mehr Kontrast innerhalb der Bereiche (seit 1.597.0, Wunsch
+   Patrick 17. November 2026: „innerhalb der Bereiche ist es mir immer noch zu
+   wenig kontrastreich“). Felder grau mit dunklem Rand, NC-Feld getönt,
+   Beschriftungen dunkler, Knöpfe als blaugraue Schilder; nur hell. */
+body:not(.dunkel) .cam .cam-feld span,
+body:not(.dunkel) .cam .cam-feld > label { color: #23303d; font-weight: 600; }
+body:not(.dunkel) .cam .cam-einheit,
+body:not(.dunkel) .cam .cam-feld .cam-einheit { color: #4d6177; font-weight: 500; }
+body:not(.dunkel) .cam input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+body:not(.dunkel) .cam select,
+body:not(.dunkel) .cam .cam-wahl__knopf { background: #e9eef4; border: 1px solid #8ea2b8; color: #111c27; }
+body:not(.dunkel) .cam input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+body:not(.dunkel) .cam select:focus,
+body:not(.dunkel) .cam .cam-wahl__knopf:focus { background: #fff; border-color: #003884; box-shadow: 0 0 0 2px rgba(0, 56, 132, .18); }
+body:not(.dunkel) .cam input::placeholder { color: #6f8093; }
+body:not(.dunkel) .cam .cam-block__code { background: #eef3f8; border: 1px solid #8ea2b8; color: #111c27; }
+body:not(.dunkel) .cam .cam-block__code:focus { background: #fff; border-color: #003884; }
+body:not(.dunkel) .cam .cam-block .knopf--klein:not(.knopf--primaer) { background: #dce6f1; border: 1px solid #8fa7c2; color: #0d2f57; }
+body:not(.dunkel) .cam .cam-block .knopf--klein:not(.knopf--primaer):hover { background: #c9d8ea; }
+body:not(.dunkel) .cam .cam-gruppe .knopf--klein:not(.knopf--primaer) { background: #dce6f1; border: 1px solid #8fa7c2; color: #0d2f57; }
