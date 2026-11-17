@@ -470,7 +470,7 @@ function Keyence({ j }) {
     let weg = false;
     const holen = () => messberichteZahl(hoco).then((n) => { if (!weg) setZahl(n); }).catch(() => { if (!weg) setZahl(0); });
     holen();
-    const t = setInterval(holen, 60000);
+    const t = setInterval(() => { if (!document.hidden) holen(); }, 300000);
     return () => { weg = true; clearInterval(t); };
   }, [hoco]);
   const da = !!zahl;

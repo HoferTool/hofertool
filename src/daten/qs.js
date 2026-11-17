@@ -87,7 +87,7 @@ export function qsBeobachten(rueckruf) {
   const kanal = db.channel("qs-" + Date.now() + "-" + Math.random().toString(36).slice(2))
     .on("postgres_changes", { event: "*", schema: "public", table: TABELLE }, () => {
       clearTimeout(entpreller);
-      entpreller = setTimeout(rueckruf, 300);
+      entpreller = setTimeout(rueckruf, 300 + Math.round(Math.random() * 3000));
     });
   kanal.subscribe();
   return () => { los(); clearTimeout(entpreller); try { db.removeChannel(kanal); } catch (f) { /* egal */ } };

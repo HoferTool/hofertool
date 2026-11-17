@@ -45,7 +45,9 @@ export function useQsMeldungen(maschineId) {
       .catch(() => { /* ohne Tabelle oder Netz: einfach Wetter */ });
     holen();
     const ab = qsBeobachten(holen);
-    const t = setInterval(() => { if (!document.hidden) holen(); }, 30000);
+    // Realtime meldet Änderungen sofort, der Takt ist nur das Netz
+    // darunter (seit 1.616.0 alle 2 statt alle ½ Minute, schont die Datenbank)
+    const t = setInterval(() => { if (!document.hidden) holen(); }, 120000);
     return () => { gueltig = false; ab(); clearInterval(t); };
   }, [maschineId]);
   const weg = (id) => setListe((l) => l.filter((x) => x.id !== id));
@@ -94,11 +96,13 @@ export function useProbleme(maschineId, auftragId) {
       if (typeof alt.db.channel === "function") {
         kanal = alt.db.channel("pad-probleme-" + Date.now() + "-" + Math.random().toString(36).slice(2))
           .on("postgres_changes", { event: "*", schema: "public", table: "jobs", filter: "machine_id=eq." + maschineId },
-            () => { clearTimeout(entpreller); entpreller = setTimeout(holen, 300); });
+            () => { clearTimeout(entpreller); entpreller = setTimeout(holen, 300 + Math.round(Math.random() * 3000)); });
         kanal.subscribe();
       }
     } catch (f) { kanal = null; }
-    const t = setInterval(() => { if (!document.hidden) holen(); }, 30000);
+    // Realtime meldet Änderungen sofort, der Takt ist nur das Netz
+    // darunter (seit 1.616.0 alle 2 statt alle ½ Minute, schont die Datenbank)
+    const t = setInterval(() => { if (!document.hidden) holen(); }, 120000);
     return () => {
       gueltig = false; clearInterval(t); clearTimeout(entpreller);
       window.removeEventListener(PROBLEM_EREIGNIS, holen);

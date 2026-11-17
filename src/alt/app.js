@@ -167,7 +167,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.615.0";
+const APP_VERSION = "1.616.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4948,6 +4948,14 @@ async function planAbgleich(b, ereignis) {
   }
 }
 
+// Seit 1.616.0 (17. November 2026): Meldet die Datenbank eine Änderung,
+// holten alle offenen Geräte (rund 30) im selben Augenblick neu, und die
+// kleine Datenbank lief über. Jedes Gerät wartet darum zufällig etwas
+// länger, so verteilen sich die Anfragen über ein paar Sekunden.
+function streuung(ab, bis) {
+  return ab + Math.round(Math.random() * bis);
+}
+
 function planSyncStarten(b) {
   planSyncStoppen();
 
@@ -4956,11 +4964,11 @@ function planSyncStarten(b) {
     const kanal = db.channel("plansync-" + Date.now())
       .on("postgres_changes", { event: "*", schema: "public", table: "jobs" }, () => {
         clearTimeout(entpreller);
-        entpreller = setTimeout(() => planAbgleich(b, true), 800);
+        entpreller = setTimeout(() => planAbgleich(b, true), streuung(800, 4000));
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "vacations" }, () => {
         clearTimeout(entpreller);
-        entpreller = setTimeout(() => planAbgleich(b, true), 800);
+        entpreller = setTimeout(() => planAbgleich(b, true), streuung(800, 4000));
       })
       .subscribe();
     plan.syncKanal = kanal;
@@ -11184,7 +11192,7 @@ function syncStarten(pfad) {
     tabellen.forEach((t) => {
       kanal = kanal.on("postgres_changes", { event: "*", schema: "public", table: t }, () => {
         clearTimeout(entpreller);
-        entpreller = setTimeout(syncPruefen, 500);
+        entpreller = setTimeout(syncPruefen, streuung(500, 3000));
       });
     });
     kanal.subscribe();

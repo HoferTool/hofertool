@@ -47,7 +47,8 @@ import { rund, strichZeichnen, getroffen, Symbol, RADIERER, ZURUECK, EIMER, FARB
 // (Start: mittel).
 // Dicke in Bildpunkten bei 400 px Breite, wächst mit der Fläche mit
 const DICKEN = [["duenn", 3], ["mittel", 7], ["dick", 14]];
-const NACHLADEN_MS = 15000;
+// Seit 1.616.0 alle 45 statt alle 15 Sekunden, schont die Datenbank
+const NACHLADEN_MS = 45000;
 // Höhe des Blatts im Verhältnis zur Breite (16:10, wie die grosse
 // Skizze auf dem iPad quer)
 const BLATT_PAD = 0.625;
