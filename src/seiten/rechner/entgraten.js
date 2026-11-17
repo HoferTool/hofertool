@@ -21,7 +21,7 @@
 //  Programmiert wird immer die Spitze des Werkzeugs, X im Durchmesser.
 // =================================================================
 import { kopfZeilen, fussZeilen } from "./kopf.jsx";
-import { antrieb, frontLoecher, querLoecher, nutWinkel } from "./bohren.js";
+import { antrieb, frontLoecher, querLoecher, nutWinkel, flaechenWinkel, yV } from "./bohren.js";
 
 export const EG_VORGABE = {
   werkzeug: "kugel",   // kugel, kopier, zentrier
@@ -73,7 +73,8 @@ export function kantenAusBohren(b) {
   if (b.art === "bohrenFront") {
     const rB = b.bohrD / 2;
     frontLoecher(b).forEach((l, i) => {
-      const w = grad(l.c), m = mal(radial(w), l.x / 2);
+      // Versatz in Y quer zur Richtung C (seit 1.602.0)
+      const w = grad(l.c), m = plus(mal(radial(w), l.x / 2), mal(tangential(w), l.y || 0));
       const hc = v(m[0], m[1], z0);
       const punkte = [];
       for (let k = 0; k < N; k++) {
@@ -93,43 +94,47 @@ export function kantenAusBohren(b) {
     querLoecher(b).forEach((l, i) => {
       const w = grad(l.c), e = radial(w), t = tangential(w);
       const punkte = [];
+      const yq = l.y || 0;
       for (let k = 0; k < N; k++) {
         const f = (2 * Math.PI * k) / N;
-        const s = rB * Math.sin(f), a = rB * Math.cos(f);
-        const h = Math.sqrt(R * R - s * s);
+        const s = yq + rB * Math.sin(f), a = rB * Math.cos(f);
+        const h = Math.sqrt(Math.max(0, R * R - s * s));
         const E = plus(plus(mal(e, h), mal(t, s)), v(0, 0, z0 - l.ab + a));
         const nA = einheit(v(E[0], E[1], 0));
         // Weg von der Bohrung auf dem Zylinder: Abstand zur Bohrachse,
         // in die Tangentialebene gelegt
-        const ab = plus(mal(t, s), v(0, 0, a));
+        const ab = plus(mal(t, s - yq), v(0, 0, a));
         const u = einheit(minus(ab, mal(nA, punkt(ab, nA))));
         punkte.push({ E, u, nA, vB: mal(e, -1) });
       }
       const id = "quer" + i;
       kanten.push({ id, name: "Querbohrung " + (i + 1) + " (Z-" + l.ab + ", C" + Math.round(l.c) + ")", merkmal: id, zentrier: "quer", c0: l.c, geschlossen: true, punkte });
-      mitten[id] = { punkte: [plus(mal(e, R), v(0, 0, z0 - l.ab))], nA: e, halb: rB };
+      mitten[id] = { punkte: [plus(plus(mal(e, Math.sqrt(Math.max(0, R * R - yq * yq))), mal(t, yq)), v(0, 0, z0 - l.ab))], nA: e, halb: rB };
     });
   }
 
   if (b.art === "nutFront") {
     const w = grad(b.startC), d = radial(w), p = tangential(w);
     const h = b.fraeser / 2;
+    const yq = yV(b);
     const durch = b.nutLaenge >= b.teilD;
     if (durch) {
-      const aus = Math.sqrt(Math.max(0, R * R - h * h));
       [1, -1].forEach((sg) => {
+        const q = yq + sg * h;
+        if (Math.abs(q) >= R) return;
+        const aus = Math.sqrt(R * R - q * q);
         const punkte = [-aus, aus].map((s) => ({
-          E: plus(plus(mal(d, s), mal(p, sg * h)), v(0, 0, z0)), u: mal(p, sg), nA: Z, vB: mal(Z, -1),
+          E: plus(plus(mal(d, s), mal(p, q)), v(0, 0, z0)), u: mal(p, sg), nA: Z, vB: mal(Z, -1),
         }));
         kanten.push({ id: "nut" + (sg > 0 ? "L" : "R"), name: "Nut Front, Seite " + (sg > 0 ? "links" : "rechts"), merkmal: "nut", zentrier: "front", c0: b.startC, geschlossen: false, punkte });
       });
-      mitten.nut = { punkte: [-(R + h), R + h].map((s) => plus(mal(d, s), v(0, 0, z0))), nA: Z, halb: h };
+      mitten.nut = { punkte: [-(R + h), R + h].map((s) => plus(plus(mal(d, s), mal(p, yq)), v(0, 0, z0))), nA: Z, halb: h };
     } else {
       const a = Math.max(0, b.nutLaenge / 2 - h);
-      const punkte = langloch(a, h, (s, q) => plus(plus(mal(d, s), mal(p, q)), v(0, 0, z0)),
+      const punkte = langloch(a, h, (s, q) => plus(plus(mal(d, s), mal(p, q + yq)), v(0, 0, z0)),
         (s, q) => einheit(plus(mal(d, s), mal(p, q))), () => Z, () => mal(Z, -1));
       kanten.push({ id: "nut", name: "Nut Front, ringsum", merkmal: "nut", zentrier: "front", c0: b.startC, geschlossen: true, punkte });
-      mitten.nut = { punkte: [-a, a].map((s) => plus(mal(d, s), v(0, 0, z0))), nA: Z, halb: h };
+      mitten.nut = { punkte: [-a, a].map((s) => plus(plus(mal(d, s), mal(p, yq)), v(0, 0, z0))), nA: Z, halb: h };
     }
   }
 
@@ -146,7 +151,9 @@ export function kantenAusBohren(b) {
       const zAnf = offen ? z0 : z0 - b.nutVon - h;
       // Auf dem Zylinder: Seite y, Länge z
       const auf = (y, zz) => plus(plus(mal(e, Math.sqrt(Math.max(0, R * R - y * y))), mal(t, y)), v(0, 0, zz));
-      const richtungen = (y, zz, uy, uz) => {
+      const yq = yV(b);
+      const richtungen = (y0, zz, uy, uz) => {
+        const y = y0 + yq;
         const x = Math.sqrt(Math.max(0, R * R - y * y));
         const nA = einheit(plus(mal(e, x), mal(t, y)));
         const ty = einheit(plus(mal(e, -y / (x || 1)), t));     // Zylinder in Richtung y
@@ -171,20 +178,21 @@ export function kantenAusBohren(b) {
         });
       }
       kanten.push({ id, name: "Nut Quer" + (alle.length > 1 ? " " + (i + 1) + " (C" + Math.round(c0) + ")" : "") + (offen ? ", offen zur Stirn" : ", ringsum"), merkmal: id, zentrier: "quer", c0, geschlossen: !offen, punkte });
-      const xm = Math.sqrt(Math.max(0, R * R - h * h));
-      mitten[id] = { punkte: [offen ? z0 + h + b.fraeser : zAnf, zEnde].map((zz) => plus(mal(e, xm), v(0, 0, zz))), nA: e, halb: h };
+      const xm = Math.sqrt(Math.max(0, R * R - yq * yq));
+      mitten[id] = { punkte: [offen ? z0 + h + b.fraeser : zAnf, zEnde].map((zz) => plus(plus(mal(e, xm), mal(t, yq)), v(0, 0, zz))), nA: e, halb: h };
     });
   }
 
   if (b.art === "flaeche") {
-    const n = Math.max(1, Math.round(b.flaechen) || 1);
+    const cs = flaechenWinkel(b);
+    const n = cs.length;
     const a = b.sw / 2;
     if (a < R) {
       const hc = Math.sqrt(R * R - a * a);
       const zA = b.flVon > 0 ? z0 - b.flVon : z0;
       const zE = z0 - b.flBis;
       for (let i = 0; i < n; i++) {
-        const c = b.startC + (360 * i) / n, w = grad(c), e = radial(w), t = tangential(w);
+        const c = cs[i], w = grad(c), e = radial(w), t = tangential(w);
         [1, -1].forEach((sg) => {
           const vB = einheit(plus(mal(e, -sg * hc), mal(t, sg * a)));
           const punkte = [zA, zE].map((zz) => ({
