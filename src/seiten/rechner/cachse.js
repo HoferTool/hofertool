@@ -158,14 +158,14 @@ export function cachseGcode(c) {
   // Hauptspindel und damit auf einer Langdrehmaschine falsch.
   if (!kopfZeilen().length) z.push("M" + (gegen ? "4" : "3") + "S" + Math.round(c.drehzahl) + "  ( Fraeser )");
   z.push("G0X" + (anfahrt * 2).toFixed(3) + "C0.");
-  z.push("G0Z" + (c.zStart + c.sicher).toFixed(3));
+  z.push("G0Z" + (c.zStart - c.sicher).toFixed(3));
   z.push("G12.1  ( Polarinterpolation ein )");
 
   const schnitte = Math.max(1, Math.ceil(c.tiefeZ / Math.max(0.1, c.zustellung)));
   for (let s = 1; s <= schnitte; s++) {
     const tiefe = Math.min(c.tiefeZ, s * c.zustellung);
-    z.push("( Schnitt " + s + " von " + schnitte + ", Z-" + tiefe.toFixed(2) + " )");
-    z.push("G1Z" + (c.zStart - tiefe).toFixed(3) + "F" + fZ);
+    z.push("( Schnitt " + s + " von " + schnitte + ", Z+" + tiefe.toFixed(2) + " )");
+    z.push("G1Z" + (c.zStart + tiefe).toFixed(3) + "F" + fZ);
 
     if (bahn[0].art === "punkte") {
       const p = bahn[0].punkte;
@@ -191,7 +191,7 @@ export function cachseGcode(c) {
 
   z.push("G0X" + (anfahrt * 2).toFixed(3));
   z.push("G13.1  ( Polarinterpolation aus )");
-  z.push("G0Z" + (c.zStart + c.sicher + 5).toFixed(3));
+  z.push("G0Z" + (c.zStart - c.sicher - 5).toFixed(3));
   fussZeilen().forEach((x) => z.push(x));
   if (!fussZeilen().length) z.push("M5");
   return z.join("\n");

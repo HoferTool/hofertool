@@ -32,15 +32,65 @@ const ziele = {};
 let empfaenger = null;
 // HoferCam.jsx meldet hier, wie Zeilen in eine Bearbeitung kommen
 export function modulEmpfaenger(fn) { empfaenger = fn; }
-window.hoferCamModulEinfuegen = (z, zeilen) => {
+window.hoferCamModulEinfuegen = (z, zeilen, zustand) => {
   const ziel = ziele[z];
   if (!ziel || !empfaenger) return { ok: false, text: "HOFERCAM kennt diesen Tab nicht mehr. Bitte dort „+ Aus Modul“ nochmals wählen." };
+  if (zustand) window.hoferCamModulMerken(z, zustand);
   return empfaenger(ziel.blockId, zeilen.map(String), ziel.pos());
 };
 
+// Einstellungen des Moduls je Bearbeitung (seit 1.617.0, Wunsch Patrick
+// 17. November 2026: „wenn ich in der selben Bearbeitung wieder ins Modul
+// springe, die Einstellungen noch haben, damit ich anpassen kann“).
+// HOFERCAM hebt sie am Block auf (b.modul[art]); der Tab holt sie beim
+// Start über window.opener und gibt sie beim Einfügen und beim Zugehen
+// zurück. Daten als JSON, damit nichts zwischen den Fenstern geteilt wird.
+let zustandAblage = null;
+export function modulZustandAblage(a) { zustandAblage = a; }
+window.hoferCamModulZustand = (z) => {
+  const ziel = ziele[z];
+  if (!ziel || !zustandAblage) return null;
+  const x = zustandAblage.lesen(ziel.blockId, ziel.art);
+  return x ? JSON.stringify(x) : null;
+};
+window.hoferCamModulMerken = (z, text) => {
+  const ziel = ziele[z];
+  if (!ziel || !zustandAblage || !text) return;
+  try { zustandAblage.merken(ziel.blockId, ziel.art, JSON.parse(text)); } catch (f) { /* kaputt: nichts merken */ }
+};
+
+// Im Tab: jedes Modul meldet, wie man seine Einstellungen liest; der Start
+// mit den gemerkten Werten kommt aus modulStart (nur in diesem Tab und nur
+// für das eigene Modul).
+const anmeldung = {};
+export function modulZustandAnmelden(art, lesen) { anmeldung[art] = lesen; }
+let startGeholt = null;
+export function modulStart(art) {
+  if (!istModulTab() || modulTabArt() !== art) return null;
+  if (startGeholt === null) {
+    startGeholt = false;
+    try {
+      const op = window.opener;
+      const t = op && !op.closed && op.hoferCamModulZustand ? op.hoferCamModulZustand(kennung()) : null;
+      if (t) startGeholt = JSON.parse(t);
+    } catch (f) { startGeholt = false; }
+  }
+  return startGeholt || null;
+}
+const zustandText = (art) => {
+  try { return anmeldung[art] ? JSON.stringify(anmeldung[art]()) : null; } catch (f) { return null; }
+};
+// Beim Zugehen des Tabs (auch mit dem Kreuz des Browsers) die Werte zurück
+if (istModulTab()) {
+  window.addEventListener("pagehide", () => {
+    const art = modulTabArt(), t = zustandText(art);
+    try { const op = window.opener; if (t && op && !op.closed && op.hoferCamModulMerken) op.hoferCamModulMerken(kennung(), t); } catch (f) { /* egal */ }
+  });
+}
+
 export function modulTabOeffnen(art, blockId, pos) {
   const z = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-  ziele[z] = { blockId, pos };
+  ziele[z] = { blockId, pos, art };
   const basis = location.href.split("#")[0].replace(/([?&])fassung=[^&]*&?/, "$1").replace(/[?&]$/, "");
   const w = window.open(basis + "#/nc/modul/" + art + "?z=" + z, "hofer-nc-modul-" + z);
   if (w) { try { w.focus(); } catch (f) { /* egal */ } return true; }
@@ -88,7 +138,7 @@ export function ModulWahl({ blockId, pos, zu }) {
         <button className="knopf knopf--klein" title="Schliessen" onClick={zu}>✕</button>
       </div>
       {quelle === "tab" ? <>
-        <span className="klein">Öffnet das Modul leer in einem eigenen Tab. Dort „Einfügen in HOFERCAM“ setzt den Code nach der Zeile mit der Schreibmarke ein.</span>
+        <span className="klein">Öffnet das Modul in einem eigenen Tab, beim ersten Mal leer, danach mit den Einstellungen, die in dieser Bearbeitung zuletzt galten. Dort „Einfügen in HOFERCAM“ setzt den Code nach der Zeile mit der Schreibmarke ein.</span>
         <div className="cam-modul__wahl">
           {NC_QUELLEN.map(([k, n]) => (
             <button key={k} className="knopf knopf--klein" data-cammodul-wahl={k}
@@ -126,7 +176,7 @@ export function ModulTabKopf({ art }) {
     const op = window.opener;
     let erg;
     try {
-      erg = op && !op.closed && op.hoferCamModulEinfuegen ? op.hoferCamModulEinfuegen(kennung(), zeilen) : null;
+      erg = op && !op.closed && op.hoferCamModulEinfuegen ? op.hoferCamModulEinfuegen(kennung(), zeilen, zustandText(art)) : null;
     } catch (f) { erg = null; }
     if (!erg) { alt.meldung("HOFERCAM ist nicht mehr offen. Den Code kann man hier im Modul kopieren.", "fehler"); return; }
     if (!erg.ok) { alt.meldung(erg.text, "fehler"); return; }

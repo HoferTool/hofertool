@@ -16,7 +16,7 @@ import { NcAblage, NcStand } from "./NcAblage.jsx";
 import { dateiBeobachten, dateiFehler, dateiNeuWaehlen, dateienFuerName, dateienLaden, dateienSchreiben, dateienWaehlen, dateiMerken, dateiVergessen, dateiVon, kannSchreiben, schreibrechtHolen } from "./camDatei.js";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
-import { ModulWahl, modulEmpfaenger } from "./modulTab.jsx";
+import { ModulWahl, modulEmpfaenger, modulZustandAblage } from "./modulTab.jsx";
 import { TYP_NAME, eigeneFelder, eigenWert, feldAus, typBeobachten, wirksamB, wirksamW } from "./camTyp.js";
 import { camTypFensterOeffnen, camTypLaden } from "./CamTypFenster.jsx";
 import { bloeckeLesen, kopfLesen } from "./camLesen.js";
@@ -92,6 +92,26 @@ modulEmpfaenger((id, zeilen, pos) => {
   gemerkt.bloecke = neu;
   melden();
   return { ok: true, text: zeilen.length + " Zeilen in HOFERCAM eingefügt." };
+});
+// Einstellungen der Module je Bearbeitung (seit 1.617.0, Wunsch Patrick
+// 17. November 2026): am Block unter modul[art], gespeichert mit dem
+// Programm. Ein späteres „+ Aus Modul“ in derselben Bearbeitung öffnet
+// das Modul mit diesen Werten.
+modulZustandAblage({
+  lesen: (id, art) => {
+    const b = (gemerkt.bloecke || []).find((x) => x.id === id);
+    return (b && b.modul && b.modul[art]) || null;
+  },
+  merken: (id, art, z) => {
+    const bl = gemerkt.bloecke || [];
+    const i = bl.findIndex((x) => x.id === id);
+    if (i < 0 || !art) return;
+    if (JSON.stringify((bl[i].modul || {})[art]) === JSON.stringify(z)) return;
+    const neu = bl.slice();
+    neu[i] = { ...bl[i], modul: { ...(bl[i].modul || {}), [art]: z } };
+    gemerkt.bloecke = neu;
+    melden();
+  },
 });
 
 // Knopf „+ …“ mit der Spanne der Plätze, etwa „T100–T600“

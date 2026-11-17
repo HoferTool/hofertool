@@ -5,6 +5,7 @@
 //  Gerechnet wird in dxf.js.
 // =================================================================
 import { ncMelden } from "./ncAktuell.js";
+import { modulStart, modulZustandAnmelden } from "./modulTab.jsx";
 import { useEffect, useMemo, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { useEntwurfZurueck } from "../../teile/lokalZurueck.js";
@@ -12,7 +13,10 @@ import { KopfFelder } from "./kopf.jsx";
 import { DXF_VORGABE, dxfLesen, dxfSkalieren, dxfMasse, dxfBahn, dxfGcode } from "./dxf.js";
 
 // Bleibt beim Wechsel auf einen anderen Reiter stehen, samt Datei
-const gemerkt = { ...DXF_VORGABE, name: "", roh: [], gewaehlt: -1 };
+// Aus HOFERCAM im eigenen Tab mit den Einstellungen, die in dieser
+// Bearbeitung zuletzt galten (seit 1.617.0, modulTab.jsx)
+const gemerkt = { ...DXF_VORGABE, name: "", roh: [], gewaehlt: -1, ...(modulStart("dxf") || {}) };
+modulZustandAnmelden("dxf", () => gemerkt);
 
 // Zahlenfeld, das erst beim Verlassen oder mit Enter meldet
 function FeldInnen({ name, id, text, wert, anzeige, setze, schritt, min, hinweis }) {

@@ -19,7 +19,7 @@ import { schnittAusStep, konturAusSchnitt, elementeAusZug, modellUndKanten } fro
 import Modell3D from "./Modell3D.jsx";
 import { ncMelden } from "./ncAktuell.js";
 import { lokalZurueckAnmelden } from "../../teile/lokalZurueck.js";
-import { istModulTab as imModulTab } from "./modulTab.jsx";
+import { istModulTab as imModulTab, modulStart, modulZustandAnmelden } from "./modulTab.jsx";
 import { konturRechnen, bahnRechnen, ncProgrammZeilen, bogenWinkel, umkehren, startRichtung, SPITZEN, FREISTICHE, freistichMasse, istFreistich } from "./kontur.js";
 
 const VORGABE = {
@@ -46,9 +46,15 @@ function laden() {
   // Aus HOFERCAM ohne die Beispielkontur, ganz leer (seit 1.603.0, Wunsch
   // Patrick 17. November 2026: „HOFERCONTUR aus dem HOFERCAM immer mit
   // leerer Vorlage starten“)
-  if (imModulTab()) gemerkt.elemente = [];
+  if (imModulTab()) {
+    // seit 1.617.0 mit der Kontur, die in dieser Bearbeitung zuletzt galt
+    const st = modulStart("kontur");
+    if (st) gemerkt = { ...JSON.parse(JSON.stringify(VORGABE)), ...st };
+    else gemerkt.elemente = [];
+  }
   return gemerkt;
 }
+modulZustandAnmelden("kontur", () => laden());
 
 // 3D gross im eigenen Fenster (seit 1.381.0): das Fenster liest die
 // Kontur laufend aus diesem kleinen Speicher, so dreht man sie gross,

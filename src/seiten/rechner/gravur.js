@@ -216,12 +216,12 @@ export function gravurGcode(gv, roh) {
   };
 
   if (mantel) {
-    z.push("G0Z" + (gv.zStart + 5).toFixed(3) + "C0.");
+    z.push("G0Z" + (gv.zStart - 5).toFixed(3) + "C0.");
     z.push("G0X" + (gv.dm + 2 * gv.eilgang).toFixed(3));
     z.push("G07.1C" + rad.toFixed(3) + "  ( Zylinderinterpolation ein )");
   } else {
     z.push("G0X" + (gv.dm + 4).toFixed(3) + "C0.");
-    z.push("G0Z" + (gv.zStart + gv.eilgang).toFixed(3));
+    z.push("G0Z" + (gv.zStart - gv.eilgang).toFixed(3));
     z.push("G12.1  ( Polarinterpolation ein )");
   }
 
@@ -237,9 +237,9 @@ export function gravurGcode(gv, roh) {
         z.push("G0C" + erst.a.toFixed(3) + "Z" + (gv.zStart + erst.b).toFixed(3));
         z.push("G1X" + (gv.dm - 2 * tiefe).toFixed(3) + "F" + fZ);
       } else {
-        z.push("G0Z" + (gv.zStart + gv.eilgang).toFixed(3));
+        z.push("G0Z" + (gv.zStart - gv.eilgang).toFixed(3));
         z.push("G0X" + (erst.a * 2).toFixed(3) + "C" + erst.b.toFixed(3));
-        z.push("G1Z" + (gv.zStart - tiefe).toFixed(3) + "F" + fZ);
+        z.push("G1Z" + (gv.zStart + tiefe).toFixed(3) + "F" + fZ);
       }
 
       zug.slice(1).forEach((p, k) => {
@@ -263,7 +263,7 @@ export function gravurGcode(gv, roh) {
     // zur Polarinterpolation und würde hier ins Leere laufen.
     z.push("G07.1C0  ( Zylinderinterpolation aus )");
   } else {
-    z.push("G0Z" + (gv.zStart + gv.eilgang + 5).toFixed(3));
+    z.push("G0Z" + (gv.zStart - gv.eilgang - 5).toFixed(3));
     z.push("G13.1  ( Polarinterpolation aus )");
   }
   z.push("M5");

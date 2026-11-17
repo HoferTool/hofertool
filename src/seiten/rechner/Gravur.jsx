@@ -6,6 +6,7 @@
 //  Text oder Schrift ändern, nicht bei jedem Schritt der Vorschau.
 // =================================================================
 import { ncMelden } from "./ncAktuell.js";
+import { modulStart, modulZustandAnmelden } from "./modulTab.jsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { useEntwurfZurueck } from "../../teile/lokalZurueck.js";
@@ -13,7 +14,10 @@ import { KopfFelder } from "./kopf.jsx";
 import { GRAVUR_VORGABE, GRAVUR_SCHRIFTEN, gravurKonturen, gravurBahnen, gravurGcode, gravurDuennste } from "./gravur.js";
 
 // Bleibt beim Wechsel auf einen anderen Reiter stehen
-const gemerkt = { ...GRAVUR_VORGABE };
+// Aus HOFERCAM im eigenen Tab mit den Einstellungen, die in dieser
+// Bearbeitung zuletzt galten (seit 1.617.0, modulTab.jsx)
+const gemerkt = { ...GRAVUR_VORGABE, ...(modulStart("gravur") || {}) };
+modulZustandAnmelden("gravur", () => gemerkt);
 
 // Zahlenfeld, das erst beim Verlassen oder mit Enter meldet
 function FeldInnen({ name, text, wert, setze, schritt }) {

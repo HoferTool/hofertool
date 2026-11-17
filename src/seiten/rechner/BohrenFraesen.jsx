@@ -7,6 +7,7 @@
 //  beim Verlassen, wie bei der C-Achse.
 // =================================================================
 import { ncMelden } from "./ncAktuell.js";
+import { modulStart, modulZustandAnmelden } from "./modulTab.jsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { useEntwurfZurueck } from "../../teile/lokalZurueck.js";
@@ -17,7 +18,10 @@ import {
   flaechenWinkel, freieWinkel, frontLoecher, istFront, nutWinkel, yV, zLagen,
 } from "./bohren.js";
 
-const gemerkt = { ...BF_VORGABE };
+// Aus HOFERCAM im eigenen Tab mit den Einstellungen, die in dieser
+// Bearbeitung zuletzt galten (seit 1.617.0, modulTab.jsx)
+const gemerkt = { ...BF_VORGABE, ...(modulStart("bohren") || {}) };
+modulZustandAnmelden("bohren", () => gemerkt);
 // Für den Reiter Entgraten: er nimmt die Bearbeitung von hier
 export const bfAktuell = () => ({ ...gemerkt });
 export const bfSetzen = (neu) => Object.assign(gemerkt, { ...BF_VORGABE, ...neu });

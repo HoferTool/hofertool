@@ -8,6 +8,7 @@
 //  entgraten.js.
 // =================================================================
 import { ncMelden } from "./ncAktuell.js";
+import { modulStart, modulZustandAnmelden } from "./modulTab.jsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { useEntwurfZurueck } from "../../teile/lokalZurueck.js";
@@ -22,7 +23,13 @@ import { kantenAusStep } from "./stepKanten.js";
 const mitY = (g) => (g.spindel === "gegen" ? g.yGegen : g.yHaupt);
 const grad = (w) => (w * Math.PI) / 180;
 
-const gemerkt = { ...EG_VORGABE };
+// Aus HOFERCAM im eigenen Tab mit den Einstellungen, die in dieser
+// Bearbeitung zuletzt galten (seit 1.617.0, modulTab.jsx)
+// Entgraten braucht dazu die Bearbeitung aus Bohren / Fräsen
+const egStart = modulStart("entgraten");
+const gemerkt = { ...EG_VORGABE, ...((egStart && egStart.eg) || {}) };
+if (egStart && egStart.bohren) bfSetzen(egStart.bohren);
+modulZustandAnmelden("entgraten", () => ({ eg: gemerkt, bohren: bfAktuell() }));
 let gespeichertEg = null;
 // Geladene STEP-Datei (seit 1.389.0): Name, Text (nur solange die App
 // offen ist), Lage und die gefundenen Kanten

@@ -215,7 +215,7 @@ export function dxfGcode(d, name, bahn) {
   kopfZeilen().forEach((x) => z.push(x));
   if (!kopfZeilen().length) z.push("M3S" + Math.round(d.drehzahl));
   z.push("G0X" + (weit * 2).toFixed(3) + "C0.");
-  z.push("G0Z" + (d.zStart + d.sicher).toFixed(3));
+  z.push("G0Z" + (d.zStart - d.sicher).toFixed(3));
   z.push("G12.1  ( Polarinterpolation ein )");
 
   const schnitte = Math.max(1, Math.ceil(d.tiefeZ / Math.max(0.1, d.zustellung)));
@@ -223,10 +223,10 @@ export function dxfGcode(d, name, bahn) {
     const tiefe = Math.min(d.tiefeZ, s * d.zustellung);
     z.push("( Schnitt " + s + " von " + schnitte + " )");
     z.push("G0X" + (bahn[0][0] * 2).toFixed(3) + "C" + bahn[0][1].toFixed(3));
-    z.push("G1Z" + (d.zStart - tiefe).toFixed(3) + "F" + fZ);
+    z.push("G1Z" + (d.zStart + tiefe).toFixed(3) + "F" + fZ);
     bahn.slice(1).forEach((p, k) => z.push("G1X" + (p[0] * 2).toFixed(3) + "C" + p[1].toFixed(3) + (k === 0 ? "F" + fC : "")));
     z.push("G1X" + (bahn[0][0] * 2).toFixed(3) + "C" + bahn[0][1].toFixed(3));
-    z.push("G0Z" + (d.zStart + d.sicher).toFixed(3));
+    z.push("G0Z" + (d.zStart - d.sicher).toFixed(3));
   }
 
   z.push("G13.1  ( Polarinterpolation aus )");

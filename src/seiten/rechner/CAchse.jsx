@@ -6,6 +6,7 @@
 //  cachse.js, Felder melden sich beim Verlassen (wie bisher).
 // =================================================================
 import { ncMelden } from "./ncAktuell.js";
+import { modulStart, modulZustandAnmelden } from "./modulTab.jsx";
 import { useEffect, useMemo, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { useEntwurfZurueck } from "../../teile/lokalZurueck.js";
@@ -13,7 +14,10 @@ import { KopfFelder } from "./kopf.jsx";
 import { CACHSE_VORGABE, cachseBahn, cachseGcode, cachsePasst, cachsePunkte, cachseTeil } from "./cachse.js";
 
 // Bleibt beim Wechsel auf einen anderen Reiter stehen
-const gemerkt = { ...CACHSE_VORGABE };
+// Aus HOFERCAM im eigenen Tab mit den Einstellungen, die in dieser
+// Bearbeitung zuletzt galten (seit 1.617.0, modulTab.jsx)
+const gemerkt = { ...CACHSE_VORGABE, ...(modulStart("cachse") || {}) };
+modulZustandAnmelden("cachse", () => gemerkt);
 
 const FORMEN = [["vierkant", "Vierkant"], ["sechskant", "Sechskant"], ["rechteck", "Rechteck"], ["torx", "Torx"]];
 
