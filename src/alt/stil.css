@@ -14370,6 +14370,8 @@ body.dunkel .cam-ein__hinweis { color: #ffcf7a !important; }
 .h3d-eintrag.aktiv { background: rgba(0, 56, 132, .1); border-color: var(--blau, #003884); }
 .h3d-schild { font-size: 11px !important; padding: 1px 7px; border-radius: 10px; background: #fff1d6; color: #8a5a00; font-weight: 600; }
 body.dunkel .h3d-schild { background: #5a4210; }
+.h3d-schild--arbeit { background: #dbeafe; color: #0b4aa2; }
+body.dunkel .h3d-schild--arbeit { background: #173a6b; }
 .h3d-haupt { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .h3d-kopf { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; align-items: center; }
 .h3d-titel { font-size: 17px; overflow-wrap: anywhere; }

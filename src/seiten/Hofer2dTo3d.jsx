@@ -8,7 +8,7 @@
 //  Patrick lädt nur das PDF hoch, der Eintrag steht „offen“. Claude baut
 //  das STEP aus der Zeichnung und legt es über die Datenbank-Verbindung in
 //  zeichnung_3d_step ab (gzip + Base64, sql/hofer2dto3d-step-ablage.sql),
-//  setzt status „fertig“, step_name und step_groesse. Wahlweise geht auch
+//  setzt status „arbeit“ (Schild „3D in Arbeit“, vorher „Wartet auf 3D“), am Schluss „fertig“, step_name und step_groesse. Wahlweise geht auch
 //  ein STEP aus der Ablage (step_url). PDF in der Ablage „zeichnungen“
 //  unter 2dto3d/<Kennung>/, die Liste in zeichnung_3d (sql/hofer2dto3d.sql).
 //  Toleranzen sind im Modell immer auf Mitte Toleranz konstruiert
@@ -314,8 +314,11 @@ function Modell({ e }) {
   if (!stepDa(e)) {
     return (
       <div className="h3d-flaeche h3d-flaeche--offen" data-h3d-offen>
-        <div className="h3d-hinweis"><b>3D-Modell in Arbeit</b><br />Claude baut das STEP aus der Zeichnung,
-          Toleranzen auf Mitte Toleranz. Danach erscheint es hier.</div>
+        {e.status === "arbeit"
+          ? <div className="h3d-hinweis"><b>3D-Modell in Arbeit</b><br />Claude baut gerade das STEP aus der Zeichnung,
+              Toleranzen auf Mitte Toleranz. Danach erscheint es hier.</div>
+          : <div className="h3d-hinweis"><b>Wartet auf 3D</b><br />Claude holt die Zeichnung spätestens in einer Stunde ab,
+              sofort, wenn du im Chat „umwandeln“ schreibst.</div>}
       </div>);
   }
   if (fehler) return <div className="h3d-flaeche"><div className="h3d-hinweis h3d-hinweis--fehler">Das 3D-Modell lässt sich nicht laden: {fehler}</div></div>;
@@ -379,7 +382,8 @@ export default function Hofer2dTo3d({ auffrischen }) {
                         onClick={() => setOffen(e.id)}>
                         <b>{e.hoco || "ohne HOCO Nr."}</b>
                         <span>{e.titel}</span>
-                        {!stepDa(e) && <span className="h3d-schild">3D in Arbeit</span>}
+                        {!stepDa(e) && <span className={"h3d-schild" + (e.status === "arbeit" ? " h3d-schild--arbeit" : "")}>
+                          {e.status === "arbeit" ? "3D in Arbeit" : "Wartet auf 3D"}</span>}
                       </button>))}
                   </div>
                   {gewaehlt && (

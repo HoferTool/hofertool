@@ -70,7 +70,7 @@ with sync_playwright() as p:
            "Menüpunkt direkt vor Einlagen Generator: %s" % links)
     pg.evaluate("location.hash='#/hofer2dto3d'"); pg.wait_for_selector("[data-h3d-eintrag='e1']")
     pruefe(pg.locator("[data-h3d-eintrag]").count() == 2, "zwei Einträge in der Liste")
-    pruefe("3D in Arbeit" in pg.inner_text("[data-h3d-eintrag='e2']"), "offener Eintrag mit Schild „3D in Arbeit“")
+    pruefe("Wartet auf 3D" in pg.inner_text("[data-h3d-eintrag='e2']"), "offener Eintrag mit Schild „Wartet auf 3D“")
     pg.wait_for_selector(".h3d-pdf canvas", timeout=20000)
     pruefe(True, "Zeichnung (PDF) gezeichnet")
     pg.wait_for_selector("[data-h3d-fertig]", timeout=60000)
