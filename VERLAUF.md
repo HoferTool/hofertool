@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.611.0** (17. November 2026): Seitenleiste der Admins: Wahl im Menü schliesst es gleich wieder zu den Todos, die Seite zeigt dann ihre Reiter selbst; der farbige Balken, der manchmal über den Todos lag (Markierung des aktiven Menüpunkts), ist weg.
 - **1.610.0** (17. November 2026): Seitenleiste der Admins: das Menü nach ☰ bleibt offen, bis man ☰ nochmals drückt, es springt nicht mehr nach 1 Minute zu den Todos zurück (Patrick: „warum verschwindet der Reiter immer wieder?“, „immer“).
 - **1.609.0** (17. November 2026): HOFER2DTO3D: Drehen mit der Maus frei in alle Richtungen (Trackball statt Orbit, ohne Nachlaufen), und die 3Dconnexion SpaceMouse geht in Chrome und Edge (Knopf „SpaceMouse“, einmal koppeln), Wunsch Patrick.
 - **1.608.1** (17. November 2026): Seitenleiste der Admins: bei offenem Menü stehen die Todos wieder darunter wie früher, und beim Wechsel verschwinden sie nicht mehr kurz, sondern gleiten an ihre neue Stelle (Wunsch Patrick).

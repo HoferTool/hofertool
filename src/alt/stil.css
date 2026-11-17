@@ -5947,7 +5947,9 @@ body[data-thema] #pad .pad-kachel--maschine::before {
    nochmals. Am Handy (Leiste unten) und bei eingeklappter Seitenleiste
    gibt es links keine Reiter, dann bleibt die Leiste auf der Seite. */
 @media (min-width: 780px) {
-  body:not(.nav--schmal) .reiter--seite { display: none; }
+  /* Im Todo-Modus der Admins (1.611.0) steht das Menü meist zu, dann
+     zeigt die Seite ihre Reiter selbst. */
+  body:not(.nav--schmal):not(.nav--todos) .reiter--seite { display: none; }
 }
 
 /* ---------- Pad Mode auf dem Handy (111.77.0) ----------
@@ -14474,3 +14476,10 @@ body.dunkel #pad .pad__meldungen--offen .pad__meldungen-zahl { color: #b42318 !i
   body.nav--menue-weg .nav__unter { animation: nav-text-zu .2s ease-in both; }
   @keyframes nav-zeichen-weg { to { transform: scale(.3) rotate(-90deg); opacity: 0; } }
 }
+
+/* ---------- Todo-Modus ohne Geisterfeld (1.611.0) ----------
+   Das gleitende Feld des aktiven Menüpunkts (::before aus effekte.css)
+   blieb im Todo-Modus stehen und lag als rosa Balken über den Todos
+   (Patrick 17. November 2026: „es bugt manchmal“). */
+body.nav--todos .nav.fx-gleit::before,
+body.nav--menue-weg .nav.fx-gleit::before { display: none; }

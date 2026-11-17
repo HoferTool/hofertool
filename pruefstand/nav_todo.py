@@ -91,6 +91,13 @@ with sync_playwright() as p:
             pruefe(pg.is_visible(".nav > .nav__punkt"), "Menü bleibt ohne Zeit offen")
             pg.click("#nav-klapp"); pg.wait_for_timeout(1200)
             pruefe(pg.is_visible("#nav-todo") and not pg.is_visible(".nav > .nav__punkt"), "☰ nochmals = zurück zu den Todos")
+            # seit 1.611.0: Wahl eines Menüpunkts schliesst das Menü, kein Geisterfeld, Seite zeigt ihre Reiter
+            pg.click("#nav-klapp"); pg.wait_for_timeout(1200)
+            pg.click(".nav__punkt[data-nav='bestellungen']"); pg.wait_for_timeout(1500)
+            pruefe(not pg.is_visible(".nav > .nav__punkt"), "Wahl im Menü schliesst es")
+            geist = pg.evaluate("getComputedStyle(document.querySelector('.nav'), '::before').display")
+            pruefe(geist == "none", "kein Feld vom Menü über den Todos " + geist)
+            pruefe(pg.is_visible(".reiter--seite"), "Seite zeigt ihre Reiter selbst")
             # Knopf zeigt drei Striche als Bild (das Zeichen ☰ sprang nach der Drehung)
             pg.mouse.move(900, 500); pg.wait_for_timeout(400); vor = pg.locator("#nav-klapp").screenshot()
             pg.evaluate("document.body.classList.add('nav--klappt-auf')"); pg.wait_for_timeout(900)

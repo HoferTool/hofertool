@@ -46,6 +46,13 @@ let wechselUhr = 0;
 let menueSetzen = () => {};
 const WECHSEL = ["nav--zum-menue", "nav--menue-weg"];
 const ruhig = () => matchMedia("(prefers-reduced-motion: reduce)").matches || !!(window.TEST && window.TEST.ohneWechsel);
+// Ein Klick auf einen Menüpunkt oder Unterreiter schliesst das Menü
+// gleich wieder zu den Todos (1.611.0, Wunsch Patrick 17. November 2026:
+// „wenn man auf Reiter dann auf etwas drückt, soll es gleich schliessen“).
+function menueNachWahl(e) {
+  if (!document.body.classList.contains("nav--zeigt-menue")) return;
+  if (e.target.closest && e.target.closest(".nav__punkt, .nav__unterpunkt")) menueZeigen(false);
+}
 function menueZeigen(an) {
   const b = document.body;
   if (!todoModusDarf()) { b.classList.remove("nav--todos", "nav--zeigt-menue", ...WECHSEL); return; }
@@ -327,7 +334,7 @@ function Geruest() {
         </button>
       </header>
       <div className="rahmen">
-        <nav className="nav" aria-label="Hauptnavigation">
+        <nav className="nav" aria-label="Hauptnavigation" onClick={menueNachWahl}>
           {navSeiten.map((s, i) => (
             <Fragment key={s.pfad}>
               <a className={"nav__punkt" + (aktiv === s.pfad ? " aktiv" : "")}
