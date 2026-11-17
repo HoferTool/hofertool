@@ -167,7 +167,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.614.0";
+const APP_VERSION = "1.614.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4093,11 +4093,44 @@ async function planKonflikteLoesen(maschineId, festId) {
 //  - laufende und rüstende bleiben, wo sie sind.
 // Nur wer planen darf (die Datenbank lässt es sonst nicht zu); für alle
 // anderen legt die Tafel überlappende Balken übereinander statt halb.
-let planNormalTakt = null, planNormalLaeuft = false;
+//
+// Schutz gegen Endlosschleife (17. November 2026: zwei offene Tabs bzw.
+// Geräte von Admins schoben sich dieselben 7 Aufträge der Index gegenseitig
+// immer weiter nach hinten, jedes Schieben löste über den Abgleich bei allen
+// ein Neuladen aus, die Datenbank war rund 8 Minuten überlastet):
+//  - nur ein Tab je Browser räumt auf (Sperre über navigator.locks),
+//  - geschrieben wird nur, wenn die Daten der betroffenen Maschinen in der
+//    Datenbank noch genau so sind wie hier (sonst kommt ohnehin ein
+//    Neuladen, und mit alten Daten würde weiter geschoben),
+//  - wird derselbe Auftrag innert 30 Minuten ein drittes Mal verschoben oder
+//    räumt der Tab öfter als 6 Mal in 10 Minuten auf, hört er bis zum
+//    Neuladen ganz auf und schreibt es ins Fehlerprotokoll.
+let planNormalTakt = null, planNormalLaeuft = false, planNormalAus = false;
+const planNormalJob = new Map(); // Kennung → Zeiten, an denen verschoben wurde
+let planNormalRunden = [];
+let planNormalChef = null; // null = noch nicht gefragt, true/false
+function planNormalChefPruefen() {
+  if (planNormalChef !== null) return;
+  planNormalChef = false;
+  try {
+    if (!navigator.locks || !navigator.locks.request) { planNormalChef = true; return; }
+    navigator.locks.request("hofer-plan-normal", { ifAvailable: true }, (sperre) => {
+      if (!sperre) { planNormalChef = null; return; } // später nochmals fragen
+      planNormalChef = true;
+      return new Promise(() => {}); // Sperre halten, solange der Tab lebt
+    }).catch(() => { planNormalChef = true; });
+  } catch { planNormalChef = true; }
+}
 function planNormalisierenSpaeter() {
-  if (istArchiv() || !darfPlanen()) return;
+  if (istArchiv() || !darfPlanen() || planNormalAus) return;
+  planNormalChefPruefen();
   clearTimeout(planNormalTakt);
-  planNormalTakt = setTimeout(planNormalisieren, 500);
+  planNormalTakt = setTimeout(planNormalisieren, 1500);
+}
+function planNormalStoppen(grund) {
+  planNormalAus = true;
+  clearTimeout(planNormalTakt);
+  fehlerMerken("Planwand aufräumen gestoppt", grund);
 }
 
 function planUeberlappungRechnen() {
@@ -4164,11 +4197,52 @@ async function planNormalisieren() {
     return;
   }
   if (!document.querySelector(".pw-tafel")) return;
-  planFliessenAnmelden();
-  const aenderungen = planUeberlappungRechnen();
+  if (planNormalAus || planNormalChef !== true) return;
+  // Rechnen auf einer Kopie: erst nach der Prüfung gegen die Datenbank
+  // werden die Aufträge hier geändert.
+  const echt = plan.auftraege || [];
+  const kopie = echt.map((x) => ({ ...x }));
+  plan.auftraege = kopie;
+  let aenderungen;
+  try { aenderungen = planUeberlappungRechnen(); } finally { plan.auftraege = echt; }
   if (!aenderungen.length) return;
+  const jetzt = Date.now();
+  planNormalRunden = planNormalRunden.filter((t) => jetzt - t < 10 * 60000);
+  if (planNormalRunden.length >= 6) {
+    planNormalStoppen("Mehr als 6 Runden in 10 Minuten, wohl ein anderes Gerät mit anderer Rechnung.");
+    return;
+  }
+  for (const a of aenderungen) {
+    const zeiten = (planNormalJob.get(a.x.id) || []).filter((t) => jetzt - t < 30 * 60000);
+    if (zeiten.length >= 2) {
+      planNormalStoppen("Auftrag " + (a.x.hoco || a.x.id) + " wäre zum dritten Mal in 30 Minuten verschoben worden.");
+      return;
+    }
+  }
   planNormalLaeuft = true;
   try {
+    // Stimmen die Daten noch? Sonst nichts schreiben, das Neuladen kommt.
+    const maschinen = [...new Set(aenderungen.map((a) => a.x.machine_id))];
+    const ids = new Set(kopie.filter((x) => maschinen.includes(x.machine_id)).map((x) => x.id));
+    const { data: frisch, error } = await zeitlimit(
+      db.from("jobs").select("id, planned_from, planned_days, plan_status, machine_id").in("machine_id", maschinen),
+      15000, "Planwand prüfen");
+    if (error) throw error;
+    const hier = new Map(echt.map((x) => [x.id, x]));
+    for (const f of frisch || []) {
+      const h = hier.get(f.id);
+      if (!ids.has(f.id)) continue; // hier nicht geladen (älter als ein Jahr)
+      if (!h || h.planned_from !== f.planned_from || (h.planned_days || 1) !== (f.planned_days || 1)
+          || (h.plan_status || "") !== (f.plan_status || "") || h.machine_id !== f.machine_id) return;
+    }
+    // Jetzt die Aufträge hier wirklich ändern
+    for (const a of aenderungen) {
+      const h = hier.get(a.x.id);
+      if (h) h[a.feld] = a.nach;
+      planNormalJob.set(a.x.id, [...(planNormalJob.get(a.x.id) || []).filter((t) => jetzt - t < 30 * 60000), jetzt]);
+    }
+    planNormalRunden.push(jetzt);
+    planFliessenAnmelden();
     if (plan.b) neuZeichnen(plan.b);
     await parallelSenden(aenderungen.map((a) => () =>
       db.from("jobs").update({ [a.feld]: a.nach }).eq("id", a.x.id)));
