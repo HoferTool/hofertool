@@ -1,5 +1,5 @@
 # Nimmt das ausführliche Erklärvideo für HOFERCAM auf: ein ganzes Teil von
-# der STEP-Datei bis zur 3D-Simulation (Wunsch Patrick 17. November 2026:
+# den Kopfdaten bis zur 3D-Simulation, die Module dazwischen (Wunsch Patrick 17. November 2026:
 # „neues Tutorial für das aktuelle HOFERCAM, sehr detailliert … ein Teil
 # programmieren … für ElevenLabs … inkl. Kontur und Entgraten“).
 # Läuft mit dem Prüfstand, also nur mit Beispieldaten in der App.
@@ -91,192 +91,70 @@ def aus_modul(pg, a, i, modul):
     a.hin("[data-cammodul-vorschau]", klick=False, ms=900)
     a.hin("[data-cammodul-einfuegen]", ms=900)
 
-# ===================== Teil 1: Das Teil und die Kontur =======================
-teil("Das Teil und die Kontur")
+# Seit 17. November 2026 beginnt das Video in HOFERCAM und springt beim
+# Programmieren in die Module (Patrick: „starte im Tutorial mit dem HOFERCAM
+# und nicht mit den Modulen, springe in die Module während dem
+# Programmieren“). Bearbeitungsfolge nach der Regel der Führungsbüchse:
+# was aussen schon bearbeitet ist, darf nie mehr zurück in die Büchse
+# (Patrick: „du musst also die Bearbeitungsstrategie ändern“). Darum die
+# Kontur in zwei Stücken: vorne bis ans Ende des Bunds (Ø10 = Rohmass,
+# Z36.75), dann Nuten und Entgraten, dann der Rest nach hinten. Platte
+# V 35° neutral (Lage Mitte unten), damit ihre Rückseite beim
+# Hinunterdrehen in X− die Kontur nicht verletzt.
+BUND_ENDE = 36.75
 
-@schritt("[excited] Hallo und willkommen zum grossen Hofer Cam Tutorial! [warmly] Heute programmieren wir zusammen ein echtes Teil, "
-         "von der STEP Datei bis zur fertigen drei D Simulation, für die Star S B zwanzig R G.",
-         "Ein ganzes Teil von der <b>STEP-Datei</b> bis zur <b>3D-Simulation</b>, für die <b>Star SB-20RG</b>.")
-def s_start(pg, a):
-    a.titel("HOFERCAM Schritt für Schritt", "Ein Teil von der STEP-Datei bis zur 3D-Simulation")
-    pg.wait_for_timeout(4500); a.titel("")
+def kontur_elemente(pg):
+    return pg.evaluate("""() => [...document.querySelectorAll('.kt-liste [data-ktel]')].map((e) => ({
+      x: parseFloat((e.querySelector("[data-ktfeld='x']")?.value || "").replace(",", ".")), z: parseFloat((e.querySelector("[data-ktfeld='z']")?.value || "").replace(",", ".")) }))""")
 
-@schritt("Unser Teil ist eine Welle aus Stangenmaterial Durchmesser zehn, zweiundsiebzig komma drei Millimeter lang. "
-         "In der Mitte hat sie einen Bund mit sechs Längsnuten. Die drehen wir, fräsen die Nuten, entgraten die Kanten "
-         "und bohren vorne und hinten die Zentrierung. [curious] Die Verzahnung rechts und die zwei kleinen Nuten an den Enden lassen wir heute weg.",
-         "Welle <b>Ø10 × 72.3</b>: Kontur drehen, <b>6 Nuten</b> fräsen, <b>entgraten</b>, vorne und hinten <b>zentrieren</b>.")
-def s_teil(pg, a):
-    a.hin("[data-unter='nc/kontur']", klick=False, ms=500)
-    a.hin("label:has(#kt-step)", klick=False, ms=600)
-
-@schritt("Wir starten im Hofer Contur. Mit drei D Modell wählst du die STEP Datei. Links siehst du das Modell als Drahtgitter. "
-         "Ziehen dreht es, das Mausrad zoomt. Die strichpunktierte Linie ist die Drehachse, die das Programm selbst gefunden hat.",
-         "<b>HOFERCONTUR</b> → <b>„3D-Modell“</b>: STEP-Datei wählen. Ziehen dreht, die Linie ist die <b>Drehachse</b>.")
-def s_step(pg, a):
+def kontur_aus_step(pg, a, zeigen=True):
     pg.set_input_files("#kt-step", STEP)
     pg.wait_for_selector(".kt-modell"); pg.wait_for_timeout(800)
-    m3 = pg.locator("#kt-modell-3d").bounding_box()
-    if m3:
-        pg.mouse.move(m3["x"] + m3["width"] * 0.35, m3["y"] + m3["height"] * 0.5, steps=12)
-        pg.mouse.down(); pg.mouse.move(m3["x"] + m3["width"] * 0.6, m3["y"] + m3["height"] * 0.42, steps=40); pg.mouse.up()
-        pg.wait_for_timeout(500)
-        pg.mouse.move(m3["x"] + m3["width"] * 0.5, m3["y"] + m3["height"] * 0.5, steps=8)
-        for _ in range(4): pg.mouse.wheel(0, -120); pg.wait_for_timeout(200)
-    a.hin("#kt-modell-achse", klick=False, ms=900)
+    if zeigen:
+        m3 = pg.locator("#kt-modell-3d").bounding_box()
+        if m3:
+            pg.mouse.move(m3["x"] + m3["width"] * 0.35, m3["y"] + m3["height"] * 0.5, steps=12)
+            pg.mouse.down(); pg.mouse.move(m3["x"] + m3["width"] * 0.6, m3["y"] + m3["height"] * 0.42, steps=40); pg.mouse.up()
+            pg.wait_for_timeout(500)
+        a.hin("#kt-modell-achse", klick=False, ms=900)
+        a.hin(".kt-modell__bild", klick=False, ms=700)
+    a.hin("[data-ktmodell='aussen']", ms=400)
+    a.hin("#kt-modell-ok", ms=900)
 
-@schritt("Rechts steht die Seitenkontur, die daraus entsteht. Der rote Punkt ist der Start, die senkrechte Linie ist Z null. "
-         "Wir nehmen die Aussenkontur, die dünne Seite liegt vorne, so wie das Teil aus der Führungsbüchse kommt. "
-         "Mit Andere Seite vorne könntest du das Teil umdrehen. Passt alles, tippst du auf Kontur übernehmen.",
-         "<b>Seitenkontur</b>: roter Punkt = Start, Linie = <b>Z0</b>. <b>Aussenkontur</b>, dann <b>„Kontur übernehmen“</b>.")
-def s_step2(pg, a):
-    a.hin(".kt-modell__bild", klick=False, ms=900)
-    a.hin("[data-ktmodell='aussen']", ms=500)
-    a.hin("[data-ktmodell='umdrehen']", klick=False, ms=700)
-    a.hin("#kt-modell-ok", ms=1000)
+def bund_index(pg):
+    el = kontur_elemente(pg)
+    for i, e in enumerate(el):
+        if abs(abs(e["z"]) - BUND_ENDE) < 0.02:  # leeres X = bleibt gleich (hier Ø10)
+            return i, len(el)
+    raise RuntimeError("Bund nicht gefunden: " + repr(el))
 
-@schritt("Jetzt steht die Kontur in der Liste, Element für Element. Jede Gerade, jeder Bogen und jede Schräge hat ihre Zeile mit X und Z. "
-         "Oben siehst du die Grafik. [impressed] Und mit drei D wird daraus sofort das fertige Drehteil.",
-         "Die Kontur steht in der <b>Liste</b>, oben die <b>Grafik</b>, mit <b>3D</b> das Drehteil.")
-def s_liste(pg, a):
-    a.hin(".kt-liste", klick=False, ms=700)
-    if pg.locator(".kt-liste .kt-el").count() > 6: a.hin(".kt-liste .kt-el >> nth=6", klick=False, ms=600)
-    a.hin("#kt-bild", klick=False, ms=500)
-    if pg.locator("#kt-3d").count():
-        a.hin("#kt-3d", ms=900)
-        bb = pg.locator("#kt-k3d").first.bounding_box()
-        if bb:
-            pg.mouse.move(bb["x"] + bb["width"] * 0.4, bb["y"] + bb["height"] * 0.5, steps=8)
-            pg.mouse.down(); pg.mouse.move(bb["x"] + bb["width"] * 0.6, bb["y"] + bb["height"] * 0.35, steps=35); pg.mouse.up()
-        pg.wait_for_timeout(1200)
-        if pg.locator("#kt-2d").count(): a.hin("#kt-2d", ms=400)
+def element_weg(pg, a, i, ms=250):
+    a.hin(f"[data-ktweg='{i}']", ms=ms)
 
-@schritt("Beim Werkzeug trägst du den Schneidenradius ein, hier null komma zwei, den Vorschub null komma null drei und die Schneidenlage. "
-         "Der Radius ist im Programm schon eingerechnet, darum braucht es kein G einundvierzig oder zweiundvierzig.",
-         "<b>Werkzeug</b>: Schneidenradius <b>0.2</b>, Vorschub <b>0.03</b>, <b>Schneidenlage</b>. Radius ist eingerechnet.")
-def s_kt_wz(pg, a):
-    a.hin(".kt-werkzeug", klick=False, ms=500)
-    a.tippen("[data-ktfeld='rn']", "0.2"); a.tippen("[data-ktfeld='f']", "0.03")
-    if pg.locator("[data-ktspitze='ur']").count(): a.hin("[data-ktspitze='ur']", ms=600)
+# ===================== Teil 1: HOFERCAM und die Strategie =====================
+teil("HOFERCAM, Kopfdaten und Strategie")
 
-@schritt("Darunter steht das fertige N C Programm. Schrägen schreibt es kurz mit Komma A und dem Winkel, Fasen mit Komma C "
-         "und Rundungen mit Komma R. [warmly] Dieses Programm holen wir uns gleich ins Hofer Cam.",
-         "Das <b>NC-Programm</b>: Schrägen mit <b>,A</b>, Fasen mit <b>,C</b>, Rundungen mit <b>,R</b>.")
-def s_kt_code(pg, a):
-    a.hin("#kt-code", klick=False, ms=1500)
-    pg.evaluate("document.querySelector('#kt-code')?.scrollBy?.(0, 120)")
-    pg.wait_for_timeout(1200)
+@schritt("[excited] Hallo und willkommen zum grossen Hofer Cam Tutorial! [warmly] Heute programmieren wir zusammen ein echtes Teil "
+         "für die Star S B zwanzig R G, von den Kopfdaten bis zur fertigen drei D Simulation. Wir arbeiten im Hofer Cam "
+         "und holen uns den Code aus den Modulen genau dann, wenn wir ihn brauchen.",
+         "Ein ganzes Teil in <b>HOFERCAM</b>, für die <b>Star SB-20RG</b>. Den Code holen wir aus den <b>Modulen</b>, wenn wir ihn brauchen.")
+def s_start(pg, a):
+    a.titel("HOFERCAM Schritt für Schritt", "Ein ganzes Teil von den Kopfdaten bis zur 3D-Simulation")
+    pg.wait_for_timeout(4500); a.titel("")
 
-# ===================== Teil 2: Nuten fräsen ===================================
-teil("Nuten fräsen")
-
-@schritt("[cheerfully] Weiter zu den Nuten. Im Reiter Bohren und Fräsen wählst du Nut Quer, eine Längsnut am Umfang, gefräst mit einem quer angetriebenen Werkzeug.",
-         "<b>Bohren / Fräsen</b> → <b>„Nut Quer“</b>: Längsnut am Umfang mit einem Querwerkzeug.")
-def s_bf(pg, a):
-    a.reiter("bohren"); pg.wait_for_selector("#bf-code")
-    a.hin("[data-bfart='nutQuer']", ms=900)
-
-@schritt("Teil Durchmesser zehn, die Stirn liegt bei Z null. Die Nut beginnt bei siebenundzwanzig komma fünf und geht bis vierzig komma fünf, "
-         "so läuft der Fräser vorne und hinten frei aus dem Bund. Die Tiefe ist eins komma neun.",
-         "Teil-Ø <b>10</b>, Stirn <b>Z0</b>, Nut von <b>27.5</b> bis <b>40.5</b>, Tiefe <b>1.9</b>.")
-def s_bf_mass(pg, a):
-    a.tippen("[data-bf='teilD']", "10"); a.tippen("[data-bf='zStirn']", "0")
-    a.tippen("[data-bf='nutVon']", "27.5"); a.tippen("[data-bf='nutBis']", "40.5"); a.tippen("[data-bf='nutTiefe']", "1.9")
-
-@schritt("[excited] Und jetzt neu: Anzahl über den Umfang. Wir tippen sechs, und schon verteilt das Programm sechs gleiche Nuten, alle sechzig Grad. "
-         "Die erste liegt bei C null. Die Stirnansicht zeigt es sofort.",
-         "Neu: <b>„Anzahl über den Umfang“</b> = <b>6</b>, gleichmässig alle 60°, die erste bei <b>C0</b>.")
-def s_bf_anzahl(pg, a):
-    a.tippen("[data-bf='startC']", "0"); a.tippen("[data-bf='nutAnzahl']", "6")
-    a.hin("#bf-stirn", klick=False, ms=1200)
-
-@schritt("Dann das Werkzeug: ein Fräser Durchmesser zwei, so breit wird die Nut. Zustellung null komma fünf pro Schnitt, "
-         "Eintauchen mit vierzig, Fräsen mit hundert Millimeter pro Minute, Drehzahl achttausend.",
-         "Fräser <b>Ø2</b> = Nutbreite, Zustellung <b>0.5</b>, Vorschübe <b>40</b> / <b>100</b> mm/min, Drehzahl <b>8'000</b>.")
-def s_bf_wz(pg, a):
-    a.tippen("[data-bf='fraeser']", "2"); a.tippen("[data-bf='zustellung']", "0.5")
-    a.tippen("[data-bf='vorschubZ']", "40"); a.tippen("[data-bf='drehzahl']", "8000"); a.tippen("[data-bf='vorschub']", "100")
-    a.hin("#bf-seite", klick=False, ms=800)
-
-@schritt("Unten steht der N C Code, Nut für Nut mit ihrem C Winkel. Den Werkzeugantrieb musst du hier nicht eintragen: "
-         "Im Hofer Cam schaltet die Bearbeitung das Werkzeug selbst ein und aus. Die Hinweise in Klammern stören die Maschine nicht.",
-         "Der <b>NC-Code</b>, Nut für Nut. Den <b>Antrieb</b> schaltet HOFERCAM selbst, Hinweise in Klammern stören nicht.")
-def s_bf_code(pg, a):
-    a.hin("#bf-code", klick=False, ms=1600)
-
-# ===================== Teil 3: Entgraten ======================================
-teil("Entgraten")
-
-@schritt("[curious] Beim Fräsen entsteht Grat an den Kanten der Nuten. Den nehmen wir im Reiter Entgraten weg. "
-         "Die Kanten holen wir direkt aus der STEP Datei: Kanten aus STEP Datei, und die gleiche Datei wählen.",
-         "<b>Entgraten</b>: Kanten aus <b>STEP-Datei</b>, dieselbe Datei wählen.")
-def s_eg(pg, a):
-    a.reiter("entgraten"); pg.wait_for_selector("#eg-code")
-    a.hin("[data-egquelle='step']", ms=700)
-    pg.set_input_files("#eg-step", STEP)
-    pg.wait_for_function("() => /Kanten zum Entgraten/.test(document.querySelector('#eg-quelle')?.textContent || '')", timeout=60000)
-    a.hin("#eg-quelle", klick=False, ms=900)
-
-@schritt("Das Programm findet alle scharfen Kanten. Kanten, die der Drehmeissel macht, und Innenecken lässt es von selbst weg. "
-         "Wichtig: Andere Seite vorne einschalten, damit vorne dieselbe Seite liegt wie bei der Kontur. Dann Querwerkzeug wählen.",
-         "Drehkanten und Innenecken fallen weg. <b>„Andere Seite vorne“</b> wie bei der Kontur, dann <b>„Querwerkzeug“</b>.")
-def s_eg_lage(pg, a):
-    a.hin("#eg-step-um", ms=200)
-    pg.wait_for_timeout(2500)
-    a.hin("[data-egri='quer']", ms=600)
-    a.hin("[data-egwz='kugel']", ms=500)
-
-@schritt("Wir wollen nur die Kanten der sechs Nuten in der Mitte. Ansicht von der Seite, mit dem Mausrad hineinzoomen, "
-         "dann Rechteck und ein Rechteck um den Bund ziehen. [impressed] Gewählt sind genau die Kanten, die ganz im Rechteck liegen, "
-         "die Verzahnung und die Enden bleiben aussen vor.",
-         "<b>„Von der Seite“</b>, zoomen, <b>„▭ Rechteck“</b> um den Bund: genau diese Kanten sind gewählt.")
-def s_eg_rechteck(pg, a):
-    a.hin("text=Von der Seite", ms=500)
-    box = lambda: pg.evaluate("""() => { let x1=1e9,y1=1e9,x2=-1e9,y2=-1e9;
-      document.querySelectorAll('[data-eg3d]').forEach(e => { const t = e.querySelector('title')?.textContent || '';
-        const m = t.match(/Z-([\\d.]+)/); if (!m) return; const z = +m[1]; if (z < 27 || z > 41) return;
-        const b = e.getBoundingClientRect(); x1=Math.min(x1,b.left); y1=Math.min(y1,b.top); x2=Math.max(x2,b.right); y2=Math.max(y2,b.bottom); });
-      return {x1,y1,x2,y2}; }""")
-    b = box()
-    pg.mouse.move((b["x1"] + b["x2"]) / 2, (b["y1"] + b["y2"]) / 2, steps=15)
-    for _ in range(5): pg.mouse.wheel(0, -120); pg.wait_for_timeout(220)
-    pg.wait_for_timeout(400)
-    a.hin("#eg-rechteck-knopf", ms=500)
-    b = box()
-    pg.mouse.move(b["x1"] - 8, b["y1"] - 8, steps=15); pg.mouse.down()
-    pg.mouse.move(b["x2"] + 8, b["y2"] + 8, steps=45); pg.mouse.up(); pg.wait_for_timeout(900)
-    a.hin("#eg-liste", klick=False, ms=800)
-
-@schritt("Als Werkzeug ein Kugelfräser Durchmesser zwei, die Fase null komma eins. Rechts zeigt die Skizze, wie die Kugel an der Kante steht "
-         "und welcher Punkt programmiert wird.",
-         "<b>Kugelfräser Ø2</b>, Fase <b>0.1</b>. Rechts die <b>Skizze</b> mit dem programmierten Punkt.")
-def s_eg_wz(pg, a):
-    a.tippen("[data-eg='durchmesser']", "2"); a.tippen("[data-eg='fase']", "0.1")
-    a.hin("#eg-skizze", klick=False, ms=1200)
-
-@schritt("[excited] Und jetzt die Simulation: Abspielen, und das Werkzeug fährt jede Kante ab. Das Teil dreht dabei in C, das Werkzeug steht. "
-         "Im Code ist Z wie an der Star: ins Teil grösser.",
-         "<b>Simulation</b>: das Werkzeug fährt jede Kante ab, das Teil dreht in C. Z ins Teil <b>grösser</b> wie an der Star.")
-def s_eg_sim(pg, a):
-    if pg.locator("#eg-sim-tempo").count(): pg.select_option("#eg-sim-tempo", index=pg.locator("#eg-sim-tempo option").count() - 1)
-    if pg.locator("#eg-sim-start").count(): a.hin("#eg-sim-start", ms=4500)
-    if pg.locator("#eg-sim-halt").count(): a.hin("#eg-sim-halt", ms=300)
-    a.hin("#eg-code", klick=False, ms=900)
-
-# ===================== Teil 4: HOFERCAM, Kopf und Drehen ======================
-teil("HOFERCAM: Kopfdaten und Drehen")
-
-@schritt("[excited] Jetzt bauen wir alles zusammen, im Hofer Cam. Oben die Kopfdaten, darunter die Bearbeitungen, "
-         "und unten die zwei Kanäle nebeneinander: links Kanal eins, rechts Kanal zwei.",
+@schritt("Das ist Hofer Cam. Oben die Kopfdaten, darunter die Bearbeitungen, und unten die zwei Kanäle nebeneinander: "
+         "links Kanal eins, rechts Kanal zwei. Hofer Cam ist der erste Reiter in N C Pro.",
          "<b>HOFERCAM</b>: oben <b>Kopfdaten</b>, dann <b>Bearbeitungen</b>, unten <b>Kanal 1</b> und <b>Kanal 2</b>.")
 def s_cam(pg, a):
-    a.reiter("cam"); pg.wait_for_selector("#cam-kanaele")
+    a.hin("[data-unter='nc/cam'], .reiter [data-rech='cam']", klick=False, ms=600)
     a.hin("#cam-bearb", klick=False, ms=600)
     a.hin("#cam-kanaele", klick=False, ms=900)
     pg.evaluate("scrollTo(0,0)"); pg.wait_for_timeout(300)
 
-@schritt("Zuerst das Programm: Nummer für Kanal eins, Kanal zwei bekommt automatisch tausend dazu. Dann die HOCO Nummer, das Datum und dein Kürzel. "
-         "Alles landet im Kopf beider Programme.",
-         "<b>Programm-Nr.</b> (Kanal 2 = Nr. + 1000), <b>HOCO Nr.</b>, <b>Datum</b>, <b>Kürzel</b>.")
+@schritt("Unser Teil ist eine Welle aus Stangenmaterial Durchmesser zehn, zweiundsiebzig komma drei Millimeter lang. "
+         "In der Mitte hat sie einen Bund mit sechs Längsnuten. [curious] Die Verzahnung hinten und die zwei kleinen Nuten an den Enden lassen wir heute weg. "
+         "Zuerst das Programm: Nummer für Kanal eins, Kanal zwei bekommt automatisch tausend dazu. Dann die HOCO Nummer, das Datum und dein Kürzel.",
+         "Welle <b>Ø10 × 72.3</b> mit <b>6 Nuten</b>. <b>Programm-Nr.</b> (Kanal 2 = Nr. + 1000), <b>HOCO Nr.</b>, <b>Datum</b>, <b>Kürzel</b>.")
 def s_cam_prg(pg, a):
     a.tippen("[data-cam='nr']", "123"); a.tippen("[data-cam='hoco']", "12345-0001")
     a.tippen("[data-cam='datum']", "17.11.26"); a.tippen("[data-cam='kuerzel']", "PR")
@@ -303,101 +181,252 @@ def s_cam_k(pg, a):
          "<b>„▾ Kopfdaten“</b> klappt ein. Unten: <b>Kopf</b> und <b>Ende</b> beider Kanäle sind schon fertig.")
 def s_cam_zu(pg, a):
     a.hin("#cam-kopf-zu", ms=900)
-    a.hin("[data-kanal='1'][data-nr='6'] .cam-text, #cam-kanaele", klick=False, ms=1200)
+    a.hin("#cam-kanaele", klick=False, ms=1200)
     pg.evaluate("scrollTo(0,0)"); pg.wait_for_timeout(300)
 
-@schritt("Jetzt die erste Bearbeitung: plus Drehwerkzeug. Ganz vorne die Bezeichnung, wir schreiben Aussenkontur. Gleich daneben der Platz. "
-         "Fährst du mit der Maus über die Liste, zeigt das Bild oben rechts, wo das Werkzeug an der Maschine sitzt. Wir nehmen T zweihundert.",
-         "<b>„+ Drehwerkzeug“</b>, <b>Bezeichnung</b> zuvorderst, dann <b>Platz T200</b>. Das <b>Bild</b> zeigt, wo er sitzt.")
-def s_cam_dreh(pg, a):
-    a.hin("#cam-neu-dreh", ms=700)
-    a.tippen(bl(0, "[data-camblock='bez']"), "AUSSENKONTUR")
-    a.hin(bl(0, "[data-camblock='platz'] .cam-wahl__knopf"), ms=500)
-    for p in ["100", "300", "200"]:
-        if pg.locator(f"[data-platz='{p}']").count(): a.hin(f"[data-platz='{p}']", klick=(p == "200"), ms=700)
+@schritt("[serious] Bevor wir loslegen, die wichtigste Regel beim Langdrehen: Das Material wird in der Führungsbüchse am Rohdurchmesser geführt. "
+         "Was aussen schon bearbeitet ist, darf nie mehr zurück in die Büchse, sonst ist es nicht mehr geführt. "
+         "Darum arbeiten wir von vorne nach hinten: zuerst zentrieren, dann die Kontur vorne bis ans Ende vom Bund, der noch Rohdurchmesser hat. "
+         "Dann die Nuten fräsen und entgraten, und erst danach die Kontur hinten fertig drehen.",
+         "Regel: Bearbeitetes <b>nie zurück in die Führungsbüchse</b>. Reihenfolge: <b>zentrieren</b>, <b>Kontur vorne</b> bis zum Bund, "
+         "<b>Nuten</b>, <b>entgraten</b>, <b>Kontur hinten</b>.")
+def s_strategie(pg, a):
+    a.titel("Von vorne nach hinten", "Zentrieren · Kontur vorne · Nuten · Entgraten · Kontur hinten · Abstechen")
+    pg.wait_for_timeout(5500); a.titel("")
 
-@schritt("Hochdruck Stufe drei, Drehrichtung M drei. Statt der Drehzahl kannst du auch die Schnittgeschwindigkeit eingeben: "
-         "Eingabe auf V C, achtzig Meter pro Minute, und das Programm rechnet die Drehzahl aus dem Materialdurchmesser. "
-         "Anfahren Z, und beim Wegfahren ein Winkel.",
-         "<b>Hochdruck</b>, <b>M3</b>, <b>Vc 80</b> m/min → Drehzahl aus dem Ø. <b>Anfahren Z</b>, <b>Wegfahren</b> mit Winkel.")
-def s_cam_dreh2(pg, a):
-    a.hin(bl(0, "[data-camblock='hd']"), klick=False, ms=500)
-    if pg.locator(bl(0, "[data-camblock='sArt']")).count():
-        pg.select_option(bl(0, "[data-camblock='sArt']"), index=1); a.hin(bl(0, "[data-camblock='sArt']"), klick=False, ms=400)
-        if pg.locator(bl(0, "[data-camblock='vc']")).count(): a.tippen(bl(0, "[data-camblock='vc']"), "80")
-    a.hin(bl(0, "[data-camblock='anZ']"), klick=False, ms=500)
-    a.hin(bl(0, "[data-camblock='wegA']"), klick=False, ms=600)
+# ===================== Teil 2: Zentrieren und Kontur vorne ====================
+teil("Zentrieren und Kontur vorne")
 
-@schritt("[curious] Und wo kommt die Kontur her? Plus Aus Modul, dann Aktueller Code aus dem Reiter und Hofer Contur. "
-         "Die Vorschau zeigt, was kommt, ohne Vor- und Nachspann. Einfügen, [impressed] und schon steht die Kontur in der Bearbeitung "
-         "und in Kanal eins orange hervorgehoben.",
-         "<b>„+ Aus Modul“</b> → <b>„Aktueller Code aus dem Reiter“</b> → <b>HOFERCONTUR</b> → <b>„Einfügen“</b>.")
-def s_cam_modul(pg, a):
-    aus_modul(pg, a, 0, "kontur")
-    a.hin(".cam-zeile--bereich, #cam-kanaele", klick=False, ms=1200)
-    pg.evaluate("scrollTo(0,0)")
-
-@schritt("Mit dem Knopf Werkzeug legst du fest, wie das Werkzeug aussieht. Das braucht die Simulation. Drehwerkzeug, Platte V fünfunddreissig Grad, "
-         "Radius null komma zwei, und die Schneidenlage wie an der Maschine. Das Bild darunter zeigt die Platte an der Büchse und am Rohteil.",
-         "<b>„🔧 Werkzeug“</b>: Platte <b>V 35°</b>, Radius <b>0.2</b>, <b>Schneidenlage</b>. Das Bild zeigt die Platte am Rohteil.")
-def s_cam_wz(pg, a):
-    werkzeug(pg, a, 0, "dreh", "V", [("r", "0.2")], lage="ur")
-    a.hin("[data-camwz]", klick=False, ms=900)
-    wz_zu(pg, a)
-
-# ===================== Teil 5: HOFERCAM, Bohren, Nuten, Entgraten =============
-teil("HOFERCAM: Bohren, Nuten und Entgraten")
-
-@schritt("Als Nächstes die Zentrierung vorne: plus Frontwerkzeug, Bezeichnung Zentrieren vorne, Platz T elfhundert, Spindel Hauptspindel. "
-         "Drehzahl viertausend, Anfahren Z fünf.",
-         "<b>„+ Frontwerkzeug“</b>: <b>ZENTRIEREN VORNE</b>, <b>T1100</b>, Hauptspindel, S <b>4'000</b>, Anfahren Z <b>5</b>.")
+@schritt("Die erste Bearbeitung ist die Zentrierung vorne: plus Frontwerkzeug. Ganz vorne die Bezeichnung, Zentrieren vorne. "
+         "Gleich daneben der Platz. Fährst du mit der Maus über die Liste, zeigt das Bild oben rechts, wo das Werkzeug an der Maschine sitzt. "
+         "Wir nehmen T elfhundert, Spindel Hauptspindel, Drehzahl viertausend, Anfahren Z fünf.",
+         "<b>„+ Frontwerkzeug“</b>: <b>ZENTRIEREN VORNE</b>, <b>T1100</b>. Das <b>Bild</b> zeigt den Platz. S <b>4'000</b>, Anfahren Z <b>5</b>.")
 def s_front(pg, a):
     a.hin("#cam-neu-front", ms=700)
-    a.tippen(bl(1, "[data-camblock='bez']"), "ZENTRIEREN VORNE")
-    platz(pg, a, 1, "1100")
-    a.tippen(bl(1, "[data-camblock='S']"), "4000"); a.tippen(bl(1, "[data-camblock='anZ']"), "5")
+    a.tippen(bl(0, "[data-camblock='bez']"), "ZENTRIEREN VORNE")
+    a.hin(bl(0, "[data-camblock='platz'] .cam-wahl__knopf"), ms=500)
+    for p in ["1200", "1300", "1100"]:
+        if pg.locator(f"[data-platz='{p}']").count(): a.hin(f"[data-platz='{p}']", klick=(p == "1100"), ms=700)
+    a.tippen(bl(0, "[data-camblock='S']"), "4000"); a.tippen(bl(0, "[data-camblock='anZ']"), "5")
 
 @schritt("Den Code holen wir aus den Vorlagen: plus Vorlage, Tieflochbohren G dreiundachtzig. Tiefe vier komma fünf, Zustellung eins, "
-         "Vorschub null komma null zwei. Die Vorschau zeigt den Zyklus, Einfügen setzt ihn ein. Als Werkzeug ein Bohrer Durchmesser eins komma acht.",
-         "<b>„+ Vorlage“</b> → <b>Tieflochbohren G83</b>: W <b>4.5</b>, Q <b>1</b>, F <b>0.02</b>. Werkzeug: <b>Bohrer Ø1.8</b>.")
+         "Vorschub null komma null zwei. Die Vorschau zeigt den Zyklus, Einfügen setzt ihn ein. Mit dem Knopf Werkzeug legst du fest, "
+         "wie das Werkzeug aussieht, das braucht die Simulation: ein Bohrer Durchmesser eins komma acht.",
+         "<b>„+ Vorlage“</b> → <b>Tieflochbohren G83</b>: W <b>4.5</b>, Q <b>1</b>, F <b>0.02</b>. <b>„🔧 Werkzeug“</b>: <b>Bohrer Ø1.8</b>.")
 def s_front2(pg, a):
-    a.hin(bl(1, "[data-camblock='code']"), ms=200)
-    a.hin("[data-camvorlage-auf='1']", ms=700)
+    a.hin(bl(0, "[data-camblock='code']"), ms=200)
+    a.hin("[data-camvorlage-auf='0']", ms=700)
     for n, w in [("W", "4.5"), ("Q", "1"), ("F", "0.02")]: a.tippen(f"[data-camvorlage-feld='{n}']", w)
     a.hin("[data-camvorlage-vorschau]", klick=False, ms=800)
     a.hin("[data-camvorlage-einfuegen]", ms=700)
-    werkzeug(pg, a, 1, "fraes", "bohrer", [("d", "1.8"), ("winkel", "118"), ("laenge", "8")])
+    werkzeug(pg, a, 0, "fraes", "bohrer", [("d", "1.8"), ("winkel", "118"), ("laenge", "8")])
     wz_zu(pg, a)
 
-@schritt("Jetzt die Nuten: plus Querangetrieben, Bezeichnung Nuten fräsen, Platz T einunddreissighundert. Drehrichtung M sechsunddreissig, "
-         "Drehzahl achttausend, und Vorschub G achtundneunzig in Millimeter pro Minute, weil der Code aus Bohren und Fräsen so rechnet.",
-         "<b>„+ Querangetrieben“</b>: <b>NUTEN FRAESEN</b>, <b>T3100</b>, M36, S <b>8'000</b>, Vorschub <b>G98</b> mm/min.")
+@schritt("Jetzt die Kontur vorne: plus Drehwerkzeug, Bezeichnung Kontur vorne, Platz T zweihundert. Hochdruck Stufe drei, Drehrichtung M drei. "
+         "Statt der Drehzahl geben wir die Schnittgeschwindigkeit ein: Eingabe auf V C, achtzig Meter pro Minute, "
+         "das Programm rechnet die Drehzahl aus dem Materialdurchmesser.",
+         "<b>„+ Drehwerkzeug“</b>: <b>KONTUR VORNE</b>, <b>T200</b>, Hochdruck, <b>M3</b>, <b>Vc 80</b> m/min → Drehzahl aus dem Ø.")
+def s_dreh(pg, a):
+    pg.evaluate("scrollTo(0,0)")
+    a.hin("#cam-neu-dreh", ms=700)
+    a.tippen(bl(1, "[data-camblock='bez']"), "KONTUR VORNE")
+    platz(pg, a, 1, "200")
+    a.hin(bl(1, "[data-camblock='hd']"), klick=False, ms=400)
+    if pg.locator(bl(1, "[data-camblock='sArt']")).count():
+        pg.select_option(bl(1, "[data-camblock='sArt']"), index=1); a.hin(bl(1, "[data-camblock='sArt']"), klick=False, ms=400)
+        if pg.locator(bl(1, "[data-camblock='vc']")).count(): a.tippen(bl(1, "[data-camblock='vc']"), "80")
+
+@schritt("[curious] Und woher kommt die Kontur? Dafür springen wir jetzt in Hofer Contur. Mit drei D Modell wählst du die STEP Datei. "
+         "Links das Modell als Drahtgitter, ziehen dreht es, die strichpunktierte Linie ist die Drehachse, die das Programm selbst gefunden hat. "
+         "Rechts die Seitenkontur. Aussenkontur, und Kontur übernehmen.",
+         "Sprung nach <b>HOFERCONTUR</b> → <b>„3D-Modell“</b>: STEP-Datei, <b>Drehachse</b>, <b>Aussenkontur</b>, <b>„Kontur übernehmen“</b>.")
+def s_kt1(pg, a):
+    a.reiter("kontur"); pg.wait_for_selector("#kt-code")
+    a.hin("label:has(#kt-step)", klick=False, ms=500)
+    kontur_aus_step(pg, a)
+
+@schritt("Jetzt steht die ganze Kontur in der Liste, Element für Element. Für diese Bearbeitung brauchen wir aber nur den vorderen Teil, "
+         "bis ans Ende vom Bund bei Z sechsunddreissig komma fünfundsiebzig. Alles dahinter löschen wir mit dem Kreuz, die Grafik zeigt sofort, was bleibt.",
+         "Die Kontur in der <b>Liste</b>. Wir brauchen nur den Teil <b>bis zum Bund-Ende Z36.75</b>, der Rest weg mit <b>✕</b>.")
+def s_kt2(pg, a):
+    a.hin(".kt-liste", klick=False, ms=600)
+    i, n = bund_index(pg)
+    a.hin(f"[data-ktel='{i}']", klick=False, ms=900)
+    for k in range(n - 1, i, -1): element_weg(pg, a, k)
+    a.hin("#kt-bild", klick=False, ms=900)
+
+@schritt("Beim Werkzeug der Schneidenradius null komma zwei und der Vorschub null komma null drei. [serious] Wichtig ist die Schneidenlage: "
+         "Wir nehmen eine V Platte fünfunddreissig Grad, neutral, also Mitte unten. Sie hat auf beiden Seiten Luft. "
+         "So verletzt die Rückseite der Platte die Kontur nicht, wenn sie an einer Schräge oder einem Absatz nach unten dreht.",
+         "Radius <b>0.2</b>, F <b>0.03</b>. Schneidenlage <b>Mitte unten</b>: neutrale <b>V-Platte 35°</b>, Luft auf beiden Seiten.")
+def s_kt3(pg, a):
+    a.hin(".kt-werkzeug", klick=False, ms=400)
+    a.tippen("[data-ktfeld='rn']", "0.2"); a.tippen("[data-ktfeld='f']", "0.03")
+    a.hin("[data-ktspitze='u']", ms=900)
+    a.hin("#kt-code", klick=False, ms=1200)
+
+@schritt("Zurück im Hofer Cam: plus Aus Modul, Aktueller Code aus dem Reiter, Hofer Contur. Die Vorschau zeigt, was kommt. "
+         "Einfügen, [impressed] und die Kontur steht in der Bearbeitung und in Kanal eins orange hervorgehoben. "
+         "Dazu das Werkzeug: Platte V fünfunddreissig Grad, Radius null komma zwei, Schneidenlage Mitte unten, genau wie in Hofer Contur.",
+         "Zurück in <b>HOFERCAM</b>: <b>„+ Aus Modul“</b> → <b>„Aktueller Code“</b> → <b>HOFERCONTUR</b>. Werkzeug <b>V 35°</b>, R <b>0.2</b>, <b>Mitte unten</b>.")
+def s_kt4(pg, a):
+    a.reiter("cam"); pg.wait_for_selector("#cam-kanaele")
+    aus_modul(pg, a, 1, "kontur")
+    werkzeug(pg, a, 1, "dreh", "V", [("r", "0.2")], lage="u")
+    a.hin("[data-camwz]", klick=False, ms=900)
+    wz_zu(pg, a)
+
+# ===================== Teil 3: Nuten und Entgraten ============================
+teil("Nuten und Entgraten")
+
+@schritt("Jetzt die Nuten: plus Querangetrieben, Bezeichnung Nuten fräsen, Platz T einunddreissighundert, Drehzahl achttausend "
+         "und Vorschub G achtundneunzig in Millimeter pro Minute. [serious] Ganz wichtig: Anfahren Z achtundzwanzig. "
+         "So fährt das Werkzeug direkt zur Nut, und die gedrehte Kontur vorne bleibt draussen vor der Büchse.",
+         "<b>„+ Querangetrieben“</b>: <b>NUTEN FRAESEN</b>, <b>T3100</b>, S <b>8'000</b>, <b>G98</b>. <b>Anfahren Z 28</b>: die gedrehte Kontur vorne bleibt draussen.")
 def s_quer(pg, a):
+    pg.evaluate("scrollTo(0,0)")
     a.hin("#cam-neu-seite", ms=700)
     a.tippen(bl(2, "[data-camblock='bez']"), "NUTEN FRAESEN")
     platz(pg, a, 2, "3100")
     a.tippen(bl(2, "[data-camblock='S']"), "8000")
     if pg.locator(bl(2, "[data-camblock='vor']")).count():
-        pg.select_option(bl(2, "[data-camblock='vor']"), index=1); a.hin(bl(2, "[data-camblock='vor']"), klick=False, ms=600)
+        pg.select_option(bl(2, "[data-camblock='vor']"), index=1); a.hin(bl(2, "[data-camblock='vor']"), klick=False, ms=500)
+    a.tippen(bl(2, "[data-camblock='anZ']"), "28")
 
-@schritt("Aus Modul, aktueller Code, Bohren und Fräsen, Einfügen. Alle sechs Nuten stehen drin. Das Werkzeug ist ein Schaftfräser Durchmesser zwei.",
-         "<b>„+ Aus Modul“</b> → <b>Bohren / Fräsen</b>. Werkzeug: <b>Schaftfräser Ø2</b>.")
-def s_quer2(pg, a):
+@schritt("[cheerfully] Den Code holen wir im Reiter Bohren und Fräsen: Nut Quer. Teil Durchmesser zehn, Stirn bei Z null, "
+         "die Nut von siebenundzwanzig komma fünf bis vierzig komma fünf, Tiefe eins komma neun. "
+         "Und neu: Anzahl über den Umfang. Sechs, und das Programm verteilt sechs gleiche Nuten, alle sechzig Grad.",
+         "Sprung nach <b>Bohren / Fräsen</b> → <b>„Nut Quer“</b>: Ø<b>10</b>, <b>27.5</b> bis <b>40.5</b>, Tiefe <b>1.9</b>, <b>Anzahl 6</b>.")
+def s_bf(pg, a):
+    a.reiter("bohren"); pg.wait_for_selector("#bf-code")
+    a.hin("[data-bfart='nutQuer']", ms=700)
+    a.tippen("[data-bf='teilD']", "10"); a.tippen("[data-bf='zStirn']", "0")
+    a.tippen("[data-bf='nutVon']", "27.5"); a.tippen("[data-bf='nutBis']", "40.5"); a.tippen("[data-bf='nutTiefe']", "1.9")
+    a.tippen("[data-bf='startC']", "0"); a.tippen("[data-bf='nutAnzahl']", "6")
+    a.hin("#bf-stirn", klick=False, ms=900)
+
+@schritt("Ein Fräser Durchmesser zwei, so breit wird die Nut. Zustellung eins komma neun, also jede Nut in einem Zug auf volle Tiefe. "
+         "[serious] So fährt die genutete Partie nicht mehrmals zurück in die Führungsbüchse, vom Mantel bleibt dort ja nicht mehr viel. "
+         "Eintauchen mit vierzig, Fräsen mit hundert. "
+         "Unten steht der Code, Nut für Nut mit ihrem C Winkel. Zurück im Hofer Cam: Aus Modul, Bohren und Fräsen, Einfügen, "
+         "und als Werkzeug ein Schaftfräser Durchmesser zwei.",
+         "Fräser <b>Ø2</b>, Zustellung <b>1.9</b> = volle Tiefe in einem Zug, <b>40</b> / <b>100</b> mm/min. Zurück: <b>„+ Aus Modul“</b> → <b>Bohren / Fräsen</b>, <b>Schaftfräser Ø2</b>.")
+def s_bf2(pg, a):
+    a.tippen("[data-bf='fraeser']", "2"); a.tippen("[data-bf='zustellung']", "1.9")
+    a.tippen("[data-bf='vorschubZ']", "40"); a.tippen("[data-bf='drehzahl']", "8000"); a.tippen("[data-bf='vorschub']", "100")
+    a.hin("#bf-code", klick=False, ms=1000)
+    a.reiter("cam"); pg.wait_for_selector("#cam-kanaele")
     aus_modul(pg, a, 2, "bohren")
     werkzeug(pg, a, 2, "fraes", "schaft", [("d", "2"), ("laenge", "6")])
     wz_zu(pg, a)
 
-@schritt("Und das Entgraten genauso: noch einmal plus Querangetrieben, Bezeichnung Entgraten, Platz T zweiunddreissighundert, "
-         "Code aus dem Modul Entgraten, Werkzeug Kugelfräser Durchmesser zwei.",
-         "Noch einmal <b>„+ Querangetrieben“</b>: <b>ENTGRATEN</b>, <b>T3200</b>, Code aus <b>Entgraten</b>, <b>Kugelfräser Ø2</b>.")
-def s_quer3(pg, a):
+@schritt("Beim Fräsen entsteht Grat an den Kanten der Nuten. Darum noch einmal plus Querangetrieben: Bezeichnung Entgraten, "
+         "Platz T zweiunddreissighundert, Drehzahl achttausend, G achtundneunzig, und wieder Anfahren Z achtundzwanzig.",
+         "Noch einmal <b>„+ Querangetrieben“</b>: <b>ENTGRATEN</b>, <b>T3200</b>, S <b>8'000</b>, <b>G98</b>, <b>Anfahren Z 28</b>.")
+def s_eg0(pg, a):
+    pg.evaluate("scrollTo(0,0)")
     a.hin("#cam-neu-seite", ms=700)
     a.tippen(bl(3, "[data-camblock='bez']"), "ENTGRATEN")
     platz(pg, a, 3, "3200")
     a.tippen(bl(3, "[data-camblock='S']"), "8000")
     if pg.locator(bl(3, "[data-camblock='vor']")).count(): pg.select_option(bl(3, "[data-camblock='vor']"), index=1)
+    a.tippen(bl(3, "[data-camblock='anZ']"), "28")
+
+@schritt("Der Code kommt aus dem Reiter Entgraten. Die Kanten holen wir direkt aus der STEP Datei. Das Programm findet alle scharfen Kanten, "
+         "Drehkanten und Innenecken lässt es von selbst weg. Andere Seite vorne einschalten, damit vorne dieselbe Seite liegt wie bei der Kontur, "
+         "dann Querwerkzeug und Kugelfräser.",
+         "Sprung nach <b>Entgraten</b>: Kanten aus der <b>STEP-Datei</b>, <b>„Andere Seite vorne“</b>, <b>Querwerkzeug</b>, <b>Kugelfräser</b>.")
+def s_eg(pg, a):
+    a.reiter("entgraten"); pg.wait_for_selector("#eg-code")
+    a.hin("[data-egquelle='step']", ms=600)
+    pg.set_input_files("#eg-step", STEP)
+    pg.wait_for_function("() => /Kanten zum Entgraten/.test(document.querySelector('#eg-quelle')?.textContent || '')", timeout=60000)
+    a.hin("#eg-quelle", klick=False, ms=700)
+    a.hin("#eg-step-um", ms=200)
+    pg.wait_for_timeout(2500)
+    a.hin("[data-egri='quer']", ms=500)
+    a.hin("[data-egwz='kugel']", ms=500)
+
+@schritt("Wir entgraten die Kanten der Nuten am Bund, also bis Z sechsunddreissig komma fünfundsiebzig. Ansicht von der Seite, hineinzoomen, "
+         "dann Rechteck und ein Rechteck um den Bund ziehen. [impressed] Gewählt sind genau die Kanten, die ganz im Rechteck liegen. "
+         "Die Kanten dahinter entstehen erst mit der Kontur hinten, dort nimmt der Drehmeissel den Grat mit.",
+         "<b>„Von der Seite“</b>, zoomen, <b>„▭ Rechteck“</b> um den <b>Bund</b>. Die Kanten dahinter macht erst die <b>Kontur hinten</b>.")
+def s_eg_rechteck(pg, a):
+    a.hin("text=Von der Seite", ms=500)
+    box = lambda: pg.evaluate("""() => { let x1=1e9,y1=1e9,x2=-1e9,y2=-1e9;
+      document.querySelectorAll('[data-eg3d]').forEach(e => { const t = e.querySelector('title')?.textContent || '';
+        const m = t.match(/Z-([\\d.]+)/); if (!m) return; const z = +m[1]; if (z < 28.5 || z > 36.6) return;
+        const b = e.getBoundingClientRect(); x1=Math.min(x1,b.left); y1=Math.min(y1,b.top); x2=Math.max(x2,b.right); y2=Math.max(y2,b.bottom); });
+      return {x1,y1,x2,y2}; }""")
+    b = box()
+    pg.mouse.move((b["x1"] + b["x2"]) / 2, (b["y1"] + b["y2"]) / 2, steps=15)
+    for _ in range(5): pg.mouse.wheel(0, -120); pg.wait_for_timeout(220)
+    pg.wait_for_timeout(400)
+    a.hin("#eg-rechteck-knopf", ms=500)
+    b = box()
+    pg.mouse.move(b["x1"] - 4, b["y1"] - 8, steps=15); pg.mouse.down()
+    pg.mouse.move(b["x2"] + 4, b["y2"] + 8, steps=45); pg.mouse.up(); pg.wait_for_timeout(900)
+    a.hin("#eg-liste", klick=False, ms=800)
+    print("  Entgraten gewählt:", pg.evaluate("() => (document.querySelector('#eg-liste')?.textContent || '').slice(0, 300)"))
+
+@schritt("Kugelfräser Durchmesser zwei, Fase null komma eins. Die Skizze zeigt, wie die Kugel an der Kante steht. "
+         "[excited] Und die Simulation: Das Teil dreht in C, das Werkzeug fährt jede Kante ab.",
+         "<b>Kugelfräser Ø2</b>, Fase <b>0.1</b>, <b>Skizze</b>. <b>Simulation</b>: das Teil dreht in C.")
+def s_eg_wz(pg, a):
+    a.tippen("[data-eg='durchmesser']", "2"); a.tippen("[data-eg='fase']", "0.1")
+    a.hin("#eg-skizze", klick=False, ms=900)
+    if pg.locator("#eg-sim-tempo").count(): pg.select_option("#eg-sim-tempo", index=pg.locator("#eg-sim-tempo option").count() - 1)
+    if pg.locator("#eg-sim-start").count(): a.hin("#eg-sim-start", ms=4000)
+    if pg.locator("#eg-sim-halt").count(): a.hin("#eg-sim-halt", ms=300)
+
+@schritt("Zurück im Hofer Cam: Aus Modul, Entgraten, Einfügen, und als Werkzeug der Kugelfräser Durchmesser zwei.",
+         "Zurück: <b>„+ Aus Modul“</b> → <b>Entgraten</b>, Werkzeug <b>Kugelfräser Ø2</b>.")
+def s_eg2(pg, a):
+    a.reiter("cam"); pg.wait_for_selector("#cam-kanaele")
     aus_modul(pg, a, 3, "entgraten")
     werkzeug(pg, a, 3, "fraes", "kugel", [("d", "2"), ("laenge", "4")])
+    wz_zu(pg, a)
+
+# ===================== Teil 4: Kontur hinten und Gegenspindel =================
+teil("Kontur hinten und Gegenspindel")
+
+@schritt("Jetzt die Kontur hinten: plus Drehwerkzeug, Bezeichnung Kontur hinten, wieder T zweihundert mit V C achtzig. "
+         "[serious] Und Anfahren Z sechsunddreissig komma fünf: Das Werkzeug setzt am Bund an und dreht von dort nach hinten. "
+         "Das Teil fährt nur noch aus der Büchse heraus, nie mehr zurück.",
+         "<b>„+ Drehwerkzeug“</b>: <b>KONTUR HINTEN</b>, <b>T200</b>, <b>Vc 80</b>, <b>Anfahren Z 36.5</b>: das Teil fährt nur noch heraus.")
+def s_dreh2(pg, a):
+    pg.evaluate("scrollTo(0,0)")
+    a.hin("#cam-neu-dreh", ms=700)
+    a.tippen(bl(4, "[data-camblock='bez']"), "KONTUR HINTEN")
+    platz(pg, a, 4, "200")
+    if pg.locator(bl(4, "[data-camblock='sArt']")).count():
+        pg.select_option(bl(4, "[data-camblock='sArt']"), index=1)
+        if pg.locator(bl(4, "[data-camblock='vc']")).count(): a.tippen(bl(4, "[data-camblock='vc']"), "80")
+    a.tippen(bl(4, "[data-camblock='anZ']"), "36.5")
+
+@schritt("In Hofer Contur holen wir die Kontur noch einmal aus dem Modell und löschen diesmal alles vor dem Bund. "
+         "Als Startpunkt das Ende vom Bund: X zehn, Z sechsunddreissig komma fünfundsiebzig. Die Stirn hinten nehmen wir auch weg, "
+         "die macht der Abstecher. Werkzeug und Schneidenlage bleiben gleich.",
+         "<b>HOFERCONTUR</b>: Modell neu, alles <b>vor dem Bund</b> weg, Start <b>X10 Z36.75</b>, hintere <b>Stirn</b> weg (macht der Abstecher).")
+def s_kt5(pg, a):
+    a.reiter("kontur"); pg.wait_for_selector("#kt-code")
+    a.hin("label:has(#kt-step)", klick=False, ms=400)
+    kontur_aus_step(pg, a, zeigen=False)
+    i, n = bund_index(pg)
+    el = kontur_elemente(pg)
+    if el and el[-1]["x"] < 4: element_weg(pg, a, n - 1, ms=400)
+    for _ in range(i + 1): element_weg(pg, a, 0)
+    a.tippen("[data-ktfeld='startX']", "10"); a.tippen("[data-ktfeld='startZ']", str(BUND_ENDE))
+    if pg.locator("[data-ktspitze='u']").count(): a.hin("[data-ktspitze='u']", ms=300)
+    a.hin("#kt-bild", klick=False, ms=1000)
+    a.hin("#kt-code", klick=False, ms=900)
+
+@schritt("Zurück im Hofer Cam: Aus Modul, Hofer Contur, Einfügen, und dasselbe Werkzeug, V fünfunddreissig Grad, Radius null komma zwei, Mitte unten.",
+         "Zurück: <b>„+ Aus Modul“</b> → <b>HOFERCONTUR</b>, Werkzeug <b>V 35°</b>, R <b>0.2</b>, <b>Mitte unten</b>.")
+def s_kt6(pg, a):
+    a.reiter("cam"); pg.wait_for_selector("#cam-kanaele")
+    aus_modul(pg, a, 4, "kontur")
+    werkzeug(pg, a, 4, "dreh", "V", [("r", "0.2")], lage="u")
     wz_zu(pg, a)
 
 @schritt("Bleibt die Zentrierung hinten, an der Gegenspindel: plus Frontwerkzeug, Bezeichnung Zentrieren hinten, Platz T zwölfhundert, "
@@ -405,74 +434,74 @@ def s_quer3(pg, a):
          "Kanal zwei fährt die Gegenspindel, und Wartemarken halten beide zusammen.",
          "<b>„+ Frontwerkzeug“</b> an der <b>Gegenspindel</b>: <b>T1200</b>. Beide Kanäle mit <b>Wartemarken</b> verbunden.")
 def s_gegen(pg, a):
+    pg.evaluate("scrollTo(0,0)")
     a.hin("#cam-neu-front", ms=700)
-    a.tippen(bl(4, "[data-camblock='bez']"), "ZENTRIEREN HINTEN")
-    platz(pg, a, 4, "1200")
-    if pg.locator(bl(4, "[data-camblock='spindel']")).count():
-        pg.select_option(bl(4, "[data-camblock='spindel']"), "gegen"); a.hin(bl(4, "[data-camblock='spindel']"), klick=False, ms=700)
-    a.tippen(bl(4, "[data-camblock='S']"), "4000")
-    a.hin(bl(4, "[data-camblock='m1']"), klick=False, ms=500); a.hin(bl(4, "[data-camblock='m2']"), klick=False, ms=500)
+    a.tippen(bl(5, "[data-camblock='bez']"), "ZENTRIEREN HINTEN")
+    platz(pg, a, 5, "1200")
+    if pg.locator(bl(5, "[data-camblock='spindel']")).count():
+        pg.select_option(bl(5, "[data-camblock='spindel']"), "gegen"); a.hin(bl(5, "[data-camblock='spindel']"), klick=False, ms=700)
+    a.tippen(bl(5, "[data-camblock='S']"), "4000")
+    a.hin(bl(5, "[data-camblock='m1']"), klick=False, ms=500); a.hin(bl(5, "[data-camblock='m2']"), klick=False, ms=500)
 
 @schritt("Auch hier die Vorlage Tieflochbohren und ein Bohrer eins komma acht. Die Marken Start und Ende kannst du leer lassen, "
          "dann nimmt das Programm freie Marken ab M dreihundert, immer in Zehnerschritten.",
          "Vorlage <b>G83</b>, <b>Bohrer Ø1.8</b>. Marken leer lassen: frei ab <b>M300</b> in Zehnerschritten.")
 def s_gegen2(pg, a):
-    a.hin(bl(4, "[data-camblock='code']"), ms=200)
-    a.hin("[data-camvorlage-auf='4']", ms=600)
+    a.hin(bl(5, "[data-camblock='code']"), ms=200)
+    a.hin("[data-camvorlage-auf='5']", ms=600)
     for n, w in [("W", "4.5"), ("Q", "1"), ("F", "0.02")]: a.tippen(f"[data-camvorlage-feld='{n}']", w)
     a.hin("[data-camvorlage-einfuegen]", ms=600)
-    werkzeug(pg, a, 4, "fraes", "bohrer", [("d", "1.8"), ("winkel", "118"), ("laenge", "8")])
+    werkzeug(pg, a, 5, "fraes", "bohrer", [("d", "1.8"), ("winkel", "118"), ("laenge", "8")])
     wz_zu(pg, a)
 
 @schritt("In den Kanälen stehen gleiche Wartemarken immer auf derselben Zeile. [serious] Fehlt eine Gegenmarke, wird sie rot. "
-         "Brauchst du in einer Bearbeitung zusätzlich zwei Marken, setzt plus Wartemarken sie an der Schreibmarke ein, "
-         "und für den anderen Kanal erscheint ein Feld für den Code dazwischen.",
-         "Gleiche <b>Wartemarken</b> auf derselben Zeile, ohne Gegenstück <b>rot</b>. <b>„+ Wartemarken“</b> setzt zwei freie ein.")
+         "Brauchst du zusätzlich zwei Marken, setzt plus Wartemarken sie an der Schreibmarke ein. Die Reihenfolge änderst du am Griff links, "
+         "aber denk an die Büchse: von vorne nach hinten.",
+         "Gleiche <b>Wartemarken</b> auf derselben Zeile, ohne Gegenstück <b>rot</b>. Reihenfolge am <b>Griff ⠿</b>, immer <b>von vorne nach hinten</b>.")
 def s_marken(pg, a):
     if pg.locator(".cam-zeile--sync").count(): a.hin(".cam-zeile--sync >> nth=0", klick=False, ms=900)
     if pg.locator(".cam-zeile--sync").count() > 1: a.hin(".cam-zeile--sync >> nth=-1", klick=False, ms=900)
     pg.evaluate("scrollTo(0,0)")
-    a.hin("[data-cammarken-auf='2']", klick=False, ms=1000)
+    a.hin("[data-cammarken-auf='2']", klick=False, ms=900)
+    if pg.locator(bl(1, ".ziehliste__griff, .cam-zieh__griff")).count(): a.hin(bl(1, ".ziehliste__griff, .cam-zieh__griff"), klick=False, ms=700)
 
-@schritt("Die Reihenfolge änderst du am Griff links: einfach ziehen, oder mit den Pfeilen hoch und runter. Danach nummeriert das Programm "
-         "alle Marken der Bearbeitungen neu, Kopf und Ende bleiben, wie sie sind.",
-         "Reihenfolge am <b>Griff ⠿</b> ziehen oder mit <b>↑ ↓</b>. Die Marken werden <b>neu nummeriert</b>.")
-def s_reihe(pg, a):
-    if pg.locator(bl(1, ".ziehliste__griff, .cam-zieh__griff")).count(): a.hin(bl(1, ".ziehliste__griff, .cam-zieh__griff"), klick=False, ms=800)
-    if pg.locator("[data-camblock-pfeil='1']").count(): a.hin("[data-camblock-pfeil='1']", klick=False, ms=800)
-
-# ===================== Teil 6: 3D-Simulation und Abschluss ===================
+# ===================== Teil 5: 3D-Simulation und Abschluss ===================
 teil("3D-Simulation und Abschluss")
 
-@schritt("[excited] Jetzt der beste Teil: drei D Simulation. Links die Bearbeitungen der Reihe nach, rechts das Teil. "
+@schritt("[excited] Jetzt der beste Teil: drei D Simulation. Sie beginnt immer beim Rohteil. Links die Bearbeitungen der Reihe nach, rechts das Teil. "
          "Das Rohmaterial ist erdig gefärbt, alles Bearbeitete hell und metallisch.",
-         "<b>„🧊 3D-Simulation“</b>: links die Bearbeitungen, rechts das Teil. <b>Rohmaterial</b> erdig, <b>bearbeitet</b> hell.")
+         "<b>„🧊 3D-Simulation“</b> beginnt beim <b>Rohteil</b>. Links die Bearbeitungen, rechts das Teil. Roh <b>erdig</b>, bearbeitet <b>hell</b>.")
 def s_sim(pg, a):
     a.hin("[data-cam-sim]", ms=300)
     pg.wait_for_selector("#cam-sim", timeout=30000); pg.wait_for_timeout(1500)
+    # Kontrolle für die Probeaufnahme: wie weit fährt jede Bearbeitung zurück
+    print("  Bearbeitungen (Z von–bis im Teil):", pg.evaluate("""() => document.querySelector('#cam-sim-bild').__sim.schritte
+      .filter((x) => x.kanal === 1 && x.punkte.length).map((x) => [x.platz, x.art, x.status || '',
+        Math.min(...x.punkte.map((q) => q.z)).toFixed(2), Math.max(...x.punkte.map((q) => q.z)).toFixed(2)])"""))
     a.hin("#cam-sim-titel", klick=False, ms=700)
 
-@schritt("Mit Einzeln hält die Simulation nach jeder Bearbeitung an. Abspielen, und wir schauen der Aussenkontur zu: "
-         "das Material fährt in Z aus der Führungsbüchse, das Werkzeug fährt in X.",
-         "<b>„Einzeln“</b>: hält nach jeder Bearbeitung. Das <b>Material</b> fährt in Z, das <b>Werkzeug</b> in X.")
+@schritt("Mit Einzeln hält die Simulation nach jeder Bearbeitung an. Abspielen: zuerst die Zentrierung, dann die Kontur vorne. "
+         "Das Material fährt in Z aus der Führungsbüchse, das Werkzeug fährt nur in X.",
+         "<b>„Einzeln“</b>: hält nach jeder Bearbeitung. Das <b>Material</b> fährt in Z aus der Büchse, das <b>Werkzeug</b> in X.")
 def s_sim2(pg, a):
     if pg.locator("#cam-sim-einzeln").count(): a.hin("#cam-sim-einzeln", ms=400)
-    a.hin("#cam-sim-start", ms=6500)
+    a.hin("#cam-sim-start", ms=3500)
+    a.hin("#cam-sim-start", ms=6000)
 
-@schritt("Mit Maschine fährt der ganze Werkzeugträger mit, mit allen Haltern und der Führungsbüchse. Und Aufgeschnitten zeigt das Innere, "
-         "zum Beispiel die Zentrierbohrung.",
-         "<b>„Maschine“</b>: Werkzeugträger und Büchse fahren mit. <b>„Aufgeschnitten“</b> zeigt das Innere.")
+@schritt("Mit Maschine siehst du den ganzen Werkzeugträger mit allen Haltern und die Führungsbüchse. [impressed] Jetzt die Nuten: "
+         "Die Büchse steht, das Teil fährt in Z und dreht in C unter das Werkzeug. Die gedrehte Kontur vorne kommt nie mehr in die Büchse.",
+         "<b>„Maschine“</b>: Träger und <b>Büchse stehen</b>, das <b>Teil</b> fährt in Z und dreht in <b>C</b>.")
 def s_sim3(pg, a):
-    if pg.locator("#cam-sim-maschine").count(): a.hin("#cam-sim-maschine", ms=900)
-    a.hin("#cam-sim-start", ms=6000)
-    if pg.locator("#cam-sim-schnitt").count(): a.hin("#cam-sim-schnitt", ms=1500); a.hin("#cam-sim-schnitt", ms=400)
-
-@schritt("Weiter mit Abspielen: Jetzt die sechs Nuten. Das Teil dreht in C unter das Werkzeug, die Maschine steht. "
-         "Und danach entgratet der Kugelfräser jede Kante.",
-         "Die <b>Nuten</b>: das Teil dreht in <b>C</b>, die Maschine steht. Danach das <b>Entgraten</b>.")
-def s_sim4(pg, a):
+    if pg.locator("#cam-sim-maschine").count() and not pg.is_checked("#cam-sim-maschine"): a.hin("#cam-sim-maschine", ms=900)
     a.hin("#cam-sim-start", ms=7000)
+
+@schritt("Weiter: Der Kugelfräser entgratet die Kanten am Bund, und dann dreht T zweihundert die Kontur hinten fertig, "
+         "vom Bund nach hinten, immer aus der Büchse heraus.",
+         "<b>Entgraten</b> am Bund, dann die <b>Kontur hinten</b>, immer aus der Büchse heraus.")
+def s_sim4(pg, a):
     a.hin("#cam-sim-start", ms=6000)
+    a.hin("#cam-sim-start", ms=6500)
+    if pg.locator("#cam-sim-schnitt").count(): a.hin("#cam-sim-schnitt", ms=1500); a.hin("#cam-sim-schnitt", ms=400)
 
 @schritt("Mit Einzelsatz geht es sogar Zeile für Zeile, unten steht immer, was als Nächstes kommt. Und mit dem Regler springst du an jede Stelle.",
          "<b>„Einzelsatz“</b>: Zeile für Zeile, unten <b>„als Nächstes“</b>. Der <b>Regler</b> springt an jede Stelle.")
@@ -490,8 +519,8 @@ def s_sim5(pg, a):
          "<b>Abstechen und Übergabe</b>, dann <b>Kanal 2</b> hinten zentrieren. Fertig, ganz ohne Maschine.")
 def s_sim6(pg, a):
     n = pg.locator("[data-cam-sim-schritt]").count()
-    if n: a.hin(f"[data-cam-sim-schritt] >> nth={n - 1}", ms=2500)
     if n > 1: a.hin(f"[data-cam-sim-schritt] >> nth={n - 2}", ms=2500)
+    if n: a.hin(f"[data-cam-sim-schritt] >> nth={n - 1}", ms=2500)
 
 @schritt("Schliessen, und oben rechts speicherst du das Programm mit Speichern für alle. Öffnen holt es wieder. "
          "In jedem Kanal kopierst du das Programm oder lädst es als Datei für die Maschine herunter. "
@@ -584,8 +613,8 @@ with sync_playwright() as p:
     t0 = time.time()
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#nc'")
-    pg.wait_for_selector("[data-unter='nc/kontur']"); pg.click("[data-unter='nc/kontur']")
-    pg.wait_for_selector("#kt-code")
+    pg.wait_for_selector("[data-unter='nc/cam']"); pg.click("[data-unter='nc/cam']")
+    pg.wait_for_selector("#cam-kanaele")
     pg.mouse.move(640, 400)
     pg.wait_for_timeout(800)
     start = time.time() - t0
@@ -640,7 +669,7 @@ with sync_playwright() as p:
         except Exception as e:
             # Weiterfahren, damit eine Probeaufnahme alle Stolpersteine auf einmal zeigt
             pg.screenshot(path=os.path.join(tempfile.gettempdir(), f"tutorial-fehler-{i}.png"))
-            print("Fehler bei Schritt", i, f.__name__, str(e).splitlines()[0])
+            print("Fehler bei Schritt", i, f.__name__, (str(e) or repr(e)).splitlines()[0])
             fehler.append(f.__name__)
             pg.keyboard.press("Escape")
         rest = dauern[i] - (time.time() - beginn)
