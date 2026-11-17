@@ -31,6 +31,8 @@ function offlineListe() {
         && !d.startsWith("./hilfe/")
         // Die Texterkennung (13 MB) holt das Gerät erst beim ersten Foto
         && !d.startsWith("./tesseract/")
+        // OpenCascade für die STEP-Ansicht in HOFER2DTO3D (8 MB) nur bei Bedarf
+        && !d.startsWith("./occt/")
         // Zeichentabellen (1.7 MB) braucht kaum ein PDF, nur asiatische Schriften
         && !d.startsWith("./pdfjs/cmaps/"));
       const sw = join(ziel, "sw.js");
@@ -116,10 +118,24 @@ function tesseractDateien() {
   };
 }
 
+// OpenCascade (occt-import-js) für die 3D-Ansicht der STEP-Dateien in
+// HOFER2DTO3D aus der eigenen Website, aus demselben Grund wie die
+// Texterkennung. Der Worker sucht das wasm neben sich.
+function occtDateien() {
+  const dateien = ["occt-import-js.js", "occt-import-js.wasm", "occt-import-js-worker.js"];
+  return {
+    name: "hofer-occt",
+    apply: "build",
+    generateBundle() {
+      for (const d of dateien) this.emitFile({ type: "asset", fileName: "occt/" + d, source: readFileSync("node_modules/occt-import-js/dist/" + d) });
+    },
+  };
+}
+
 export default defineConfig({
   // Relative Pfade: Die App liegt auf GitHub Pages unter /hofertool/
   base: "./",
-  plugins: [react(), pdfjsWasm(), tesseractDateien(), offlineListe(), safariPruefen()],
+  plugins: [react(), pdfjsWasm(), tesseractDateien(), occtDateien(), offlineListe(), safariPruefen()],
   build: {
     outDir: "dist",
     // Die App wartet beim Start auf die Datenbank (await ganz oben)

@@ -17,6 +17,7 @@
     "html2canvas-pro": "^2.5.0",
     "jspdf": "^4.2.1",
     "jszip": "^3.10.2",
+    "occt-import-js": "^0.0.23",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.4.299",
     "react": "^19.3.0",

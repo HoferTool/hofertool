@@ -69,10 +69,27 @@ with sync_playwright() as p:
         pruefe(r["titelOben"], "Titel über den Zahlen " + str(r))
         pg.screenshot(path=f"{BILD}/nav_todo{'_dunkel' if dunkel else ''}.png")
         if not dunkel:
-            pg.click("#nav-klapp"); pg.wait_for_timeout(1200)
-            pruefe(not pg.is_visible("#nav-todo"), "zugeklappt ausgeblendet")
-            pg.click("#nav-klapp"); pg.wait_for_timeout(1200)
-            pruefe(pg.is_visible("#nav-todo"), "aufgeklappt wieder da")
+            # seit 1.606.0: Admins sehen zuerst die Todos, ☰ zeigt das Menü 1 Minute
+            pruefe(pg.evaluate("document.body.classList.contains('nav--todos')"), "Start mit Todos")
+            pruefe(not pg.is_visible(".nav > .nav__punkt"), "Menüpunkte verborgen")
+            pg.evaluate("TEST.todoMenueMs = 2500")
+            pg.click("#nav-klapp"); pg.wait_for_timeout(600)
+            pruefe(pg.is_visible(".nav > .nav__punkt") and not pg.is_visible("#nav-todo"), "☰ zeigt das Menü")
+            pruefe(not pg.evaluate("document.body.classList.contains('nav--schmal')"), "Admin klappt nie ein")
+            pg.screenshot(path=f"{BILD}/nav_todo_menue.png")
+            pg.mouse.move(900, 500); pg.wait_for_timeout(3000)
+            pruefe(pg.is_visible("#nav-todo") and not pg.is_visible(".nav > .nav__punkt"), "nach der Zeit wieder Todos")
+            pg.click("#nav-klapp"); pg.wait_for_timeout(500); pg.click("#nav-klapp"); pg.wait_for_timeout(500)
+            pruefe(pg.is_visible("#nav-todo"), "☰ nochmals = zurück zu den Todos")
+            # Knopf zeigt drei Striche als Bild (das Zeichen ☰ sprang nach der Drehung)
+            pg.mouse.move(900, 500); pg.wait_for_timeout(400); vor = pg.locator("#nav-klapp").screenshot()
+            pg.evaluate("document.body.classList.add('nav--klappt-auf')"); pg.wait_for_timeout(900)
+            pg.evaluate("document.body.classList.remove('nav--klappt-auf')"); pg.mouse.move(900, 500); pg.wait_for_timeout(300)
+            pruefe(pg.locator("#nav-klapp svg.kopf__klapp-bild").count() == 1, "Knopf mit Strichen als Bild")
+            nach = pg.locator("#nav-klapp").screenshot()
+            from PIL import Image, ImageChops; import io
+            d = ImageChops.difference(Image.open(io.BytesIO(vor)).convert("RGB"), Image.open(io.BytesIO(nach)).convert("RGB"))
+            pruefe(max(max(px) for px in d.getdata()) < 40, "Knopf nach der Drehung wie vorher " + str(d.getbbox()))
             # seit 1.573.0: eigenes Todo mit ✕ löschen
             vorher = pg.locator("#nav-todo [data-pltodo='eigen']").count()
             pruefe(pg.locator("#nav-todo [data-pltodo='m'] [data-pltodoweg]").count() == 0, "nur eigene haben ✕")
@@ -82,6 +99,10 @@ with sync_playwright() as p:
             pruefe("Gühring wegen Termin anrufen" not in t2, "Todo gelöscht")
             pruefe(pg.locator("#nav-todo [data-pltodo='eigen']").count() == vorher - 1, "eines weniger")
             pruefe(not any(x.get("id") == "t1" for x in pg.evaluate("TEST.daten.planer_todos")), "auch in der Datenbank weg")
+            # seit 1.606.0: Titel „Todos“ öffnet das Planer-Dashboard im eigenen Tab
+            with pg.expect_popup() as pop: pg.click("#nav-todo-dashboard")
+            pruefe("#/planer" in pop.value.url, "Titel öffnet den Planer " + pop.value.url)
+            pop.value.close()
             # seit 1.556.1: Antippen springt zur Planwand, nicht die Pad-Planwand
             pg.click("#nav-todo [data-pltodo='m'] .pl-todo__text"); pg.wait_for_timeout(1500)
             pruefe("#/planwand" in pg.url, "Todo führt zur Planwand " + pg.url)

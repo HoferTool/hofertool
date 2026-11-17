@@ -2,7 +2,7 @@
 # 2026: „das Infoboard-Display aktualisiert sich nicht automatisch“): alle
 # zwei Minuten schaut die Anzeige nach, lädt bei neuer Fassung gleich neu,
 # holt vorher die Seite frisch und probiert es höchstens alle zehn Minuten.
-# Seit 1.602.0 schauen die Bildschirme stündlich nach (vorher alle 2 Minuten)
+# Seit 1.607.0 schauen die Bildschirme stündlich nach (vorher alle 2 Minuten)
 TAKT = 61 * 60 * 1000
 import time
 from pruefstand import server_starten, FAKE, CH, PORT

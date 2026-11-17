@@ -44,6 +44,11 @@ with sync_playwright() as p:
     pruefe("Gewinde M29 + G84 F=S*P", "M29S2500" in c and "G84X12.000C0.000Z8.000R0.F1750" in c)
     feld("lochkreis", 0)
     pruefe("Mitte: eine Bohrung X0", "G84X0.000C0.000" in code() and pg.locator("[data-bf='anzahl']").count() == 0)
+    feld("yVersatz", 4)
+    c = code()
+    pruefe("Front: Bohrung mit Versatz Y4", "G0X0.000C0.000Y4.000" in c and "G0Y0." in c)
+    feld("yVersatz", 0)
+    pruefe("Front: ohne Versatz kein Y", "Y" not in code().split("G0X0.000")[1])
 
     pg.click("[data-bfart='bohrenQuer']"); pg.wait_for_timeout(120)
     pg.click("[data-bfzyklus='tief']"); feld("zPos", "5; 12"); feld("anzahl", 2)
@@ -52,11 +57,20 @@ with sync_playwright() as p:
     pruefe("Quer G87 zwei Lagen, zwei Winkel", "G87Z5.000C0.000X4.000R0.Q2000F80" in c and "\nZ5.000C180.000" in c
            and "\nZ12.000C0.000" in c and "\nZ12.000C180.000" in c and "G0X22.000" in c)
     pruefe("Quer ohne Antrieb warnt", "QUERWERKZEUG EIN" in c and pg.locator(".bf-warnung").count() == 1)
+    feld("yVersatz", 3); feld("cListe", "0; 45; 200")
+    c = code()
+    pruefe("Quer: Versatz Y3, Tiefe ab Oberfläche", "G0Z5.000C0.000Y3.000" in c and "X3.079R0." in c and "G0Y0." in c)
+    pruefe("Quer: freie Winkel 0/45/200", "\nZ5.000C45.000" in c and "\nZ12.000C200.000" in c and "C180.000" not in c
+           and pg.locator("[data-bf='anzahl']").count() == 0 and pg.locator("#bf-stirn .bf-querloch").count() == 3)
+    feld("yVersatz", 0); feld("cListe", "")
 
     pg.click("[data-bfart='nutFront']"); pg.wait_for_timeout(120)
     c = code()
     pruefe("Nut Front durchgehend", "G0X26.000C0.000" in c and "G1Z0.500F40" in c and "G1X-26.000F80" in c
            and "G1Z1.500F40" in c)
+    feld("yVersatz", 2)
+    pruefe("Nut Front mit Versatz Y2", "G0X26.000C0.000Y2.000" in code() and "G0Y0." in code())
+    feld("yVersatz", 0)
     pg.click("[data-bfart='nutQuer']"); pg.wait_for_timeout(120)
     c = code()
     pruefe("Nut Quer offen", "G0Z-3.000C0.000" in c and "G1X19.000F40" in c and "G1Z10.000F80" in c and "G1X17.000F40" in c)
@@ -66,6 +80,11 @@ with sync_playwright() as p:
     pruefe("Nut Quer: 3 Nuten über den Umfang", "G0Z-3.000C120.000" in c and "G0Z-3.000C240.000" in c
            and c.count("G0X26.000") == 3 and pg.locator("#bf-stirn .bf-querloch").count() == 3)
     feld("nutAnzahl", 1)
+    feld("yVersatz", 2); feld("cListe", "10;100")
+    c = code()
+    pruefe("Nut Quer: Versatz Y2 und freie Winkel", "G0Z-3.000C10.000Y2.000" in c and "G0Z-3.000C100.000" in c
+           and "G1X18.596F40" in c and c.count("G0X26.000") == 2 and "G0Y0." in c)
+    feld("yVersatz", 0); feld("cListe", "")
 
     pg.click("[data-bfart='flaeche']"); pg.wait_for_timeout(120)
     pruefe("Fläche: Fräser zu klein warnt", any("Y-Achse" in t for t in pg.locator(".bf-warnung").all_inner_texts()))

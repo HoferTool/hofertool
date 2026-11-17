@@ -14,6 +14,7 @@
 //  Mikrometern, eingetippt wird in mm.
 // =================================================================
 import { zahl } from "./hofercam.js";
+import { EINSTICH_START, einstichZeilen } from "./camEinstich.js";
 
 const num = (t) => {
   const n = parseFloat(String(t ?? "").trim().replace(",", "."));
@@ -76,13 +77,16 @@ export const VORLAGEN = [
       { name: "r", text: "Fase", einheit: "1/10 Steigung", lang: "Gewindeauslauf (Fase) in Zehntel der Steigung (P..00..)", pflicht: true, start: "0" },
       { name: "a", text: "Flankenwinkel", einheit: "Grad", lang: "Flankenwinkel in Grad (P....60)", pflicht: true, start: "60" },
     ],
-  },
+  },  // Seit 1.603.0: Einstich am Mantel und an der Front, eingegeben in einer
+  // Skizze (CamEinstichBild.jsx), gerechnet in camEinstich.js
+  { id: "einstich", name: "Einstich Mantel / Front", grafik: true, felder: [] },
 ];
 
 export const vorlageVon = (id) => VORLAGEN.find((v) => v.id === id) || VORLAGEN[0];
 
 // Startwerte einer Vorlage
 export function vorlageStart(id) {
+  if (id === "einstich") return { ...EINSTICH_START };
   const w = {};
   for (const f of vorlageVon(id).felder) if (f.start !== undefined) w[f.name] = f.start;
   return w;
@@ -99,6 +103,7 @@ export function feldWert(v, w, f) {
 // Zeilen der Vorlage oder { fehler }
 export function vorlageZeilen(id, w = {}) {
   const v = vorlageVon(id);
+  if (v.id === "einstich") return einstichZeilen(w);
   const g = {};
   for (const f of v.felder) g[f.name] = feldWert(v, w, f);
   const fehlt = v.felder.filter((f) => f.pflicht && (g[f.name] === "" || num(g[f.name]) == null)).map((f) => f.text);

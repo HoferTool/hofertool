@@ -12,6 +12,7 @@ import "./teile/profilbilder.js";
 import "./teile/dateiAblegen.js";
 // Über jedem Textfeld der Knopf Ø, in Feldern mit Format auch Farben
 import "./teile/schreibleiste.js";
+import "./teile/datumTasten.js";
 // Mehr Bewegung: gleitende Markierungen, Licht, Welle, Seitenwechsel
 import "./effekte/effekte.css";
 import "./effekte/effekte.js";

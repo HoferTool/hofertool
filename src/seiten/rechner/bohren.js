@@ -48,6 +48,11 @@ export const BF_VORGABE = {
   flVon: 0,               // Fläche von Z (0 = offen zur Stirn)
   flBis: 10,              // bis Z
   yAchse: false,          // Fläche: mit Y-Achse in Bahnen
+  // Seit 1.602.0 (Wunsch Patrick 17. November 2026: „die Nut aus der
+  // Mitte schieben, also in Y nicht zentriert“, „das selbe bei Bohr-
+  // positionen“, „auch unregelmässig teilen“):
+  yVersatz: 0,            // Nuten und Bohrungen: Versatz in Y, 0 = auf der Mitte
+  cListe: "",             // freie Winkel C mit ; (leer = gleichmässig nach Anzahl)
 };
 
 export const ARTEN = [
@@ -76,15 +81,33 @@ export function zLagen(b) {
     .filter((x) => Number.isFinite(x));
 }
 
-export function cWinkel(b) {
-  const n = Math.max(1, Math.round(b.anzahl) || 1);
+// Freie Teilung: Winkel aus dem Feld, sonst null
+export function freieWinkel(b) {
+  const w = String(b.cListe || "").split(/[;\s]+/).map((x) => x.trim().replace(",", "."))
+    .filter((x) => x !== "").map(Number).filter((x) => Number.isFinite(x));
+  return w.length ? w : null;
+}
+// Gleichmässig n Stück ab startC, oder die freien Winkel
+export function teilung(b, anzahl) {
+  const frei = freieWinkel(b);
+  if (frei) return frei;
+  const n = Math.max(1, Math.round(anzahl) || 1);
   return Array.from({ length: n }, (_, i) => b.startC + (360 * i) / n);
 }
+export function cWinkel(b) { return teilung(b, b.anzahl); }
+
+// Versatz in Y (0 = Mitte) und die Fläche des Umfangs an dieser Stelle:
+// bei Versatz liegt die Oberfläche näher an der Mitte
+export const yV = (b) => (b.art === "flaeche" ? 0 : Number(b.yVersatz) || 0);
+const yTeil = (b) => { const y = yV(b); return y ? "Y" + z3(y) : ""; };
+// X (Durchmesser) der Oberfläche bei Versatz y
+export const xUmfang = (b) => { const r = b.teilD / 2, y = yV(b); return 2 * Math.sqrt(Math.max(0, r * r - y * y)); };
 
 // Front: X (Durchmesser) und C je Bohrung
 export function frontLoecher(b) {
-  if (!(b.lochkreis > 0)) return [{ x: 0, c: 0 }];
-  return cWinkel(b).map((c) => ({ x: b.lochkreis, c }));
+  const y = yV(b);
+  if (!(b.lochkreis > 0)) return [{ x: 0, c: 0, y }];
+  return cWinkel(b).map((c) => ({ x: b.lochkreis, c, y }));
 }
 
 // Quer: Z und C je Bohrung, zuerst alle Winkel einer Z-Lage
@@ -92,7 +115,7 @@ export function querLoecher(b) {
   const out = [];
   // Die Lagen sind Abstände ab der Stirn, ins Teil hinein (wie bei Nut
   // und Fläche): Z = Stirn + Lage (seit 1.592.0, siehe ZIN)
-  zLagen(b).forEach((zz) => cWinkel(b).forEach((c) => out.push({ z: zIn(b, zz), ab: zz, c })));
+  zLagen(b).forEach((zz) => cWinkel(b).forEach((c) => out.push({ z: zIn(b, zz), ab: zz, c, y: yV(b) })));
   return out;
 }
 
@@ -120,9 +143,11 @@ export function bfPruefen(b) {
     w.push("Für das " + (front ? "Frontwerkzeug" : "Querwerkzeug")
       + " ist noch kein Befehl für den Antrieb eingetragen (unten bei „Werkzeugantrieb“). Bis dahin steht nur ein Hinweis im Programm.");
   }
+  if (yV(b) && Math.abs(yV(b)) >= b.teilD / 2) w.push("Der Versatz in Y ist grösser als der halbe Teil-Ø, dort ist kein Material.");
+  if (freieWinkel(b) === null && String(b.cListe || "").trim()) w.push("Bei den freien Winkeln steht keine Zahl. Zum Beispiel 0; 45; 200 eintragen.");
   if (b.art === "bohrenFront") {
     if (!(b.tiefe > 0)) w.push("Die Bohrtiefe muss grösser als 0 sein.");
-    if (b.lochkreis / 2 + b.bohrD / 2 > b.teilD / 2) w.push("Die Bohrungen ragen über den Rand des Teils (Lochkreis + Bohrung grösser als der Teil-Ø).");
+    if (Math.hypot(b.lochkreis / 2, yV(b)) + b.bohrD / 2 > b.teilD / 2) w.push("Die Bohrungen ragen über den Rand des Teils (Lochkreis + Bohrung grösser als der Teil-Ø).");
   }
   if (b.art === "bohrenQuer") {
     if (!(b.tiefe > 0)) w.push("Die Bohrtiefe muss grösser als 0 sein.");
@@ -204,8 +229,10 @@ function bohrenFront(b, z) {
   const loecher = frontLoecher(b);
   const zR = zIn(b, -b.sicher);
   const zT = zIn(b, b.tiefe);
-  z.push("( " + loecher.length + " Bohrung" + (loecher.length > 1 ? "en auf Lochkreis D" + b.lochkreis : " in der Mitte") + ", Tiefe " + b.tiefe + " )");
-  z.push("G0X" + z3(loecher[0].x) + "C" + wink(loecher[0].c));
+  const yT = yTeil(b);
+  z.push("( " + loecher.length + " Bohrung" + (b.lochkreis > 0 ? (loecher.length > 1 ? "en" : "") + " auf Lochkreis D" + b.lochkreis : " in der Mitte")
+    + (yT ? ", Versatz " + yT : "") + ", Tiefe " + b.tiefe + " )");
+  z.push("G0X" + z3(loecher[0].x) + "C" + wink(loecher[0].c) + yT);
   z.push("G0Z" + z3(zR));
   if (b.ausgabe === "einzeln" && b.zyklus !== "gewinde") {
     loecher.forEach((l, i) => {
@@ -222,21 +249,26 @@ function bohrenFront(b, z) {
     z.push("G80");
   }
   z.push("G0Z" + z3(zIn(b, -b.sicher - 5)));
+  if (yT) z.push("G0Y0.");
 }
 
 function bohrenQuer(b, z) {
   const loecher = querLoecher(b);
   if (!loecher.length) { z.push("( KEINE Z-LAGE )"); return; }
   const xR = b.teilD + 2 * b.sicher;
-  const xT = b.teilD - 2 * b.tiefe;
-  z.push("( " + loecher.length + " Querbohrung" + (loecher.length > 1 ? "en" : "") + ", Tiefe " + b.tiefe + " ab Umfang D" + b.teilD + " )");
-  z.push("G0Z" + z3(loecher[0].z) + "C" + wink(loecher[0].c));
+  // Mit Versatz in Y zählt die Tiefe ab der Oberfläche an dieser Stelle
+  const xO = xUmfang(b);
+  const xT = xO - 2 * b.tiefe;
+  const yT = yTeil(b);
+  z.push("( " + loecher.length + " Querbohrung" + (loecher.length > 1 ? "en" : "") + ", Tiefe " + b.tiefe + " ab Umfang D" + b.teilD
+    + (yT ? ", Versatz " + yT : "") + " )");
+  z.push("G0Z" + z3(loecher[0].z) + "C" + wink(loecher[0].c) + yT);
   z.push("G0X" + z3(xR));
   if (b.ausgabe === "einzeln" && b.zyklus !== "gewinde") {
     loecher.forEach((l, i) => {
       if (i) z.push("G0Z" + z3(l.z) + "C" + wink(l.c));
       // In X ist alles im Durchmesser, darum doppelte Wege
-      einzelnBohren(b, z, "X", xR, b.teilD, xT, -2);
+      einzelnBohren(b, z, "X", xR, xO, xT, -2);
     });
   } else {
     gewindeVor(b, z);
@@ -248,6 +280,7 @@ function bohrenQuer(b, z) {
     z.push("G80");
   }
   z.push("G0X" + z3(xR + 4));
+  if (yT) z.push("G0Y0.");
 }
 
 // Ausgeschrieben: Tieflochbohren fährt nach jeder Zustellung ganz
@@ -286,9 +319,10 @@ function nutFront(b, z) {
   // Fräsermitte in X (Durchmesser) von + nach −, quer über die Mitte
   const xA = durch ? b.teilD + 2 * (r + b.sicher) : Math.max(0, b.nutLaenge - b.fraeser);
   const zR = zIn(b, -b.sicher);
-  z.push("( Nut auf der Stirn bei C" + wink(b.startC) + ", Breite = Fraeser D" + b.fraeser + ", Tiefe " + b.nutTiefe
+  const yT = yTeil(b);
+  z.push("( Nut auf der Stirn bei C" + wink(b.startC) + (yT ? ", Versatz " + yT : "") + ", Breite = Fraeser D" + b.fraeser + ", Tiefe " + b.nutTiefe
     + (durch ? ", durchgehend" : ", Laenge " + b.nutLaenge) + " )");
-  z.push("G0X" + z3(xA) + "C" + wink(b.startC));
+  z.push("G0X" + z3(xA) + "C" + wink(b.startC) + yT);
   z.push("G0Z" + z3(zR));
   let hin = true;
   schnitte(b.nutTiefe, b.zustellung).forEach((t) => {
@@ -299,6 +333,7 @@ function nutFront(b, z) {
     hin = !hin;
   });
   z.push("G0Z" + z3(zIn(b, -b.sicher - 5)));
+  if (yT) z.push("G0Y0.");
 }
 
 function nutQuer(b, z) {
@@ -310,28 +345,28 @@ function nutQuer(b, z) {
   // Mehrere gleiche Nuten über den Umfang (seit 1.598.0): eine nach der
   // anderen, je mit eigenem C, wie bei den Flächen
   const n = nutWinkel(b);
+  const yT = yTeil(b), xO = xUmfang(b);
   z.push("( " + (n.length > 1 ? n.length + " Laengsnuten" : "Laengsnut") + " am Umfang bei C" + n.map(wink).join("/")
-    + ", Breite = Fraeser D" + b.fraeser + ", Tiefe " + b.nutTiefe
+    + (yT ? ", Versatz " + yT : "") + ", Breite = Fraeser D" + b.fraeser + ", Tiefe " + b.nutTiefe
     + ", Z" + (offen ? " offen" : b.nutVon) + " bis Z" + b.nutBis + " )");
   n.forEach((c, i) => {
     if (n.length > 1) z.push("( Nut " + (i + 1) + " bei C" + wink(c) + " )");
-    z.push("G0Z" + z3(zA) + "C" + wink(c));
+    z.push("G0Z" + z3(zA) + "C" + wink(c) + (i ? "" : yT));
     z.push("G0X" + z3(xR));
     let hin = true;
     schnitte(b.nutTiefe, b.zustellung).forEach((t) => {
-      z.push("G1X" + z3(b.teilD - 2 * t) + "F" + b.vorschubZ);
+      z.push("G1X" + z3(xO - 2 * t) + "F" + b.vorschubZ);
       z.push("G1Z" + z3(hin ? zE : zA) + "F" + b.vorschub);
       hin = !hin;
     });
     z.push("G0X" + z3(xR + 4));
   });
+  if (yT) z.push("G0Y0.");
 }
 
 // Winkel der Quernuten: gleichmässig ab „C der Nut“
-export function nutWinkel(b) {
-  const n = Math.max(1, Math.round(b.nutAnzahl) || 1);
-  return Array.from({ length: n }, (_, i) => b.startC + (360 * i) / n);
-}
+export function nutWinkel(b) { return teilung(b, b.nutAnzahl); }
+export function flaechenWinkel(b) { return teilung(b, b.flaechen); }
 
 function flaeche(b, z) {
   const r = b.fraeser / 2;
@@ -340,7 +375,8 @@ function flaeche(b, z) {
   const zE = zIn(b, b.flBis - r);
   const xR = b.teilD + 2 * b.sicher;
   const tiefe = Math.max(0, (b.teilD - b.sw) / 2);
-  const n = Math.max(1, Math.round(b.flaechen) || 1);
+  const cs = flaechenWinkel(b);
+  const n = cs.length;
   const br = flaecheBreite(b);
   // Bahnen in Y: nur mit Y-Achse, mit 70 % Überdeckung
   let bahnen = [null];
@@ -352,7 +388,7 @@ function flaeche(b, z) {
   z.push("( " + n + " Flaeche" + (n > 1 ? "n" : "") + " SW" + b.sw + " an D" + b.teilD + ", Breite " + br.toFixed(2)
     + ", Z" + (offen ? " offen" : b.flVon) + " bis Z" + b.flBis + ", Fraeser D" + b.fraeser + " )");
   for (let i = 0; i < n; i++) {
-    const c = b.startC + (360 * i) / n;
+    const c = cs[i];
     z.push("( Flaeche " + (i + 1) + " bei C" + wink(c) + " )");
     z.push("G0Z" + z3(zA) + "C" + wink(c) + (bahnen[0] !== null ? "Y" + z3(bahnen[0]) : ""));
     z.push("G0X" + z3(xR));

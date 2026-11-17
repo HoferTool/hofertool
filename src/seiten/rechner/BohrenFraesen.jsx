@@ -13,7 +13,7 @@ import { KopfFelder } from "./kopf.jsx";
 import { NcAblage, NcStand } from "./NcAblage.jsx";
 import {
   ARTEN, BF_VORGABE, ZYKLEN, antrieb, bfGcode, bfPruefen, cWinkel, flaecheBreite,
-  frontLoecher, istFront, nutWinkel, zLagen,
+  flaechenWinkel, freieWinkel, frontLoecher, istFront, nutWinkel, yV, zLagen,
 } from "./bohren.js";
 
 const gemerkt = { ...BF_VORGABE };
@@ -32,12 +32,12 @@ export function antriebLaden() {
   } catch (f) { /* ohne Einstellungen bleiben die Felder leer */ }
 }
 
-function FeldInnen({ name, text, wert, setze, schritt, art }) {
+function FeldInnen({ name, text, wert, setze, schritt, art, ph }) {
   const [eingabe, setEingabe] = useState(String(wert));
   const melden = () => setze(name, art === "text" ? eingabe : Number(String(eingabe).replace(",", ".")));
   return (
     <label className="feld"><span>{text}</span>
-      <input type={art === "text" ? "text" : "number"} data-bf={name} step={schritt || "0.1"} value={eingabe}
+      <input type={art === "text" ? "text" : "number"} data-bf={name} step={schritt || "0.1"} value={eingabe} placeholder={ph}
         onChange={(e) => setEingabe(e.target.value)} onBlur={melden}
         onKeyDown={(e) => { if (e.key === "Enter") melden(); }} /></label>
   );
@@ -59,6 +59,9 @@ export default function BohrenFraesen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const warnungen = useMemo(() => bfPruefen(b), [b, stand]);
   const bohren = b.art === "bohrenFront" || b.art === "bohrenQuer";
+  // Freie Teilung (seit 1.602.0): wo mehrere über den Umfang gehen
+  const teilbar = (b.art === "bohrenFront" && b.lochkreis > 0) || b.art === "bohrenQuer" || b.art === "nutQuer" || b.art === "flaeche";
+  const frei = teilbar && !!freieWinkel(b);
   const front = istFront(b.art);
 
   const kopieren = async () => {
@@ -101,13 +104,15 @@ export default function BohrenFraesen() {
           <Feld name="zStirn" text="Z an der Stirnfläche" wert={b.zStirn} setze={setze} />
           {b.art === "bohrenFront" && <>
             <Feld name="lochkreis" text="Lochkreis-Ø (0 = Mitte)" wert={b.lochkreis} setze={setze} />
-            {b.lochkreis > 0 && <Feld name="anzahl" text="Anzahl Bohrungen" wert={b.anzahl} setze={setze} schritt="1" />}
+            {b.lochkreis > 0 && !frei && <Feld name="anzahl" text="Anzahl Bohrungen" wert={b.anzahl} setze={setze} schritt="1" />}
           </>}
           {b.art === "bohrenQuer" && <>
             <Feld name="zPos" text="Z-Lagen (mehrere mit ;)" wert={b.zPos} setze={setze} art="text" />
-            <Feld name="anzahl" text="Anzahl über den Umfang" wert={b.anzahl} setze={setze} schritt="1" />
+            {!frei && <Feld name="anzahl" text="Anzahl über den Umfang" wert={b.anzahl} setze={setze} schritt="1" />}
           </>}
-          {!(b.art === "bohrenFront" && !(b.lochkreis > 0))
+          {teilbar && <Feld name="cListe" text="Winkel C frei (mit ;)" ph="leer = gleichmässig" wert={b.cListe || ""} setze={setze} art="text" />}
+          {b.art !== "flaeche" && <Feld name="yVersatz" text="Versatz Y (0 = Mitte)" wert={b.yVersatz || 0} setze={setze} />}
+          {!(b.art === "bohrenFront" && !(b.lochkreis > 0)) && !frei
             ? <Feld name="startC" text={b.art === "flaeche" ? "C der ersten Fläche" : bohren ? "C der ersten Bohrung" : "C der Nut"} wert={b.startC} setze={setze} schritt="1" />
             : null}
           {bohren && <>
@@ -125,11 +130,11 @@ export default function BohrenFraesen() {
             <Feld name="nutVon" text="Von Z (0 = offen)" wert={b.nutVon} setze={setze} />
             <Feld name="nutBis" text="Bis Z" wert={b.nutBis} setze={setze} />
             <Feld name="nutTiefe" text="Tiefe der Nut" wert={b.nutTiefe} setze={setze} />
-            <Feld name="nutAnzahl" text="Anzahl über den Umfang" wert={b.nutAnzahl ?? 1} setze={setze} schritt="1" />
+            {!frei && <Feld name="nutAnzahl" text="Anzahl über den Umfang" wert={b.nutAnzahl ?? 1} setze={setze} schritt="1" />}
           </>}
           {b.art === "flaeche" && <>
             <Feld name="sw" text="Schlüsselweite SW" wert={b.sw} setze={setze} />
-            <Feld name="flaechen" text="Anzahl Flächen" wert={b.flaechen} setze={setze} schritt="1" />
+            {!frei && <Feld name="flaechen" text="Anzahl Flächen" wert={b.flaechen} setze={setze} schritt="1" />}
             <Feld name="flVon" text="Von Z (0 = offen)" wert={b.flVon} setze={setze} />
             <Feld name="flBis" text="Bis Z" wert={b.flBis} setze={setze} />
             <label className="feld"><span>Y-Achse</span>
@@ -215,33 +220,39 @@ function Stirn({ b }) {
   const R = Math.max(1, b.teilD / 2);
   const s = 110 / R;
   const pol = (r, c) => [150 + r * s * Math.cos((c * Math.PI) / 180), 150 - r * s * Math.sin((c * Math.PI) / 180)];
+  // Mit Versatz y quer zur Richtung C (seit 1.602.0)
+  const polY = (r, y, c) => {
+    const w = (c * Math.PI) / 180;
+    return [150 + (r * Math.cos(w) - y * Math.sin(w)) * s, 150 - (r * Math.sin(w) + y * Math.cos(w)) * s];
+  };
+  const y0 = yV(b), h0 = Math.sqrt(Math.max(0, R * R - y0 * y0));
   const teile = [];
   if (b.art === "bohrenFront") {
     frontLoecher(b).forEach((l, i) => {
-      const [x, y] = pol(l.x / 2, l.c);
+      const [x, y] = polY(l.x / 2, l.y || 0, l.c);
       teile.push(<circle key={i} cx={x} cy={y} r={Math.max(2, (b.bohrD / 2) * s)} className="bf-loch" />);
     });
     if (b.lochkreis > 0) teile.push(<circle key="lk" cx="150" cy="150" r={(b.lochkreis / 2) * s} className="cax-mass" fill="none" />);
   } else if (b.art === "bohrenQuer") {
     cWinkel(b).forEach((c, i) => {
-      const [x1, y1] = pol(R, c), [x2, y2] = pol(Math.max(0, R - b.tiefe), c);
+      const [x1, y1] = polY(h0, y0, c), [x2, y2] = polY(Math.max(0, h0 - b.tiefe), y0, c);
       const w = Math.max(3, b.bohrD * s);
       teile.push(<line key={i} x1={x1} y1={y1} x2={x2} y2={y2} className="bf-querloch" style={{ strokeWidth: w }} />);
     });
   } else if (b.art === "nutFront") {
     const l = Math.min(b.nutLaenge, b.teilD + b.fraeser) / 2 * s, h = (b.fraeser / 2) * s;
-    teile.push(<rect key="n" x={150 - l} y={150 - h} width={2 * l} height={2 * h} rx={b.nutLaenge < b.teilD ? h : 0}
+    teile.push(<rect key="n" x={150 - l} y={150 - h - y0 * s} width={2 * l} height={2 * h} rx={b.nutLaenge < b.teilD ? h : 0}
       className="bf-loch" transform={`rotate(${-b.startC} 150 150)`} />);
   } else if (b.art === "nutQuer") {
     nutWinkel(b).forEach((c, i) => {
-      const [x1, y1] = pol(R, c), [x2, y2] = pol(R - b.nutTiefe, c);
+      const [x1, y1] = polY(h0, y0, c), [x2, y2] = polY(h0 - b.nutTiefe, y0, c);
       teile.push(<line key={"n" + i} x1={x1} y1={y1} x2={x2} y2={y2} className="bf-querloch" style={{ strokeWidth: Math.max(3, b.fraeser * s) }} />);
     });
   } else {
-    const n = Math.max(1, Math.round(b.flaechen) || 1);
+    const cs = flaechenWinkel(b);
     const a = b.sw / 2;
-    for (let i = 0; i < n; i++) {
-      const c = b.startC + (360 * i) / n;
+    for (let i = 0; i < cs.length; i++) {
+      const c = cs[i];
       if (a >= R) continue;
       const h = Math.sqrt(R * R - a * a);
       const [mx, my] = pol(a, c);

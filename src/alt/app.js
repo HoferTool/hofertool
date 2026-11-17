@@ -20,6 +20,7 @@ import Reihen from "../seiten/Reihen.jsx";
 import QmAlternativ from "../seiten/QmAlternativ.jsx";
 import "../seiten/Kalender.jsx";
 import Einlagen from "../seiten/Einlagen.jsx";
+import Hofer2dTo3d from "../seiten/Hofer2dTo3d.jsx";
 import MaschinenSeite, { maschinenZurueck } from "../seiten/Maschinen.jsx";
 import Bildschirme from "../seiten/Bildschirme.jsx";
 import Infoboard, { Empfang, Pausenraum, infoboardSichtbar, infoboardOeffnen, infoboardSchliessen, bildschirmDarfNeuLaden } from "../infoboard/Infoboard.jsx";
@@ -37,7 +38,7 @@ import { PRIO } from "../daten/einkauf.js";
 import { padZeichnen, padAbbauen, padGeraetZustand } from "../pad/Pad.jsx";
 import { planAuftragDialog } from "../planwand/AuftragFenster.jsx";
 import { nachfragen, dialogFelder, auswahlDialog } from "../teile/Dialoge.jsx";
-import { geruestZeichnen, geruestAbbauen, navAktiv } from "../huelle/Geruest.jsx";
+import { geruestZeichnen, geruestAbbauen, navAktiv, navTodoAnwenden } from "../huelle/Geruest.jsx";
 import { sucheOeffnen } from "../huelle/SucheAlles.jsx";
 import { anmeldungZeigen } from "../huelle/Anmeldung.jsx";
 import { sucheDialog, sucheLeisteZeigen, sucheLeisteWeg } from "../planwand/Suche.jsx";
@@ -165,7 +166,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.602.0";
+const APP_VERSION = "1.607.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1306,7 +1307,7 @@ function neuladenRuhig() {
 let neuladenFassung = "";
 const STUENDLICH_NEULADEN = "hofer.fassung.stuendlich";
 
-// Seit 1.602.0 höchstens einmal am Tag je Gerät (Wunsch Patrick
+// Seit 1.607.0 höchstens einmal am Tag je Gerät (Wunsch Patrick
 // 17. November 2026: „das automatische Neuladen raus, höchstens einmal
 // pro Tag, bei Anzeigen lassen, aber stündlich“). Nachgesehen wird
 // weiter stündlich, neu geladen aber nur, wenn heute noch nicht.
@@ -1367,7 +1368,7 @@ window.addEventListener("vite:preloadError", () => { neuladenAb = 0; neuladenNoe
 // haben die Seite ohne Zusatz bis zehn Minuten zwischengespeichert, nach
 // kurz hintereinander ausgelieferten Fassungen kam so immer wieder die
 // alte Seite. Eine neue Adresse kommt sicher frisch vom Server.
-// Seit 1.602.0 stündlich statt alle zwei Minuten (Wunsch Patrick
+// Seit 1.607.0 stündlich statt alle zwei Minuten (Wunsch Patrick
 // 17. November 2026: „bei Anzeigen lassen, aber stündlich“)
 const BILDSCHIRM_TAKT = 60 * 60 * 1000;
 const BILDSCHIRM_NOCHMAL = 3 * 60 * 1000;
@@ -3217,7 +3218,7 @@ const ROLLEN = {
 function seiteSichtbar(pfad) {
   if (ARCHIV) return pfad === "planwand";
   // Das Dienstkonto braucht keine Material-Seite
-  if ((pfad === "material" || pfad === "maschinen" || pfad === "statistik" || pfad === "kalender" || pfad === "einlagen") && meineRolle() === "dienst") return false;
+  if ((pfad === "material" || pfad === "maschinen" || pfad === "statistik" || pfad === "kalender" || pfad === "einlagen" || pfad === "hofer2dto3d") && meineRolle() === "dienst") return false;
   if (pfad === "infoboard" || pfad === "pausenraum") return infoboardSichtbar();
   if (pfad === "bildschirme") return SEITEN.some((s) => s.gruppe === "bildschirme" && seiteSichtbar(s.pfad));
   if (pfad === "kalkulation") return kalkulationSehen(profil) && !istExtern();
@@ -10653,6 +10654,10 @@ SYM.kalender = svg('<rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d
 SYM.einlagen = svg('<rect x="3" y="3" width="18" height="18" rx="2.5"/>'
   + '<rect x="6" y="6" width="4" height="12" rx="2"/><path d="M13.5 6.5h2.5a2 2 0 0 1 2 2V10l-2.5 1.5V17.5h-2z"/>');
 
+// HOFER2DTO3D: flaches Blatt links, daraus ein Würfel rechts
+SYM.hofer2dto3d = svg('<path d="M3 4h7v12H3z"/><path d="M5 7.5h3M5 10.5h3"/>'
+  + '<path d="M16.5 8l4.5 2.5v5L16.5 18 12 15.5v-5z"/><path d="M12 10.5l4.5 2.5 4.5-2.5M16.5 13v5"/>');
+
 SYM.temp = svg('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'
   + '<path d="M12 16v-5"/><path d="M9.5 13.5L12 11l2.5 2.5"/>');
 
@@ -10823,6 +10828,7 @@ const SEITEN = [
   // als Karte auf der Startseite, ein Tipp öffnet das Fenster zum Verwalten
   // (Wunsch Patrick 30. Oktober 2026: „Reiter selber brauchts nicht“)
   // Werkzeug-Konturscanner für 3D-gedruckte Einlagen (Wunsch Patrick 30. Oktober 2026)
+  { pfad: "hofer2dto3d",  titel: "HOFER2DTO3D", zeichen: SYM.hofer2dto3d, zeige: reactSeite(Hofer2dTo3d) },
   { pfad: "einlagen",     titel: "Einlagen Generator", zeichen: SYM.einlagen, zeige: reactSeite(Einlagen) },
   // Reihen lernen als 3D-Snowboard-Spiel, nur für Patrick (seit 1.546.0)
   { pfad: "reihen",       titel: "Hofer + Co Zahlensprint", zeichen: SYM.reihen, zeige: reactSeite(Reihen) },
@@ -11395,6 +11401,7 @@ function zeichneGeruest() {
   knopfRueckgaengigZeigen();
 
   if (einstellungWert("navschmal", "0") === "1") document.body.classList.add("nav--schmal");
+  navTodoAnwenden();
 
   // Nach fünf Minuten ohne Eingabe wird abgemeldet. 10 Sekunden vorher
   // erscheint eine Warnung; jede Berührung, jeder Klick, jede Taste
