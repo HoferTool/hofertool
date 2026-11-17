@@ -22,6 +22,7 @@
 import { blockZeilen, blockZeilen2, k1Zeilen, markenPaare, markenVergeben, programme, zahl, abVersatz } from "./hofercam.js";
 import { wirksamB, wirksamW } from "./camTyp.js";
 import { fraeserUmriss, plattenUmriss, wzArt, wzVollstaendig } from "./camWerkzeug.js";
+import { SPITZEN } from "./kontur.js";
 
 export const RASTER = 0.02; // mm je Zelle des Materials
 const FEIN = 0.04, GROB = 0.5; // Abstand der Bahnpunkte bei Vorschub / Eilgang
@@ -220,9 +221,22 @@ export function bahnLesen(zeilen, v, { mitG50 = false, start = null } = {}) {
 
 // Hülle der Drehplatte je Zelle in Z: tiefster und höchster Radius-
 // versatz zur gedachten Spitze
-export function plattenHuelle(wz) {
-  const p = plattenUmriss(wz);
+// Seit 1.590.0 (Wunsch Patrick 17. November 2026: „verkleinere die
+// Drehplatten bei Innenbearbeitungen grundsätzlich, damit sie in das Loch
+// passen und theoretisch auf der Rückseite die Kontur nicht verschneiden“):
+// mit tief > 0 reicht die Platte von der Spitze höchstens so weit zur
+// Drehmitte hin. Zuerst kleiner gezeichnet (Schneidenradius bleibt), sonst
+// um die Spitze verkleinert.
+export function plattenHuelle(wz, tief) {
+  let p = plattenUmriss(wz);
   if (!p.length) return null;
+  const tiefe = (q) => Math.max(0, ...q.map((x) => -x.x));
+  if (tief > 0 && tiefe(p) > tief) {
+    const q = plattenUmriss(wz, Math.max(0.3, 8 * tief / tiefe(p)));
+    if (q.length) p = q;
+    const t = tiefe(p);
+    if (t > tief) p = p.map((x) => ({ z: x.z * tief / t, x: x.x * tief / t }));
+  }
   const zs = p.map((q) => q.z);
   const j0 = Math.floor(Math.min(...zs) / RASTER), j1 = Math.ceil(Math.max(...zs) / RASTER);
   const lo = [], hi = [];
@@ -471,10 +485,29 @@ function abstechen(st, s, p) {
 }
 
 // Werkzeughüllen einmal je Simulation
+// Innenbearbeitung: Lage der Schneidenspitze nach aussen (die Platte liegt
+// zur Drehmitte hin). Die Platte darf dann höchstens 80 % des kleinsten
+// Radius tief sein, auf dem sie in dieser Bearbeitung schneidet.
+export function innenTiefe(s) {
+  if (!s || s.modus !== "dreh" || !s.wz) return 0;
+  const l = SPITZEN.find((x) => x.id === s.wz.sl);
+  if (!l || !(l.r > 0)) return 0;
+  // Nur die Endpunkte der Vorschubzeilen zählen: das Anfahren aus der
+  // Drehmitte (Frontwerkzeug ohne X) ist kein Schneiden im Loch
+  let r = Infinity;
+  const pk = s.punkte || [];
+  for (let i = 0; i < pk.length; i++) {
+    const p = pk[i];
+    if (!p.vor || (i + 1 < pk.length && pk[i + 1].nr === p.nr)) continue;
+    if (p.r > 0.05 && p.r < r) r = p.r;
+  }
+  return r === Infinity ? 0 : Math.max(0.2, r * 0.8);
+}
+
 function huelleVon(s, cache) {
   if (!s.wz || !s.modus) return null;
   if (!cache.has(s.id)) {
-    const h = s.modus === "dreh" ? plattenHuelle(s.wz) : bohrerHuelle(s.wz);
+    const h = s.modus === "dreh" ? plattenHuelle(s.wz, innenTiefe(s)) : bohrerHuelle(s.wz);
     if (h && h.rad) {
       // Länge der Spitze: bis der volle Radius erreicht ist
       let k = 0; while (k < h.rad.length - 1 && h.rad[k] < h.R - 1e-6) k++;
