@@ -466,7 +466,9 @@ export function satzEnde(s, ab) {
 function Simulation({ w, zu }) {
   const sim = useMemo(() => simAufbauen(w), [w]);
   const cache = useRef(new Map());
-  const [n, setN] = useState(sim.gesamt);
+  // Seit 1.598.0 beginnt die Simulation immer beim Rohteil wie der Knopf
+  // „⏮ Rohteil“ (Patrick 17. November 2026: „öffne die Simulation immer am Anfang“)
+  const [n, setN] = useState(0);
   const [laeuft, setLaeuft] = useState(false);
   const [tempo, setTempo] = useState("3");
   // Seit 1.560.0 (Patrick 16. November 2026: „Option, um nur Bearbeitung

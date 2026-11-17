@@ -48,6 +48,8 @@ with sync_playwright() as p:
     pg.click("#cam-sim-auf")
     pg.wait_for_selector("#cam-sim-bild")
     pg.wait_for_timeout(300)
+    pruefe("Simulation öffnet beim Rohteil", pg.get_attribute("#cam-sim-bild", "data-cam-sim-n") == "0")
+    pg.click("#cam-sim-ende"); pg.wait_for_timeout(400)  # seit 1.598.0 öffnet sie beim Rohteil
     def wert(kanal, feld, z):
         return pg.evaluate("""([k, f, z]) => { const c = document.querySelector('#cam-sim-bild'); const st = c.__stand[k];
           if (!st) return null; return st[f][Math.round((z - st.z0) / 0.02)]; }""", [kanal, feld, z])

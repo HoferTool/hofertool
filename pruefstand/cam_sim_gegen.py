@@ -50,7 +50,7 @@ with sync_playwright() as p:
     pg.fill("[data-block='1'] [data-camblock='code']", "G0X8.\nG0Z1.\nG1Z-3.F50.\nG0Z1.")
     werkzeug(pg, 1, "bohrer", "3", "118")
     pg.click("#cam-sim-auf")
-    pg.wait_for_selector("#cam-sim-bild"); pg.wait_for_timeout(400)
+    pg.wait_for_selector("#cam-sim-bild"); pg.wait_for_timeout(400); pg.click("#cam-sim-ende"); pg.wait_for_timeout(400)  # seit 1.598.0 öffnet sie beim Rohteil
     E = lambda a: pg.evaluate("() => document.querySelector('#cam-sim-bild').__" + a)
     namen = pg.evaluate("() => document.querySelector('#cam-sim-bild').__sim.schritte.map((x) => x.titel + ' K' + x.kanal)")
     print(namen)

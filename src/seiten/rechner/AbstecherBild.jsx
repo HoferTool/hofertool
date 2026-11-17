@@ -14,7 +14,7 @@ export default function AbstecherBild({ art, versatz, b, abz }) {
   const zText = String(abz).includes(".") ? String(abz) : abz + "."; // wie im Programm, Z-10.
   const bZahl = Number(String(b ?? "").replace(",", ".")) || 0;
   const B = Math.max(0.5, Math.min(6, bZahl || 2));
-  const V = Math.max(0, Math.min(30, Number(String(versatz).replace(",", ".")) || 12));
+  const V = Math.max(0, Math.min(30, Number(String(versatz).replace(",", ".")) || 10));
   const off = vers ? Math.max(0, Number(abz) || 0) : 0;   // Platte vor der Ebene, wie im Programm
   const breit = Math.max(12, V, off + B) + 22;
   const x0 = 70;                          // Drehebene in Punkten

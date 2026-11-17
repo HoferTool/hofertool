@@ -327,6 +327,10 @@ export function bahnRechnen(segmente, rn, seite, spitze) {
     if (i > 0) {
       const vor = mitte[mitte.length - 1];
       const ecke = segmente[i].a;
+      // Fast tangential (Kontur aus einer STEP-Datei): ein Eckbogen kürzer
+      // als die Auflösung des Programms gäbe G2 mit gleichem Anfang und
+      // Ende, darum die Enden zusammenlegen (seit 1.598.0)
+      if (abstand(vor.b, o.a) > 1e-6 && abstand(vor.b, o.a) < 0.002) o.a = vor.b;
       if (abstand(vor.b, o.a) > 1e-6) {
         const dreh = kreuz(tEnde(segmente[i - 1]), tAnfang(segmente[i]));
         const innen = dreh * seite > 0;

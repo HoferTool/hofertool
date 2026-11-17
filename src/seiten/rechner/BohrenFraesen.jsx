@@ -13,7 +13,7 @@ import { KopfFelder } from "./kopf.jsx";
 import { NcAblage, NcStand } from "./NcAblage.jsx";
 import {
   ARTEN, BF_VORGABE, ZYKLEN, antrieb, bfGcode, bfPruefen, cWinkel, flaecheBreite,
-  frontLoecher, istFront, zLagen,
+  frontLoecher, istFront, nutWinkel, zLagen,
 } from "./bohren.js";
 
 const gemerkt = { ...BF_VORGABE };
@@ -125,6 +125,7 @@ export default function BohrenFraesen() {
             <Feld name="nutVon" text="Von Z (0 = offen)" wert={b.nutVon} setze={setze} />
             <Feld name="nutBis" text="Bis Z" wert={b.nutBis} setze={setze} />
             <Feld name="nutTiefe" text="Tiefe der Nut" wert={b.nutTiefe} setze={setze} />
+            <Feld name="nutAnzahl" text="Anzahl über den Umfang" wert={b.nutAnzahl ?? 1} setze={setze} schritt="1" />
           </>}
           {b.art === "flaeche" && <>
             <Feld name="sw" text="Schlüsselweite SW" wert={b.sw} setze={setze} />
@@ -232,8 +233,10 @@ function Stirn({ b }) {
     teile.push(<rect key="n" x={150 - l} y={150 - h} width={2 * l} height={2 * h} rx={b.nutLaenge < b.teilD ? h : 0}
       className="bf-loch" transform={`rotate(${-b.startC} 150 150)`} />);
   } else if (b.art === "nutQuer") {
-    const [x1, y1] = pol(R, b.startC), [x2, y2] = pol(R - b.nutTiefe, b.startC);
-    teile.push(<line key="n" x1={x1} y1={y1} x2={x2} y2={y2} className="bf-querloch" style={{ strokeWidth: Math.max(3, b.fraeser * s) }} />);
+    nutWinkel(b).forEach((c, i) => {
+      const [x1, y1] = pol(R, c), [x2, y2] = pol(R - b.nutTiefe, c);
+      teile.push(<line key={"n" + i} x1={x1} y1={y1} x2={x2} y2={y2} className="bf-querloch" style={{ strokeWidth: Math.max(3, b.fraeser * s) }} />);
+    });
   } else {
     const n = Math.max(1, Math.round(b.flaechen) || 1);
     const a = b.sw / 2;

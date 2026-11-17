@@ -62,6 +62,7 @@ with sync_playwright() as p:
     try: pg.wait_for_selector("#cam-sim-bild", timeout=20000)
     except Exception: print(fehler); raise
     pg.wait_for_timeout(500)
+    pg.click("#cam-sim-ende"); pg.wait_for_timeout(400)  # seit 1.598.0 öffnet sie beim Rohteil
     def weg(z, u, w):
         return pg.evaluate("""([z, u, w]) => { const v = document.querySelector('#cam-sim-bild').__stand.vox; if (!v) return null;
           const iz = Math.floor((z - v.z0) / v.h), iu = Math.floor((u + v.R) / v.h), iw = Math.floor((w + v.R) / v.h);

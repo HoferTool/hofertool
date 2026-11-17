@@ -102,9 +102,9 @@ const ohneMinus = (t) => String(t).replace(/^-/, "").replace(/\.$/, "");
 
 // Seit 1.587.0 (Patrick 16. November 2026): Abstecher T100 normal oder
 // versetzt. Beim versetzten sitzt die Platte rechts am Schaft, um den
-// Versatz (Vorgabe 12 mm) minus Abstechbreite B weiter vorne; diesen
+// Versatz (Vorgabe 10 mm, bis 1.597.x 12 mm) minus Abstechbreite B weiter vorne; diesen
 // wirksamen Versatz fährt der Kopf mit G0X[#531+4.]Z-… vor, normal Z-0.
-export const AB_VERSATZ_VORGABE = 12;
+export const AB_VERSATZ_VORGABE = 10;
 export function abVersatz(w) {
   if (!w || w.abArt !== "versetzt") return 0;
   const v = Number(zahl(w.abVersatz) ?? AB_VERSATZ_VORGABE), b = Number(zahl(w.B) ?? 0);

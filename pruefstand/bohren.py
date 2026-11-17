@@ -60,6 +60,12 @@ with sync_playwright() as p:
     pg.click("[data-bfart='nutQuer']"); pg.wait_for_timeout(120)
     c = code()
     pruefe("Nut Quer offen", "G0Z-3.000C0.000" in c and "G1X19.000F40" in c and "G1Z10.000F80" in c and "G1X17.000F40" in c)
+    pruefe("Nut Quer: eine Nut ohne C120", "C120.000" not in c and pg.locator("#bf-stirn .bf-querloch").count() == 1)
+    feld("nutAnzahl", 3)
+    c = code()
+    pruefe("Nut Quer: 3 Nuten über den Umfang", "G0Z-3.000C120.000" in c and "G0Z-3.000C240.000" in c
+           and c.count("G0X26.000") == 3 and pg.locator("#bf-stirn .bf-querloch").count() == 3)
+    feld("nutAnzahl", 1)
 
     pg.click("[data-bfart='flaeche']"); pg.wait_for_timeout(120)
     pruefe("Fläche: Fräser zu klein warnt", any("Y-Achse" in t for t in pg.locator(".bf-warnung").all_inner_texts()))

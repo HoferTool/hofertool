@@ -65,7 +65,7 @@ with sync_playwright() as p:
     plaetze = pg.evaluate("() => [...document.querySelectorAll('[data-block]')].map((b) => b.textContent.match(/T\\d+/)?.[0])")
     print("Plätze", plaetze)
     pg.click("#cam-sim-auf")
-    pg.wait_for_selector("#cam-sim-bild"); pg.wait_for_timeout(400)
+    pg.wait_for_selector("#cam-sim-bild"); pg.wait_for_timeout(400); pg.click("#cam-sim-ende"); pg.wait_for_timeout(400)  # seit 1.598.0 öffnet sie beim Rohteil
     T = lambda: pg.evaluate("() => document.querySelector('#cam-sim-bild').__traeger")
     pruefe("Schalter Maschine an", pg.is_checked("#cam-sim-maschine"))
     pruefe("Spindelstock gezeichnet", pg.evaluate("() => !!document.querySelector('#cam-sim-bild').__kopf"))
@@ -113,7 +113,7 @@ with sync_playwright() as p:
     k1 = pg.evaluate("() => [...document.querySelectorAll('[data-kanal=\"1\"]')].map((e) => e.textContent).join('\\n')")
     pruefe("Kopf: G0X[#531+4.]Z-10.5", "G0X[#531+4.]Z-10.5" in k1)
     pruefe("Abstechen im Ende unverändert", "G00G99X#510Z[#530+#528]T1" in k1)
-    pg.click("#cam-sim-auf"); pg.wait_for_selector("#cam-sim-bild"); pg.wait_for_timeout(400)
+    pg.click("#cam-sim-auf"); pg.wait_for_selector("#cam-sim-bild"); pg.wait_for_timeout(400); pg.click("#cam-sim-ende"); pg.wait_for_timeout(400)  # seit 1.598.0 öffnet sie beim Rohteil
     pg.click("[data-cam-sim-schritt='ab']"); pg.wait_for_timeout(300)
     t = T(); bu = pg.evaluate("() => document.querySelector('#cam-sim-bild').__buechse")
     sa = pg.evaluate("() => document.querySelector('#cam-sim-bild').__sim.schritte.find((x) => x.modus === 'abstech')")

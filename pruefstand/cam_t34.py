@@ -50,7 +50,7 @@ with sync_playwright() as p:
     pruefe("Abstecherbild versetzt", pg.locator("[data-cam-abbild='versetzt']").count() == 1)
     pg.fill("[data-cam='B']", "2"); pg.click("[data-cam='abVersatz']"); pg.wait_for_timeout(200)
     pruefe("Bild bei Schreibmarke im Versatz", pg.locator("[data-cam-abbild='versetzt']").count() == 1)
-    pruefe("Bild nennt Z-10.", "Z-10" in pg.locator("[data-cam-abbild-feld]").inner_text())
+    pruefe("Bild nennt Z-8. (Vorgabe 10 − B 2)", "Z-8" in pg.locator("[data-cam-abbild-feld]").inner_text())
     pg.locator("[data-cam-abbild-feld]").screenshot(path=S + "ab_versetzt.png")
     pg.mouse.move(5, 5); pg.click("#cam-kanaele", position={"x": 5, "y": 5}); pg.wait_for_timeout(200)
     pruefe("Bild wieder weg", pg.locator("[data-cam-abbild-feld]").count() == 0)

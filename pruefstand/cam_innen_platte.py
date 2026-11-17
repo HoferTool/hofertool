@@ -45,7 +45,7 @@ with sync_playwright() as p:
     print("Lagen", sl)
     pg.click("[data-camwz-sl='or']")
     pg.click(".cam-wz [title='Schliessen']")
-    pg.click("#cam-sim-auf"); pg.wait_for_selector("#cam-sim-bild"); pg.wait_for_timeout(300)
+    pg.click("#cam-sim-auf"); pg.wait_for_selector("#cam-sim-bild"); pg.wait_for_timeout(300); pg.click("#cam-sim-ende"); pg.wait_for_timeout(400)  # seit 1.598.0 öffnet sie beim Rohteil
     def platte(i):
         pg.click(f"[data-cam-sim-schritt='{i}']"); pg.wait_for_timeout(250)
         return pg.evaluate("""() => { const c = document.querySelector('#cam-sim-bild'); const w = c.__werkzeuge || [];

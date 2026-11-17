@@ -21,7 +21,7 @@
 //  Programmiert wird immer die Spitze des Werkzeugs, X im Durchmesser.
 // =================================================================
 import { kopfZeilen, fussZeilen } from "./kopf.jsx";
-import { antrieb, frontLoecher, querLoecher } from "./bohren.js";
+import { antrieb, frontLoecher, querLoecher, nutWinkel } from "./bohren.js";
 
 export const EG_VORGABE = {
   werkzeug: "kugel",   // kugel, kopier, zentrier
@@ -134,40 +134,46 @@ export function kantenAusBohren(b) {
   }
 
   if (b.art === "nutQuer") {
-    const w = grad(b.startC), e = radial(w), t = tangential(w);
-    const h = b.fraeser / 2;
-    const offen = !(b.nutVon > 0);
-    const zEnde = z0 - b.nutBis + h;
-    const zAnf = offen ? z0 : z0 - b.nutVon - h;
-    // Auf dem Zylinder: Seite y, Länge z
-    const auf = (y, zz) => plus(plus(mal(e, Math.sqrt(Math.max(0, R * R - y * y))), mal(t, y)), v(0, 0, zz));
-    const richtungen = (y, zz, uy, uz) => {
-      const x = Math.sqrt(Math.max(0, R * R - y * y));
-      const nA = einheit(plus(mal(e, x), mal(t, y)));
-      const ty = einheit(plus(mal(e, -y / (x || 1)), t));     // Zylinder in Richtung y
-      return { E: auf(y, zz), u: einheit(plus(mal(ty, uy), v(0, 0, uz))), nA, vB: mal(e, -1) };
-    };
-    const punkte = [];
-    if (offen) {
-      punkte.push(richtungen(h, z0, 1, 0), richtungen(h, zEnde, 1, 0));
-      for (let k = 1; k < 18; k++) {
-        const f = (Math.PI * k) / 18;
-        punkte.push(richtungen(h * Math.cos(f), zEnde - h * Math.sin(f), Math.cos(f), -Math.sin(f)));
+    // Mehrere Nuten über den Umfang (seit 1.598.0); die erste heisst wie
+    // bisher „nut“, damit gespeicherte Wahl gilt
+    const alle = nutWinkel(b);
+    alle.forEach((c0, i) => {
+      const id = i ? "nut" + i : "nut";
+      const w = grad(c0), e = radial(w), t = tangential(w);
+      const h = b.fraeser / 2;
+      const offen = !(b.nutVon > 0);
+      const zEnde = z0 - b.nutBis + h;
+      const zAnf = offen ? z0 : z0 - b.nutVon - h;
+      // Auf dem Zylinder: Seite y, Länge z
+      const auf = (y, zz) => plus(plus(mal(e, Math.sqrt(Math.max(0, R * R - y * y))), mal(t, y)), v(0, 0, zz));
+      const richtungen = (y, zz, uy, uz) => {
+        const x = Math.sqrt(Math.max(0, R * R - y * y));
+        const nA = einheit(plus(mal(e, x), mal(t, y)));
+        const ty = einheit(plus(mal(e, -y / (x || 1)), t));     // Zylinder in Richtung y
+        return { E: auf(y, zz), u: einheit(plus(mal(ty, uy), v(0, 0, uz))), nA, vB: mal(e, -1) };
+      };
+      const punkte = [];
+      if (offen) {
+        punkte.push(richtungen(h, z0, 1, 0), richtungen(h, zEnde, 1, 0));
+        for (let k = 1; k < 18; k++) {
+          const f = (Math.PI * k) / 18;
+          punkte.push(richtungen(h * Math.cos(f), zEnde - h * Math.sin(f), Math.cos(f), -Math.sin(f)));
+        }
+        punkte.push(richtungen(-h, zEnde, -1, 0), richtungen(-h, z0, -1, 0));
+      } else {
+        // Langloch in (z, y): Mittellinie von zAnf bis zEnde
+        const mz = (zAnf + zEnde) / 2, a = Math.max(0, (zAnf - zEnde) / 2);
+        langloch(a, h, (s, q) => ({ s, q }), () => null, () => null, () => null).forEach(({ E }) => {
+          const zz = mz + E.s, y = E.q;
+          const cz = Math.max(-a, Math.min(a, E.s));
+          const ou = einheit([E.q, E.s - cz, 0]);
+          punkte.push(richtungen(y, zz, ou[0], ou[1]));
+        });
       }
-      punkte.push(richtungen(-h, zEnde, -1, 0), richtungen(-h, z0, -1, 0));
-    } else {
-      // Langloch in (z, y): Mittellinie von zAnf bis zEnde
-      const mz = (zAnf + zEnde) / 2, a = Math.max(0, (zAnf - zEnde) / 2);
-      langloch(a, h, (s, q) => ({ s, q }), () => null, () => null, () => null).forEach(({ E }) => {
-        const zz = mz + E.s, y = E.q;
-        const cz = Math.max(-a, Math.min(a, E.s));
-        const ou = einheit([E.q, E.s - cz, 0]);
-        punkte.push(richtungen(y, zz, ou[0], ou[1]));
-      });
-    }
-    kanten.push({ id: "nut", name: "Nut Quer" + (offen ? ", offen zur Stirn" : ", ringsum"), merkmal: "nut", zentrier: "quer", c0: b.startC, geschlossen: !offen, punkte });
-    const xm = Math.sqrt(Math.max(0, R * R - h * h));
-    mitten.nut = { punkte: [offen ? z0 + h + b.fraeser : zAnf, zEnde].map((zz) => plus(mal(e, xm), v(0, 0, zz))), nA: e, halb: h };
+      kanten.push({ id, name: "Nut Quer" + (alle.length > 1 ? " " + (i + 1) + " (C" + Math.round(c0) + ")" : "") + (offen ? ", offen zur Stirn" : ", ringsum"), merkmal: id, zentrier: "quer", c0, geschlossen: !offen, punkte });
+      const xm = Math.sqrt(Math.max(0, R * R - h * h));
+      mitten[id] = { punkte: [offen ? z0 + h + b.fraeser : zAnf, zEnde].map((zz) => plus(mal(e, xm), v(0, 0, zz))), nA: e, halb: h };
+    });
   }
 
   if (b.art === "flaeche") {
@@ -360,27 +366,32 @@ export function egGcode(b, g) {
   if (ein.length) ein.forEach((x) => z.push(x));
   else z.push("( " + (front ? "FRONT" : "QUER") + "WERKZEUG EIN S" + s + " - BEFEHL BEI WERKZEUGANTRIEB EINTRAGEN )");
 
+  // Z wie an der Star: ins Teil grösser, vor der Stirn kleiner (seit
+  // 1.598.0, wie Bohren / Fräsen seit 1.592.0; Patrick 17. November 2026).
+  // Gerechnet wird weiter mit Z ins Teil kleiner, gespiegelt an der Stirn
+  // erst hier bei der Ausgabe.
+  const zA = (n) => z3(2 * b.zStirn - n);
   const zSicher = b.zStirn + g.sicher;
   const xSicher = b.teilD + 2 * g.sicher;
   const F = g.vorschub, FZ = g.vorschubZ;
 
   if (front && !y) {
     // Polarinterpolation: X (Durchmesser) und C als ebene Koordinaten
-    z.push("G0Z" + z3(zSicher));
+    z.push("G0Z" + zA(zSicher));
     z.push("G12.1  ( Polarinterpolation ein )");
     bahnen.forEach((bn) => {
       const pk = bn.geschlossen ? [...bn.spitzen, bn.spitzen[0]] : bn.spitzen;
       z.push("( " + bn.name + " )");
       z.push("G0X" + z3(pk[0][0] * 2) + "C" + z3(pk[0][1]));
-      z.push("G1Z" + z3(pk[0][2]) + "F" + FZ);
-      pk.slice(1).forEach((p, i) => z.push("G1X" + z3(p[0] * 2) + "C" + z3(p[1]) + "Z" + z3(p[2]) + (i === 0 ? "F" + F : "")));
-      z.push("G0Z" + z3(zSicher));
+      z.push("G1Z" + zA(pk[0][2]) + "F" + FZ);
+      pk.slice(1).forEach((p, i) => z.push("G1X" + z3(p[0] * 2) + "C" + z3(p[1]) + "Z" + zA(p[2]) + (i === 0 ? "F" + F : "")));
+      z.push("G0Z" + zA(zSicher));
     });
     z.push("G13.1  ( Polarinterpolation aus )");
   } else if (y) {
     // Mit Y-Achse: C bleibt je Kante stehen, gefahren wird in X, Y, Z
     let cJetzt = null;
-    if (front) z.push("G0Z" + z3(zSicher)); else z.push("G0X" + z3(xSicher));
+    if (front) z.push("G0Z" + zA(zSicher)); else z.push("G0X" + z3(xSicher));
     bahnen.forEach((bn) => {
       const w = grad(bn.c0), e = radial(w), t = tangential(w);
       const pk = (bn.geschlossen ? [...bn.spitzen, bn.spitzen[0]] : bn.spitzen).map((p) => [punkt(p, e), punkt(p, t), p[2]]);
@@ -388,13 +399,13 @@ export function egGcode(b, g) {
       if (cJetzt !== bn.c0) { z.push("G0C" + z3(((bn.c0 % 360) + 360) % 360)); cJetzt = bn.c0; }
       if (front) {
         z.push("G0X" + z3(pk[0][0] * 2) + "Y" + z3(pk[0][1]));
-        z.push("G1Z" + z3(pk[0][2]) + "F" + FZ);
+        z.push("G1Z" + zA(pk[0][2]) + "F" + FZ);
       } else {
-        z.push("G0Y" + z3(pk[0][1]) + "Z" + z3(pk[0][2]));
+        z.push("G0Y" + z3(pk[0][1]) + "Z" + zA(pk[0][2]));
         z.push("G1X" + z3(pk[0][0] * 2) + "F" + FZ);
       }
-      pk.slice(1).forEach((p, i) => z.push("G1X" + z3(p[0] * 2) + "Y" + z3(p[1]) + "Z" + z3(p[2]) + (i === 0 ? "F" + F : "")));
-      z.push(front ? "G0Z" + z3(zSicher) : "G0X" + z3(xSicher));
+      pk.slice(1).forEach((p, i) => z.push("G1X" + z3(p[0] * 2) + "Y" + z3(p[1]) + "Z" + zA(p[2]) + (i === 0 ? "F" + F : "")));
+      z.push(front ? "G0Z" + zA(zSicher) : "G0X" + z3(xSicher));
     });
     z.push("G0Y0.");
   } else {
@@ -411,15 +422,15 @@ export function egGcode(b, g) {
       };
       z.push("( " + bn.name + " )");
       const c0 = cVon(pk[0]);
-      z.push("G0Z" + z3(pk[0][2]) + "C" + z3(((c0 % 360) + 360) % 360));
+      z.push("G0Z" + zA(pk[0][2]) + "C" + z3(((c0 % 360) + 360) % 360));
       cAlt = ((c0 % 360) + 360) % 360;
       z.push("G1X" + z3(Math.hypot(pk[0][0], pk[0][1]) * 2) + "F" + FZ);
-      pk.slice(1).forEach((p, i) => z.push("G1X" + z3(Math.hypot(p[0], p[1]) * 2) + "C" + z3(cVon(p)) + "Z" + z3(p[2]) + (i === 0 ? "F" + F : "")));
+      pk.slice(1).forEach((p, i) => z.push("G1X" + z3(Math.hypot(p[0], p[1]) * 2) + "C" + z3(cVon(p)) + "Z" + zA(p[2]) + (i === 0 ? "F" + F : "")));
       z.push("G0X" + z3(xSicher));
     });
   }
   if (!bahnen.length) z.push("( KEINE KANTE )");
-  z.push(front ? "G0Z" + z3(zSicher + 5) : "G0X" + z3(xSicher + 4));
+  z.push(front ? "G0Z" + zA(zSicher + 5) : "G0X" + z3(xSicher + 4));
   const aus = (front ? antrieb.frontAus : antrieb.querAus).split(/\r?\n/).filter((x) => x.trim()).map((x) => x.replace(/\{S\}/gi, String(s)));
   if (aus.length) aus.forEach((x) => z.push(x));
   else z.push("( " + (front ? "FRONT" : "QUER") + "WERKZEUG AUS )");

@@ -42,6 +42,7 @@ export const BF_VORGABE = {
   nutLaenge: 30,          // Front: Länge über die Stirn, ≥ Teil-Ø = durchgehend
   nutVon: 0,              // Quer: Nut von Z (0 = offen zur Stirn)
   nutBis: 12,             // Quer: bis Z
+  nutAnzahl: 1,           // Quer: Nuten gleichmässig über den Umfang (seit 1.598.0)
   sw: 16,                 // Fläche: Schlüsselweite
   flaechen: 2,            // Anzahl Flächen
   flVon: 0,               // Fläche von Z (0 = offen zur Stirn)
@@ -306,17 +307,30 @@ function nutQuer(b, z) {
   const zA = offen ? zIn(b, -r - b.sicher) : zIn(b, b.nutVon + r);
   const zE = zIn(b, b.nutBis - r);
   const xR = b.teilD + 2 * b.sicher;
-  z.push("( Laengsnut am Umfang bei C" + wink(b.startC) + ", Breite = Fraeser D" + b.fraeser + ", Tiefe " + b.nutTiefe
+  // Mehrere gleiche Nuten über den Umfang (seit 1.598.0): eine nach der
+  // anderen, je mit eigenem C, wie bei den Flächen
+  const n = nutWinkel(b);
+  z.push("( " + (n.length > 1 ? n.length + " Laengsnuten" : "Laengsnut") + " am Umfang bei C" + n.map(wink).join("/")
+    + ", Breite = Fraeser D" + b.fraeser + ", Tiefe " + b.nutTiefe
     + ", Z" + (offen ? " offen" : b.nutVon) + " bis Z" + b.nutBis + " )");
-  z.push("G0Z" + z3(zA) + "C" + wink(b.startC));
-  z.push("G0X" + z3(xR));
-  let hin = true;
-  schnitte(b.nutTiefe, b.zustellung).forEach((t) => {
-    z.push("G1X" + z3(b.teilD - 2 * t) + "F" + b.vorschubZ);
-    z.push("G1Z" + z3(hin ? zE : zA) + "F" + b.vorschub);
-    hin = !hin;
+  n.forEach((c, i) => {
+    if (n.length > 1) z.push("( Nut " + (i + 1) + " bei C" + wink(c) + " )");
+    z.push("G0Z" + z3(zA) + "C" + wink(c));
+    z.push("G0X" + z3(xR));
+    let hin = true;
+    schnitte(b.nutTiefe, b.zustellung).forEach((t) => {
+      z.push("G1X" + z3(b.teilD - 2 * t) + "F" + b.vorschubZ);
+      z.push("G1Z" + z3(hin ? zE : zA) + "F" + b.vorschub);
+      hin = !hin;
+    });
+    z.push("G0X" + z3(xR + 4));
   });
-  z.push("G0X" + z3(xR + 4));
+}
+
+// Winkel der Quernuten: gleichmässig ab „C der Nut“
+export function nutWinkel(b) {
+  const n = Math.max(1, Math.round(b.nutAnzahl) || 1);
+  return Array.from({ length: n }, (_, i) => b.startC + (360 * i) / n);
 }
 
 function flaeche(b, z) {

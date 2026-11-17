@@ -33,8 +33,8 @@ with sync_playwright() as p:
     c = code()
     pruefe("Polarinterpolation", "G12.1" in c and "G13.1" in c and c.count("( Bohrung") == 4)
     # Kugel R1.5, Fase 0.3: Kugelmitte im Abstand R/√2·… → Spitze in Z
-    zs = [z for z in zahlen(c, "Z") if z < 0]
-    pruefe("Spitze unter der Stirn, knapp", zs and all(-1.5 < z < 0 for z in zs))
+    zs = [z for z in zahlen(c, "Z") if z > 0]
+    pruefe("Spitze hinter der Stirn, knapp (Z ins Teil +)", zs and all(0 < z < 1.5 for z in zs))
     xs = zahlen(c.split("( Bohrung 1")[1].split("G0Z")[0], "X")
     pruefe("Bohrung 1 um X12 herum", xs and min(xs) > 6 and max(xs) < 18)
     pruefe("Ohne Antrieb Warnung", pg.locator(".eg-warnung").count() >= 1)
@@ -54,17 +54,17 @@ with sync_playwright() as p:
     c = code()
     pruefe("Zentrier in der Mitte: je Bohrung ein Punkt", c.count("(Mitte)") == 4 and "G12.1" in c)
     # 90°: Spitze = 2.3 unter der Stirn
-    pruefe("Zentrier 90°: Spitze Z-2.300", "Z-2.300" in c)
+    pruefe("Zentrier 90°: Spitze Z2.300", "Z2.300" in c)
     # Kontur abfahren statt Mitte, Stelle an der Schneide wählbar
     pg.select_option("[data-eg='zentrierFahrt']", "kontur"); pg.wait_for_timeout(100)
     c = code()
-    pruefe("Kontur abfahren: keine Mitte, Spitze 0.6 tief", "(Mitte)" not in c and "Z-0.600" in c and "Bohrung 1" in c)
+    pruefe("Kontur abfahren: keine Mitte, Spitze 0.6 tief", "(Mitte)" not in c and "Z0.600" in c and "Bohrung 1" in c)
     pruefe("Schieber für die Schneide da", pg.locator("#eg-ort-regler").count() == 1 and "Ø1.20 oben" in pg.text_content("#eg-sk-ort"))
     feld("ortD", 4); pg.wait_for_timeout(100)
     c = code()
-    pruefe("Ø4 an der Kante: Spitze 1.7 unter Fase, Z-2.000", pg.input_value("[data-eg='spitze']") == "1.7" and "Z-2.000" in c and "(Mitte)" not in c)
+    pruefe("Ø4 an der Kante: Spitze 1.7 unter Fase, Z2.000", pg.input_value("[data-eg='spitze']") == "1.7" and "Z2.000" in c and "(Mitte)" not in c)
     feld("ortD", 10); pg.wait_for_timeout(100)
-    pruefe("Zu gross: Warnung und grösster Ø", "Z-2.900" in code()
+    pruefe("Zu gross: Warnung und grösster Ø", "Z2.900" in code()
            and any("Schneidenposition" in t for t in pg.locator(".eg-warnung").all_inner_texts()))
     if BILD: pg.locator("#eg-skizze").screenshot(path=BILD + "/eg-skizze-ort.png")
     pg.evaluate("""() => { const r = document.querySelector('#eg-ort-regler'); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
@@ -75,7 +75,7 @@ with sync_playwright() as p:
     pruefe("Wieder Mitte", code().count("(Mitte)") == 4)
     feld("durchmesser", 4); pg.wait_for_timeout(100)
     c = code()
-    pruefe("Zentrier entlang der Kante, wenn zu klein", "(Mitte)" not in c and "Z-0.600" in c)
+    pruefe("Zentrier entlang der Kante, wenn zu klein", "(Mitte)" not in c and "Z0.600" in c)
     pg.select_option("[data-eg='fasenArt']", "tiefe"); feld("fase", 0.5)
     pruefe("Fase in der Tiefe 0.5 = Breite 0.5 bei 90°", "0.50 breit × 0.50 tief" in pg.inner_text("#eg-fase"))
     feld("winkel", 60)
@@ -110,7 +110,7 @@ with sync_playwright() as p:
     cs = zahlen(seg, "C")
     pruefe("Kugel quer ohne Y: C läuft mit", len(cs) > 20 and max(cs) - min(cs) > 5 and "Y" not in seg)
     zq = zahlen(seg, "Z")
-    pruefe("Sattel um Z-5", zq and min(zq) > -8 and max(zq) < -2)
+    pruefe("Sattel um Z5", zq and min(zq) > 2 and max(zq) < 8)
     pg.select_option("[data-eg='y']", "ja"); pg.wait_for_timeout(100)
     c = code()
     seg = c.split("( Querbohrung 2")[1].split("G0X")[0]
