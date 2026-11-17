@@ -48,6 +48,18 @@ with sync_playwright() as p:
         if z["q"] is None:
             del z["q"]; raise AssertionError("keine gezeichnete Form %s: %s" % (schritt, json.dumps(z)))
         return z["q"]
+    def runden(p1, p2, soll):
+        # Auf GitHub kamen die zwei Klicks fürs Ecke runden ab und zu nicht an (nur dort, Seite noch in Bewegung);
+        # darum vor jedem Versuch die Fläche ruhig in die Mitte holen, angefangene Wahl verwerfen und warten, bis die Meldung kommt
+        for versuch in range(3):
+            f.evaluate("document.getElementById('view').scrollIntoView({block: 'center'}); st.edit.fA = null; if ($('toast')) $('toast').textContent = ''")
+            pg.wait_for_timeout(400)
+            klick(*p1); klick(*p2)
+            try:
+                f.wait_for_function("t => (($('toast') || {}).textContent || '').includes(t)", arg=soll, timeout=4000); return True
+            except Exception:
+                print("Ecke runden, Versuch %d ohne Meldung „%s“: %s" % (versuch + 1, soll, f.evaluate("($('toast') || {}).textContent")), flush=True)
+        return False
     def klick(x, y):
         a, b = schirm(x, y); pg.mouse.click(a, b); pg.wait_for_timeout(150)
     f.evaluate("document.getElementById('view').scrollIntoView({block: 'center'})"); pg.wait_for_timeout(300)
@@ -77,17 +89,17 @@ with sync_playwright() as p:
     pruefe(len(o) == 4 and min(math.hypot(x - (60 - sp), y - (80 - sp)) for x, y in o) < 0.05, "Ecken bleiben spitz, kein Radius von selbst: %d Punkte" % len(o))
     # Ecke runden: obere und rechte Linie anklicken, R 10
     f.click("#traceFillet"); f.fill("#traceR", "10")
-    klick(100, 80); klick(120, 105); pg.wait_for_timeout(1500)
+    runden((100, 80), (120, 105), "gerundet"); pg.wait_for_timeout(1000)
     q = form0("nach Ecke runden, Werkzeug %s" % (t,))
     ecke = min(math.hypot(x - 120, y - 80) for x, y in q)
     pruefe(len(q) > 6 and 3.5 < ecke < 4.5, "Ecke mit R 10 gerundet: %d Punkte, Abstand zur alten Ecke %.2f (soll 4.14)" % (len(q), ecke))
     pruefe(all(abs(math.hypot(x - 110, y - 90) - 10) < 0.01 for x, y in q if x > 110 and y < 90), "Bogenpunkte liegen auf dem Radius")
     if BILD: pg.screenshot(path=BILD + "-radius.png")
     # zu grosser Radius meldet und ändert nichts
-    f.fill("#traceR", "100"); klick(60, 100); klick(90, 120); pg.wait_for_timeout(600)
+    f.fill("#traceR", "100"); runden((60, 100), (90, 120), "zu gross")
     pruefe(len(form0("nach zu grossem Radius")) == len(q) and "zu gross" in f.inner_text("#toast"), "zu grosser Radius: Meldung, Form bleibt")
     # Radius 0 über zwei nicht benachbarte Linien: Bogen wieder zur spitzen Ecke
-    f.fill("#traceR", "0"); klick(90, 80); klick(120, 110); pg.wait_for_timeout(1200)
+    f.fill("#traceR", "0"); runden((90, 80), (120, 110), "Spitze Ecke"); pg.wait_for_timeout(800)
     q2 = form0("nach R 0")
     pruefe(len(q2) == 4 and min(math.hypot(x - 120, y - 80) for x, y in q2) < 0.01, "R 0 setzt wieder die spitze Ecke: %d Punkte" % len(q2))
     f.evaluate("undo()"); pg.wait_for_timeout(500)
