@@ -60,3 +60,17 @@ union all
 select 'Regeln (2)',
        case when (select count(*) from pg_policies where schemaname = 'public'
          and tablename = 'zeichnung_3d_step') >= 2 then 'ok' else 'FEHLT' end;
+
+-- ---------- Einmalige Schlüssel für die Server-Funktion step-ablegen ----------
+-- Claude legt per Datenbank-Verbindung einen Schlüssel an, die Funktion
+-- prüft und löscht ihn. Keine Regeln: niemand ausser dem Server liest sie.
+create table if not exists public.zeichnung_3d_upload (
+  schluessel  text primary key,
+  eintrag     uuid not null references public.zeichnung_3d (id) on delete cascade,
+  gueltig_bis timestamptz not null default now() + interval '1 hour'
+);
+alter table public.zeichnung_3d_upload enable row level security;
+revoke all on public.zeichnung_3d_upload from anon, authenticated;
+
+select 'Tabelle zeichnung_3d_upload' as punkt,
+       case when to_regclass('public.zeichnung_3d_upload') is not null then 'ok' else 'FEHLT' end as ergebnis;
