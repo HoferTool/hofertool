@@ -14356,3 +14356,46 @@ body.dunkel .cam-ein__hinweis { color: #ffcf7a !important; }
 .cam-datum { position: relative; display: inline-flex; align-items: center; gap: 2px; }
 .cam-datum__knopf { padding: 0 4px; min-height: 0; height: 24px; }
 .cam-datum__kalender { position: absolute; left: 0; bottom: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; border: 0; padding: 0; }
+
+/* ---------- HOFER2DTO3D (seit 1.604.0): Zeichnung links, 3D-Modell rechts ---------- */
+.h3d-seite { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 12px; align-items: start; }
+.h3d-liste { display: flex; flex-direction: column; gap: 4px; padding: 8px; max-height: calc(100vh - 200px); overflow-y: auto; }
+.h3d-eintrag { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; width: 100%;
+  padding: 8px 10px; border: 1px solid transparent; border-radius: 8px; background: none; cursor: pointer; color: inherit; font: inherit; }
+.h3d-eintrag span { font-size: 13px; overflow-wrap: anywhere; }
+.h3d-eintrag:hover { background: rgba(0, 56, 132, .06); }
+.h3d-eintrag.aktiv { background: rgba(0, 56, 132, .1); border-color: var(--blau, #003884); }
+.h3d-schild { font-size: 11px !important; padding: 1px 7px; border-radius: 10px; background: #fff1d6; color: #8a5a00; font-weight: 600; }
+body.dunkel .h3d-schild { background: #5a4210; }
+.h3d-haupt { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.h3d-kopf { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; align-items: center; }
+.h3d-titel { font-size: 17px; overflow-wrap: anywhere; }
+.h3d-knoepfe { display: flex; flex-wrap: wrap; gap: 6px; }
+.h3d-zwei { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.h3d-teil { display: flex; flex-direction: column; gap: 6px; padding: 10px; min-width: 0; }
+.h3d-teil-titel { font-weight: 600; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.h3d-teil-titel .klein { font-weight: 400; overflow-wrap: anywhere; }
+.h3d-pdf { position: relative; height: calc(100vh - 250px); min-height: 420px; border-radius: 8px; overflow: hidden; background: #e9edf1; }
+.h3d-ansicht { display: flex; flex-direction: column; gap: 6px; }
+.h3d-leiste { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.h3d-haken { display: inline-flex; gap: 4px; align-items: center; font-size: 14px; margin-left: 6px; cursor: pointer; }
+.h3d-flaeche { position: relative; height: calc(100vh - 300px); min-height: 380px; border-radius: 8px; overflow: hidden;
+  background: radial-gradient(circle at 50% 40%, #ffffff, #dfe6ee); touch-action: none; }
+.h3d-flaeche--offen { height: calc(100vh - 250px); }
+body.dunkel .h3d-flaeche { background: radial-gradient(circle at 50% 40%, #2b3644, #141b24); }
+body.dunkel .h3d-pdf { background: #1b232d; }
+.h3d-flaeche canvas { display: block; }
+.h3d-hinweis { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center;
+  padding: 20px; color: #4a5866; line-height: 1.5; pointer-events: none; }
+.h3d-pdf .h3d-hinweis { position: absolute; }
+.h3d-hinweis--fehler { color: #b3261e; }
+body.dunkel .h3d-hinweis--fehler { color: #ff9b93 !important; }
+.h3d-fuss { color: #5b6876; }
+@media (max-width: 1100px) {
+  .h3d-zwei { grid-template-columns: minmax(0, 1fr); }
+  .h3d-pdf, .h3d-flaeche, .h3d-flaeche--offen { height: 70vh; min-height: 320px; }
+}
+@media (max-width: 760px) {
+  .h3d-seite { grid-template-columns: minmax(0, 1fr); }
+  .h3d-liste { max-height: 220px; }
+}

@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.604.0** (17. November 2026): Neuer Menüpunkt **HOFER2DTO3D** vor dem Einlagen Generator: Fertigungszeichnung (PDF) links, daneben das daraus gebaute STEP-Modell in 3D (drehen, zoomen, Ansichten, Schnitt) zum Herunterladen. Patrick lädt nur das PDF hoch, Claude baut das STEP (Toleranzen auf Mitte) und legt es über die Datenbank dazu (Wunsch Patrick).
 - **1.573.0** (16. November 2026): Eigene Todos lassen sich mit ✕ löschen, im Planer, in der Seitenleiste und im Fenster Abgeschlossen, eine Rückfrage, mit Rückgängig (Wunsch Patrick: „man soll todos auch löschen können“).
 - **1.572.0** (16. November 2026): Einlagen Generator: Griffmulde mit eigener Tiefe (Feld Tiefe oben), an einem Werkzeug abgestufte Tasche (Wunsch Patrick).
 - **1.571.0** (16. November 2026): Einlagen Generator: bei gespeicherten Taschen Breite und Länge, bei Kreisen den Ø direkt in der Liste ändern (Wunsch Patrick).

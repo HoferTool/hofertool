@@ -276,7 +276,8 @@ export function menueZeilen(n) {
 // Zwei Wörter brechen immer am selben Ort um (Wunsch Patrick 4. November
 // 2026: „Bei Handy-Menü soll es einen Textumbruch haben“)
 const TRENNSTELLEN = { "Qualitätssicherung": "Qualitäts\u00ADsicherung",
-  "Einlagen Generator": <>Einlagen<br />Generator</> };
+  "Einlagen Generator": <>Einlagen<br />Generator</>,
+  "HOFER2DTO3D": <>HOFER<wbr />2DTO3D</> };
 const trennbar = (t) => TRENNSTELLEN[t] || t;
 
 // Menü am Handy (Wunsch Patrick 14. Oktober 2026): unten ein breiter
