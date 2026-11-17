@@ -13,6 +13,7 @@
 // =================================================================
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
+import { lokalZurueckAnmelden, entwurfVerlauf, verlaufMerken, verlaufZurueck } from "../teile/lokalZurueck.js";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { inDerAppDrucken, istAppleFinger } from "../teile/drucken.js";
@@ -1104,6 +1105,27 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   const [vorgelesen, setVorgelesen] = useState(null);
   // Nach „Von anderem Blatt übernehmen“: Programm-Nr. muss man selbst eintragen
   const [prgPflicht, setPrgPflicht] = useState(false);
+  // Strg + Z und Knopf ↶ beim Bearbeiten: jeder Schritt am Entwurf (Platz
+  // wechseln, Werkzeug, Kopf, Seiten …) lässt sich zurücknehmen, bevor
+  // gespeichert ist (seit 1.613.0, Wunsch Patrick 17. November 2026)
+  const verlauf = useRef(null);
+  if (!verlauf.current) verlauf.current = entwurfVerlauf();
+  const [, verlaufNeu] = useState(0);
+  useEffect(() => {
+    verlaufMerken(verlauf.current, { entwurf, teilE, typE }, bearbeiten);
+    verlaufNeu((n) => n + 1);
+  }, [entwurf, teilE, typE, bearbeiten]);
+  const entwurfZurueck = () => {
+    const s = verlaufZurueck(verlauf.current);
+    if (!s) return false;
+    setEntwurf(s.entwurf); setTeilE(s.teilE); setTypE(s.typE);
+    setWechsel(null); setKopie(null);
+    alt.meldung("Zurückgenommen.");
+    return true;
+  };
+  const zurueckRef = useRef(entwurfZurueck);
+  zurueckRef.current = entwurfZurueck;
+  useEffect(() => bearbeiten ? lokalZurueckAnmelden(() => zurueckRef.current()) : undefined, [bearbeiten]);
   const prgFehlt = prgPflicht && !Object.values(entwurf.programme || {}).some((v) => String(v || "").trim());
   const seite = useRef(null);
   const { typ, paths, teil, typDaten } = daten;
@@ -1511,6 +1533,8 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
                 <span className="eba-hinweis">{istPdfSeite(zseite) ? "PDF-Seite: Name ändern oder löschen" : zseite ? "Seite antippen zum Schreiben" : "Kopf direkt ausfüllen, Platz antippen für Werkzeug"}</span>
                 {!daten.blatt && <button className="knopf knopf--klein" data-eba-von-anderem="" disabled={laeuft} onClick={vonAnderem}>Von anderem Blatt übernehmen</button>}
                 {bildKnopf}
+                <button className="knopf knopf--klein" data-eba-zurueck="" disabled={!verlauf.current.liste.length}
+                  title="Letzte Änderung zurücknehmen (Strg + Z)" onClick={entwurfZurueck}>↶ Rückgängig</button>
                 <button className="knopf knopf--klein" data-eba-abbrechen="" onClick={abbrechen}>Abbrechen</button>
                 <button className="knopf knopf--klein knopf--haupt" data-eba-speichern="" disabled={laeuft} onClick={speichern}>Speichern</button>
               </>

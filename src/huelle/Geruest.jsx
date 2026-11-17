@@ -41,6 +41,9 @@ function NavTodoPlatz() {
 // 1.610.0 bis 1.611.0 blieb es offen bzw. ging beim Klick zu).
 export const TODO_MENUE_MS = 180000;
 function todoModusDarf() {
+  // Im Prüfstand nur, wenn ein Test es will (nav_todo.py): sonst wären
+  // die Menüpunkte für alle Tests mit Admin verborgen.
+  if (window.TEST && !window.TEST.navTodos) return false;
   return planerSichtbar() && !(alt.istArchiv && alt.istArchiv()) && !istPlanerTab();
 }
 let menueUhr = 0, wechselUhr = 0;

@@ -8,6 +8,7 @@
 import { ncMelden } from "./ncAktuell.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
+import { useEntwurfZurueck } from "../../teile/lokalZurueck.js";
 import { KopfFelder } from "./kopf.jsx";
 import { GRAVUR_VORGABE, GRAVUR_SCHRIFTEN, gravurKonturen, gravurBahnen, gravurGcode, gravurDuennste } from "./gravur.js";
 
@@ -46,6 +47,8 @@ function TextFeld({ wert, setze }) {
 
 export default function Gravur() {
   const [g, setG] = useState(gemerkt);
+  // Strg + Z nimmt die letzte Eingabe zurück (seit 1.613.0, Patrick: „überall im Tool“)
+  useEntwurfZurueck(g, (s) => { Object.assign(gemerkt, s); setG(s); }, true, alt.meldung);
   const [schritt, setSchritt] = useState(0);
   const [laeuft, setLaeuft] = useState(false);
   const [kopfStand, setKopfStand] = useState(0);

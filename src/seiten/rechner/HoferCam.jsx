@@ -11,6 +11,7 @@
 import { ZiehListe } from "../../teile/ZiehListe.jsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
+import { useEntwurfZurueck } from "../../teile/lokalZurueck.js";
 import { NcAblage, NcStand } from "./NcAblage.jsx";
 import { dateiBeobachten, dateiFehler, dateiNeuWaehlen, dateienFuerName, dateienLaden, dateienSchreiben, dateienWaehlen, dateiMerken, dateiVergessen, dateiVon, kannSchreiben, schreibrechtHolen } from "./camDatei.js";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
@@ -571,6 +572,8 @@ function EigenFeld({ f, o, setze, merkmal }) {
 
 export default function HoferCam() {
   const [w, setW] = useState(gemerkt);
+  // Strg + Z nimmt die letzte Eingabe zurück (seit 1.613.0, Patrick: „überall im Tool“)
+  useEntwurfZurueck(w, (s) => { Object.keys(gemerkt).forEach((k) => delete gemerkt[k]); Object.assign(gemerkt, s); setW({ ...s }); melden(); }, true, alt.meldung);
   const [aktiv, setAktivRoh] = useState(aktivId);
   const [ueber, setUeber] = useState(null);
   const [knopfUeber, setKnopfUeber] = useState(null);

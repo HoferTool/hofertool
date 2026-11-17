@@ -10,6 +10,7 @@
 import { ncMelden } from "./ncAktuell.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
+import { useEntwurfZurueck } from "../../teile/lokalZurueck.js";
 import { KopfFelder } from "./kopf.jsx";
 import { ARTEN } from "./bohren.js";
 import { Antrieb, antriebLaden, bfAktuell, bfSetzen } from "./BohrenFraesen.jsx";
@@ -43,6 +44,8 @@ export default function Entgraten() {
   antriebLaden();
   const [b, setB] = useState(bfAktuell);
   const [g, setG] = useState(gemerkt);
+  // Strg + Z nimmt die letzte Eingabe zurück (seit 1.613.0, Patrick: „überall im Tool“)
+  useEntwurfZurueck(g, (s) => { Object.assign(gemerkt, s); setG(s); }, true, alt.meldung);
   const [stand, setStand] = useState(0);
   const [gespeichert, setGespeichertRoh] = useState(gespeichertEg);
   const setGespeichert = (z) => { gespeichertEg = z; setGespeichertRoh(z); };

@@ -8,6 +8,7 @@
 import { ncMelden } from "./ncAktuell.js";
 import { useEffect, useMemo, useState } from "react";
 import { alt } from "../../bruecke.jsx";
+import { useEntwurfZurueck } from "../../teile/lokalZurueck.js";
 import { KopfFelder } from "./kopf.jsx";
 import { CACHSE_VORGABE, cachseBahn, cachseGcode, cachsePasst, cachsePunkte, cachseTeil } from "./cachse.js";
 
@@ -31,6 +32,8 @@ const Feld = (p) => <FeldInnen key={p.name + "|" + p.wert} {...p} />;
 
 export default function CAchse() {
   const [c, setC] = useState(gemerkt);
+  // Strg + Z nimmt die letzte Eingabe zurück (seit 1.613.0, Patrick: „überall im Tool“)
+  useEntwurfZurueck(c, (s) => { Object.assign(gemerkt, s); setC(s); }, true, alt.meldung);
   const [schritt, setSchritt] = useState(0);
   const [laeuft, setLaeuft] = useState(false);
   // Vor- und Nachspann liegen ausserhalb; ändern sie sich, wird neu gerechnet

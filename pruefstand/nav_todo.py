@@ -12,6 +12,7 @@ def pruefe(ok, text):
 
 DATEN = """;
 (function(){
+  TEST.navTodos = true;
   const J = TEST.daten.jobs;
   const geplant = J.filter(j => j.plan_status === 'geplant');
   // A: früher bei Metalix und Notz, B: nur bei Notz → beides bei Notz

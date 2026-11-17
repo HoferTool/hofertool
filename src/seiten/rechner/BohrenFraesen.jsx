@@ -9,6 +9,7 @@
 import { ncMelden } from "./ncAktuell.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
+import { useEntwurfZurueck } from "../../teile/lokalZurueck.js";
 import { KopfFelder } from "./kopf.jsx";
 import { NcAblage, NcStand } from "./NcAblage.jsx";
 import {
@@ -47,6 +48,8 @@ const Feld = (p) => <FeldInnen key={p.name + "|" + p.wert} {...p} />;
 export default function BohrenFraesen() {
   antriebLaden();
   const [b, setB] = useState(gemerkt);
+  // Strg + Z nimmt die letzte Eingabe zurück (seit 1.613.0, Patrick: „überall im Tool“)
+  useEntwurfZurueck(b, (s) => { Object.assign(gemerkt, s); setB(s); }, true, alt.meldung);
   const [stand, setStand] = useState(0);
   const aendern = (neu) => { const ganz = { ...b, ...neu }; Object.assign(gemerkt, ganz); setB(ganz); };
   const setze = (name, wert) => aendern({ [name]: wert });

@@ -7,6 +7,7 @@
 import { ncMelden } from "./ncAktuell.js";
 import { useEffect, useMemo, useState } from "react";
 import { alt } from "../../bruecke.jsx";
+import { useEntwurfZurueck } from "../../teile/lokalZurueck.js";
 import { KopfFelder } from "./kopf.jsx";
 import { DXF_VORGABE, dxfLesen, dxfSkalieren, dxfMasse, dxfBahn, dxfGcode } from "./dxf.js";
 
@@ -29,6 +30,8 @@ const Feld = (p) => <FeldInnen key={p.name + "|" + (p.anzeige !== undefined ? p.
 
 export default function Dxf() {
   const [d, setD] = useState(gemerkt);
+  // Strg + Z nimmt die letzte Eingabe zurück (seit 1.613.0, Patrick: „überall im Tool“)
+  useEntwurfZurueck(d, (s) => { Object.assign(gemerkt, s); setD(s); }, true, alt.meldung);
   const [schritt, setSchritt] = useState(0);
   const [laeuft, setLaeuft] = useState(false);
   const [kopfStand, setKopfStand] = useState(0);

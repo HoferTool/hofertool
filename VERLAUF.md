@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.613.0 — Strg + Z überall (17. November 2026)
+
+Wunsch Patrick: „man soll jegliche Sachen mit Strg + Z rückgängig machen können, bsp. bei EB bearbeiten habe ich Platz gewechselt … also überall im Tool, egal wo“. Strg + Z nimmt jetzt zuerst ungespeicherte Änderungen zurück (Einrichtblatt beim Bearbeiten samt Platz wechseln und Kopieren, mit Knopf „↶ Rückgängig“ fürs iPad; HOFERCAM, HOFERCONTUR, Bohren / Fräsen, Entgraten, C-Achse, Gravur, DXF), sonst wie bisher den letzten gespeicherten Schritt, und das auch bei offenen Fenstern. Neu `src/teile/lokalZurueck.js`. Im Prüfstand ist der Todo-Modus der Seitenleiste nur noch mit `TEST.navTodos` an, weil seit 1.606.0 rund 50 Tests die Menüpunkte nicht mehr fanden. Prüfstand `eb_rueckgaengig.py`, `nc_rueckgaengig.py`.
+
 ## 1.611.1 — Menü der Seitenleiste nach 3 Minuten zurück (17. November 2026)
 
 Wunsch Patrick: „war dumm, es soll nicht nach Klicken weg, soll nach 3 min statt einer weg“. Ein Klick auf einen Menüpunkt schliesst das Menü nicht mehr; nach 3 Minuten ohne Maus oder Taste in der Seitenleiste zeigt sie wieder die Todos (`TODO_MENUE_MS` in `Geruest.jsx`). Der Fix gegen das Feld über den Todos und die Reiter der Seite im Todo-Modus aus 1.611.0 bleiben. Prüfstand `nav_todo.py`.

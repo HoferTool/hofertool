@@ -18,6 +18,7 @@ import { inEigenesFenster } from "../../teile/eigenesFenster.js";
 import { schnittAusStep, konturAusSchnitt, elementeAusZug, modellUndKanten } from "./step.js";
 import Modell3D from "./Modell3D.jsx";
 import { ncMelden } from "./ncAktuell.js";
+import { lokalZurueckAnmelden } from "../../teile/lokalZurueck.js";
 import { istModulTab as imModulTab } from "./modulTab.jsx";
 import { konturRechnen, bahnRechnen, ncProgrammZeilen, bogenWinkel, umkehren, startRichtung, SPITZEN, FREISTICHE, freistichMasse, istFreistich } from "./kontur.js";
 
@@ -190,6 +191,15 @@ function KonturRechner({ imFenster }) {
     aendern(vorher, true);
     if (wahl >= (vorher.elemente || []).length) setWahl(-1);
   };
+  // Strg + Z nimmt hier denselben Schritt zurück wie der Knopf (Wunsch
+  // Patrick 17. November 2026: „überall im Tool, egal wo“).
+  const zurueckRef = useRef(zurueck);
+  zurueckRef.current = zurueck;
+  useEffect(() => lokalZurueckAnmelden(() => {
+    if (!verlauf.current.length) return false;
+    zurueckRef.current();
+    return true;
+  }), []);
   const elementAendern = (i, neu) => aendern({ elemente: k.elemente.map((e, j) => (j === i ? { ...e, ...neu } : e)) });
   const elementWeg = (i) => { aendern({ elemente: k.elemente.filter((_, j) => j !== i) }); setWahl(-1); };
   // Feld X eines Elements in der Liste anspringen (Wunsch Patrick

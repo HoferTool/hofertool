@@ -8,6 +8,7 @@
 // =================================================================
 
 import { alt, reactSeite, reactAufraeumen } from "../bruecke.jsx";
+import { lokalZurueck } from "../teile/lokalZurueck.js";
 import { WERKSTOFFE } from "../daten/schnittwerte.js";
 import { materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import { aehnlicheTreffer } from "../daten/aehnlich.js";
@@ -166,7 +167,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.612.1";
+const APP_VERSION = "1.613.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -646,10 +647,14 @@ function istTextfeld(el) {
 document.addEventListener("keydown", (e) => {
   if (!((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "z")) return;
   if (istTextfeld(e.target)) return;
-  // Offenes Fenster: dort gibt es nichts zurückzunehmen. Im kleinen
-  // Notizbuch nimmt die Seite selbst zurück, wenn man zuletzt dort war.
-  // Ausnahme: die Einkaufsliste als Fenster, dort wird gelöscht und abgehakt
-  if (!nurEinkaufOffen() && document.querySelector(".dialog-huelle, .nb-schwebend[data-aktiv='1']")) return;
+  // Zuerst ein offener Entwurf (Einrichtblatt beim Bearbeiten …), seit 1.613.0
+  if (lokalZurueck()) { e.preventDefault(); return; }
+  // Das Notizbuch nimmt selbst zurück. Seit 1.613.0 geht Strg + Z auch bei
+  // offenem Fenster (Wunsch Patrick: „überall, egal was“), vorher nur
+  // ohne Fenster oder in der Einkaufsliste.
+  const fenster = document.querySelectorAll(".dialog-huelle");
+  const oben = fenster[fenster.length - 1];
+  if ((oben && oben.classList.contains("nb-huelle")) || (!oben && document.querySelector(".nb-schwebend[data-aktiv='1']"))) return;
   e.preventDefault();
   schrittZurueck();
 });
