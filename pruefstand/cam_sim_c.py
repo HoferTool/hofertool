@@ -110,7 +110,21 @@ with sync_playwright() as p:
     pg.click("#cam-sim-start"); pg.wait_for_timeout(500); pg.wait_for_function(halt, timeout=40000)
     n2 = int(pg.get_attribute("#cam-sim-bild", "data-cam-sim-n"))
     pruefe("Einzeln: dann nach Bearbeitung 2 (%d, Ende %d)" % (n2, sch[1][1]), n2 == sch[1][1])
-    pg.uncheck("#cam-sim-einzeln")
+    # Einzelsatz (1.589.0): fährt nur die nächste NC-Zeile mit Bewegung
+    pg.check("#cam-sim-satz")
+    pruefe("Einzelsatz schaltet Einzeln aus", not pg.is_checked("#cam-sim-einzeln"))
+    pg.click("#cam-sim-anfang")
+    pg.wait_for_timeout(300)
+    pruefe("Einzelsatz zeigt die nächste Zeile", "als Nächstes" in pg.text_content("#cam-sim-zeile"))
+    grenzen = pg.evaluate("""() => { const s = document.querySelector('#cam-sim-bild').__sim.schritte.find((x) => x.punkte.length);
+      const r = []; for (let k = 1; k <= s.punkte.length; k++) if (k === s.punkte.length || s.punkte[k].nr !== s.punkte[k - 1].nr) r.push(s.von + k);
+      return r; }""")
+    for i in range(3):
+        pg.click("#cam-sim-start"); pg.wait_for_timeout(200); pg.wait_for_function(halt, timeout=40000)
+        ns = int(pg.get_attribute("#cam-sim-bild", "data-cam-sim-n"))
+        pruefe("Einzelsatz %d: hält am Ende der Zeile (%d, erwartet %d)" % (i + 1, ns, grenzen[i]), ns == grenzen[i])
+    pg.locator("#cam-sim").screenshot(path=S + "simc_satz.png")
+    pg.uncheck("#cam-sim-satz")
     t0 = time.time(); pg.click("#cam-sim-ende"); pg.wait_for_timeout(50)
     pg.evaluate("() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))")
     print("Fertigteil gezeichnet in %.2f s" % (time.time() - t0))

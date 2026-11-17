@@ -14245,3 +14245,5 @@ body.dunkel .cam-fehltext { color: #ff8a80 !important; }
 .nc-modultab .ncpro-titel { font-size: 1.25rem; }
 .nc-modultab__knoepfe { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-left: auto; }
 .nc-modultab__hinweis { font-weight: 400; opacity: .75; }
+/* Einzelsatz der 3D-Simulation (seit 1.589.0) */
+.cam-sim__naechst { opacity: .65; }

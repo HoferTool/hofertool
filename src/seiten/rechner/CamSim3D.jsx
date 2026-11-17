@@ -453,6 +453,16 @@ const STATUS = {
   fehlt: "Werkzeug fehlt, nur Bahn", nurBahn: "Drehwerkzeug an Front: nur Bahn", nurBahnA: "Drehplatte am angetriebenen Werkzeug: nur Bahn", leer: "keine Wege",
 };
 
+// Einzelsatz: Ende der NC-Zeile, zu der der nächste Punkt ab „ab“ gehört
+// (alle Punkte einer Zeile tragen dieselbe Nummer nr)
+export function satzEnde(s, ab) {
+  let k = Math.max(ab, s.von);
+  if (k >= s.bis) return s.bis;
+  const nr = s.punkte[k - s.von].nr;
+  while (k + 1 < s.bis && s.punkte[k + 1 - s.von].nr === nr) k++;
+  return k + 1;
+}
+
 function Simulation({ w, zu }) {
   const sim = useMemo(() => simAufbauen(w), [w]);
   const cache = useRef(new Map());
@@ -463,6 +473,19 @@ function Simulation({ w, zu }) {
   // für Bearbeitung laufen zu lassen“): hält am Ende jeder Bearbeitung an,
   // Abspielen fährt mit der nächsten weiter; je Gerät gemerkt
   const [einzeln, setEinzeln] = useState(() => { try { return localStorage.getItem("hofer.camSim.einzeln") === "1"; } catch { return false; } });
+  // Seit 1.589.0 (Wunsch Patrick 17. November 2026: „die Simulation auch im
+  // Einzelsatz machen können“): wie Einzelsatz an der Steuerung fährt
+  // Abspielen nur die nächste NC-Zeile mit Bewegung und hält dann an
+  const [satz, setSatz] = useState(() => { try { return localStorage.getItem("hofer.camSim.satz") === "1"; } catch { return false; } });
+  const halten = (art, an) => {
+    const paar = [["einzeln", setEinzeln], ["satz", setSatz]];
+    for (const [k, f] of paar) {
+      const wert = k === art ? an : false;
+      if (k !== art && !an) continue;
+      f(wert);
+      try { localStorage.setItem("hofer.camSim." + k, wert ? "1" : "0"); } catch { /* egal */ }
+    }
+  };
   const ziel = useRef(0);
   // Seit 1.580.0: Maschine (Werkzeugträger Kanal 1, Spindelstock) zeigen, je Gerät gemerkt
   const [maschineAn, setMaschineAn] = useState(() => { try { return localStorage.getItem("hofer.camSim.maschine") !== "0"; } catch { return true; } });
@@ -683,7 +706,7 @@ function Simulation({ w, zu }) {
     const win = (leinwand.current && leinwand.current.ownerDocument.defaultView) || window;
     const weiter = () => {
       setN((x) => {
-        const bis = einzeln && ziel.current > 0 ? Math.min(gesamt, ziel.current) : gesamt;
+        const bis = (einzeln || satz) && ziel.current > 0 ? Math.min(gesamt, ziel.current) : gesamt;
         const neu = Math.min(bis, x + Math.max(1, Math.round(Number(tempo) * 6)));
         if (neu >= bis) setLaeuft(false);
         return neu;
@@ -692,7 +715,7 @@ function Simulation({ w, zu }) {
     };
     id = win.requestAnimationFrame(weiter);
     return () => win.cancelAnimationFrame(id);
-  }, [laeuft, tempo, gesamt, einzeln]);
+  }, [laeuft, tempo, gesamt, einzeln, satz]);
 
   // Drehen und Zoomen wie in der 3D-Ansicht der Kontur
   const runter = (e) => {
@@ -721,6 +744,13 @@ function Simulation({ w, zu }) {
 
   const p = akt && n > akt.von ? akt.punkte[Math.min(n, akt.bis) - akt.von - 1] : null;
   const zeile = p && akt.zeilen ? String(akt.zeilen[p.nr] || "").trim() : "";
+  // Im Einzelsatz auch die Zeile, die als Nächste kommt
+  const naechst = (() => {
+    if (!satz || n >= gesamt) return "";
+    const s = schritte.find((x) => x.von <= n && n < x.bis);
+    const q = s && s.punkte[n - s.von];
+    return q && s.zeilen ? String(s.zeilen[q.nr] || "").trim() : "";
+  })();
   return (
     <div className="dialog cam-sim" id="cam-sim">
       <div className="cam-sim__kopf">
@@ -743,7 +773,7 @@ function Simulation({ w, zu }) {
               if (n >= gesamt) setN(0);
               // Ende der Bearbeitung, in der es weitergeht
               const s = schritte.find((x) => x.punkte.length && x.bis > ab);
-              ziel.current = s ? s.bis : gesamt;
+              ziel.current = s ? (satz ? satzEnde(s, ab) : s.bis) : gesamt;
               setLaeuft(true);
             }}>
               {laeuft ? "⏸ Pause" : "▶ Abspielen"}</button>
@@ -754,7 +784,9 @@ function Simulation({ w, zu }) {
                 {TEMPI.map(([x, t]) => <option key={x} value={x}>{t}</option>)}
               </select></label>
             <label className="schalter" title="Abspielen hält am Ende jeder Bearbeitung an, nochmals Abspielen fährt die nächste"><input type="checkbox" id="cam-sim-einzeln" checked={einzeln}
-              onChange={(e) => { setEinzeln(e.target.checked); try { localStorage.setItem("hofer.camSim.einzeln", e.target.checked ? "1" : "0"); } catch { /* egal */ } }} /><span>Einzeln</span></label>
+              onChange={(e) => halten("einzeln", e.target.checked)} /><span>Einzeln</span></label>
+            <label className="schalter" title="Einzelsatz: Abspielen fährt nur die nächste NC-Zeile und hält dann an"><input type="checkbox" id="cam-sim-satz" checked={satz}
+              onChange={(e) => halten("satz", e.target.checked)} /><span>Einzelsatz</span></label>
             <label className="schalter" title="Werkzeugträger, Spindelstock und Gegenspindel zeigen"><input type="checkbox" id="cam-sim-maschine" checked={maschineAn}
               onChange={(e) => { setMaschineAn(e.target.checked); try { localStorage.setItem("hofer.camSim.maschine", e.target.checked ? "1" : "0"); } catch { /* egal */ } }} /><span>Maschine</span></label>
             <label className="schalter"><input type="checkbox" id="cam-sim-schnitt" checked={schnitt} onChange={(e) => setSchnitt(e.target.checked)} /><span>Aufgeschnitten</span></label>
@@ -763,7 +795,8 @@ function Simulation({ w, zu }) {
             <input type="range" min={0} max={gesamt} value={n} className="cam-sim__regler" id="cam-sim-regler"
               onChange={(e) => { setLaeuft(false); setN(Number(e.target.value)); }} />
           </div>
-          <div className="cam-sim__zeile" id="cam-sim-zeile">{zeile ? "Zeile: " + zeile : " "}</div>
+          <div className="cam-sim__zeile" id="cam-sim-zeile">{zeile ? "Zeile: " + zeile : " "}
+            {naechst && <span className="cam-sim__naechst" id="cam-sim-naechst"> · als Nächstes: {naechst}</span>}</div>
         </div>
         <div className="cam-sim__liste">
           <b className="klein">Bearbeitungen</b>
