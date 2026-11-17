@@ -14483,3 +14483,80 @@ body.dunkel #pad .pad__meldungen--offen .pad__meldungen-zahl { color: #b42318 !i
    (Patrick 17. November 2026: „es bugt manchmal“). */
 body.nav--todos .nav.fx-gleit::before,
 body.nav--menue-weg .nav.fx-gleit::before { display: none; }
+
+/* =================================================================
+   UMFRAGEN auf der Startseite (seit 1.612.0, Wunsch Patrick 17. Nov. 2026)
+   Vorschläge als Kärtchen mit Bild, antippen wählt (blauer Rand),
+   nach dem Abstimmen Balken in Firmenblau, der vorderste etwas kräftiger.
+   ================================================================= */
+.umf { border-top: 1px solid var(--linie); padding-top: 12px; margin-top: 12px; }
+.umf-karte .karte__kopf + .umf, .umf-karte .karte__kopf + .hinweis + .umf { border-top: 0; padding-top: 0; margin-top: 4px; }
+.umf__kopf { display: flex; gap: 10px; align-items: baseline; justify-content: space-between; flex-wrap: wrap; }
+.umf__titel { margin: 0; font-size: 19px; color: var(--marke); overflow-wrap: anywhere; }
+.umf__admin { display: flex; gap: 12px; flex-wrap: wrap; }
+.umf__text { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.umf__bild { display: block; margin: 10px 0 0; padding: 0; border: 0; background: none; cursor: zoom-in; max-width: 520px; }
+.umf__bild img { display: block; width: 100%; max-height: 300px; object-fit: cover; border-radius: var(--radius);
+  border: 1px solid var(--linie); }
+.umf__info { margin: 8px 0 8px; color: var(--gedaempft); }
+.umf__vorschlaege { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.umf-v { position: relative; display: flex; flex-direction: column; border: 2px solid var(--linie);
+  border-radius: 8px; background: var(--flaeche); overflow: hidden; transition: border-color .15s, box-shadow .15s, transform .15s; }
+.umf-v--waehlbar { cursor: pointer; }
+.umf-v--waehlbar:hover { border-color: var(--linie-stark); }
+.umf-v--waehlbar:focus-visible { outline: 2px solid var(--marke); outline-offset: 2px; }
+.umf-v--an { border-color: var(--marke); box-shadow: 0 0 0 3px var(--marke-hell); }
+.umf-v--vorne { border-color: var(--marke); }
+.umf-v__bild { position: relative; aspect-ratio: 4 / 3; background: var(--grund); }
+.umf-v__bild img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.umf-v__lupe { position: absolute; top: 6px; right: 6px; width: 30px; height: 30px; border-radius: 50%; border: 0;
+  background: rgba(0, 0, 0, .5); color: #fff; font-size: 15px; cursor: zoom-in; }
+.umf-v__unten { display: flex; gap: 8px; align-items: center; padding: 9px 10px; }
+.umf-v__wahl { flex: none; width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--linie-stark);
+  display: grid; place-items: center; font-size: 13px; font-weight: 700; color: #fff; }
+.umf-v__wahl--eckig { border-radius: 5px; }
+.umf-v--an .umf-v__wahl { background: var(--marke); border-color: var(--marke); }
+.umf-v__text { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: break-word; hyphens: auto; }
+.umf-v__zahl { flex: none; font-weight: 700; color: var(--marke); font-size: 18px; }
+.umf-v__balken { height: 6px; margin: 0 10px 10px; background: var(--grund); border-radius: 3px; overflow: hidden; }
+.umf-v__balken span { display: block; height: 100%; background: var(--marke); opacity: .55; border-radius: 3px;
+  transition: width .5s cubic-bezier(.2, .8, .2, 1); }
+.umf-v--vorne .umf-v__balken span { opacity: 1; }
+.umf-v__namen { padding: 0 10px 10px; color: var(--gedaempft); overflow-wrap: anywhere; }
+.umf__abstimmen { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+.umf__name { flex: 1 1 200px; max-width: 320px; min-width: 0; padding: 9px 11px; font: inherit;
+  border: 1px solid var(--linie-stark); border-radius: var(--radius); background: var(--flaeche); color: var(--tinte); }
+.umf__name.fehlt { border-color: var(--gefahr); }
+.umf__danke { margin: 12px 0 0; display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap; color: var(--gut); }
+.umf--zu .umf__titel { color: var(--tinte); }
+.umf-zu { margin-top: 14px; }
+.umf-zu > summary { cursor: pointer; color: var(--gedaempft); font-weight: 600; }
+
+/* Fenster Neue Umfrage */
+.umf-bearbeiten { width: min(680px, 100%); }
+.umf-bearbeiten .feld textarea { width: 100%; }
+.umf-b__bildzeile { margin: 6px 0 10px; }
+.umf-b__bild { position: relative; display: inline-block; max-width: 100%; }
+.umf-b__bild img { display: block; max-width: 100%; max-height: 180px; border-radius: var(--radius); border: 1px solid var(--linie); }
+.umf-b__bild .am-bilder__weg, .umf-b__vbild .am-bilder__weg { position: absolute; top: 4px; right: 4px; }
+.umf-b__haken { display: flex; gap: 8px; align-items: center; margin: 4px 0 10px; }
+.umf-b__titel { margin: 14px 0 8px; font-size: 16px; }
+.umf-b__liste { display: grid; gap: 8px; }
+.umf-b__v { display: grid; grid-template-columns: 76px 1fr auto; gap: 8px; align-items: center;
+  border: 1px solid var(--linie); border-radius: var(--radius); padding: 6px; }
+.umf-b__v input { min-width: 0; padding: 8px 10px; font: inherit; border: 1px solid var(--linie-stark);
+  border-radius: var(--radius); background: var(--flaeche); color: var(--tinte); }
+.umf-b__vbild { position: relative; width: 76px; height: 57px; }
+.umf-b__vbild img { width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius); }
+.umf-b__vbild .am-bilder__weg { top: 2px; right: 2px; padding: 0 5px; }
+.umf-b__vdazu { width: 100%; height: 100%; border: 2px dashed var(--linie-stark); border-radius: var(--radius);
+  background: none; color: var(--gedaempft); font: inherit; font-size: 13px; cursor: pointer; }
+.umf-b__vdazu:hover { border-color: var(--marke); color: var(--marke); }
+.umf-b__vknoepfe { display: flex; gap: 4px; align-items: center; }
+@media (max-width: 520px) {
+  .umf__vorschlaege { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .umf-b__v { grid-template-columns: 60px 1fr; }
+  .umf-b__vbild { width: 60px; height: 45px; }
+  .umf-b__vknoepfe { grid-column: 1 / -1; justify-content: flex-end; }
+}
+body.dunkel .umf-v__lupe { background: rgba(0, 0, 0, .6); }

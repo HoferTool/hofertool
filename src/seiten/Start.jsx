@@ -21,6 +21,7 @@ import OhneWbg from "./start/OhneWbg.jsx";
 import KalenderKarte from "./start/Kalender.jsx";
 import Systemzustand from "./start/Systemzustand.jsx";
 import NeuesTutorial from "./start/NeuesTutorial.jsx";
+import Umfragen from "./start/Umfragen.jsx";
 
 // Externe und Dienst fragen gar nicht erst nach Problemen
 const keineProbleme = async () => [];
@@ -63,6 +64,8 @@ export default function Start({ auffrischen }) {
       {/* Termine der nächsten zwei Wochen, statt des Reiters Kalender
           (Wunsch Patrick 30. Oktober 2026) */}
       <KalenderKarte auffrischen={auffrischen} />
+      {/* Umfragen mit Abstimmen per Name (Wunsch Patrick 17. November 2026) */}
+      <Umfragen auffrischen={auffrischen} />
       {/* Maschinen ohne Stückzahl von heute oder ohne Stückzeit
           (Wunsch Patrick 26. Oktober 2026) */}
       <HeuteOffen auffrischen={auffrischen} />
