@@ -38,7 +38,7 @@ import { PRIO } from "../daten/einkauf.js";
 import { padZeichnen, padAbbauen, padGeraetZustand } from "../pad/Pad.jsx";
 import { planAuftragDialog } from "../planwand/AuftragFenster.jsx";
 import { nachfragen, dialogFelder, auswahlDialog } from "../teile/Dialoge.jsx";
-import { geruestZeichnen, geruestAbbauen, navAktiv } from "../huelle/Geruest.jsx";
+import { geruestZeichnen, geruestAbbauen, navAktiv, navTodoAnwenden } from "../huelle/Geruest.jsx";
 import { sucheOeffnen } from "../huelle/SucheAlles.jsx";
 import { anmeldungZeigen } from "../huelle/Anmeldung.jsx";
 import { sucheDialog, sucheLeisteZeigen, sucheLeisteWeg } from "../planwand/Suche.jsx";
@@ -166,7 +166,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.605.2";
+const APP_VERSION = "1.606.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -11380,6 +11380,7 @@ function zeichneGeruest() {
   knopfRueckgaengigZeigen();
 
   if (einstellungWert("navschmal", "0") === "1") document.body.classList.add("nav--schmal");
+  navTodoAnwenden();
 
   // Nach fünf Minuten ohne Eingabe wird abgemeldet. 10 Sekunden vorher
   // erscheint eine Warnung; jede Berührung, jeder Klick, jede Taste

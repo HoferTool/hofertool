@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.606.0** (17. November 2026): Admins sehen in der Seitenleiste zuerst die Todos; ☰ zeigt das Menü, nach 1 Minute kommen die Todos zurück, einklappen geht für Admins nicht mehr; Titel „Todos“ öffnet das Planer-Dashboard. Knopf ☰ springt nach der Drehung nicht mehr (für alle). Pad: Zahl im roten Knopf „Offene Meldungen“ im dunklen Modus lesbar (Wunsch Patrick).
 - **1.605.0** (17. November 2026): HOFER2DTO3D mit Poolordner: PDFs in einen Ordner legen, „Jetzt umwandeln“ übernimmt sie und schiebt sie nach „_Übernommen“; Claude holt offene Zeichnungen stündlich ab oder sofort auf Zuruf (Wunsch Patrick).
 - **1.604.0** (17. November 2026): Neuer Menüpunkt **HOFER2DTO3D** vor dem Einlagen Generator: Fertigungszeichnung (PDF) links, daneben das daraus gebaute STEP-Modell in 3D (drehen, zoomen, Ansichten, Schnitt) zum Herunterladen. Patrick lädt nur das PDF hoch, Claude baut das STEP (Toleranzen auf Mitte) und legt es über die Datenbank dazu (Wunsch Patrick).
 - **1.573.0** (16. November 2026): Eigene Todos lassen sich mit ✕ löschen, im Planer, in der Seitenleiste und im Fenster Abgeschlossen, eine Rückfrage, mit Rückgängig (Wunsch Patrick: „man soll todos auch löschen können“).

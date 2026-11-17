@@ -14404,3 +14404,44 @@ body.dunkel .h3d-hinweis--fehler { color: #ff9b93 !important; }
   .h3d-seite { grid-template-columns: minmax(0, 1fr); }
   .h3d-liste { max-height: 220px; }
 }
+
+/* ---------- Knopf ☰: Zeichen springt nach der Drehung nicht mehr (1.606.0) ----------
+   Patrick 17. November 2026: „das Zeichen springt von oben nach unten nach
+   der Animation“. Das Schriftzeichen ☰ lag nach der Drehung einen halben
+   Punkt anders. Jetzt drei Striche als Bild, genau mittig. */
+@media (min-width: 780px) {
+  .kopf__klapp { display: grid; place-items: center; padding: 0; line-height: 1; }
+}
+.kopf__klapp-bild { display: block; fill: currentColor; }
+
+/* ---------- Admins: Seitenleiste zeigt die Todos, ☰ holt das Menü (1.606.0) ----------
+   Wunsch Patrick 17. November 2026: Admins klappen nicht mehr ein; oben stehen
+   die Todos, der Knopf ☰ zeigt eine Minute lang das Menü. Klassen setzt
+   menueZeigen in Geruest.jsx (nav--todos / nav--zeigt-menue am body). */
+@media (min-width: 780px) {
+  body.nav--todos .nav > .nav__punkt, body.nav--todos .nav > .nav__unter { display: none; }
+  body.nav--todos .nav-todo { margin-top: 6px; border-top: none; padding-top: 0;
+    animation: nav-modus-ein .28s ease both; }
+  body.nav--zeigt-menue .nav-todo { display: none; }
+  body.nav--zeigt-menue .nav > .nav__punkt { animation: nav-modus-ein .28s ease both;
+    animation-delay: calc(var(--n, 0) * 12ms); }
+  body.nav--todos .rahmen, body.nav--zeigt-menue .rahmen { grid-template-columns: 236px 1fr; }
+  .kopf__klapp--auf { background: var(--marke); color: #fff; border-color: var(--marke); }
+  body.dunkel .kopf__klapp--auf { color: #fff !important; }
+  @keyframes nav-modus-ein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    body.nav--todos .nav-todo, body.nav--zeigt-menue .nav > .nav__punkt { animation: none; }
+  }
+}
+
+/* Pad: Zahl im Knopf „Offene Meldungen“ war im dunklen Modus weiss auf
+   weiss (body.dunkel * macht jede Schrift weiss). Patrick 17. November 2026. */
+body.dunkel #pad .pad__meldungen--offen .pad__meldungen-zahl { color: #b42318 !important; }
+
+/* Titel „Todos“ in der Seitenleiste öffnet das Planer-Dashboard (1.606.0,
+   Wunsch Patrick 17. November 2026) */
+.pl-titelknopf { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  border-radius: 6px; padding: 1px 4px; margin-left: -4px; }
+.pl-titelknopf:hover, .pl-titelknopf:focus-visible { background: color-mix(in srgb, var(--marke) 12%, transparent); }
+.pl-titelpfeil { font-size: .8em; opacity: .55; }
+.pl-titelknopf:hover .pl-titelpfeil { opacity: 1; }

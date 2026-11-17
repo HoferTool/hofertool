@@ -14,7 +14,7 @@
 import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { padZurueck } from "./Pad.jsx";
-import { istPlanerTab, planerTabVerlassen, planerSichtbar } from "./planerTab.js";
+import { istPlanerTab, planerTabVerlassen, planerSichtbar, planerTabOeffnen } from "./planerTab.js";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { planwandFensterOeffnen } from "./PlanwandFenster.jsx";
 import { planerLaden, zuBestellen, wahlSetzen, regelnLaden, regelnSpeichern, lieferbarText, lieferantLogoDaten, todoNeu, todoHaken, todoAendern, todoLoeschen } from "../daten/planer.js";
@@ -129,7 +129,7 @@ function lieferantenFenster(neu) {
 
 // ---------- Todo ----------
 
-function Todos({ d, neu, titel, oeffnen = planwandFensterOeffnen }) {
+function Todos({ d, neu, titel, oeffnen = planwandFensterOeffnen, titelKlick }) {
   const heute = d.heute;
   const bald = alt.plusTage(heute, 7);
   const posten = [];
@@ -189,7 +189,10 @@ function Todos({ d, neu, titel, oeffnen = planwandFensterOeffnen }) {
       </div>
       <section className="pl-karte pl-todo">
         <div className="pl-kopf">
-          <h2>{titel || "Todo"} {offen > 0 && <span className="pl-anzahl">{offen}</span>}</h2>
+          {titelKlick
+            ? <h2><button className="pl-titelknopf" id="nav-todo-dashboard" title="Planer-Dashboard öffnen (eigener Tab)"
+                onClick={titelKlick}>{titel || "Todo"} {offen > 0 && <span className="pl-anzahl">{offen}</span>} <span className="pl-titelpfeil" aria-hidden="true">↗</span></button></h2>
+            : <h2>{titel || "Todo"} {offen > 0 && <span className="pl-anzahl">{offen}</span>}</h2>}
           {d.todos !== null && <span className="pl-gruppe">
             <button className="pl-knopf" id="pl-abgeschlossen" title="Erledigte Todos ansehen oder wieder öffnen"
               onClick={() => abgeschlossenFenster(d, neu)}>✓ Abgeschlossen{erledigt.length > 0 ? " (" + erledigt.length + ")" : ""}</button>
@@ -525,5 +528,5 @@ export function NavTodos() {
   // (seit 1.556.1, Patrick 15. November 2026: „soll zur Planwand gehen und
   // nicht so komisch öffnen“)
   const oeffnen = (j) => alt.balkenZeigen(j.id);
-  return <div className="nav-todo" id="nav-todo"><Todos d={d} neu={neu} titel="Todos" oeffnen={oeffnen} /></div>;
+  return <div className="nav-todo" id="nav-todo"><Todos d={d} neu={neu} titel="Todos" oeffnen={oeffnen} titelKlick={planerTabOeffnen} /></div>;
 }

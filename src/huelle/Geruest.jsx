@@ -32,6 +32,37 @@ function NavTodoPlatz() {
   return darf && Teil ? <Teil /> : null;
 }
 
+// Admins: Seitenleiste zeigt die Todos, der Knopf ☰ holt das Menü für
+// eine Minute (seit 1.606.0, Wunsch Patrick 17. November 2026: „admins
+// das Menü nicht einklappen können … oben auf den Button kommt das Menü,
+// sonst steht ganz oben Todos … nach 1 min verschwindet es wieder“).
+// Die Minute zählt ab der letzten Bewegung in der Leiste, damit das
+// Menü nicht mitten im Suchen verschwindet.
+export const TODO_MENUE_MS = 60000;
+function todoModusDarf() {
+  return planerSichtbar() && !(alt.istArchiv && alt.istArchiv()) && !istPlanerTab();
+}
+let menueUhr = 0;
+let menueSetzen = () => {};
+function menueZeigen(an) {
+  clearTimeout(menueUhr);
+  const b = document.body;
+  if (!todoModusDarf()) { b.classList.remove("nav--todos", "nav--zeigt-menue"); return; }
+  b.classList.remove("nav--schmal", "nav--klappt-auf", "nav--klappt-zu");
+  b.classList.toggle("nav--todos", !an);
+  b.classList.toggle("nav--zeigt-menue", !!an);
+  menueSetzen(!!an);
+  if (an) menueUhr = setTimeout(() => menueZeigen(false), (window.TEST && window.TEST.todoMenueMs) || TODO_MENUE_MS);
+}
+// Nach zeichneGeruest (das nav--schmal aus der Einstellung setzt) nochmals
+// anwenden: Admins mit Todos klappen nie ein.
+export function navTodoAnwenden() {
+  if (todoModusDarf()) menueZeigen(document.body.classList.contains("nav--zeigt-menue"));
+}
+function menueNochDa() {
+  if (document.body.classList.contains("nav--zeigt-menue")) menueZeigen(true);
+}
+
 let wurzel = null;
 let aktivSetzen = () => {};
 
@@ -184,7 +215,17 @@ function Geruest() {
 
   const anzeige = (profil && (profil.full_name || profil.email)) || "";
   const navSeiten = alt.SEITEN.filter((s) => !s.gruppe && alt.seiteSichtbar(s.pfad));
+  const [menueAuf, setMenueAuf] = useState(false);
+  const todoModus = todoModusDarf();
+  useLayoutEffect(() => {
+    menueSetzen = setMenueAuf;
+    menueZeigen(false);
+    return () => { clearTimeout(menueUhr); menueSetzen = () => {};
+      document.body.classList.remove("nav--todos", "nav--zeigt-menue"); };
+  }, []);
   const klappen = () => {
+    // Admins klappen nicht ein: der Knopf wechselt zwischen Todos und Menü
+    if (todoModus) { menueZeigen(!document.body.classList.contains("nav--zeigt-menue")); return; }
     const b = document.body;
     const schmal = !b.classList.contains("nav--schmal") || b.classList.contains("nav--klappt-zu");
     alt.einstellungSetzenWert("navschmal", schmal ? "1" : "0");
@@ -200,7 +241,15 @@ function Geruest() {
   return (
     <>
       <header className="kopf">
-        <button className="kopf__klapp" id="nav-klapp" title="Menü ein- oder ausklappen" onClick={klappen}>☰</button>
+        <button className={"kopf__klapp" + (todoModus && menueAuf ? " kopf__klapp--auf" : "")} id="nav-klapp"
+          title={todoModus ? (menueAuf ? "Zurück zu den Todos" : "Menü zeigen (1 Minute)") : "Menü ein- oder ausklappen"}
+          onClick={klappen}>
+          {/* Drei Striche als Bild statt Zeichen ☰: das Schriftzeichen sprang nach der
+              Drehung um einen halben Punkt (Patrick 17. November 2026) */}
+          <svg className="kopf__klapp-bild" viewBox="0 0 18 14" width="18" height="14" aria-hidden="true">
+            <rect y="0" width="18" height="2" rx="1" /><rect y="6" width="18" height="2" rx="1" /><rect y="12" width="18" height="2" rx="1" />
+          </svg>
+        </button>
         {/* Das Logo lädt die Seite neu. Im Vollbild gibt es sonst keinen
             Weg, eine hängende Ansicht aufzufrischen. Der Link auf hoferco.ch
             (111.42.0) ist wieder weg (Wunsch 5. Oktober 2026 abends). */}
@@ -236,7 +285,8 @@ function Geruest() {
         </button>
       </header>
       <div className="rahmen">
-        <nav className="nav" aria-label="Hauptnavigation">
+        <nav className="nav" aria-label="Hauptnavigation"
+          onPointerMove={menueNochDa} onPointerDown={menueNochDa} onWheel={menueNochDa} onKeyDown={menueNochDa}>
           {navSeiten.map((s, i) => (
             <Fragment key={s.pfad}>
               <a className={"nav__punkt" + (aktiv === s.pfad ? " aktiv" : "")}
