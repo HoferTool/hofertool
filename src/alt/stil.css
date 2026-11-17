@@ -14560,3 +14560,7 @@ body.nav--menue-weg .nav.fx-gleit::before { display: none; }
   .umf-b__vknoepfe { grid-column: 1 / -1; justify-content: flex-end; }
 }
 body.dunkel .umf-v__lupe { background: rgba(0, 0, 0, .6); }
+
+/* Einrichtblatt: Option frontangetriebene T3421–T3423 (seit 1.613.1) */
+.eba-front34 { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; font-size: 13px; white-space: nowrap; cursor: pointer; }
+.eba-front34 input:disabled + * , .eba-front34:has(input:disabled) { opacity: .75; cursor: default; }

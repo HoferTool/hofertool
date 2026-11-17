@@ -27,7 +27,7 @@ import { eigenesBildHochladen, eigenesBildLoeschen, freieBilderSpeichern, freies
 import { PdfSeiten, istPdfSeite, pdfDaten } from "./PdfSeiten.jsx";
 import { pdfjs } from "../teile/PdfAnsicht.jsx";
 import { pdfSeitenAlsBilder } from "../teile/drucken.js";
-import { vorlageFuer, reihenMitRest, platzName, platzGruppe, freiFeld, leerOhneTnr } from "./vorlagen.js";
+import { vorlageFuer, reihenMitRest, platzName, platzGruppe, freiFeld, leerOhneTnr, front34Moeglich, plaetzeMitFront34 } from "./vorlagen.js";
 import { TextBlatt, textBearbeiten } from "../infoboard/TextFeld.jsx";
 import { ohneFa } from "./excelEinlesen.js";
 import { RichFeld, MitFormat, fmtGueltig, ausrVon, markiertFormatieren, markierteGroesse, markierungVergessen,
@@ -444,7 +444,7 @@ function KopfEingabe({ f, wert, aendern, d, stil, fmt, fmtSetzen }) {
 // Artikel rot umranden (nur im Fenster, nicht im Pad und nicht im Druck)
 export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbeiten, platzWahl, aendern, aktiv, artikelBilder, pruefen, tauschen, wechsel, bestellen, bilderAendern, pdfs, markiert, markieren, prgRot, fmtSetzen }) {
   const vorlage = useMemo(() => blattVorlage(typ, paths), [typ, paths]);
-  const reihen = useMemo(() => reihenMitRest(vorlage, blatt.plaetze), [vorlage, blatt.plaetze]);
+  const reihen = useMemo(() => reihenMitRest(vorlage, plaetzeMitFront34(vorlage, blatt, platzInGebrauch).plaetze), [vorlage, blatt]);
   const pfad = useMemo(() => pfadVonPlatz(paths), [paths]);
   const aufbau = useMemo(() => aufbauPlaetze(paths, vorlage.art), [paths, vorlage.art]);
   const plaetze = blatt.plaetze || {};
@@ -1563,6 +1563,12 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
             wirkt auf den markierten Text, egal in welchem Feld */}
         <MarkierLeiste />
         <span className="eba-schriftzeile-tipp">Text markieren, dann Farbe, Dünn/Fett oder Grösse.</span>
+        {front34Moeglich(vorlage) && (() => {
+          const f34 = plaetzeMitFront34(vorlage, blatt, platzInGebrauch);
+          return <label className="eba-front34" data-eba-front34="" title={f34.belegt ? "Zum Ausschalten zuerst die Werkzeuge in T3421–T3423 entfernen." : ""}>
+            <input type="checkbox" checked={f34.an} disabled={f34.belegt}
+              onChange={(e) => aendern({ art: "kopf", feld: "front34" }, e.target.checked ? true : "")} /> Frontangetrieben T3421–T3423</label>;
+        })()}
       </div>}
       {bearbeiten && wechsel && !zseite && <div className="eba-vorgelesen eba-wechsel" data-eba-wechsel={wechsel}>
         <span><b>{platzName(wechsel) || "Feld ohne T-Nr."} wechseln:</b> jetzt den neuen Platz antippen. Steht dort schon ein Werkzeug, tauschen die beiden.</span>

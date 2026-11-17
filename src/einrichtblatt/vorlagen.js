@@ -180,6 +180,23 @@ export function vorlageFuer(typ, paths) {
   return allgemein(name, paths);
 }
 
+// Frontangetriebene Werkzeuge T3421–T3423 (statt T3400) als Option im
+// Blatt (seit 1.613.1, Wunsch Patrick 17. November 2026: „diese Spalte als
+// Option einbauen und nur verwenden, wenn man frontangetriebene Werkzeuge
+// hat“): die Reihe steht nur, wenn am Blatt eingeschaltet (kopf.front34)
+// oder schon ein Werkzeug darin steht. Nur bei Vorlagen mit T3400.
+export const FRONT34 = ["T3421", "T3422", "T3423"];
+export const front34Moeglich = (vorlage) => vorlage.reihen.some((r) => r.includes("T3400"));
+export function plaetzeMitFront34(vorlage, blatt, inGebrauch) {
+  const plaetze = (blatt && blatt.plaetze) || {};
+  if (!front34Moeglich(vorlage)) return { plaetze, an: false, belegt: false };
+  const belegt = FRONT34.some((k) => plaetze[k] && inGebrauch(plaetze[k]));
+  const an = belegt || !!(blatt && blatt.kopf && blatt.kopf.front34);
+  const neu = Object.assign({}, plaetze);
+  FRONT34.forEach((k) => { if (an) { if (!neu[k]) neu[k] = {}; } else delete neu[k]; });
+  return { plaetze: neu, an, belegt };
+}
+
 // Die Reihen des Blatts mit allem, was im Blatt sonst noch steht (etwa
 // ein seltener Platz T3421 aus dem Excel): das kommt in Reihen dahinter
 export function reihenMitRest(vorlage, plaetze) {
