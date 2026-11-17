@@ -83,6 +83,18 @@ with sync_playwright() as p:
       for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 200) n++; return n; }""")
     pruefe(hell > 2000, "Modell sichtbar gezeichnet (%d Punkte)" % hell)
     pg.screenshot(path=BILD + "/h3d-pc.png")
+    # Freies Drehen mit der Maus (Trackball) und SpaceMouse über TEST.spaceMaus
+    bild = lambda: pg.evaluate("() => document.querySelector('[data-h3d-flaeche] canvas').toDataURL()")
+    vor = bild(); box = pg.locator("[data-h3d-flaeche] canvas").bounding_box()
+    pg.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2); pg.mouse.down()
+    pg.mouse.move(box["x"] + box["width"] / 2 + 120, box["y"] + box["height"] / 2 + 60, steps=8); pg.mouse.up()
+    pg.wait_for_timeout(300)
+    pruefe(bild() != vor, "Ziehen mit der Maus dreht das Modell")
+    vor = bild()
+    pg.evaluate("() => window.TEST.spaceMaus && window.TEST.spaceMaus({ rz: 300, rx: 150 })"); pg.wait_for_timeout(400)
+    pg.evaluate("() => window.TEST.spaceMaus && window.TEST.spaceMaus({ rz: 0, rx: 0 })"); pg.wait_for_timeout(200)
+    pruefe(bild() != vor, "SpaceMouse dreht das Modell")
+    pg.click("[data-h3d-ansicht='iso']")
     pg.click("[data-h3d-ansicht='vorne']"); pg.click("[data-h3d-schnitt]"); pg.wait_for_timeout(500)
     pg.screenshot(path=BILD + "/h3d-schnitt.png")
     with pg.expect_download() as d:

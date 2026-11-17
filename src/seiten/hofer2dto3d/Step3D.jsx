@@ -5,12 +5,22 @@
 //  und WebAssembly kommen aus occt/ der eigenen Website (vite.config.js),
 //  nicht von einem fremden Server, weil Brave und Werbeblocker das
 //  Nachladen von dort gern sperren (wie bei der Texterkennung).
-//  Ziehen dreht, Mausrad oder zwei Finger zoomen, rechte Maustaste
-//  oder Shift + Ziehen verschiebt.
+//  Ziehen dreht frei in alle Richtungen um die Mitte des Teils (Trackball,
+//  seit 1.609.0, Patrick: „das Schwenken ist komisch“; vorher OrbitControls,
+//  das an den Polen klemmte), Mausrad oder zwei Finger zoomen, rechte
+//  Maustaste verschiebt. Eine 3Dconnexion SpaceMouse geht in Chrome und
+//  Edge über WebHID (Knopf „SpaceMouse“, einmal koppeln, danach von selbst).
 // =================================================================
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { TrackballControls } from "three/examples/jsm/controls/TrackballControls.js";
+import { spaceMausVerbinden, spaceMausSuchen, spaceMausStand, spaceMausAnwenden } from "./spaceMaus.js";
+
+// Knöpfe der SpaceMouse: links Iso, rechts Vorne
+if (typeof window !== "undefined") window.addEventListener("hofer-spacemaus-knopf", (e) => {
+  const k = document.querySelector(`[data-h3d-ansicht="${e.detail === 1 ? "vorne" : "iso"}"]:not(:disabled)`);
+  if (k) k.click();
+});
 
 // Gelesene Modelle je Adresse, damit ein Wechsel hin und her nicht jedes
 // Mal neu rechnet (höchstens vier)
@@ -54,6 +64,10 @@ export default function Step3D({ url }) {
   const [stand, setStand] = useState({ art: "laden" });
   const [kanten, setKanten] = useState(true);
   const [schnitt, setSchnitt] = useState(false);
+  const [maus, setMaus] = useState(spaceMausStand());
+
+  // Schon gekoppelte SpaceMouse von selbst verbinden
+  useEffect(() => { spaceMausSuchen(setMaus); }, []);
 
   // Bühne einmal aufbauen
   useEffect(() => {
@@ -69,12 +83,21 @@ export default function Step3D({ url }) {
     licht.position.set(1, 1.4, 2);
     kamera.add(licht);
     szene.add(kamera);
-    const steuer = new OrbitControls(kamera, renderer.domElement);
-    steuer.enableDamping = true;
-    steuer.dampingFactor = 0.12;
-    steuer.screenSpacePanning = true;
+    const steuer = new TrackballControls(kamera, renderer.domElement);
+    steuer.rotateSpeed = 3.2;
+    steuer.zoomSpeed = 1.4;
+    steuer.panSpeed = 0.9;
+    // Direkt, ohne Nachlaufen: das Teil steht, sobald die Maus steht
+    steuer.staticMoving = true;
+    // Tasten A/S/D des Trackballs aus, sonst drehen Eingaben in Feldern mit
+    steuer.keys = [];
     let lauf = 0;
-    const malen = () => { lauf = requestAnimationFrame(malen); steuer.update(); renderer.render(szene, kamera); };
+    const malen = () => {
+      lauf = requestAnimationFrame(malen);
+      spaceMausAnwenden(kamera, steuer.target);
+      steuer.update();
+      renderer.render(szene, kamera);
+    };
     malen();
     const groesse = () => {
       const b = el.clientWidth || 1, h = el.clientHeight || 1;
@@ -83,6 +106,7 @@ export default function Step3D({ url }) {
       renderer.domElement.style.height = h + "px";
       kamera.aspect = b / h;
       kamera.updateProjectionMatrix();
+      steuer.handleResize();
     };
     groesse();
     const ro = new ResizeObserver(groesse);
@@ -168,6 +192,8 @@ export default function Step3D({ url }) {
     w.kamera.far = r * 100;
     w.kamera.updateProjectionMatrix();
     w.steuer.target.set(0, 0, 0);
+    w.steuer.minDistance = r / 60;
+    w.steuer.maxDistance = r * 20;
     w.steuer.update();
   }
 
@@ -179,6 +205,11 @@ export default function Step3D({ url }) {
           <button key={a} className="knopf knopf--klein" data-h3d-ansicht={a} disabled={stand.art !== "fertig"} onClick={() => ansicht(a)}>{t}</button>))}
         <label className="h3d-haken"><input type="checkbox" checked={kanten} onChange={(e) => setKanten(e.target.checked)} /> Kanten</label>
         <label className="h3d-haken"><input type="checkbox" data-h3d-schnitt checked={schnitt} onChange={(e) => setSchnitt(e.target.checked)} /> Schnitt</label>
+        {maus.moeglich && (
+          <button className={"knopf knopf--klein" + (maus.verbunden ? " knopf--primaer" : "")} data-h3d-spacemaus
+            title={maus.verbunden ? "SpaceMouse verbunden: " + maus.name : "3Dconnexion SpaceMouse koppeln"}
+            onClick={() => spaceMausVerbinden(setMaus)}>
+            {maus.verbunden ? "✓ SpaceMouse" : "SpaceMouse"}</button>)}
       </div>
       <div className="h3d-flaeche" ref={flaeche} data-h3d-flaeche>
         {stand.art === "laden" && <div className="h3d-hinweis">3D-Modell wird gelesen …</div>}
@@ -187,7 +218,7 @@ export default function Step3D({ url }) {
       </div>
       {stand.art === "fertig" && (
         <div className="h3d-fuss klein" data-h3d-fertig>
-          Grösse {z(stand.masse.x)} × {z(stand.masse.y)} × {z(stand.masse.z)} mm · Ziehen dreht, Mausrad zoomt, rechte Maustaste verschiebt
+          Grösse {z(stand.masse.x)} × {z(stand.masse.y)} × {z(stand.masse.z)} mm · Ziehen dreht frei, Mausrad zoomt, rechte Maustaste verschiebt
         </div>)}
     </div>
   );
