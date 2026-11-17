@@ -6,6 +6,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
 - **1.609.0** (17. November 2026): HOFER2DTO3D: Drehen mit der Maus frei in alle Richtungen (Trackball statt Orbit, ohne Nachlaufen), und die 3Dconnexion SpaceMouse geht in Chrome und Edge (Knopf „SpaceMouse“, einmal koppeln), Wunsch Patrick.
+- **1.608.1** (17. November 2026): Seitenleiste der Admins: bei offenem Menü stehen die Todos wieder darunter wie früher, und beim Wechsel verschwinden sie nicht mehr kurz, sondern gleiten an ihre neue Stelle (Wunsch Patrick).
 - **1.607.0** (17. November 2026): Menüpunkt **Qualitätssicherung** wieder da, mit den Reitern Ausschussmeldungen (wie die frühere Seite QS) und Prüfmittel (nur Admins, vorher eigener Menüpunkt). Seitenleiste der Admins: Wechsel Todos ↔ Menü mit Animation, Todos rutschen runter, Menü fliegt ein wie beim Aufklappen, zurück umgekehrt (Wunsch Patrick).
 - **1.606.0** (17. November 2026): Admins sehen in der Seitenleiste zuerst die Todos; ☰ zeigt das Menü, nach 1 Minute kommen die Todos zurück, einklappen geht für Admins nicht mehr; Titel „Todos“ öffnet das Planer-Dashboard. Knopf ☰ springt nach der Drehung nicht mehr (für alle). Pad: Zahl im roten Knopf „Offene Meldungen“ im dunklen Modus lesbar (Wunsch Patrick).
 - **1.605.0** (17. November 2026): HOFER2DTO3D mit Poolordner: PDFs in einen Ordner legen, „Jetzt umwandeln“ übernimmt sie und schiebt sie nach „_Übernommen“; Claude holt offene Zeichnungen stündlich ab oder sofort auf Zuruf (Wunsch Patrick).

@@ -44,7 +44,7 @@ function todoModusDarf() {
 }
 let menueUhr = 0, wechselUhr = 0;
 let menueSetzen = () => {};
-const WECHSEL = ["nav--todo-runter", "nav--zum-menue", "nav--menue-weg", "nav--zu-todos"];
+const WECHSEL = ["nav--zum-menue", "nav--menue-weg"];
 const ruhig = () => matchMedia("(prefers-reduced-motion: reduce)").matches || !!(window.TEST && window.TEST.ohneWechsel);
 function menueZeigen(an) {
   clearTimeout(menueUhr);
@@ -58,9 +58,11 @@ function menueZeigen(an) {
     menueSetzen(an);
   };
   if (an) menueUhr = setTimeout(() => menueZeigen(false), (window.TEST && window.TEST.todoMenueMs) || TODO_MENUE_MS);
-  // Wechsel in zwei Schritten wie Auf- und Zuklappen (Patrick 17. November
-  // 2026: „Todos runterrutschen, dann wie Öffnen für die anderen“, „auch
-  // weggehen und dann hochrutschen“). Ohne Wechsel (nur Uhr neu) nichts.
+  // Wechsel wie Auf- und Zuklappen (Patrick 17. November 2026). Die Todos
+  // bleiben dabei immer sichtbar und gleiten an ihre neue Stelle (seit
+  // 1.607.1, Patrick: „soll nicht kurz verschwinden“): zum Menü fliegen die
+  // Punkte ein und die Todos gleiten darunter, zurück verweht das Menü und
+  // dann gleiten die Todos hoch. Ohne Wechsel (nur Uhr neu) nichts.
   const istMenue = b.classList.contains("nav--zeigt-menue");
   const ziel = b.dataset.navZiel;
   if (an === istMenue && ziel === undefined) { setzen(); return; }
@@ -69,15 +71,35 @@ function menueZeigen(an) {
   b.classList.remove(...WECHSEL);
   if (ruhig() || (!b.classList.contains("nav--todos") && !istMenue)) { delete b.dataset.navZiel; setzen(); return; }
   b.dataset.navZiel = an ? "1" : "0";
-  void b.offsetWidth;
-  b.classList.add(an ? "nav--todo-runter" : "nav--menue-weg");
-  wechselUhr = setTimeout(() => {
-    b.classList.remove(...WECHSEL);
+  const fertig = (ms) => { wechselUhr = setTimeout(() => { b.classList.remove(...WECHSEL); delete b.dataset.navZiel; }, ms); };
+  const umstellen = () => {
+    const vorher = todoOben();
     setzen();
-    void b.offsetWidth;
-    b.classList.add(an ? "nav--zum-menue" : "nav--zu-todos");
-    wechselUhr = setTimeout(() => { b.classList.remove(...WECHSEL); delete b.dataset.navZiel; }, an ? 1000 : 700);
-  }, an ? 450 : 380);
+    todoGleiten(vorher, an ? 620 : 560);
+  };
+  void b.offsetWidth;
+  if (an) {
+    umstellen();
+    b.classList.add("nav--zum-menue");
+    fertig(1600);
+  } else {
+    b.classList.add("nav--menue-weg");
+    wechselUhr = setTimeout(() => { b.classList.remove(...WECHSEL); umstellen(); fertig(600); }, 470);
+  }
+}
+function todoOben() {
+  const el = document.getElementById("nav-todo");
+  return el ? el.getBoundingClientRect().top : null;
+}
+// FLIP: die Todos stehen schon an der neuen Stelle und gleiten von der alten
+// dorthin, ohne je unsichtbar zu werden.
+function todoGleiten(vorher, ms) {
+  const el = document.getElementById("nav-todo");
+  if (!el || vorher == null || !el.animate) return;
+  const dy = vorher - el.getBoundingClientRect().top;
+  if (Math.abs(dy) < 1) return;
+  el.animate([{ transform: `translateY(${dy}px)` }, { transform: "none" }],
+    { duration: ms, easing: "cubic-bezier(.22, 1, .36, 1)" });
 }
 // Nach zeichneGeruest (das nav--schmal aus der Einstellung setzt) nochmals
 // anwenden: Admins mit Todos klappen nie ein.
