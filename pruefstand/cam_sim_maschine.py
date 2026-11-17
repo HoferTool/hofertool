@@ -98,6 +98,20 @@ with sync_playwright() as p:
     bu = pg.evaluate("() => document.querySelector('#cam-sim-bild').__buechse")
     pruefe("Büchse 2 mm hinter der Drehebene", abs(bu["z"] - (t["z"] + 2)) < 1e-9)
     pg.locator("#cam-sim").screenshot(path=S + "maschine_t3421.png")
+    # Seit 1.598.1: bei angetriebenen Werkzeugen folgt die Ansicht dem
+    # Werkzeug, die Büchse steht in der Ansicht still, das Teil fährt
+    s2 = pg.evaluate("() => document.querySelector('#cam-sim-bild').__sim.schritte.find((x) => x.platz === 3421)")
+    for masch in (True, False):
+        if pg.is_checked("#cam-sim-maschine") != masch: pg.click("#cam-sim-maschine"); pg.wait_for_timeout(200)
+        lage = []
+        for k in range(s2["von"] + 1, s2["bis"] + 1, max(1, (s2["bis"] - s2["von"]) // 6)):
+            pg.evaluate("(n) => { const r = document.querySelector('#cam-sim-regler'); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(r, n); r.dispatchEvent(new Event('input', { bubbles: true })); }", k)
+            pg.wait_for_timeout(120)
+            lage.append(pg.evaluate("() => { const c = document.querySelector('#cam-sim-bild'); return [c.__buechse.z - c.__ansichtZ, c.__ansichtZ]; }"))
+        print("Büchse in der Ansicht", masch, lage)
+        pruefe("T3421 (" + ("mit" if masch else "ohne") + " Maschine): Büchse steht, Teil fährt in Z",
+               max(l[0] for l in lage) - min(l[0] for l in lage) < 1e-6 and max(l[1] for l in lage) - min(l[1] for l in lage) > 1)
+    if not pg.is_checked("#cam-sim-maschine"): pg.click("#cam-sim-maschine"); pg.wait_for_timeout(200)
     s3 = pg.evaluate("() => document.querySelector('#cam-sim-bild').__sim.schritte.find((x) => x.platz === 1100)")
     pg.evaluate("(n) => { const r = document.querySelector('#cam-sim-regler'); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(r, n); r.dispatchEvent(new Event('input', { bubbles: true })); }", s3["von"] + 1)
     pg.wait_for_timeout(300)

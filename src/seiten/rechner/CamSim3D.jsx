@@ -558,7 +558,11 @@ function Simulation({ w, zu }) {
     // Werkzeug in Z, es steht in der Mitte still, das Teil fährt
     let wzJetzt = null;
     for (const x of sim.schritte) {
-      if (x.kanal !== kanal || x.von >= n || !x.punkte.length || x.achse) continue;
+      // seit 1.598.1 auch bei angetriebenen Werkzeugen (C, Y): vorher blieb
+      // dort das Teil stehen und Büchse und Werkzeug fuhren (Patrick
+      // 17. November 2026: „beim Fräsen der Nuten bewegt sich die
+      // Führungsbüchse und nicht das Material“)
+      if (x.kanal !== kanal || x.von >= n || !x.punkte.length) continue;
       wzJetzt = x.punkte[Math.min(n, x.bis) - x.von - 1];
     }
     const zMitte = (bereich0.zmin + bereich0.zmax) / 2;
@@ -647,7 +651,7 @@ function Simulation({ w, zu }) {
       }
       // Bei Front- und angetriebenen Werkzeugen fährt das Teil weiter durch
       // die feste Büchse: sie bleibt in der Ansicht stehen wie das Werkzeug
-      if (wzJetzt && zDreh != null && akt && akt.kanal === 1 && akt.art !== "dreh" && akt.art !== "seite" && akt.modus !== "abstech" && !akt.achse) zb += wzJetzt.z - zDreh;
+      if (wzJetzt && zDreh != null && akt && akt.kanal === 1 && akt.art !== "dreh" && akt.art !== "seite" && akt.modus !== "abstech") zb += wzJetzt.z - zDreh;
       // Seit 1.585.0: Spitze steht fest vor der Drehebene (Z aus dem Programm)
       if (wzJetzt && akt && akt.kanal === 1 && akt.dzVorne != null) zb = wzJetzt.z - akt.dzVorne + 2;
       // mit Maschine steht die Büchse fest am Träger, 2 mm hinter den Drehwerkzeugen
@@ -710,7 +714,7 @@ function Simulation({ w, zu }) {
       }
     }
     cv.__traeger = traeger; cv.__kopf = maschine ? maschine.kopf || null : null; cv.__roll = roll; cv.__gegen = gegen; cv.__quader = maschine ? maschine.quader : null;
-    cv.__stand = stand; cv.__sim = sim; cv.__strahl = !!strahl; cv.__werkzeuge = ueber.werkzeuge; cv.__buechse = ueber.buechse; cv.__weg = wegZ; // für den Prüfstand
+    cv.__stand = stand; cv.__sim = sim; cv.__strahl = !!strahl; cv.__werkzeuge = ueber.werkzeuge; cv.__buechse = ueber.buechse; cv.__weg = wegZ; cv.__ansichtZ = dz; // für den Prüfstand
     // Rohmaterial: Stirn vorne nur vorne (Kanal 1), vor der Übergabe
     const roh = { R: A / 2, vorne: kanal === 1 && !wegZ ? vorne : null };
     malen(g, breite, HOCH, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, roh, maschine, roll, hinweis: umriss ? "" : "Kein Material" });
