@@ -303,7 +303,10 @@ function nummerAusTabelle(zeilen) {
     // Der Scanner setzt Striche als „1“ davor oder schiebt eine Zeile „1  1“
     // dazwischen: darum bis drei Zeilen darunter, die ersten zwei Werte,
     // mindestens fünf Ziffern, kein Datum
-    if (!aus.nr && istRe(zeilen[i].trim())) {
+    // Nur wenn im Kopf selbst keine Ziffer steht: „Rechnung Nr. 101522“
+    // hat die Nummer schon dabei, sonst kam die MWSt-Nr. darunter
+    // (Patrick 17. November 2026, Zurbrügg)
+    if (!aus.nr && istRe(zeilen[i].trim()) && !/\d/.test(zeilen[i])) {
       for (let j = i + 1; j <= i + 3 && j < zeilen.length && !aus.nr; j++) {
         const w = zeilen[j].trim().split(/\s+/).slice(0, 2)
           .find((x) => /\d{5}/.test(x.replace(/\D/g, "")) && /^[A-Z0-9][A-Z0-9\-/.]*$/i.test(x) && !/^\d{1,2}[./]\d{1,2}[./]\d{2,4}$/.test(x));
