@@ -70,11 +70,10 @@ with sync_playwright() as p:
     pg.wait_for_timeout(400)
     pg.click("#pad [data-padzu]"); pg.wait_for_timeout(700)
 
-    # Keine Seite QS mehr im Menü (seit 1.310.0), gemeldet wird im QS Check des Pads
-    if pg.locator("a[href='#qs'], [data-pfad='qs'], a[href='#/qs']").count():
-        fehler.append("QS noch in der Navigation")
-    pg.evaluate("location.hash='#qs'"); pg.wait_for_timeout(800)
-    if pg.locator("[data-qsmelden]").count(): fehler.append("Seite QS noch erreichbar")
+    # Seit 1.607.0 wieder Seite Qualitätssicherung mit Reiter Ausschussmeldungen
+    if not pg.locator("a[href='#/qs']").count(): fehler.append("Qualitätssicherung fehlt in der Navigation")
+    pg.evaluate("location.hash='#/qs'"); pg.wait_for_timeout(1500)
+    if not pg.locator("#qs-keine").count(): fehler.append("Seite Ausschussmeldungen ohne „Keine offenen Meldungen“")
     zuQsCheck(pg)
     if pg.inner_text("#pad [data-padmeldungenzahl]") != "0": fehler.append("Zahl am Knopf ohne Meldung nicht 0")
     pg.click("#pad [data-padmeldungen]"); pg.wait_for_selector("#qs-offen-fenster #qs-keine")

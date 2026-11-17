@@ -14,6 +14,7 @@ import { alt } from "../bruecke.jsx";
 import { sichtbareReiter as prodReiter } from "../seiten/Produktion.jsx";
 import { REITER as BEST_REITER } from "../seiten/Bestellungen.jsx";
 import { ncReiter, ncAnsicht } from "../seiten/NcFunktionen.jsx";
+import { qsReiter, qsZustand } from "../seiten/Qs.jsx";
 
 // liste(): Reiter, die die Person sieht. merken(wert): Reiter für das
 // nächste Öffnen der Seite setzen. gemerkt(): der zuletzt gewählte.
@@ -27,6 +28,11 @@ export const UNTERREITER = {
     liste: () => BEST_REITER,
     merken: (w) => { alt.best.ansicht = w; },
     gemerkt: () => alt.best.ansicht,
+  },
+  qs: {
+    liste: () => qsReiter(),
+    merken: (w) => { qsZustand.ansicht = w; },
+    gemerkt: () => qsZustand.ansicht,
   },
   nc: {
     liste: () => ncReiter(),
