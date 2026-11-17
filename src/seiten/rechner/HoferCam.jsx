@@ -24,6 +24,7 @@ import { WerkzeugFeld } from "./CamWerkzeugBild.jsx";
 import { simulationOeffnen } from "./CamSim3D.jsx";
 import { VORLAGEN, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen } from "./camVorlagen.js";
 import AbstecherBild from "./AbstecherBild.jsx";
+import { hofercamTutorialOeffnen } from "../start/NeuesTutorial.jsx";
 import { FELDER, HD_STUFEN, abVersatz, AB_VERSATZ_VORGABE, plaetzeVon, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, markenPaare, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Seit 1.427.0 (Wunsch Patrick 5. November 2026: „vordefinierte
@@ -335,10 +336,13 @@ function MaschinenBild({ block, t34, gruppe }) {
 // Bearbeitungen Kanal 1 und 2 über die Buttons fahre, soll das
 // Werkzeugauswahlbild mir die entsprechenden Werkzeuge blinkend anzeigen“):
 // alle Plätze des Knopfs zugleich, blinkend, ohne Schild je Platz
+// Patrick 17. November 2026: „wird zu gross angezeigt“, darum höchstens
+// so gross wie ein Kärtchen, nicht wie beim Platz einer Bearbeitung
+const GRUPPE_BILD = 300;
 function GruppenBild({ gruppe, t34, ref_, mass }) {
   const rs = gruppe.bloecke.map((b) => bildBereich(b));
   return (
-    <div className="cam-bild cam-bild--gruppe" id="cam-bild" data-gruppe={gruppe.art} data-bereiche={rs.length} ref={ref_} style={mass ? { width: mass + 12 } : undefined}>
+    <div className="cam-bild cam-bild--gruppe" id="cam-bild" data-gruppe={gruppe.art} data-bereiche={rs.length} ref={ref_} style={{ width: Math.min(mass || GRUPPE_BILD, GRUPPE_BILD) + 12 }}>
       <svg viewBox="0 0 512 512">
         <defs><mask id="cam-bild-maske">
           <rect x="0" y="0" width="512" height="512" fill="#fff" />
@@ -667,6 +671,8 @@ export default function HoferCam() {
         {/* Seit 1.441.0: Einstellungen des Typs, ändern nur Admins */}
         {alt.istAdmin && alt.istAdmin() && <button className="knopf knopf--klein" id="cam-typ-einst" title="Kopf, Ende, Bearbeitungen, Plätze und Vorgaben dieses Maschinentyps einstellen"
           onClick={camTypFensterOeffnen}>⚙ Maschinentyp</button>}
+        {/* Seit 1.601.0: Tutorial jederzeit wieder anschauen (Wunsch Patrick 17. November 2026) */}
+        <button className="knopf knopf--klein" id="cam-tutorial" title="Tutorial-Video zu HOFERCAM anschauen" onClick={hofercamTutorialOeffnen}>▶ Tutorial</button>
         <NcAblage art="cam" kurz="camab" wort="HOFERCAM" daten={w} nc={ncBeide} laden={laden}
           gespeichert={gespeichert} setGespeichert={setGespeichert}
           vorSpeichern={schreibrechtHolen} nachSpeichern={async (name, recht) => {

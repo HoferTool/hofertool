@@ -142,7 +142,8 @@ export function NcAblage({ art, kurz, wort, daten, nc, laden, gespeichert, setGe
 // Unter dem Code: gespeichert oder seither geändert
 export function NcStand({ kurz, gespeichert, nc }) {
   if (!gespeichert) return null;
-  if (gespeichert.nc === nc) {
+  // Leeres nc (von Hand in die Datenbank gelegt) gilt als gespeichert wie angezeigt
+  if (!gespeichert.nc || gespeichert.nc === nc) {
     return <p className="klein" id={kurz + "-stand"}>Gespeichert als „{gespeichert.name}“{gespeichert.geaendert_am ? " am " + alt.datumZeitKurz(gespeichert.geaendert_am) : ""}.</p>;
   }
   return (

@@ -25,5 +25,10 @@ with sync_playwright() as p:
     pg.click("#hc-tutorial-zu"); pg.wait_for_timeout(200)
     pg.reload(wait_until="domcontentloaded"); pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(800)
     pruefe("nach Neuladen nicht wieder da", pg.locator("#db-tutorial").count() == 0)
+    # Seit 1.601.0: Knopf „▶ Tutorial“ in HOFERCAM
+    pg.evaluate("location.hash = '#/nc'"); pg.wait_for_selector("#cam-tutorial", timeout=15000)
+    pg.click("#cam-tutorial"); pg.wait_for_timeout(500)
+    pruefe("HOFERCAM-Knopf öffnet Video", pg.locator("#hc-tutorial video[src*='hofercam-tutorial.mp4']").count() == 1)
+    pg.click("#hc-tutorial-zu"); pg.wait_for_timeout(200)
     br.close()
 print("Fehler:", ", ".join(fehler) if fehler else "keine")
