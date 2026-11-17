@@ -18,6 +18,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { alt, useDaten, useGemerkt } from "../bruecke.jsx";
 import { PdfAnsicht } from "../teile/PdfAnsicht.jsx";
 import { useSeitenSuche, hinzeigen } from "../teile/seitenSuche.js";
+import { kannOrdner, idbTun, ordnerErlaubt } from "../teile/sicherung.js";
 
 // three.js und OpenCascade erst laden, wenn ein Modell gezeigt wird
 const Step3D = lazy(() => import("./hofer2dto3d/Step3D.jsx"));
@@ -180,6 +181,82 @@ async function loeschen(e, neu, setOffen) {
   neu();
 }
 
+// ---------- Poolordner (Patrick: „in einen Poolordner legen … und im
+// HOFER2DTO3D sagen jetzt umwandeln“, wie bei den Kreditoren) ----------
+// Der Griff liegt nur im IndexedDB dieses Geräts (Chrome / Edge am PC).
+const UEBERNOMMEN = "_Übernommen";
+let poolHier = null;
+async function poolHolen() {
+  if (poolHier) return poolHier;
+  try { return (await idbTun("get", "h3d-pool")) || null; } catch (f) { return null; }
+}
+async function poolWaehlen() {
+  const h = await window.showDirectoryPicker({ id: "hofer-2dto3d", mode: "readwrite" });
+  poolHier = h;
+  try { await idbTun("put", h, "h3d-pool"); } catch (f) { /* dann nur bis zum Neuladen */ }
+  return h;
+}
+
+// Alle PDFs direkt im Poolordner übernehmen: hochladen als „offen“ und in
+// den Unterordner _Übernommen schieben. Gibt die Zahl zurück.
+async function ausPoolUebernehmen(h) {
+  const pdfs = [];
+  for await (const [name, e] of h.entries()) if (e.kind === "file" && /\.pdf$/i.test(name)) pdfs.push(e);
+  if (!pdfs.length) return 0;
+  const ziel = await h.getDirectoryHandle(UEBERNOMMEN, { create: true });
+  let n = 0;
+  for (const e of pdfs) {
+    const datei = await e.getFile();
+    const id = crypto.randomUUID();
+    const p = await hochladen(id, datei, "application/pdf");
+    const r = await alt.db.from("zeichnung_3d").insert({
+      id, hoco: hocoAus(datei.name) || null,
+      titel: datei.name.replace(/\.pdf$/i, "").replace(/[_]+/g, " ").trim(),
+      pdf_url: p.url, pdf_pfad: p.pfad, pdf_name: datei.name, status: "offen", notiz: "aus dem Poolordner",
+    });
+    if (r.error) throw r.error;
+    alt.merkeSchritt("HOFER2DTO3D " + datei.name, alt.rueckWeg("zeichnung_3d", { id }));
+    // Verschieben = kopieren und löschen; gleicher Name schon da → Zeit davor
+    let neuName = datei.name;
+    try { await ziel.getFileHandle(neuName); neuName = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-") + " " + neuName; } catch (f) { /* frei */ }
+    const w = await (await ziel.getFileHandle(neuName, { create: true })).createWritable();
+    await w.write(await datei.arrayBuffer()); await w.close();
+    await h.removeEntry(datei.name);
+    n++;
+  }
+  return n;
+}
+
+function Pool({ neu }) {
+  const [h, setH] = useState(null);
+  const [laeuft, setLaeuft] = useState(false);
+  useEffect(() => { poolHolen().then(setH); }, []);
+  if (!kannOrdner) return null;
+  async function waehlen() {
+    try { setH(await poolWaehlen()); } catch (f) { if (f && f.name !== "AbortError") alt.meldung(alt.fehlertext(f), "fehler"); }
+  }
+  async function umwandeln() {
+    let g = h;
+    if (!g) { try { g = await poolWaehlen(); setH(g); } catch (f) { return; } }
+    if (await ordnerErlaubt(g, true) !== "granted") { alt.meldung("Der Browser hat den Poolordner nicht freigegeben.", "warn"); return; }
+    setLaeuft(true);
+    try {
+      const n = await ausPoolUebernehmen(g);
+      alt.meldung(n ? n + (n === 1 ? " Zeichnung" : " Zeichnungen") + " übernommen. Claude baut die 3D-Modelle, spätestens in einer Stunde, sofort wenn du im Chat „umwandeln“ schreibst."
+        : "Im Poolordner liegt kein PDF.", n ? "gut" : "warn");
+      if (n) neu();
+    } catch (f) { fehlerMelden(f); neu(); }
+    setLaeuft(false);
+  }
+  return (
+    <>
+      <button className="knopf" id="h3d-umwandeln" disabled={laeuft} onClick={umwandeln}
+        title="Alle PDFs aus dem Poolordner übernehmen und zum Umwandeln vormerken">{laeuft ? "Wird übernommen …" : "⟳ Jetzt umwandeln"}</button>
+      <button className="knopf knopf--klein" id="h3d-pool" onClick={waehlen}
+        title="Ordner, in den du die Zeichnungen legst">📂 {h ? "Poolordner: " + h.name : "Poolordner wählen"}</button>
+    </>);
+}
+
 // Herunterladen mit dem Originalnamen; über einen Blob, weil das
 // download-Attribut bei Adressen einer anderen Website nicht wirkt
 async function herunterladen(adresse, name) {
@@ -280,6 +357,7 @@ export default function Hofer2dTo3d({ auffrischen }) {
         {schreiben && <button className="knopf knopf--haupt" id="h3d-neu" disabled={!daten || daten.fehlt}
           onClick={async () => neuAnlegen(await dateienWaehlen(".pdf,.step,.stp,application/pdf", true), neu, setOffen)}
           data-ablegen>+ Zeichnung (PDF)</button>}
+        {schreiben && daten && !daten.fehlt && <Pool neu={neu} />}
         <input className="mat-sucheingabe" id="h3d-filter" type="search" value={suche}
           placeholder="Suchen: HOCO Nr., Bezeichnung, Datei" onChange={(e) => setSuche(e.target.value)} />
       </div>

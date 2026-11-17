@@ -108,6 +108,30 @@ with sync_playwright() as p:
            "nur PDF: Eintrag offen gespeichert")
     up = [x for x in pg.evaluate("() => TEST.protokoll") if x.get("art") == "upload"]
     pruefe(len(up) == 1 and up[0]["pfad"].startswith("2dto3d/"), "PDF in die Ablage unter 2dto3d/")
+    # Poolordner: „Jetzt umwandeln“ übernimmt die PDFs und schiebt sie nach _Übernommen
+    pg.evaluate("""() => {
+      const datei = (n) => ({ kind: 'file', name: n, getFile: async () => new File([new Uint8Array([37,80,68,70])], n, { type: 'application/pdf' }) });
+      const unter = { name: '_Übernommen', dateien: {}, getFileHandle: async function (n, o) {
+          if (!o || !o.create) { if (!this.dateien[n]) throw new Error('fehlt'); return this.dateien[n]; }
+          return (this.dateien[n] = { createWritable: async () => ({ write: async () => {}, close: async () => {} }) }); } };
+      const h = { name: 'Pool 2D', liste: { '10088-0002 Kunde.pdf': datei('10088-0002 Kunde.pdf'), 'notiz.txt': datei('notiz.txt'), 'Welle.pdf': datei('Welle.pdf') },
+        entries: async function* () { for (const [n, e] of Object.entries(this.liste)) yield [n, e]; },
+        getDirectoryHandle: async () => unter, removeEntry: async function (n) { delete this.liste[n]; },
+        queryPermission: async () => 'granted', requestPermission: async () => 'granted' };
+      window.__pool = h; window.__unter = unter;
+      window.showDirectoryPicker = async () => h; }""")
+    if pg.locator("#h3d-umwandeln").count():
+        pg.click("#h3d-umwandeln"); pg.wait_for_timeout(1500)
+        z = pg.evaluate("() => TEST.daten.zeichnung_3d")
+        aus_pool = [e for e in z if e.get("notiz") == "aus dem Poolordner"]
+        pruefe(len(aus_pool) == 2 and all(e["status"] == "offen" for e in aus_pool) and any(e.get("hoco") == "10088-0002" for e in aus_pool),
+               "Poolordner: zwei PDFs als offen übernommen")
+        rest = pg.evaluate("() => [Object.keys(window.__pool.liste), Object.keys(window.__unter.dateien)]")
+        pruefe(rest[0] == ["notiz.txt"] and sorted(rest[1]) == ["10088-0002 Kunde.pdf", "Welle.pdf"], "PDFs nach _Übernommen verschoben: %s" % rest)
+        pruefe("Poolordner: Pool 2D" in pg.inner_text("#h3d-pool"), "Name des Poolordners am Knopf")
+    else:
+        pruefe(False, "Knopf „Jetzt umwandeln“ fehlt (kein showDirectoryPicker?)")
+    pg.screenshot(path=BILD + "/h3d-pool.png")
     pruefe(not pf, "keine Fehler auf der Seite: %s" % pf)
     br.close()
 
