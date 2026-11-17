@@ -20,6 +20,8 @@ with sync_playwright() as p:
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#nc'")
     pg.wait_for_selector("[data-unter='nc/kontur']")
+    pruefe("HOFERCAM ist der erste Reiter und geht zuerst auf (seit 1.599.0)", pg.locator("[data-unter^='nc/']").first.get_attribute("data-unter") == "nc/cam" and pg.locator("#cam-kanaele").count() == 1)
+    pg.click("[data-unter='nc/kontur']"); pg.wait_for_selector("#kt-code")
     pruefe("Kontur ohne zweiten Knopf", pg.locator("#nc-eigen").count() == 0 and pg.locator("#kt-eigen").count() == 1)
     for art, sel in ZIEL.items():
         pg.click(f"[data-unter='nc/{art}']"); pg.wait_for_selector(f"[data-nceigen-auf='{art}']")

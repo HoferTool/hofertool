@@ -32,7 +32,9 @@ import { ModulTabKopf, istModulTab, modulTabArt } from "./rechner/modulTab.jsx";
 import { NC_QUELLEN } from "./rechner/ncAktuell.js";
 
 export const REITER = [
-  ["kontur", "HOFERCONTUR"], ["cam", "HOFERCAM"], ["bohren", "Bohren / Fräsen"], ["entgraten", "Entgraten"], ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"], ["wz508", "508 Werkzeuge"], ["rechner", "Rechner"],
+  // HOFERCAM seit 1.599.0 als erster Reiter, auch beim ersten Öffnen
+  // (Wunsch Patrick 17. November 2026: „nimm HOFERCAM im Reiter als erstes“)
+  ["cam", "HOFERCAM"], ["kontur", "HOFERCONTUR"], ["bohren", "Bohren / Fräsen"], ["entgraten", "Entgraten"], ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"], ["wz508", "508 Werkzeuge"], ["rechner", "Rechner"],
 ];
 
 // Hofer Cam sehen seit 1.432.0 alle ausser Externen (camSehen in app.js)
@@ -73,13 +75,13 @@ function fensterAuf(art) {
     lage: { x: window.screenX + 60, y: window.screenY + 60 } })) zu();
 }
 
-const gemerkt = { ansicht: "kontur" };
+const gemerkt = { ansicht: "" };
 teilMerken("nc", () => ({ ...gemerkt }), (z) => { Object.assign(gemerkt, z); });
 
 // Für die Seitenleiste: ohne Wert lesen, mit Wert für das nächste Öffnen setzen
 export function ncAnsicht(wert) {
   if (wert !== undefined) gemerkt.ansicht = wert;
-  return INHALT[gemerkt.ansicht] && ncReiter().some(([w]) => w === gemerkt.ansicht) ? gemerkt.ansicht : "kontur";
+  return INHALT[gemerkt.ansicht] && ncReiter().some(([w]) => w === gemerkt.ansicht) ? gemerkt.ansicht : ncReiter()[0][0];
 }
 
 // Erklärvideo jedes Mal, wenn man NC-PRO anwählt (seit 1.440.0, Wunsch
