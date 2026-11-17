@@ -47,10 +47,12 @@ with sync_playwright() as p:
     pg.fill("[data-block='0'] [data-camblock='code']", G87)
     werkzeug(pg, 0, "bohrer", "2", "118")
     # 1: Nut an der Stirn mit Y, Fräser Ø3, 1 tief bei X10 von Y0 bis Y3
+    if pg.locator("#cam-neu-quer").count() == 0: pg.select_option("[data-cam='t34']", "3421")
     pg.click("#cam-neu-quer")
     pg.fill("[data-block='1'] [data-camblock='code']", "G0X10.Y0.\nG1Z6.5F0.1\nG1Y3.F0.05\nG0Z0.")
     werkzeug(pg, 1, "schaft", "3")
     # 2: Gegenspindel, Bohrung neben der Mitte bei X8, 1.5 tief, Fräser Ø3
+    if pg.locator("#cam-neu-quer").count() == 0: pg.select_option("[data-cam='t34']", "3421")
     pg.click("#cam-neu-quer")
     pg.select_option("[data-block='2'] [data-camblock='spindel']", "gegen")
     pg.fill("[data-block='2'] [data-camblock='X']", "8.")

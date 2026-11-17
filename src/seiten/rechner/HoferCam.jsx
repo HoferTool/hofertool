@@ -23,6 +23,7 @@ import { wzFehler, wzText } from "./camWerkzeug.js";
 import { WerkzeugFeld } from "./CamWerkzeugBild.jsx";
 import { simulationOeffnen } from "./CamSim3D.jsx";
 import { VORLAGEN, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen } from "./camVorlagen.js";
+import AbstecherBild from "./AbstecherBild.jsx";
 import { FELDER, HD_STUFEN, abVersatz, AB_VERSATZ_VORGABE, plaetzeVon, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, markenPaare, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Seit 1.427.0 (Wunsch Patrick 5. November 2026: „vordefinierte
@@ -502,11 +503,16 @@ export default function HoferCam() {
   const setAktiv = (id) => { if (id === aktivId) return; aktivId = id; setAktivRoh(id); melden(); };
   useGemerkt();
   const [gespeichert, setGespeichertRoh] = useState(gespeichertCam);
+  // Erklärungsbild zum Abstecher, solange Maus oder Schreibmarke dort sind (seit 1.591.0)
+  const [abBild, setAbBild] = useState({});
   const [kopfZu, setKopfZu] = useState(() => { try { return localStorage.getItem("hofer.cam.kopfZu") === "1"; } catch { return false; } });
   const setGespeichert = (z) => { gespeichertCam = z; setGespeichertRoh(z); };
   const laden = (d) => {
     // Felder, die es beim Speichern noch nicht gab, bekommen die Vorgabe
     const neu = { ...vorgabe(), ...d, bloecke: Array.isArray(d.bloecke) ? d.bloecke : [] };
+    // Seit 1.591.0 ist T3400 Vorgabe: ältere Programme ohne Wahl, die T3421–T3423
+    // brauchen, behalten die frontangetriebenen
+    if (!d.t34 && neu.bloecke.some((b) => /^342[1-3]$/.test(String(b.platz)))) neu.t34 = "3421";
     Object.keys(gemerkt).forEach((k) => delete gemerkt[k]);
     Object.assign(gemerkt, neu);
     setW({ ...neu });
@@ -685,6 +691,8 @@ export default function HoferCam() {
               <option value="3421">T3421–T3423 (frontangetrieben)</option>
               <option value="3400">T3400 (querangetrieben)</option>
             </select></label>
+          <span className="cam-ab" onMouseEnter={() => setAbBild((a) => ({ ...a, maus: true }))} onMouseLeave={() => setAbBild((a) => ({ ...a, maus: false }))}
+            onFocus={() => setAbBild((a) => ({ ...a, fokus: true }))} onBlur={() => setAbBild((a) => ({ ...a, fokus: false }))}>
           <label className="cam-feld" title="Versetzter Abstecher: die Platte sitzt rechts am Schaft, um den Versatz minus Abstechbreite B weiter vorne. Der Kopf fährt dann mit G0X[#531+4.]Z-… um diesen Wert vor, beim normalen Z-0.">
             <span>Abstecher T100</span>
             <select data-cam="abArt" value={w.abArt === "versetzt" ? "versetzt" : "normal"} onChange={(e) => setze("abArt", e.target.value)}>
@@ -696,6 +704,9 @@ export default function HoferCam() {
             <input data-cam="abVersatz" value={w.abVersatz ?? ""} placeholder={String(AB_VERSATZ_VORGABE)} inputMode="decimal" style={{ width: 70 }}
               onChange={(e) => setze("abVersatz", e.target.value)} />
             <span className="klein" data-cam="abWirksam">wirksam Z-{abVersatz(w)}</span></label>}
+          {(abBild.maus || abBild.fokus) && <div className="cam-ab__bild" data-cam-abbild-feld>
+            <AbstecherBild art={w.abArt} versatz={String(w.abVersatz ?? "").trim() || AB_VERSATZ_VORGABE} b={w.B} abz={abVersatz(w)} /></div>}
+          </span>
         </fieldset>
         {eigeneFelder("kopf").length > 0 && <fieldset className="cam-gruppe" id="cam-eigene">
           <legend>Eigene Felder</legend>

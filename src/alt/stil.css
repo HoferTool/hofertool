@@ -14247,3 +14247,23 @@ body.dunkel .cam-fehltext { color: #ff8a80 !important; }
 .nc-modultab__hinweis { font-weight: 400; opacity: .75; }
 /* Einzelsatz der 3D-Simulation (seit 1.589.0) */
 .cam-sim__naechst { opacity: .65; }
+
+/* HOFERCAM: Erklärungsbild Abstecher T100 (seit 1.591.0, Wunsch Patrick 17. November 2026) */
+.cam-gruppe:has(.cam-ab) { position: relative; }
+.cam-ab { display: contents; }
+.cam-ab__bild { position: absolute; z-index: 30; left: 8px; top: calc(100% + 4px); background: #fff; border: 1px solid #c9d3dd;
+  border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 30, 70, .18); padding: 6px; pointer-events: none; max-width: calc(100vw - 32px); }
+.cam-ab__bild svg { display: block; max-width: 100%; height: auto; }
+.cam-abbild text { font: 11px system-ui, sans-serif; fill: #1d2b3a; }
+.cam-abbild .cam-abbild__titel { font-weight: 600; fill: #003884; }
+.cam-abbild__buechse { fill: #9aa7b4; stroke: #5b6773; }
+.cam-abbild__stange { fill: #d9b98a; stroke: #8a6a3e; }
+.cam-abbild__ebene { stroke: #c0392b; stroke-dasharray: 5 4; }
+.cam-abbild__schaft { fill: #5f86b5; stroke: #234a78; }
+.cam-abbild__platte { fill: #f0a020; stroke: #8a5a00; }
+.cam-abbild__schnitt { stroke: #c0392b; stroke-width: 2; }
+.cam-abbild__mass line { stroke: #1d2b3a; }
+body.dunkel .cam-ab__bild { background: #1c2733; border-color: #3a4a5a; }
+body.dunkel .cam-abbild text { fill: #e8eef4; }
+body.dunkel .cam-abbild .cam-abbild__titel { fill: #8fc1ff; }
+body.dunkel .cam-abbild__mass line { stroke: #e8eef4; }

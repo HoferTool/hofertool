@@ -53,6 +53,7 @@ with sync_playwright() as p:
     pg.fill("[data-block='1'] [data-camblock='code']", G87)
     werkzeug(pg, 1, "bohrer", "2", "118")
     # 2: T3421 Nut an der Stirn mit Y
+    if pg.locator("#cam-neu-quer").count() == 0: pg.select_option("[data-cam='t34']", "3421")
     pg.click("#cam-neu-quer")
     pg.fill("[data-block='2'] [data-camblock='code']", "G0X10.Y0.\nG1Z6.5F0.1\nG1Y3.F0.05\nG0Z0.")
     werkzeug(pg, 2, "schaft", "3")

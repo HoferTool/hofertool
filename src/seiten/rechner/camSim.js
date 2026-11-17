@@ -19,7 +19,7 @@
 //  Programm je Bearbeitung (ohne Handänderungen im Programmfenster).
 // =================================================================
 
-import { blockZeilen, blockZeilen2, k1Zeilen, markenPaare, markenVergeben, programme, zahl, abVersatz } from "./hofercam.js";
+import { blockZeilen, blockZeilen2, k1Zeilen, markenPaare, markenVergeben, programme, zahl, abVersatz, t34Von } from "./hofercam.js";
 import { wirksamB, wirksamW } from "./camTyp.js";
 import { fraeserUmriss, plattenUmriss, wzArt, wzVollstaendig } from "./camWerkzeug.js";
 import { SPITZEN } from "./kontur.js";
@@ -441,7 +441,7 @@ export function simAufbauen(wRoh) {
   return {
     roh: { A, W, B, vorne }, schritte: sortiert, gesamt: ab, zMax, zStange, hatK2: sortiert.some((s) => s.kanal === 2),
     // Platz 34: T3400 oder T3421–T3423 montiert, die Simulation zeigt nur das Montierte
-    t34: String(wRoh?.t34) === "3400" ? "3400" : "3421",
+    t34: t34Von(wRoh),
     abVersatz: abVersatz(wRoh),
     // so weit greift die Gegenspindel über das Teil („Über das Teil Z“)
     greif,

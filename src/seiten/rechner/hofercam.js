@@ -150,8 +150,9 @@ function kanal2(w) {
 export const plaetzeVon = (gruppe) => typ().plaetze[gruppe] || [];
 // Seit 1.582.0 (Wunsch Patrick 16. November 2026: „oben in den Kopfdaten
 // soll ausgewählt werden können, ob T3400 montiert ist oder T3421–T3423,
-// beides geht nicht“): w.t34 "3400" oder "3421" (leer = T3421–T3423)
-export const t34Von = (w) => (w && String(w.t34) === "3400" ? "3400" : "3421");
+// beides geht nicht“): w.t34 "3400" oder "3421". Seit 1.591.0 leer = T3400
+// (Wunsch Patrick 17. November 2026: „bei Bestückung soll T3400 Standard sein“)
+export const t34Von = (w) => (w && String(w.t34) === "3421" ? "3421" : "3400");
 export function montiert(gruppe, w) {
   const l = plaetzeVon(gruppe);
   const t = t34Von(w);

@@ -196,6 +196,7 @@ with sync_playwright() as p:
     pg.fill("[data-block='1'] [data-camblock='code']", "G83W18.5Q5250F0.06\nG80")
     pg.select_option("[data-block='1'] [data-camblock='spindel']", "haupt")
     # Seit 1.415.0: angetriebenes T3421 an der Gegenspindel
+    if pg.locator("#cam-neu-quer").count() == 0: pg.select_option("[data-cam='t34']", "3421")
     pg.click("#cam-neu-quer")
     # Seit 1.417.0: zuerst an der Hauptspindel wie T1100–T1400
     pg.fill("[data-block='2'] [data-camblock='bez']", "PLAN BOHRUNG FRAESEN")
