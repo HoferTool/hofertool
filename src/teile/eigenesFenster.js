@@ -17,6 +17,7 @@
 // =================================================================
 import { alt } from "../bruecke.jsx";
 import { schreibleisteAnbinden } from "./schreibleiste.js";
+import { datumTastenAnbinden } from "./datumTasten.js";
 
 const LAGE = "hofer.eigenesFenster.lage";
 const offen = new Set();
@@ -105,6 +106,7 @@ export function inEigenesFenster(huelle, zu, { titel, lage, still } = {}) {
   stileUebertragen(d);
   // Knopf Ø und Farben über den Textfeldern auch dort drüben
   schreibleisteAnbinden(d);
+  datumTastenAnbinden(d);
 
   eintrittBeenden(huelle);
   huelle.classList.add("dialog-huelle--eigen");

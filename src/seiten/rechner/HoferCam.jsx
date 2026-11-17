@@ -25,6 +25,7 @@ import { simulationOeffnen } from "./CamSim3D.jsx";
 import { VORLAGEN, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen } from "./camVorlagen.js";
 import AbstecherBild from "./AbstecherBild.jsx";
 import { hofercamTutorialOeffnen } from "../start/NeuesTutorial.jsx";
+import { EinstichBild, EinstichSteuerung } from "./CamEinstichBild.jsx";
 import { FELDER, HD_STUFEN, abVersatz, AB_VERSATZ_VORGABE, plaetzeVon, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, markenPaare, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Seit 1.427.0 (Wunsch Patrick 5. November 2026: „vordefinierte
@@ -49,6 +50,7 @@ function VorlageFeld({ code, pos, einsetzen, zu }) {
         </select>
         <button className="knopf knopf--klein" title="Schliessen" onClick={zu}>✕</button>
       </div>
+      {v.grafik && <><EinstichSteuerung w={w} setze={setze} /><EinstichBild w={w} setze={setze} /></>}
       <div className="cam-vorlage__felder">
         {v.felder.map((f) => f.typ === "haken"
           ? <label key={f.name} className="cam-feld cam-feld--haken" title={f.lang}>
@@ -97,8 +99,43 @@ function spanne(gruppe, w) {
   return l.length ? "T" + l[0] + (l.length > 1 ? "–T" + l[l.length - 1] : "") : "";
 }
 
+// Datum im Kopf (seit 1.603.0, Wunsch Patrick 17. November 2026: „die
+// Datumsauswahl im Kopf soll über eine Kalenderauswahl erfolgen, wenn H
+// wie heute gedrückt wird, soll heute eingetragen werden“). Geschrieben
+// bleibt TT.MM.JJ wie bisher im G170.
+const zwei2 = (n) => String(n).padStart(2, "0");
+const datumKurz = (d) => zwei2(d.getDate()) + "." + zwei2(d.getMonth() + 1) + "." + zwei2(d.getFullYear() % 100);
+function datumIso(t) {
+  const m = String(t || "").trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{2}|\d{4})$/);
+  if (!m) return "";
+  const j = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
+  return j + "-" + zwei2(m[2]) + "-" + zwei2(m[1]);
+}
+function DatumFeld({ wert, setze }) {
+  const kal = useRef(null);
+  const oeffnen = () => {
+    const k = kal.current;
+    if (!k) return;
+    try { if (k.showPicker) { k.showPicker(); return; } } catch (f) { /* ältere Browser */ }
+    k.focus(); k.click();
+  };
+  return (
+    <span className="cam-datum">
+      <input data-cam="datum" value={wert} placeholder="TT.MM.JJ" inputMode="text" style={{ width: 80 }}
+        title="Datum TT.MM.JJ, Taste H = heute, 📅 = Kalender"
+        onKeyDown={(e) => { if ((e.key === "h" || e.key === "H") && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); setze(datumKurz(new Date())); } }}
+        onChange={(e) => setze(e.target.value)} />
+      <button type="button" className="knopf knopf--klein cam-datum__knopf" data-cam-kalender title="Datum im Kalender wählen" onClick={oeffnen}>📅</button>
+      <input ref={kal} type="date" className="cam-datum__kalender" tabIndex={-1} aria-hidden="true" value={datumIso(wert)}
+        onChange={(e) => { const m = e.target.value.match(/^(\d{4})-(\d{2})-(\d{2})$/); if (m) setze(m[3] + "." + m[2] + "." + m[1].slice(2)); }} />
+    </span>);
+}
+
 // Bleibt beim Wechsel auf einen anderen Reiter stehen
 const gemerkt = vorgabe();
+// Neue Bearbeitung: Schreibmarke gleich in die Bezeichnung (seit 1.603.0,
+// Wunsch Patrick 17. November 2026)
+let neuFokus = null;
 // Seit 1.397.0 (Wunsch Patrick 5. November 2026: „muss auch abgespeichert
 // und wieder geöffnet werden können“): wie Bohren / Fräsen in
 // nc_programme mit art "cam", NC = beide Kanäle hintereinander.
@@ -725,8 +762,9 @@ export default function HoferCam() {
               <label key={d.name} title={(d.lang || d.text) + (fehler[d.name] ? " – " + fehler[d.name] : "")}
                 className={"cam-feld" + (fehler[d.name] && fehler[d.name] !== "leer" ? " cam-feld--fehler" : "") + (d.art === "text" ? " cam-feld--text" : "")}>
                 <span>{d.text}{d.einheit && /^[a-zA-Z/]+$/.test(d.einheit) && <small className="cam-einheit"> [{d.einheit}]</small>}</span>
-                <input data-cam={d.name} value={w[d.name] ?? ""} placeholder={d.einheit || ""} inputMode={d.art === "text" ? "text" : "decimal"}
-                  onChange={(e) => setze(d.name, e.target.value)} />
+                {d.name === "datum" ? <DatumFeld wert={w.datum ?? ""} setze={(x) => setze("datum", x)} />
+                  : <input data-cam={d.name} value={w[d.name] ?? ""} placeholder={d.einheit || ""} inputMode={d.art === "text" ? "text" : "decimal"}
+                  onChange={(e) => setze(d.name, e.target.value)} />}
               </label>
             ))}
           </fieldset>
@@ -774,15 +812,15 @@ export default function HoferCam() {
         <div className="cam-bearb__kopf">
           <b>Bearbeitungen Kanal 1</b>
           <button className="knopf knopf--klein" id="cam-neu-dreh" {...knopfMaus("dreh", "Drehwerkzeug")}
-            onClick={() => { const nb = neuerBlock(bloecke, "dreh", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Drehwerkzeug {spanne("dreh")}</button>
+            onClick={() => { const nb = neuerBlock(bloecke, "dreh", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Drehwerkzeug {spanne("dreh")}</button>
           <button className="knopf knopf--klein" id="cam-neu-front" {...knopfMaus("front", "Frontwerkzeug")}
-            onClick={() => { const nb = neuerBlock(bloecke, "front", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Frontwerkzeug {spanne("front")}</button>
+            onClick={() => { const nb = neuerBlock(bloecke, "front", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Frontwerkzeug {spanne("front")}</button>
           {/* Seit 1.415.0: angetriebene T3421–T3423 an der Gegenspindel */}
           <button className="knopf knopf--klein" id="cam-neu-seite" {...knopfMaus("seite", "Querangetrieben")}
-            onClick={() => { const nb = neuerBlock(bloecke, "seite", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Querangetrieben {spanne("seite", w)}</button>
+            onClick={() => { const nb = neuerBlock(bloecke, "seite", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Querangetrieben {spanne("seite", w)}</button>
           {/* Seit 1.582.0 nur, wenn T3421–T3423 montiert sind */}
           {t34Von(w) !== "3400" && <button className="knopf knopf--klein" id="cam-neu-quer" {...knopfMaus("quer", "Frontangetrieben")}
-            onClick={() => { const nb = neuerBlock(bloecke, "quer", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Frontangetrieben {spanne("quer", w)}</button>}
+            onClick={() => { const nb = neuerBlock(bloecke, "quer", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Frontangetrieben {spanne("quer", w)}</button>}
         </div>
         {/* Seit 1.425.3 (Wunsch Patrick 5. November 2026): Kanal 2 in einer
             eigenen Zeile darunter */}
@@ -790,9 +828,9 @@ export default function HoferCam() {
           <b>Bearbeitungen Kanal 2</b>
           {/* Seit 1.420.0: Drehwerkzeug nur in Kanal 2 */}
           <button className="knopf knopf--klein" id="cam-neu-k2" {...knopfMaus("k2", "Stehende Werkzeuge")}
-            onClick={() => { const nb = neuerBlock(bloecke, "k2", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Stehende Werkzeuge {spanne("k2")}</button>
+            onClick={() => { const nb = neuerBlock(bloecke, "k2", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Stehende Werkzeuge {spanne("k2")}</button>
           <button className="knopf knopf--klein" id="cam-neu-k2a" {...knopfMaus("k2a", "Angetrieben")}
-            onClick={() => { const nb = neuerBlock(bloecke, "k2a", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Angetrieben {spanne("k2")}</button>
+            onClick={() => { const nb = neuerBlock(bloecke, "k2a", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Angetrieben {spanne("k2")}</button>
         </div>
         {bloecke.length === 0 && <p className="klein">Noch keine Bearbeitung. Sie kommt zwischen „(Ende Kopf)“ und „(Start Ende)“.</p>}
         {/* Seit 1.405.0 (Wunsch Patrick 5. November 2026): Bearbeitungen am
@@ -835,6 +873,7 @@ export default function HoferCam() {
                     Bezeichnung immer an vorderster Stelle und dann das Werkzeug“) */}
                 {!b.frei && <label className="cam-feld cam-feld--text" title="Steht in Klammern hinter dem Werkzeugaufruf"><span>Bezeichnung</span>
                   <input data-camblock="bez" value={b.bez} style={{ width: 190 }}
+                    autoFocus={b.id === neuFokus}
                     onChange={(e) => blockAendern(b.id, "bez", e.target.value.toUpperCase())} /></label>}
                 {/* Seit 1.566.0 (Patrick 16. November 2026: „nur wenn ich wirklich
                     mit der Maus auf das Feld Platz fahre“): das Maschinenbild

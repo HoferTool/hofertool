@@ -42,6 +42,10 @@ function laden() {
     if (t) gemerkt = { ...VORGABE, ...JSON.parse(t) };
   } catch (e) { /* kaputter Eintrag: Vorgabe */ }
   if (!gemerkt) gemerkt = JSON.parse(JSON.stringify(VORGABE));
+  // Aus HOFERCAM ohne die Beispielkontur, ganz leer (seit 1.603.0, Wunsch
+  // Patrick 17. November 2026: „HOFERCONTUR aus dem HOFERCAM immer mit
+  // leerer Vorlage starten“)
+  if (imModulTab()) gemerkt.elemente = [];
   return gemerkt;
 }
 

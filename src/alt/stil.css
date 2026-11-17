@@ -14339,3 +14339,20 @@ body:not(.dunkel) .cam .cam-gruppe .knopf--klein:not(.knopf--primaer) { backgrou
 .neues-tutorial__text h2 { margin: 0 0 4px; }
 .neues-tutorial__text p { margin: 0 0 10px; }
 .neues-tutorial__knoepfe { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* HOFERCAM Vorlage Einstich (seit 1.603.0) */
+.cam-ein { display: flex; flex-direction: column; gap: 4px; max-width: 100%; overflow-x: auto; }
+.cam-ein__steuer { display: flex; flex-direction: column; gap: 6px; }
+.cam-ein__mat { fill: #dfe7ef; stroke: #1f4f82; stroke-width: 1; }
+.cam-ein__nut { fill: #fff; stroke: #1f4f82; stroke-width: 1.5; }
+.cam-ein__stirn { stroke: #1f4f82; stroke-width: 2; }
+.cam-ein__platte { fill: rgba(232, 120, 20, .35); stroke: #c0560a; stroke-width: 1.5; }
+.cam-ein__hinweis { color: #8a5a00; }
+.cam-mass__feld select { font-size: 12px; height: 22px; padding: 0 2px; min-height: 0; }
+body.dunkel .cam-ein__mat { fill: #22303e; stroke: #9fc3e8; }
+body.dunkel .cam-ein__nut { fill: #0d141b; stroke: #9fc3e8; }
+body.dunkel .cam-ein__stirn { stroke: #9fc3e8; }
+body.dunkel .cam-ein__hinweis { color: #ffcf7a !important; }
+.cam-datum { position: relative; display: inline-flex; align-items: center; gap: 2px; }
+.cam-datum__knopf { padding: 0 4px; min-height: 0; height: 24px; }
+.cam-datum__kalender { position: absolute; left: 0; bottom: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; border: 0; padding: 0; }
