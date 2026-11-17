@@ -242,7 +242,7 @@ function Pool({ neu }) {
     setLaeuft(true);
     try {
       const n = await ausPoolUebernehmen(g);
-      alt.meldung(n ? n + (n === 1 ? " Zeichnung" : " Zeichnungen") + " übernommen. Claude baut die 3D-Modelle, spätestens in einer Stunde, sofort wenn du im Chat „umwandeln“ schreibst."
+      alt.meldung(n ? n + (n === 1 ? " Zeichnung" : " Zeichnungen") + " übernommen. Claude baut die 3D-Modelle, spätestens in einer Stunde, sofort, wenn du im Chat „umwandeln“ schreibst."
         : "Im Poolordner liegt kein PDF.", n ? "gut" : "warn");
       if (n) neu();
     } catch (f) { fehlerMelden(f); neu(); }
@@ -251,7 +251,7 @@ function Pool({ neu }) {
   return (
     <>
       <button className="knopf" id="h3d-umwandeln" disabled={laeuft} onClick={umwandeln}
-        title="Alle PDFs aus dem Poolordner übernehmen und zum Umwandeln vormerken">{laeuft ? "Wird übernommen …" : "⟳ Jetzt umwandeln"}</button>
+        title="Alle PDFs aus dem Poolordner übernehmen und zum Umwandeln vormerken">{laeuft ? "Wird übernommen …" : "⟳ PDFs aus Poolordner holen"}</button>
       <button className="knopf knopf--klein" id="h3d-pool" onClick={waehlen}
         title="Ordner, in den du die Zeichnungen legst">📂 {h ? "Poolordner: " + h.name : "Poolordner wählen"}</button>
     </>);
