@@ -167,7 +167,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.614.1";
+const APP_VERSION = "1.615.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1740,6 +1740,60 @@ const ANBIETER = [
 
 let db = null;
 
+// Schonender Abruf (17. November 2026, nach dem Ausfall: PostgREST hatte
+// sich überlastet und arbeitete minutenlang alte Anfragen ab; die rund
+// 25 iPads fragten im Takt weiter, jede Wiederholung kam hinten an den
+// Stau). Darum je Tab:
+//  - gleiche Leseanfragen, die schon unterwegs sind, laufen nur einmal,
+//    alle Wartenden bekommen dieselbe Antwort,
+//  - höchstens 10 Anfragen an die Datenbank gleichzeitig, der Rest wartet,
+//  - wartet schon zu viel, oder kam eben ein Serverfehler (502–504, 522),
+//    antworten Leseanfragen sofort mit 503 statt nachzulegen; die Pause
+//    wächst bei weiteren Fehlern bis 2 Minuten.
+const ABRUF_MAX = 10, ABRUF_STAU = 60;
+let abrufLaufen = 0, abrufPauseBis = 0, abrufPauseMs = 5000;
+const abrufWarten = [], abrufGleich = new Map();
+function abrufNaechster() {
+  while (abrufLaufen < ABRUF_MAX && abrufWarten.length) abrufWarten.shift()();
+}
+function abrufBesetzt() {
+  return new Response(JSON.stringify({ message: "Server überlastet, bitte kurz warten." }),
+    { status: 503, headers: { "Content-Type": "application/json" } });
+}
+function schonenderAbruf(eingabe, optionen = {}) {
+  const url = typeof eingabe === "string" ? eingabe : (eingabe && eingabe.url) || String(eingabe);
+  const methode = String(optionen.method || (eingabe && eingabe.method) || "GET").toUpperCase();
+  if (!/\/rest\/v1\//.test(url)) return fetch(eingabe, optionen);
+  const lesen = methode === "GET" || methode === "HEAD";
+  if (lesen && (Date.now() < abrufPauseBis || abrufWarten.length >= ABRUF_STAU)) return Promise.resolve(abrufBesetzt());
+  let schluessel = null;
+  if (lesen) {
+    let wer = "";
+    try { const h = new Headers(optionen.headers || {}); wer = (h.get("Authorization") || "") + "|" + (h.get("Accept") || "") + "|" + (h.get("Range") || "") + "|" + (h.get("Prefer") || ""); } catch { /* egal */ }
+    schluessel = methode + " " + url + " " + wer;
+    const laeuft = abrufGleich.get(schluessel);
+    if (laeuft) return laeuft.then((r) => r.clone());
+  }
+  const ablauf = new Promise((fertig, fehler) => {
+    const los = () => {
+      abrufLaufen++;
+      fetch(eingabe, optionen).then((r) => {
+        if ([502, 503, 504, 522, 524].includes(r.status)) {
+          abrufPauseBis = Date.now() + abrufPauseMs;
+          abrufPauseMs = Math.min(abrufPauseMs * 2, 120000);
+        } else if (r.ok) abrufPauseMs = 5000;
+        fertig(r);
+      }, fehler).finally(() => { abrufLaufen--; abrufNaechster(); });
+    };
+    if (abrufLaufen < ABRUF_MAX) los(); else abrufWarten.push(los);
+  });
+  if (!schluessel) return ablauf;
+  abrufGleich.set(schluessel, ablauf);
+  const weg = () => { if (abrufGleich.get(schluessel) === ablauf) abrufGleich.delete(schluessel); };
+  ablauf.then(weg, weg);
+  return ablauf.then((r) => r.clone());
+}
+
 async function verbinden() {
   if (ARCHIV) return archivVerbindung(ARCHIV);
   let letzter = null;
@@ -1748,6 +1802,7 @@ async function verbinden() {
       const modul = await zeitlimit(import(adresse), 8000, "Bibliothek");
       if (modul && modul.createClient) {
         return modul.createClient(SUPABASE_URL, SUPABASE_KEY, {
+          global: { fetch: (...a) => schonenderAbruf(...a) },
           auth: {
             persistSession: true,
             // Gemerkt: bleibt; sonst nur bis der Tab zugeht
