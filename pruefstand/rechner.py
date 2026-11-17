@@ -46,7 +46,9 @@ with sync_playwright() as p:
     if "NC-PRO" not in pg.inner_text("h1.seitentitel"): fehler.append("Seite NC-Funktionen fehlt")
     for reiter, merkmal in [("cachse", "svg, canvas, input"),
                             ("gravur", "input, canvas"), ("dxf", "input, button"), ("kontur", "input, svg")]:
-        pg.click(f"[data-unter='nc/{reiter}']"); pg.wait_for_timeout(250)
+        pg.click(f"[data-unter='nc/{reiter}']")
+        try: pg.locator("#rech-inhalt").locator(merkmal).first.wait_for(timeout=8000)
+        except Exception: pass
         if not pg.locator(f"#rech-inhalt").locator(merkmal).count():
             fehler.append("Reiter leer: " + reiter)
         if pg.locator("#rech-inhalt").count() != 1: fehler.append("rech-inhalt doppelt bei " + reiter)

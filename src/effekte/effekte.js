@@ -157,8 +157,18 @@ function seiteGewechselt() {
 // Gerüst); der auf #inhalt meldet neue Reiter. Auf der Planwand
 // reagiert er nicht, damit das Zeichnen der Tafel nichts kostet.
 let inhaltBeobachtet = null;
-const inhaltWache = new MutationObserver(() => {
-  if (!document.body.classList.contains("pw-seite")) spaeter();
+// Was in den Bändern mit Hühnern, Schnee und Laub passiert (jede
+// Flocke ein neues Element), betrifft keine Markierung. Vorher las
+// jede Flocke die Lage aller Reiter neu aus, das kostete auf der
+// Startseite dauernd Rechenzeit (17. November 2026: „wird träg“).
+const ZIER = ".durchfahrt, .ib-nacht, svg, canvas";
+function zaehlt(r) {
+  const t = r.target;
+  return !(t.nodeType === 1 && t.closest(ZIER));
+}
+const inhaltWache = new MutationObserver((liste) => {
+  if (document.body.classList.contains("pw-seite")) return;
+  if (liste.some(zaehlt)) spaeter();
 });
 function geruestPruefen() {
   const inhalt = document.getElementById("inhalt");

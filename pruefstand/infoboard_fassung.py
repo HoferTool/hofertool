@@ -2,6 +2,8 @@
 # 2026: „das Infoboard-Display aktualisiert sich nicht automatisch“): alle
 # zwei Minuten schaut die Anzeige nach, lädt bei neuer Fassung gleich neu,
 # holt vorher die Seite frisch und probiert es höchstens alle zehn Minuten.
+# Seit 1.602.0 schauen die Bildschirme stündlich nach (vorher alle 2 Minuten)
+TAKT = 61 * 60 * 1000
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -44,24 +46,24 @@ with sync_playwright() as p:
     # Ein vergessenes Fenster hinter der Anzeige hält nichts auf (1.242.3)
     pg.evaluate("""() => { const d = document.createElement('div'); d.className = 'dialog-huelle'; document.body.appendChild(d); }""")
     # Gleiche Fassung: nichts passiert
-    pg.clock.run_for(130000); pg.wait_for_timeout(800)
+    pg.clock.fast_forward(TAKT); pg.wait_for_timeout(800)
     pruefe(pg.evaluate("window.__alt === 1"), "gleiche Fassung: kein Neuladen")
     # Im Vollbild tagsüber wartet die neue Fassung, sonst stünde danach die
     # Browserleiste da (1.444.4)
     pruefe(pg.evaluate("!!document.fullscreenElement"), "Anzeige im Vollbild")
     neu["an"] = True; frisch.clear()
-    pg.clock.run_for(130000); pg.wait_for_timeout(800)
+    pg.clock.fast_forward(TAKT); pg.wait_for_timeout(800)
     pruefe(pg.evaluate("window.__alt === 1"), "Vollbild am Tag: neue Fassung wartet")
     # Vollbild weg, aber Fenster kleiner als der Bildschirm (Leiste sichtbar,
     # wie am Samsung): der Bildschirm an der Wand wartet trotzdem (1.453.6)
     pg.evaluate("Object.defineProperty(screen, 'height', { configurable: true, get: () => 3000 })")
     pg.evaluate("document.exitFullscreen()"); pg.wait_for_timeout(300)
-    pg.clock.run_for(130000); pg.wait_for_timeout(800)
+    pg.clock.fast_forward(TAKT); pg.wait_for_timeout(800)
     pruefe(pg.evaluate("window.__alt === 1"), "ohne gemeldetes Vollbild am Tag: wartet auch")
-    # Fenster füllt den ganzen Bildschirm (Kiosk): innert zwei Minuten neu geladen
+    # Fenster füllt den ganzen Bildschirm (Kiosk): innert einer Stunde neu geladen
     pg.evaluate("delete screen.height")
     frisch.clear()
-    pg.clock.run_for(130000)
+    pg.clock.fast_forward(TAKT)
     pg.wait_for_function("window.__alt === undefined", timeout=20000)
     pruefe(True, "neue Fassung: Anzeige lädt neu")
     pruefe(len(frisch) > 0, "Seite vorher frisch geholt: %d" % len(frisch))
@@ -79,11 +81,11 @@ with sync_playwright() as p:
     # Zehn Minuten nach dem letzten Versuch: noch einmal
     pg.evaluate("""() => { const [f] = sessionStorage.getItem('hofer.fassung.bildschirm').split('|');
       sessionStorage.setItem('hofer.fassung.bildschirm', f + '|' + (Date.now() - 4 * 60000)); }""")
-    for _ in range(12):
+    for _ in range(2):
         if pg.evaluate("window.__alt === undefined"): break
-        pg.clock.run_for(20000); pg.wait_for_timeout(1000)
+        pg.clock.fast_forward(TAKT); pg.wait_for_timeout(1000)
     pg.wait_for_function("window.__alt === undefined", timeout=20000)
-    pruefe(True, "nach drei Minuten noch ein Versuch")
+    pruefe(True, "beim nächsten Nachsehen noch ein Versuch")
     pruefe(not pf, "keine Skriptfehler: %s" % pf[:3])
     br.close()
 print("Fehler: " + ("keine" if not fehler else "; ".join(fehler)))

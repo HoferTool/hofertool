@@ -19,7 +19,7 @@ with sync_playwright() as p:
         pg.route(u, lambda r: r.abort())
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#nc'")
-    pg.wait_for_selector("[data-unter='nc/kontur']")
+    pg.wait_for_selector("[data-unter='nc/kontur']"); pg.wait_for_selector("#cam-kanaele", timeout=15000)
     pruefe("HOFERCAM ist der erste Reiter und geht zuerst auf (seit 1.599.0)", pg.locator("[data-unter^='nc/']").first.get_attribute("data-unter") == "nc/cam" and pg.locator("#cam-kanaele").count() == 1)
     pg.click("[data-unter='nc/kontur']"); pg.wait_for_selector("#kt-code")
     pruefe("Kontur ohne zweiten Knopf", pg.locator("#nc-eigen").count() == 0 and pg.locator("#kt-eigen").count() == 1)

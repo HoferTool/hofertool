@@ -165,7 +165,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.601.0";
+const APP_VERSION = "1.602.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1306,9 +1306,20 @@ function neuladenRuhig() {
 let neuladenFassung = "";
 const STUENDLICH_NEULADEN = "hofer.fassung.stuendlich";
 
+// Seit 1.602.0 höchstens einmal am Tag je Gerät (Wunsch Patrick
+// 17. November 2026: „das automatische Neuladen raus, höchstens einmal
+// pro Tag, bei Anzeigen lassen, aber stündlich“). Nachgesehen wird
+// weiter stündlich, neu geladen aber nur, wenn heute noch nicht.
+const NEULADEN_TAG = "hofer.neuladen.tag";
+let neuladenNoetig = false;
+function heuteSchonNeuGeladen() {
+  try { return localStorage.getItem(NEULADEN_TAG) === isoDatum(new Date()); } catch (f) { return false; }
+}
+
 async function stuendlichNeuLaden() {
   if (ARCHIV || bildschirmZeigt()) return; // Bildschirme: bildschirmFassung
   if (Date.now() < neuladenAb) return;
+  if (heuteSchonNeuGeladen() && !neuladenNoetig) { neuladenAb = Date.now() + NEULADEN_TAKT; return; }
   if (!neuladenFassung) {
     neuladenAb = Date.now() + NEULADEN_TAKT;
     const eigene = eigeneFassung();
@@ -1327,6 +1338,7 @@ async function stuendlichNeuLaden() {
   neuladenFassung = "";
   neuladenAb = Date.now() + NEULADEN_TAKT;
   try { sessionStorage.setItem(STUENDLICH_NEULADEN, server + "|" + Date.now()); } catch (f) { /* egal */ }
+  try { localStorage.setItem(NEULADEN_TAG, isoDatum(new Date())); } catch (f) { /* egal */ }
   await seiteFrischHolen();
   neuLadenMitFassung(server);
 }
@@ -1336,7 +1348,9 @@ setInterval(stuendlichNeuLaden, 60000);
 // (Tab läuft noch mit der alten), nicht eine Stunde warten: im nächsten
 // ruhigen Moment neu laden. Sonst blieb etwa das Ablegen der
 // Kreditorenrechnungen am Pool-Rechner bis dahin hängen.
-window.addEventListener("vite:preloadError", () => { neuladenAb = 0; });
+// Das gilt auch, wenn heute schon einmal neu geladen wurde: ohne den
+// fehlenden Teil geht dort sonst nichts.
+window.addEventListener("vite:preloadError", () => { neuladenAb = 0; neuladenNoetig = true; });
 
 // ---------- Bildschirme holen neue Fassungen sofort ----------
 // Infoboard und Empfang laufen tagelang ohne Anmeldung und ohne Strg + F5.
@@ -1353,7 +1367,9 @@ window.addEventListener("vite:preloadError", () => { neuladenAb = 0; });
 // haben die Seite ohne Zusatz bis zehn Minuten zwischengespeichert, nach
 // kurz hintereinander ausgelieferten Fassungen kam so immer wieder die
 // alte Seite. Eine neue Adresse kommt sicher frisch vom Server.
-const BILDSCHIRM_TAKT = 2 * 60 * 1000;
+// Seit 1.602.0 stündlich statt alle zwei Minuten (Wunsch Patrick
+// 17. November 2026: „bei Anzeigen lassen, aber stündlich“)
+const BILDSCHIRM_TAKT = 60 * 60 * 1000;
 const BILDSCHIRM_NOCHMAL = 3 * 60 * 1000;
 const BILDSCHIRM_NEULADEN = "hofer.fassung.bildschirm";
 
@@ -11213,8 +11229,13 @@ document.addEventListener("focusin", (e) => {
     el.focus({ preventScroll: true });
     try { el.setSelectionRange(tippstelle.start, tippstelle.ende); } catch (f) { /* Zahlfeld */ }
   };
-  const beobachter = new MutationObserver(() => {
-    if (geplant) return;
+  // Ohne gemerktes Feld nichts tun: sonst stiess jede Schneeflocke und
+  // jedes Huhn auf der Startseite einen eigenen Bildaufbau an
+  // (17. November 2026: „wird träg“)
+  const nurZier = (m) => m.target.nodeType === 1 && m.target.closest(".durchfahrt, .ib-nacht");
+  const beobachter = new MutationObserver((meldungen) => {
+    if (geplant || !tippstelle.id) return;
+    if (meldungen.every(nurZier)) return;
     geplant = true;
     requestAnimationFrame(wiederherstellen);
   });

@@ -12,21 +12,33 @@
 //  Der Inhalt steht weiter in #rech-inhalt, damit Gestaltung und
 //  Prüfstand der Reiter unverändert gelten.
 // =================================================================
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { inEigenesFenster } from "../teile/eigenesFenster.js";
 import { alt, useGemerkt } from "../bruecke.jsx";
 import { useSeitenSuche } from "../teile/seitenSuche.js";
 import { teilMerken } from "../teile/wiederherstellen.js";
 import { Reiter, Uebergang } from "../teile/Reiter.jsx";
-import CAchse from "./rechner/CAchse.jsx";
-import Gravur from "./rechner/Gravur.jsx";
-import Dxf from "./rechner/Dxf.jsx";
-import Kontur, { tutorialOeffnen, TUTORIAL_AUS } from "./rechner/Kontur.jsx";
-import BohrenFraesen from "./rechner/BohrenFraesen.jsx";
-import Entgraten from "./rechner/Entgraten.jsx";
-import HoferCam from "./rechner/HoferCam.jsx";
-import Werkzeuge508 from "./rechner/Werkzeuge508.jsx";
+// Die Module laden erst, wenn man ihren Reiter öffnet (seit 1.602.0).
+// Vorher lud jede Anmeldung HOFERCAM samt 3D-Simulation, Kontur und
+// alle anderen Module mit, auch wer NC-PRO nie öffnet (17. November
+// 2026: „das HoferTool wird zunehmend träg, liegt es am HOFERCAM?“).
+const TUTORIAL_AUS = "ncpro_tutorial_aus";
+function faul(laden) {
+  const Teil = lazy(laden);
+  return function Faul(props) {
+    return <Suspense fallback={<div className="leer" style={{ padding: 24 }}>Lädt …</div>}><Teil {...props} /></Suspense>;
+  };
+}
+const CAchse = faul(() => import("./rechner/CAchse.jsx"));
+const Gravur = faul(() => import("./rechner/Gravur.jsx"));
+const Dxf = faul(() => import("./rechner/Dxf.jsx"));
+const Kontur = faul(() => import("./rechner/Kontur.jsx"));
+const BohrenFraesen = faul(() => import("./rechner/BohrenFraesen.jsx"));
+const Entgraten = faul(() => import("./rechner/Entgraten.jsx"));
+const HoferCam = faul(() => import("./rechner/HoferCam.jsx"));
+const Werkzeuge508 = faul(() => import("./rechner/Werkzeuge508.jsx"));
+const tutorialOeffnen = () => import("./rechner/Kontur.jsx").then((m) => m.tutorialOeffnen());
 import Rechner, { REITER as RECHNER_REITER, rechnerAnsicht } from "./Rechner.jsx";
 import { ModulTabKopf, istModulTab, modulTabArt } from "./rechner/modulTab.jsx";
 import { NC_QUELLEN } from "./rechner/ncAktuell.js";
