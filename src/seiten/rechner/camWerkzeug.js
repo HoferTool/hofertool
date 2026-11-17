@@ -196,6 +196,8 @@ export const LAGEN_MASCHINE = ["or", "o", "ol", "r", "m", "l", "ur", "u", "ul"];
 // Schneidenecke zeigt (Winkelhalbierende von der Platte weg zur Spitze);
 // die Platte liegt auf der Gegenseite. Für Anzeige und später die
 // Simulation. Rückgabe: Liste von Punkten {z, x} (geschlossen).
+// Halter 93°: Hauptschneide 3° über die Senkrechte zur Achse hinaus
+export const HALTER_NEIGUNG = 3;
 export function plattenUmriss(wz, gross = 8) {
   const f = plattenForm(wz.form);
   if (!f) return [];
@@ -238,6 +240,17 @@ export function plattenUmriss(wz, gross = 8) {
   const L = f.art === "gewinde" ? gross * 0.7 : gross;
   let a = { z: L * Math.cos(hb + e), x: L * Math.sin(hb + e) };
   let c = { z: L * Math.cos(hb - e), x: L * Math.sin(hb - e) };
+  // Seit 1.620.0 (Entscheid Patrick 17. November 2026: „Wie Halter 93°“):
+  // Rhombus und Dreieck stehen in schrägen Lagen wie im Halter mit 93°
+  // Einstellwinkel: Hauptschneide 3° von der Stirn weg geneigt, Nebenschneide
+  // um den Spitzenwinkel weiter; vorher symmetrisch zur Ecke, dann drückte
+  // sich die Nebenschneide beim Wegfahren in X schräg in die Schulter ab
+  if ((f.art === "rhombus" || f.art === "dreieck") && s.z !== 0 && s.r !== 0) {
+    const sw = HALTER_NEIGUNG * Math.PI / 180, ew = winkel * Math.PI / 180;
+    a = { z: -s.z * L * Math.sin(sw), x: -s.r * L * Math.cos(sw) };
+    c = { z: -s.z * L * Math.sin(sw + ew), x: -s.r * L * Math.cos(sw + ew) };
+    hb = Math.atan2(a.x + c.x, a.z + c.z);
+  }
   if (f.art === "frei") {
     const sw = schraeg * Math.PI / 180, ew = winkel * Math.PI / 180;
     if (s.z !== 0 && s.r !== 0) {
