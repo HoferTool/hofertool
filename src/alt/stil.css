@@ -14445,3 +14445,36 @@ body.dunkel #pad .pad__meldungen--offen .pad__meldungen-zahl { color: #b42318 !i
 .pl-titelknopf:hover, .pl-titelknopf:focus-visible { background: color-mix(in srgb, var(--marke) 12%, transparent); }
 .pl-titelpfeil { font-size: .8em; opacity: .55; }
 .pl-titelknopf:hover .pl-titelpfeil { opacity: 1; }
+
+/* Wechsel Todos ↔ Menü mit Bewegung wie Auf- und Zuklappen (1.607.0, Patrick
+   17. November 2026: „Todos runterrutschen und dann wie Öffnen für die
+   anderen“, „auch weggehen und dann hochrutschen“). Zwei Schritte, die
+   Klassen setzt menueZeigen in Geruest.jsx. */
+@media (min-width: 780px) {
+  body.nav--todo-runter .nav, body.nav--zum-menue .nav,
+  body.nav--menue-weg .nav, body.nav--zu-todos .nav { overflow: hidden; }
+  body.nav--todo-runter .kopf__klapp { animation: nav-knopf-auf .7s cubic-bezier(.34, 1.56, .64, 1); }
+  body.nav--menue-weg .kopf__klapp { animation: nav-knopf-zu .6s cubic-bezier(.34, 1.56, .64, 1); }
+  /* 1. Todos rutschen nach unten weg */
+  body.nav--todo-runter .nav-todo { animation: nav-todo-runter .45s cubic-bezier(.5, 0, .75, 0) both; }
+  @keyframes nav-todo-runter { to { transform: translateY(80vh); opacity: 0; } }
+  /* 2. Menü kommt wie beim Aufklappen */
+  body.nav--zum-menue .nav > .nav__punkt { animation: none; }
+  body.nav--zum-menue .nav__zeichen {
+    animation: nav-zeichen-auf .7s cubic-bezier(.34, 1.7, .5, 1) both;
+    animation-delay: calc(var(--n, 0) * 35ms + 40ms); }
+  body.nav--zum-menue .nav__text { display: inline-block; white-space: nowrap;
+    animation: nav-text-auf .6s cubic-bezier(.16, 1, .3, 1) both;
+    animation-delay: calc(var(--n, 0) * 45ms + 140ms); }
+  /* Zurück: 1. Menü verweht wie beim Zuklappen */
+  body.nav--menue-weg .nav__text { display: inline-block; white-space: nowrap;
+    animation: nav-text-zu .26s cubic-bezier(.5, 0, .9, .4) both;
+    animation-delay: calc((8 - var(--n, 0)) * 12ms); }
+  body.nav--menue-weg .nav__zeichen { animation: nav-zeichen-weg .3s ease-in both;
+    animation-delay: calc((8 - var(--n, 0)) * 12ms + 60ms); }
+  body.nav--menue-weg .nav__unter { animation: nav-text-zu .2s ease-in both; }
+  @keyframes nav-zeichen-weg { to { transform: scale(.3) rotate(-90deg); opacity: 0; } }
+  /* 2. Todos rutschen von unten hoch */
+  body.nav--zu-todos .nav-todo { animation: nav-todo-hoch .6s cubic-bezier(.16, 1, .3, 1) both; }
+  @keyframes nav-todo-hoch { from { transform: translateY(80vh); opacity: 0; } to { transform: none; opacity: 1; } }
+}

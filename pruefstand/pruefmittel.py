@@ -25,8 +25,11 @@ def starten(br, w, h, dunkel=False):
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
     pg, pf = starten(br, 1440, 900)
-    pruefe(pg.locator('[href="#/pruefmittel"], [data-pfad="pruefmittel"]').count() > 0, "Menüpunkt Prüfmittel für Admin")
+    # seit 1.607.0 Reiter der Qualitätssicherung; #/pruefmittel führt dorthin
+    pruefe(pg.locator('a[href="#/qs"]').count() > 0, "Menüpunkt Qualitätssicherung für Admin")
     pg.evaluate("location.hash='#/pruefmittel'"); pg.wait_for_selector("#pm-neu"); pg.wait_for_timeout(500)
+    pruefe("#/qs" in pg.url, "#/pruefmittel führt zur Qualitätssicherung " + pg.url)
+    pruefe("Prüfmittel" in pg.inner_text(".reiter") and "Ausschussmeldungen" in pg.inner_text(".reiter"), "Reiter Ausschussmeldungen und Prüfmittel")
     # Einzeln erfassen
     pg.click("#pm-neu"); pg.wait_for_selector(".dialog-huelle input")
     ins = pg.locator(".dialog-huelle input")

@@ -42,17 +42,42 @@ export const TODO_MENUE_MS = 60000;
 function todoModusDarf() {
   return planerSichtbar() && !(alt.istArchiv && alt.istArchiv()) && !istPlanerTab();
 }
-let menueUhr = 0;
+let menueUhr = 0, wechselUhr = 0;
 let menueSetzen = () => {};
+const WECHSEL = ["nav--todo-runter", "nav--zum-menue", "nav--menue-weg", "nav--zu-todos"];
+const ruhig = () => matchMedia("(prefers-reduced-motion: reduce)").matches || !!(window.TEST && window.TEST.ohneWechsel);
 function menueZeigen(an) {
   clearTimeout(menueUhr);
   const b = document.body;
-  if (!todoModusDarf()) { b.classList.remove("nav--todos", "nav--zeigt-menue"); return; }
+  if (!todoModusDarf()) { b.classList.remove("nav--todos", "nav--zeigt-menue", ...WECHSEL); return; }
   b.classList.remove("nav--schmal", "nav--klappt-auf", "nav--klappt-zu");
-  b.classList.toggle("nav--todos", !an);
-  b.classList.toggle("nav--zeigt-menue", !!an);
-  menueSetzen(!!an);
+  an = !!an;
+  const setzen = () => {
+    b.classList.toggle("nav--todos", !an);
+    b.classList.toggle("nav--zeigt-menue", an);
+    menueSetzen(an);
+  };
   if (an) menueUhr = setTimeout(() => menueZeigen(false), (window.TEST && window.TEST.todoMenueMs) || TODO_MENUE_MS);
+  // Wechsel in zwei Schritten wie Auf- und Zuklappen (Patrick 17. November
+  // 2026: „Todos runterrutschen, dann wie Öffnen für die anderen“, „auch
+  // weggehen und dann hochrutschen“). Ohne Wechsel (nur Uhr neu) nichts.
+  const istMenue = b.classList.contains("nav--zeigt-menue");
+  const ziel = b.dataset.navZiel;
+  if (an === istMenue && ziel === undefined) { setzen(); return; }
+  if (ziel !== undefined && (ziel === "1") === an) return;
+  clearTimeout(wechselUhr);
+  b.classList.remove(...WECHSEL);
+  if (ruhig() || (!b.classList.contains("nav--todos") && !istMenue)) { delete b.dataset.navZiel; setzen(); return; }
+  b.dataset.navZiel = an ? "1" : "0";
+  void b.offsetWidth;
+  b.classList.add(an ? "nav--todo-runter" : "nav--menue-weg");
+  wechselUhr = setTimeout(() => {
+    b.classList.remove(...WECHSEL);
+    setzen();
+    void b.offsetWidth;
+    b.classList.add(an ? "nav--zum-menue" : "nav--zu-todos");
+    wechselUhr = setTimeout(() => { b.classList.remove(...WECHSEL); delete b.dataset.navZiel; }, an ? 1000 : 700);
+  }, an ? 450 : 380);
 }
 // Nach zeichneGeruest (das nav--schmal aus der Einstellung setzt) nochmals
 // anwenden: Admins mit Todos klappen nie ein.

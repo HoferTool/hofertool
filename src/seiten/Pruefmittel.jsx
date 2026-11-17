@@ -20,7 +20,7 @@ import { pruefmittelLaden, verlaufLaden, ARTEN, artText, ORTE, STATUS, fehltTabe
 const gemerkt = { reiter: "wo", suche: "", filter: "" };
 const T = "pruefmittel";
 
-export default function Pruefmittel({ auffrischen }) {
+export default function Pruefmittel({ auffrischen, eingebettet }) {
   const [reiter, setReiter] = useState(gemerkt.reiter);
   const [suche, setSuche] = useState(gemerkt.suche);
   const [filter, setFilter] = useState(gemerkt.filter);
@@ -38,12 +38,12 @@ export default function Pruefmittel({ auffrischen }) {
 
   if (fehler && !daten) {
     return (<>
-      <h1 className="seitentitel">Prüfmittel</h1>
+      {!eingebettet && <h1 className="seitentitel">Prüfmittel</h1>}
       <div className="karte karte--fehler"><p>{fehltTabelle(fehler)
         ? "Die Prüfmittel brauchen noch sql/pruefmittel.sql in Supabase." : alt.fehlertext(fehler)}</p></div>
     </>);
   }
-  if (!daten) return (<><h1 className="seitentitel">Prüfmittel</h1><div className="laedt">Wird geladen …</div></>);
+  if (!daten) return (<>{!eingebettet && <h1 className="seitentitel">Prüfmittel</h1>}<div className="laedt">Wird geladen …</div></>);
 
   const s = suche.trim().toLowerCase();
   const passt = (p) => (!s || s.split(/\s+/).every((w) => suchText(p, daten.maschinen).includes(w)))
@@ -55,7 +55,7 @@ export default function Pruefmittel({ auffrischen }) {
 
   return (
     <>
-      <h1 className="seitentitel">Prüfmittel</h1>
+      {!eingebettet && <h1 className="seitentitel">Prüfmittel</h1>}
       <p className="klein pm-erklaerung">Provisorisch, nur für Admins. Jedes Prüfmittel mit Nr. und Mass, und wo es gerade ist:
         im Schrank, an einer Maschine, bei einer Person oder extern. Antippen öffnet es zum Austragen, Zurückgeben oder Ändern.</p>
       <div className="pm-kacheln">

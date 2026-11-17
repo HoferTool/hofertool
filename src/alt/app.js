@@ -57,7 +57,7 @@ import { materialFuerPlanwand, postenLaden, materialZerlegen, nochGebraucht, wer
   werkstoffNummernLaden, werkstoffBeide } from "../daten/material.js";
 import { postenFenster } from "../material/PostenFenster.jsx";
 import Material from "../seiten/Material.jsx";
-import Pruefmittel from "../seiten/Pruefmittel.jsx";
+import Qs, { qsZustand } from "../seiten/Qs.jsx";
 import { sicherungWaechter } from "../teile/sicherung.js";
 import { einlesenWaechter } from "../einrichtblatt/vorlesen.js";
 import { drehungWaechter } from "../daten/zeichnungDrehen.js";
@@ -166,7 +166,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.606.0";
+const APP_VERSION = "1.607.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3202,7 +3202,7 @@ const ROLLEN = {
 function seiteSichtbar(pfad) {
   if (ARCHIV) return pfad === "planwand";
   // Das Dienstkonto braucht keine Material-Seite
-  if ((pfad === "material" || pfad === "maschinen" || pfad === "statistik" || pfad === "kalender" || pfad === "einlagen" || pfad === "hofer2dto3d") && meineRolle() === "dienst") return false;
+  if ((pfad === "material" || pfad === "maschinen" || pfad === "statistik" || pfad === "kalender" || pfad === "einlagen" || pfad === "hofer2dto3d" || pfad === "qs") && meineRolle() === "dienst") return false;
   if (pfad === "infoboard" || pfad === "pausenraum") return infoboardSichtbar();
   if (pfad === "bildschirme") return SEITEN.some((s) => s.gruppe === "bildschirme" && seiteSichtbar(s.pfad));
   if (pfad === "kalkulation") return kalkulationSehen(profil) && !istExtern();
@@ -10803,8 +10803,10 @@ const SEITEN = [
   { pfad: "bestellungen", titel: "Bestellungen", zeichen: SYM.bestellungen, zeige: seiteBestellungen },
   // Material: Lager, Bestellungen und Bedarf der Aufträge (seit 1.67.0)
   { pfad: "material",     titel: "Material",     zeichen: SYM.material, zeige: reactSeite(Material) },
-  // Prüfmittel mit Ort (Schrank, Maschine, Person, extern), provisorisch nur Admins (seit 1.558.0)
-  { pfad: "pruefmittel",  titel: "Prüfmittel",   zeichen: SYM.pruefmittel, zeige: reactSeite(Pruefmittel) },
+  // Qualitätssicherung mit den Reitern Ausschussmeldungen und Prüfmittel
+  // (seit 1.607.0, Wunsch Patrick 17. November 2026; Prüfmittel 1.558.0 bis
+  // 1.606.x eigener Menüpunkt, #/pruefmittel führt zum Reiter)
+  { pfad: "qs",           titel: "Qualitätssicherung", zeichen: SYM.pruefmittel, zeige: reactSeite(Qs) },
   // Der Rechner ist seit 1.378.0 der letzte Reiter von HOFER-NC-PRO
   // (Wunsch Patrick 3. November 2026), #/rechner führt dorthin
   { pfad: "nc",           titel: "NC-PRO", zeichen: SYM.nc,     zeige: reactSeite(NcFunktionen) },
@@ -10977,6 +10979,7 @@ function syncTabellen(pfad) {
   if (pfad === "dashboard") return ["jobs", "todos", "shopping_items", "order_items", "materialausgabe", "kalender"];
   if (pfad === "produktion") return ["production_records", "jobs", "machines"];
   if (pfad === "bestellungen") return ["order_items", "articles", "suppliers", "designations"];
+  if (pfad === "qs") return ["qs_meldungen", "jobs"];
   if (pfad === "einkauf") return ["shopping_items"];
   if (pfad === "einstellungen") return ["profiles", "people"];
   return [];
@@ -11308,6 +11311,13 @@ function zeichneSeite() {
   // (Wunsch Patrick 10. November 2026); alte Verweise führen dorthin
   if (roh === "qm") {
     location.hash = "#/qmalt";
+    return;
+  }
+
+  // Prüfmittel ist seit 1.607.0 ein Reiter der Qualitätssicherung
+  if (roh === "pruefmittel" && !ARCHIV) {
+    if (seiteSichtbar("pruefmittel")) qsZustand.ansicht = "pruefmittel";
+    location.hash = "#/qs";
     return;
   }
 
