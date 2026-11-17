@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.611.1 — Menü der Seitenleiste nach 3 Minuten zurück (17. November 2026)
+
+Wunsch Patrick: „war dumm, es soll nicht nach Klicken weg, soll nach 3 min statt einer weg“. Ein Klick auf einen Menüpunkt schliesst das Menü nicht mehr; nach 3 Minuten ohne Maus oder Taste in der Seitenleiste zeigt sie wieder die Todos (`TODO_MENUE_MS` in `Geruest.jsx`). Der Fix gegen das Feld über den Todos und die Reiter der Seite im Todo-Modus aus 1.611.0 bleiben. Prüfstand `nav_todo.py`.
+
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
 - **1.611.0** (17. November 2026): Seitenleiste der Admins: Wahl im Menü schliesst es gleich wieder zu den Todos, die Seite zeigt dann ihre Reiter selbst; der farbige Balken, der manchmal über den Todos lag (Markierung des aktiven Menüpunkts), ist weg.
