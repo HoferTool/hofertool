@@ -186,7 +186,35 @@ export function reihenMitRest(vorlage, plaetze) {
   const reihen = vorlage.reihen.map((r) => r.slice());
   const drin = new Set(reihen.flat().filter(Boolean));
   // Freie Felder („Frei-2-5“) stehen an ihrer Stelle im Raster, nicht hinten
-  const rest = Object.keys(plaetze || {}).filter((k) => !drin.has(k) && !istFreiFeld(k)).sort(platzSort);
+  let rest = Object.keys(plaetze || {}).filter((k) => !drin.has(k) && !istFreiFeld(k)).sort(platzSort);
+  // Abgeleitete Plätze wie T3421–T3423 (statt T3400) oder T2121 gehören
+  // direkt unter die Reihe ihrer Grundnummer (T3400 → Reihe T3100–T3400),
+  // T3421 unter das erste Feld, T3422 unter das zweite … (Wunsch Patrick
+  // 17. November 2026: „warum ist diese Zeile nicht unter T3100, T3200?“)
+  const unter = new Map();
+  rest = rest.filter((k) => {
+    const m = /^T(\d\d)(\d)(\d)$/.exec(k);
+    if (!m || m[2] + m[3] === "00") return true;
+    const ri = reihen.findIndex((r) => r.includes("T" + m[1] + "00"));
+    if (ri < 0) return true;
+    if (!unter.has(ri)) unter.set(ri, []);
+    unter.get(ri).push(k);
+    return false;
+  });
+  [...unter.keys()].sort((a, b) => b - a).forEach((ri) => {
+    const basis = reihen[ri];
+    const neu = basis.map(() => null);
+    const erste = basis.findIndex(Boolean);
+    const uebrig = [];
+    unter.get(ri).forEach((k) => {
+      let si = erste + Number(k.slice(-1)) - 1;
+      if (si < vorlage.kopfBreite || si >= neu.length || neu[si]) si = neu.findIndex((x, i) => i >= vorlage.kopfBreite && !x);
+      if (si < 0) uebrig.push(k); else neu[si] = k;
+    });
+    reihen.splice(ri + 1, 0, neu);
+    rest.push(...uebrig);
+  });
+  rest.sort(platzSort);
   const frei = vorlage.spalten - vorlage.kopfBreite;
   while (rest.length) {
     const r = Array.from({ length: vorlage.kopfBreite }, () => null)
