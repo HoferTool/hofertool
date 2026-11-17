@@ -29,6 +29,12 @@ with sync_playwright() as p:
     pg.fill("input.cam-datum__kalender", "2026-03-05"); pg.wait_for_timeout(100)
     pruefe("Kalender schreibt TT.MM.JJ", pg.input_value("[data-cam='datum']") == "05.03.26")
     pruefe("Knopf Kalender da", pg.locator("[data-cam-kalender]").count() == 1)
+    rechts = pg.evaluate("""() => ['nr', 'hoco', 'datum', 'kuerzel'].map((n) => {
+      const r = document.querySelector("[data-cam='" + n + "']").getBoundingClientRect(); return [Math.round(r.left), Math.round(r.right)]; })""")
+    pruefe("Datum gleich ausgerichtet wie die anderen Felder " + str(rechts), len({tuple(x) for x in rechts}) == 1)
+    k = pg.locator("[data-cam-kalender]").bounding_box(); d = pg.locator("[data-cam='datum']").bounding_box()
+    pruefe("Kalenderknopf im Feld", k["x"] >= d["x"] and k["x"] + k["width"] <= d["x"] + d["width"] + 0.5)
+    pg.locator("[data-cam='datum']").locator("xpath=ancestor::fieldset").screenshot(path="cam_kopf_programm.png")
     # Datumstasten im ganzen Tool: T, W, M, J, Minus
     pg.click("[data-cam='datum']")
     for taste, soll in (("t", "06.03.26"), ("w", "13.03.26"), ("m", "13.04.26"), ("j", "13.04.27"), ("-", "12.04.27")):

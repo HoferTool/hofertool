@@ -121,7 +121,7 @@ function DatumFeld({ wert, setze }) {
   };
   return (
     <span className="cam-datum">
-      <input data-cam="datum" value={wert} placeholder="TT.MM.JJ" inputMode="text" style={{ width: 80 }}
+      <input data-cam="datum" value={wert} placeholder="TT.MM.JJ" inputMode="text"
         title="Datum TT.MM.JJ, Taste H = heute, 📅 = Kalender"
         onKeyDown={(e) => { if ((e.key === "h" || e.key === "H") && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); setze(datumKurz(new Date())); } }}
         onChange={(e) => setze(e.target.value)} />
