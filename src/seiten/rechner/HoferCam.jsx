@@ -27,7 +27,7 @@ import { VORLAGEN, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEins
 import AbstecherBild from "./AbstecherBild.jsx";
 import { hofercamTutorialOeffnen } from "../start/NeuesTutorial.jsx";
 import { EinstichBild, EinstichSteuerung } from "./CamEinstichBild.jsx";
-import { FELDER, HD_STUFEN, abVersatz, AB_VERSATZ_VORGABE, plaetzeVon, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, markenPaare, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
+import { FELDER, HD_STUFEN, abVersatz, AB_VERSATZ_VORGABE, plaetzeVon, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, handZurueck, markenPaare, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Seit 1.427.0 (Wunsch Patrick 5. November 2026: „vordefinierte
 // Bearbeitungen aus einer Liste einfügen … in eine bestehende
@@ -211,7 +211,7 @@ function ImFenster() {
     if (el) el.scrollIntoView({ block: "nearest" });
   }, [aktivId, bereich && bereich[0]]);
   // Änderungen im eigenen Fenster gehen in „gemerkt“, der Reiter liest sie
-  const handSetzen = (hand) => { gemerkt.hand = hand; melden(); };
+  const handSetzen = (hand, bl) => { gemerkt.hand = hand; if (bl) gemerkt.bloecke = bl; melden(); };
   const einlesen = (dateien, k) => einlesenJetzt && einlesenJetzt(dateien, k);
   return (<>
     <FensterKnoepfe w={w} einlesen={einlesen} />
@@ -464,7 +464,8 @@ function Kanaele({ prog, sync, fehler, bereich, bereich2, w, handSetzen, einlese
     return z && b && z.nr >= b[0] && z.nr <= b[1];
   };
   const zeilenVon = (k) => (k === 1 ? prog.k1 : prog.k2);
-  const setzen = (k, zeilen) => handSetzen(handNeu(w, k, k === 1 ? prog.auto1 : prog.auto2, zeilen));
+  // Seit 1.619.0: Änderungen im NC-Code einer Bearbeitung gehen zurück in die Bearbeitung
+  const setzen = (k, zeilen) => { const r = handZurueck(w, k, zeilen); handSetzen(r.hand, r.bloecke); };
   useEffect(() => {
     if (!fokusNach || !kasten.current) return;
     const el = kasten.current.querySelector("[data-kanal='" + fokusNach.k + "'][data-nr='" + fokusNach.nr + "'] .cam-text");
@@ -642,6 +643,17 @@ export default function HoferCam() {
     // Seit 1.591.0 ist T3400 Vorgabe: ältere Programme ohne Wahl, die T3421–T3423
     // brauchen, behalten die frontangetriebenen
     if (!d.t34 && neu.bloecke.some((b) => /^342[1-3]$/.test(String(b.platz)))) neu.t34 = "3421";
+    // Seit 1.619.0: ältere Handänderungen im NC-Code einer Bearbeitung kommen
+    // beim Öffnen in die Bearbeitung (vorher blieben sie nur im Programm)
+    for (const k of [1, 2]) {
+      if (!neu.hand || !neu.hand["k" + k]) continue;
+      try {
+        const pm = programmeMitHand(neu);
+        if ((k === 1 ? pm.verloren1 : pm.verloren2).length) continue;
+        const r = handZurueck(neu, k, k === 1 ? pm.k1 : pm.k2);
+        if (r.bloecke) { neu.bloecke = r.bloecke; neu.hand = r.hand; }
+      } catch { /* bleibt wie gespeichert */ }
+    }
     Object.keys(gemerkt).forEach((k) => delete gemerkt[k]);
     Object.assign(gemerkt, neu);
     setW({ ...neu });
@@ -1095,7 +1107,7 @@ export default function HoferCam() {
               onClick={programmFensterAuf}>⧉ Eigenes Fenster</button>
             <FensterKnoepfe w={w} einlesen={einlesen} eigen /></div>
           <Kanaele prog={prog} sync={sync} fehler={fehler} bereich={prog.bereiche[aktiv]} bereich2={prog.bereiche2[aktiv]}
-            w={w} handSetzen={(h) => setze("hand", h)} einlesen={einlesen} />
+            w={w} handSetzen={(h, bl) => { const neu = { ...w, hand: h, ...(bl ? { bloecke: bl } : {}) }; Object.assign(gemerkt, neu); setW(neu); melden(); }} einlesen={einlesen} />
         </>}
     </div>
   );

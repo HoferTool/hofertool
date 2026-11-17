@@ -19,7 +19,7 @@
 //  Programm je Bearbeitung (ohne Handänderungen im Programmfenster).
 // =================================================================
 
-import { blockZeilen, blockZeilen2, k1Zeilen, markenPaare, markenVergeben, programme, zahl, abVersatz, t34Von } from "./hofercam.js";
+import { blockZeilen, blockZeilen2, bereichMitHand, k1Zeilen, markenPaare, markenVergeben, programme, programmeMitHand, zahl, abVersatz, t34Von } from "./hofercam.js";
 import { wirksamB, wirksamW } from "./camTyp.js";
 import { fraeserUmriss, plattenUmriss, wzArt, wzVollstaendig } from "./camWerkzeug.js";
 import { SPITZEN } from "./kontur.js";
@@ -355,7 +355,7 @@ export function simAufbauen(wRoh) {
   const w = wirksamW(wRoh);
   const A = num(w.A) || 10, W = num(w.W) || 10, B = num(w.B) || 0;
   const v = { 531: A, 530: W, 529: num(w.S) || 0, 524: num(w.X) || 0, 525: num(w.Z) || 0, 522: num(w.F) || 0, 528: B, 510: A + 1 };
-  const prog = programme(w);
+  const prog = programmeMitHand(w);
   const marken = prog.marken || markenVergeben(w.bloecke || []);
   const vorne = -Math.abs(num(w.schlicht) || 0);
   const schritte = [];
@@ -371,6 +371,9 @@ export function simAufbauen(wRoh) {
     const wa = wzOk ? wzArt(bRoh) : null;
     const s = { i, id: b.id, kanal, titel, platz: Number(b.platz) || 0, art, gegen, wz: wzOk ? bRoh.wz : null, wzArt: wa, punkte: [], modus: null, status: "" };
     let zeilen = kanal === 2 ? blockZeilen2(b, marken[b.id], w) : blockZeilen(b, w, marken[b.id]);
+    // Seit 1.618.1: genau so, wie es im Programmfenster steht (mit Handänderungen)
+    const mitHand = kanal === 2 ? bereichMitHand(prog.auto2, prog.k2, prog.bereiche2[b.id]) : bereichMitHand(prog.auto1, prog.k1, prog.bereiche[b.id]);
+    if (mitHand) zeilen = mitHand;
     if (ANGETRIEBEN.has(art)) {
       // Frontangetrieben an der Gegenspindel: X und Y stehen in Kanal 1,
       // dazu der Kanal-1-Code zwischen den Markenpaaren an ihrer Stelle

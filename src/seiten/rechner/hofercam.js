@@ -664,6 +664,29 @@ export function programmeMitHand(w) {
     verloren1: r1.verloren, verloren2: r2.verloren };
 }
 const ohne = (a, b) => new Set([...a].filter((i) => !b.has(i)));
+// Seit 1.618.1 (Patrick 17. November 2026: „du machst in der simulation
+// nicht was im nc code steht … g0x16.0 obwohl es nicht im programm steht“):
+// die Zeilen einer Bearbeitung so, wie sie im Programmfenster stehen, also
+// mit Handänderungen. bereich = [von, bis] ab 1 im erzeugten Programm auto;
+// über die gleichen Zeilen von auto und mit findet es Anfang und Ende dort.
+export function bereichMitHand(auto, mit, bereich) {
+  if (!bereich) return null;
+  if (auto === mit || auto.length === mit.length && auto.every((z, i) => z === mit[i])) return auto.slice(bereich[0] - 1, bereich[1]);
+  const zu = new Map(gleicheZeilen(auto, mit));
+  const a = bereich[0] - 1, b = bereich[1] - 1;
+  let von = zu.get(a);
+  if (von === undefined) {
+    let k = a - 1; while (k >= 0 && !zu.has(k)) k--;
+    von = k >= 0 ? zu.get(k) + 1 : 0;
+  }
+  let bis = zu.get(b);
+  if (bis === undefined) {
+    let k = b + 1; while (k < auto.length && !zu.has(k)) k++;
+    bis = k < auto.length ? zu.get(k) - 1 : mit.length - 1;
+  }
+  return bis >= von ? mit.slice(von, bis + 1) : [];
+}
+
 function ausEingelesen(r, h) {
   const ein = new Set();
   if (!h || !Array.isArray(h.ein) || !r.gelb.size) return ein;
@@ -704,6 +727,75 @@ export function programmLesen(text) {
 
 // Neue Handfassung eines Kanals: basis = jetzt erzeugt, hand = angezeigt
 // und geändert; gleich wie erzeugt = keine Handänderung mehr
+// Seit 1.619.0 (Patrick 17. November 2026: „es steht in der bearbeitung,
+// aber nicht im programm, weil ich es von hand gelöscht habe. du musst auch
+// vom programm zurück in die bearbeitung anpassen“): eine Änderung im
+// Programmfenster, die im NC-Code einer Bearbeitung liegt, kommt in deren
+// Feld NC-Code; nur was in den festen Zeilen der Vorlage geändert ist, bleibt
+// eine Handänderung (gelb). Ergebnis: { hand, bloecke } (bloecke nur, wenn
+// sich ein NC-Code geändert hat).
+export function handZurueck(w, kanal, zeilen) {
+  const wv = wirksamW(w);
+  const bloecke = w.bloecke || [];
+  const p = programme(w);
+  const auto = kanal === 1 ? p.k1 : p.k2;
+  const ber = kanal === 1 ? p.bereiche : p.bereiche2;
+  let geaendert = false;
+  const neuBl = bloecke.map((b) => {
+    const r = bereichMitHand(auto, zeilen, ber[b.id]);
+    if (!r) return b;
+    const gen = kanal === 1 ? blockZeilen(b, wv, p.marken[b.id]) : blockZeilen2(b, p.marken[b.id], wv);
+    const lage = codeLage(b, gen, kanal, wv, p.marken[b.id]);
+    if (!lage) return b;
+    const code = codeAusBereich(gen, lage.k, lage.n, r);
+    if (!code) return b;
+    const roh = lage.schraeg ? code.map((z) => (z.startsWith("/") ? z.slice(1) : z)) : code;
+    const alt = codeZeilen(b);
+    if (roh.length === alt.length && roh.every((z, i) => z.trim() === alt[i])) return b;
+    geaendert = true;
+    return { ...b, code: roh.join("\n") };
+  });
+  if (!geaendert) return { hand: handNeu(w, kanal, auto, zeilen) };
+  const w2 = { ...w, bloecke: neuBl };
+  const p2 = programme(w2);
+  return { hand: handNeu(w2, kanal, kanal === 1 ? p2.k1 : p2.k2, zeilen), bloecke: neuBl };
+}
+// Wo im erzeugten Block der NC-Code steht: { k: erste Zeile, n: Anzahl, schraeg }
+function codeLage(b, gen, kanal, w, marke) {
+  if (b.frei) return gen.length ? { k: 0, n: gen.length, schraeg: false } : null;
+  const c = codeZeilen(b);
+  if (!c.length) {
+    const s = kanal === 1 ? blockZeilen({ ...b, code: "\u0001" }, w, marke) : blockZeilen2({ ...b, code: "\u0001" }, marke, w);
+    const k = s.findIndex((z) => String(z).includes("\u0001"));
+    return k < 0 ? null : { k, n: 0, schraeg: String(s[k]).startsWith("/") };
+  }
+  const passt = (k, liste) => liste.every((z, i) => gen[k + i] === z);
+  const sch = c.map(schraeg);
+  for (let k = 0; k + c.length <= gen.length; k++) {
+    if (passt(k, c)) return { k, n: c.length, schraeg: false };
+    if (passt(k, sch)) return { k, n: c.length, schraeg: true };
+  }
+  return null;
+}
+// Zeilen im Programmfenster r, die dem NC-Code gen[k, k+n) entsprechen.
+// Zeilen davor und danach (feste Zeilen der Vorlage) werden über die gleichen
+// Zeilen zugeordnet; eine geänderte feste Zeile gleich neben dem Code bleibt
+// bei den festen Zeilen.
+function codeAusBereich(gen, k, n, r) {
+  const zu = new Map(gleicheZeilen(gen, r));
+  let gPre = k - 1; while (gPre >= 0 && !zu.has(gPre)) gPre--;
+  const rPre = gPre >= 0 ? zu.get(gPre) : -1, n1 = k - 1 - gPre;
+  let gPost = k + n; while (gPost < gen.length && !zu.has(gPost)) gPost++;
+  const rPost = gPost < gen.length ? zu.get(gPost) : r.length, n0 = gPost - (k + n);
+  if (rPost <= rPre) return null;
+  const m = r.slice(rPre + 1, rPost);
+  const treffer = [];
+  for (let g = k; g < k + n; g++) if (zu.has(g)) treffer.push(zu.get(g) - rPre - 1);
+  let vorne, hinten;
+  if (treffer.length) { vorne = Math.min(n1, treffer[0]); hinten = Math.min(n0, m.length - 1 - treffer[treffer.length - 1]); }
+  else { vorne = Math.min(n1, m.length); hinten = Math.min(n0, m.length - vorne); }
+  return m.slice(vorne, m.length - hinten).map((z) => String(z).trim()).filter(Boolean);
+}
 export function handNeu(w, kanal, auto, zeilen) {
   const hand = { ...(w.hand || {}) };
   if (zeilen.length === auto.length && zeilen.every((z, i) => z === auto[i])) delete hand["k" + kanal];
