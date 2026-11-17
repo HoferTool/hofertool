@@ -14571,3 +14571,5 @@ body.dunkel .umf-v__lupe { background: rgba(0, 0, 0, .6); }
 .pad-neu p { margin: .5rem 0; }
 .pad-neu__schild { background: #e8590c; color: #fff !important; font-size: .8rem; font-weight: 700;
   padding: .2rem .55rem; border-radius: 999px; text-transform: uppercase; letter-spacing: .04em; }
+/* HOFERCAM: NC-Code der Bearbeitung wächst mit, kein Rollen darin (seit 1.618.0) */
+.cam-block__code--voll { overflow: hidden; resize: none; }

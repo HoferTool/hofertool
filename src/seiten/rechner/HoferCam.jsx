@@ -9,7 +9,7 @@
 //  Drehwerkzeuge T100–T600 (weitere Plätze kommen nach seinen Vorgaben).
 // =================================================================
 import { ZiehListe } from "../../teile/ZiehListe.jsx";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { useEntwurfZurueck } from "../../teile/lokalZurueck.js";
 import { NcAblage, NcStand } from "./NcAblage.jsx";
@@ -590,6 +590,29 @@ function EigenFeld({ f, o, setze, merkmal }) {
     </label>);
 }
 
+// NC-Code einer Bearbeitung: das Feld wächst mit dem Code, nie Rollen darin
+// (seit 1.618.0, Patrick 17. November 2026: „es muss immer der volle Code
+// angezeigt werden, die Leiste soll mit dem Code grösser werden“)
+function CodeFeld({ min = 3, value, ...rest }) {
+  const ref = useRef(null);
+  const anpassen = () => {
+    const t = ref.current;
+    if (!t) return;
+    t.style.height = "auto";
+    t.style.height = (t.scrollHeight + 2) + "px";
+  };
+  useLayoutEffect(anpassen, [value]);
+  useEffect(() => {
+    const t = ref.current;
+    if (!t || typeof ResizeObserver === "undefined") return undefined;
+    let breite = t.clientWidth;
+    const ro = new ResizeObserver(() => { if (t.clientWidth !== breite) { breite = t.clientWidth; anpassen(); } });
+    ro.observe(t);
+    return () => ro.disconnect();
+  }, []);
+  return <textarea ref={ref} className="cam-block__code cam-block__code--voll" rows={min} spellCheck={false} value={value} {...rest} />;
+}
+
 export default function HoferCam() {
   const [w, setW] = useState(gemerkt);
   // Strg + Z nimmt die letzte Eingabe zurück (seit 1.613.0, Patrick: „überall im Tool“)
@@ -1040,7 +1063,7 @@ export default function HoferCam() {
                   {vorlageBei === b.id && <VorlageFeld code={b.code} pos={marke.current[b.id]}
                     einsetzen={(t) => blockAendern(b.id, "code", t)} zu={() => setVorlageBei(null)} />}
                   {vorlageBei === "m" + b.id && <ModulWahl blockId={b.id} pos={() => marke.current[b.id]} zu={() => setVorlageBei(null)} />}
-                  <textarea className="cam-block__code" data-camblock="code" rows={4} spellCheck={false}
+                  <CodeFeld data-camblock="code" min={4}
                     onSelect={(e) => { marke.current[b.id] = e.target.selectionStart; }}
                     placeholder={gegen ? "NC-Code für Kanal 2 (zwei Marken direkt nacheinander, z.B. M350 und M360, geben Platz für Kanal 1)" : "NC-Code der Bearbeitung hier einfügen (aus Kontur, Bohren / Fräsen …; zwei Marken direkt nacheinander geben Platz für Kanal 2)"}
                     value={b.code} onChange={(e) => { marke.current[b.id] = e.target.selectionStart; blockAendern(b.id, "code", e.target.value); }} />
@@ -1052,7 +1075,7 @@ export default function HoferCam() {
                 return (
                 <label key={x + "-" + y} className="cam-k1" data-camk1={x + "-" + y}>
                   <span className="klein">Kanal {ander} zwischen {x} und {y}</span>
-                  <textarea className="cam-block__code" rows={3} spellCheck={false}
+                  <CodeFeld min={3}
                     placeholder={"NC-Code für Kanal " + ander + ", während Kanal " + (3 - ander) + " zwischen " + x + " und " + y + " wartet"}
                     value={(b[fk] || {})[x + "-" + y] || ""}
                     onChange={(e) => blockAendern(b.id, fk, { ...(b[fk] || {}), [x + "-" + y]: e.target.value })} />
