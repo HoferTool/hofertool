@@ -14454,7 +14454,11 @@ body.dunkel #pad .pad__meldungen--offen .pad__meldungen-zahl { color: #b42318 !i
      (todoGleiten, Web Animations) an ihre neue Stelle unter dem Menü und
      zurück. Patrick: „soll nicht kurz verschwinden“. */
   /* Menü kommt wie beim Aufklappen */
-  body.nav--zum-menue .nav > .nav__punkt { animation: none; }
+  /* Das Hereinfahren der Menüpunkte aus effekte.css (fx-nav-herein) startete
+     nach jedem Einblenden neu: die Punkte waren kurz weg und standen dann da.
+     Im Todo-Modus kommt das Menü nur über nav--zum-menue (1.608.1). */
+  body.nav--zeigt-menue .nav > .nav__punkt { animation: none; }
+  body.nav--zeigt-menue:not(.nav--zum-menue) .nav__punkt.aktiv .nav__zeichen { animation: none; }
   body.nav--zum-menue .nav__zeichen {
     animation: nav-zeichen-auf .7s cubic-bezier(.34, 1.7, .5, 1) both;
     animation-delay: calc(var(--n, 0) * 35ms + 40ms); }
