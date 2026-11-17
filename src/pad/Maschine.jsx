@@ -28,6 +28,7 @@ import { keyenceOeffnen } from "../teile/Messberichte.jsx";
 import { messberichteZahl } from "../daten/messberichte.js";
 import { WartungKachel } from "./Wartung.jsx";
 import { einrichtblattHinweis } from "../einrichtblatt/PadHinweis.jsx";
+import { neuHinweisZeigen } from "./NeuHinweis.jsx";
 import { useWaschprog } from "../daten/waschprog.js";
 import { mahnBilder, escobarDarf } from "../daten/mahnbilder.js";
 import { wetterFensterOeffnen } from "./Wetter.jsx";
@@ -591,6 +592,8 @@ export default function Maschine({ d }) {
   const zahlText = alt.zahlText;
   const [stkAnsicht, setStkAnsicht] = useState(pad.stkAnsicht || "tag");
   const mitTyp = !!(j && m.type_id);
+  // Einmal je Gerät: was am Einrichtblatt neu ist (seit 1.614.0)
+  useEffect(() => { neuHinweisZeigen(m); }, [m.id]);
 
   // Die Zeichnung kommt vom Auftrag, sonst aus den Stammdaten der
   // HOCO Nr. — sie ist für jeden Durchlauf dieselbe. Die WBG gehört zu

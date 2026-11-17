@@ -14564,3 +14564,10 @@ body.dunkel .umf-v__lupe { background: rgba(0, 0, 0, .6); }
 /* Einrichtblatt: Option frontangetriebene T3421–T3423 (seit 1.613.1) */
 .eba-front34 { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; font-size: 13px; white-space: nowrap; cursor: pointer; }
 .eba-front34 input:disabled + * , .eba-front34:has(input:disabled) { opacity: .75; cursor: default; }
+
+/* Pad Mode: „Neu beim Einrichtblatt“ (1.614.0) */
+.pad-neu { max-width: 560px; font-size: 1.1rem; line-height: 1.45; }
+.pad-neu h2 { display: flex; align-items: center; gap: .6rem; }
+.pad-neu p { margin: .5rem 0; }
+.pad-neu__schild { background: #e8590c; color: #fff !important; font-size: .8rem; font-weight: 700;
+  padding: .2rem .55rem; border-radius: 999px; text-transform: uppercase; letter-spacing: .04em; }
