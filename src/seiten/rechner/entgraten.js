@@ -88,6 +88,8 @@ export function kantenAusBohren(b) {
 
   if (b.art === "bohrenQuer") {
     const rB = Math.min(b.bohrD / 2, R * 0.98);
+    // Entgraten rechnet weiter mit Z ins Teil kleiner, darum aus der Lage ab
+    // der Stirn, nicht aus l.z (Bohren / Fräsen seit 1.592.0 ins Teil grösser)
     querLoecher(b).forEach((l, i) => {
       const w = grad(l.c), e = radial(w), t = tangential(w);
       const punkte = [];
@@ -95,7 +97,7 @@ export function kantenAusBohren(b) {
         const f = (2 * Math.PI * k) / N;
         const s = rB * Math.sin(f), a = rB * Math.cos(f);
         const h = Math.sqrt(R * R - s * s);
-        const E = plus(plus(mal(e, h), mal(t, s)), v(0, 0, l.z + a));
+        const E = plus(plus(mal(e, h), mal(t, s)), v(0, 0, z0 - l.ab + a));
         const nA = einheit(v(E[0], E[1], 0));
         // Weg von der Bohrung auf dem Zylinder: Abstand zur Bohrachse,
         // in die Tangentialebene gelegt
@@ -105,7 +107,7 @@ export function kantenAusBohren(b) {
       }
       const id = "quer" + i;
       kanten.push({ id, name: "Querbohrung " + (i + 1) + " (Z-" + l.ab + ", C" + Math.round(l.c) + ")", merkmal: id, zentrier: "quer", c0: l.c, geschlossen: true, punkte });
-      mitten[id] = { punkte: [plus(mal(e, R), v(0, 0, l.z))], nA: e, halb: rB };
+      mitten[id] = { punkte: [plus(mal(e, R), v(0, 0, z0 - l.ab))], nA: e, halb: rB };
     });
   }
 

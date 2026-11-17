@@ -1,5 +1,6 @@
 # HOFER-NC-PRO → Bohren / Fräsen (seit 1.384.0): jede Bearbeitung gibt
 # plausiblen NC-Code, Warnungen erscheinen, Antrieb und Ansichten gehen.
+# seit 1.592.0: Z ins Teil grösser wie an der Star
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -25,7 +26,7 @@ with sync_playwright() as p:
         pg.fill(f"[data-bf='{name}']", str(wert)); pg.press(f"[data-bf='{name}']", "Tab"); pg.wait_for_timeout(120)
 
     c = code()
-    pruefe("Front G83 mit 4 Bohrungen", "G83X12.000C0.000Z-8.000R0.Q2000F80" in c and "\nX12.000C90.000" in c
+    pruefe("Front G83 mit 4 Bohrungen", "G83X12.000C0.000Z8.000R0.Q2000F80" in c and "\nX12.000C90.000" in c
            and "\nX12.000C270.000" in c and "\nG80" in c)
     pruefe("Hinweis ohne Antrieb", "FRONTWERKZEUG EIN S2500" in c and pg.locator(".bf-warnung").count() == 1)
     pg.fill("[data-bfantrieb='frontEin']", "M80 S{S}"); pg.fill("[data-bfantrieb='frontAus']", "M81")
@@ -36,11 +37,11 @@ with sync_playwright() as p:
 
     pg.select_option("[data-bf='ausgabe']", "einzeln"); pg.wait_for_timeout(120)
     c = code()
-    pruefe("Ausgeschrieben: Stösse 2/4/6/8", all(f"G1Z-{t}.000F80" in c for t in (2, 4, 6, 8)) and "G83" not in c
-           and "G0Z-1.700" in c)
+    pruefe("Ausgeschrieben: Stösse 2/4/6/8", all(f"G1Z{t}.000F80" in c for t in (2, 4, 6, 8)) and "G83" not in c
+           and "G0Z1.700" in c)
     pg.click("[data-bfzyklus='gewinde']"); pg.wait_for_timeout(120)
     c = code()
-    pruefe("Gewinde M29 + G84 F=S*P", "M29S2500" in c and "G84X12.000C0.000Z-8.000R0.F1750" in c)
+    pruefe("Gewinde M29 + G84 F=S*P", "M29S2500" in c and "G84X12.000C0.000Z8.000R0.F1750" in c)
     feld("lochkreis", 0)
     pruefe("Mitte: eine Bohrung X0", "G84X0.000C0.000" in code() and pg.locator("[data-bf='anzahl']").count() == 0)
 
@@ -48,23 +49,23 @@ with sync_playwright() as p:
     pg.click("[data-bfzyklus='tief']"); feld("zPos", "5; 12"); feld("anzahl", 2)
     pg.select_option("[data-bf='ausgabe']", "zyklus"); pg.wait_for_timeout(120)
     c = code()
-    pruefe("Quer G87 zwei Lagen, zwei Winkel", "G87Z-5.000C0.000X4.000R0.Q2000F80" in c and "\nZ-5.000C180.000" in c
-           and "\nZ-12.000C0.000" in c and "\nZ-12.000C180.000" in c and "G0X22.000" in c)
+    pruefe("Quer G87 zwei Lagen, zwei Winkel", "G87Z5.000C0.000X4.000R0.Q2000F80" in c and "\nZ5.000C180.000" in c
+           and "\nZ12.000C0.000" in c and "\nZ12.000C180.000" in c and "G0X22.000" in c)
     pruefe("Quer ohne Antrieb warnt", "QUERWERKZEUG EIN" in c and pg.locator(".bf-warnung").count() == 1)
 
     pg.click("[data-bfart='nutFront']"); pg.wait_for_timeout(120)
     c = code()
-    pruefe("Nut Front durchgehend", "G0X26.000C0.000" in c and "G1Z-0.500F40" in c and "G1X-26.000F80" in c
-           and "G1Z-1.500F40" in c)
+    pruefe("Nut Front durchgehend", "G0X26.000C0.000" in c and "G1Z0.500F40" in c and "G1X-26.000F80" in c
+           and "G1Z1.500F40" in c)
     pg.click("[data-bfart='nutQuer']"); pg.wait_for_timeout(120)
     c = code()
-    pruefe("Nut Quer offen", "G0Z3.000C0.000" in c and "G1X19.000F40" in c and "G1Z-10.000F80" in c and "G1X17.000F40" in c)
+    pruefe("Nut Quer offen", "G0Z-3.000C0.000" in c and "G1X19.000F40" in c and "G1Z10.000F80" in c and "G1X17.000F40" in c)
 
     pg.click("[data-bfart='flaeche']"); pg.wait_for_timeout(120)
     pruefe("Fläche: Fräser zu klein warnt", any("Y-Achse" in t for t in pg.locator(".bf-warnung").all_inner_texts()))
     feld("fraeser", 14)
     c = code()
-    pruefe("Fläche 2 × SW16 mit Fräser 14", "C180.000" in c and "G1X16.000F40" in c and "G1Z-3.000F80" in c
+    pruefe("Fläche 2 × SW16 mit Fräser 14", "C180.000" in c and "G1X16.000F40" in c and "G1Z3.000F80" in c
            and not any("Y-Achse" in t for t in pg.locator(".bf-warnung").all_inner_texts()))
     feld("fraeser", 6); pg.select_option("[data-bf='yAchse']", "ja"); pg.wait_for_timeout(120)
     c = code()

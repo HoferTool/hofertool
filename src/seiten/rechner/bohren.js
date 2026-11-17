@@ -90,10 +90,18 @@ export function frontLoecher(b) {
 export function querLoecher(b) {
   const out = [];
   // Die Lagen sind Abstände ab der Stirn, ins Teil hinein (wie bei Nut
-  // und Fläche): Z = Stirn − Lage
-  zLagen(b).forEach((zz) => cWinkel(b).forEach((c) => out.push({ z: b.zStirn - zz, ab: zz, c })));
+  // und Fläche): Z = Stirn + Lage (seit 1.592.0, siehe ZIN)
+  zLagen(b).forEach((zz) => cWinkel(b).forEach((c) => out.push({ z: zIn(b, zz), ab: zz, c })));
   return out;
 }
+
+// Richtung ins Teil: an der Star wird Z ins Teil hinein grösser (Teil
+// vorne bei Z0, Abstechen bei W), vor der Stirn kleiner. Bis 1.591.x
+// rechnete das Modul wie an einer normalen Drehmaschine mit Z ins Teil
+// kleiner (Patrick 17. November 2026: „die Z-Zustellung in die falsche
+// Richtung“).
+export const ZIN = 1;
+export const zIn = (b, mm) => b.zStirn + ZIN * mm;
 
 // Sehne der Fläche: so breit wird sie am Umfang
 export const flaecheBreite = (b) => {
@@ -193,15 +201,15 @@ function gewindeVor(b, z) {
 
 function bohrenFront(b, z) {
   const loecher = frontLoecher(b);
-  const zR = b.zStirn + b.sicher;
-  const zT = b.zStirn - b.tiefe;
+  const zR = zIn(b, -b.sicher);
+  const zT = zIn(b, b.tiefe);
   z.push("( " + loecher.length + " Bohrung" + (loecher.length > 1 ? "en auf Lochkreis D" + b.lochkreis : " in der Mitte") + ", Tiefe " + b.tiefe + " )");
   z.push("G0X" + z3(loecher[0].x) + "C" + wink(loecher[0].c));
   z.push("G0Z" + z3(zR));
   if (b.ausgabe === "einzeln" && b.zyklus !== "gewinde") {
     loecher.forEach((l, i) => {
       if (i) z.push("G0X" + z3(l.x) + "C" + wink(l.c));
-      einzelnBohren(b, z, "Z", zR, b.zStirn, zT, -1);
+      einzelnBohren(b, z, "Z", zR, b.zStirn, zT, ZIN);
     });
   } else {
     gewindeVor(b, z);
@@ -212,7 +220,7 @@ function bohrenFront(b, z) {
     });
     z.push("G80");
   }
-  z.push("G0Z" + z3(zR + 5));
+  z.push("G0Z" + z3(zIn(b, -b.sicher - 5)));
 }
 
 function bohrenQuer(b, z) {
@@ -243,7 +251,7 @@ function bohrenQuer(b, z) {
 
 // Ausgeschrieben: Tieflochbohren fährt nach jeder Zustellung ganz
 // heraus und im Eilgang bis knapp vor den letzten Grund zurück.
-// fak: -1 für Z (nach innen kleiner), -2 für X im Durchmesser.
+// fak: ZIN (+1) für Z (ins Teil grösser), -2 für X im Durchmesser.
 function einzelnBohren(b, z, ach, startW, oberW, grundW, fak) {
   const tiefe = (grundW - oberW) / fak;
   const pause = b.pause > 0 ? "G4U" + (+b.pause).toFixed(1) : "";
@@ -276,7 +284,7 @@ function nutFront(b, z) {
   const durch = b.nutLaenge >= b.teilD;
   // Fräsermitte in X (Durchmesser) von + nach −, quer über die Mitte
   const xA = durch ? b.teilD + 2 * (r + b.sicher) : Math.max(0, b.nutLaenge - b.fraeser);
-  const zR = b.zStirn + b.sicher;
+  const zR = zIn(b, -b.sicher);
   z.push("( Nut auf der Stirn bei C" + wink(b.startC) + ", Breite = Fraeser D" + b.fraeser + ", Tiefe " + b.nutTiefe
     + (durch ? ", durchgehend" : ", Laenge " + b.nutLaenge) + " )");
   z.push("G0X" + z3(xA) + "C" + wink(b.startC));
@@ -285,21 +293,21 @@ function nutFront(b, z) {
   schnitte(b.nutTiefe, b.zustellung).forEach((t) => {
     // Durchgehend taucht er ausserhalb des Teils ein, sonst im Material
     // (Fräser muss über die Mitte schneiden)
-    z.push("G1Z" + z3(b.zStirn - t) + "F" + b.vorschubZ);
+    z.push("G1Z" + z3(zIn(b, t)) + "F" + b.vorschubZ);
     z.push("G1X" + z3(hin ? -xA : xA) + "F" + b.vorschub);
     hin = !hin;
   });
-  z.push("G0Z" + z3(zR + 5));
+  z.push("G0Z" + z3(zIn(b, -b.sicher - 5)));
 }
 
 function nutQuer(b, z) {
   const r = b.fraeser / 2;
   const offen = !(b.nutVon > 0);
-  const zA = offen ? b.zStirn + r + b.sicher : b.zStirn - b.nutVon - r;
-  const zE = b.zStirn - b.nutBis + r;
+  const zA = offen ? zIn(b, -r - b.sicher) : zIn(b, b.nutVon + r);
+  const zE = zIn(b, b.nutBis - r);
   const xR = b.teilD + 2 * b.sicher;
   z.push("( Laengsnut am Umfang bei C" + wink(b.startC) + ", Breite = Fraeser D" + b.fraeser + ", Tiefe " + b.nutTiefe
-    + ", Z" + (offen ? " offen" : "-" + b.nutVon) + " bis Z-" + b.nutBis + " )");
+    + ", Z" + (offen ? " offen" : b.nutVon) + " bis Z" + b.nutBis + " )");
   z.push("G0Z" + z3(zA) + "C" + wink(b.startC));
   z.push("G0X" + z3(xR));
   let hin = true;
@@ -314,8 +322,8 @@ function nutQuer(b, z) {
 function flaeche(b, z) {
   const r = b.fraeser / 2;
   const offen = !(b.flVon > 0);
-  const zA = offen ? b.zStirn + r + b.sicher : b.zStirn - b.flVon - r;
-  const zE = b.zStirn - b.flBis + r;
+  const zA = offen ? zIn(b, -r - b.sicher) : zIn(b, b.flVon + r);
+  const zE = zIn(b, b.flBis - r);
   const xR = b.teilD + 2 * b.sicher;
   const tiefe = Math.max(0, (b.teilD - b.sw) / 2);
   const n = Math.max(1, Math.round(b.flaechen) || 1);
@@ -328,7 +336,7 @@ function flaeche(b, z) {
     bahnen = Array.from({ length: k + 1 }, (_, i) => -rand + (2 * rand * i) / k);
   }
   z.push("( " + n + " Flaeche" + (n > 1 ? "n" : "") + " SW" + b.sw + " an D" + b.teilD + ", Breite " + br.toFixed(2)
-    + ", Z" + (offen ? " offen" : "-" + b.flVon) + " bis Z-" + b.flBis + ", Fraeser D" + b.fraeser + " )");
+    + ", Z" + (offen ? " offen" : b.flVon) + " bis Z" + b.flBis + ", Fraeser D" + b.fraeser + " )");
   for (let i = 0; i < n; i++) {
     const c = b.startC + (360 * i) / n;
     z.push("( Flaeche " + (i + 1) + " bei C" + wink(c) + " )");
