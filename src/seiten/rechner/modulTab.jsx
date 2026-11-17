@@ -49,20 +49,69 @@ export function modulTabOeffnen(art, blockId, pos) {
   return false;
 }
 
-// Auswahl der Module beim Knopf „+ Aus Modul“
+// Auswahl der Module beim Knopf „+ Aus Modul“. Seit 1.594.0 mit der Wahl,
+// woher der Code kommt (Wunsch Patrick 17. November 2026: „ob der aktuelle
+// NC-Code aus den Reiter-Modulen kommt, oder ob ein neues Fenster mit einer
+// leeren Vorlage aufgemacht werden soll“): „Aktueller Code aus dem Reiter“
+// nimmt, was der Reiter zuletzt erzeugt hat (ncAktuell.js), mit Vorschau;
+// „Leer im neuen Tab“ wie seit 1.588.0. Die Wahl merkt das Gerät.
+const QUELLE = "hofer.cam.modulQuelle";
 export function ModulWahl({ blockId, pos, zu }) {
+  const [quelle, setQuelleRoh] = useState(() => { try { return localStorage.getItem(QUELLE) === "aktuell" ? "aktuell" : "tab"; } catch { return "tab"; } });
+  const setQuelle = (q) => { setQuelleRoh(q); try { localStorage.setItem(QUELLE, q); } catch { /* egal */ } };
+  const [, neu] = useState(0);
+  useEffect(() => ncBeobachten(() => neu((n) => n + 1)), []);
+  // vorgewählt das zuletzt geänderte Modul mit Code
+  const [art, setArt] = useState(() => {
+    const mit = NC_QUELLEN.map(([k]) => [k, ncAktuell(k)]).filter(([, a]) => a && a.text.trim());
+    mit.sort((a, b) => (b[1].zeit || 0) - (a[1].zeit || 0));
+    return mit.length ? mit[0][0] : null;
+  });
+  const [ohne, setOhne] = useState(true);
+  const zeilen = art ? ncZeilen(ncAktuell(art)?.text || "", ohne && hatSpann()) : [];
+  const uebernehmen = () => {
+    if (!empfaenger) return;
+    const erg = empfaenger(blockId, zeilen.map(String), pos());
+    alt.meldung(erg.text, erg.ok ? "gut" : "fehler");
+    if (erg.ok) zu();
+  };
   return (
     <div className="cam-vorlage" data-cammodul>
       <div className="cam-vorlage__kopf">
         <b>Aus Modul</b>
-        <span className="klein">Öffnet das Modul leer in einem eigenen Tab. Dort „Einfügen in HOFERCAM“ setzt den Code nach der Zeile mit der Schreibmarke ein.</span>
+        <span className="cam-modul__quelle">
+          <button className={"knopf knopf--klein" + (quelle === "aktuell" ? " cam-modul--an" : "")} data-cammodul-quelle="aktuell"
+            onClick={() => setQuelle("aktuell")}>Aktueller Code aus dem Reiter</button>
+          <button className={"knopf knopf--klein" + (quelle === "tab" ? " cam-modul--an" : "")} data-cammodul-quelle="tab"
+            onClick={() => setQuelle("tab")}>Leere Vorlage im neuen Tab ↗</button>
+        </span>
         <button className="knopf knopf--klein" title="Schliessen" onClick={zu}>✕</button>
       </div>
-      <div className="cam-modul__wahl">
-        {NC_QUELLEN.map(([k, n]) => (
-          <button key={k} className="knopf knopf--klein" data-cammodul-wahl={k}
-            onClick={() => { if (modulTabOeffnen(k, blockId, pos)) zu(); }}>{n} ↗</button>))}
-      </div>
+      {quelle === "tab" ? <>
+        <span className="klein">Öffnet das Modul leer in einem eigenen Tab. Dort „Einfügen in HOFERCAM“ setzt den Code nach der Zeile mit der Schreibmarke ein.</span>
+        <div className="cam-modul__wahl">
+          {NC_QUELLEN.map(([k, n]) => (
+            <button key={k} className="knopf knopf--klein" data-cammodul-wahl={k}
+              onClick={() => { if (modulTabOeffnen(k, blockId, pos)) zu(); }}>{n} ↗</button>))}
+        </div>
+      </> : <>
+        <span className="klein">Nimmt den Code, den der Reiter des Moduls zuletzt erzeugt hat. „Einfügen“ setzt ihn nach der Zeile mit der Schreibmarke ein.</span>
+        <div className="cam-modul__wahl">
+          {NC_QUELLEN.map(([k, n]) => {
+            const a = ncAktuell(k), da = !!(a && a.text.trim());
+            return <button key={k} className={"knopf knopf--klein" + (art === k ? " cam-modul--an" : "")} data-cammodul-aktuell={k} disabled={!da}
+              title={da ? "" : "Dieser Reiter war noch nicht offen oder hat noch keinen Code"} onClick={() => setArt(k)}>{n}</button>;
+          })}
+        </div>
+        {art ? <div className="cam-modul__aktuell">
+          {hatSpann() && <label className="cam-feld cam-feld--haken" title="Vor- und Nachspann für die Maschine weglassen, sie stehen in HOFERCAM schon im Kopf und Ende">
+            <input type="checkbox" data-cammodul-ohne checked={ohne} onChange={(e) => setOhne(e.target.checked)} />
+            <span>ohne Vor- und Nachspann</span></label>}
+          <pre className="cam-modul__vorschau" data-cammodul-vorschau>{zeilen.join("\n") || "(kein Code)"}</pre>
+          <button className="knopf knopf--klein cam-modul--an" data-cammodul-einfuegen disabled={!zeilen.length} onClick={uebernehmen}>
+            Einfügen ({zeilen.length} Zeilen)</button>
+        </div> : <span className="klein">Noch kein Modul hat Code erzeugt. Öffne zuerst einen Reiter wie Bohren / Fräsen oder nimm „Leere Vorlage im neuen Tab“.</span>}
+      </>}
     </div>
   );
 }
