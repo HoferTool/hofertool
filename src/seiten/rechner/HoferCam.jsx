@@ -251,7 +251,7 @@ function PlatzWahl({ wert, plaetze, waehlen, vorschau }) {
 
 // Seit 1.426.0: Bild der Maschine oben rechts, solange die Maus über
 // einer Bearbeitung steht, mit dem Bereich ihres Werkzeugs markiert
-function MaschinenBild({ block, t34 }) {
+function MaschinenBild({ block, t34, gruppe }) {
   // Fährt die Maus darunter, wird es fast durchsichtig, damit
   // die Felder dahinter lesbar und bedienbar bleiben (Klicks gehen durch)
   const ref = useRef(null);
@@ -265,7 +265,7 @@ function MaschinenBild({ block, t34 }) {
     };
     d.addEventListener("pointermove", f);
     return () => d.removeEventListener("pointermove", f);
-  }, [!!block]);
+  }, [!!block || !!gruppe]);
   // Seit 1.426.7 (Patrick: „möglichst gross, soll aber nicht T3421–T3423
   // überdecken“): Grösse aus dem Platz rechts neben bzw. über den Knöpfen
   // der Bearbeitungen.
@@ -301,7 +301,8 @@ function MaschinenBild({ block, t34 }) {
     rechnen();
     win.addEventListener("resize", rechnen);
     return () => { win.removeEventListener("resize", rechnen); };
-  }, [!!block]);
+  }, [!!block || !!gruppe]);
+  if (gruppe && gruppe.bloecke.length) return <GruppenBild gruppe={gruppe} t34={t34} ref_={ref} mass={mass} />;
   if (!block) return null;
   const r = bildBereich(block);
   // Seit 1.426.3 (Patrick: „soll gut lesbar sein“): grösser, Rest des
@@ -328,6 +329,42 @@ function MaschinenBild({ block, t34 }) {
       <div className="cam-bild__text">{t} · {r.text}</div>
     </div>
   );
+}
+
+// Seit 1.600.0 (Wunsch Patrick 17. November 2026: „wenn ich bei
+// Bearbeitungen Kanal 1 und 2 über die Buttons fahre, soll das
+// Werkzeugauswahlbild mir die entsprechenden Werkzeuge blinkend anzeigen“):
+// alle Plätze des Knopfs zugleich, blinkend, ohne Schild je Platz
+function GruppenBild({ gruppe, t34, ref_, mass }) {
+  const rs = gruppe.bloecke.map((b) => bildBereich(b));
+  return (
+    <div className="cam-bild cam-bild--gruppe" id="cam-bild" data-gruppe={gruppe.art} data-bereiche={rs.length} ref={ref_} style={mass ? { width: mass + 12 } : undefined}>
+      <svg viewBox="0 0 512 512">
+        <defs><mask id="cam-bild-maske">
+          <rect x="0" y="0" width="512" height="512" fill="#fff" />
+          {rs.map((r, i) => <rect key={i} x={r.x - 3} y={r.y - 3} width={r.w + 6} height={r.h + 6} rx="6" fill="#000" />)}
+        </mask></defs>
+        <image href={import.meta.env.BASE_URL + (t34 === "3400" ? "hilfe/star-sb20rg-t3400.png" : "hilfe/star-sb20rg.png")} x="0" y="0" width="512" height="512" />
+        <rect x="0" y="0" width="512" height="512" fill="rgba(20,30,45,.45)" mask="url(#cam-bild-maske)" />
+        {rs.map((r, i) => <rect key={i} className={"cam-bild__rahmen cam-bild__rahmen--blink" + (r.verdeckt ? " cam-bild__rahmen--verdeckt" : "")}
+          x={r.x} y={r.y} width={r.w} height={r.h} rx="5" />)}
+      </svg>
+      <div className="cam-bild__text">{gruppe.text}</div>
+    </div>
+  );
+}
+
+// Plätze eines Knopfs „+ …“ als gedachte Bearbeitungen fürs Bild; Front-
+// und frontangetriebene an Haupt- und Gegenspindel
+function knopfGruppe(art, w, text) {
+  const gruppe = art === "k2a" ? "k2" : art;
+  const l = montiert(gruppe, w);
+  const bl = [];
+  l.forEach((p) => {
+    bl.push({ art, platz: p });
+    if (art === "front" || art === "quer") bl.push({ art, platz: p, spindel: "gegen" });
+  });
+  return { art, bloecke: bl, text };
 }
 
 const text = (zeilen) => zeilen.join("\r\n") + "\r\n";
@@ -495,6 +532,11 @@ export default function HoferCam() {
   const [w, setW] = useState(gemerkt);
   const [aktiv, setAktivRoh] = useState(aktivId);
   const [ueber, setUeber] = useState(null);
+  const [knopfUeber, setKnopfUeber] = useState(null);
+  const knopfMaus = (art, label) => ({
+    onPointerEnter: (e) => { if (e.pointerType === "mouse") setKnopfUeber({ art, text: label + " " + spanne(art === "k2a" ? "k2" : art, w) }); },
+    onPointerLeave: () => setKnopfUeber((x) => (x && x.art === art ? null : x)),
+  });
   // Platz, über dem die Maus in der offenen Auswahl steht: { id, platz }
   const [vorPlatz, setVorPlatz] = useState(null);
   // Offene Vorlage je Bearbeitung und Schreibmarke im NC-Code (1.427.0)
@@ -719,20 +761,21 @@ export default function HoferCam() {
         // Seit 1.426.6 wieder nur, solange die Maus über einer Bearbeitung ist
         // (Patrick: „doch nicht eingeblendet bleiben“)
         const bb = bloecke.find((x) => x.id === ueber);
-        return <MaschinenBild t34={t34Von(w)} block={bb && vorPlatz && vorPlatz.id === bb.id ? { ...bb, platz: vorPlatz.platz } : bb} />;
+        const kg = !bb && knopfUeber ? knopfGruppe(knopfUeber.art, w, knopfUeber.text) : null;
+        return <MaschinenBild t34={t34Von(w)} gruppe={kg} block={bb && vorPlatz && vorPlatz.id === bb.id ? { ...bb, platz: vorPlatz.platz } : bb} />;
       })()}
       <div className="cam-bearb" id="cam-bearb">
         <div className="cam-bearb__kopf">
           <b>Bearbeitungen Kanal 1</b>
-          <button className="knopf knopf--klein" id="cam-neu-dreh"
+          <button className="knopf knopf--klein" id="cam-neu-dreh" {...knopfMaus("dreh", "Drehwerkzeug")}
             onClick={() => { const nb = neuerBlock(bloecke, "dreh", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Drehwerkzeug {spanne("dreh")}</button>
-          <button className="knopf knopf--klein" id="cam-neu-front"
+          <button className="knopf knopf--klein" id="cam-neu-front" {...knopfMaus("front", "Frontwerkzeug")}
             onClick={() => { const nb = neuerBlock(bloecke, "front", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Frontwerkzeug {spanne("front")}</button>
           {/* Seit 1.415.0: angetriebene T3421–T3423 an der Gegenspindel */}
-          <button className="knopf knopf--klein" id="cam-neu-seite"
+          <button className="knopf knopf--klein" id="cam-neu-seite" {...knopfMaus("seite", "Querangetrieben")}
             onClick={() => { const nb = neuerBlock(bloecke, "seite", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Querangetrieben {spanne("seite", w)}</button>
           {/* Seit 1.582.0 nur, wenn T3421–T3423 montiert sind */}
-          {t34Von(w) !== "3400" && <button className="knopf knopf--klein" id="cam-neu-quer"
+          {t34Von(w) !== "3400" && <button className="knopf knopf--klein" id="cam-neu-quer" {...knopfMaus("quer", "Frontangetrieben")}
             onClick={() => { const nb = neuerBlock(bloecke, "quer", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Frontangetrieben {spanne("quer", w)}</button>}
         </div>
         {/* Seit 1.425.3 (Wunsch Patrick 5. November 2026): Kanal 2 in einer
@@ -740,9 +783,9 @@ export default function HoferCam() {
         <div className="cam-bearb__kopf">
           <b>Bearbeitungen Kanal 2</b>
           {/* Seit 1.420.0: Drehwerkzeug nur in Kanal 2 */}
-          <button className="knopf knopf--klein" id="cam-neu-k2"
+          <button className="knopf knopf--klein" id="cam-neu-k2" {...knopfMaus("k2", "Stehende Werkzeuge")}
             onClick={() => { const nb = neuerBlock(bloecke, "k2", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Stehende Werkzeuge {spanne("k2")}</button>
-          <button className="knopf knopf--klein" id="cam-neu-k2a"
+          <button className="knopf knopf--klein" id="cam-neu-k2a" {...knopfMaus("k2a", "Angetrieben")}
             onClick={() => { const nb = neuerBlock(bloecke, "k2a", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Angetrieben {spanne("k2")}</button>
         </div>
         {bloecke.length === 0 && <p className="klein">Noch keine Bearbeitung. Sie kommt zwischen „(Ende Kopf)“ und „(Start Ende)“.</p>}

@@ -14325,3 +14325,17 @@ body:not(.dunkel) .cam .cam-block__code:focus { background: #fff; border-color: 
 body:not(.dunkel) .cam .cam-block .knopf--klein:not(.knopf--primaer) { background: #dce6f1; border: 1px solid #8fa7c2; color: #0d2f57; }
 body:not(.dunkel) .cam .cam-block .knopf--klein:not(.knopf--primaer):hover { background: #c9d8ea; }
 body:not(.dunkel) .cam .cam-gruppe .knopf--klein:not(.knopf--primaer) { background: #dce6f1; border: 1px solid #8fa7c2; color: #0d2f57; }
+/* Hofer Cam seit 1.600.0: Maus über „+ …“ zeigt alle Plätze dieses Knopfs blinkend */
+.cam-bild__rahmen--blink { animation: cam-bild-blink .7s steps(1, end) infinite; fill: rgba(240,138,36,.3); }
+@keyframes cam-bild-blink { 0% { stroke-opacity: 1; fill-opacity: 1; } 50% { stroke-opacity: 0; fill-opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .cam-bild__rahmen--blink { animation: none; } }
+/* Startseite seit 1.600.0: Hinweis auf das neue HOFERCAM-Tutorial */
+.neues-tutorial { display: flex; gap: 16px; align-items: center; border-left: 5px solid #f08a24; }
+.neues-tutorial__kopf { width: 84px; height: 84px; border-radius: 50%; object-fit: cover; flex: none;
+  box-shadow: 0 0 0 3px #f08a24; animation: tutorial-wink 1.6s ease-in-out infinite alternate; }
+@keyframes tutorial-wink { from { transform: rotate(-6deg); } to { transform: rotate(6deg) scale(1.05); } }
+@media (prefers-reduced-motion: reduce) { .neues-tutorial__kopf { animation: none; } }
+.neues-tutorial__text { flex: 1; min-width: 0; }
+.neues-tutorial__text h2 { margin: 0 0 4px; }
+.neues-tutorial__text p { margin: 0 0 10px; }
+.neues-tutorial__knoepfe { display: flex; gap: 8px; flex-wrap: wrap; }

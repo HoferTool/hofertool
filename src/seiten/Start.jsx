@@ -20,6 +20,7 @@ import HeuteOffen from "./start/HeuteOffen.jsx";
 import OhneWbg from "./start/OhneWbg.jsx";
 import KalenderKarte from "./start/Kalender.jsx";
 import Systemzustand from "./start/Systemzustand.jsx";
+import NeuesTutorial from "./start/NeuesTutorial.jsx";
 
 // Externe und Dienst fragen gar nicht erst nach Problemen
 const keineProbleme = async () => [];
@@ -56,6 +57,8 @@ export default function Start({ auffrischen }) {
       {/* Sicherung, Pool-Rechner, Drucker, Solar: nur wenn etwas nicht
           stimmt, nur Admins (Wunsch Patrick 3. November 2026) */}
       {admin && <Systemzustand auffrischen={auffrischen} />}
+      {/* Hinweis aufs neue HOFERCAM-Tutorial (Wunsch Patrick 17. November 2026) */}
+      <NeuesTutorial />
       {probSehen && <Probleme liste={prob.daten} fehler={prob.fehler} neu={prob.neu} />}
       {/* Termine der nächsten zwei Wochen, statt des Reiters Kalender
           (Wunsch Patrick 30. Oktober 2026) */}

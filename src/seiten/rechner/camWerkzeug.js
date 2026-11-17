@@ -69,6 +69,9 @@ export const FRAESER = [
   { id: "kugel", name: "Kugelfräser" },
   { id: "eck", name: "Eckradiusfräser" },
   { id: "fase", name: "Fasen- / Zentrierfräser" },
+  // Seit 1.600.0 (Wunsch Patrick 17. November 2026: „für alle angetriebenen
+  // Werkzeuge auch noch einen Scheibenfräser (T-Nuten-Fräser)“)
+  { id: "scheibe", name: "Scheibenfräser (T-Nut)" },
 ];
 export const plattenForm = (id) => PLATTEN.find((p) => p.id === id) || null;
 export const fraeserForm = (id) => FRAESER.find((p) => p.id === id) || null;
@@ -109,6 +112,8 @@ export function wzFelder(wz, art) {
   }
   const f = wz.form;
   if (!fraeserForm(f)) return [];
+  if (f === "scheibe") return [{ name: "d", text: "Ø Scheibe", einheit: "mm" }, { name: "breite", text: "Schneidenbreite", einheit: "mm" },
+    { name: "hals", text: "Hals-Ø", einheit: "mm" }, { name: "laenge", text: "Halslänge", einheit: "mm" }];
   const l = [{ name: "d", text: "Ø", einheit: "mm" }];
   if (f === "eck") l.push({ name: "r", text: "Eckradius", einheit: "mm" });
   if (f === "bohrer" || f === "fase") l.push({ name: "winkel", text: "Spitzenwinkel", einheit: "Grad" });
@@ -144,6 +149,8 @@ export function wzFehler(b) {
   }
   if (art === "dreh" && plattenForm(wz.form)?.art !== "rund" && !wz.sl) f.sl = "fehlt";
   if (art === "fraes" && wz.form === "eck" && !f.r && !f.d && zahlV(wz.r) * 2 > zahlV(wz.d)) f.r = "grösser als Ø/2";
+  if (art === "fraes" && wz.form === "scheibe" && !f.hals && !f.d && zahlV(wz.hals) >= zahlV(wz.d)) f.hals = "kleiner als Ø Scheibe";
+  if (art === "fraes" && wz.form === "scheibe" && !f.laenge && !f.breite && zahlV(wz.laenge) <= zahlV(wz.breite)) f.laenge = "länger als Breite";
   return f;
 }
 export const wzVollstaendig = (b) => !!(b.wz && b.wz.form) && Object.keys(wzFehler(b)).length === 0;
@@ -167,6 +174,10 @@ export function wzText(b) {
   const teile = [f.name];
   if (wz.d) teile.push("Ø" + wz.d);
   if (wz.form === "eck" && wz.r) teile.push("R" + wz.r);
+  if (wz.form === "scheibe") {
+    if (wz.breite) teile.push("B" + wz.breite);
+    if (wz.hals) teile.push("Hals Ø" + wz.hals);
+  }
   if ((wz.form === "bohrer" || wz.form === "fase") && wz.winkel) teile.push(wz.winkel + "°");
   if (wz.laenge) teile.push("L" + wz.laenge);
   return teile.join(" · ");
@@ -298,6 +309,16 @@ export function fraeserUmriss(wz) {
   const d = zahlOk(wz.d) && zahlV(wz.d) > 0 ? zahlV(wz.d) : 6;
   const L = zahlOk(wz.laenge) && zahlV(wz.laenge) > 0 ? zahlV(wz.laenge) : d * 2;
   const R = d / 2;
+  if (wz.form === "scheibe") {
+    // Scheibe unten (Spitze = Unterkante der Scheibe), darüber der dünnere
+    // Hals bis zur Halslänge, dann der Schaft
+    const B = zahlOk(wz.breite) && zahlV(wz.breite) > 0 ? zahlV(wz.breite) : Math.max(0.5, d / 6);
+    const rh = Math.min(R * 0.95, zahlOk(wz.hals) && zahlV(wz.hals) > 0 ? zahlV(wz.hals) / 2 : R / 2);
+    const Lh = Math.max(B + 0.1, zahlOk(wz.laenge) && zahlV(wz.laenge) > 0 ? zahlV(wz.laenge) : B + d);
+    const rs = Math.min(R, rh * 1.6);
+    return { schneide: [{ z: -R, x: 0 }, { z: R, x: 0 }, { z: R, x: B }, { z: rh, x: B }, { z: rh, x: Lh }, { z: -rh, x: Lh }, { z: -rh, x: B }, { z: -R, x: B }],
+      schaft: [{ z: -rs, x: Lh }, { z: rs, x: Lh }, { z: rs, x: Lh + d * 0.8 }, { z: -rs, x: Lh + d * 0.8 }] };
+  }
   const unten = [];
   if (wz.form === "bohrer" || wz.form === "fase") {
     const w = zahlOk(wz.winkel) && zahlV(wz.winkel) > 0 && zahlV(wz.winkel) < 180 ? zahlV(wz.winkel) : (wz.form === "bohrer" ? 118 : 90);

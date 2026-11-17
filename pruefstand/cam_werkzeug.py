@@ -94,6 +94,16 @@ with sync_playwright() as p:
     # Felder liegen im Massbild
     pruefe("Felder im Massbild", pg.locator("[data-camwz-massbild] [data-camwz='d']").count() == 1 and pg.locator("[data-camwz-massbild] [data-camwz='laenge']").count() == 1)
     pg.screenshot(path="/tmp/claude-0/-home-user/e193e6f8-e4d3-5775-9ccb-4db292d1b235/scratchpad/cam_wz.png", full_page=False)
+    # seit 1.600.0: Scheibenfräser (T-Nut) bei allen angetriebenen
+    pg.click("[data-camwz-form='scheibe']")
+    pg.fill("[data-camwz='d']", "12"); pg.fill("[data-camwz='breite']", "2"); pg.fill("[data-camwz='hals']", "14"); pg.fill("[data-camwz='laenge']", "6")
+    pruefe("Scheibe: Hals grösser als Ø rot", pg.locator(".cam-feld--fehler [data-camwz='hals']").count() == 1)
+    pg.fill("[data-camwz='hals']", "5")
+    pruefe("Scheibe gut, alle Felder im Massbild", pg.locator("[data-camwz] .cam-feld--fehler").count() == 0
+        and pg.locator("[data-camwz-massbild] [data-camwz='breite']").count() == 1 and pg.locator("[data-camwz-massbild] [data-camwz='hals']").count() == 1)
+    pruefe("Scheibe im Knopf", "Scheibenfräser (T-Nut) · Ø12 · B2 · Hals Ø5 · L6" in pg.text_content("[data-camwz-auf='2']"))
+    pg.locator(".cam-wz").screenshot(path="/tmp/claude-0/-home-user/e193e6f8-e4d3-5775-9ccb-4db292d1b235/scratchpad/wz_scheibe.png")
+    pg.click("[data-camwz-form='eck']"); pg.fill("[data-camwz='d']", "4"); pg.fill("[data-camwz='r']", "0.5"); pg.fill("[data-camwz='laenge']", "8")
     pg.click(".cam-wz [title='Schliessen']")
     pruefe("Zu: Angaben bleiben am Block", "Eckradiusfräser" in pg.text_content("[data-camwz-auf='2']") and pg.locator(".cam-wz").count() == 0)
     br.close()

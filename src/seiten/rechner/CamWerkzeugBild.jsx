@@ -22,7 +22,7 @@ function FormBild({ art, id }) {
     const p = plattenUmriss({ form: id, sl: "ul", r: id === "R" ? "4" : "0.6", breite: "2.4" });
     teile = [{ p, k: "cam-wz__platte" }];
   } else {
-    const u = fraeserUmriss({ form: id, d: "6", laenge: "9", r: "1.2", winkel: id === "fase" ? "90" : "118" });
+    const u = fraeserUmriss({ form: id, d: id === "scheibe" ? "9" : "6", laenge: id === "scheibe" ? "6" : "9", breite: "1.6", hals: "3.4", r: "1.2", winkel: id === "fase" ? "90" : "118" });
     teile = [{ p: u.schaft, k: "cam-wz__schaft" }, { p: u.schneide, k: "cam-wz__platte" }];
   }
   const alle = teile.flatMap((t) => t.p);
@@ -147,7 +147,14 @@ function FraesBild({ wz, f, aendern, felder }) {
   const zv = (x) => Number(String(x ?? "").replace(",", "."));
   const d = zv(wz.d) > 0 ? zv(wz.d) : 6, l = zv(wz.laenge) > 0 ? zv(wz.laenge) : 2 * d;
   const D = 6;
-  const u = fraeserUmriss({ ...wz, d: String(D), laenge: String(Math.max(5, Math.min(13, l / d * D))), r: zv(wz.r) > 0 ? String(zv(wz.r) / d * D) : wz.r });
+  // Scheibenfräser: Breite und Hals im Verhältnis zum Ø, Hals mindestens
+  // so lang, dass das Mass dazwischen Platz hat
+  const sch = wz.form === "scheibe";
+  const sB = sch ? Math.max(0.6, Math.min(2.5, (zv(wz.breite) > 0 ? zv(wz.breite) : d / 6) / d * D)) : 0;
+  const sH = sch ? Math.max(1, Math.min(D * 0.8, (zv(wz.hals) > 0 ? zv(wz.hals) : d / 2) / d * D)) : 0;
+  const u = fraeserUmriss({ ...wz, d: String(D), r: zv(wz.r) > 0 ? String(zv(wz.r) / d * D) : wz.r,
+    laenge: String(sch ? Math.max(sB + 3, Math.min(10, l / d * D)) : Math.max(5, Math.min(13, l / d * D))),
+    breite: String(sB), hals: String(sH) });
   const alle = [...u.schneide, ...u.schaft];
   const R = Math.max(...u.schneide.map((q) => q.z));
   const L = Math.max(...u.schneide.map((q) => q.x));
@@ -155,7 +162,7 @@ function FraesBild({ wz, f, aendern, felder }) {
   // Werkzeug senkrecht, Spitze unten; links und rechts Platz für Felder
   const oben = 46, unten = 46;
   const m = Math.min(110 / (2 * R || 1), (BH - oben - unten) / (top || 1));
-  const tz = (z) => BW / 2 - 20 + z * m, tx = (x) => BH - unten - x * m;
+  const tz = (z) => BW / 2 + (sch ? 20 : -20) + z * m, tx = (x) => BH - unten - x * m;
   const feld = (name) => felder.find((x) => x.name === name);
   const teile = [], eingaben = [];
   // Ø quer über dem Schaft
@@ -170,6 +177,17 @@ function FraesBild({ wz, f, aendern, felder }) {
     <Hilfslinie key="l2" a={{ x: tz(R) + 2, y: tx(L) }} b={{ x: xl + 4, y: tx(L) }} />,
     <Mass key="l" a={{ x: xl, y: tx(L) }} b={{ x: xl, y: tx(0) }} />);
   eingaben.push(<MassFeld key="l" fe={feld("laenge")} wz={wz} f={f} aendern={aendern} x={Math.min(BW - 60, xl + 62)} y={(tx(0) + tx(L)) / 2} vor="Länge" />);
+  if (feld("breite") && feld("hals")) {
+    // Scheibenfräser: Breite links an der Scheibe, Hals-Ø quer über dem Hals
+    const B = sB, rh = sH / 2, xb = tz(-R) - 22;
+    teile.push(<Hilfslinie key="b1" a={{ x: tz(-R) - 2, y: tx(0) }} b={{ x: xb - 4, y: tx(0) }} />,
+      <Hilfslinie key="b2" a={{ x: tz(-R) - 2, y: tx(B) }} b={{ x: xb - 4, y: tx(B) }} />,
+      <Mass key="b" a={{ x: xb, y: tx(B) }} b={{ x: xb, y: tx(0) }} />);
+    eingaben.push(<MassFeld key="b" fe={feld("breite")} wz={wz} f={f} aendern={aendern} x={Math.max(60, xb - 62)} y={(tx(0) + tx(B)) / 2} vor="Breite" />);
+    const yh = (tx(B) + tx(L)) / 2;
+    teile.push(<Mass key="h" a={{ x: tz(-rh), y: yh }} b={{ x: tz(rh), y: yh }} />);
+    eingaben.push(<MassFeld key="h" fe={feld("hals")} wz={wz} f={f} aendern={aendern} x={Math.max(60, tz(-rh) - 80)} y={yh} vor="Hals Ø" />);
+  }
   if (feld("winkel")) {
     // Bogen zwischen den Flanken an der Spitze
     const w = Number(String(wz.winkel ?? "").replace(",", "."));

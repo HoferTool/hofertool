@@ -14,7 +14,7 @@
 #       tutorial_video.py)
 #
 # Aufbau, Mauszeiger, Untertitel und Ton wie in tutorial_video.py.
-import os, re, sys, time, shutil, subprocess, tempfile, json
+import json, os, re, sys, time, shutil, subprocess, tempfile, json
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
 
@@ -676,6 +676,19 @@ with sync_playwright() as p:
         if rest > 0: pg.wait_for_timeout(int(rest * 1000))
         else: print(f"  Schritt {i} {f.__name__}: Bild {round(-rest, 1)} s länger als Ton")
     pg.wait_for_timeout(1500)
+    if os.environ.get("SPEICHERN"):
+        # Nur für eine Kopie des Programms: HOCO Nr. setzen, speichern und
+        # die Zeile aus dem Nachbau in eine Datei schreiben (SPEICHERN=<name>:<datei>)
+        name, datei = os.environ["SPEICHERN"].split(":", 1)
+        if pg.locator("#cam-sim").count(): pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
+        pg.evaluate("scrollTo(0,0)")
+        if pg.locator("[data-cam='hoco']").count(): pg.fill("[data-cam='hoco']", name); pg.wait_for_timeout(600)
+        pg.click("#camab-speichern"); pg.wait_for_timeout(600)
+        pg.locator(".dialog-huelle input").first.fill(name)
+        pg.locator(".dialog-huelle button", has_text="Speichern").last.click(); pg.wait_for_timeout(1500)
+        zeilen = pg.evaluate("() => (TEST.daten.nc_programme || []).filter((z) => z.art === 'cam')")
+        with open(datei, "w") as f: json.dump(zeilen, f, ensure_ascii=False)
+        print("Gespeichert:", [z.get("name") for z in zeilen])
     video = pg.video.path()
     kx.close(); br.close()
 
