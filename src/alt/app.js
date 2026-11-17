@@ -166,7 +166,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.607.0";
+const APP_VERSION = "1.608.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1307,7 +1307,7 @@ function neuladenRuhig() {
 let neuladenFassung = "";
 const STUENDLICH_NEULADEN = "hofer.fassung.stuendlich";
 
-// Seit 1.607.0 höchstens einmal am Tag je Gerät (Wunsch Patrick
+// Seit 1.608.0 höchstens einmal am Tag je Gerät (Wunsch Patrick
 // 17. November 2026: „das automatische Neuladen raus, höchstens einmal
 // pro Tag, bei Anzeigen lassen, aber stündlich“). Nachgesehen wird
 // weiter stündlich, neu geladen aber nur, wenn heute noch nicht.
@@ -1368,7 +1368,7 @@ window.addEventListener("vite:preloadError", () => { neuladenAb = 0; neuladenNoe
 // haben die Seite ohne Zusatz bis zehn Minuten zwischengespeichert, nach
 // kurz hintereinander ausgelieferten Fassungen kam so immer wieder die
 // alte Seite. Eine neue Adresse kommt sicher frisch vom Server.
-// Seit 1.607.0 stündlich statt alle zwei Minuten (Wunsch Patrick
+// Seit 1.608.0 stündlich statt alle zwei Minuten (Wunsch Patrick
 // 17. November 2026: „bei Anzeigen lassen, aber stündlich“)
 const BILDSCHIRM_TAKT = 60 * 60 * 1000;
 const BILDSCHIRM_NOCHMAL = 3 * 60 * 1000;

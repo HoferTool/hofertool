@@ -19,7 +19,7 @@ import { alt, useGemerkt } from "../bruecke.jsx";
 import { useSeitenSuche } from "../teile/seitenSuche.js";
 import { teilMerken } from "../teile/wiederherstellen.js";
 import { Reiter, Uebergang } from "../teile/Reiter.jsx";
-// Die Module laden erst, wenn man ihren Reiter öffnet (seit 1.607.0).
+// Die Module laden erst, wenn man ihren Reiter öffnet (seit 1.608.0).
 // Vorher lud jede Anmeldung HOFERCAM samt 3D-Simulation, Kontur und
 // alle anderen Module mit, auch wer NC-PRO nie öffnet (17. November
 // 2026: „das HoferTool wird zunehmend träg, liegt es am HOFERCAM?“).
