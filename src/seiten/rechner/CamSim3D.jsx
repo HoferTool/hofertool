@@ -215,7 +215,7 @@ function strahlenMalen(g, W, H, { st, vox, kanal2, Wt, bereich, dreh, zoom, schn
   g.drawImage(bild, 0, 0, W, H);
 }
 
-function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, hinweis, roh, maschine }) {
+function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, hinweis, roh, maschine, roll: rollT = 0 }) {
   g.clearRect(0, 0, W, H);
   const { zmin, zmax, rmax } = bereich;
   const zm = (zmin + zmax) / 2;
@@ -324,7 +324,7 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
       hinten.sort((x, y) => x.tiefe - y.tiefe);
       zeichnen(hinten);
     }
-    strahlenMalen(g, W, H, { ...strahl, bereich, dreh, zoom, schnitt, bu: ueber.buechse, roh, roll: maschine ? maschine.roll : 0 });
+    strahlenMalen(g, W, H, { ...strahl, bereich, dreh, zoom, schnitt, bu: ueber.buechse, roh, roll: rollT });
     if (mListe.length) {
       const vorne = mListe.filter((f) => !(f.tiefe < achseT(f.zc)));
       vorne.sort((x, y) => x.tiefe - y.tiefe);
@@ -410,7 +410,7 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
   // Bahn und Werkzeug in der Ebene oben (+X), vor dem Körper
   // Seit 1.580.0 mit Maschine: das Teil dreht in C, Bahn und Werkzeug
   // (im Teil gerechnet) drehen mit, die Maschine steht
-  const roll = maschine ? maschine.roll || 0 : 0;
+  const roll = rollT || 0;
   const ebene = (z, r, phi) => P(ansicht(z, r, (phi || 0) + roll));
   const kart = (z, u, w) => P(ansicht(z, Math.hypot(u, w), Math.atan2(w, u) + roll));
   // Name der Führungsbüchse oben an ihrer Stirn
@@ -691,11 +691,27 @@ function Simulation({ w, zu }) {
       }
       maschine = { quader, roll, grob: laeuft, koepfe: [gegen] };
     }
+    // Seit 1.593.0 dreht auch ohne „Maschine“ immer das Teil in C, die
+    // Werkzeuge stehen (Patrick 17. November 2026: „in der Simulation soll
+    // auch ohne Maschine immer das Material drehen und nicht die Werkzeuge
+    // um das Material, beim Querbohren ist das jetzt nicht so“)
+    if (!maschineAn) {
+      let pAkt = null;
+      for (const x of sim.schritte) {
+        if (x.kanal !== kanal || x.von >= n || !x.punkte.length) continue;
+        pAkt = x.punkte[Math.min(n, x.bis) - x.von - 1];
+      }
+      if (pAkt && kanal === 1) roll = ((pAkt.c || 0) * Math.PI) / 180;
+      else if (pAkt) {
+        const yM = pAkt.mx != null ? pAkt.mx : pAkt.r, wM = pAkt.my != null ? pAkt.my : 0;
+        if (pAkt.phi != null && Math.hypot(yM, wM) > 1e-6) roll = Math.atan2(wM, yM) - pAkt.phi;
+      }
+    }
     cv.__traeger = traeger; cv.__kopf = maschine ? maschine.kopf || null : null; cv.__roll = roll; cv.__gegen = gegen; cv.__quader = maschine ? maschine.quader : null;
     cv.__stand = stand; cv.__sim = sim; cv.__strahl = !!strahl; cv.__werkzeuge = ueber.werkzeuge; cv.__buechse = ueber.buechse; cv.__weg = wegZ; // für den Prüfstand
     // Rohmaterial: Stirn vorne nur vorne (Kanal 1), vor der Übergabe
     const roh = { R: A / 2, vorne: kanal === 1 && !wegZ ? vorne : null };
-    malen(g, breite, HOCH, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, roh, maschine, hinweis: umriss ? "" : "Kein Material" });
+    malen(g, breite, HOCH, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, roh, maschine, roll, hinweis: umriss ? "" : "Kein Material" });
   }, [sim, stand, n, kanal, akt, dreh, zoom, schnitt, breite, laeuft, maschineAn, kopfZ]);
 
   useEffect(() => {

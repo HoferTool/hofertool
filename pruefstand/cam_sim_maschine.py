@@ -86,6 +86,12 @@ with sync_playwright() as p:
     pruefe("T3100: Träger um 161.5 in −Y verschoben", t and abs(t["y"] + 161.5) < 1e-6 and t["aktiv"] == 3100)
     pruefe("Spindelstock fährt mit dem Material (im Teil fest)", abs(pg.evaluate("() => document.querySelector('#cam-sim-bild').__kopf.z") - k0) < 1e-9)
     pg.locator("#cam-sim").screenshot(path=S + "maschine_t3100.png")
+    # Seit 1.593.0: auch ohne Maschine dreht das Teil in C, nicht das Werkzeug
+    pg.click("#cam-sim-maschine"); pg.wait_for_timeout(300)
+    roll2 = pg.evaluate("() => document.querySelector('#cam-sim-bild').__roll"); print("ohne Maschine roll", roll2)
+    pruefe("Ohne Maschine dreht das Teil gleich (roll)", roll2 is not None and abs(roll2 - roll) < 1e-9 and abs(roll) > 1e-3)
+    pg.locator("#cam-sim").screenshot(path=S + "ohne_maschine_t3100.png")
+    pg.click("#cam-sim-maschine"); pg.wait_for_timeout(300)
     pg.click("[data-cam-sim-schritt='2']"); pg.wait_for_timeout(300)
     t = T(); print("T3421", t)
     pruefe("T3421: Träger um 254.5 in −Y, Y3 gefahren", t and abs(t["y"] - (3 - 254.5)) < 1e-6 and t["aktiv"] == 3421)
