@@ -67,7 +67,8 @@ with sync_playwright() as p:
     pruefe("Kopfzeile Einstich", v.startswith("(EINSTICH MANTEL D12. Z5. B3. T1.5 OBEN F0.2 GRUND R0.2)"))
     pruefe("Schruppen 3 Stiche gleich verteilt", "G0X13.Z7.95" in v and "G0Z7.25" in v and "G0Z6.55" in v and v.count("G1X9.1") == 3)
     pruefe("Schlichten beide Seiten mit Fase und Radius", "(SCHLICHTEN ZUR STIRN)" in v and "(SCHLICHTEN ZUR BUECHSE)" in v
-           and "G1X11.541Z6.471" in v and "G3X9.Z6.6R0.1" in v and "G2X9.Z7.9R0.1" in v)
+           and "G1X12.Z6.5,C0.259" in v and "G1X9.Z6.5,R0.1" in v and "G1X12.Z8.,C0.259" in v and "G1X9.Z8.,R0.1" in v
+           and "G2X" not in v and "G3X" not in v)
     pg.fill("[data-camein='PL']", "1")
     pruefe("Platte zu kurz meldet", "zu kurz" in (pg.text_content("[data-camvorlage]") or "") and pg.locator("[data-camvorlage-einfuegen]").is_disabled())
     pg.fill("[data-camein='PL']", "3")

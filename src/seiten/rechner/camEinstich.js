@@ -4,8 +4,11 @@
 //  Einstiche für Mantel und Front, Breite, Tiefe, Ausräumstrategie
 //  Schruppen und Schlichtzug, Radius und Fase im Grund und oben,
 //  Plattenbreite, Länge und Eckradius, alles über eine Grafik“).
-//  Entscheide Patrick: alles mit G0/G1/G2/G3 ausgeschrieben (kein
-//  Beispiel vorhanden, „mach was sinnvoll ist“), programmiert ist immer
+//  Entscheide Patrick: Wege mit G0/G1/G2/G3 ausgeschrieben (kein
+//  Beispiel vorhanden, „mach was sinnvoll ist“), Fasen und Radien oben
+//  und im Grund seit 1.636.0 als Ecke mit ,C / ,R wie in HOFERCONTUR
+//  (Wunsch Patrick 18. November 2026: „bei den Einstichen die Fasen und
+//  Radien mit C und R programmieren“), programmiert ist immer
 //  die Ecke der Platte, die zur Führungsbüchse steht (an der Front die
 //  äussere Ecke, weil dort beide gleich weit von der Büchse sind),
 //  Schruppen sticht nebeneinander ein, Schlichten fährt beide Flanken
@@ -98,7 +101,7 @@ function versetzen(elemente, r, seite) {
   for (const e of elemente) {
     if (e.t === "L") {
       const n = nrm(richtung(e, true));
-      o.push({ ...linie(plus(e.a, mal(n, r)), plus(e.b, mal(n, r))), roh: e });
+      o.push({ ...linie(plus(e.a, mal(n, r)), plus(e.b, mal(n, r))), roh: e, ueb: e.ueb });
     } else {
       const na = nrm(richtung(e, true)), nb = nrm(richtung(e, false));
       const a = plus(e.a, mal(na, r)), b = plus(e.b, mal(nb, r));
@@ -120,7 +123,7 @@ function versetzen(elemente, r, seite) {
     if (!konkav) {
       // Bogen um die gemeinsame Ecke der Rohbahn
       const ecke = v.roh.b;
-      neu.push(bogen(v.b, e.a, ecke, d1));
+      neu.push({ ...bogen(v.b, e.a, ecke, d1), ecke: true });
       neu.push(e);
     } else if (v.t === "L" && e.t === "L") {
       const x = schnitt(v.a, d1, e.a, d2);
@@ -153,10 +156,10 @@ function flankenKontur(T, eo, eg, sEnde, vor) {
   const start = P(-o - vor, 0);
   const oA = P(-o, 0), oB = P(0, o);
   el.push(linie(start, oA));
-  if (o) el.push(eo.art === "R" ? bogen(oA, oB, P(-o, o), [1, 0]) : linie(oA, oB));
+  if (o) el.push({ ...(eo.art === "R" ? bogen(oA, oB, P(-o, o), [1, 0]) : linie(oA, oB)), ueb: eo.art });
   const gA = P(0, T - g), gB = P(g, T);
   el.push(linie(oB, gA));
-  if (g) el.push(eg.art === "R" ? bogen(gA, gB, P(g, T - g), [0, 1]) : linie(gA, gB));
+  if (g) el.push({ ...(eg.art === "R" ? bogen(gA, gB, P(g, T - g), [0, 1]) : linie(gA, gB)), ueb: eg.art });
   if (sEnde > g + 1e-9) el.push(linie(gB, P(sEnde, T)));
   return el.filter((e) => !gleich(e.a, e.b));
 }
@@ -164,7 +167,42 @@ function flankenKontur(T, eo, eg, sEnde, vor) {
 const spiegeln = (B) => (p) => P(B - p[0], p[1]);
 function konturSpiegeln(el, B) {
   const m = spiegeln(B);
-  return el.map((e) => (e.t === "L" ? linie(m(e.a), m(e.b)) : { ...e, a: m(e.a), b: m(e.b), c: m(e.c), ccw: !e.ccw }));
+  return el.map((e) => (e.t === "L" ? { ...linie(m(e.a), m(e.b)), ueb: e.ueb } : { ...e, a: m(e.a), b: m(e.b), c: m(e.c), ccw: !e.ccw }));
+}
+
+// Fase oder Radius als Ecke mit ,C / ,R (seit 1.636.0, wie eckeSuchen in
+// kontur.js): Gerade → (Rundung der Schneide) → Übergang → (Rundung) →
+// Gerade. Ecke = Schnitt der beiden Geraden der Bahn, ,C = Abstand bis
+// zum Anfang der Fase, ,R = Radius der Bahn (mit Eckradius der Platte).
+// Passt etwas nicht, bleibt der Weg ausgeschrieben.
+function eckeSuchen(bahn, i) {
+  const g1 = bahn[i];
+  if (!g1 || g1.t !== "L" || g1.ueb) return null;
+  let j = i + 1;
+  while (bahn[j] && bahn[j].ecke) j++;
+  const u = bahn[j];
+  if (!u || !u.ueb) return null;
+  let m = j + 1;
+  while (bahn[m] && bahn[m].ecke) m++;
+  const g2 = bahn[m];
+  if (!g2 || g2.t !== "L" || g2.ueb) return null;
+  const d1 = richtung(g1, false), d2 = richtung(g2, true);
+  const V = schnitt(g1.a, d1, g2.a, d2);
+  if (!V) return null;
+  if (skal(minus(V, g1.a), d1) < 1e-6 || skal(minus(g2.b, V), d2) < 1e-6) return null;
+  if (u.ueb === "R") {
+    if (u.t !== "A" || j !== i + 1 || m !== j + 1) return null;
+    return { bis: m, V, zusatz: ",R" + nc(lang(minus(u.a, u.c))) };
+  }
+  if (u.t !== "L") return null;
+  const du = richtung(u, true);
+  const P1 = schnitt(u.a, du, g1.a, d1), P2 = schnitt(u.a, du, g2.a, d2);
+  if (!P1 || !P2) return null;
+  const c1 = lang(minus(P1, V)), c2 = lang(minus(P2, V));
+  if (c1 < 1e-4 || Math.abs(c1 - c2) > 5e-4) return null;
+  // Die Fase muss auf beiden Geraden liegen (nicht vor ihrem Anfang)
+  if (skal(minus(P1, g1.a), d1) < -1e-6 || skal(minus(g2.b, P2), d2) < -1e-6) return null;
+  return { bis: m, V, zusatz: ",C" + nc((c1 + c2) / 2) };
 }
 
 // Werte lesen und prüfen
@@ -295,7 +333,10 @@ export function einstichZeilen(w) {
       const a0 = bahn[0].a;
       z.push("G0" + xz(P(a0[0], Math.min(-v.S, a0[1] - v.S))));
       z.push("G1" + xz(a0, tief) + "F" + v.FS);
-      for (const e of bahn) {
+      for (let i = 0; i < bahn.length; i++) {
+        const e = bahn[i];
+        const ec = eckeSuchen(bahn, i);
+        if (ec) { z.push("G1" + xz(ec.V) + ec.zusatz); i = ec.bis - 1; continue; }
         if (e.t === "L") { z.push("G1" + xz(e.b)); continue; }
         // Drehsinn in der Maschine: Ebene Z nach rechts, Radius nach oben
         const m = (p) => { const q = M(p); return [q.z, q.x / 2]; };
