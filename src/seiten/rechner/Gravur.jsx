@@ -76,7 +76,7 @@ export default function Gravur() {
 
   const roh = useMemo(() => gravurKonturen(g),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [g.text, g.schrift, g.fett, g.kursiv, g.hoehe, g.laufweite, g.glaetten, g.spiegelnX, g.spiegelnY]);
+    [g.text, g.schrift, g.fett, g.kursiv, g.hoehe, g.laufweite, g.glaetten, g.spiegelnX, g.spiegelnY, g.winkel]);
   const zuege = useMemo(() => gravurBahnen(g, roh.zuege), [g, roh]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const gcode = useMemo(() => gravurGcode(g, roh), [g, roh, kopfStand]);
@@ -139,10 +139,12 @@ export default function Gravur() {
               <option value="mantel">Mantel (G07.1)</option>
             </select></label>
           <Feld name="dm" text="Durchmesser des Teils" wert={g.dm} setze={setze} />
-          {!mantel && <>
-            <Feld name="radius" text="Abstand von der Achse" wert={g.radius} setze={setze} />
+          {!mantel && <Feld name="radius" text="Abstand von der Achse" wert={g.radius} setze={setze} />}
+          <div className="grav-drehen">
             <Feld name="winkel" text="Drehung in Grad" wert={g.winkel} setze={setze} schritt="1" />
-          </>}
+            <button type="button" className="knopf knopf--klein" data-grav="dreh90" title="Um 90° drehen"
+              onClick={() => setze("winkel", (((Number(g.winkel) || 0) + 90) % 360 + 360) % 360)}>↻ 90°</button>
+          </div>
           <Feld name="tiefe" text="Gravurtiefe" wert={g.tiefe} setze={setze} schritt="0.05" />
           <Feld name="schnitte" text="Schnitte" wert={g.schnitte} setze={setze} schritt="1" />
           <Feld name="vorschub" text={mantel ? "Vorschub Eintauchen in X mm/min" : "Vorschub Eintauchen in Z mm/min"} wert={g.vorschub} setze={setze} schritt="1" />

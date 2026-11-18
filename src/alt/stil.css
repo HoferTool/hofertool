@@ -14852,3 +14852,7 @@ body.dunkel .auf-fruehere { background: #3a3012; border-color: #8a6d1e; }
   .ze-zeile.ze-zeile--std { grid-template-columns: 70px 1fr 56px 66px; }
   .ze-zeile.ze-zeile--std > :nth-child(4) { display: block; }
 }
+
+/* Gravur: Drehung mit Knopf 90° daneben (1.639.0) */
+.grav-drehen { display: flex; align-items: flex-end; gap: 8px; }
+.grav-drehen > .feld { flex: 1; min-width: 0; }

@@ -22,7 +22,7 @@ export const GRAVUR_VORGABE = {
   flaeche: "stirn",  // stirn oder mantel
   dm: 20,            // Durchmesser des Teils
   radius: 8,         // Abstand der Textmitte von der Achse, Stirnseite
-  winkel: 0,         // Drehung auf der Stirnseite
+  winkel: 0,         // Drehung um die Textmitte, Stirn und Mantel
   zStart: 0,
   tiefe: 0.2,
   schnitte: 1,
@@ -156,9 +156,19 @@ export function gravurKonturen(gv) {
   // Gespiegelt wird um die Mitte des Texts, etwa für einen Stempel.
   // Danach kommen Drehung und Lage wie beim ungespiegelten Text.
   const sx = gv.spiegelnX ? -1 : 1, sy = gv.spiegelnY ? -1 : 1;
-  const mittig = fein.map((z) => z.map(([x, y]) => [(x - mx) * sx, (y - my) * sy]));
-
-  return { zuege: mittig, breite: maxX - minX, hoehe: maxY - minY };
+  // Gedreht wird um die Mitte des Texts, auf der Stirnseite und auf
+  // dem Mantel gleich (Wunsch Patrick 18. November 2026).
+  const w = ((Number(gv.winkel) || 0) * Math.PI) / 180;
+  const cw = Math.cos(w), sw = Math.sin(w);
+  const mittig = fein.map((z) => z.map(([x, y]) => {
+    const ax = (x - mx) * sx, ay = (y - my) * sy;
+    return w ? [ax * cw - ay * sw, ax * sw + ay * cw] : [ax, ay];
+  }));
+  let b0 = Infinity, b1 = -Infinity, h0 = Infinity, h1 = -Infinity;
+  mittig.forEach((z) => z.forEach(([x, y]) => {
+    b0 = Math.min(b0, x); b1 = Math.max(b1, x); h0 = Math.min(h0, y); h1 = Math.max(h1, y);
+  }));
+  return { zuege: mittig, breite: mittig.length ? b1 - b0 : 0, hoehe: mittig.length ? h1 - h0 : 0 };
 }
 
 // Dünnste Stelle der Schrift grob schätzen: der kleinste Abstand
@@ -205,13 +215,9 @@ export function gravurGcode(gv, roh) {
 
   // Auf der Stirnseite dreht der Text um die Achse, auf dem Mantel
   // wird die Breite in einen Winkel umgerechnet.
-  const w = (gv.winkel * Math.PI) / 180;
+  // Die Drehung steckt schon in den Konturen (gravurKonturen).
   const lage = ([x, y]) => {
-    if (!mantel) {
-      const px = x * Math.cos(w) - y * Math.sin(w);
-      const py = x * Math.sin(w) + y * Math.cos(w) + gv.radius;
-      return { a: px, b: py };
-    }
+    if (!mantel) return { a: x, b: y + gv.radius };
     // Mantel: x läuft um den Umfang, y in Z
     return { a: (x / (Math.PI * gv.dm)) * 360, b: y };
   };
