@@ -14844,6 +14844,8 @@ body.dunkel .auf-fruehere { background: #3a3012; border-color: #8a6d1e; }
   .problemarchiv__rolle thead { display: none; }
   .problemarchiv__rolle tr { display: block; border-bottom: 1px solid var(--rand, #ddd); padding: 6px 0; }
   .problemarchiv__rolle td { display: block; border: 0; padding: 2px 4px; }
+}
+
 /* HOFERTIME: Stundenlohn mit Spalte „Im Monat“ (seit 1.635.0) */
 .ze-zeile.ze-zeile--std { grid-template-columns: 110px 1fr 76px 86px; }
 @media (max-width: 640px) {
