@@ -14827,6 +14827,8 @@ body.dunkel .ze-panel__erkannt { background: #1d3a24; }
 body.dunkel .ze-verlauf__achse { fill: #aab; }
 @media (max-width: 640px) {
   .ze-zeile.ze-zeile--saldo { grid-template-columns: 70px 1fr 56px 66px; }
+}
+
 /* ---------- Archiv der erledigten Probleme (1.634.0) ---------- */
 .problemarchiv { width: min(1100px, calc(100vw - 24px)); }
 .problemarchiv__suche { width: 100%; margin: 0 0 10px; box-sizing: border-box; }
