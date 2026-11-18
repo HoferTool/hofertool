@@ -21,7 +21,9 @@ with sync_playwright() as p:
     # Alter Eintrag ohne Art: Ferien vorgewählt
     pg.locator("[data-ferien='f2']").click(); pg.wait_for_timeout(500)
     pruefe("alter Eintrag = Ferien", pg.locator(".fd-art--an").inner_text() == "Ferien")
-    pruefe("vier Arten", pg.locator(".fd-art").all_inner_texts() == ["Ferien", "Kompensieren", "Militär/Zivilschutz", "Feuerwehr"])
+    # seit 1.626.0 dazu Schule, Krankheit, Unfall (HOFERTIME)
+    arten = pg.locator(".fd-art").all_inner_texts()
+    pruefe("alle Arten: %s" % arten, arten == ["Ferien", "Kompensieren", "Militär/Zivilschutz", "Feuerwehr", "Schule", "Krankheit", "Unfall"])
     pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
 
     for art, name, kurz in [("feuerwehr", "Feuerwehr", "Feuerwehr"), ("militaer", "Militär/Zivilschutz", "Militär/ZS")]:

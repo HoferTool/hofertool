@@ -125,9 +125,17 @@ with sync_playwright() as p:
     pruefe(f.evaluate("$('traceCirc').getAttribute('aria-pressed')") == "true", "Knopf Kreis gedrückt")
     # Radtaste gedrückt ziehen verschiebt die Ansicht
     f.evaluate("setZoom(4)"); pg.wait_for_timeout(400)
+    # Ansicht sicher in den sichtbaren Bereich holen: auf GitHub lag die Mitte sonst ausserhalb
+    # des Fensters, und der Browser schickte gar kein Ereignis an den Rahmen (window.__rad leer).
+    f.evaluate("$('viewer').scrollIntoView({block: 'center', inline: 'center'})")
+    pg.frames[1].frame_element().scroll_into_view_if_needed(); pg.wait_for_timeout(300)
     s0 = f.evaluate("[$('viewer').scrollLeft, $('viewer').scrollTop]")
     vb = f.evaluate("(() => { const r = $('viewer').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()")
     bx = pg.frames[1].frame_element().bounding_box(); mx, my = bx["x"] + vb[0], bx["y"] + vb[1]
+    vp = pg.viewport_size or {"width": 1e9, "height": 1e9}
+    if not (130 <= mx <= vp["width"] - 30 and 110 <= my <= vp["height"] - 30):
+        print("Radtaste: Mitte %d/%d ausserhalb Fenster %s, nehme sichtbare Stelle" % (mx, my, vp), flush=True)
+        mx = min(max(mx, 130), vp["width"] - 30); my = min(max(my, 110), vp["height"] - 30)
     # Ereignisse mitzählen: fällt die Probe durch, zeigt die Meldung, was der Browser geschickt hat
     f.evaluate("""() => { window.__rad = {}; for (const n of ['pointerdown','mousedown','pointermove','mousemove','pointerup','mouseup','lostpointercapture'])
       window.addEventListener(n, e => { const k = n + ':' + e.button + '/' + e.buttons; window.__rad[k] = (window.__rad[k] || 0) + 1;
