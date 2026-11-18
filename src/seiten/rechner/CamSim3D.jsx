@@ -13,6 +13,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { RASTER, materialStand, simAufbauen, umrissVon, plattenHuelle, bohrerHuelle, innenTiefe } from "./camSim.js";
+import { drehKoerper, abstechKoerper, fraeserKoerper } from "./camKoerper.js";
 import { MASCHINE_SB20RG, GEGEN_SB20RG, platzLage, traegerQuader, gegenEinheit, gegenQuader } from "./camMaschine.js";
 
 // Seit 1.558.3 wie an der Maschine: Führungsbüchse links, das Teil schaut
@@ -316,6 +317,16 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
     }
     ziel = liste;
   }
+  // Werkzeug als 3D-Körper (seit 1.621.0): im Teil gerechnet wie die Bahn,
+  // dreht mit dem Teil in C; beim Strahlenbild wie die Maschine vor oder
+  // hinter dem Teil, sonst mit dem Teil sortiert
+  const koerper = ueber.koerper || [];
+  if (koerper.length) {
+    ziel = strahl ? mListe : liste;
+    const pk = (q) => ansicht(q[0], Math.hypot(q[1], q[2]), Math.atan2(q[2], q[1]) + (rollT || 0));
+    for (const f of koerper) flaeche(f.pts.map(pk), f.art, f.pts[0][0]);
+    ziel = liste;
+  }
   if (strahl) {
     // Strahlenbild deckt nur, wo Material ist: was hinter der Drehachse
     // liegt, vorher zeichnen, den Rest danach
@@ -426,12 +437,12 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
     g.stroke();
   }
   g.setLineDash([]);
-  for (const t of ueber.werkzeuge) {
+  for (const t of koerper.length ? [] : ueber.werkzeuge) {
     g.beginPath();
     t.pts.forEach((p, i) => { const q = ebene(p.z, p.r); if (i) g.lineTo(q.x, q.y); else g.moveTo(q.x, q.y); });
     g.closePath(); g.fillStyle = t.farbe; g.strokeStyle = t.rand; g.lineWidth = 1.2; g.fill(); g.stroke();
   }
-  for (const st of ueber.stangen || []) {
+  for (const st of koerper.length ? [] : ueber.stangen || []) {
     // angetriebenes Werkzeug als Stab von der Spitze zum Schaft
     const a = kart(...st.a), b = kart(...st.b);
     g.lineCap = "butt"; g.strokeStyle = st.rand; g.lineWidth = Math.max(3, st.d * s) + 2;
@@ -494,6 +505,8 @@ function Simulation({ w, zu }) {
   const [dreh, setDreh] = useState(SCHRAEG);
   const [zoom, setZoom] = useState(1);
   const [schnitt, setSchnitt] = useState(true);
+  // seit 1.621.0 Werkzeug als 3D-Körper (Patrick 18. November 2026), je Gerät gemerkt
+  const [dreiD, setDreiD] = useState(() => { try { return localStorage.getItem("hofer.camSim.wz3d") !== "0"; } catch { return true; } });
   const [breite, setBreite] = useState(800);
   const rahmen = useRef(null), leinwand = useRef(null), ziehen = useRef(null), finger = useRef(new Map());
   const { gesamt, schritte } = sim;
@@ -569,7 +582,7 @@ function Simulation({ w, zu }) {
     const dz = wzJetzt ? wzJetzt.z - zMitte : 0;
     const bereich = { ...bereich0, zmin: bereich0.zmin + dz, zmax: bereich0.zmax + dz };
     // Bahn und Werkzeug des aktuellen Schritts
-    const ueber = { bahnen: [], werkzeuge: [], stangen: [], spitze: null, buechse: null };
+    const ueber = { bahnen: [], werkzeuge: [], stangen: [], koerper: [], spitze: null, buechse: null };
     if (akt && akt.kanal === kanal && akt.punkte.length && n > akt.von) {
       const bis = Math.min(n, akt.bis) - akt.von;
       const pts = akt.punkte.slice(0, bis);
@@ -587,6 +600,8 @@ function Simulation({ w, zu }) {
       if (akt.wz && akt.modus === "dreh") {
         const h = plattenHuelle(akt.wz, innenTiefe(akt));
         if (h) ueber.werkzeuge.push({ pts: h.umriss.map((q) => ({ z: p.z + q.z, r: p.r + q.x })), farbe: "rgba(224,161,42,.92)", rand: "#7a5410" });
+        // seit 1.621.0 als 3D-Körper, mit Maschine zeichnet der Träger den Schaft
+        if (h && dreiD) ueber.koerper.push(...drehKoerper(akt.wz, p, h.umriss, !maschineAn && akt.art === "dreh"));
       } else if (akt.wz && akt.modus === "c") {
         // Achse in der Ansicht: Kanal 2 von hinten (z und w gespiegelt)
         const ax = kanal === 2 ? [-p.ax[0], p.ax[1], -p.ax[2]] : p.ax;
@@ -595,15 +610,18 @@ function Simulation({ w, zu }) {
         const pkt = (a) => [p.z + ax[0] * a, u + ax[1] * a, ww + ax[2] * a];
         ueber.stangen.push({ a: pkt(0), b: pkt(Lc), d, farbe: "rgba(224,161,42,.92)", rand: "#7a5410" });
         ueber.stangen.push({ a: pkt(Lc), b: pkt(Lc + d * 1.5), d: d * 1.15, farbe: "rgba(180,190,200,.95)", rand: "#5b6875" });
+        if (dreiD) ueber.koerper.push(...fraeserKoerper(akt.wz, pkt(0), ax));
       } else if (akt.modus === "abstech") {
         const Bw = akt.breite;
         ueber.werkzeuge.push({ pts: [{ z: p.z - Bw, r: p.r }, { z: p.z, r: p.r }, { z: p.z, r: p.r + A / 2 + 4 }, { z: p.z - Bw, r: p.r + A / 2 + 4 }],
           farbe: "rgba(224,161,42,.92)", rand: "#7a5410" });
+        if (dreiD) ueber.koerper.push(...abstechKoerper(p, Bw, A / 2 + 4));
       } else if (akt.wz && akt.modus === "bohr") {
         const u = bohrerHuelle(akt.wz).umriss;
         const auf = (l) => l.map((q) => ({ z: p.z - q.x, r: p.r + q.z }));
         ueber.werkzeuge.push({ pts: auf(u.schaft), farbe: "rgba(180,190,200,.95)", rand: "#5b6875" });
         ueber.werkzeuge.push({ pts: auf(u.schneide), farbe: "rgba(224,161,42,.92)", rand: "#7a5410" });
+        if (dreiD) ueber.koerper.push(...fraeserKoerper(akt.wz, [p.z, p.r, 0], [-1, 0, 0]));
       }
     }
     // Seit 1.580.0: Werkzeugträger von Kanal 1 mit allen Werkzeugen, er
@@ -714,11 +732,11 @@ function Simulation({ w, zu }) {
       }
     }
     cv.__traeger = traeger; cv.__kopf = maschine ? maschine.kopf || null : null; cv.__roll = roll; cv.__gegen = gegen; cv.__quader = maschine ? maschine.quader : null;
-    cv.__stand = stand; cv.__sim = sim; cv.__strahl = !!strahl; cv.__werkzeuge = ueber.werkzeuge; cv.__buechse = ueber.buechse; cv.__weg = wegZ; cv.__ansichtZ = dz; // für den Prüfstand
+    cv.__stand = stand; cv.__sim = sim; cv.__strahl = !!strahl; cv.__werkzeuge = ueber.werkzeuge; cv.__koerper = ueber.koerper.length; cv.__buechse = ueber.buechse; cv.__weg = wegZ; cv.__ansichtZ = dz; // für den Prüfstand
     // Rohmaterial: Stirn vorne nur vorne (Kanal 1), vor der Übergabe
     const roh = { R: A / 2, vorne: kanal === 1 && !wegZ ? vorne : null };
     malen(g, breite, HOCH, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, roh, maschine, roll, hinweis: umriss ? "" : "Kein Material" });
-  }, [sim, stand, n, kanal, akt, dreh, zoom, schnitt, breite, laeuft, maschineAn, kopfZ]);
+  }, [sim, stand, n, kanal, akt, dreh, zoom, schnitt, breite, laeuft, maschineAn, kopfZ, dreiD]);
 
   useEffect(() => {
     if (!laeuft) return undefined;
@@ -811,6 +829,8 @@ function Simulation({ w, zu }) {
               onChange={(e) => halten("satz", e.target.checked)} /><span>Einzelsatz</span></label>
             <label className="schalter" title="Werkzeugträger, Spindelstock und Gegenspindel zeigen"><input type="checkbox" id="cam-sim-maschine" checked={maschineAn}
               onChange={(e) => { setMaschineAn(e.target.checked); try { localStorage.setItem("hofer.camSim.maschine", e.target.checked ? "1" : "0"); } catch { /* egal */ } }} /><span>Maschine</span></label>
+            <label className="schalter" title="Werkzeug als 3D-Körper statt flach in der Ebene zeigen"><input type="checkbox" id="cam-sim-wz3d" checked={dreiD}
+              onChange={(e) => { setDreiD(e.target.checked); try { localStorage.setItem("hofer.camSim.wz3d", e.target.checked ? "1" : "0"); } catch { /* egal */ } }} /><span>3D-Werkzeug</span></label>
             <label className="schalter"><input type="checkbox" id="cam-sim-schnitt" checked={schnitt} onChange={(e) => setSchnitt(e.target.checked)} /><span>Aufgeschnitten</span></label>
             <button className="knopf knopf--klein" onClick={() => { setDreh(SCHRAEG); setZoom(1); }}>Schräg</button>
             <button className="knopf knopf--klein" onClick={() => setDreh(SEITE)}>Von der Seite</button>
@@ -836,7 +856,7 @@ function Simulation({ w, zu }) {
           })}
           <p className="klein cam-sim__legende" data-cam-sim-legende><span className="cam-sim__farbe" style={{ background: `rgb(${FARBE_ROH})` }} />Rohmaterial
             <span className="cam-sim__farbe" style={{ background: `rgb(${FARBE_BEARB})` }} />bearbeitet</p>
-          <p className="klein cam-sim__info">Ohne Halter, ohne Kollisionsprüfung. Gerechnet wird das erzeugte Programm, ohne Änderungen von Hand im Programmfenster.</p>
+          <p className="klein cam-sim__info">Ohne Kollisionsprüfung. Gerechnet wird das Programm, wie es im Programmfenster steht. Abgetragen wird nur mit der Schneide, das 3D-Werkzeug ist zum Ansehen.</p>
         </div>
       </div>
     </div>

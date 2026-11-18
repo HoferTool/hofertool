@@ -9,6 +9,7 @@
 //  noch da ist; ein Reiter, der im Tab noch nie offen war, hat keinen.
 // =================================================================
 import { kopfZeilen, fussZeilen } from "./kopf.jsx";
+import { alt } from "../../bruecke.jsx";
 
 export const NC_QUELLEN = [
   ["kontur", "HOFERCONTUR"], ["bohren", "Bohren / Fräsen"], ["entgraten", "Entgraten"], ["cachse", "C-Achse G12.1"],
@@ -32,13 +33,23 @@ const lesen = () => {
 export function ncMelden(art, text) {
   const s = lesen();
   if (s[art] && s[art].text === text) return;
-  s[art] = { text: String(text || ""), zeit: Date.now() };
+  s[art] = { text: String(text || ""), zeit: Date.now(), v: alt.APP_VERSION || "" };
   hoerer.forEach((f) => f());
   if (imModulTab()) return;
   try { sessionStorage.setItem(SCHLUESSEL, JSON.stringify(s)); } catch (e) { /* voll oder gesperrt: bleibt im Speicher */ }
 }
 
-export const ncAktuell = (art) => lesen()[art] || null;
+// Seit 1.620.2 nur Code aus derselben Fassung der App: nach einem Neuladen
+// mit neuer Fassung lag sonst noch der alte Code im Speicher des Tabs
+// (Patrick 18. November 2026: HOFERCAM brachte G0X16.0 aus HOFERCONTUR,
+// das die neue Fassung gar nicht mehr ausgibt); der Reiter meldet sich
+// beim nächsten Öffnen wieder
+export const ncAktuell = (art) => {
+  const a = lesen()[art];
+  if (!a) return null;
+  if ((a.v || "") !== (alt.APP_VERSION || "")) return null;
+  return a;
+};
 
 // Zeilen ohne Leerzeilen; mit ohneSpann ohne den Vor- und Nachspann für
 // die Maschine (kopf.jsx), der im HoferCam schon im Kopf und Ende steht
