@@ -108,7 +108,7 @@ export default function BohrenFraesen() {
         </div>
         <div className="cax-felder">
           <Feld name="teilD" text="Teil-Ø" wert={b.teilD} setze={setze} />
-          <Feld name="zStirn" text="Z an der Stirnfläche" wert={b.zStirn} setze={setze} />
+          {!front && <Feld name="zStirn" text="Z an der Stirnfläche" wert={b.zStirn} setze={setze} />}
           {b.art === "bohrenFront" && <>
             <Feld name="lochkreis" text="Lochkreis-Ø (0 = Mitte)" wert={b.lochkreis} setze={setze} />
             {b.lochkreis > 0 && !frei && <Feld name="anzahl" text="Anzahl Bohrungen" wert={b.anzahl} setze={setze} schritt="1" />}

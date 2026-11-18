@@ -21,6 +21,7 @@
 //  Programmiert wird immer die Spitze des Werkzeugs, X im Durchmesser.
 // =================================================================
 import { kopfZeilen, fussZeilen } from "./kopf.jsx";
+import { zZuWAb } from "./zInkrement.js";
 import { antrieb, frontLoecher, querLoecher, nutWinkel, flaechenWinkel, yV } from "./bohren.js";
 
 export const EG_VORGABE = {
@@ -382,6 +383,7 @@ export function egGcode(b, g) {
   const zSicher = b.zStirn + g.sicher;
   const xSicher = b.teilD + 2 * g.sicher;
   const F = g.vorschub, FZ = g.vorschubZ;
+  const anfang = z.length;
 
   if (front && !y) {
     // Polarinterpolation: X (Durchmesser) und C als ebene Koordinaten
@@ -439,6 +441,9 @@ export function egGcode(b, g) {
   }
   if (!bahnen.length) z.push("( KEINE KANTE )");
   z.push(front ? "G0Z" + zA(zSicher + 5) : "G0X" + z3(xSicher + 4));
+  // an der Stirn Z inkremental ab der Vorposition (seit 1.623.0), in der
+  // Ausgabe steht die Stirn bei zA(zStirn) = zStirn
+  if (front) zZuWAb(z, anfang, z.length, b.zStirn);
   const aus = (front ? antrieb.frontAus : antrieb.querAus).split(/\r?\n/).filter((x) => x.trim()).map((x) => x.replace(/\{S\}/gi, String(s)));
   if (aus.length) aus.forEach((x) => z.push(x));
   else z.push("( " + (front ? "FRONT" : "QUER") + "WERKZEUG AUS )");

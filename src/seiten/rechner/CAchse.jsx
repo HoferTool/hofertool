@@ -107,7 +107,6 @@ export default function CAchse() {
           <Feld name="fraeser" text="Fräserdurchmesser" wert={c.fraeser} setze={setze} />
           <Feld name="tiefeZ" text="Frästiefe in Z" wert={c.tiefeZ} setze={setze} />
           <Feld name="zustellung" text="Zustellung je Schnitt" wert={c.zustellung} setze={setze} />
-          <Feld name="zStart" text="Z an der Stirnfläche" wert={c.zStart} setze={setze} />
           <Feld name="sicher" text="Sicherheitsabstand" wert={c.sicher} setze={setze} />
           <Feld name="vorschub" text="Vorschub Eintauchen in Z mm/min" wert={c.vorschub} setze={setze} schritt="1" />
           <Feld name="vorschubC" text="Vorschub C-Achse mm/min" wert={c.vorschubC} setze={setze} schritt="1" />

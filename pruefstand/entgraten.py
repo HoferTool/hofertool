@@ -12,6 +12,13 @@ def pruefe(name, ok):
     if not ok: fehler.append(name)
 def zahlen(c, achse):
     return [float(x) for x in re.findall(achse + r"(-?\d+\.\d+)", c)]
+# Front seit 1.623.0 mit W ab der Vorposition (0.5 vor der Stirn):
+# zurückgerechnet in Z ab der Stirn
+def absZ(c):
+    jetzt, aus = -0.5, []
+    for w in re.findall(r"W(-?\d+\.\d+)", c):
+        jetzt = round(jetzt + float(w), 3); aus.append(jetzt)
+    return aus
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
     pg = br.new_context(viewport={"width": 1400, "height": 900}).new_page()
@@ -33,9 +40,9 @@ with sync_playwright() as p:
     c = code()
     pruefe("Polarinterpolation", "G12.1" in c and "G13.1" in c and c.count("( Bohrung") == 4)
     # Kugel R1.5, Fase 0.3: Kugelmitte im Abstand R/√2·… → Spitze in Z
-    zs = [z for z in zahlen(c, "Z") if z > 0]
+    zs = [z for z in absZ(c) if z > 0]
     pruefe("Spitze hinter der Stirn, knapp (Z ins Teil +)", zs and all(0 < z < 1.5 for z in zs))
-    xs = zahlen(c.split("( Bohrung 1")[1].split("G0Z")[0], "X")
+    xs = zahlen(c.split("( Bohrung 1")[1].split("G0W")[0], "X")
     pruefe("Bohrung 1 um X12 herum", xs and min(xs) > 6 and max(xs) < 18)
     pruefe("Ohne Antrieb Warnung", pg.locator(".eg-warnung").count() >= 1)
     # Antwahl in der Liste und im 3D-Bild
@@ -54,17 +61,17 @@ with sync_playwright() as p:
     c = code()
     pruefe("Zentrier in der Mitte: je Bohrung ein Punkt", c.count("(Mitte)") == 4 and "G12.1" in c)
     # 90°: Spitze = 2.3 unter der Stirn
-    pruefe("Zentrier 90°: Spitze Z2.300", "Z2.300" in c)
+    pruefe("Zentrier 90°: Spitze Z2.300", 2.3 in absZ(c))
     # Kontur abfahren statt Mitte, Stelle an der Schneide wählbar
     pg.select_option("[data-eg='zentrierFahrt']", "kontur"); pg.wait_for_timeout(100)
     c = code()
-    pruefe("Kontur abfahren: keine Mitte, Spitze 0.6 tief", "(Mitte)" not in c and "Z0.600" in c and "Bohrung 1" in c)
+    pruefe("Kontur abfahren: keine Mitte, Spitze 0.6 tief", "(Mitte)" not in c and 0.6 in absZ(c) and "Bohrung 1" in c)
     pruefe("Schieber für die Schneide da", pg.locator("#eg-ort-regler").count() == 1 and "Ø1.20 oben" in pg.text_content("#eg-sk-ort"))
     feld("ortD", 4); pg.wait_for_timeout(100)
     c = code()
-    pruefe("Ø4 an der Kante: Spitze 1.7 unter Fase, Z2.000", pg.input_value("[data-eg='spitze']") == "1.7" and "Z2.000" in c and "(Mitte)" not in c)
+    pruefe("Ø4 an der Kante: Spitze 1.7 unter Fase, Z2.000", pg.input_value("[data-eg='spitze']") == "1.7" and 2.0 in absZ(c) and "(Mitte)" not in c)
     feld("ortD", 10); pg.wait_for_timeout(100)
-    pruefe("Zu gross: Warnung und grösster Ø", "Z2.900" in code()
+    pruefe("Zu gross: Warnung und grösster Ø", 2.9 in absZ(code())
            and any("Schneidenposition" in t for t in pg.locator(".eg-warnung").all_inner_texts()))
     if BILD: pg.locator("#eg-skizze").screenshot(path=BILD + "/eg-skizze-ort.png")
     pg.evaluate("""() => { const r = document.querySelector('#eg-ort-regler'); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
@@ -75,7 +82,7 @@ with sync_playwright() as p:
     pruefe("Wieder Mitte", code().count("(Mitte)") == 4)
     feld("durchmesser", 4); pg.wait_for_timeout(100)
     c = code()
-    pruefe("Zentrier entlang der Kante, wenn zu klein", "(Mitte)" not in c and "Z0.600" in c)
+    pruefe("Zentrier entlang der Kante, wenn zu klein", "(Mitte)" not in c and 0.6 in absZ(c))
     pg.select_option("[data-eg='fasenArt']", "tiefe"); feld("fase", 0.5)
     pruefe("Fase in der Tiefe 0.5 = Breite 0.5 bei 90°", "0.50 breit × 0.50 tief" in pg.inner_text("#eg-fase"))
     feld("winkel", 60)

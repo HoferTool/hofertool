@@ -14,6 +14,7 @@
 //  BohrenFraesen.jsx.
 // =================================================================
 import { kopfZeilen, fussZeilen } from "./kopf.jsx";
+import { LUFT } from "./zInkrement.js";
 
 export const BF_VORGABE = {
   art: "bohrenFront",     // bohrenFront, bohrenQuer, nutFront, nutQuer, flaeche
@@ -127,6 +128,18 @@ export function querLoecher(b) {
 export const ZIN = 1;
 export const zIn = (b, mm) => b.zStirn + ZIN * mm;
 
+// Front (seit 1.623.0, Patrick 18. November 2026: „wir fahren auf eine
+// Vorposition in Z, z.B. 5.0, dann stellen wir das Werkzeug 0.5 mm davor
+// ein … die Z-Zustellung inkremental programmieren mit den 0.5 mm Luft“):
+// Bohren Front und Nut Front fahren in Z nur noch mit W ab der Vorposition
+// aus dem Kopf der Bearbeitung; dort steht die Spitze LUFT vor der Stirn.
+export { LUFT };
+// Lagen ab der Stirn, ins Teil +; die Vorposition liegt bei −LUFT
+function wFahrer(z) {
+  let jetzt = -LUFT;
+  return (g, ziel, rest = "") => { z.push(g + "W" + z3(ZIN * (ziel - jetzt)) + rest); jetzt = ziel; };
+}
+
 // Sehne der Fläche: so breit wird sie am Umfang
 export const flaecheBreite = (b) => {
   const r = b.teilD / 2, a = b.sw / 2;
@@ -227,11 +240,10 @@ function gewindeVor(b, z) {
 
 function bohrenFront(b, z) {
   const loecher = frontLoecher(b);
-  const zR = zIn(b, -b.sicher);
-  const zT = zIn(b, b.tiefe);
   const yT = yTeil(b);
   z.push("( " + loecher.length + " Bohrung" + (b.lochkreis > 0 ? (loecher.length > 1 ? "en" : "") + " auf Lochkreis D" + b.lochkreis : " in der Mitte")
     + (yT ? ", Versatz " + yT : "") + ", Tiefe " + b.tiefe + " )");
+  z.push("( Z inkremental ab Vorposition, Werkzeug " + LUFT + " vor der Stirn )");
   z.push("G0X" + z3(loecher[0].x) + "C" + wink(loecher[0].c) + yT);
   // Kein G0Z zum Anfahren (seit 1.620.1, Patrick 18. November 2026: „das
   // mache ich im Bearbeitungskopf schon, sonst passt die Werkzeugposition
@@ -239,13 +251,13 @@ function bohrenFront(b, z) {
   if (b.ausgabe === "einzeln" && b.zyklus !== "gewinde") {
     loecher.forEach((l, i) => {
       if (i) z.push("G0X" + z3(l.x) + "C" + wink(l.c));
-      einzelnBohren(b, z, "Z", zR, b.zStirn, zT, ZIN);
+      einzelnW(b, z);
     });
   } else {
     gewindeVor(b, z);
     const t = zyklusTeile(b);
     loecher.forEach((l, i) => {
-      if (!i) z.push(G_FRONT[b.zyklus] + "X" + z3(l.x) + "C" + wink(l.c) + "Z" + z3(zT) + "R0." + t.q + t.p + "F" + t.f);
+      if (!i) z.push(G_FRONT[b.zyklus] + "X" + z3(l.x) + "C" + wink(l.c) + "W" + z3(ZIN * (LUFT + b.tiefe)) + "R0." + t.q + t.p + "F" + t.f);
       else z.push("X" + z3(l.x) + "C" + wink(l.c));
     });
     z.push("G80");
@@ -283,6 +295,29 @@ function bohrenQuer(b, z) {
   }
   z.push("G0X" + z3(xR + 4));
   if (yT) z.push("G0Y0.");
+}
+
+// Front ausgeschrieben mit W: wie einzelnBohren, jede Bohrung beginnt
+// und endet auf der Vorposition
+function einzelnW(b, z) {
+  const geh = wFahrer(z);
+  const pause = b.pause > 0 ? "G4U" + (+b.pause).toFixed(1) : "";
+  const tiefe = +b.tiefe;
+  if (b.zyklus === "tief" && b.q > 0 && b.q < tiefe) {
+    let erreicht = 0;
+    while (erreicht < tiefe - 1e-6) {
+      const neu = Math.min(tiefe, erreicht + b.q);
+      if (erreicht > 0) geh("G0", Math.max(0, erreicht - 0.3));
+      geh("G1", neu, "F" + b.vorschub);
+      if (neu >= tiefe - 1e-6 && pause) z.push(pause);
+      geh("G0", -LUFT);
+      erreicht = neu;
+    }
+    return;
+  }
+  geh("G1", tiefe, "F" + b.vorschub);
+  if (pause) z.push(pause);
+  geh(b.zyklus === "reiben" ? "G1" : "G0", -LUFT);
 }
 
 // Ausgeschrieben: Tieflochbohren fährt nach jeder Zustellung ganz
@@ -323,13 +358,15 @@ function nutFront(b, z) {
   const yT = yTeil(b);
   z.push("( Nut auf der Stirn bei C" + wink(b.startC) + (yT ? ", Versatz " + yT : "") + ", Breite = Fraeser D" + b.fraeser + ", Tiefe " + b.nutTiefe
     + (durch ? ", durchgehend" : ", Laenge " + b.nutLaenge) + " )");
+  z.push("( Z inkremental ab Vorposition, Werkzeug " + LUFT + " vor der Stirn )");
   z.push("G0X" + z3(xA) + "C" + wink(b.startC) + yT);
   // kein G0Z zum Anfahren, Z steht aus dem Kopf der Bearbeitung (1.620.1)
+  const geh = wFahrer(z);
   let hin = true;
   schnitte(b.nutTiefe, b.zustellung).forEach((t) => {
     // Durchgehend taucht er ausserhalb des Teils ein, sonst im Material
     // (Fräser muss über die Mitte schneiden)
-    z.push("G1Z" + z3(zIn(b, t)) + "F" + b.vorschubZ);
+    geh("G1", t, "F" + b.vorschubZ);
     z.push("G1X" + z3(hin ? -xA : xA) + "F" + b.vorschub);
     hin = !hin;
   });

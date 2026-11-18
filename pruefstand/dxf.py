@@ -52,7 +52,7 @@ with sync_playwright() as p:
     ergebnis["innen"] = code()
     pg.select_option("[data-dxf='gewaehlt']", "1"); pg.wait_for_timeout(250)
     ergebnis["kontur2"] = code()
-    feld("[data-dxf='fraeser']", 2); feld("[data-dxf='zustellung']", 0.5); feld("[data-dxf='zStart']", -1)
+    feld("[data-dxf='fraeser']", 2); feld("[data-dxf='zustellung']", 0.5)
     ergebnis["eigen"] = code()
     pg.select_option("[data-dxf='seite']", "aussen"); pg.wait_for_timeout(250)
     feld("[data-dxf='massstab']", 150)

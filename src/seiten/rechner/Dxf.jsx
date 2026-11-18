@@ -148,7 +148,6 @@ export default function Dxf() {
           <Feld name="fraeser" text="Fräserdurchmesser" wert={d.fraeser} setze={setze} />
           <Feld name="tiefeZ" text="Frästiefe in Z" wert={d.tiefeZ} setze={setze} />
           <Feld name="zustellung" text="Zustellung je Schnitt" wert={d.zustellung} setze={setze} />
-          <Feld name="zStart" text="Z an der Fläche" wert={d.zStart} setze={setze} />
           <Feld name="sicher" text="Sicherheitsabstand" wert={d.sicher} setze={setze} />
           <Feld name="vorschub" text="Vorschub Eintauchen in Z mm/min" wert={d.vorschub} setze={setze} schritt="1" />
           <Feld name="vorschubC" text="Vorschub C-Achse mm/min" wert={d.vorschubC} setze={setze} schritt="1" />

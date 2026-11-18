@@ -42,7 +42,7 @@ with sync_playwright() as p:
     pruefe("Tab zeigt Modul mit Einfügen", tab.locator("[data-ncmodultab='bohren'] [data-ncmodultab-einfuegen]").count() == 1)
     pruefe("Tab ohne Menü", not tab.is_visible(".nav"))
     pruefe("Tab leer: Teil-Ø Vorgabe", tab.input_value("[data-bf='teilD']") != "33")
-    tab.fill("[data-bf='zStirn']", "-2"); tab.press("[data-bf='zStirn']", "Enter"); tab.wait_for_timeout(300)
+    tab.fill("[data-bf='tiefe']", "7.5"); tab.press("[data-bf='tiefe']", "Enter"); tab.wait_for_timeout(300)
     bfTab = zeilen(tab.text_content("#bf-code"))
     pruefe("Code im Tab anders als im Reiter", bfTab != bfReiter)
     tab.screenshot(path="/tmp/claude-0/cam_modul_tab.png")

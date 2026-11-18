@@ -9,6 +9,7 @@
 //  Mantel      → G07.1, Z und C, C im Winkel über den Umfang
 // =================================================================
 import { kopfZeilen } from "./kopf.jsx";
+import { zZuWAb } from "./zInkrement.js";
 import { vereinfachen, zugFlaeche, zugVersetzen } from "./geometrie.js";
 
 export const GRAVUR_VORGABE = {
@@ -215,6 +216,7 @@ export function gravurGcode(gv, roh) {
     return { a: (x / (Math.PI * gv.dm)) * 360, b: y };
   };
 
+  const a = z.length;
   if (mantel) {
     z.push("G0Z" + (gv.zStart - 5).toFixed(3) + "C0.");
     z.push("G0X" + (gv.dm + 2 * gv.eilgang).toFixed(3));
@@ -265,6 +267,8 @@ export function gravurGcode(gv, roh) {
   } else {
     z.push("G0Z" + (gv.zStart - gv.eilgang - 5).toFixed(3));
     z.push("G13.1  ( Polarinterpolation aus )");
+    // an der Stirn Z inkremental ab der Vorposition (seit 1.623.0)
+    zZuWAb(z, a, z.length, gv.zStart);
   }
   z.push("M5");
   return z.join("\n");

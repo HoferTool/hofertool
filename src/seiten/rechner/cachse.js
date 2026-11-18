@@ -6,6 +6,7 @@
 //  Alles hier sind reine Rechnungen auf den Angaben c.
 // =================================================================
 import { kopfZeilen, fussZeilen } from "./kopf.jsx";
+import { zZuWAb } from "./zInkrement.js";
 
 export const CACHSE_VORGABE = {
   form: "vierkant",
@@ -157,6 +158,7 @@ export function cachseGcode(c) {
   // Steht ein eigener Vorspann da, gilt der — sonst wäre M3 auf der
   // Hauptspindel und damit auf einer Langdrehmaschine falsch.
   if (!kopfZeilen().length) z.push("M" + (gegen ? "4" : "3") + "S" + Math.round(c.drehzahl) + "  ( Fraeser )");
+  const a = z.length;
   z.push("G0X" + (anfahrt * 2).toFixed(3) + "C0.");
   z.push("G0Z" + (c.zStart - c.sicher).toFixed(3));
   z.push("G12.1  ( Polarinterpolation ein )");
@@ -192,6 +194,7 @@ export function cachseGcode(c) {
   z.push("G0X" + (anfahrt * 2).toFixed(3));
   z.push("G13.1  ( Polarinterpolation aus )");
   z.push("G0Z" + (c.zStart - c.sicher - 5).toFixed(3));
+  zZuWAb(z, a, z.length, c.zStart);
   fussZeilen().forEach((x) => z.push(x));
   if (!fussZeilen().length) z.push("M5");
   return z.join("\n");

@@ -6,6 +6,7 @@
 //  Bahn der Fräsermitte samt G-Code.
 // =================================================================
 import { kopfZeilen, fussZeilen } from "./kopf.jsx";
+import { zZuWAb } from "./zInkrement.js";
 import { vereinfachen, zugFlaeche, zugVersetzen } from "./geometrie.js";
 
 export const DXF_VORGABE = {
@@ -214,6 +215,7 @@ export function dxfGcode(d, name, bahn) {
   z.push("( " + (d.seite === "innen" ? "innen" : "aussen") + ", Fraeser D" + d.fraeser.toFixed(2) + ", Bahn = Fraesermitte )");
   kopfZeilen().forEach((x) => z.push(x));
   if (!kopfZeilen().length) z.push("M3S" + Math.round(d.drehzahl));
+  const a = z.length;
   z.push("G0X" + (weit * 2).toFixed(3) + "C0.");
   z.push("G0Z" + (d.zStart - d.sicher).toFixed(3));
   z.push("G12.1  ( Polarinterpolation ein )");
@@ -231,6 +233,7 @@ export function dxfGcode(d, name, bahn) {
 
   z.push("G13.1  ( Polarinterpolation aus )");
   z.push("G0X" + (weit * 2).toFixed(3));
+  zZuWAb(z, a, z.length, d.zStart);
   fussZeilen().forEach((x) => z.push(x));
   if (!fussZeilen().length) z.push("M5");
   return z.join("\n");
