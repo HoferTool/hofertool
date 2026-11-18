@@ -275,6 +275,8 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
           <button className="knopf knopf--klein" id="ze-nachtragen" onClick={() => nachtragen(personId, heute, neu)}>+ Nachtragen</button>
           <button className="knopf knopf--klein" id="ze-verlauf" onClick={() => verlaufZeigen(personId, name)}>Verlauf</button>
           <button className="knopf knopf--klein" id="ze-pdf" onClick={pdfMachen}>⬇ PDF</button>
+          {eigene && konto && (konto.ohne_passwort || konto.nur_zeit) &&
+            <button className="knopf knopf--klein" id="ze-pin-aendern" onClick={pinAendern}>🔑 PIN ändern</button>}
           {admin && <button className="knopf knopf--klein" id="ze-einst" onClick={() => profilOeffnen(personId, name, einst, neu)}>👤 Profil</button>}
           {admin && monatslohn && <button className="knopf knopf--klein" id="ze-umbuchen" onClick={() => umbuchen(personId, name, einst, neu)}>⇄ Umbuchen</button>}
           {admin && konto && konto.nur_zeit && <>
@@ -670,6 +672,26 @@ async function pinSetzen(konto) {
   const w = await alt.dialogFelder({ titel: "PIN für " + alt.personName(konto), felder: [PIN_FELD], bestaetigen: "PIN setzen" });
   if (!w) return;
   if (await pinSchreiben(konto.id, String(w.pin || "").trim())) alt.meldung("PIN gesetzt.", "gut");
+}
+
+// Die eigene PIN ändern (Wunsch Patrick 18. November 2026: „die Benutzer
+// sollen ihren PIN ändern können“). pin_setzen ohne Ziel gilt für das
+// eigene Konto, die Datenbank prüft das (anmeldung_darf).
+async function pinAendern() {
+  const w = await alt.dialogFelder({
+    titel: "PIN ändern",
+    text: "Neue PIN zweimal eingeben. Danach meldest du dich mit der neuen PIN an.",
+    felder: [{ ...PIN_FELD, label: "Neue PIN (4 bis 8 Ziffern)" },
+      { name: "pin2", label: "Neue PIN nochmals", typ: "password", ziffern: true, pflicht: true }],
+    bestaetigen: "PIN ändern",
+  });
+  if (!w) return;
+  const pin = String(w.pin || "").trim();
+  if (pin !== String(w.pin2 || "").trim()) { alt.meldung("Die beiden PINs sind nicht gleich.", "warn"); return; }
+  if (!/^\d{4,8}$/.test(pin)) { alt.meldung("Die PIN braucht 4 bis 8 Ziffern.", "warn"); return; }
+  const { error } = await alt.db.rpc("pin_setzen", { p_pin: pin });
+  if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
+  alt.meldung("PIN geändert.", "gut");
 }
 
 async function kontoAus(konto) {
