@@ -17,6 +17,7 @@
 //  als es neu zu tippen.
 // =================================================================
 
+import { zeitApp } from "../seiten/zeit/app.js";
 const SCHLUESSEL = "hofer.wiederherstellen";
 const HOECHSTENS = 30 * 60 * 1000;
 
@@ -69,7 +70,9 @@ export function zustandVergessen() {
 // dem Vergessen legt die App den Stand im localStorage ab, damit er
 // auch ein Neuladen bei der Anmeldung (neue Fassung) übersteht. Er
 // gehört genau einer Person und gilt nur am selben Tag.
-const NACH_ABMELDUNG = "hofer.nachAbmeldung";
+// HOFERTIME merkt seinen Stand getrennt, sonst ging nach dem Abmelden dort
+// das HoferTool bei HOFERTIME wieder auf (seit 1.635.0)
+const NACH_ABMELDUNG = zeitApp ? "hofer.nachAbmeldung.zeit" : "hofer.nachAbmeldung";
 const LANGE_WEG = 4 * 60 * 60 * 1000;
 
 function heute() {
@@ -99,6 +102,9 @@ export function zustandNachAnmeldung(id) {
   // automatischem Abmelden soll man immer mit Start beginnen“)
   if (z.tag !== heute() || !(Date.now() - (z.um || 0) < LANGE_WEG)) { try { localStorage.removeItem(NACH_ABMELDUNG); } catch (f) { /* egal */ } return null; }
   if (z.nutzer !== id) return null;
+  // Ein alter Stand aus HOFERTIME (vor 1.635.0 im selben Speicher) führt
+  // im HoferTool nicht mehr dorthin
+  if (!zeitApp && /^#\/?zeit(\/|$)/.test(z.hash || "")) { try { localStorage.removeItem(NACH_ABMELDUNG); } catch (f) { /* egal */ } return null; }
   try {
     localStorage.removeItem(NACH_ABMELDUNG);
     z.zeit = Date.now();

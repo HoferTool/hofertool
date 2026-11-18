@@ -206,6 +206,25 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
     if (d < heute) soll += sollTag(d, einst, abw);
   });
   const heuteMin = tage.get(heute) ? tage.get(heute).minuten : 0;
+  // Stundenlohn: aufgelaufene Stunden im Monat je Tag (seit 1.635.0,
+  // Wunsch Patrick 18. November 2026: „die Stundenlöhner sollen ihre
+  // aufgelaufenen Stunden auch sehen“). Zählt ab dem 1. des Monats, auch
+  // wenn die Woche vorher anfängt, und nur bis heute.
+  const stundenlohn = !!einst && einst.lohnart === "stunde";
+  const aufgelaufen = new Map();
+  if (stundenlohn && liste.length) {
+    const ab = liste[0].slice(0, 8) + "01";
+    let summe = 0, monat = "";
+    for (let d = alt.ausIso(ab); alt.isoDatum(d) <= liste[liste.length - 1] && alt.isoDatum(d) <= heute; d = tagePlus(d, 1)) {
+      const iso = alt.isoDatum(d);
+      if (iso.slice(0, 7) !== monat) { monat = iso.slice(0, 7); summe = 0; }
+      summe += tage.get(iso) ? tage.get(iso).minuten : 0;
+      if (iso >= liste[0]) aufgelaufen.set(iso, summe);
+    }
+  }
+  const spalte = saldo ? verlauf : aufgelaufen;
+  const mitSpalte = !!saldo || stundenlohn;
+  const zeileArt = saldo ? " ze-zeile--saldo" : (stundenlohn ? " ze-zeile--std" : "");
 
   async function knopf() {
     setLaeuft(true);
@@ -323,12 +342,15 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
       </section>
 
       {saldo && <GleitzeitVerlauf verlauf={verlauf} liste={liste} heute={heute} zumTag={zumTag} />}
+      {stundenlohn && <GleitzeitVerlauf verlauf={aufgelaufen} liste={liste} heute={heute} zumTag={zumTag}
+        titel="Aufgelaufene Stunden im Monat" />}
 
       <section className="karte ze-tage">
-        <div className={"ze-zeile ze-zeile--kopf klein" + (saldo ? " ze-zeile--saldo" : "")}>
+        <div className={"ze-zeile ze-zeile--kopf klein" + zeileArt}>
           <span>Tag</span><span>Stempelungen</span><span className="ze-zahl">Ist</span>
           {monatslohn && <><span className="ze-zahl">Soll</span><span className="ze-zahl">Diff.</span></>}
           {saldo && <span className="ze-zahl">Gleitzeit</span>}
+          {stundenlohn && <span className="ze-zahl">Im Monat</span>}
         </div>
         {liste.map((d) => {
           const t = tage.get(d);
@@ -339,7 +361,7 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
           const zukunft = d > heute;
           return (
             <div key={d} data-ze-tag={d}>
-              <button className={"ze-zeile" + (saldo ? " ze-zeile--saldo" : "") + (d === heute ? " ze-zeile--heute" : "") + (frei ? " ze-zeile--frei" : "") + (t && t.fehler ? " ze-zeile--fehler" : "")}
+              <button className={"ze-zeile" + zeileArt + (d === heute ? " ze-zeile--heute" : "") + (frei ? " ze-zeile--frei" : "") + (t && t.fehler ? " ze-zeile--fehler" : "")}
                 onClick={() => setOffen(offen === d ? null : d)} aria-expanded={offen === d}>
                 <span><b>{WT[alt.ausIso(d).getDay()]}</b> {alt.kurzDatum(d)}</span>
                 <span className="ze-paare">
@@ -356,21 +378,21 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
                   <span className="ze-zahl klein">{s ? dauerText(s) : ""}</span>
                   <span className={"ze-zahl " + (im - s < 0 ? "ze-minus" : "ze-plus")}>{!zukunft && d !== heute && (s || im) ? dauerText(im - s) : ""}</span>
                 </>}
-                {saldo && <span className={"ze-zahl ze-saldotag " + ((verlauf.get(d) || 0) < 0 ? "ze-minus" : "ze-plus")} data-ze-saldotag={d}>
-                  {verlauf.has(d) ? dauerText(verlauf.get(d)) : ""}</span>}
+                {mitSpalte && <span className={"ze-zahl ze-saldotag " + (saldo ? ((spalte.get(d) || 0) < 0 ? "ze-minus" : "ze-plus") : "")} data-ze-saldotag={d}>
+                  {spalte.has(d) ? dauerText(spalte.get(d)) : ""}</span>}
               </button>
               {offen === d && <TagOffen tag={d} stempel={stempelAlle.filter((x) => tagVon(x.zeit) === d)} personId={personId} neu={neu}
                 abwesendDarf={admin || eigene} selbst={!admin} planName={planName(einst, konto, name)} />}
             </div>);
         })}
-        <div className={"ze-zeile ze-zeile--summe" + (saldo ? " ze-zeile--saldo" : "")}>
+        <div className={"ze-zeile ze-zeile--summe" + zeileArt}>
           <b>Total</b><span />
           <b className="ze-zahl" id="ze-ist">{dauerText(ist)}</b>
           {monatslohn && <>
             <b className="ze-zahl">{dauerText(soll)}</b>
             <b className={"ze-zahl " + (ist - soll < 0 ? "ze-minus" : "ze-plus")}>{dauerText(ist - (soll + (tage.get(heute) && liste.includes(heute) ? 0 : 0)))}</b>
           </>}
-          {saldo && <span />}
+          {mitSpalte && <span />}
         </div>
       </section>
       {monatslohn && <p className="klein ze-erklaerung">
@@ -385,7 +407,7 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
 
 // Gleitzeit-Verlauf als Linie für den gezeigten Zeitraum (seit 1.633.0).
 // Jeder Punkt ist der Stand am Ende des Tages, antippen springt zum Tag.
-function GleitzeitVerlauf({ verlauf, liste, heute, zumTag }) {
+function GleitzeitVerlauf({ verlauf, liste, heute, zumTag, titel }) {
   const tage = liste.filter((d) => verlauf.has(d));
   if (tage.length < 2) return null;
   const werte = tage.map((d) => verlauf.get(d));
@@ -400,12 +422,12 @@ function GleitzeitVerlauf({ verlauf, liste, heute, zumTag }) {
   return (
     <section className="karte ze-verlauf" id="ze-verlauf">
       <div className="ze-verlauf__kopf">
-        <b>Gleitzeit-Verlauf</b>
+        <b>{titel || "Gleitzeit-Verlauf"}</b>
         <span className="klein">von {dauerText(werte[0])} am {alt.kurzDatum(tage[0])} auf {dauerText(werte[werte.length - 1])}
           {tage[tage.length - 1] === heute ? " heute" : " am " + alt.kurzDatum(tage[tage.length - 1])}
           {" · "}<b className={aenderung < 0 ? "ze-minus" : "ze-plus"}>{aenderung > 0 ? "+" : ""}{dauerText(aenderung)}</b></span>
       </div>
-      <svg viewBox={"0 0 " + B + " " + H} className="ze-verlauf__bild" role="img" aria-label="Gleitzeit je Tag">
+      <svg viewBox={"0 0 " + B + " " + H} className="ze-verlauf__bild" role="img" aria-label={(titel || "Gleitzeit") + " je Tag"}>
         <line x1={RL} x2={B - RR} y1={y(0)} y2={y(0)} className="ze-verlauf__null" />
         <text x={RL - 6} y={y(hi) + 4} textAnchor="end" className="ze-verlauf__achse">{dauerText(hi)}</text>
         {lo < 0 && <text x={RL - 6} y={y(lo) + 4} textAnchor="end" className="ze-verlauf__achse">{dauerText(lo)}</text>}
@@ -758,7 +780,7 @@ function TerminalSchalter() {
       <input type="checkbox" id="ze-terminal" checked={an} onChange={(e) => {
         terminalSetzen(e.target.checked);
         // Ein Terminal darf niemanden mit einem Tipp hereinlassen
-        if (e.target.checked) { try { localStorage.removeItem("hofer.geraet.sitzungen"); } catch (f) { /* egal */ } }
+        if (e.target.checked) { try { localStorage.removeItem("hofer.geraet.sitzungen"); localStorage.removeItem("hofer.geraet.sitzungen.zeit"); } catch (f) { /* egal */ } }
         setAn(e.target.checked);
         alt.meldung(e.target.checked ? "Dieses Gerät ist jetzt ein Stempel-Terminal: kein Merken der Anmeldung, nach dem Stempeln abmelden." : "Kein Terminal mehr.", "gut");
       }} />

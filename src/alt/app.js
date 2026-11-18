@@ -170,7 +170,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.634.0";
+const APP_VERSION = "1.635.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -986,7 +986,13 @@ function geraetKonten() {
 // fremder Computer kommt so nicht hinein, nur dieses Gerät.
 // Damit der Schlüssel gültig bleibt, meldet "Abmelden" auf so einem Gerät
 // nur hier ab und beendet die Sitzung auf dem Server nicht.
-const GERAET_SITZUNGEN = "hofer.geraet.sitzungen";
+// HOFERTIME hat eine eigene Anmeldung, getrennt vom HoferTool (seit 1.635.0,
+// Patrick 18. November 2026: „wenn ich HOFERTIME auf dem PC öffne, verliere
+// ich die Daten im HoferTool … wenn ich HoferTool wieder öffne, öffnet sich
+// HOFERTIME“). Vorher teilten beide Sitzung, gemerkte Geräte-Anmeldung und
+// den Stand nach dem Abmelden: meldete sich HOFERTIME ab (5 Minuten Ruhe),
+// war auch das HoferTool daneben abgemeldet.
+const GERAET_SITZUNGEN = zeitApp ? "hofer.geraet.sitzungen.zeit" : "hofer.geraet.sitzungen";
 
 function gemerkteSitzungen() {
   try { return JSON.parse(localStorage.getItem(GERAET_SITZUNGEN) || "{}") || {}; } catch (f) { return {}; }
@@ -1051,7 +1057,8 @@ const sitzungSpeicher = {
   },
 };
 
-const SITZUNG_MUSTER = /^sb-.*-auth-token/;
+const ZEIT_SPEICHER = "sb-hofertime-auth-token";
+const SITZUNG_MUSTER = zeitApp ? /^sb-hofertime-auth-token/ : /^sb-(?!hofertime-).*-auth-token/;
 
 function sitzungSchluessel() {
   const alle = new Set();
@@ -1073,7 +1080,7 @@ function sitzungUmziehen() {
 // Adresse kann mithören).
 let sitzungKanal = null;
 try {
-  sitzungKanal = typeof BroadcastChannel === "function" ? new BroadcastChannel("hofer-sitzung") : null;
+  sitzungKanal = typeof BroadcastChannel === "function" ? new BroadcastChannel(zeitApp ? "hofer-sitzung-zeit" : "hofer-sitzung") : null;
   if (sitzungKanal) sitzungKanal.onmessage = (e) => {
     if (!e.data || e.data.frage !== true) return;
     const antwort = {};
@@ -1810,6 +1817,7 @@ async function verbinden() {
             persistSession: true,
             // Gemerkt: bleibt; sonst nur bis der Tab zugeht
             storage: sitzungSpeicher,
+            ...(zeitApp ? { storageKey: ZEIT_SPEICHER } : {}),
             autoRefreshToken: true,
             detectSessionInUrl: true,
             // Die Browsersperre wird umgangen. Sie kann sich in

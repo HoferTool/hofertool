@@ -320,12 +320,26 @@ export function saldoVerlauf(einst, stempelAlle, ferien, buchungen) {
   if (!erster) return aus;
   const abw = feiertageEintragen(abwesendeTage(ferien), tage);
   const jeTag = new Map();
-  for (const b of buchungen || []) if (b.datum >= erster && b.datum <= heute) jeTag.set(b.datum, (jeTag.get(b.datum) || 0) + (Number(b.minuten) || 0));
+  for (const b of buchungen || []) if (b.datum <= heute) jeTag.set(b.datum, (jeTag.get(b.datum) || 0) + (Number(b.minuten) || 0));
   let min = einst.saldo_start_min || 0;
   for (let d = erster; d <= heute; d = alt.plusTage(d, 1)) {
     const ist = tage.get(d) ? tage.get(d).minuten : 0;
     min += (jeTag.get(d) || 0) + ist - (d < heute ? sollTag(d, einst, abw) : 0);
     aus.set(d, min);
+  }
+  // Vor dem Saldo-Beginn zurückgerechnet (seit 1.635.0, Wunsch Patrick
+  // 18. November 2026: „der Saldo soll für jeden Tag angezeigt werden“).
+  // Der Saldo-Start ist der Stand am Morgen des Starttags, also der Stand
+  // am Abend davor; jeder frühere Tag zieht ab, was der Tag danach brachte.
+  // Reicht zurück bis zur ersten Stempelung.
+  const frueh = stempelAlle.reduce((m, x) => { const t = tagVon(x.zeit); return !m || t < m ? t : m; }, "");
+  if (frueh && frueh < erster) {
+    let stand = einst.saldo_start_min || 0;
+    for (let d = alt.plusTage(erster, -1); d >= frueh; d = alt.plusTage(d, -1)) {
+      aus.set(d, stand);
+      const ist = tage.get(d) ? tage.get(d).minuten : 0;
+      stand -= (jeTag.get(d) || 0) + ist - sollTag(d, einst, abw);
+    }
   }
   return aus;
 }

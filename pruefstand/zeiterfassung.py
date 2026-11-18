@@ -93,6 +93,22 @@ with sync_playwright() as p:
     pruefe(len(v) == 1 and v[0]["abwesenheit"] == "kompensieren" and v[0]["von"] == tag_fehlt and v[0]["tage"] == 1 and v[0]["zeile"] == 1, "Abwesend eingetragen: %s" % v)
     pruefe(not pf, "keine Fehler im Browser: %s" % pf)
     br.close()
+
+    # Stundenlohn: aufgelaufene Stunden im Monat (seit 1.635.0)
+    sl = [{"id": "h1", "person_id": "u1", "art": "kommen", "zeit": iso(tag_fehlt, "07:00:00"), "quelle": "pc"},
+          {"id": "h2", "person_id": "u1", "art": "gehen", "zeit": iso(tag_fehlt, "11:00:00"), "quelle": "pc"},
+          {"id": "h3", "person_id": "u1", "art": "kommen", "zeit": iso(heute.replace(day=1).isoformat(), "08:00:00"), "quelle": "pc"},
+          {"id": "h4", "person_id": "u1", "art": "gehen", "zeit": iso(heute.replace(day=1).isoformat(), "10:00:00"), "quelle": "pc"}]
+    br, pg, pf = start(p, "admin", extra="TEST.daten.zeit_stempel = %s; TEST.daten.zeit_personen[0].lohnart = 'stunde';" % json.dumps(sl))
+    pg.evaluate("location.hash='#/zeit'"); pg.wait_for_selector("#ze-knopf")
+    pg.click("#ze-monat"); pg.wait_for_timeout(600)
+    pruefe(pg.locator("section#ze-verlauf").count() == 1 and "Aufgelaufene Stunden" in pg.inner_text("section#ze-verlauf"), "Stundenlohn: Grafik aufgelaufene Stunden")
+    z = pg.locator("[data-ze-saldotag='%s']" % heute.isoformat())
+    erwartet = "6:00 h" if tag_fehlt >= heute.replace(day=1).isoformat() and tag_fehlt != heute.replace(day=1).isoformat() else ("4:00 h" if tag_fehlt >= heute.replace(day=1).isoformat() else "2:00 h")
+    pruefe(z.count() == 1 and z.inner_text().strip() == erwartet, "Stundenlohn: Im Monat heute %s (erwartet %s)" % (z.inner_text().strip() if z.count() else "-", erwartet))
+    pg.screenshot(path=BILD + "/zeit-stundenlohn.png", full_page=True)
+    pruefe(not pf, "keine Fehler im Browser: %s" % pf)
+    br.close()
     br, pg, pf = start(p, "admin", extra="TEST.daten.zeit_stempel = %s;" % json.dumps(sp))
     pg.evaluate("location.hash='#/zeit'"); pg.wait_for_selector("#ze-knopf")
     pg.click("#ze-monat"); pg.wait_for_timeout(600)
