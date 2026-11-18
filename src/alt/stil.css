@@ -14585,3 +14585,17 @@ body.dunkel .cam-wz__stepbild { background: #1d2530; border-color: #3a4655; }
 .cam-wz__stepversatz label { display: flex; align-items: center; gap: 4px; }
 .cam-wz__stepversatz input { width: 64px; }
 .cam-wz__stepfehler { color: #c62828; }
+
+/* HOFERCAM seit 1.624.0: Herkunft der Zeilen als Strich rechts an der
+   Zeilennummer (Wunsch Patrick 18. November 2026): grün NC-Code der
+   Bearbeitung, blau Kopf und Ende der Bearbeitung, ohne Programmkopf/-ende */
+.cam-zeile .cam-nr { border-right: 4px solid transparent; padding-right: 4px; }
+.cam-zeile--her-code .cam-nr { border-right-color: #2e9d5b; }
+.cam-zeile--her-vorlage .cam-nr { border-right-color: #8fb3d9; }
+.cam-herkunft { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-right: 10px; }
+.cam-her { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid #b9c3cc; margin-left: 6px; }
+.cam-her--code { background: #2e9d5b; border-color: #2e9d5b; }
+.cam-her--vorlage { background: #8fb3d9; border-color: #8fb3d9; }
+.cam-her--kopf { background: transparent; }
+body.dunkel .cam-zeile--her-vorlage .cam-nr { border-right-color: #4f7bab; }
+body.dunkel .cam-her--vorlage { background: #4f7bab; border-color: #4f7bab; }

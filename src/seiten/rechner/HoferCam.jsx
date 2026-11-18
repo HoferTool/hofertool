@@ -505,6 +505,9 @@ function Kanaele({ prog, sync, fehler, bereich, bereich2, w, handSetzen, einlese
   const zuViel = Object.keys(fehler).length > 0;
   return (<>
       <div className="cam-stand" id="cam-stand">
+        {/* Seit 1.624.0: woher die Zeilen kommen (Wunsch Patrick 18. November 2026) */}
+        <span className="cam-herkunft" id="cam-herkunft"><i className="cam-her cam-her--code" />NC-Code der Bearbeitung
+          <i className="cam-her cam-her--vorlage" />Kopf und Ende der Bearbeitung <i className="cam-her cam-her--kopf" />Programmkopf und -ende</span>
         {(prog.ein1?.size > 0 || prog.ein2?.size > 0) && <span className="cam-stand--ein" id="cam-ein-stand">Violett = eingelesen, anders als der Standard.</span>}
         {(w.hand?.k1 || w.hand?.k2) && <span className="cam-stand--hand" id="cam-hand-stand">Gelb = von Hand geändert.
           {[1, 2].filter((k) => w.hand?.["k" + k]).map((k) => (
@@ -551,7 +554,8 @@ function Kanaele({ prog, sync, fehler, bereich, bereich2, w, handSetzen, einlese
               className={"cam-zeile" + (r.sync ? " cam-zeile--sync" : "") + (!z ? " cam-zeile--leer" : "")
                 + (z && (k === 0 ? prog.gelb1 : prog.gelb2)?.has(z.nr - 1) ? " cam-zeile--hand" : "")
                 + (z && (k === 0 ? prog.ein1 : prog.ein2)?.has(z.nr - 1) ? " cam-zeile--ein" : "")
-                + (z?.fehler ? " cam-zeile--fehler" : "") + (imBereich(z, k) ? " cam-zeile--aktiv" : "")}>
+                + (z?.fehler ? " cam-zeile--fehler" : "") + (imBereich(z, k) ? " cam-zeile--aktiv" : "")
+                + (z ? " cam-zeile--her-" + ((k === 0 ? prog.her1 : prog.her2)?.[z.nr - 1] || "kopf") : "")}>
               <span className="cam-nr">{z ? z.nr : ""}</span>
               {z
                 ? <span className="cam-text" key={z.nr + ":" + z.text} contentEditable suppressContentEditableWarning spellCheck={false}

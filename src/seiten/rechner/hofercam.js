@@ -511,8 +511,13 @@ export function programme(w) {
   const marken = markenVergeben(bloecke, [...k1.kopf, ...k1.ende, ...k2.kopf, ...k2.ende]);
   let ab = k1.kopf.length, ab2 = k2.kopf.length;
   const bearb2 = [];
+  // Seit 1.624.0: Herkunft je Zeile, „kopf“ (Programmkopf und -ende),
+  // „vorlage“ (feste Zeilen der Bearbeitung) oder „code“ (aus den Feldern
+  // der Bearbeitung), Wunsch Patrick 18. November 2026
+  const her1 = k1.kopf.map(() => "kopf"), her2 = k2.kopf.map(() => "kopf");
   const bearb1 = bloecke.flatMap((b) => {
     const z = blockZeilen(b, w, marken[b.id]);
+    her1.push(...herkunft(b, z, 1, w, marken[b.id]));
     bereiche[b.id] = [ab + 1, ab + z.length];
     ab += z.length;
     // Seit 1.416.0: Markenpaare im Code von Kanal 1 geben Kanal 2 die
@@ -520,14 +525,16 @@ export function programme(w) {
     // (seit 1.441.0 auch das über die Vorlage der Art für Kanal 2)
     const z2 = blockZeilen2(b, marken[b.id], w);
     if (z2.length) {
+      her2.push(...herkunft(b, z2, 2, w, marken[b.id]));
       bereiche2[b.id] = [ab2 + 1, ab2 + z2.length];
       ab2 += z2.length;
       bearb2.push(...z2);
     }
     return z;
   });
+  her1.push(...k1.ende.map(() => "kopf")); her2.push(...k2.ende.map(() => "kopf"));
   return {
-    bereiche, bereiche2, marken,
+    bereiche, bereiche2, marken, her1, her2,
     k1: [...k1.kopf, ...bearb1, ...k1.ende],
     k2: [...k2.kopf, ...bearb2, ...k2.ende],
     nr1: nr4(Number(w.nr) || 0), nr2: nr4((Number(w.nr) || 0) + 1000),
@@ -660,6 +667,7 @@ export function programmeMitHand(w) {
   const ohneLeer = (set, z) => new Set([...set].filter((i) => String(z[i] ?? "").trim() !== ""));
   const ein1 = ohneLeer(ausEingelesen(r1, h.k1), r1.zeilen), ein2 = ohneLeer(ausEingelesen(r2, h.k2), r2.zeilen);
   return { ...p, auto1: p.k1, auto2: p.k2, k1: r1.zeilen, k2: r2.zeilen,
+    her1: herkunftMitHand(p.k1, r1.zeilen, p.her1), her2: herkunftMitHand(p.k2, r2.zeilen, p.her2),
     gelb1: ohneLeer(ohne(r1.gelb, ein1), r1.zeilen), gelb2: ohneLeer(ohne(r2.gelb, ein2), r2.zeilen), ein1, ein2,
     verloren1: r1.verloren, verloren2: r2.verloren };
 }
@@ -727,6 +735,28 @@ export function programmLesen(text) {
 
 // Neue Handfassung eines Kanals: basis = jetzt erzeugt, hand = angezeigt
 // und geändert; gleich wie erzeugt = keine Handänderung mehr
+// Herkunft der Zeilen eines Blocks: NC-Code über codeLage, die Felder für
+// den anderen Kanal (Markenpaare) über einen Platzhalter je Zeile
+function herkunft(b, gen, kanal, w, marke) {
+  const her = gen.map(() => "vorlage");
+  const lage = codeLage(b, gen, kanal, w, marke);
+  if (lage) for (let i = lage.k; i < lage.k + lage.n; i++) her[i] = "code";
+  if (!b.frei && (b.k1 || b.k2)) {
+    const platz = (o) => o && Object.fromEntries(Object.entries(o).map(([k, v]) => [k, String(v).split(/\r?\n/).map((z) => (z.trim() ? "\u0002" : "")).join("\n")]));
+    const b2 = { ...b, k1: platz(b.k1), k2: platz(b.k2) };
+    const s = kanal === 1 ? blockZeilen(b2, w, marke) : blockZeilen2(b2, marke, w);
+    if (s.length === gen.length) s.forEach((z, i) => { if (String(z).includes("\u0002")) her[i] = "code"; });
+  }
+  return her;
+}
+// Herkunft auf die angezeigten Zeilen (mit Handänderungen) übertragen;
+// eine von Hand eingefügte Zeile nimmt die Herkunft der Zeile davor
+function herkunftMitHand(auto, mit, her) {
+  if (auto === mit) return her;
+  const zu = new Map(gleicheZeilen(auto, mit).map(([a, m]) => [m, a]));
+  let vorher = "kopf";
+  return mit.map((_, j) => { const a = zu.get(j); if (a !== undefined) vorher = her[a]; return vorher; });
+}
 // Seit 1.619.0 (Patrick 17. November 2026: „es steht in der bearbeitung,
 // aber nicht im programm, weil ich es von hand gelöscht habe. du musst auch
 // vom programm zurück in die bearbeitung anpassen“): eine Änderung im

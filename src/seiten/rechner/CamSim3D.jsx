@@ -511,6 +511,7 @@ function Simulation({ w, zu }) {
   const [breite, setBreite] = useState(800);
   const rahmen = useRef(null), leinwand = useRef(null), ziehen = useRef(null), finger = useRef(new Map());
   const { gesamt, schritte } = sim;
+  const grenzen = [0, ...schritte.filter((s) => s.punkte.length).map((s) => s.bis), gesamt];
 
   // aktueller Schritt: der, in dem der letzte gezeigte Punkt liegt
   const jetzt = Math.max(0, n - 1);
@@ -835,6 +836,12 @@ function Simulation({ w, zu }) {
             }}>
               {laeuft ? "⏸ Pause" : "▶ Abspielen"}</button>
             <button className="knopf knopf--klein" id="cam-sim-anfang" onClick={() => { setLaeuft(false); setN(0); }}>⏮ Rohteil</button>
+            {/* Eine Bearbeitung zurück / vor (Wunsch Patrick 18. November 2026): Grenzen
+                sind Rohteil und das Ende jeder Bearbeitung mit Weg */}
+            <button className="knopf knopf--klein" id="cam-sim-zurueck" title="Eine Bearbeitung zurück" disabled={n <= 0}
+              onClick={() => { setLaeuft(false); setN(Math.max(0, ...grenzen.filter((g) => g < n))); }}>◀ Bearbeitung</button>
+            <button className="knopf knopf--klein" id="cam-sim-vor" title="Eine Bearbeitung vor" disabled={n >= gesamt}
+              onClick={() => { setLaeuft(false); setN(Math.min(gesamt, ...grenzen.filter((g) => g > n))); }}>Bearbeitung ▶</button>
             <button className="knopf knopf--klein" id="cam-sim-ende" onClick={() => { setLaeuft(false); setN(gesamt); }}>Fertigteil ⏭</button>
             <label className="cam-feld">Tempo
               <select value={tempo} onChange={(e) => setTempo(e.target.value)}>
