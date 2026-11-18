@@ -1,3 +1,4 @@
+import re
 # Rechner → Kontur: Elemente eingeben, Grafik, Schneidenradius eingerechnet
 # (ohne G41/G42), Zeichnen mit der Maus, Speichern und Öffnen.
 import os, time
@@ -25,7 +26,7 @@ with sync_playwright() as p:
     c = code()
     pruefe("Vorgabe ergibt Programm ohne G41/G42", "G41" not in c.replace("G41/G42", "") and "G42" not in c.replace("G41/G42", "")
            and "SCHNEIDENRADIUS 0.200 EINGERECHNET" in c and "G1X" in c)
-    pruefe("Stirn mit Radius eingerechnet beginnt bei X-0.400", "G0X-0.400Z-0.500" in c)
+    pruefe("Stirn mit Radius eingerechnet beginnt bei X-0.400, ohne Anfahren (1.620.1)", "G1X-0.400Z" in c and "G0" not in c)
     pruefe("Durchmesser 10 genau", "G1Z" in c and "X10.000" in c)
     # Seit 1.596.0 Radius als Ecke mit ,R (Bahn: R0.5 + Schneidenradius in der äusseren Ecke)
     pruefe("Radius mit ,R und Fase mit ,C", ",R" in c and ",C" in c and "G2" not in c and "G3" not in c)
@@ -35,8 +36,10 @@ with sync_playwright() as p:
     cr = code()
     zr = [z for z in cr.split("\n") if z.startswith("G")]
     pruefe("Rückwärts: Vermerk und Pfeil", "RUECKWAERTS" in cr and pg.locator("[data-ktrichtung='rueck']").count() == 1)
-    pruefe("Rückwärts: endet an der Stirn mit Wegfahren in Z", zr[-1] == "G0Z-0.500" and "X-0.400" in zr[-2])
-    pruefe("Rückwärts: beginnt dort, wo vorwärts endet", zr[0].startswith("G0X") and "Z" in zr[0] and zr[1].startswith("G1X"))
+    pruefe("Rückwärts: endet an der Stirn ohne Wegfahren (1.620.1)", "X-0.400" in zr[-1] and "G0" not in cr)
+    lx = [re.search(r"X(-?[\d.]+)", z).group(1) for z in vor if re.search(r"X(-?[\d.]+)", z)][-1]
+    lz = [re.search(r"Z(-?[\d.]+)", z).group(1) for z in vor if re.search(r"Z(-?[\d.]+)", z)][-1]
+    pruefe("Rückwärts: beginnt dort, wo vorwärts endet", zr[0].startswith("G1X" + lx + "Z" + lz))
     pruefe("Rückwärts: gleich viele Bahnzeilen", len([z for z in zr if z[:2] in ("G1", "G2", "G3")]) == len(vor))
     pg.uncheck("#kt-rueck"); pg.wait_for_timeout(150)
     pruefe("Vorwärts wieder wie vorher", code() == c and pg.locator("[data-ktrichtung='vor']").count() == 1)

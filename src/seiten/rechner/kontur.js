@@ -381,7 +381,6 @@ export function ncProgrammZeilen(k, bahn) {
   const nrs = [];
   const rn = zahlVon(k.rn) || 0;
   const f = zahlVon(k.f);
-  const ab = zahlVon(k.abstand) ?? 0.5;
   const tausch = !!k.g2g3Tauschen;
   const zeilen = [];
   zeilen.push(`( KONTUR AUS DEM HOFERTOOL )`);
@@ -391,16 +390,12 @@ export function ncProgrammZeilen(k, bahn) {
   const rueck = !!k.rueckwaerts;
   if (rueck) { zeilen.push(`( KONTUR RUECKWAERTS ABGEFAHREN )`); nrs.push(0); }
   const erst = bahn[0].a;
-  if (rueck) {
-    // Rückwärts beginnt die Bahn hinten: von aussen in X anfahren, am
-    // Schluss in Z nach vorne weg, also genau gespiegelt zu vorwärts
-    zeilen.push(`G0X${z3(erst.r * 2 + 2 * ab)}Z${z3(erst.z)}`);
-    zeilen.push(`G1X${z3(erst.r * 2)}${f ? "F" + f : ""}`);
-  } else {
-    zeilen.push(`G0X${z3(erst.r * 2)}Z${z3(erst.z - ab)}`);
-    zeilen.push(`G1Z${z3(erst.z)}${f ? "F" + f : ""}`);
-  }
-  nrs.push(0, 0, 0, 0);
+  // Seit 1.620.1 nur der Konturzug, ohne Anfahren und Wegfahren mit
+  // Sicherheitsabstand (Patrick 18. November 2026: „ich positioniere im
+  // Bearbeitungskopf und fahre im Bearbeitungsende weg“): die erste Zeile
+  // ist der Startpunkt der Kontur im Vorschub
+  zeilen.push(`G1X${z3(erst.r * 2)}Z${z3(erst.z)}${f ? "F" + f : ""}`);
+  nrs.push(0, 0, 0);
   // Vorschub je Element (seit 1.359.0, Wunsch Patrick 3. November 2026:
   // „Grundvorschub für alles, dann die einzelnen Elemente ändern“): leer
   // = Grundvorschub; F steht nur, wo er wechselt. Pause G4 am Ende des
@@ -509,8 +504,6 @@ export function ncProgrammZeilen(k, bahn) {
     const pause = zahlVon(el(s.nr).pause);
     if (pause > 0 && (!naechste || naechste.nr !== s.nr)) { zeilen.push(`G4U${pause}`); nrs.push(s.nr || 0); }
   });
-  zeilen.push(rueck ? `G0Z${z3(p.z - ab)}` : `G0X${z3(p.r * 2 + 2 * ab)}`);
-  nrs.push(0);
   return { zeilen, nrs };
 }
 

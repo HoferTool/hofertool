@@ -373,7 +373,6 @@ function KonturRechner({ imFenster }) {
               <div className="kt-felder">
                 <Zahl label="Plattenradius" wert={k.rn} setze={(v) => aendern({ rn: v })} name="rn" breit />
                 <Zahl label="Grundvorschub F" wert={k.f} setze={(v) => aendern({ f: v })} name="f" breit />
-                <Zahl label="Abstand an/weg" wert={k.abstand} setze={(v) => aendern({ abstand: v })} name="abstand" breit />
               </div>
               <div>
                 <span className="kt-titel">Schneidenlage</span>

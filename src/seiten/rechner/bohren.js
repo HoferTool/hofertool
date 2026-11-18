@@ -233,7 +233,9 @@ function bohrenFront(b, z) {
   z.push("( " + loecher.length + " Bohrung" + (b.lochkreis > 0 ? (loecher.length > 1 ? "en" : "") + " auf Lochkreis D" + b.lochkreis : " in der Mitte")
     + (yT ? ", Versatz " + yT : "") + ", Tiefe " + b.tiefe + " )");
   z.push("G0X" + z3(loecher[0].x) + "C" + wink(loecher[0].c) + yT);
-  z.push("G0Z" + z3(zR));
+  // Kein G0Z zum Anfahren (seit 1.620.1, Patrick 18. November 2026: „das
+  // mache ich im Bearbeitungskopf schon, sonst passt die Werkzeugposition
+  // nicht“): Z steht schon aus dem Kopf der Bearbeitung
   if (b.ausgabe === "einzeln" && b.zyklus !== "gewinde") {
     loecher.forEach((l, i) => {
       if (i) z.push("G0X" + z3(l.x) + "C" + wink(l.c));
@@ -248,7 +250,7 @@ function bohrenFront(b, z) {
     });
     z.push("G80");
   }
-  z.push("G0Z" + z3(zIn(b, -b.sicher - 5)));
+  // kein Wegfahren in Z, das macht das Ende der Bearbeitung (1.620.1)
   if (yT) z.push("G0Y0.");
 }
 
@@ -318,12 +320,11 @@ function nutFront(b, z) {
   const durch = b.nutLaenge >= b.teilD;
   // Fräsermitte in X (Durchmesser) von + nach −, quer über die Mitte
   const xA = durch ? b.teilD + 2 * (r + b.sicher) : Math.max(0, b.nutLaenge - b.fraeser);
-  const zR = zIn(b, -b.sicher);
   const yT = yTeil(b);
   z.push("( Nut auf der Stirn bei C" + wink(b.startC) + (yT ? ", Versatz " + yT : "") + ", Breite = Fraeser D" + b.fraeser + ", Tiefe " + b.nutTiefe
     + (durch ? ", durchgehend" : ", Laenge " + b.nutLaenge) + " )");
   z.push("G0X" + z3(xA) + "C" + wink(b.startC) + yT);
-  z.push("G0Z" + z3(zR));
+  // kein G0Z zum Anfahren, Z steht aus dem Kopf der Bearbeitung (1.620.1)
   let hin = true;
   schnitte(b.nutTiefe, b.zustellung).forEach((t) => {
     // Durchgehend taucht er ausserhalb des Teils ein, sonst im Material
@@ -332,7 +333,7 @@ function nutFront(b, z) {
     z.push("G1X" + z3(hin ? -xA : xA) + "F" + b.vorschub);
     hin = !hin;
   });
-  z.push("G0Z" + z3(zIn(b, -b.sicher - 5)));
+  // kein Wegfahren in Z, das macht das Ende der Bearbeitung (1.620.1)
   if (yT) z.push("G0Y0.");
 }
 
