@@ -170,7 +170,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.635.0";
+const APP_VERSION = "1.635.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3309,6 +3309,10 @@ function seiteSichtbar(pfad) {
   if (pfad === "lager") return istAdmin() && !istExtern();
   // Zeiterfassung (seit 1.626.0): alle Personen ausser Externen, Dienst und
   // Gerätekonten, wie zeit_darf() in der Datenbank; Admins immer
+  // Seit 1.635.1 nur noch in der eigenen App HOFERTIME, nicht mehr als
+  // Reiter im HoferTool (Wunsch Patrick 18. November 2026: „nimm den Reiter
+  // aus dem HoferTool“)
+  if (pfad === "zeit" && !zeitApp) return false;
   if (pfad === "zeit") return istAdmin() || (!istExtern() && meineRolle() !== "dienst" && !(profil && profil.andere_nutzer));
   if (pfad === "reihen") return reihenSehen(profil) && !istExtern();
   // Prüfmittel vorerst nur für Admins (provisorisch, Wunsch Patrick 15. November 2026)

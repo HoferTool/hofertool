@@ -23,7 +23,7 @@ EINST = [{"person_id": "u1", "lohnart": "monat", "soll_woche_h": 42.5, "pensum":
           "saldo_start_min": 120, "ferien_tage_jahr": 25, "ferien_uebertrag": 0}]
 FERIEN = [{"person": "x", "von": (heute + timedelta(days=20)).isoformat(), "tage": 5, "abwesenheit": "ferien"}]
 
-def start(p, rolle, adresse="index.html", extra="", breite=1440, hoehe=900):
+def start(p, rolle, adresse="hofertime/index.html", extra="", breite=1440, hoehe=900):
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage", "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"])
     pg = br.new_context(viewport={"width": breite, "height": hoehe}).new_page()
     pf = []; pg.on("pageerror", lambda e: pf.append(str(e.stack)[:900]))
@@ -39,8 +39,13 @@ def start(p, rolle, adresse="index.html", extra="", breite=1440, hoehe=900):
     return br, pg, pf
 
 with sync_playwright() as p:
+    # Seit 1.635.1 kein Reiter HOFERTIME mehr im HoferTool
+    br, pg, pf = start(p, "admin", "index.html")
+    pruefe(pg.locator("a[href='#/zeit']").count() == 0, "kein Menüpunkt HOFERTIME im HoferTool")
+    pg.evaluate("location.hash='#/zeit'"); pg.wait_for_timeout(800)
+    pruefe(pg.locator("#ze-knopf").count() == 0, "#/zeit im HoferTool zeigt HOFERTIME nicht")
+    br.close()
     br, pg, pf = start(p, "admin")
-    pruefe(pg.locator("a[href='#/zeit']").count() >= 1, "Menüpunkt HOFERTIME")
     pg.evaluate("location.hash='#/zeit'"); pg.wait_for_selector("#ze-knopf")
     pruefe("Kommen fehlt" in pg.inner_text("#inhalt") or "Gehen fehlt" in pg.inner_text("#ze-fehler"), "Fehlermeldung: Gehen fehlt")
     pruefe(pg.locator("#ze-verlauf circle").count() >= 2, "Gleitzeit-Verlauf als Grafik")
