@@ -21,6 +21,7 @@ import { zeitApp, istTerminal, terminalSetzen } from "./zeit/app.js";
 import { feiertageOeffnen, stufenOeffnen } from "./zeit/Feiertage.jsx";
 import { profilOeffnen } from "./zeit/Profil.jsx";
 import Panel from "./zeit/Panel.jsx";
+import { gesichtOeffnen } from "./zeit/GesichtEinlernen.jsx";
 import Auswertung from "./zeit/Auswertung.jsx";
 import { ABWESENHEITEN } from "../daten/abwesenheit.js";
 
@@ -275,6 +276,7 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
           <button className="knopf knopf--klein" id="ze-nachtragen" onClick={() => nachtragen(personId, heute, neu)}>+ Nachtragen</button>
           <button className="knopf knopf--klein" id="ze-verlauf" onClick={() => verlaufZeigen(personId, name)}>Verlauf</button>
           <button className="knopf knopf--klein" id="ze-pdf" onClick={pdfMachen}>⬇ PDF</button>
+          {(admin || eigene) && <button className="knopf knopf--klein" id="ze-gesicht-knopf" onClick={() => gesichtOeffnen(personId, name)}>🙂 Gesicht</button>}
           {eigene && konto && (konto.ohne_passwort || konto.nur_zeit) &&
             <button className="knopf knopf--klein" id="ze-pin-aendern" onClick={pinAendern}>🔑 PIN ändern</button>}
           {admin && <button className="knopf knopf--klein" id="ze-einst" onClick={() => profilOeffnen(personId, name, einst, neu)}>👤 Profil</button>}
