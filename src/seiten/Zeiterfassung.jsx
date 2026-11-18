@@ -22,6 +22,7 @@ import { feiertageOeffnen, stufenOeffnen } from "./zeit/Feiertage.jsx";
 import { profilOeffnen } from "./zeit/Profil.jsx";
 import Panel from "./zeit/Panel.jsx";
 import Auswertung from "./zeit/Auswertung.jsx";
+import { ABWESENHEITEN } from "../daten/abwesenheit.js";
 
 const gemerkt = { reiter: "ich", person: null, ansicht: "woche", bezug: null, offen: null };
 const WT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
@@ -189,7 +190,7 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
   if (daten.fehlt) return <div className="karte karte--hinweis"><p>Die Zeiterfassung ist in der Datenbank noch nicht eingerichtet (sql/zeiterfassung.sql).</p></div>;
 
   const { einst, stempelAlle, ferien, von, bis, stufen, buchungen } = daten;
-  const tage = tageRechnen(paareRechnen(stempelAlle));
+  const tage = tageRechnen(paareRechnen(stempelAlle), einst || null);
   const abw = feiertageEintragen(abwesendeTage(ferien), tage);
   const heute = alt.isoDatum(new Date());
   const monatslohn = !einst || einst.lohnart !== "stunde";
@@ -218,6 +219,15 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
       alt.meldung((art === "kommen" ? "Eingestempelt " : "Ausgestempelt ") + uhrzeit(r.zeit) + (eigene ? "" : " für " + name) + ".", "gut");
       neu();
     }
+  }
+
+  // PDF „Tagessummen“ für die gezeigte Woche oder den Monat (seit 1.628.0)
+  async function pdfMachen() {
+    try {
+      const { tagessummenPdf } = await import("./zeit/tagessummen.js");
+      await tagessummenPdf([{ name, abteilung: einst && String(einst.abteilung || "").trim(), einst, stempel: stempelAlle, ferien, buchungen }],
+        alt.isoDatum(von), alt.isoDatum(bis), stufen);
+    } catch (f) { alt.meldung("PDF ging nicht: " + alt.fehlertext(f), "fehler"); }
   }
 
   const schieben = (n) => {
@@ -264,6 +274,7 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
         <div className="ze-umschalter">
           <button className="knopf knopf--klein" id="ze-nachtragen" onClick={() => nachtragen(personId, heute, neu)}>+ Nachtragen</button>
           <button className="knopf knopf--klein" id="ze-verlauf" onClick={() => verlaufZeigen(personId, name)}>Verlauf</button>
+          <button className="knopf knopf--klein" id="ze-pdf" onClick={pdfMachen}>⬇ PDF</button>
           {admin && <button className="knopf knopf--klein" id="ze-einst" onClick={() => profilOeffnen(personId, name, einst, neu)}>👤 Profil</button>}
           {admin && monatslohn && <button className="knopf knopf--klein" id="ze-umbuchen" onClick={() => umbuchen(personId, name, einst, neu)}>⇄ Umbuchen</button>}
           {admin && konto && konto.nur_zeit && <>
@@ -329,6 +340,7 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
                       {p.kommen ? uhrzeit(p.kommen.zeit) : "?"}–{p.gehen ? uhrzeit(p.gehen.zeit) : (p.laeuft ? "jetzt" : "?")}
                     </span>)) : null}
                   {a ? <span className="ze-abw">{ABW[a] || a}</span> : null}
+                  {t && t.gutschrift ? <span className="ze-abw ze-gutschrift">Spätschicht +{dauerText(t.gutschrift)}</span> : null}
                   {t && t.fehler ? <span className="ze-hinweis">Stempelung fehlt</span> : null}
                 </span>
                 <span className="ze-zahl">{im ? dauerText(im) : ""}</span>
@@ -337,7 +349,8 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
                   <span className={"ze-zahl " + (im - s < 0 ? "ze-minus" : "ze-plus")}>{!zukunft && d !== heute && (s || im) ? dauerText(im - s) : ""}</span>
                 </>}
               </button>
-              {offen === d && <TagOffen tag={d} stempel={stempelAlle.filter((x) => tagVon(x.zeit) === d)} personId={personId} neu={neu} />}
+              {offen === d && <TagOffen tag={d} stempel={stempelAlle.filter((x) => tagVon(x.zeit) === d)} personId={personId} neu={neu}
+                abwesendDarf={admin || (eigene && !(konto && konto.nur_zeit))} planName={planName(einst, konto, name)} />}
             </div>);
         })}
         <div className="ze-zeile ze-zeile--summe">
@@ -359,7 +372,7 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
   );
 }
 
-function TagOffen({ tag, stempel, personId, neu }) {
+function TagOffen({ tag, stempel, personId, neu, abwesendDarf, planName: wer }) {
   return (
     <div className="ze-offen">
       {stempel.length ? stempel.map((s) => (
@@ -370,9 +383,65 @@ function TagOffen({ tag, stempel, personId, neu }) {
           <button className="knopf knopf--klein" onClick={() => aendern(s, neu)}>Ändern</button>
           <button className="knopf knopf--klein knopf--gefahr" onClick={() => loeschen(s, neu)}>Löschen</button>
         </div>)) : <p className="klein">Keine Stempelungen.</p>}
-      <button className="knopf knopf--klein knopf--haupt" onClick={() => nachtragen(personId, tag, neu)}>+ Stempelung an diesem Tag</button>
+      <div className="ze-offen__knoepfe">
+        <button className="knopf knopf--klein knopf--haupt" onClick={() => nachtragen(personId, tag, neu)}>+ Stempelung an diesem Tag</button>
+        {abwesendDarf && <button className="knopf knopf--klein" data-ze-abwesend onClick={() => abwesendEintragen(wer, tag, neu)}>Abwesend …</button>}
+      </div>
     </div>
   );
+}
+
+// ---------- Abwesend eintragen ----------
+// Wunsch Patrick 18. November 2026 („ja“ auf den Vorschlag, krank oder
+// kompensieren auch direkt in HOFERTIME einzutragen): schreibt einen
+// Eintrag in die Ferienzeile der Planwand (vacations), dieselbe Quelle wie
+// sonst, damit es nur eine Wahrheit gibt. Name wie auf der Planwand: der
+// erste Name aus „Namen auf der Planwand“ im Profil, sonst der volle Name.
+function planName(einst, konto, name) {
+  const n = einst && Array.isArray(einst.ferien_namen) && einst.ferien_namen.find(Boolean);
+  return n || (konto && konto.full_name) || name;
+}
+
+async function abwesendEintragen(wer, tag, neu) {
+  const w = await alt.dialogFelder({
+    titel: "Abwesend " + wer,
+    text: "Erscheint auch auf der Planwand in der Ferienzeile. Ändern oder löschen dort.",
+    felder: [
+      { name: "art", label: "Art", wert: "krankheit", auswahl: ABWESENHEITEN.map((a) => [a.id, a.name]) },
+      { name: "von", label: "Erster Tag", typ: "date", wert: tag, pflicht: true },
+      { name: "tage", label: "Anzahl Arbeitstage", wert: "1", ziffern: true, pflicht: true },
+      { name: "notiz", label: "Notiz (freiwillig)", wert: "" },
+    ],
+    bestaetigen: "Eintragen" });
+  if (!w) return;
+  const tage = Math.round(Number(String(w.tage).replace(",", ".")));
+  if (!w.von || !(tage >= 1 && tage <= 260)) { alt.meldung("Erster Tag und Anzahl Tage prüfen.", "warn"); return; }
+  const von = alt.naechsterArbeitstag(w.von);
+  const zeile = await freieZeile(von, tage);
+  const r = await alt.db.from("vacations").insert({ person: wer, von, tage, zeile, note: String(w.notiz || "").trim() || null,
+    abwesenheit: w.art, genehmigt: true }).select("id");
+  if (r.error) { alt.meldung("Nicht eingetragen: " + alt.fehlertext(r.error), "fehler"); return; }
+  const id = r.data && r.data[0] && r.data[0].id;
+  const art = (ABWESENHEITEN.find((a) => a.id === w.art) || {}).name || w.art;
+  if (id) alt.merkeSchritt(art + " von " + wer, alt.rueckWeg("vacations", { id }));
+  alt.meldung(art + " eingetragen.", "gut");
+  neu();
+}
+
+// Erste Ferienzeile ohne Überschneidung, wie freieFerienZeile auf der
+// Planwand; hier frisch geladen, weil die Planwand nicht offen sein muss.
+async function freieZeile(von, tage) {
+  const tagePlan = alt.arbeitstage(von, tage);
+  const ab = alt.plusTage(von, -120);
+  const r = await alt.zeitlimit(alt.db.from("vacations").select("zeile, von, tage").gte("von", ab).lte("von", tagePlan[tagePlan.length - 1]), 8000, "Ferien")
+    .catch(() => ({ data: [] }));
+  const alle = r.data || [];
+  const hoechste = Math.max(5, ...alle.map((f) => Number(f.zeile) || 1));
+  for (let z = 1; z <= hoechste + 1; z++) {
+    const belegt = alle.some((f) => (Number(f.zeile) || 1) === z && alt.arbeitstage(f.von, f.tage || 1).some((t) => tagePlan.includes(t)));
+    if (!belegt) return z;
+  }
+  return hoechste + 1;
 }
 
 const QUELLEN = { handy: "Handy/Tablet", pc: "PC", terminal: "Terminal", nachgetragen: "nachgetragen", import: "übernommen" };
@@ -500,7 +569,7 @@ function Alle({ auffrischen, oeffnen }) {
   const moIso = alt.isoDatum(daten.mo);
   const zeilen = daten.leute.map((p) => {
     const st = daten.stempel.filter((s) => s.person_id === p.id);
-    const tage = tageRechnen(paareRechnen(st));
+    const tage = tageRechnen(paareRechnen(st), daten.einst.get(p.id) || null);
     let woche = 0;
     tage.forEach((t, d) => { if (d >= moIso) woche += t.minuten; });
     return { p, jetzt: stand(st), heute: tage.get(heute) ? tage.get(heute).minuten : 0, woche, e: daten.einst.get(p.id) };

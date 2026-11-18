@@ -14786,3 +14786,7 @@ body.dunkel .ze-aus-tabelle th, body.dunkel .ze-aus-tabelle td { border-bottom-c
 .ze-export { margin-top: 12px; }
 .ze-export h3 { margin: 0 0 6px; font-size: 1rem; }
 .zeit-export-freigeben { bottom: 180px; }
+/* HOFERTIME 1.628.0: Knöpfe unter einem Tag, Gutschrift Spätschicht */
+.ze-offen__knoepfe { display: flex; flex-wrap: wrap; gap: 6px; }
+.ze-gutschrift { background: #e6f4ea; color: #1b6b35; }
+body.dunkel .ze-gutschrift { background: #173523; }

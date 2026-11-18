@@ -120,9 +120,15 @@ export async function pdfAusHtml(html, fuss) {
       : new Promise((ok) => { b.onload = ok; b.onerror = ok; setTimeout(ok, 5000); })));
     const gesamt = Math.max(1, blatt.offsetHeight);
     const stellen = trennstellen(blatt);
+    // Elemente mit Klasse pdf-neue-seite beginnen eine neue Seite (seit
+    // 1.628.0, je Person im PDF der HOFERTIME-Tagessummen)
+    const oben = blatt.getBoundingClientRect().top;
+    const zwang = [...blatt.querySelectorAll(".pdf-neue-seite")].map((x) => Math.floor(x.getBoundingClientRect().top - oben) - 1).filter((s) => s > 0);
     const enden = [];
     let ab = 0;
     while (ab < gesamt - 1) {
+      const z = zwang.find((s) => s > ab + 1 && s <= ab + seite);
+      if (z) { enden.push([ab, z]); ab = z; continue; }
       const grenze = ab + seite;
       if (grenze >= gesamt) { enden.push([ab, gesamt]); break; }
       const passend = stellen.filter((s) => s > ab + seite * 0.4 && s <= grenze);

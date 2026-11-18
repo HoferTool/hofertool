@@ -33,7 +33,7 @@ async function saldoHolen(person) {
   const buchungen = d.buchungen || [];
   const stufen = d.stufen || [];
   const heute = alt.isoDatum(new Date());
-  const tage = tageRechnen(paareRechnen(stempel));
+  const tage = tageRechnen(paareRechnen(stempel), einst);
   const abw = feiertageEintragen(abwesendeTage(ferien), tage);
   const mo = alt.isoDatum(montag(new Date()));
   let woche = 0;

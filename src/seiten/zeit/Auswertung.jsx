@@ -113,12 +113,29 @@ export default function Auswertung({ auffrischen }) {
     setExportLaeuft(false);
   }
 
+  // PDF „Tagessummen“, je Person eine Seite (seit 1.628.0)
+  async function pdf() {
+    setExportLaeuft(true);
+    try {
+      const ids = new Set(ergebnis.map((r) => r.id));
+      const liste = daten.personen.filter((x) => ids.has(x.p.id)).map((x) => ({
+        name: alt.personName(x.p), abteilung: x.einst && String(x.einst.abteilung || "").trim(),
+        einst: x.einst, stempel: x.stempel, ferien: x.ferien, buchungen: x.buchungen,
+      }));
+      if (!liste.length) { alt.meldung("Keine Person im Zeitraum.", "warn"); setExportLaeuft(false); return; }
+      const { tagessummenPdf } = await import("./tagessummen.js");
+      await tagessummenPdf(liste, daten.von, daten.bis, daten.stufen);
+    } catch (f) { alt.meldung("PDF ging nicht: " + alt.fehlertext(f), "fehler"); }
+    setExportLaeuft(false);
+  }
+
   return (
     <>
       {kopf}
       <div className="ze-aus-knoepfe">
         <span className="klein">{ergebnis.length} {ergebnis.length === 1 ? "Person" : "Personen"}{laedt ? " · wird aktualisiert …" : ""}</span>
         <button className="knopf knopf--klein knopf--haupt" id="ze-aus-excel" disabled={exportLaeuft} onClick={excel}>⬇ Excel</button>
+        <button className="knopf knopf--klein" id="ze-aus-pdf" disabled={exportLaeuft} onClick={pdf}>⬇ PDF Tagessummen</button>
       </div>
       <section className="ze-aus-kennzahlen">
         <Kennzahl titel="Gearbeitet" wert={std(ist)} unter={ergebnis.length + " Personen"} id="ze-aus-ist" />

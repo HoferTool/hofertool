@@ -79,7 +79,7 @@ export function auswertungRechnen(d, filter) {
     const abteilung = (x.einst && String(x.einst.abteilung || "").trim()) || OHNE_ABTEILUNG;
     if (f.abteilung && f.abteilung !== abteilung) continue;
     if (f.person && f.person !== x.p.id) continue;
-    const tage = tageRechnen(paareRechnen(x.stempel));
+    const tage = tageRechnen(paareRechnen(x.stempel), x.einst || null);
     const abw = feiertageEintragen(abwesendeTage(x.ferien), tage);
     const monatslohn = !!x.einst && x.einst.lohnart !== "stunde";
     // Soll erst ab Beginn der Erfassung (Saldo-Start, sonst erste

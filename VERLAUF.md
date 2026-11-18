@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.628.0 — HOFERTIME PDF Tagessummen, Spätschicht, Abwesend (18. November 2026)
+
+PDF Tagessummen wie das alte Blatt für den gewählten Zeitraum, bei der Person und in der Auswertung. Gutschrift Spätschicht 2:30 h (Kommen ab 11:00, Gehen nach 18:00) nur für Personen mit Häkchen im Profil. Knopf „Abwesend …“ trägt direkt in die Ferienzeile der Planwand ein. SQL `sql/hofertime-3.sql`.
+
 ## 1.627.1 — HOFERTIME als eigene App (18. November 2026)
 
 Chrome bot nur „In App öffnen“ des HoferTools an, das iPhone ebenso. Jetzt eigene Seite …/hofertime/ mit eigenem Manifest. Sollzeit-Vorgabe 40 h statt 42,5 h.

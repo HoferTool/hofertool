@@ -56,8 +56,29 @@ export function paareRechnen(stempel, jetzt = new Date()) {
   return paare;
 }
 
-// Paare → Map Tag → { paare, minuten, fehler }
-export function tageRechnen(paare) {
+// Gutschrift Spätschicht (seit 1.628.0, Wunsch Patrick 18. November 2026:
+// „wenn diese Personen erst gegen Mittag einstempeln und am Abend nach
+// 18.00 ausstempeln, sollen sie 2,5 h plus gutgeschrieben bekommen“, „wer
+// schon am Morgen vor 11 kommt, zählt nicht“, „nicht für Fatih Semiz, er
+// arbeitet immer am Abend“): erstes Kommen des Tages ab 11:00 und letztes
+// Gehen nach 18:00, Tag ohne fehlende Stempelung → 2:30 h dazu. Nur für
+// Personen mit Häkchen im Profil (zeit_personen.spaet_gutschrift = true;
+// Patrick: „es können nur Gabriele, Sebastian, Tristan und Dominik sein“).
+export const SPAET = { ab: 11 * 60, nach: 18 * 60, minuten: 150 };
+const tagesMinute = (iso) => { const d = new Date(iso); return d.getHours() * 60 + d.getMinutes(); };
+export function spaetGutschrift(t, einst) {
+  if (!t || t.fehler || !einst || einst.spaet_gutschrift !== true) return 0;
+  const kommen = t.paare.filter((p) => p.kommen).map((p) => p.kommen.zeit).sort();
+  const gehen = t.paare.filter((p) => p.gehen).map((p) => p.gehen.zeit).sort();
+  if (!kommen.length || !gehen.length) return 0;
+  const letztes = gehen[gehen.length - 1];
+  if (tagVon(letztes) !== t.tag) return 0;
+  return tagesMinute(kommen[0]) >= SPAET.ab && tagesMinute(letztes) > SPAET.nach ? SPAET.minuten : 0;
+}
+
+// Paare → Map Tag → { paare, minuten, fehler, gutschrift }. Mit einst
+// zählt die Gutschrift Spätschicht in minuten mit.
+export function tageRechnen(paare, einst) {
   const tage = new Map();
   for (const p of paare) {
     let t = tage.get(p.tag);
@@ -66,6 +87,7 @@ export function tageRechnen(paare) {
     t.minuten += p.minuten;
     if (p.fehlt) t.fehler++;
   }
+  if (einst !== undefined) tage.forEach((t) => { t.gutschrift = spaetGutschrift(t, einst); t.minuten += t.gutschrift; });
   return tage;
 }
 
@@ -288,7 +310,7 @@ export function fehlerSuchen(tage, einst, abwesend, heute, ab) {
 export function saldoRechnen(einst, stempelAlle, ferien, name, buchungen) {
   if (!einst || einst.lohnart === "stunde") return null;
   const heute = alt.isoDatum(new Date());
-  const tage = tageRechnen(paareRechnen(stempelAlle));
+  const tage = tageRechnen(paareRechnen(stempelAlle), einst);
   const erster = einst.saldo_start_tag || (stempelAlle[0] && tagVon(stempelAlle[0].zeit));
   if (!erster) return { min: (einst.saldo_start_min || 0) + (buchungen || []).reduce((s, b) => s + (b.datum <= heute ? Number(b.minuten) || 0 : 0), 0), ab: null };
   const abw = feiertageEintragen(abwesendeTage(ferien), tage);

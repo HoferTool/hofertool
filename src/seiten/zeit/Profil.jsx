@@ -36,6 +36,7 @@ function Fenster({ zu, personId, name, einst, neu }) {
     eintritt: e.eintritt || "",
     auto: e.ferien_auto !== false,
     abteilung: e.abteilung || "",
+    spaet: e.spaet_gutschrift === true,
   });
   // Abteilungen, die schon vergeben sind, als Vorschlag (Wunsch Patrick
   // 18. November 2026: „ich will es im Tool zuweisen können“)
@@ -72,6 +73,7 @@ function Fenster({ zu, personId, name, einst, neu }) {
       eintritt: w.eintritt || null,
       ferien_auto: !!w.auto,
       abteilung: String(w.abteilung || "").trim() || null,
+      spaet_gutschrift: !!w.spaet,
       ferien_namen: String(w.namen || "").split(",").map((x) => x.trim()).filter(Boolean),
       geaendert_am: new Date().toISOString(),
     };
@@ -103,6 +105,9 @@ function Fenster({ zu, personId, name, einst, neu }) {
               <option value="monat">Monatslohn (mit Soll und Gleitzeit)</option>
               <option value="stunde">Stundenlohn (nur Stunden)</option>
             </select></label>
+          <label className="schalter"><input type="checkbox" checked={w.spaet} id="ze-p-spaet"
+            onChange={(ev) => setW({ ...w, spaet: ev.target.checked })} />
+            <span>Gutschrift Spätschicht: 2:30 h, wenn erstes Kommen ab 11:00 und Gehen nach 18:00</span></label>
           {monat && <div className="ze-profil__zwei">
             <label className="feld"><span>Sollzeit je Woche bei 100 % (Std.)</span>
               <input inputMode="decimal" value={w.soll} onChange={setz("soll")} id="ze-p-soll" /></label>
