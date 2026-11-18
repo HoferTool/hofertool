@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.629.0 — HOFERTIME: Abwesenheit selbst eintragen (18. November 2026)
+
+Alle Mitarbeitenden, auch mit reinem HOFERTIME-Konto, tragen an ihren eigenen Tagen mit „Abwesend …“ Krankheit, Unfall, Schule, Kompensieren usw. ein. Geschrieben über die Funktion `zeit_abwesend_eintragen` (`sql/hofertime-4.sql`), nur für sich selbst.
+
 ## 1.628.0 — HOFERTIME PDF Tagessummen, Spätschicht, Abwesend (18. November 2026)
 
 PDF Tagessummen wie das alte Blatt für den gewählten Zeitraum, bei der Person und in der Auswertung. Gutschrift Spätschicht 2:30 h (Kommen ab 11:00, Gehen nach 18:00) nur für Personen mit Häkchen im Profil. Knopf „Abwesend …“ trägt direkt in die Ferienzeile der Planwand ein. SQL `sql/hofertime-3.sql`.

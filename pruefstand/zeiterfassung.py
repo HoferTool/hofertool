@@ -118,6 +118,13 @@ with sync_playwright() as p:
     pruefe(pg.evaluate("document.body.classList.contains('ze-app')"), "nur_zeit: App-Modus")
     pruefe(pg.locator("#ze-reiter-alle").count() == 0, "nur_zeit: keine Admin-Reiter")
     pg.screenshot(path=BILD + "/zeit-handy.png", full_page=True)
+    # Selbst abwesend eintragen (1.629.0): über die Funktion in der Datenbank
+    pg.evaluate("TEST.rpc.zeit_abwesend_eintragen = () => 'neu1'")
+    pg.locator("[data-ze-tag] button.ze-zeile").first.click(); pg.wait_for_selector("[data-ze-abwesend]", timeout=8000)
+    pg.click("[data-ze-abwesend]"); pg.wait_for_selector(".dialog-huelle select")
+    pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(900)
+    r = pg.evaluate("() => TEST.protokoll.filter(x => x.art === 'rpc' && x.name === 'zeit_abwesend_eintragen').map(x => x.args)")
+    pruefe(len(r) == 1 and r[0]["p_art"] == "krankheit" and r[0]["p_tage"] == 1, "nur_zeit: selbst abwesend eingetragen: %s" % r)
     pruefe(not pf, "keine Fehler im Browser: %s" % pf)
     br.close()
 

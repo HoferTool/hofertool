@@ -350,7 +350,7 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
                 </>}
               </button>
               {offen === d && <TagOffen tag={d} stempel={stempelAlle.filter((x) => tagVon(x.zeit) === d)} personId={personId} neu={neu}
-                abwesendDarf={admin || (eigene && !(konto && konto.nur_zeit))} planName={planName(einst, konto, name)} />}
+                abwesendDarf={admin || eigene} selbst={!admin} planName={planName(einst, konto, name)} />}
             </div>);
         })}
         <div className="ze-zeile ze-zeile--summe">
@@ -372,7 +372,7 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
   );
 }
 
-function TagOffen({ tag, stempel, personId, neu, abwesendDarf, planName: wer }) {
+function TagOffen({ tag, stempel, personId, neu, abwesendDarf, selbst, planName: wer }) {
   return (
     <div className="ze-offen">
       {stempel.length ? stempel.map((s) => (
@@ -385,7 +385,7 @@ function TagOffen({ tag, stempel, personId, neu, abwesendDarf, planName: wer }) 
         </div>)) : <p className="klein">Keine Stempelungen.</p>}
       <div className="ze-offen__knoepfe">
         <button className="knopf knopf--klein knopf--haupt" onClick={() => nachtragen(personId, tag, neu)}>+ Stempelung an diesem Tag</button>
-        {abwesendDarf && <button className="knopf knopf--klein" data-ze-abwesend onClick={() => abwesendEintragen(wer, tag, neu)}>Abwesend …</button>}
+        {abwesendDarf && <button className="knopf knopf--klein" data-ze-abwesend onClick={() => abwesendEintragen(wer, tag, neu, selbst)}>Abwesend …</button>}
       </div>
     </div>
   );
@@ -402,10 +402,16 @@ function planName(einst, konto, name) {
   return n || (konto && konto.full_name) || name;
 }
 
-async function abwesendEintragen(wer, tag, neu) {
+// Seit 1.629.0 (Wunsch Patrick 18. November 2026: „die Benutzer sollen
+// auch an einem Tag Abwesenheitsarten eintragen können“) auch für sich
+// selbst, auch mit reinem HOFERTIME-Konto: dann über die Funktion
+// zeit_abwesend_eintragen in der Datenbank (sql/hofertime-4.sql), die nur
+// für die angemeldete Person schreibt; ändern und löschen bleibt beim Admin.
+async function abwesendEintragen(wer, tag, neu, selbst) {
   const w = await alt.dialogFelder({
-    titel: "Abwesend " + wer,
-    text: "Erscheint auch auf der Planwand in der Ferienzeile. Ändern oder löschen dort.",
+    titel: selbst ? "Abwesend eintragen" : "Abwesend " + wer,
+    text: selbst ? "Erscheint auch auf der Planwand. Ändern oder löschen kann danach ein Admin."
+      : "Erscheint auch auf der Planwand in der Ferienzeile. Ändern oder löschen dort.",
     felder: [
       { name: "art", label: "Art", wert: "krankheit", auswahl: ABWESENHEITEN.map((a) => [a.id, a.name]) },
       { name: "von", label: "Erster Tag", typ: "date", wert: tag, pflicht: true },
@@ -417,6 +423,19 @@ async function abwesendEintragen(wer, tag, neu) {
   const tage = Math.round(Number(String(w.tage).replace(",", ".")));
   if (!w.von || !(tage >= 1 && tage <= 260)) { alt.meldung("Erster Tag und Anzahl Tage prüfen.", "warn"); return; }
   const von = alt.naechsterArbeitstag(w.von);
+  const artName = (ABWESENHEITEN.find((a) => a.id === w.art) || {}).name || w.art;
+  if (selbst) {
+    if (tage > 60) { alt.meldung("Höchstens 60 Tage auf einmal.", "warn"); return; }
+    const r = await alt.db.rpc("zeit_abwesend_eintragen", { p_von: von, p_tage: tage, p_art: w.art, p_notiz: String(w.notiz || "").trim() || null });
+    if (r.error) {
+      const fehlt = /zeit_abwesend_eintragen|function|schema cache/i.test(r.error.message || "");
+      alt.meldung(fehlt ? "Selbst eintragen ist noch nicht eingerichtet. Bitte einem Admin melden." : "Nicht eingetragen: " + alt.fehlertext(r.error), "fehler");
+      return;
+    }
+    alt.meldung(artName + " eingetragen.", "gut");
+    neu();
+    return;
+  }
   const zeile = await freieZeile(von, tage);
   const r = await alt.db.from("vacations").insert({ person: wer, von, tage, zeile, note: String(w.notiz || "").trim() || null,
     abwesenheit: w.art, genehmigt: true }).select("id");
