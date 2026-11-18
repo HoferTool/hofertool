@@ -75,8 +75,10 @@ with sync_playwright() as p:
     br.close()
 
     # Eigene Adresse ohne Kopf und Menü, Terminal bestätigt und meldet ab
-    br, pg, pf = start(p, "mitarbeiter", "index.html?app=hofertime", "localStorage.setItem('hofer.hofertime.terminal','1');", 1180, 820)
+    br, pg, pf = start(p, "mitarbeiter", "hofertime/", "localStorage.setItem('hofer.hofertime.terminal','1');", 1180, 820)
     pg.wait_for_selector("#ze-knopf")
+    pruefe(pg.evaluate("document.querySelector('link[rel=manifest]').href").endswith("/hofertime/app.webmanifest"), "eigenes Manifest unter hofertime/")
+    pruefe(pg.evaluate("document.title") == "HOFERTIME", "Titel HOFERTIME")
     pruefe(pg.evaluate("document.body.classList.contains('ze-app')"), "App-Modus aktiv")
     pruefe(pg.locator(".ze-appkopf").count() == 1 and not pg.locator(".nav").first.is_visible(), "eigener Kopf, kein Menü")
     pg.evaluate("location.hash='#/planwand'"); pg.wait_for_timeout(600)

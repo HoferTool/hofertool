@@ -2,7 +2,7 @@
 // dist/ ab, genau so, wie sie auf GitHub Pages liegt.
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, writeFileSync, readdirSync, statSync, mkdirSync } from "node:fs";
 import { join, relative } from "node:path";
 
 // Schreibt nach dem Bauen die Liste aller Dateien in den Service
@@ -15,6 +15,7 @@ function offlineListe() {
     apply: "build",
     configResolved(c) { ziel = c.build.outDir; },
     closeBundle() {
+      hofertimeSeite(ziel);
       const alle = [];
       const sammeln = (ordner) => {
         for (const n of readdirSync(ordner)) {
@@ -46,6 +47,23 @@ function offlineListe() {
         .replace("__FASSUNG__", summe.toString(36)));
     },
   };
+}
+
+// HOFERTIME als eigene App (seit 1.627.1, Patrick 18. November 2026: „im
+// Chrome heisst es In App öffnen, das ist aber ja das HoferTool“, „iPhone
+// auch“): dist/hofertime/index.html ist dieselbe Seite wie die App, aber
+// mit <base href="../"> (alle Dateien kommen weiter aus dem Hauptordner)
+// und eigenem Manifest mit Bereich hofertime/. So sehen Chrome und Safari
+// eine eigene App mit eigenem Namen und eigener Adresse.
+function hofertimeSeite(ziel) {
+  let html = readFileSync(join(ziel, "index.html"), "utf8");
+  html = html
+    .replace("<head>", '<head>\n<base href="../">')
+    .replace('href="./app.webmanifest"', 'href="./hofertime/app.webmanifest"')
+    .replace("<title>Hofer Tool</title>", '<title>HOFERTIME</title>\n<meta name="apple-mobile-web-app-title" content="HOFERTIME">');
+  if (!html.includes('<base href="../">') || !html.includes("hofertime/app.webmanifest")) throw new Error("HOFERTIME-Seite liess sich nicht bauen");
+  mkdirSync(join(ziel, "hofertime"), { recursive: true });
+  writeFileSync(join(ziel, "hofertime", "index.html"), html);
 }
 
 // Das iPad an der Maschine hat Safari 16.1. Der kennt in Suchmustern

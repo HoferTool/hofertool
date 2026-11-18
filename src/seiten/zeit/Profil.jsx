@@ -24,7 +24,7 @@ function Fenster({ zu, personId, name, einst, neu }) {
   const jahr = new Date().getFullYear();
   const [w, setW] = useState({
     lohnart: e.lohnart || "monat",
-    soll: text(e.soll_woche_h ?? 42.5),
+    soll: text(e.soll_woche_h ?? 40),
     pensum: text(e.pensum ?? 100),
     tage: Object.fromEntries(TAGE.map(([n]) => [n, text(e.soll_tage && e.soll_tage[n])])),
     start: e.saldo_start_tag || "",
@@ -51,7 +51,7 @@ function Fenster({ zu, personId, name, einst, neu }) {
   const setz = (k) => (ev) => setW({ ...w, [k]: ev.target.value });
   const monat = w.lohnart !== "stunde";
   const eigeneTage = TAGE.some(([n]) => gut(w.tage[n]));
-  const gleich = (gut(w.soll) ? zahl(w.soll) : 42.5) * (gut(w.pensum) ? zahl(w.pensum) : 100) / 100 / 5;
+  const gleich = (gut(w.soll) ? zahl(w.soll) : 40) * (gut(w.pensum) ? zahl(w.pensum) : 100) / 100 / 5;
   const summe = eigeneTage ? TAGE.reduce((s, [n]) => s + (gut(w.tage[n]) ? zahl(w.tage[n]) : 0), 0) : gleich * 5;
 
   async function speichern(ev) {
@@ -60,7 +60,7 @@ function Fenster({ zu, personId, name, einst, neu }) {
     TAGE.forEach(([n]) => { if (gut(w.tage[n]) && zahl(w.tage[n]) >= 0) tage[n] = zahl(w.tage[n]); });
     const daten = {
       person_id: personId, lohnart: w.lohnart,
-      soll_woche_h: gut(w.soll) && zahl(w.soll) >= 0 ? zahl(w.soll) : 42.5,
+      soll_woche_h: gut(w.soll) && zahl(w.soll) >= 0 ? zahl(w.soll) : 40,
       pensum: gut(w.pensum) && zahl(w.pensum) > 0 ? zahl(w.pensum) : 100,
       soll_tage: Object.keys(tage).length ? tage : null,
       saldo_start_tag: w.start || null,

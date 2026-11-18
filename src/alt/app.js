@@ -170,7 +170,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.627.0";
+const APP_VERSION = "1.627.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -11485,7 +11485,8 @@ function zeichneSeite() {
     else padOeffnen({ wo: "planer" });
     return;
   }
-  if (document.title !== "Hofer Tool") document.title = "Hofer Tool";
+  const titelSoll = zeitApp ? "HOFERTIME" : "Hofer Tool";
+  if (document.title !== titelSoll) document.title = titelSoll;
 
   // Den Reiter QM gibt es seit 1.474.0 nicht mehr, nur noch QMS
   // (Wunsch Patrick 10. November 2026); alte Verweise führen dorthin

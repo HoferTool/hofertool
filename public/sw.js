@@ -118,6 +118,7 @@ self.addEventListener("fetch", (e) => {
   // Die Seite: erst das Netz, sonst die gemerkte Fassung
   if (anfrage.mode === "navigate" || url.pathname.endsWith("/index.html")
       || url.pathname.endsWith("/")) {
+    const zeit = /\/hofertime\/(index\.html)?$/.test(url.pathname);
     e.respondWith((async () => {
       try {
         // Immer beim Server nachfragen (no-cache), nie die Seite ungefragt
@@ -127,10 +128,13 @@ self.addEventListener("fetch", (e) => {
         try { frisch = await fetch(anfrage.url, { cache: "no-cache", credentials: "same-origin" }); }
         catch (f) { frisch = await fetch(anfrage); }
         const c = await caches.open(HUELLE);
-        if (frisch.ok) c.put("./index.html", frisch.clone());
+        // HOFERTIME (…/hofertime/) ist eine eigene Seite mit eigenem Manifest,
+        // sie darf die Seite der App nie ersetzen (seit 1.627.1)
+        if (frisch.ok) c.put(zeit ? "./hofertime/index.html" : "./index.html", frisch.clone());
         return frisch;
       } catch (f) {
         const c = await caches.open(HUELLE);
+        if (zeit) { const z = await c.match("./hofertime/index.html"); if (z) return z; }
         return (await c.match("./index.html")) || (await c.match("./")) || Response.error();
       }
     })());

@@ -9,13 +9,18 @@
 //  Startbildschirm (iPad, Handy) direkt hierher führt. Ausgewertet beim
 //  Laden des Moduls, bevor die App die Adresse ändert.
 // =================================================================
-export const zeitApp = /(^|[?&])app=hofertime(&|$)/.test(location.search);
+// Seit 1.627.1 hat HOFERTIME eine echte eigene Adresse …/hofertime/
+// (eigenes Manifest, sonst bot Chrome nur „In App öffnen“ des HoferTools an).
+// Alte Adressen mit ?app=hofertime führen dorthin.
+export const zeitApp = /\/hofertime\/(index\.html)?$/.test(location.pathname)
+  || /(^|[?&])app=hofertime(&|$)/.test(location.search);
+if (zeitApp && !/\/hofertime\//.test(location.pathname) && location.protocol === "https:") {
+  location.replace(new URL("hofertime/", location.href.split(/[?#]/)[0].replace(/[^/]*$/, "")).href + "#/zeit");
+}
 export const istZeitAdresse = () => /^#\/?zeit(\/|$)/.test(location.hash);
 
 if (zeitApp) {
   try {
-    const m = document.querySelector('link[rel="manifest"]');
-    if (m) m.setAttribute("href", "./hofertime.webmanifest");
     document.title = "HOFERTIME";
     let t = document.querySelector('meta[name="apple-mobile-web-app-title"]');
     if (!t) { t = document.createElement("meta"); t.setAttribute("name", "apple-mobile-web-app-title"); document.head.appendChild(t); }
