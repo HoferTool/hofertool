@@ -60,6 +60,9 @@ function hofertimeSeite(ziel) {
   html = html
     .replace("<head>", '<head>\n<base href="../">')
     .replace('href="./app.webmanifest"', 'href="./hofertime/app.webmanifest"')
+    // Eigenes Symbol mit Uhr (Wunsch Patrick 18. November 2026: „ich will das HOFERTIME-Icon“)
+    .replace('href="./favicon.ico"', 'href="./hofertime/hofertime.ico"')
+    .replace(/href="\.\/icon-192\.png"/g, 'href="./hofertime/icon-192.png"')
     .replace("<title>Hofer Tool</title>", '<title>HOFERTIME</title>\n<meta name="apple-mobile-web-app-title" content="HOFERTIME">');
   if (!html.includes('<base href="../">') || !html.includes("hofertime/app.webmanifest")) throw new Error("HOFERTIME-Seite liess sich nicht bauen");
   mkdirSync(join(ziel, "hofertime"), { recursive: true });
