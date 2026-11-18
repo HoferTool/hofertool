@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@tesseract.js-data/deu": "1.0.0",
+    "@vladmandic/face-api": "^1.7.15",
     "exceljs": "^4.4.0",
     "fflate": "^0.8.2",
     "html2canvas-pro": "^2.5.0",

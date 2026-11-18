@@ -34,6 +34,7 @@ function offlineListe() {
         && !d.startsWith("./tesseract/")
         // OpenCascade für die STEP-Ansicht in HOFER2DTO3D (8 MB) nur bei Bedarf
         && !d.startsWith("./occt/")
+        && !d.startsWith("./faceapi/")
         // Zeichentabellen (1.7 MB) braucht kaum ein PDF, nur asiatische Schriften
         && !d.startsWith("./pdfjs/cmaps/"));
       const sw = join(ziel, "sw.js");
@@ -153,10 +154,25 @@ function occtDateien() {
   };
 }
 
+// Modelle der Gesichtserkennung von HOFERTIME (face-api, rund 7 MB): auf
+// der eigenen Website unter faceapi/, geladen erst, wenn das Stempel-Panel
+// oder das Einlernen die Kamera braucht. Nicht im Offline-Vorrat.
+function faceDateien() {
+  const dateien = ["tiny_face_detector_model", "face_landmark_68_model", "face_recognition_model"]
+    .flatMap((n) => [n + ".bin", n + "-weights_manifest.json"]);
+  return {
+    name: "hofer-faceapi",
+    apply: "build",
+    generateBundle() {
+      for (const d of dateien) this.emitFile({ type: "asset", fileName: "faceapi/" + d, source: readFileSync("node_modules/@vladmandic/face-api/model/" + d) });
+    },
+  };
+}
+
 export default defineConfig({
   // Relative Pfade: Die App liegt auf GitHub Pages unter /hofertool/
   base: "./",
-  plugins: [react(), pdfjsWasm(), tesseractDateien(), occtDateien(), offlineListe(), safariPruefen()],
+  plugins: [react(), pdfjsWasm(), tesseractDateien(), occtDateien(), faceDateien(), offlineListe(), safariPruefen()],
   build: {
     outDir: "dist",
     // Die App wartet beim Start auf die Datenbank (await ganz oben)
