@@ -73,7 +73,7 @@ const sauber = (roh) => String(roh || "").trim().replace(/^\//, "").replace(/\([
 export function bahnLesen(zeilen, v, { mitG50 = false, start = null } = {}) {
   if (!(0 in v)) v[0] = 0; // #0 ist leer, in Vergleichen 0
   let x = start?.x ?? null, z = start?.z ?? null, y = start?.y ?? 0, c = start?.c ?? 0;
-  let modal = 0, g50 = 0, an = !mitG50, zyk = null, zTiefe = null, polar = false, yVorher = 0;
+  let modal = 0, g50 = 0, an = !mitG50, zyk = null, zTiefe = null, polar = false, yVorher = 0, g76 = null;
   const punkte = [];
   const nach = (x1, z1, y1, c1, vor, nr) => {
     if (x == null) x = x1;
@@ -193,11 +193,49 @@ export function bahnLesen(zeilen, v, { mitG50 = false, start = null } = {}) {
     const a = adressen(ohneWinkel.replace(/G\d+(\.\d)?|M\d+|S\d+|T\d+/g, ""), v);
     if (g.includes(76)) {
       eckeFertig(null, null, false);
-      // Gewindezyklus: die erste Zeile (P…Q…R) hat keinen Weg; die zweite
-      // fährt auf Kern-Ø X bis Z und wieder zurück
-      if (!("X" in a) || !("Z" in a) || x == null || z == null) continue;
-      const x0 = x, z0 = z;
-      nach(a.X, z0, y, c, true, nr); nach(a.X, a.Z, y, c, true, nr); nach(x0, a.Z, y, c, false, nr); nach(x0, z0, y, c, false, nr);
+      // Gewindezyklus G76 in zwei Zeilen wie an der Fanuc. Seit 1.637.0
+      // (Patrick 18. November 2026: „es wird wie ein Durchmesser
+      // weggedreht“, „ich will auch die Zustellungen in der Tiefe sehen“):
+      // erste Zeile P<m><r><a> Q<kleinste Zustellung> R<Schlichtzugabe>
+      // (µm), zweite Zeile X Z P<Gewindetiefe> Q<erste Zustellung> F<Steigung>;
+      // daraus jeder Durchgang einzeln, Tiefe Q·√n, an der Flanke entlang
+      // zugestellt (Winkel a), am Schluss m Schlichtdurchgänge
+      const roh = s.match(/P(\d+)/);
+      if (!("X" in a) || !("Z" in a)) {
+        if (roh) {
+          const pz = roh[1].padStart(6, "0");
+          g76 = { m: Number(pz.slice(-6, -4)) || 1, a: Number(pz.slice(-2)), qmin: (a.Q || 0) / 1000, fein: (a.R || 0) / 1000 };
+        }
+        continue;
+      }
+      if (x == null || z == null) continue;
+      const x0 = x, z0 = z, X = a.X, Z = a.Z, P = Math.abs(a.F || 0);
+      const k = Math.abs(a.P || 0) / 1000, d1 = Math.abs(a.Q || 0) / 1000;
+      const par = g76 || { m: 1, a: 60, qmin: 0, fein: 0 };
+      const aussen = x0 > X, tw = Math.tan((par.a || 0) * Math.PI / 360);
+      const zur = Z >= z0 ? -1 : 1; // zur Startseite hin
+      const tiefen = [];
+      if (k > 0 && d1 > 0) {
+        const roh2 = Math.max(0, k - par.fein);
+        let n = 1, vor = 0;
+        while (tiefen.length < 60) {
+          let t = d1 * Math.sqrt(n);
+          if (t - vor < par.qmin) t = vor + par.qmin;
+          if (t >= roh2 - 1e-9) { if (roh2 > vor + 1e-9) tiefen.push(roh2); break; }
+          tiefen.push(t); vor = t; n++;
+        }
+        for (let i = 0; i < Math.max(1, par.m); i++) tiefen.push(k);
+      } else tiefen.push(k);
+      for (const t of tiefen) {
+        const xt = aussen ? X + 2 * (k - t) : X - 2 * (k - t);
+        const dz = zur * (k - t) * tw;
+        nach(xt, z0 + dz, y, c, false, nr);
+        const ab = punkte.length;
+        nach(xt, Z + dz, y, c, true, nr);
+        const gew = { rt: xt / 2, aussen, zA: z0 + dz, zE: Z + dz, P, tw: Math.tan((par.a || 60) * Math.PI / 360) };
+        for (let j = Math.max(1, ab); j < punkte.length; j++) punkte[j].gew = gew;
+        nach(x0, Z + dz, y, c, false, nr); nach(x0, z0, y, c, false, nr);
+      }
       continue;
     }
     // Zeilen ohne Achse (G99, M1 …) fahren nicht
@@ -359,7 +397,7 @@ export function simAufbauen(wRoh) {
   const marken = prog.marken || markenVergeben(w.bloecke || []);
   const vorne = -Math.abs(num(w.schlicht) || 0);
   const schritte = [];
-  let cZ = -Infinity;
+  let cZ = -Infinity, hatGew = false;
   (w.bloecke || []).forEach((bRoh, i) => {
     const b = wirksamB(bRoh);
     const platz = "T" + (b.platz || "");
@@ -458,8 +496,10 @@ export function simAufbauen(wRoh) {
         s.punkte = roh.map((p) => ({ z: p.z, r: Math.abs(p.x) / 2, vor: p.vor, nr: p.nr }));
         s.modus = wa === "fraes" ? "bohr" : wa === "dreh" ? "dreh" : null;
       } else {
-        s.punkte = roh.map((p) => ({ z: p.z, r: p.x / 2, vor: p.vor, nr: p.nr }));
+        s.punkte = roh.map((p) => (p.gew ? { z: p.z, r: p.x / 2, vor: p.vor, nr: p.nr, gew: p.gew } : { z: p.z, r: p.x / 2, vor: p.vor, nr: p.nr }));
         s.modus = wa === "dreh" ? "dreh" : null;
+        // Gewinde (G76): die Gänge kommen ins Zellenraster
+        if (s.modus === "dreh") for (const p of s.punkte) if (p.gew) { hatGew = true; cZ = Math.max(cZ, Math.max(p.gew.zA, p.gew.zE) + p.gew.P + 0.5); }
       }
     }
     if (!wzOk) s.status = "fehlt";
@@ -477,7 +517,7 @@ export function simAufbauen(wRoh) {
   let ab = 0;
   sortiert.forEach((s) => { s.von = ab; ab += s.punkte.length; s.bis = ab; });
   const zMax = Math.min(300, Math.max(W + B + 3, ...sortiert.filter((s) => s.kanal === 1 && !s.achse).flatMap((s) => s.punkte.filter((p) => p.vor).map((p) => p.z + 1))));
-  const hatC = sortiert.some((s) => s.modus === "c");
+  const hatC = sortiert.some((s) => s.modus === "c") || hatGew;
   // Stange: auf der Maschine 3 m lang; gezeichnet so lang, dass sie hinter
   // der Führungsbüchse aus dem Bild läuft
   const zStange = zMax + Math.max(80, 4 * (zMax - vorne + A));
@@ -650,6 +690,48 @@ function voxelSchritt(lauf, s, i, hl) {
   lauf.letzt = p;
 }
 
+// Gewinde (G76) im Zellenraster: je Durchgang schneidet das Profil der
+// Platte (Flanken im halben Gewindewinkel ab der Spitze rt) eine Wendel mit
+// der Steigung P. Eine Zelle bei Winkel θ liegt im Gang, dessen Mitte
+// zc = zA − P·θ/2π + n·P ist; weggenommen wird, sobald die Platte zc
+// erreicht hat. Gerechnet in Schritten von höchstens P/4.
+function gewindeSchritt(lauf, s, i) {
+  const vx = lauf.vox, p = s.punkte[i - s.von], g = p.gew;
+  const vorher = s.punkte[i - s.von - 1];
+  const letzter = !s.punkte[i - s.von + 1]?.gew || s.punkte[i - s.von + 1].gew !== g;
+  if (!vorher || !vorher.gew || vorher.gew !== g) lauf.gewZ = g.zA;
+  const zVon = lauf.gewZ ?? g.zA;
+  if (!(g.P > 0) || (!letzter && Math.abs(p.z - zVon) < g.P / 4)) return;
+  lauf.gewZ = p.z;
+  const { h, z0, R, nz, nu, feld } = vx;
+  if (!vx.spalten) {
+    // alle Spalten im Rohteil einmal: Radius und Winkel
+    const sp = [];
+    for (let iu = 0; iu < nu; iu++) for (let iw = 0; iw < nu; iw++) {
+      const uc = -R + (iu + 0.5) * h, wc = -R + (iw + 0.5) * h, r = Math.hypot(uc, wc);
+      if (r <= R - 0.1) sp.push(iu * nu + iw, r, Math.atan2(wc, uc));
+    }
+    vx.spalten = Float64Array.from(sp);
+  }
+  const lo = Math.min(zVon, p.z), hi = Math.max(zVon, p.z) + (letzter ? 1e-6 : 0);
+  const sp = vx.spalten, P = g.P;
+  for (let k = 0; k < sp.length; k += 3) {
+    const r = sp[k + 1];
+    const tief = g.aussen ? r - g.rt : g.rt - r;
+    if (tief < 0) continue;
+    const hw = tief * g.tw + h * 0.35;
+    const basis = g.zA - P * sp[k + 2] / (2 * Math.PI);
+    let zc = basis + Math.ceil((lo - basis) / P) * P;
+    for (; zc < hi; zc += P) {
+      const a = Math.max(0, Math.floor((zc - hw - z0) / h)), b = Math.min(nz - 1, Math.floor((zc + hw - z0) / h));
+      for (let iz = a; iz <= b; iz++) {
+        const j = iz * nu * nu + sp[k];
+        if (!feld[j]) { feld[j] = 1; vx.weg++; }
+      }
+    }
+  }
+}
+
 // Stand des Materials nach den ersten n Bahnpunkten. Rechnet weiter, wo
 // es zuletzt aufgehört hat; nur rückwärts fängt es von vorne an.
 export function materialStand(sim, n, cache = new Map()) {
@@ -673,6 +755,7 @@ export function materialStand(sim, n, cache = new Map()) {
     for (let i = Math.max(s.von, lauf.n); i < bis; i++) {
       if (s.modus === "abstech") abstechen(st, s, s.punkte[i - s.von]);
       else if (s.modus === "c") voxelSchritt(lauf, s, i, h);
+      else if (s.punkte[i - s.von].gew) { if (s.kanal === 1 && lauf.vox) gewindeSchritt(lauf, s, i); }
       else abtragen(st, s, s.punkte[i - s.von], h);
     }
   }

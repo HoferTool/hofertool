@@ -203,7 +203,12 @@ export const HALTER_NEIGUNG = 3;
 export function plattenUmriss(wz, gross = 8) {
   const f = plattenForm(wz.form);
   if (!f) return [];
-  const s = SPITZEN.find((x) => x.id === wz.sl) || { z: 1, r: -1 };
+  let s = SPITZEN.find((x) => x.id === wz.sl) || { z: 1, r: -1 };
+  // Seit 1.637.0 (Patrick 18. November 2026: „dass die Platte in der
+  // Simulation die richtige Lage hat“): eine Gewindeplatte steht immer
+  // senkrecht zur Achse, das Profil symmetrisch; von der Lage zählt nur
+  // oben oder unten, die gedachte Spitze ist die Spitze des Profils
+  if (f.art === "gewinde") s = s.r > 0 ? SPITZEN.find((x) => x.id === "o") : SPITZEN.find((x) => x.id === "u");
   const r = Math.max(0, zahlOk(wz.r) ? zahlV(wz.r) : 0);
   if (f.art === "rund") {
     const R = r > 0 ? r : gross / 2;
