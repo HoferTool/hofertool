@@ -170,7 +170,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.629.0";
+const APP_VERSION = "1.630.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1941,6 +1941,15 @@ async function profilLaden(frisch) {
     }
     if (error || !data) throw error || new Error("kein Profil");
     profil = data;
+    // Admin in HOFERTIME ist nur, wer in zeit_admins steht (1.630.0,
+    // Wunsch Patrick 18. November 2026: „nur ich darf admin rechte
+    // haben“). Ohne sql/hofertime-5.sql gilt wie bisher jeder Admin.
+    if (profil.role === "admin") {
+      try {
+        const r = await zeitlimit(db.rpc("zeit_admin"), 5000, "HOFERTIME-Admin");
+        profil.zeitAdmin = r && r.error ? /zeit_admin/.test(String(r.error.message || "")) : r && r.data === true;
+      } catch (f) { profil.zeitAdmin = false; }
+    }
     if (frisch === true) zuletztSchreiben(true);
     // Andere Nutzer bleiben auf diesem Gerät angemeldet, egal wie sie
     // hereingekommen sind (Tipp, PIN oder Passwort ohne Häkchen) und
@@ -3199,6 +3208,7 @@ function meineTypen() {
 function meineRolle() { return (profil && profil.role) || "produktion"; }
 function meineProfilId() { return (profil && profil.id) || null; }
 function istAdmin() { return meineRolle() === "admin"; }
+function zeitAdmin() { return istAdmin() && !!(profil && profil.zeitAdmin); }
 
 // „Andere Nutzer“ sind Gerätekonten wie Planwand, Pad Mode oder Päckli
 // Pad (Häkchen unter Einstellungen → Nutzer, profiles.andere_nutzer).
@@ -11014,7 +11024,7 @@ Object.assign(alt, {
   best, seiteBestellungen, sucheArtikel, hocoJeArtikel, ladeBezeichnungen, ladeLieferanten,
   artikelSchnellAnlegen, lieferantDialog, langDatum, datumZeitKurz,
   LOGO_WEISS, ORT, begruessung, holeWetter, naechsterFeiertag, solarKachel, solarLaden, solarKw, esc,
-  darfPlanen, darfMaterialplatz, darfNotiz, istAdmin, darfDokumenteUndSicherung, balkenZeigen, problemQuittieren, darfProblemErledigen, vorbereitungFenster,
+  darfPlanen, darfMaterialplatz, darfNotiz, istAdmin, zeitAdmin, darfDokumenteUndSicherung, balkenZeigen, problemQuittieren, darfProblemErledigen, vorbereitungFenster,
   arbeitstagePlus, ausIso, ladeTodos, loeschen, feiertage, istWochenende, arbeitstage, abmelden,
   planArchivDaten, istArchiv, bildVerkleinern,
   prod, plan, ladeParks, ladeMaschinen, ladeLaufendeAuftraege, maschineRuestet, ladePlanAuftraege,

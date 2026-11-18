@@ -11,7 +11,7 @@ import { jubilaeenLaden } from "../../daten/zeit.js";
 const keine = async () => [];
 
 export default function Jubilaeen({ auffrischen }) {
-  const zeigen = alt.istAdmin();
+  const zeigen = alt.zeitAdmin();
   const heute = alt.isoDatum(new Date());
   const { daten } = useDaten(zeigen ? () => jubilaeenLaden(heute, 45, 7) : keine, [auffrischen, zeigen, heute]);
   if (!daten || !daten.length) return null;

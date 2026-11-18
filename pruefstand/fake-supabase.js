@@ -258,6 +258,8 @@ daten.solar_werte = (() => {
 
 daten.login_kacheln = [];
 TEST.rpc = {
+  // Wie sql/hofertime-5.sql: der Testnutzer ist Admin in HOFERTIME
+  zeit_admin: () => true,
   // Wie sql/einstellung-setzen.sql: nur den einen Wert am eigenen Konto
   einstellung_setzen: (a) => {
     const p = (TEST.daten.profiles || []).find((x) => x.id === "u1");

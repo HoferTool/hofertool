@@ -96,7 +96,7 @@ export async function zeitExportUndMelden(h, optionen) {
 
 let takt = null;
 async function pruefen() {
-  if (laeuft || !alt.db || !alt.profil || !alt.istAdmin || !alt.istAdmin()) return;
+  if (laeuft || !alt.db || !alt.profil || !alt.zeitAdmin || !alt.zeitAdmin()) return;
   if (new Date().getHours() < 5) return;
   let k;
   try { k = await zeitKonfLaden(); } catch (f) { return; }

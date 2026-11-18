@@ -94,7 +94,7 @@ async function laden(personId, ansicht, bezugIso) {
 }
 
 export default function Zeiterfassung({ auffrischen }) {
-  const admin = alt.istAdmin();
+  const admin = alt.zeitAdmin();
   const ich = alt.profil || {};
   const [reiter, setReiter] = useState(admin ? gemerkt.reiter : "ich");
   const [person, setPerson] = useState(gemerkt.person);

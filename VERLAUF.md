@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.630.0 — HOFERTIME: nur Patrick ist Admin (18. November 2026)
+
+In HOFERTIME gilt als Admin nur noch, wer in der neuen Tabelle `zeit_admins` steht (Patrick). Die anderen Admins des HoferTools sehen dort nur ihre eigenen Zeiten, keine Löhne, keine Auswertung. Die Tabelle lässt sich über die App nicht ändern, auch nicht von einem Admin. `sql/hofertime-5.sql`, Server-Funktion `zeit-konto` neu ausgeliefert.
+
 ## 1.629.0 — HOFERTIME: Abwesenheit selbst eintragen (18. November 2026)
 
 Alle Mitarbeitenden, auch mit reinem HOFERTIME-Konto, tragen an ihren eigenen Tagen mit „Abwesend …“ Krankheit, Unfall, Schule, Kompensieren usw. ein. Geschrieben über die Funktion `zeit_abwesend_eintragen` (`sql/hofertime-4.sql`), nur für sich selbst.

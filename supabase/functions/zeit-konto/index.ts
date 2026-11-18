@@ -41,6 +41,9 @@ Deno.serve(async (req) => {
   if (!wer?.user) return antwort({ fehler: "nicht angemeldet" }, 401);
   const { data: ich } = await admin.from("profiles").select("role, is_active").eq("id", wer.user.id).maybeSingle();
   if (!ich || ich.role !== "admin" || ich.is_active === false) return antwort({ fehler: "Nur Administratoren" }, 403);
+  // Konten für HOFERTIME legt nur an, wer in zeit_admins steht (sql/hofertime-5.sql)
+  const { data: za, error: zf } = await admin.from("zeit_admins").select("person_id").eq("person_id", wer.user.id).maybeSingle();
+  if (!zf && !za) return antwort({ fehler: "Nur der Administrator von HOFERTIME" }, 403);
 
   // panel: true legt ein Konto für ein Stempel-Panel an (iPad in der
   // Firma, Gerätekonto unter „Andere Nutzer“, bleibt angemeldet)
