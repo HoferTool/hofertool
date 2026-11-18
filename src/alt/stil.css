@@ -14827,4 +14827,19 @@ body.dunkel .ze-panel__erkannt { background: #1d3a24; }
 body.dunkel .ze-verlauf__achse { fill: #aab; }
 @media (max-width: 640px) {
   .ze-zeile.ze-zeile--saldo { grid-template-columns: 70px 1fr 56px 66px; }
+/* ---------- Archiv der erledigten Probleme (1.634.0) ---------- */
+.problemarchiv { width: min(1100px, calc(100vw - 24px)); }
+.problemarchiv__suche { width: 100%; margin: 0 0 10px; box-sizing: border-box; }
+.problemarchiv__rolle td { vertical-align: top; }
+.problemarchiv__text { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 200px; }
+.problemarchiv__ersetzt { color: #8a5a00; font-style: italic; }
+body.dunkel .problemarchiv__ersetzt { color: #f0c060 !important; }
+.auf-fruehere { display: block; margin: 0 0 8px; padding: 4px 10px; border: 1px solid #d8b24a;
+  border-radius: 8px; background: #fff7dc; color: #6b4a00; font-size: 13px; cursor: pointer; text-align: left; }
+.auf-fruehere:hover { background: #ffefb8; }
+body.dunkel .auf-fruehere { background: #3a3012; border-color: #8a6d1e; }
+@media (max-width: 640px) {
+  .problemarchiv__rolle thead { display: none; }
+  .problemarchiv__rolle tr { display: block; border-bottom: 1px solid var(--rand, #ddd); padding: 6px 0; }
+  .problemarchiv__rolle td { display: block; border: 0; padding: 2px 4px; }
 }

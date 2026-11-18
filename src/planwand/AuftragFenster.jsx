@@ -33,6 +33,23 @@ import { ImHausEinblendung } from "./MaterialImHaus.jsx";
 import { mahnBilder } from "../daten/mahnbilder.js";
 import { inEigenesFenster, eigeneFensterZu } from "../teile/eigenesFenster.js";
 import { vorbereitenOeffnen } from "./Vorbereiten.jsx";
+import { problemArchivOeffnen, fruehereProblemeZahl } from "./ProblemArchiv.jsx";
+
+// Hinweis auf erledigte Probleme dieser HOCO Nr. (seit 1.634.0, Wunsch
+// Patrick 18. November 2026); nur wenn es welche gibt, nie für Externe
+function FruehereProbleme({ hoco }) {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    let weg = false;
+    fruehereProblemeZahl(hoco).then((z) => { if (!weg) setN(z); });
+    return () => { weg = true; };
+  }, [hoco]);
+  if (!n) return null;
+  return (
+    <button type="button" className="auf-fruehere" id="pl-fruehere-probleme"
+      onClick={() => problemArchivOeffnen(hoco)}>
+      ⚠ {n === 1 ? "1 früheres Problem" : n + " frühere Probleme"} zu {hoco} ansehen</button>);
+}
 
 // Öffnet die HOCO Nummern als Fenster gleich beim Teil. Hat die Nummer
 // noch keine Stammdaten, steht sie dort in der Suche, damit man sie
@@ -732,6 +749,8 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
         {alt.darfProblemErledigen() && <button type="button" className="knopf knopf--klein" id="pl-problemweg"
           onClick={() => { zu(); alt.problemQuittieren(auftrag, b); }}>✓ Erledigt</button>}
       </div>}
+
+      {auftrag && auftrag.job_number && <FruehereProbleme hoco={auftrag.job_number} />}
 
       {nurLesen && auftrag && <p className="klein auf-nurlesen" id="pl-nurlesen">
         Nur zum Ansehen. {extern ? "" : "Ändern lässt sich hier der Zustand, und mit „Problem“ meldest du, was fehlt oder klemmt."}</p>}

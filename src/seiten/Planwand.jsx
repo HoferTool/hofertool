@@ -18,6 +18,7 @@ import { vollbildSichtbar, vollbildTabOeffnen } from "../planwand/vollbildTab.js
 import { alt } from "../bruecke.jsx";
 import { symboleFensterOeffnen } from "../einstellungen/Symbole.jsx";
 import { materialRechnerOeffnen } from "../planwand/MaterialRechner.jsx";
+import { problemArchivOeffnen, problemArchivSichtbar } from "../planwand/ProblemArchiv.jsx";
 import { vorschauFensterUmschalten, vorschauFensterOffen, vorschauFensterBeobachten,
   vorschauFensterWiederholen } from "../planwand/vorschauFenster.js";
 import { standLesen, standMerken } from "../daten/planwandStand.js";
@@ -341,6 +342,15 @@ function Kopfleiste({ b, mobil }) {
             <circle cx="9" cy="13" r=".9" fill="currentColor" /><circle cx="12" cy="13" r=".9" fill="currentColor" />
             <circle cx="15" cy="13" r=".9" fill="currentColor" /><circle cx="9" cy="17" r=".9" fill="currentColor" />
             <circle cx="12" cy="17" r=".9" fill="currentColor" /><circle cx="15" cy="17" r=".9" fill="currentColor" /></svg>
+        </button>}
+        {/* Archiv der erledigten Probleme (seit 1.634.0, Wunsch Patrick
+            18. November 2026); Externe nicht (Entscheid Patrick) */}
+        {problemArchivSichtbar() && <button className="knopf knopf--klein pw-eck pw-eck--plus" id="pw-problemarchiv"
+          title="Erledigte Probleme" aria-label="Erledigte Probleme" onClick={() => problemArchivOeffnen()}>
+          <svg viewBox="0 0 24 24" className="pw-ecksym" fill="none" stroke="currentColor"
+            strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4" width="18" height="5" rx="1.5" /><path d="M5 9v9.5A1.5 1.5 0 006.5 20h11a1.5 1.5 0 001.5-1.5V9" />
+            <path d="M9.5 14l1.8 1.8 3.4-3.6" /></svg>
         </button>}
         {vorschauKnopfDa() && <VorschauKnopf />}
         {/* Zu heute springen, mit zwei Wochen Rückblick */}
