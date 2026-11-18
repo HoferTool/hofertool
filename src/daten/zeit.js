@@ -262,8 +262,14 @@ export function ferienStand(einst, abwesend, jahr, heute, extra) {
   const gebucht = (x.buchungen || []).filter((b) => String(b.datum).startsWith(String(jahr)))
     .reduce((s, b) => s + (Number(b.tage) || 0), 0);
   let bezogen = 0, geplant = 0;
+  // Der Übertrag im Startjahr ist der Stand aus dem alten System per
+  // Saldo-Start, darin sind frühere Ferien schon abgezogen (Patrick 18.
+  // November 2026: „nichts aus der Vergangenheit, die Salden von heute aus
+  // dem alten System stimmen“). Darum zählen dort nur Tage ab Saldo-Start.
+  const ab = jahr === startJahr && e.saldo_start_tag ? String(e.saldo_start_tag).slice(0, 10) : "";
   abwesend.forEach((art, tag) => {
     if (art !== "ferien" || Number(tag.slice(0, 4)) !== jahr || freierTag(tag)) return;
+    if (ab && tag < ab) return;
     // Teilpensum: an einem Tag ohne Sollzeit kostet Ferien nichts
     if (e.soll_tage && Object.keys(e.soll_tage).length && e.lohnart !== "stunde" && !sollJeTag(e, tag)) return;
     if (tag <= heute) bezogen++; else geplant++;
