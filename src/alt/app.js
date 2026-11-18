@@ -17,6 +17,8 @@ import NcFunktionen, { ncAnsicht } from "../seiten/NcFunktionen.jsx";
 import { statistikZurueck } from "../seiten/Statistik.jsx";
 import Kalkulation, { kalkulationZurueck } from "../seiten/Kalkulation.jsx";
 import Lager from "../seiten/Lager.jsx";
+import Zeiterfassung from "../seiten/Zeiterfassung.jsx";
+import { zeitApp, istZeitAdresse } from "../seiten/zeit/app.js";
 import Reihen from "../seiten/Reihen.jsx";
 import QmAlternativ from "../seiten/QmAlternativ.jsx";
 import "../seiten/Kalender.jsx";
@@ -167,7 +169,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.625.0";
+const APP_VERSION = "1.626.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1927,12 +1929,12 @@ async function profilLaden(frisch) {
     const spalten = "id, email, full_name, role, is_active, geburtstag, "
       + "bild_url, parks, darf_bearbeiten, ist_planer, initialen, ohne_passwort, einstellungen";
     let { data, error } = await zeitlimit(
-      db.from("profiles").select(spalten + ", andere_nutzer, darf_materialplatz, startseite, darf_notiz, typen")
+      db.from("profiles").select(spalten + ", andere_nutzer, darf_materialplatz, startseite, darf_notiz, typen, nur_zeit, zeit_terminal")
         .eq("id", s.user.id).single(), 10000, "Profil");
     // Ohne sql/andere-nutzer.sql oder sql/materialplatz-recht.sql kennt die
     // Datenbank das Häkchen nicht: dann ohne die Spalten lesen, statt ohne
     // Profil dazustehen
-    if (error && /andere_nutzer|darf_materialplatz|startseite|darf_notiz|typen/.test(String(error.message || ""))) {
+    if (error && /andere_nutzer|darf_materialplatz|startseite|darf_notiz|typen|nur_zeit|zeit_terminal/.test(String(error.message || ""))) {
       ({ data, error } = await zeitlimit(
         db.from("profiles").select(spalten).eq("id", s.user.id).single(), 10000, "Profil"));
     }
@@ -3277,6 +3279,8 @@ const ROLLEN = {
 // Produktion, dort nur das Erfassen der Stückzahlen.
 function seiteSichtbar(pfad) {
   if (ARCHIV) return pfad === "planwand";
+  // Konten nur für HOFERTIME (seit 1.626.0) sehen nur ihre Zeiten
+  if (profil && profil.nur_zeit) return pfad === "zeit";
   // Das Dienstkonto braucht keine Material-Seite
   if ((pfad === "material" || pfad === "maschinen" || pfad === "statistik" || pfad === "kalender" || pfad === "einlagen" || pfad === "hofer2dto3d" || pfad === "qs") && meineRolle() === "dienst") return false;
   if (pfad === "infoboard" || pfad === "pausenraum") return infoboardSichtbar();
@@ -3284,6 +3288,9 @@ function seiteSichtbar(pfad) {
   if (pfad === "kalkulation") return kalkulationSehen(profil) && !istExtern();
   // Lager für eigene Teile, provisorisch nur Admins (seit 1.557.0)
   if (pfad === "lager") return istAdmin() && !istExtern();
+  // Zeiterfassung (seit 1.626.0): alle Personen ausser Externen, Dienst und
+  // Gerätekonten, wie zeit_darf() in der Datenbank; Admins immer
+  if (pfad === "zeit") return istAdmin() || (!istExtern() && meineRolle() !== "dienst" && !(profil && profil.andere_nutzer));
   if (pfad === "reihen") return reihenSehen(profil) && !istExtern();
   // Prüfmittel vorerst nur für Admins (provisorisch, Wunsch Patrick 15. November 2026)
   if (pfad === "pruefmittel") return istAdmin() && !istExtern();
@@ -10838,6 +10845,9 @@ SYM.reihen = svg('<path d="M12 2.5l1.6 2.2 2.7-.6.6 2.7 2.4 1.3-1 2.5 1 2.5-2.4 
 SYM.lager = svg('<path d="M3.5 3v18M20.5 3v18M3.5 11h17M3.5 19h17"/>'
   + '<rect x="6" y="6" width="5" height="5" rx=".6"/><rect x="12.5" y="7.5" width="4" height="3.5" rx=".6"/><rect x="7.5" y="14" width="6" height="5" rx=".6"/>');
 
+// Zeiterfassung: Stempeluhr
+SYM.zeit = svg('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9.5 2.5h5M12 2.5V5"/>');
+
 // QS: Lupe mit Häkchen, wie Prüfen
 SYM.qs = svg('<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.3 15.3L20.5 20.5"/>'
   + '<path d="M7.8 10.6l2 2 3.6-3.8"/>');
@@ -10958,6 +10968,8 @@ const SEITEN = [
   { pfad: "qmalt",        titel: "QMS", zeichen: SYM.qs, zeige: reactSeite(QmAlternativ) },
   // Lager für eigene Teile, provisorisch nur Admins (Wunsch Patrick 15. November 2026)
   { pfad: "lager",        titel: "Lager",        zeichen: SYM.lager, zeige: reactSeite(Lager) },
+  // Zeiterfassung: Kommen / Gehen am Handy, PC und iPad (Wunsch Patrick 18. November 2026)
+  { pfad: "zeit",         titel: "HOFERTIME", zeichen: SYM.zeit, zeige: reactSeite(Zeiterfassung) },
   { pfad: "bestellungen", titel: "Bestellungen", zeichen: SYM.bestellungen, zeige: seiteBestellungen },
   // Material: Lager, Bestellungen und Bedarf der Aufträge (seit 1.67.0)
   { pfad: "material",     titel: "Material",     zeichen: SYM.material, zeige: reactSeite(Material) },
@@ -11002,7 +11014,7 @@ Object.assign(alt, {
   artikelSchnellAnlegen, lieferantDialog, langDatum, datumZeitKurz,
   LOGO_WEISS, ORT, begruessung, holeWetter, naechsterFeiertag, solarKachel, solarLaden, solarKw, esc,
   darfPlanen, darfMaterialplatz, darfNotiz, istAdmin, darfDokumenteUndSicherung, balkenZeigen, problemQuittieren, darfProblemErledigen, vorbereitungFenster,
-  arbeitstagePlus, ausIso, ladeTodos, loeschen,
+  arbeitstagePlus, ausIso, ladeTodos, loeschen, feiertage, istWochenende, arbeitstage, abmelden,
   planArchivDaten, istArchiv, bildVerkleinern,
   prod, plan, ladeParks, ladeMaschinen, ladeLaufendeAuftraege, maschineRuestet, ladePlanAuftraege,
   istExtern, meineTypen, einstellung, rollenMerken, produktionAlteAnsicht, seiteProduktion,
@@ -11417,6 +11429,10 @@ function rollenMerken() {
 function zeichneSeite() {
   // Über den Direktlink zum Reihen-Spiel geöffnet: nur das Spiel, nichts anderes
   if (reihenAllein && !istReihenAdresse()) history.replaceState(null, "", location.pathname + location.search + "#/reihen");
+  // Über die eigene Adresse der Zeiterfassung geöffnet: nur die Zeiterfassung
+  const zeitModus = zeitApp || !!(profil && profil.nur_zeit);
+  if (zeitModus && !istZeitAdresse()) history.replaceState(null, "", location.pathname + location.search + "#/zeit");
+  document.body.classList.toggle("ze-app", zeitModus);
   const roh = location.hash.replace(/^#\/?/, "").split("/")[0];
   // Das kleine Infofenster eines Planwand-Balkens hängt am Seitenende —
   // beim Wechsel auf eine andere Seite darf es nicht stehen bleiben
@@ -11592,6 +11608,9 @@ function zeichneGeruest() {
     zeigeLogin();
   }
 
+  // HOFERTIME am Stempel-Terminal meldet nach dem Stempeln von selbst ab
+  alt.jetztAbmelden = jetztAbmelden;
+
   // Der Abmelden-Knopf sitzt in den Einstellungen, nicht in der Kopfzeile.
   // Das Einstellungsfenster (React) ruft abmeldenFragen direkt auf.
   window.abmeldenFragen = async () => {
@@ -11677,6 +11696,7 @@ function seiteWecken() {
 
 window.addEventListener("hashchange", () => {
   if (reihenAllein && !istReihenAdresse()) { location.replace(location.pathname + location.search + "#/reihen"); return; }
+  if ((zeitApp || (profil && profil.nur_zeit)) && !istZeitAdresse()) { location.replace(location.pathname + location.search + "#/zeit"); return; }
   // Im Pad: ein Verweis auf einen Bereich öffnet ihn im Pad
   if (document.getElementById("pad")) {
     const roh = location.hash.replace(/^#\/?/, "").split("/")[0];

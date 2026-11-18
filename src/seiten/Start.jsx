@@ -16,6 +16,7 @@ import Materialausgabe from "./start/Materialausgabe.jsx";
 import { Ziffern } from "../effekte/Ziffern.jsx";
 import Durchfahrt from "./start/Durchfahrt.jsx";
 import Batterien from "./start/Batterien.jsx";
+import Jubilaeen from "./start/Jubilaeen.jsx";
 import HeuteOffen from "./start/HeuteOffen.jsx";
 import OhneWbg from "./start/OhneWbg.jsx";
 import KalenderKarte from "./start/Kalender.jsx";
@@ -64,6 +65,8 @@ export default function Start({ auffrischen }) {
       {/* Termine der nächsten zwei Wochen, statt des Reiters Kalender
           (Wunsch Patrick 30. Oktober 2026) */}
       <KalenderKarte auffrischen={auffrischen} />
+      {/* Dienstjubiläen alle 5 Jahre, nur Admins (Wunsch Patrick 18. November 2026) */}
+      <Jubilaeen auffrischen={auffrischen} />
       {/* Umfragen mit Abstimmen per Name (Wunsch Patrick 17. November 2026) */}
       <Umfragen auffrischen={auffrischen} />
       {/* Maschinen ohne Stückzahl von heute oder ohne Stückzeit

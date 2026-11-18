@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.626.0 — HOFERTIME Zeiterfassung (18. November 2026)
+
+Wunsch Patrick: eigene Zeiterfassung im HoferTool statt des alten Systems. Kommen / Gehen an iPad, Handy und PC, Gleitzeit und Ferien, Fehlermeldungen, Konten nur für HOFERTIME mit PIN, eigene App-Adresse, Stempel-Panel am iPad ohne Anmeldung mit Saldoanzeige, bezahlte Feiertage (auch nachträglich), Personenprofil mit Soll je Wochentag, Ferien nach Alter und Pensum mit Übertrag, Umbuchen Ferien ↔ Gleitzeit, Abwesenheiten Schule, Krankheit, Unfall, Dienstjubiläen alle 5 Jahre. SQL `sql/zeiterfassung.sql` und `sql/hofertime-2.sql`. Prüfstand `zeiterfassung.py`.
+
 ## 1.613.0 — Strg + Z überall (17. November 2026)
 
 Wunsch Patrick: „man soll jegliche Sachen mit Strg + Z rückgängig machen können, bsp. bei EB bearbeiten habe ich Platz gewechselt … also überall im Tool, egal wo“. Strg + Z nimmt jetzt zuerst ungespeicherte Änderungen zurück (Einrichtblatt beim Bearbeiten samt Platz wechseln und Kopieren, mit Knopf „↶ Rückgängig“ fürs iPad; HOFERCAM, HOFERCONTUR, Bohren / Fräsen, Entgraten, C-Achse, Gravur, DXF), sonst wie bisher den letzten gespeicherten Schritt, und das auch bei offenen Fenstern. Neu `src/teile/lokalZurueck.js`. Im Prüfstand ist der Todo-Modus der Seitenleiste nur noch mit `TEST.navTodos` an, weil seit 1.606.0 rund 50 Tests die Menüpunkte nicht mehr fanden. Prüfstand `eb_rueckgaengig.py`, `nc_rueckgaengig.py`.

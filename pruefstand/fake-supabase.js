@@ -367,6 +367,8 @@ function bauer(tabelle) {
           }
           const neu = last.map((z) => Object.assign(
             { id: "neu-" + Math.random().toString(36).slice(2, 8) }, z));
+          // HOFERTIME: die Zeit setzt die Datenbank (Vorgabe now())
+          if (tabelle === "zeit_stempel") neu.forEach((z) => { if (!z.zeit) z.zeit = new Date().toISOString(); });
           // Der Planwand-Blick zeigt dieselben Datensätze wie jobs
           neu.forEach((z) => {
             const m = daten.machines.find((x) => x.id === z.machine_id);

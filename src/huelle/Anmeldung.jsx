@@ -17,6 +17,7 @@ import { createRoot } from "react-dom/client";
 import { alt } from "../bruecke.jsx";
 import { bildHell } from "../teile/profilbilder.js";
 import { planwandVorladenHoechstens } from "../daten/planwandStand.js";
+import { zeitApp, istTerminal } from "../seiten/zeit/app.js";
 
 let wurzel = null;
 
@@ -146,7 +147,10 @@ async function kachelnLaden() {
   const bekannt = alt.geraetKonten();
   const data = alt.istExternGeraet()
     ? antwort.data.filter((u) => bekannt.indexOf(String(u.email || "").toLowerCase()) !== -1)
-    : antwort.data.filter((u) => u.role !== "extern" && u.role !== "dienst");
+    : antwort.data.filter((u) => u.role !== "extern" && u.role !== "dienst")
+      // Konten nur für HOFERTIME stehen nur in HOFERTIME; dort von den
+      // Gerätekonten nur die Stempel-Panels (seit 1.626.0)
+      .filter((u) => zeitApp ? (!istAndererNutzer(u) || u.nur_zeit) : !u.nur_zeit);
   if (!data.length) throw new Error("leer");
   // Immer in derselben Reihenfolge: nach Namen, wie im Telefonbuch
   data.sort((x, y) => String(x.full_name || x.email || "").localeCompare(
@@ -508,7 +512,7 @@ function useAnmelden(vorgabeMail, aufPasswort, hinweis, immerMerken) {
       // Andere Nutzer (Planwand, Päckli Pad …) immer, die bleiben
       // angemeldet (Wunsch Patrick, 8. Oktober 2026).
       const s = await alt.sitzung();
-      const merken = immerMerken || (merkRef.current && merkRef.current.checked);
+      const merken = !istTerminal() && (immerMerken || (merkRef.current && merkRef.current.checked));
       alt.sitzungMerken(email, merken && s ? s.refresh_token : null);
       // Neue Fassung auf dem Server? Dann neu laden, auch ohne Häkchen
       const fassung = alt.fassungPruefen(true);
@@ -528,7 +532,7 @@ function useAnmelden(vorgabeMail, aufPasswort, hinweis, immerMerken) {
     : null;
 
   const knopf = (<>
-    {immerMerken
+    {istTerminal() ? null : immerMerken
       ? <div className="login__merken login__merken--immer" id="lmerk-immer">Dieses Konto bleibt angemeldet.</div>
       : <label className="schalter login__merken"><input type="checkbox" id="lmerk" defaultChecked ref={merkRef} />
           <span>Auf diesem Gerät merken</span></label>}

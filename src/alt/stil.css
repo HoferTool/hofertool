@@ -11392,6 +11392,9 @@ html:has(.kt-raster), body:has(.kt-raster) { overflow-x: clip; }
 .pw-ferien.pw-ferien--kompensieren { background: #2f6fb5 !important; }
 .pw-ferien.pw-ferien--militaer { background: #6b7a2e !important; }
 .pw-ferien.pw-ferien--feuerwehr { background: #c0392b !important; }
+.pw-ferien.pw-ferien--schule { background: #7a4fa3 !important; }
+.pw-ferien.pw-ferien--krankheit { background: #8a6d3b !important; }
+.pw-ferien.pw-ferien--unfall { background: #d35400 !important; }
 .pw-ferien__art { font-weight: 500; opacity: .92; }
 .fd-arten { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 0 0 12px; }
 .fd-art { border: 2px solid var(--fd-farbe); background: transparent; color: var(--fd-farbe);
@@ -11401,6 +11404,9 @@ html:has(.kt-raster), body:has(.kt-raster) { overflow-x: clip; }
 .fd-art--kompensieren { --fd-farbe: #2f6fb5; }
 .fd-art--militaer { --fd-farbe: #6b7a2e; }
 .fd-art--feuerwehr { --fd-farbe: #c0392b; }
+.fd-art--schule { --fd-farbe: #7a4fa3; }
+.fd-art--krankheit { --fd-farbe: #8a6d3b; }
+.fd-art--unfall { --fd-farbe: #d35400; }
 .fd-art.fd-art--an { background: var(--fd-farbe); color: #fff !important; }
 body.dunkel .fd-art { color: #fff !important; }
 /* Fang für rechte Winkel beim Zeichnen (seit 1.374.0): Gummilinie grün
@@ -14599,3 +14605,162 @@ body.dunkel .cam-wz__stepbild { background: #1d2530; border-color: #3a4655; }
 .cam-her--kopf { background: transparent; }
 body.dunkel .cam-zeile--her-vorlage .cam-nr { border-right-color: #4f7bab; }
 body.dunkel .cam-her--vorlage { background: #4f7bab; border-color: #4f7bab; }
+
+/* =================================================================
+   HOFERTIME (seit 1.626.0): Zeiterfassung, src/seiten/Zeiterfassung.jsx
+   ================================================================= */
+body.ze-app { --kopfhoehe: 0px; }
+body.ze-app .kopf, body.ze-app .nav, body.ze-app .handymenue, body.ze-app #werkzeugleiste { display: none !important; }
+body.ze-app .rahmen { display: block !important; padding-top: 0 !important; grid-template-columns: none !important; min-height: 100dvh; }
+body.ze-app .inhalt { margin: 0 auto !important; max-width: 1100px !important; padding: 0 12px 24px !important; }
+.ze-appkopf { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 -12px 14px;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px; background: var(--marke); color: #fff; }
+.ze-appkopf__logo { height: 30px; }
+.ze-appkopf__titel { font-size: 1.2em; letter-spacing: .08em; }
+.ze-appkopf__name { flex: 1; text-align: right; opacity: .9; min-width: 0; overflow-wrap: anywhere; }
+.ze-appkopf .ze-appkopf__ab { background: #fff; color: var(--marke); border-color: #fff; }
+body.dunkel .ze-appkopf { background: #0b1f3f; }
+body.dunkel .ze-appkopf .ze-appkopf__ab { background: #1c2229; color: #fff !important; border-color: #3a4552; }
+
+.ze-reiter { margin-bottom: 12px; }
+.ze-stempel { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; padding: 18px 20px;
+  border-left: 6px solid var(--linie-stark); }
+.ze-stempel--da { border-left-color: var(--gut); }
+.ze-stempel__text { flex: 1; min-width: 200px; display: grid; gap: 4px; }
+.ze-stempel__name { font-size: 1.25em; font-weight: 700; }
+.ze-stempel__stand { font-size: 1.05em; }
+.ze-knopf { min-width: 200px; min-height: 84px; padding: 0 28px; border: 0; border-radius: 14px; cursor: pointer;
+  font-size: 1.7em; font-weight: 800; color: #fff; letter-spacing: .03em; box-shadow: 0 6px 18px rgba(0,0,0,.18);
+  transition: transform .12s ease, filter .12s ease; touch-action: manipulation; }
+.ze-knopf:active { transform: scale(.97); }
+.ze-knopf:disabled { filter: grayscale(.5); opacity: .7; }
+.ze-knopf--kommen { background: var(--gut); }
+.ze-knopf--gehen { background: var(--gefahr); }
+@media (max-width: 640px) { .ze-knopf { width: 100%; } }
+
+.ze-plus { color: var(--gut); }
+.ze-minus { color: var(--gefahr); }
+body.dunkel .ze-plus { color: #5fd39a !important; }
+body.dunkel .ze-minus { color: #ff8a80 !important; }
+
+.ze-kacheln { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 12px 0; }
+.ze-kachel { display: grid; gap: 4px; padding: 12px 16px; margin: 0; }
+.ze-kachel__zahl { font-size: 1.5em; }
+
+.ze-leiste { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin: 12px 0; }
+.ze-umschalter, .ze-blaettern { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ze-blaettern b { min-width: 0; text-align: center; padding: 0 6px; }
+
+.ze-tage, .ze-alle { padding: 0; overflow: hidden; }
+.ze-zeile, .ze-azeile { display: grid; grid-template-columns: 110px 1fr 76px 76px 76px; gap: 8px; align-items: center;
+  width: 100%; padding: 9px 14px; border: 0; border-bottom: 1px solid var(--linie); background: none; color: inherit;
+  font: inherit; text-align: left; cursor: pointer; }
+.ze-azeile { grid-template-columns: 1.4fr 1.2fr 90px 110px 1fr; }
+.ze-zeile--kopf { cursor: default; background: var(--grund); font-weight: 600; }
+.ze-zeile--heute { background: var(--marke-hell); }
+.ze-zeile--frei { color: var(--gedaempft); }
+.ze-zeile--fehler { box-shadow: inset 4px 0 0 var(--warnung); }
+.ze-zeile--summe { cursor: default; border-bottom: 0; background: var(--grund); }
+.ze-zeile:not(.ze-zeile--kopf):not(.ze-zeile--summe):hover, .ze-azeile:not(.ze-zeile--kopf):hover { background: var(--marke-hell); }
+.ze-zahl { text-align: right; white-space: nowrap; }
+.ze-paare { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
+.ze-paar { padding: 1px 7px; border-radius: 10px; background: var(--grund); border: 1px solid var(--linie); white-space: nowrap; }
+.ze-paar--laeuft { border-color: var(--gut); color: var(--gut); font-weight: 600; }
+.ze-paar--fehlt { border-color: var(--warnung); color: var(--warnung); }
+.ze-abw { padding: 1px 7px; border-radius: 10px; background: #e3f3e8; color: #1f6b43; }
+.ze-hinweis { color: var(--warnung); font-weight: 600; }
+.ze-schild { margin-left: 8px; padding: 1px 7px; border-radius: 10px; background: var(--marke-hell); color: var(--marke); font-size: .78em; font-weight: 600; }
+.ze-da { color: var(--gut); font-weight: 600; }
+.ze-offen { display: grid; gap: 6px; padding: 10px 14px 12px; background: var(--grund); border-bottom: 1px solid var(--linie); }
+.ze-eintrag { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ze-eintrag .klein { flex: 1; min-width: 120px; }
+.ze-offen > .knopf { justify-self: start; }
+.ze-erklaerung { color: var(--gedaempft); margin: 8px 2px; }
+.ze-terminal { margin-left: auto; }
+@media (max-width: 640px) {
+  .ze-zeile { grid-template-columns: 70px 1fr 62px; }
+  .ze-zeile > :nth-child(4), .ze-zeile > :nth-child(5) { display: none; }
+  .ze-azeile { grid-template-columns: 1fr 1fr; }
+  .ze-azeile > :nth-child(n+3) { display: none; }
+}
+body.dunkel .ze-zeile--heute, body.dunkel .ze-zeile:not(.ze-zeile--kopf):not(.ze-zeile--summe):hover,
+body.dunkel .ze-azeile:not(.ze-zeile--kopf):hover { background: #1d2a3d; }
+body.dunkel .ze-zeile--kopf, body.dunkel .ze-zeile--summe, body.dunkel .ze-offen, body.dunkel .ze-paar { background: #161c23; }
+body.dunkel .ze-abw { background: #173b28; }
+body.dunkel .ze-schild { background: #1d2a3d; }
+
+.ze-bestaetigt { position: fixed; inset: 0; z-index: 9000; display: grid; place-content: center; justify-items: center; gap: 10px;
+  color: #fff; text-align: center; animation: ze-rein .25s ease-out; cursor: pointer; }
+.ze-bestaetigt--kommen { background: var(--gut); }
+.ze-bestaetigt--gehen { background: var(--marke); }
+.ze-bestaetigt__haken { font-size: 6em; line-height: 1; }
+.ze-bestaetigt__text { font-size: 2.4em; font-weight: 800; }
+.ze-bestaetigt__name { font-size: 1.5em; }
+@keyframes ze-rein { from { opacity: 0; transform: scale(1.04); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ze-bestaetigt { animation: none; } }
+.ze-fehler { border-left: 6px solid var(--warnung); background: #fff7e8; display: grid; gap: 8px; }
+.ze-fehler__liste { display: flex; flex-wrap: wrap; gap: 6px; }
+.ze-fehler__punkt { border: 1px solid #e2b56b; background: #fff; border-radius: 8px; padding: 6px 10px; font: inherit; color: inherit; cursor: pointer; text-align: left; }
+.ze-fehler__punkt:hover { border-color: var(--warnung); }
+body.dunkel .ze-fehler { background: #2e2414; }
+body.dunkel .ze-fehler__punkt { background: #1c2229; border-color: #6b5228; }
+.ze-bestaetigt__fehler { margin-top: 10px; max-width: 640px; padding: 12px 16px; border-radius: 10px; background: rgba(0,0,0,.25); font-size: 1.15em; }
+/* HOFERTIME Stempel-Panel am iPad (seit 1.626.0): Kacheln mit Namen,
+   grün wer da ist; nach dem Antippen ein grosser Knopf; Saldo ohne Stempeln */
+.ze-panel { display: flex; flex-direction: column; gap: 16px; padding: 8px 0 24px; }
+.ze-panel__kopf { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.ze-panel__kopf > span { font-size: 1.25rem; font-weight: 600; flex: 1 1 auto; }
+.ze-panel__kopf input { flex: 0 1 280px; min-width: 0; font-size: 1.1rem; padding: 10px 14px; }
+.ze-panel__uhr { font-size: 2.4rem; font-variant-numeric: tabular-nums; color: var(--marke); }
+.ze-panel__kacheln { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.ze-panel__kachel { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 16px 10px;
+  border: 2px solid var(--rand, #d5dde6); border-radius: 14px; background: var(--flaeche, #fff); color: inherit;
+  font: inherit; cursor: pointer; min-height: 150px; justify-content: center; text-align: center; }
+.ze-panel__kachel:active { transform: scale(.97); }
+.ze-panel__kachel img { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; }
+.ze-panel__buchstabe { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--marke); color: #fff !important; font-size: 1.8rem; font-weight: 700; }
+.ze-panel__name { font-weight: 700; font-size: 1.05rem; line-height: 1.2; overflow-wrap: anywhere; }
+.ze-panel__kachel--da { border-color: var(--gut); background: #e9f7ef; }
+.ze-panel__kachel--da .ze-panel__buchstabe { background: var(--gut); }
+body.dunkel .ze-panel__kachel { background: #1c2229; border-color: #34404d; }
+body.dunkel .ze-panel__kachel--da { background: #17301f; border-color: var(--gut); }
+.ze-panel--wahl { align-items: center; justify-content: center; min-height: 70vh; text-align: center; }
+.ze-panel__person { font-size: clamp(1.8rem, 5vw, 3rem); font-weight: 800; overflow-wrap: anywhere; }
+.ze-panel__stand { font-size: 1.3rem; opacity: .8; }
+.ze-panel__gross { min-width: min(420px, 90vw); min-height: 150px; font-size: 2.6rem; }
+.ze-panel__nach { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 8px; }
+.ze-panel__nach .knopf { min-height: 56px; font-size: 1.1rem; padding: 0 22px; }
+.ze-panel__werte { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; width: min(900px, 100%); }
+.ze-panel__wert { display: flex; flex-direction: column; gap: 4px; padding: 18px; border-radius: 14px;
+  background: var(--flaeche, #fff); border: 1px solid var(--rand, #d5dde6); }
+.ze-panel__wert > span:first-child { font-size: 1.05rem; opacity: .8; }
+.ze-panel__wert b { font-size: 2.2rem; font-variant-numeric: tabular-nums; }
+body.dunkel .ze-panel__wert { background: #1c2229; border-color: #34404d; }
+/* Personenprofil, bezahlte Feiertage, Ferien nach Alter */
+.ze-profil { width: min(640px, calc(100vw - 32px)); }
+.ze-profil__teil { border: 1px solid var(--rand, #d5dde6); border-radius: 10px; padding: 10px 14px 6px; margin: 0 0 12px; min-width: 0; }
+.ze-profil__teil legend { font-weight: 700; padding: 0 6px; }
+.ze-profil__zwei { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0 12px; }
+.ze-profil__tage { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin: 6px 0; }
+.ze-profil__tag { display: flex; flex-direction: column; gap: 2px; font-weight: 600; text-align: center; }
+.ze-profil__tag input { width: 100%; min-width: 0; text-align: center; padding: 8px 2px; }
+.ze-feiertage { width: min(560px, calc(100vw - 32px)); }
+.ze-feiertage__jahr { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; }
+.ze-feiertage__jahr b { font-size: 1.2rem; min-width: 3.5em; text-align: center; }
+.ze-feiertage__liste { display: flex; flex-direction: column; gap: 4px; max-height: 50vh; overflow-y: auto; margin: 6px 0 10px; }
+.ze-feiertage__zeile { display: grid; grid-template-columns: 7.5em 1fr auto; gap: 8px; align-items: center;
+  padding: 4px 6px; border-bottom: 1px solid var(--rand, #e3e8ee); }
+.ze-stufe { grid-template-columns: 1fr 1fr auto; }
+.ze-stufe input { width: 5em; }
+.ze-feiertage__neu { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; }
+@media (max-width: 520px) { .ze-feiertage__neu { grid-template-columns: 1fr; } }
+.ze-buchungen { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
+.ze-buchung { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+/* HOFERTIME / Start: Dienstjubiläen (Wunsch Patrick 18. November 2026) */
+.ze-jubi { margin-bottom: 12px; }
+.ze-jubi h3 { margin: 0 0 6px; }
+.ze-jubi__zeile { display: grid; grid-template-columns: 110px 1fr auto; gap: 10px; padding: 4px 0; border-top: 1px solid var(--rand, #e2e8f0); }
+.jubikarte__liste { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
+.jubikarte__liste li { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }

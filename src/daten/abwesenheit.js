@@ -12,6 +12,11 @@ export const ABWESENHEITEN = [
   { id: "kompensieren", name: "Kompensieren", kurz: "Kompensieren" },
   { id: "militaer", name: "Militär/Zivilschutz", kurz: "Militär/ZS" },
   { id: "feuerwehr", name: "Feuerwehr", kurz: "Feuerwehr" },
+  // Seit 1.626.0 (Wunsch Patrick 18. November 2026: „abwesend Schule /
+  // Militär / Feuerwehr sind 100 % bezahlt“): in HOFERTIME ohne Soll
+  { id: "schule", name: "Schule", kurz: "Schule" },
+  { id: "krankheit", name: "Krankheit", kurz: "Krank" },
+  { id: "unfall", name: "Unfall", kurz: "Unfall" },
 ];
 
 export function abwesenheit(f) {

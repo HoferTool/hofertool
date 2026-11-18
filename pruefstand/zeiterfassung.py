@@ -1,0 +1,163 @@
+# HOFERTIME (1.626.0): Kommen / Gehen, Tage mit Ist, Soll, Gleitzeit,
+# Ferien, Fehlermeldungen, Nachtragen, Konto nur für HOFERTIME, eigene
+# App-Adresse ?app=hofertime und Stempel-Terminal.
+import time, os, json
+from datetime import date, timedelta, datetime
+from pruefstand import server_starten, FAKE, CH, PORT
+from playwright.sync_api import sync_playwright
+server_starten(); time.sleep(0.4)
+BILD = os.environ.get("ZEIT_BILDER", "/tmp")
+fehler = []
+def pruefe(ok, text):
+    print(("ok   " if ok else "FEHLT") + " " + text)
+    if not ok: fehler.append(text)
+
+# Vorgeschichte: letzte Woche ein Tag ohne Gehen
+heute = date.today()
+d = heute - timedelta(days=1)
+while d.weekday() >= 5: d -= timedelta(days=1)
+tag_fehlt = d.isoformat()
+def iso(tag, hm): return datetime.fromisoformat(tag + "T" + hm).astimezone().isoformat()
+STEMPEL = [{"id": "s1", "person_id": "u1", "art": "kommen", "zeit": iso(tag_fehlt, "07:00:00"), "quelle": "pc"}]
+EINST = [{"person_id": "u1", "lohnart": "monat", "soll_woche_h": 42.5, "pensum": 100, "saldo_start_tag": (heute - timedelta(days=10)).isoformat(),
+          "saldo_start_min": 120, "ferien_tage_jahr": 25, "ferien_uebertrag": 0}]
+FERIEN = [{"person": "x", "von": (heute + timedelta(days=20)).isoformat(), "tage": 5, "abwesenheit": "ferien"}]
+
+def start(p, rolle, adresse="index.html", extra="", breite=1440, hoehe=900):
+    br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
+    pg = br.new_context(viewport={"width": breite, "height": hoehe}).new_page()
+    pf = []; pg.on("pageerror", lambda e: pf.append(str(e.stack)[:900]))
+    body = FAKE + (";\n(TEST.daten.profiles.find(x => x.id === 'u1') || {}).role = '%s';\n" % rolle) + \
+        "TEST.daten.zeit_stempel = %s; TEST.daten.zeit_personen = %s; TEST.daten.zeit_verlauf = [];\n" % (json.dumps(STEMPEL), json.dumps(EINST)) + \
+        "TEST.rpc.zeit_abwesenheiten = () => %s; TEST.funktionen = TEST.funktionen || {};\n" % json.dumps(FERIEN) + \
+        "TEST.funktionen['zeit-konto'] = (b) => { TEST.daten.profiles.push({ id: 'z9', email: 'z@x', full_name: b.name, role: 'mitarbeiter', is_active: true, nur_zeit: true }); return { id: 'z9' }; };\n" + extra
+    pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=body))
+    for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
+        pg.route(u, lambda r: r.abort())
+    pg.goto(f"http://127.0.0.1:{PORT}/{adresse}", wait_until="domcontentloaded")
+    pg.wait_for_selector("#inhalt", state="attached"); pg.wait_for_timeout(1200)
+    return br, pg, pf
+
+with sync_playwright() as p:
+    br, pg, pf = start(p, "admin")
+    pruefe(pg.locator("a[href='#/zeit']").count() >= 1, "Menüpunkt HOFERTIME")
+    pg.evaluate("location.hash='#/zeit'"); pg.wait_for_selector("#ze-knopf")
+    pruefe("Kommen fehlt" in pg.inner_text("#inhalt") or "Gehen fehlt" in pg.inner_text("#ze-fehler"), "Fehlermeldung: Gehen fehlt")
+    pruefe(pg.locator("#ze-gleitzeit").count() == 1, "Gleitzeit-Saldo da: " + (pg.inner_text("#ze-gleitzeit") if pg.locator("#ze-gleitzeit").count() else ""))
+    pruefe("25 Tage" in pg.inner_text("#ze-ferien") or "20 Tage" in pg.inner_text("#ze-ferien") or "Anspruch 25" in pg.inner_text("#ze-ferien"), "Ferien: " + pg.inner_text("#ze-ferien").replace("\n", " "))
+    pg.screenshot(path=BILD + "/zeit-start.png")
+    pg.click("#ze-knopf"); pg.wait_for_timeout(900)
+    st = pg.evaluate("() => TEST.daten.zeit_stempel")
+    pruefe(len(st) == 2 and st[1]["art"] == "kommen" and st[1]["person_id"] == "u1", "Kommen gestempelt")
+    pruefe("Eingestempelt seit" in pg.inner_text("#ze-stand") and pg.inner_text("#ze-knopf") == "Gehen", "Stand: eingestempelt, Knopf Gehen")
+    pg.click("#ze-knopf"); pg.wait_for_timeout(900)
+    st = pg.evaluate("() => TEST.daten.zeit_stempel")
+    pruefe(len(st) == 3 and st[2]["art"] == "gehen", "Gehen gestempelt")
+    # Fehler korrigieren: zum Tag, nachtragen
+    pg.click("[data-ze-fehler='%s']" % tag_fehlt); pg.wait_for_selector(".ze-offen")
+    pg.click(".ze-offen .knopf--haupt"); pg.wait_for_selector(".dialog-huelle")
+    pg.locator(".dialog-huelle select").first.select_option("gehen")
+    pg.locator(".dialog-huelle input[type=time]").fill("16:30")
+    pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(900)
+    pruefe(pg.locator("[data-ze-fehler='%s']" % tag_fehlt).count() == 0, "Nach Nachtragen kein Fehler mehr für diesen Tag")
+    pruefe("07:00–16:30" in pg.inner_text("[data-ze-tag='%s']" % tag_fehlt), "Paar 07:00–16:30 angezeigt")
+    pg.screenshot(path=BILD + "/zeit-woche.png", full_page=True)
+    # Alle Mitarbeiter, Konto anlegen
+    pg.click("#ze-reiter-alle"); pg.wait_for_selector("#ze-anwesend")
+    pg.click("#ze-neues-konto"); pg.wait_for_selector(".dialog-huelle input")
+    pg.locator(".dialog-huelle input").nth(0).fill("Max Muster"); pg.locator(".dialog-huelle input").nth(1).fill("482913")
+    pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(1000)
+    pr = pg.evaluate("() => TEST.protokoll.filter(x => x.art === 'rpc' && x.name === 'pin_setzen')")
+    pruefe(len(pr) == 1 and pr[0]["args"]["p_ziel"] == "z9", "PIN gesetzt für neues Konto")
+    pruefe(pg.locator("[data-ze-person='z9']").count() == 1 and "nur HOFERTIME" in pg.inner_text("[data-ze-person='z9']"), "neues Konto in der Liste")
+    pg.screenshot(path=BILD + "/zeit-alle.png")
+    pruefe(not pf, "keine Fehler im Browser: %s" % pf)
+    br.close()
+
+    # Eigene Adresse ohne Kopf und Menü, Terminal bestätigt und meldet ab
+    br, pg, pf = start(p, "mitarbeiter", "index.html?app=hofertime", "localStorage.setItem('hofer.hofertime.terminal','1');", 1180, 820)
+    pg.wait_for_selector("#ze-knopf")
+    pruefe(pg.evaluate("document.body.classList.contains('ze-app')"), "App-Modus aktiv")
+    pruefe(pg.locator(".ze-appkopf").count() == 1 and not pg.locator(".nav").first.is_visible(), "eigener Kopf, kein Menü")
+    pg.evaluate("location.hash='#/planwand'"); pg.wait_for_timeout(600)
+    pruefe("#/zeit" in pg.evaluate("location.hash"), "andere Seite führt zurück zu HOFERTIME")
+    pg.wait_for_selector("#ze-knopf"); pg.screenshot(path=BILD + "/zeit-app.png")
+    pg.click("#ze-knopf"); pg.wait_for_selector("#ze-bestaetigt")
+    pg.screenshot(path=BILD + "/zeit-terminal.png")
+    pruefe("Eingestempelt" in pg.inner_text("#ze-bestaetigt"), "Terminal: grosse Bestätigung")
+    pruefe(not pf, "keine Fehler im Browser: %s" % pf)
+    br.close()
+
+    # Konto nur für HOFERTIME: sieht nur die Zeiterfassung
+    br, pg, pf = start(p, "mitarbeiter", "index.html", "(TEST.daten.profiles.find(x => x.id === 'u1') || {}).nur_zeit = true;", 390, 844)
+    pg.wait_for_selector("#ze-knopf")
+    pruefe(pg.evaluate("document.body.classList.contains('ze-app')"), "nur_zeit: App-Modus")
+    pruefe(pg.locator("#ze-reiter-alle").count() == 0, "nur_zeit: keine Admin-Reiter")
+    pg.screenshot(path=BILD + "/zeit-handy.png", full_page=True)
+    pruefe(not pf, "keine Fehler im Browser: %s" % pf)
+    br.close()
+
+    # Bezahlter Feiertag ohne Stempelung, Profil mit Tagen, Umbuchen
+    d2 = heute - timedelta(days=2)
+    while d2.weekday() >= 5 or d2.isoformat() == tag_fehlt: d2 -= timedelta(days=1)
+    br, pg, pf = start(p, "admin", extra="TEST.daten.zeit_feiertage = [{datum: '%s', name: 'Testfeiertag'}]; TEST.daten.zeit_buchungen = []; TEST.daten.zeit_ferienstufen = [{ab_alter: 0, tage: 25}, {ab_alter: 50, tage: 30}];" % d2.isoformat())
+    pg.evaluate("location.hash='#/zeit'"); pg.wait_for_selector("#ze-knopf")
+    pg.wait_for_timeout(500)
+    pruefe("Feiertag (bezahlt)" in pg.inner_text("[data-ze-tag='%s']" % d2.isoformat()) if pg.locator("[data-ze-tag='%s']" % d2.isoformat()).count() else True, "Feiertag ohne Stempelung als bezahlt")
+    pruefe(pg.locator("[data-ze-fehler='%s']" % d2.isoformat()).count() == 0, "Feiertag gibt keine Fehlermeldung")
+    vor = pg.inner_text("#ze-gleitzeit")
+    pg.click("#ze-umbuchen"); pg.wait_for_selector(".dialog-huelle select")
+    pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(900)
+    b = pg.evaluate("() => TEST.daten.zeit_buchungen")
+    pruefe(len(b) == 1 and b[0]["tage"] == 1 and b[0]["minuten"] == -510, "Umbuchen Gleitzeit → 1 Ferientag (-8:30): %s" % b)
+    pruefe("26 Tage" in pg.inner_text("#ze-ferien") or "21 Tage" in pg.inner_text("#ze-ferien"), "Ferien mit Umbuchung: " + pg.inner_text("#ze-ferien").replace("\n", " "))
+    pruefe(pg.inner_text("#ze-gleitzeit") != vor, "Gleitzeit nach Umbuchung: %s → %s" % (vor, pg.inner_text("#ze-gleitzeit")))
+    pg.click("#ze-einst"); pg.wait_for_selector("#ze-profil")
+    pg.fill("#ze-p-geburtstag", "1970-03-01"); pg.fill("#ze-p-pensum", "80")
+    for n, h in [("1", "8"), ("2", "8"), ("3", "0"), ("4", "8"), ("5", "4")]: pg.fill("[data-ze-p-tag='%s']" % n, h)
+    pg.wait_for_timeout(200)
+    pruefe("24 Tage" in pg.inner_text("#ze-p-auto-text"), "Ferien nach Alter 56 × 80 %%: " + pg.inner_text("#ze-p-auto-text"))
+    pruefe("28:00" in pg.inner_text("#ze-p-summe") or "28" in pg.inner_text("#ze-p-summe"), "Woche aus Tagen: " + pg.inner_text("#ze-p-summe"))
+    pg.screenshot(path=BILD + "/zeit-profil.png")
+    pg.click("#ze-p-speichern"); pg.wait_for_timeout(900)
+    e = pg.evaluate("() => TEST.daten.zeit_personen.find(x => x.person_id === 'u1')")
+    pruefe(e.get("soll_tage", {}).get("3") == 0 and e.get("soll_tage", {}).get("5") == 4 and e.get("geburtstag") == "1970-03-01", "Profil gespeichert: %s" % e.get("soll_tage"))
+    pg.click("#ze-reiter-alle"); pg.wait_for_selector("#ze-feiertage-knopf")
+    pg.click("#ze-feiertage-knopf"); pg.wait_for_selector("#ze-feiertage [data-ze-feiertag]")
+    pg.click("#ze-feiertage-vorschlag"); pg.wait_for_timeout(800)
+    n = pg.evaluate("() => TEST.daten.zeit_feiertage.length")
+    pruefe(n > 5, "Feiertage vorgeschlagen: %d" % n)
+    pg.screenshot(path=BILD + "/zeit-feiertage.png")
+    pruefe(not pf, "keine Fehler im Browser: %s" % pf)
+    br.close()
+
+    # Stempel-Panel: Person antippen, Kommen, Saldo ansehen
+    leute = [{"id": "u1", "full_name": "Patrick Ruch", "bild_url": None, "da": False, "seit": None},
+             {"id": "u2", "full_name": "Anna Beispiel", "bild_url": None, "da": True, "seit": iso(heute.isoformat(), "07:10:00")}]
+    saldo = {"einst": EINST[0], "stempel": STEMPEL, "ferien": FERIEN, "buchungen": [], "stufen": []}
+    br, pg, pf = start(p, "mitarbeiter", "index.html?app=hofertime",
+        "Object.assign(TEST.daten.profiles.find(x => x.id === 'u1'), {nur_zeit: true, zeit_terminal: true, andere_nutzer: true});"
+        "TEST.rpc.zeit_panel_personen = () => %s; TEST.rpc.zeit_panel_saldo = () => (%s);"
+        "TEST.rpc.zeit_panel_stempeln = (a) => ({ id: 'p1', person_id: a.p_person, art: a.p_art, zeit: new Date().toISOString() });"
+        "TEST.rpc.zeit_panel_zurueck = () => true;" % (json.dumps(leute), json.dumps(saldo)), 1180, 820)
+    pg.wait_for_selector("[data-ze-panel]")
+    pruefe(pg.locator("[data-ze-panel]").count() == 2 and pg.locator(".ze-panel__kachel--da").count() == 1, "Panel: zwei Personen, eine da")
+    pg.screenshot(path=BILD + "/zeit-panel.png")
+    pg.click("[data-ze-panel='u2']"); pg.wait_for_selector("#ze-panel-knopf")
+    pruefe(pg.inner_text("#ze-panel-knopf") == "Gehen", "Anna ist da → Knopf Gehen")
+    pg.click("#ze-panel-weg"); pg.click("[data-ze-panel='u1']"); pg.wait_for_selector("#ze-panel-knopf")
+    pg.screenshot(path=BILD + "/zeit-panel-wahl.png")
+    pg.click("#ze-panel-saldo-knopf"); pg.wait_for_selector("#ze-panel-saldo")
+    pruefe(pg.locator("#ze-panel-gleitzeit").count() == 1 and pg.locator("#ze-panel-ferien").count() == 1, "Saldo am Panel: " + pg.inner_text("#ze-panel-saldo").replace("\n", " "))
+    st = [x for x in pg.evaluate("() => TEST.protokoll") if x.get("art") == "rpc" and x.get("name") == "zeit_panel_stempeln"]
+    pruefe(not st, "Saldo ansehen stempelt nicht")
+    pg.screenshot(path=BILD + "/zeit-panel-saldo.png")
+    pg.click("#ze-panel-saldo-zu"); pg.click("[data-ze-panel='u1']"); pg.click("#ze-panel-knopf"); pg.wait_for_selector("#ze-bestaetigt")
+    st = [x for x in pg.evaluate("() => TEST.protokoll") if x.get("art") == "rpc" and x.get("name") == "zeit_panel_stempeln"]
+    pruefe(len(st) == 1 and st[0]["args"] == {"p_person": "u1", "p_art": "kommen"}, "Panel stempelt Kommen")
+    pg.click("#ze-panel-zurueck"); pg.wait_for_timeout(500)
+    pruefe(pg.locator("#ze-bestaetigt").count() == 0, "Rückgängig schliesst die Bestätigung")
+    pruefe(not pf, "keine Fehler im Browser: %s" % pf)
+    br.close()
+
+print("Fehler: " + (", ".join(fehler) if fehler else "keine"))
