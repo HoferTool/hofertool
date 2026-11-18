@@ -35,7 +35,16 @@ function Fenster({ zu, personId, name, einst, neu }) {
     geburtstag: e.geburtstag || "",
     eintritt: e.eintritt || "",
     auto: e.ferien_auto !== false,
+    abteilung: e.abteilung || "",
   });
+  // Abteilungen, die schon vergeben sind, als Vorschlag (Wunsch Patrick
+  // 18. November 2026: „ich will es im Tool zuweisen können“)
+  const [abteilungen, setAbteilungen] = useState([]);
+  useEffect(() => {
+    alt.db.from("zeit_personen").select("abteilung").then((r) => {
+      setAbteilungen([...new Set((r.data || []).map((x) => String(x.abteilung || "").trim()).filter(Boolean))].sort());
+    }, () => {});
+  }, []);
   const [stufen, setStufen] = useState([]);
   useEffect(() => { ferienStufenLaden().then(setStufen); }, []);
   const [laeuft, setLaeuft] = useState(false);
@@ -62,6 +71,7 @@ function Fenster({ zu, personId, name, einst, neu }) {
       geburtstag: w.geburtstag || null,
       eintritt: w.eintritt || null,
       ferien_auto: !!w.auto,
+      abteilung: String(w.abteilung || "").trim() || null,
       ferien_namen: String(w.namen || "").split(",").map((x) => x.trim()).filter(Boolean),
       geaendert_am: new Date().toISOString(),
     };
@@ -85,6 +95,9 @@ function Fenster({ zu, personId, name, einst, neu }) {
       <form onSubmit={speichern}>
         <fieldset className="ze-profil__teil">
           <legend>Lohn und Sollzeit</legend>
+          <label className="feld"><span>Abteilung (für Auswertungen)</span>
+            <input value={w.abteilung} onChange={setz("abteilung")} list="ze-p-abteilungen" id="ze-p-abteilung" placeholder="z.B. Langdreher" />
+            <datalist id="ze-p-abteilungen">{abteilungen.map((a) => <option key={a} value={a} />)}</datalist></label>
           <label className="feld"><span>Lohnart</span>
             <select value={w.lohnart} onChange={setz("lohnart")} id="ze-p-lohnart">
               <option value="monat">Monatslohn (mit Soll und Gleitzeit)</option>

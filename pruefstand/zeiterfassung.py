@@ -131,6 +131,35 @@ with sync_playwright() as p:
     pruefe(not pf, "keine Fehler im Browser: %s" % pf)
     br.close()
 
+    # Auswertung mit Abteilung, Grafiken und Excel
+    br, pg, pf = start(p, "admin", extra="TEST.daten.zeit_feiertage = []; TEST.daten.zeit_buchungen = []; TEST.daten.zeit_ferienstufen = [];" +
+        "TEST.daten.zeit_personen[0].abteilung = 'Langdreher';" +
+        "TEST.rpc.zeit_abwesenheiten = () => [{person: 'x', von: '%s', tage: 1, abwesenheit: 'krankheit'}];" % tag_fehlt)
+    pg.evaluate("location.hash='#/zeit'"); pg.wait_for_selector("#ze-knopf")
+    pg.click("#ze-einst"); pg.wait_for_selector("#ze-p-abteilung")
+    pruefe(pg.input_value("#ze-p-abteilung") == "Langdreher", "Profil zeigt Abteilung")
+    pg.fill("#ze-p-abteilung", "Kurzdreher"); pg.click("#ze-p-speichern"); pg.wait_for_timeout(800)
+    e = pg.evaluate("() => TEST.daten.zeit_personen.find(x => x.person_id === 'u1')")
+    pruefe(e.get("abteilung") == "Kurzdreher", "Abteilung gespeichert: %s" % e.get("abteilung"))
+    pg.click("#ze-reiter-auswertung"); pg.wait_for_selector("#ze-aus-tabelle", timeout=15000)
+    pg.wait_for_timeout(500)
+    t = pg.inner_text("#ze-aus-tabelle")
+    pruefe("Kurzdreher" in t, "Auswertung mit Abteilung: " + t[:200].replace("\n", " "))
+    pruefe(pg.locator("#ze-aus-g-ist .dg-zeile").count() >= 1, "Grafik Ist je Person")
+    pruefe("Krankheit" in pg.inner_text("#ze-aus-g-abw").replace("\n", " ") or "Krankheit" in pg.inner_text(".ze-aus-legende"), "Grafik Abwesenheiten mit Krankheit")
+    pg.click("#ze-aus-jahr"); pg.wait_for_selector("#ze-aus-g-monate", timeout=15000)
+    pruefe(pg.locator("#ze-aus-g-monate .dg-spalte").count() >= 1, "Jahr mit Verlauf je Monat")
+    pg.screenshot(path=BILD + "/zeit-auswertung.png", full_page=True)
+    with pg.expect_download() as dl: pg.click("#ze-aus-excel")
+    pfad = dl.value.path()
+    import zipfile
+    z = zipfile.ZipFile(pfad); namen = z.namelist()
+    blaetter = z.read("xl/workbook.xml").decode()
+    pruefe("Übersicht" in blaetter and "Tage" in blaetter and "Abteilungen" in blaetter, "Excel mit Blättern: " + blaetter[-300:])
+    pruefe(pg.locator("#ze-export").count() == 1, "Karte täglicher Export")
+    pruefe(not pf, "keine Fehler im Browser: %s" % pf)
+    br.close()
+
     # Stempel-Panel: Person antippen, Kommen, Saldo ansehen
     leute = [{"id": "u1", "full_name": "Patrick Ruch", "bild_url": None, "da": False, "seit": None},
              {"id": "u2", "full_name": "Anna Beispiel", "bild_url": None, "da": True, "seit": iso(heute.isoformat(), "07:10:00")}]

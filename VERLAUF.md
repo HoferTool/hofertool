@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.627.0 — HOFERTIME Auswertung und täglicher Excel-Export (18. November 2026)
+
+Wunsch Patrick: Abteilungen im Tool zuweisen, in der App auswerten mit grafischen Ansichten und Excel-Export, täglich Sicherung und Excel auf den Server. Abteilung im Profil, Reiter Auswertung mit Kennzahlen, Grafiken, Tabelle und Excel, täglicher Export `HOFERTIME JJJJ-MM-TT.xlsx` in einen gewählten Ordner. Die Sicherung macht schon die tägliche Sicherung der App.
+
 ## 1.626.0 — HOFERTIME Zeiterfassung (18. November 2026)
 
 Wunsch Patrick: eigene Zeiterfassung im HoferTool statt des alten Systems. Kommen / Gehen an iPad, Handy und PC, Gleitzeit und Ferien, Fehlermeldungen, Konten nur für HOFERTIME mit PIN, eigene App-Adresse, Stempel-Panel am iPad ohne Anmeldung mit Saldoanzeige, bezahlte Feiertage (auch nachträglich), Personenprofil mit Soll je Wochentag, Ferien nach Alter und Pensum mit Übertrag, Umbuchen Ferien ↔ Gleitzeit, Abwesenheiten Schule, Krankheit, Unfall, Dienstjubiläen alle 5 Jahre. SQL `sql/zeiterfassung.sql` und `sql/hofertime-2.sql`. Prüfstand `zeiterfassung.py`.

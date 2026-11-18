@@ -21,6 +21,7 @@ import { zeitApp, istTerminal, terminalSetzen } from "./zeit/app.js";
 import { feiertageOeffnen, stufenOeffnen } from "./zeit/Feiertage.jsx";
 import { profilOeffnen } from "./zeit/Profil.jsx";
 import Panel from "./zeit/Panel.jsx";
+import Auswertung from "./zeit/Auswertung.jsx";
 
 const gemerkt = { reiter: "ich", person: null, ansicht: "woche", bezug: null, offen: null };
 const WT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
@@ -120,10 +121,13 @@ export default function Zeiterfassung({ auffrischen }) {
             onClick={() => setReiter("ich")}>Meine Zeiten</button>
           <button className={"reiter__knopf" + (reiter === "alle" ? " aktiv" : "")} id="ze-reiter-alle"
             onClick={() => setReiter("alle")}>Alle Mitarbeiter</button>
+          <button className={"reiter__knopf" + (reiter === "auswertung" ? " aktiv" : "")} id="ze-reiter-auswertung"
+            onClick={() => setReiter("auswertung")}>Auswertung</button>
           {person && <button className={"reiter__knopf" + (reiter === "person" ? " aktiv" : "")} id="ze-reiter-person"
             onClick={() => setReiter("person")}>{alt.personName(person)}</button>}
         </div>)}
-      {reiter === "alle"
+      {reiter === "auswertung" && admin ? <Auswertung auffrischen={auffrischen} />
+        : reiter === "alle"
         ? <Alle auffrischen={auffrischen} oeffnen={(p) => { setPerson(p); setReiter("person"); setOffen(null); }} />
         : <Person key={personId} personId={personId} name={name} konto={konto} eigene={personId === ich.id} admin={admin}
             ansicht={ansicht} setAnsicht={setAnsicht} bezug={bezug} setBezug={setBezug}

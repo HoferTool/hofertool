@@ -14764,3 +14764,25 @@ body.dunkel .ze-panel__wert { background: #1c2229; border-color: #34404d; }
 .ze-jubi__zeile { display: grid; grid-template-columns: 110px 1fr auto; gap: 10px; padding: 4px 0; border-top: 1px solid var(--rand, #e2e8f0); }
 .jubikarte__liste { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
 .jubikarte__liste li { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+
+/* HOFERTIME Auswertung (seit 1.627.0) */
+.ze-aus-leiste select { min-height: 32px; }
+.ze-aus-knoepfe { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 6px 0 10px; }
+.ze-aus-kennzahlen { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.ze-aus-kennzahlen .dg-kennzahl { background: var(--karte, #fff); border-radius: 12px; padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.ze-aus-raster { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 12px; }
+.ze-aus-karte { min-width: 0; }
+.ze-aus-karte h3 { margin: 0 0 10px; font-size: 1rem; }
+.ze-aus-karte--breit { grid-column: 1 / -1; }
+.ze-aus-legende { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .85rem; margin-bottom: 8px; }
+.ze-aus-legende i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.ze-aus-tabelle-karte { margin-top: 12px; }
+.ze-aus-tabelle-huelle { overflow-x: auto; }
+.ze-aus-tabelle { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.ze-aus-tabelle th, .ze-aus-tabelle td { padding: 6px 8px; border-bottom: 1px solid rgba(0,0,0,.08); text-align: left; white-space: nowrap; }
+.ze-aus-tabelle th { font-weight: 600; font-size: .8rem; opacity: .75; }
+.ze-aus-tabelle .ze-zahl { text-align: right; font-variant-numeric: tabular-nums; }
+body.dunkel .ze-aus-tabelle th, body.dunkel .ze-aus-tabelle td { border-bottom-color: rgba(255,255,255,.12); }
+.ze-export { margin-top: 12px; }
+.ze-export h3 { margin: 0 0 6px; font-size: 1rem; }
+.zeit-export-freigeben { bottom: 180px; }
