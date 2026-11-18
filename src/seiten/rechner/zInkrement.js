@@ -22,10 +22,11 @@ const istEil = (zeile) => /^\s*G0+(?!\d)/i.test(zeile);
 
 // zeilen: Programmteil der Bearbeitung (ohne Vor- und Nachspann),
 // zStirn: Z der Stirnfläche, wie das Modul es rechnet
-export function zZuW(zeilen, zStirn) {
+// luft: Abstand der Vorposition vor zStirn (am Mantel 0, seit 1.638.0)
+export function zZuW(zeilen, zStirn, luft = LUFT) {
   const erstVor = zeilen.findIndex((l) => hatZ(l) && !istEil(l));
   const aus = [];
-  let jetzt = zStirn - LUFT;
+  let jetzt = zStirn - luft;
   zeilen.forEach((l, i) => {
     if (NUR_G0Z.test(l) && (erstVor < 0 || i < erstVor)) return;
     if (!hatZ(l)) { aus.push(l); return; }

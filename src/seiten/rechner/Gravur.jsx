@@ -143,7 +143,6 @@ export default function Gravur() {
             <Feld name="radius" text="Abstand von der Achse" wert={g.radius} setze={setze} />
             <Feld name="winkel" text="Drehung in Grad" wert={g.winkel} setze={setze} schritt="1" />
           </>}
-          {mantel && <Feld name="zStart" text="Z an der Fläche" wert={g.zStart} setze={setze} />}
           <Feld name="tiefe" text="Gravurtiefe" wert={g.tiefe} setze={setze} schritt="0.05" />
           <Feld name="schnitte" text="Schnitte" wert={g.schnitte} setze={setze} schritt="1" />
           <Feld name="vorschub" text={mantel ? "Vorschub Eintauchen in X mm/min" : "Vorschub Eintauchen in Z mm/min"} wert={g.vorschub} setze={setze} schritt="1" />

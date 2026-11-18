@@ -9,7 +9,7 @@
 //  Mantel      → G07.1, Z und C, C im Winkel über den Umfang
 // =================================================================
 import { kopfZeilen } from "./kopf.jsx";
-import { zZuWAb } from "./zInkrement.js";
+import { zZuW, zZuWAb } from "./zInkrement.js";
 import { vereinfachen, zugFlaeche, zugVersetzen } from "./geometrie.js";
 
 export const GRAVUR_VORGABE = {
@@ -218,7 +218,8 @@ export function gravurGcode(gv, roh) {
 
   const a = z.length;
   if (mantel) {
-    z.push("G0Z" + (gv.zStart - 5).toFixed(3) + "C0.");
+    // Z fährt der Kopf der Bearbeitung an, hier nur C (seit 1.638.0)
+    z.push("G0C0.");
     z.push("G0X" + (gv.dm + 2 * gv.eilgang).toFixed(3));
     z.push("G07.1C" + rad.toFixed(3) + "  ( Zylinderinterpolation ein )");
   } else {
@@ -264,6 +265,12 @@ export function gravurGcode(gv, roh) {
     // Zylinderinterpolation wird mit G07.1 C0 beendet. G13.1 gehört
     // zur Polarinterpolation und würde hier ins Leere laufen.
     z.push("G07.1C0  ( Zylinderinterpolation aus )");
+    // Am Mantel Z inkremental ab der Lage, auf die der Kopf der
+    // Bearbeitung in Z fährt (Z0 der Schrift), ohne Luft: die Luft
+    // liegt dort in X (Patrick 18. November 2026: „du musst die
+    // Gravur im Z inkremental programmieren“).
+    const neu = zZuW(z.slice(a), gv.zStart, 0);
+    z.splice(a, z.length - a, "( Z inkremental ab Vorposition, Z0 der Schrift )", ...neu);
   } else {
     z.push("G0Z" + (gv.zStart - gv.eilgang - 5).toFixed(3));
     z.push("G13.1  ( Polarinterpolation aus )");
