@@ -31,6 +31,7 @@ function useErkennung({ an, aktiv, leute, waehlen }) {
   const video = useRef(null);
   const [gesichter, setGesichter] = useState(null);
   const [stand, setStand] = useState("");
+  const [fehler, setFehler] = useState(false);
   const pause = useRef({});
   const zuletzt = useRef(null);
   const aktivRef = useRef(aktiv);
@@ -70,6 +71,7 @@ function useErkennung({ an, aktiv, leute, waehlen }) {
           } else zuletzt.current = null;
         } catch (f) {
           setStand("Gesichtserkennung: " + alt.fehlertext(f));
+          setFehler(true);
         }
       }
       if (!weg) timer = setTimeout(runde, 700);
@@ -79,11 +81,11 @@ function useErkennung({ an, aktiv, leute, waehlen }) {
       stopp = s;
       setStand("");
       runde();
-    }, (f) => setStand("Kamera nicht erlaubt: " + (f && f.message ? f.message : f)));
+    }, (f) => { setStand("Kamera nicht erlaubt: " + (f && f.message ? f.message : f)); setFehler(true); });
     return () => { weg = true; clearTimeout(timer); if (stopp) stopp(); };
   }, [bereit, gesichter]);
 
-  return { video, bereit, stand, anzahl: gesichter ? gesichter.length : 0 };
+  return { video, bereit, stand, fehler, anzahl: gesichter ? gesichter.length : 0 };
 }
 
 // Saldo am Panel ohne Stempeln (Wunsch Patrick 18. November 2026: „es
@@ -134,10 +136,22 @@ export default function Panel() {
   const [saldo, setSaldo] = useState(null);
   const [kamera, setKamera] = useState(kameraAn);
   const [perGesicht, setPerGesicht] = useState(false);
+  // Mit Gesichtserkennung kommt zuerst die Kamera, die Namen erst mit dem
+  // Knopf „Nicht mit Gesichtserkennung“ (Wunsch Patrick 18. November 2026)
+  const [namen, setNamen] = useState(false);
   const erk = useErkennung({
-    an: kamera, aktiv: !wahl && !fertig && !saldo, leute,
+    an: kamera, aktiv: !wahl && !fertig && !saldo && !namen, leute,
     waehlen: (p) => { setPerGesicht(true); setWahl(p); },
   });
+  const kameraZuerst = erk.bereit && !erk.fehler && !namen;
+  // Nach Stempeln, Saldo oder „Nicht ich“ wieder die Kamera
+  useEffect(() => { if (wahl || fertig || saldo) setNamen(false); }, [wahl, fertig, saldo]);
+  // Namen ohne Tippen: nach 30 Sekunden zurück zur Kamera
+  useEffect(() => {
+    if (!namen) return undefined;
+    const t = setTimeout(() => { setNamen(false); setSuche(""); }, 30000);
+    return () => clearTimeout(t);
+  }, [namen, suche]);
 
   const laden = () => personenHolen().then((d) => { setLeute(d); setFehler(""); }, (f) => setFehler(alt.fehlertext(f)));
   useEffect(() => {
@@ -242,6 +256,18 @@ export default function Panel() {
           <button className="knopf" id="ze-panel-weg" onClick={() => setWahl(null)}>Nicht ich, zurück</button>
         </div>
       </section>);
+  } else if (kameraZuerst) {
+    // Die Kamera selbst ist das <video> unten, das immer an derselben
+    // Stelle bleibt (sonst startet sie bei jedem Wechsel neu); die
+    // Reihenfolge Uhr, Bild, Text macht CSS (order).
+    inhalt = (
+      <>
+        <b className="ze-panel__uhr ze-panel__kamera-uhr">{zeit}</b>
+        <div className="ze-panel__kamera-unten" id="ze-panel-gesicht">
+          <div className="ze-panel__kamera-text">Schau in die Kamera</div>
+          <button className="knopf ze-panel__ohne" id="ze-panel-ohne" onClick={() => setNamen(true)}>Nicht mit Gesichtserkennung</button>
+        </div>
+      </>);
   } else {
   const s = suche.trim().toLowerCase();
   const liste = (leute || []).filter((p) => !s || String(p.full_name || "").toLowerCase().includes(s));
@@ -249,7 +275,9 @@ export default function Panel() {
     <section className="ze-panel">
       <div className="ze-panel__kopf">
         <b className="ze-panel__uhr">{zeit}</b>
-        <span>{erk.bereit ? "Schau in die Kamera oder tippe auf deinen Namen" : "Tippe auf deinen Namen"}</span>
+        <span>Tippe auf deinen Namen</span>
+        {erk.bereit && !erk.fehler && <button className="knopf knopf--klein knopf--haupt" id="ze-panel-zur-kamera"
+          onClick={() => { setNamen(false); setSuche(""); }}>Zurück zur Kamera</button>}
         <input type="search" className="mat-sucheingabe" placeholder="Name suchen" value={suche}
           data-ohne-leiste onChange={(e) => setSuche(e.target.value)} />
         {(erk.anzahl > 0 || !kamera) && <button className="knopf knopf--klein" id="ze-panel-kamera" onClick={() => { kameraMerken(!kamera); setKamera(!kamera); }}>
@@ -270,8 +298,9 @@ export default function Panel() {
     </section>);
   }
   return (
-    <>
+    <div className={"ze-panel-rahmen" + (kameraZuerst ? " ze-panel-rahmen--kamera" : "")}>
       {inhalt}
-      {erk.bereit && <video ref={erk.video} className="ze-panel__kamera" id="ze-panel-video" playsInline muted autoPlay />}
-    </>);
+      {erk.bereit && <video ref={erk.video} className={"ze-panel__kamera" + (kameraZuerst ? " ze-panel__kamera--gross" : "")}
+        id="ze-panel-video" playsInline muted autoPlay />}
+    </div>);
 }

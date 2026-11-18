@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
 import { alt, useDaten, useGemerkt } from "../bruecke.jsx";
 import {
   paareRechnen, tageRechnen, stand, stempeln, stempelLaden, uhrzeit, dauerText, tagVon,
-  montag, tagePlus, ausFeldern, sollTag, abwesendeTage, freierTag, ferienStand, fehlerSuchen, feiertageEintragen, feiertageLaden, saldoRechnen, ferienStufenLaden, buchungenLaden, minutenJeFerientag, jubilaeen } from "../daten/zeit.js";
+  montag, tagePlus, ausFeldern, sollTag, abwesendeTage, freierTag, ferienStand, fehlerSuchen, feiertageEintragen, feiertageLaden, saldoRechnen, saldoVerlauf, ferienStufenLaden, buchungenLaden, minutenJeFerientag, jubilaeen } from "../daten/zeit.js";
 import { zeitApp, istTerminal, terminalSetzen } from "./zeit/app.js";
 import { feiertageOeffnen, stufenOeffnen } from "./zeit/Feiertage.jsx";
 import { profilOeffnen } from "./zeit/Profil.jsx";
@@ -196,6 +196,7 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
   const heute = alt.isoDatum(new Date());
   const monatslohn = !einst || einst.lohnart !== "stunde";
   const saldo = saldoRechnen(einst, stempelAlle, ferien, name, buchungen);
+  const verlauf = saldo ? saldoVerlauf(einst, stempelAlle, ferien, buchungen) : new Map();
 
   const liste = [];
   for (let d = new Date(von); d < bis; d = tagePlus(d, 1)) liste.push(alt.isoDatum(d));
@@ -321,10 +322,13 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
         </div>
       </section>
 
+      {saldo && <GleitzeitVerlauf verlauf={verlauf} liste={liste} heute={heute} zumTag={zumTag} />}
+
       <section className="karte ze-tage">
-        <div className="ze-zeile ze-zeile--kopf klein">
+        <div className={"ze-zeile ze-zeile--kopf klein" + (saldo ? " ze-zeile--saldo" : "")}>
           <span>Tag</span><span>Stempelungen</span><span className="ze-zahl">Ist</span>
           {monatslohn && <><span className="ze-zahl">Soll</span><span className="ze-zahl">Diff.</span></>}
+          {saldo && <span className="ze-zahl">Gleitzeit</span>}
         </div>
         {liste.map((d) => {
           const t = tage.get(d);
@@ -335,7 +339,7 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
           const zukunft = d > heute;
           return (
             <div key={d} data-ze-tag={d}>
-              <button className={"ze-zeile" + (d === heute ? " ze-zeile--heute" : "") + (frei ? " ze-zeile--frei" : "") + (t && t.fehler ? " ze-zeile--fehler" : "")}
+              <button className={"ze-zeile" + (saldo ? " ze-zeile--saldo" : "") + (d === heute ? " ze-zeile--heute" : "") + (frei ? " ze-zeile--frei" : "") + (t && t.fehler ? " ze-zeile--fehler" : "")}
                 onClick={() => setOffen(offen === d ? null : d)} aria-expanded={offen === d}>
                 <span><b>{WT[alt.ausIso(d).getDay()]}</b> {alt.kurzDatum(d)}</span>
                 <span className="ze-paare">
@@ -352,18 +356,21 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
                   <span className="ze-zahl klein">{s ? dauerText(s) : ""}</span>
                   <span className={"ze-zahl " + (im - s < 0 ? "ze-minus" : "ze-plus")}>{!zukunft && d !== heute && (s || im) ? dauerText(im - s) : ""}</span>
                 </>}
+                {saldo && <span className={"ze-zahl ze-saldotag " + ((verlauf.get(d) || 0) < 0 ? "ze-minus" : "ze-plus")} data-ze-saldotag={d}>
+                  {verlauf.has(d) ? dauerText(verlauf.get(d)) : ""}</span>}
               </button>
               {offen === d && <TagOffen tag={d} stempel={stempelAlle.filter((x) => tagVon(x.zeit) === d)} personId={personId} neu={neu}
                 abwesendDarf={admin || eigene} selbst={!admin} planName={planName(einst, konto, name)} />}
             </div>);
         })}
-        <div className="ze-zeile ze-zeile--summe">
+        <div className={"ze-zeile ze-zeile--summe" + (saldo ? " ze-zeile--saldo" : "")}>
           <b>Total</b><span />
           <b className="ze-zahl" id="ze-ist">{dauerText(ist)}</b>
           {monatslohn && <>
             <b className="ze-zahl">{dauerText(soll)}</b>
             <b className={"ze-zahl " + (ist - soll < 0 ? "ze-minus" : "ze-plus")}>{dauerText(ist - (soll + (tage.get(heute) && liste.includes(heute) ? 0 : 0)))}</b>
           </>}
+          {saldo && <span />}
         </div>
       </section>
       {monatslohn && <p className="klein ze-erklaerung">
@@ -374,6 +381,43 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
       </p>}
     </>
   );
+}
+
+// Gleitzeit-Verlauf als Linie für den gezeigten Zeitraum (seit 1.633.0).
+// Jeder Punkt ist der Stand am Ende des Tages, antippen springt zum Tag.
+function GleitzeitVerlauf({ verlauf, liste, heute, zumTag }) {
+  const tage = liste.filter((d) => verlauf.has(d));
+  if (tage.length < 2) return null;
+  const werte = tage.map((d) => verlauf.get(d));
+  const B = 720, H = 160, RL = 56, RR = 12, RO = 12, RU = 22;
+  const lo = Math.min(0, ...werte), hi = Math.max(0, ...werte);
+  const span = hi - lo || 60;
+  const x = (i) => RL + (i * (B - RL - RR)) / (tage.length - 1);
+  const y = (v) => RO + ((hi - v) * (H - RO - RU)) / span;
+  const pfad = werte.map((v, i) => (i ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1)).join(" ");
+  const aenderung = werte[werte.length - 1] - werte[0];
+  const zeigen = tage.length <= 10 ? tage.map((_, i) => i) : [0, Math.floor(tage.length / 2), tage.length - 1];
+  return (
+    <section className="karte ze-verlauf" id="ze-verlauf">
+      <div className="ze-verlauf__kopf">
+        <b>Gleitzeit-Verlauf</b>
+        <span className="klein">von {dauerText(werte[0])} am {alt.kurzDatum(tage[0])} auf {dauerText(werte[werte.length - 1])}
+          {tage[tage.length - 1] === heute ? " heute" : " am " + alt.kurzDatum(tage[tage.length - 1])}
+          {" · "}<b className={aenderung < 0 ? "ze-minus" : "ze-plus"}>{aenderung > 0 ? "+" : ""}{dauerText(aenderung)}</b></span>
+      </div>
+      <svg viewBox={"0 0 " + B + " " + H} className="ze-verlauf__bild" role="img" aria-label="Gleitzeit je Tag">
+        <line x1={RL} x2={B - RR} y1={y(0)} y2={y(0)} className="ze-verlauf__null" />
+        <text x={RL - 6} y={y(hi) + 4} textAnchor="end" className="ze-verlauf__achse">{dauerText(hi)}</text>
+        {lo < 0 && <text x={RL - 6} y={y(lo) + 4} textAnchor="end" className="ze-verlauf__achse">{dauerText(lo)}</text>}
+        {hi !== 0 && lo !== 0 && <text x={RL - 6} y={y(0) + 4} textAnchor="end" className="ze-verlauf__achse">0:00</text>}
+        <path d={pfad} className="ze-verlauf__linie" />
+        {werte.map((v, i) => (
+          <circle key={tage[i]} cx={x(i)} cy={y(v)} r={tage.length > 40 ? 2.5 : 4} className={"ze-verlauf__punkt" + (v < 0 ? " ze-verlauf__punkt--minus" : "")}
+            onClick={() => zumTag(tage[i])}><title>{alt.kurzDatum(tage[i])}: {dauerText(v)}</title></circle>))}
+        {zeigen.map((i) => (
+          <text key={"t" + i} x={x(i)} y={H - 6} textAnchor="middle" className="ze-verlauf__achse">{alt.kurzDatum(tage[i])}</text>))}
+      </svg>
+    </section>);
 }
 
 function TagOffen({ tag, stempel, personId, neu, abwesendDarf, selbst, planName: wer }) {

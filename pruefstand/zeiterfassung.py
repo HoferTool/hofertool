@@ -24,7 +24,7 @@ EINST = [{"person_id": "u1", "lohnart": "monat", "soll_woche_h": 42.5, "pensum":
 FERIEN = [{"person": "x", "von": (heute + timedelta(days=20)).isoformat(), "tage": 5, "abwesenheit": "ferien"}]
 
 def start(p, rolle, adresse="index.html", extra="", breite=1440, hoehe=900):
-    br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
+    br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage", "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"])
     pg = br.new_context(viewport={"width": breite, "height": hoehe}).new_page()
     pf = []; pg.on("pageerror", lambda e: pf.append(str(e.stack)[:900]))
     body = FAKE + (";\n(TEST.daten.profiles.find(x => x.id === 'u1') || {}).role = '%s';\n" % rolle) + \
@@ -43,6 +43,9 @@ with sync_playwright() as p:
     pruefe(pg.locator("a[href='#/zeit']").count() >= 1, "Menüpunkt HOFERTIME")
     pg.evaluate("location.hash='#/zeit'"); pg.wait_for_selector("#ze-knopf")
     pruefe("Kommen fehlt" in pg.inner_text("#inhalt") or "Gehen fehlt" in pg.inner_text("#ze-fehler"), "Fehlermeldung: Gehen fehlt")
+    pruefe(pg.locator("#ze-verlauf circle").count() >= 2, "Gleitzeit-Verlauf als Grafik")
+    st_tage = pg.locator("[data-ze-saldotag]").all_inner_texts()
+    pruefe(any(x.strip() for x in st_tage), "Gleitzeit je Tag in der Liste: " + " ".join(x.strip() for x in st_tage if x.strip())[:120])
     pruefe(pg.locator("#ze-gleitzeit").count() == 1, "Gleitzeit-Saldo da: " + (pg.inner_text("#ze-gleitzeit") if pg.locator("#ze-gleitzeit").count() else ""))
     pruefe("25 Tage" in pg.inner_text("#ze-ferien") or "20 Tage" in pg.inner_text("#ze-ferien") or "Anspruch 25" in pg.inner_text("#ze-ferien"), "Ferien: " + pg.inner_text("#ze-ferien").replace("\n", " "))
     pg.screenshot(path=BILD + "/zeit-start.png")
@@ -226,6 +229,22 @@ with sync_playwright() as p:
     pruefe(len(st) == 1 and st[0]["args"] == {"p_person": "u1", "p_art": "kommen"}, "Panel stempelt Kommen")
     pg.click("#ze-panel-zurueck"); pg.wait_for_timeout(500)
     pruefe(pg.locator("#ze-bestaetigt").count() == 0, "Rückgängig schliesst die Bestätigung")
+    pruefe(not pf, "keine Fehler im Browser: %s" % pf)
+    br.close()
+
+    # Panel mit Gesichtserkennung: zuerst die Kamera, Namen erst auf Knopf
+    br, pg, pf = start(p, "mitarbeiter", "index.html?app=hofertime",
+        "Object.assign(TEST.daten.profiles.find(x => x.id === 'u1'), {nur_zeit: true, zeit_terminal: true, andere_nutzer: true});"
+        "TEST.rpc.zeit_panel_personen = () => %s; TEST.rpc.zeit_panel_gesichter = () => [{person_id: 'u1', muster: [Array(128).fill(0.1)]}];" % json.dumps(leute), 1180, 820)
+    pg.wait_for_selector("#ze-panel-ohne", timeout=20000)
+    pruefe(pg.locator("[data-ze-panel]").count() == 0 and pg.locator(".ze-panel__kamera--gross").count() == 1, "Panel startet mit der Kamera, ohne Namen")
+    pg.wait_for_timeout(4000)
+    pg.screenshot(path=BILD + "/zeit-panel-kamera.png")
+    pg.click("#ze-panel-ohne"); pg.wait_for_selector("[data-ze-panel]")
+    pruefe(pg.locator("[data-ze-panel]").count() == 2, "„Nicht mit Gesichtserkennung“ zeigt die Namen")
+    pg.click("#ze-panel-zur-kamera"); pg.wait_for_selector("#ze-panel-ohne")
+    pruefe(pg.locator("[data-ze-panel]").count() == 0, "Zurück zur Kamera")
+    pruefe(pg.locator("#ze-panel-kamera-stand").count() == 0, "Kamera ohne Fehler")
     pruefe(not pf, "keine Fehler im Browser: %s" % pf)
     br.close()
 

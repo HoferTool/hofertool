@@ -307,6 +307,29 @@ export function fehlerSuchen(tage, einst, abwesend, heute, ab) {
 
 // Saldo von saldo_start_tag (sonst erste Stempelung) bis gestern, dazu
 // heute, was schon da ist. Nur Monatslöhner.
+// Gleitzeit am Ende jedes Tages ab Saldo-Beginn bis heute (seit 1.633.0,
+// Wunsch Patrick 18. November 2026: „man soll täglich sehen, wie sich der
+// Gleitzeitverlauf ändert“). Gleich gerechnet wie saldoRechnen; heute
+// ohne Soll, solange der Tag läuft. Liefert Map Datum → Minuten.
+export function saldoVerlauf(einst, stempelAlle, ferien, buchungen) {
+  const aus = new Map();
+  if (!einst || einst.lohnart === "stunde") return aus;
+  const heute = alt.isoDatum(new Date());
+  const tage = tageRechnen(paareRechnen(stempelAlle), einst);
+  const erster = einst.saldo_start_tag || (stempelAlle[0] && tagVon(stempelAlle[0].zeit));
+  if (!erster) return aus;
+  const abw = feiertageEintragen(abwesendeTage(ferien), tage);
+  const jeTag = new Map();
+  for (const b of buchungen || []) if (b.datum >= erster && b.datum <= heute) jeTag.set(b.datum, (jeTag.get(b.datum) || 0) + (Number(b.minuten) || 0));
+  let min = einst.saldo_start_min || 0;
+  for (let d = erster; d <= heute; d = alt.plusTage(d, 1)) {
+    const ist = tage.get(d) ? tage.get(d).minuten : 0;
+    min += (jeTag.get(d) || 0) + ist - (d < heute ? sollTag(d, einst, abw) : 0);
+    aus.set(d, min);
+  }
+  return aus;
+}
+
 export function saldoRechnen(einst, stempelAlle, ferien, name, buchungen) {
   if (!einst || einst.lohnart === "stunde") return null;
   const heute = alt.isoDatum(new Date());
