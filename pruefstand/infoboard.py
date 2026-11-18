@@ -192,6 +192,25 @@ with sync_playwright() as p:
     pl = teil(lambda t: t.get("datei", {}).get("name") == "Plan unten.pdf")
     pruefe(pl and abs(pl["x"] + pl["w"] / 2 - 300) < 30 and abs(pl["y"] + pl["h"] / 2 - 1500) < 30,
            "Datei dort abgelegt, wo sie hingezogen wurde: %s" % pl)
+    # Bild aus der Zwischenablage mit Strg + V (1.625.0): dorthin, wo die Maus steht
+    mx, my = blatt["x"] + 700 * kk, blatt["y"] + 1200 * kk
+    pg.mouse.move(mx, my)
+    pg.evaluate("""() => {
+      const dt = new DataTransfer();
+      dt.items.add(new File([new Uint8Array([137,80,78,71])], 'image.png', { type: 'image/png' }));
+      document.body.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+    }""")
+    pg.wait_for_timeout(1500)
+    kl = teil(lambda t: (t.get("datei") or {}).get("typ") == "bild" and (t.get("datei") or {}).get("name", "").startswith("Eingefuegt"))
+    pruefe(kl and abs(kl["x"] + kl["w"] / 2 - 700) < 30 and abs(kl["y"] + kl["h"] / 2 - 1200) < 30,
+           "Strg + V legt das Bild unter die Maus: %s" % kl)
+    # In einem Textfeld bleibt Strg + V beim Feld
+    n0 = len(aufbau()["teile"])
+    pg.evaluate("""() => { const i = document.createElement('input'); document.body.append(i); i.focus();
+      const dt = new DataTransfer(); dt.items.add(new File(['x'], 'b.png', { type: 'image/png' }));
+      i.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); i.remove(); }""")
+    pg.wait_for_timeout(800)
+    pruefe(len(aufbau()["teile"]) == n0, "Strg + V in einem Eingabefeld legt nichts auf die Tafel")
     # Excel und Word hinzufügen (1.122.0)
     with pg.expect_file_chooser() as fc:
         pg.click("[data-ib='neu-datei']")
@@ -220,7 +239,7 @@ with sync_playwright() as p:
     # Anzeige über den ganzen Bildschirm
     pg.set_viewport_size({"width": 540, "height": 960})
     pg.click("[data-ib='anzeige']"); pg.wait_for_selector("#infoboard .ib-blatt"); pg.wait_for_timeout(2500)
-    pruefe(pg.locator("#infoboard .ib-teil").count() == 6, "Anzeige mit sechs Teilen: %d" % pg.locator("#infoboard .ib-teil").count())
+    pruefe(pg.locator("#infoboard .ib-teil").count() == 7, "Anzeige mit sieben Teilen (samt eingefügtem Bild): %d" % pg.locator("#infoboard .ib-teil").count())
     pruefe(pg.locator("#infoboard .ib-teil__griff").count() == 0, "keine Griffe in der Anzeige")
     pruefe("rotate(8deg)" in (pg.locator(f"#infoboard [data-ibteil='{pdf['id']}']").get_attribute("style") or ""), "gedreht auch in der Anzeige")
     nr = pg.locator(f"#infoboard [data-ibteil='{pdf['id']}'] .ib-pdf__nr")

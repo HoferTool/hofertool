@@ -98,6 +98,45 @@ export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehl
   const [zug, setZug] = useState(null);       // { id, x, y, w, h, drehung } während des Ziehens
   const [ziel, setZiel] = useState(false);
   const [bandHoehe, setBandHoehe] = useState(0);
+  // Strg + V legt eine Datei oder ein Bild aus der Zwischenablage auf die
+  // Tafel, dort wo die Maus zuletzt war, sonst in die Mitte (Wunsch
+  // Patrick 18. November 2026: „Dateien oder Bilder per Drag and Drop
+  // oder mit Ctrl V einfügen“)
+  const maus = useRef(null);
+  const ablegenJetzt = useRef(ablegen);
+  ablegenJetzt.current = ablegen;
+  const kJetzt = useRef(k);
+  kJetzt.current = k;
+  const kannAblegen = !!ablegen;
+  useEffect(() => {
+    if (!kannAblegen) return undefined;
+    const kleben = (e) => {
+      const ab = ablegenJetzt.current;
+      if (!ab || !blatt.current || e.defaultPrevented) return;
+      // In einem Feld fügt Strg + V wie immer Text ein; über einem Fenster
+      // oder der Anzeige gehört es nicht auf diese Tafel
+      const z = e.target;
+      if (z && z.closest && z.closest("input, textarea, select, [contenteditable]:not([contenteditable='false'])")) return;
+      if (document.querySelector(".dialog-huelle, .ib-voll")) return;
+      const cd = e.clipboardData;
+      let dateien = Array.from((cd && cd.files) || []);
+      if (!dateien.length && cd && cd.items)
+        dateien = Array.from(cd.items).filter((i) => i.kind === "file").map((i) => i.getAsFile()).filter(Boolean);
+      if (!dateien.length) return;
+      e.preventDefault();
+      // Ein Bildschirmfoto heisst sonst nur „image.png“
+      const zeit = new Date().toISOString().slice(0, 19).replace("T", " ").replace(/:/g, "-");
+      dateien = dateien.map((d, i) => (/^image\.\w+$/i.test(d.name || "") || !d.name
+        ? new File([d], "Eingefuegt " + zeit + (i ? " " + (i + 1) : "") + "." + ((d.type || "image/png").split("/")[1] || "png").replace("jpeg", "jpg"), { type: d.type || "image/png" })
+        : d));
+      const r = blatt.current.getBoundingClientRect();
+      const m = maus.current;
+      const drin = m && m.x >= r.left && m.x <= r.right && m.y >= r.top && m.y <= r.bottom;
+      ab(dateien, drin ? tafelPunkt(blatt.current, kJetzt.current, { clientX: m.x, clientY: m.y }) : null);
+    };
+    document.addEventListener("paste", kleben);
+    return () => document.removeEventListener("paste", kleben);
+  }, [kannAblegen]);
   // In der Gestaltung stehen die Teile dort, wo sie gespeichert sind, sonst
   // passten Ziehen und Ablegen nicht mehr zur Maus
   // Im Pausenraum unter dem Band noch eine flache Leiste über die ganze
@@ -163,6 +202,7 @@ export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehl
   // Eine Datei vom Computer irgendwo auf die Tafel ziehen: dort entsteht
   // ein neues Teil
   const dateiZiehen = !ablegen ? {} : {
+    onPointerMove: (e) => { maus.current = { x: e.clientX, y: e.clientY }; },
     onDragOver: (e) => {
       if (!Array.from(e.dataTransfer.types || []).includes("Files")) return;
       e.preventDefault(); e.dataTransfer.dropEffect = "copy"; if (!ziel) setZiel(true);

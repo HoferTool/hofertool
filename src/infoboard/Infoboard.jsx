@@ -292,7 +292,8 @@ function Gestalten({ mass }) {
                     {EFFEKTE.map(([w, t]) => <option key={w} value={w}>{t}</option>)}
                   </select></label>
               </div>}
-            {!wahl && <p className="klein">Dateien vom Computer einfach auf die Tafel ziehen, dorthin, wo sie hin sollen.
+            {!wahl && <p className="klein">Dateien vom Computer einfach auf die Tafel ziehen, dorthin, wo sie hin sollen,
+              oder kopieren und mit Strg + V einfügen (kommt dorthin, wo die Maus auf der Tafel steht).
               Antippen wählt ein Teil: ziehen verschiebt es, die Ecke unten rechts ändert die Grösse,
               der runde Griff oben dreht es.</p>}
             {wahl &&
