@@ -14,6 +14,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { RASTER, materialStand, simAufbauen, umrissVon, plattenHuelle, bohrerHuelle, innenTiefe } from "./camSim.js";
 import { drehKoerper, abstechKoerper, fraeserKoerper } from "./camKoerper.js";
+import { stepFertig, stepHolen, stepLokal, stepDrehKoerper, stepRundKoerper } from "./camStep.js";
 import { MASCHINE_SB20RG, GEGEN_SB20RG, platzLage, traegerQuader, gegenEinheit, gegenQuader } from "./camMaschine.js";
 
 // Seit 1.558.3 wie an der Maschine: Führungsbüchse links, das Teil schaut
@@ -257,7 +258,7 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
   const zeichnen = (l) => {
     g.lineJoin = "round"; g.lineWidth = 0.7;
     for (const f of l) {
-      const basis = f.art === "schnitt" ? [226, 176, 120] : f.art === "buechse" ? [112, 124, 140] : f.art === "roh" ? FARBE_ROH : FARBE_MASCHINE[f.art] || FARBE_BEARB;
+      const basis = Array.isArray(f.art) ? f.art : f.art === "schnitt" ? [226, 176, 120] : f.art === "buechse" ? [112, 124, 140] : f.art === "roh" ? FARBE_ROH : FARBE_MASCHINE[f.art] || FARBE_BEARB;
       const c = `rgb(${basis.map((q) => Math.min(255, Math.round(q * f.hell + 255 * f.glanz * 0.55))).join(",")})`;
       g.beginPath();
       f.pts.forEach((p, i) => { const q = P(p); if (i) g.lineTo(q.x, q.y); else g.moveTo(q.x, q.y); });
@@ -515,6 +516,16 @@ function Simulation({ w, zu }) {
   const jetzt = Math.max(0, n - 1);
   const akt = schritte.find((s) => s.von <= jetzt && jetzt < s.bis)
     || [...schritte].reverse().find((s) => s.bis <= n && s.punkte.length) || schritte[0];
+  // STEP-Datei des Werkzeugs (seit 1.622.0): einmal lesen, dann neu zeichnen
+  const stepUrl = dreiD && akt && akt.wz && akt.wz.step && akt.wz.step.url || "";
+  const [stepStand, setStepStand] = useState({ url: "", fehler: "" });
+  useEffect(() => {
+    if (!stepUrl || stepFertig(stepUrl)) return;
+    let weg = false;
+    stepHolen(stepUrl).then(() => { if (!weg) setStepStand({ url: stepUrl, fehler: "" }); })
+      .catch((f) => { if (!weg) setStepStand({ url: stepUrl, fehler: (f && f.message) || String(f) }); });
+    return () => { weg = true; };
+  }, [stepUrl]);
   const kanal = n >= gesamt && sim.hatK2 ? 2 : akt ? akt.kanal : 1;
   const stand = useMemo(() => materialStand(sim, n, cache.current), [sim, n]);
   // Spindelstock: fährt mit dem Material, steht also im Teil fest, hinter
@@ -601,7 +612,9 @@ function Simulation({ w, zu }) {
         const h = plattenHuelle(akt.wz, innenTiefe(akt));
         if (h) ueber.werkzeuge.push({ pts: h.umriss.map((q) => ({ z: p.z + q.z, r: p.r + q.x })), farbe: "rgba(224,161,42,.92)", rand: "#7a5410" });
         // seit 1.621.0 als 3D-Körper, mit Maschine zeichnet der Träger den Schaft
-        if (h && dreiD) ueber.koerper.push(...drehKoerper(akt.wz, p, h.umriss, !maschineAn && akt.art === "dreh"));
+        const netz = dreiD && akt.wz.step && stepFertig(akt.wz.step.url);
+        if (netz) ueber.koerper.push(...stepDrehKoerper(stepLokal(netz, akt.wz, false), p));
+        else if (h && dreiD) ueber.koerper.push(...drehKoerper(akt.wz, p, h.umriss, !maschineAn && akt.art === "dreh"));
       } else if (akt.wz && akt.modus === "c") {
         // Achse in der Ansicht: Kanal 2 von hinten (z und w gespiegelt)
         const ax = kanal === 2 ? [-p.ax[0], p.ax[1], -p.ax[2]] : p.ax;
@@ -610,7 +623,9 @@ function Simulation({ w, zu }) {
         const pkt = (a) => [p.z + ax[0] * a, u + ax[1] * a, ww + ax[2] * a];
         ueber.stangen.push({ a: pkt(0), b: pkt(Lc), d, farbe: "rgba(224,161,42,.92)", rand: "#7a5410" });
         ueber.stangen.push({ a: pkt(Lc), b: pkt(Lc + d * 1.5), d: d * 1.15, farbe: "rgba(180,190,200,.95)", rand: "#5b6875" });
-        if (dreiD) ueber.koerper.push(...fraeserKoerper(akt.wz, pkt(0), ax));
+        const netz = dreiD && akt.wz.step && stepFertig(akt.wz.step.url);
+        if (netz) ueber.koerper.push(...stepRundKoerper(stepLokal(netz, akt.wz, true), pkt(0), ax, parseFloat(akt.wz.laenge)));
+        else if (dreiD) ueber.koerper.push(...fraeserKoerper(akt.wz, pkt(0), ax));
       } else if (akt.modus === "abstech") {
         const Bw = akt.breite;
         ueber.werkzeuge.push({ pts: [{ z: p.z - Bw, r: p.r }, { z: p.z, r: p.r }, { z: p.z, r: p.r + A / 2 + 4 }, { z: p.z - Bw, r: p.r + A / 2 + 4 }],
@@ -621,7 +636,9 @@ function Simulation({ w, zu }) {
         const auf = (l) => l.map((q) => ({ z: p.z - q.x, r: p.r + q.z }));
         ueber.werkzeuge.push({ pts: auf(u.schaft), farbe: "rgba(180,190,200,.95)", rand: "#5b6875" });
         ueber.werkzeuge.push({ pts: auf(u.schneide), farbe: "rgba(224,161,42,.92)", rand: "#7a5410" });
-        if (dreiD) ueber.koerper.push(...fraeserKoerper(akt.wz, [p.z, p.r, 0], [-1, 0, 0]));
+        const netz = dreiD && akt.wz.step && stepFertig(akt.wz.step.url);
+        if (netz) ueber.koerper.push(...stepRundKoerper(stepLokal(netz, akt.wz, true), [p.z, p.r, 0], [-1, 0, 0], parseFloat(akt.wz.laenge)));
+        else if (dreiD) ueber.koerper.push(...fraeserKoerper(akt.wz, [p.z, p.r, 0], [-1, 0, 0]));
       }
     }
     // Seit 1.580.0: Werkzeugträger von Kanal 1 mit allen Werkzeugen, er
@@ -732,11 +749,11 @@ function Simulation({ w, zu }) {
       }
     }
     cv.__traeger = traeger; cv.__kopf = maschine ? maschine.kopf || null : null; cv.__roll = roll; cv.__gegen = gegen; cv.__quader = maschine ? maschine.quader : null;
-    cv.__stand = stand; cv.__sim = sim; cv.__strahl = !!strahl; cv.__werkzeuge = ueber.werkzeuge; cv.__koerper = ueber.koerper.length; cv.__buechse = ueber.buechse; cv.__weg = wegZ; cv.__ansichtZ = dz; // für den Prüfstand
+    cv.__stand = stand; cv.__sim = sim; cv.__strahl = !!strahl; cv.__werkzeuge = ueber.werkzeuge; cv.__koerper = ueber.koerper.length; cv.__step = !!(stepUrl && stepFertig(stepUrl)); cv.__buechse = ueber.buechse; cv.__weg = wegZ; cv.__ansichtZ = dz; // für den Prüfstand
     // Rohmaterial: Stirn vorne nur vorne (Kanal 1), vor der Übergabe
     const roh = { R: A / 2, vorne: kanal === 1 && !wegZ ? vorne : null };
     malen(g, breite, HOCH, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, roh, maschine, roll, hinweis: umriss ? "" : "Kein Material" });
-  }, [sim, stand, n, kanal, akt, dreh, zoom, schnitt, breite, laeuft, maschineAn, kopfZ, dreiD]);
+  }, [sim, stand, n, kanal, akt, dreh, zoom, schnitt, breite, laeuft, maschineAn, kopfZ, dreiD, stepStand]);
 
   useEffect(() => {
     if (!laeuft) return undefined;
@@ -831,6 +848,7 @@ function Simulation({ w, zu }) {
               onChange={(e) => { setMaschineAn(e.target.checked); try { localStorage.setItem("hofer.camSim.maschine", e.target.checked ? "1" : "0"); } catch { /* egal */ } }} /><span>Maschine</span></label>
             <label className="schalter" title="Werkzeug als 3D-Körper statt flach in der Ebene zeigen"><input type="checkbox" id="cam-sim-wz3d" checked={dreiD}
               onChange={(e) => { setDreiD(e.target.checked); try { localStorage.setItem("hofer.camSim.wz3d", e.target.checked ? "1" : "0"); } catch { /* egal */ } }} /><span>3D-Werkzeug</span></label>
+            {stepUrl && !stepFertig(stepUrl) && <span className="klein" data-cam-sim-step>{stepStand.url === stepUrl && stepStand.fehler ? "STEP nicht lesbar: " + stepStand.fehler : "STEP wird gelesen …"}</span>}
             <label className="schalter"><input type="checkbox" id="cam-sim-schnitt" checked={schnitt} onChange={(e) => setSchnitt(e.target.checked)} /><span>Aufgeschnitten</span></label>
             <button className="knopf knopf--klein" onClick={() => { setDreh(SCHRAEG); setZoom(1); }}>Schräg</button>
             <button className="knopf knopf--klein" onClick={() => setDreh(SEITE)}>Von der Seite</button>

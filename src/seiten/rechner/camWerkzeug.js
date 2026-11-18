@@ -168,6 +168,7 @@ export function wzText(b) {
     if (wz.r) teile.push("R" + wz.r);
     const s = SPITZEN.find((x) => x.id === wz.sl);
     if (s) teile.push("Lage " + LAGE_NAME[s.id]);
+    if (wz.step) teile.push("STEP");
     return teile.join(" · ");
   }
   const f = fraeserForm(wz.form);
@@ -180,6 +181,7 @@ export function wzText(b) {
   }
   if ((wz.form === "bohrer" || wz.form === "fase") && wz.winkel) teile.push(wz.winkel + "°");
   if (wz.laenge) teile.push("L" + wz.laenge);
+  if (wz.step) teile.push("STEP");
   return teile.join(" · ");
 }
 // Namen wie an der Maschine gesehen (seit 1.558.3): Führungsbüchse links,

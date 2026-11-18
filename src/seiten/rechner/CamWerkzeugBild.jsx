@@ -8,6 +8,7 @@
 //  Spitzenwinkel an der Spitze). Die Zeichnung folgt den Werten live.
 // =================================================================
 
+import { StepFeld } from "./CamStepFeld.jsx";
 import { FRAESER, LAGE_NAME, freiWinkel, LAGEN_MASCHINE, PLATTEN, SPITZEN, fraeserUmriss, plattenForm, plattenUmriss, wzArt, wzArten, wzFehler, wzFelder } from "./camWerkzeug.js";
 
 const BW = 340, BH = 240; // Massbild in Punkten (1 Punkt = 1 Pixel)
@@ -307,6 +308,7 @@ export function WerkzeugFeld({ b, setze, zu }) {
           {wz.sl && <LageBild wz={wz} />}
         </div>}
       </div>}
+      {wz.form && <StepFeld wz={wz} art={art} setze={setze} />}
       {!wz.form && <p className="klein cam-wz__hinweis">Form antippen, dann die Masse direkt im Bild eintragen.</p>}
       <p className="klein cam-wz__hinweis">{art === "dreh"
         ? "Freiwillig, für die Simulation. Rot = fehlt noch."
