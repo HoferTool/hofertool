@@ -170,7 +170,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.640.1";
+const APP_VERSION = "1.641.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4852,7 +4852,10 @@ async function ladeFerien() {
       .select("*, profiles!vacations_genehmigt_von_fkey(full_name)")
       .order("von").order("id"), 10000, "Ferien");
   if (error) throw error;
-  return data || [];
+  // Seit 1.641.0 (Patrick 19. November 2026: „krankheit soll nicht mehr auf
+  // die planwand, ausser bei geplant, wie z.b operation“): Einträge mit
+  // planwand = false (ungeplante Krankheit aus HOFERTIME) zählen nur dort.
+  return (data || []).filter((f) => f.planwand !== false);
 }
 
 

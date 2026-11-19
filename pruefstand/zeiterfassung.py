@@ -99,6 +99,21 @@ with sync_playwright() as p:
     pruefe(not pf, "keine Fehler im Browser: %s" % pf)
     br.close()
 
+    # Ungeplante Krankheit steht nicht auf der Planwand, nur hier, mit Löschen (1.641.0)
+    br, pg, pf = start(p, "admin", extra="TEST.rpc.zeit_abwesenheiten_liste = () => [{id: 'k1', person: 'x', von: '%s', tage: 1, abwesenheit: 'krankheit', planwand: false}];" % tag_fehlt)
+    pg.evaluate("location.hash='#/zeit'"); pg.wait_for_selector("#ze-knopf")
+    pg.click("#ze-monat"); pg.wait_for_timeout(600)
+    zl = pg.locator("[data-ze-tag='%s']" % tag_fehlt)
+    pruefe("Krankheit" in zl.inner_text(), "Krankheit ohne Planwand zählt in HOFERTIME")
+    zl.locator(".ze-zeile").click(); pg.wait_for_selector("[data-ze-krank='k1']")
+    pruefe("nicht auf der Planwand" in pg.inner_text("[data-ze-krank='k1']"), "Tag zeigt „nicht auf der Planwand“")
+    pg.click("[data-ze-krank='k1'] button"); pg.wait_for_selector(".dialog-huelle [data-ja]")
+    pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(600)
+    r = pg.evaluate("() => TEST.protokoll.filter(x => x.art === 'rpc' && x.name === 'zeit_abwesenheit_loeschen').map(x => x.args)")
+    pruefe(len(r) == 1 and r[0]["p_id"] == "k1", "Löschen ruft zeit_abwesenheit_loeschen: %s" % r)
+    pruefe(not pf, "keine Fehler im Browser: %s" % pf)
+    br.close()
+
     # Stundenlohn: aufgelaufene Stunden im Monat (seit 1.635.0)
     sl = [{"id": "h1", "person_id": "u1", "art": "kommen", "zeit": iso(tag_fehlt, "07:00:00"), "quelle": "pc"},
           {"id": "h2", "person_id": "u1", "art": "gehen", "zeit": iso(tag_fehlt, "11:00:00"), "quelle": "pc"},
@@ -143,12 +158,13 @@ with sync_playwright() as p:
     pruefe(pg.locator("#ze-reiter-alle").count() == 0, "nur_zeit: keine Admin-Reiter")
     pg.screenshot(path=BILD + "/zeit-handy.png", full_page=True)
     # Selbst abwesend eintragen (1.629.0): über die Funktion in der Datenbank
-    pg.evaluate("TEST.rpc.zeit_abwesend_eintragen = () => 'neu1'")
+    pg.evaluate("TEST.rpc.zeit_abwesend_neu = () => 'neu1'")
     pg.locator("[data-ze-tag] button.ze-zeile").first.click(); pg.wait_for_selector("[data-ze-abwesend]", timeout=8000)
     pg.click("[data-ze-abwesend]"); pg.wait_for_selector(".dialog-huelle select")
     pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(900)
-    r = pg.evaluate("() => TEST.protokoll.filter(x => x.art === 'rpc' && x.name === 'zeit_abwesend_eintragen').map(x => x.args)")
-    pruefe(len(r) == 1 and r[0]["p_art"] == "krankheit" and r[0]["p_tage"] == 1, "nur_zeit: selbst abwesend eingetragen: %s" % r)
+    r = pg.evaluate("() => TEST.protokoll.filter(x => x.art === 'rpc' && x.name === 'zeit_abwesend_neu').map(x => x.args)")
+    pruefe(len(r) == 1 and r[0]["p_art"] == "krankheit" and r[0]["p_tage"] == 1 and r[0]["p_geplant"] is False,
+           "nur_zeit: selbst abwesend eingetragen, ungeplant (1.641.0): %s" % r)
     pruefe(not pf, "keine Fehler im Browser: %s" % pf)
     br.close()
 
