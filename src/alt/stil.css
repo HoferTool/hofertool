@@ -14856,3 +14856,7 @@ body.dunkel .auf-fruehere { background: #3a3012; border-color: #8a6d1e; }
 /* Gravur: Drehung mit Knopf 90° daneben (1.639.0) */
 .grav-drehen { display: flex; align-items: flex-end; gap: 8px; }
 .grav-drehen > .feld { flex: 1; min-width: 0; }
+
+/* HOFERTIME: Paar mit Stempelart (Krankheit, Arzt …), seit 1.640.0 */
+.ze-paar--art { border-style: dashed; color: #8a4b00; background: #fff4e5; }
+body.dunkel .ze-paar--art { background: #3a2a12; }

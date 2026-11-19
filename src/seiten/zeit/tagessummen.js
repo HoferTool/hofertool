@@ -11,7 +11,7 @@
 import { alt } from "../../bruecke.jsx";
 import {
   paareRechnen, tageRechnen, feiertageEintragen, abwesendeTage, sollTag, sollJeTag, freierTag, ferienStand, tagVon, uhrzeit,
-  minutenJeFerientag,
+  minutenJeFerientag, stempelartName, sollBisher,
 } from "../../daten/zeit.js";
 import { ABW_NAMEN } from "../../daten/zeitAuswertung.js";
 
@@ -47,7 +47,7 @@ export function tagessummen(x, von, bis, stufen) {
     for (let d = erster; d <= ende; d = alt.plusTage(d, 1)) {
       for (const b of buch) if (b.datum === d) min += Number(b.minuten) || 0;
       const ist = tage.get(d) ? tage.get(d).minuten : 0;
-      min += ist - (d < heute ? sollTag(d, einst, abw) : 0);
+      min += ist - sollBisher(d, heute, einst, abw, ist);
       gz.set(d, min);
     }
   }
@@ -61,6 +61,7 @@ export function tagessummen(x, von, bis, stufen) {
   const zeilen = [];
   let sIst = 0, sSoll = 0, ferienBezug = 0;
   const arten = {};
+  const stempelArten = {};
   for (let d = von; d <= ende; d = alt.plusTage(d, 1)) {
     const t = tage.get(d);
     const ist = t ? t.minuten : 0;
@@ -74,7 +75,14 @@ export function tagessummen(x, von, bis, stufen) {
       if (a === "ferien") ferienBezug++;
     }
     sIst += ist; sSoll += soll;
-    const paare = t ? t.paare.map((p) => (p.kommen ? uhrzeit(p.kommen.zeit) : "?") + "-" + (p.gehen ? uhrzeit(p.gehen.zeit) : (p.laeuft ? "jetzt" : "?"))).join(", ") : "";
+    const paare = t ? t.paare.map((p) => (p.kommen ? uhrzeit(p.kommen.zeit) : "?") + "-" + (p.gehen ? uhrzeit(p.gehen.zeit) : (p.laeuft ? "jetzt" : "?"))
+      + (p.stempelart ? " " + stempelartName(p.stempelart) : "")).join(", ") : "";
+    // Stunden mit Stempelart (Rest vom Tag krank …) als eigene Buchungsart
+    if (t && t.arten) Object.entries(t.arten).forEach(([sa, m]) => {
+      const k = "stempel:" + sa;
+      stempelArten[k] = stempelArten[k] || { name: stempelartName(sa), min: 0 };
+      stempelArten[k].min += m;
+    });
     zeilen.push({
       tag: d, wt: WT[alt.ausIso(d).getDay()], frei: freierTag(d), soll, ist,
       diff: soll || ist ? ist - soll : null, gz: gzVor(d), ferien: ferienAm(d),
@@ -85,7 +93,7 @@ export function tagessummen(x, von, bis, stufen) {
   const vorTag = alt.plusTage(von, -1);
   return {
     name: x.name, abteilung: x.abteilung, monat, von, bis: alt.plusTage(bis, -1), ende,
-    zeilen: zeilen.reverse(), ist: sIst, soll: sSoll, ferienBezug, arten,
+    zeilen: zeilen.reverse(), ist: sIst, soll: sSoll, ferienBezug, arten, stempelArten,
     gzVor: gzVor(vorTag), gzEnde: gzVor(ende), ferienVor: ferienAm(vorTag), ferienEnde: ferienAm(ende),
     tagMin: minutenJeFerientag(einst),
   };
@@ -139,6 +147,7 @@ function blattHtml(t, erstes) {
     + "</tbody></table>"
     + "<h3>Summen pro Buchungsart</h3><table><tbody>"
     + arten.map(([a, v]) => "<tr><td>Abwesend " + e(ABW_NAMEN[a] || a) + "</td><td class='r'>" + v.tage + (v.tage === 1 ? " Tag" : " Tage") + "</td><td class='r'>" + hm(v.min) + "</td></tr>").join("")
+    + Object.values(t.stempelArten || {}).map((v) => "<tr><td>Gestempelt " + e(v.name) + "</td><td></td><td class='r'>" + hm(v.min) + "</td></tr>").join("")
     + "<tr><td>Anwesend</td><td></td><td class='r'>" + hm(t.ist) + "</td></tr>"
     + "</tbody></table></div>";
 }

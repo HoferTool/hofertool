@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
 import { alt, useDaten, useGemerkt } from "../bruecke.jsx";
 import {
   paareRechnen, tageRechnen, stand, stempeln, stempelLaden, uhrzeit, dauerText, tagVon,
-  montag, tagePlus, ausFeldern, sollTag, abwesendeTage, freierTag, ferienStand, fehlerSuchen, feiertageEintragen, feiertageLaden, saldoRechnen, saldoVerlauf, ferienStufenLaden, buchungenLaden, minutenJeFerientag, jubilaeen } from "../daten/zeit.js";
+  montag, tagePlus, ausFeldern, sollTag, abwesendeTage, freierTag, ferienStand, fehlerSuchen, feiertageEintragen, feiertageLaden, saldoRechnen, saldoVerlauf, ferienStufenLaden, buchungenLaden, minutenJeFerientag, jubilaeen, STEMPELARTEN, stempelartName } from "../daten/zeit.js";
 import { zeitApp, istTerminal, terminalSetzen } from "./zeit/app.js";
 import { feiertageOeffnen, stufenOeffnen } from "./zeit/Feiertage.jsx";
 import { profilOeffnen } from "./zeit/Profil.jsx";
@@ -293,7 +293,7 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
           <button className="knopf knopf--klein" onClick={() => setBezug(heute)}>Heute</button>
         </div>
         <div className="ze-umschalter">
-          <button className="knopf knopf--klein" id="ze-nachtragen" onClick={() => nachtragen(personId, heute, neu)}>+ Nachtragen</button>
+          <button className="knopf knopf--klein" id="ze-nachtragen" onClick={() => anwesendNachtragen(personId, heute, neu, stempelAlle)}>+ Nachtragen</button>
           <button className="knopf knopf--klein" id="ze-verlauf" onClick={() => verlaufZeigen(personId, name)}>Verlauf</button>
           <button className="knopf knopf--klein" id="ze-pdf" onClick={pdfMachen}>⬇ PDF</button>
           {(admin || eigene) && <button className="knopf knopf--klein" id="ze-gesicht-knopf" onClick={() => gesichtOeffnen(personId, name)}>🙂 Gesicht</button>}
@@ -366,8 +366,10 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
                 <span><b>{WT[alt.ausIso(d).getDay()]}</b> {alt.kurzDatum(d)}</span>
                 <span className="ze-paare">
                   {t ? t.paare.map((p, i) => (
-                    <span key={i} className={"ze-paar" + (p.fehlt ? " ze-paar--fehlt" : "") + (p.laeuft ? " ze-paar--laeuft" : "")}>
+                    <span key={i} className={"ze-paar" + (p.fehlt ? " ze-paar--fehlt" : "") + (p.laeuft ? " ze-paar--laeuft" : "") + (p.stempelart ? " ze-paar--art" : "")}
+                      data-ze-paarart={p.stempelart || undefined}>
                       {p.kommen ? uhrzeit(p.kommen.zeit) : "?"}–{p.gehen ? uhrzeit(p.gehen.zeit) : (p.laeuft ? "jetzt" : "?")}
+                      {p.stempelart ? " " + stempelartName(p.stempelart) : ""}
                     </span>)) : null}
                   {a ? <span className="ze-abw">{ABW[a] || a}</span> : null}
                   {t && t.gutschrift ? <span className="ze-abw ze-gutschrift">Spätschicht +{dauerText(t.gutschrift)}</span> : null}
@@ -382,6 +384,7 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
                   {spalte.has(d) ? dauerText(spalte.get(d)) : ""}</span>}
               </button>
               {offen === d && <TagOffen tag={d} stempel={stempelAlle.filter((x) => tagVon(x.zeit) === d)} personId={personId} neu={neu}
+                alle={stempelAlle} tagInfo={t} soll={sollTag(d, einst, abw)}
                 abwesendDarf={admin || eigene} selbst={!admin} planName={planName(einst, konto, name)} />}
             </div>);
         })}
@@ -398,7 +401,7 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
       {monatslohn && <p className="klein ze-erklaerung">
         Soll je Arbeitstag {dauerText(einst ? (einst.soll_woche_h * einst.pensum / 100 / 5) * 60 : 0)}
         {einst ? " (" + alt.zahlText(Number(einst.soll_woche_h)) + " h Woche, " + alt.zahlText(Number(einst.pensum)) + " %)" : " · noch keine Sollzeit eingestellt"}.
-        Kein Soll an Wochenenden, Feiertagen, Betriebsferien und bei Ferien, Militär oder Feuerwehr auf der Planwand. Heute zählt das Soll erst am Abend.
+        Kein Soll an Wochenenden, Feiertagen, Betriebsferien und bei Ferien, Militär oder Feuerwehr auf der Planwand. Heute zählt das Soll erst, wenn es erreicht ist: die Gleitzeit steigt erst darüber.
         {saldo && saldo.ab ? " Saldo ab " + alt.kurzDatum(saldo.ab) + "." : ""}
       </p>}
     </>
@@ -442,19 +445,25 @@ function GleitzeitVerlauf({ verlauf, liste, heute, zumTag, titel }) {
     </section>);
 }
 
-function TagOffen({ tag, stempel, personId, neu, abwesendDarf, selbst, planName: wer }) {
+function TagOffen({ tag, stempel, personId, neu, abwesendDarf, selbst, planName: wer, alle, tagInfo, soll }) {
+  const rest = soll - (tagInfo ? tagInfo.minuten : 0);
+  const gearbeitet = tagInfo && tagInfo.paare.some((p) => !p.stempelart && p.kommen);
   return (
     <div className="ze-offen">
       {stempel.length ? stempel.map((s) => (
         <div key={s.id} className="ze-eintrag" data-ze-stempel={s.id}>
           <b className={s.art === "kommen" ? "ze-plus" : "ze-minus"}>{s.art === "kommen" ? "Kommen" : "Gehen"}</b>
           <b>{uhrzeit(s.zeit)}</b>
+          {s.stempelart ? <span className="ze-abw">{stempelartName(s.stempelart)}</span> : null}
           <span className="klein">{[quelleText(s.quelle), s.notiz, s.geaendert_am ? "geändert " + alt.datumZeitKurz(s.geaendert_am) : ""].filter(Boolean).join(" · ")}</span>
           <button className="knopf knopf--klein" onClick={() => aendern(s, neu)}>Ändern</button>
           <button className="knopf knopf--klein knopf--gefahr" onClick={() => loeschen(s, neu)}>Löschen</button>
         </div>)) : <p className="klein">Keine Stempelungen.</p>}
       <div className="ze-offen__knoepfe">
-        <button className="knopf knopf--klein knopf--haupt" onClick={() => nachtragen(personId, tag, neu)}>+ Stempelung an diesem Tag</button>
+        <button className="knopf knopf--klein knopf--haupt" data-ze-anwesend onClick={() => anwesendNachtragen(personId, tag, neu, alle)}>+ Anwesend von – bis</button>
+        {gearbeitet && rest > 0 && <button className="knopf knopf--klein" data-ze-rest onClick={() => restVomTag(personId, tag, neu, tagInfo, rest)}>
+          Rest vom Tag ({dauerText(rest)}) …</button>}
+        <button className="knopf knopf--klein" data-ze-einzeln onClick={() => nachtragen(personId, tag, neu)}>Einzelne Stempelung</button>
         {abwesendDarf && <button className="knopf knopf--klein" data-ze-abwesend onClick={() => abwesendEintragen(wer, tag, neu, selbst)}>Abwesend …</button>}
       </div>
     </div>
@@ -541,8 +550,95 @@ function stempelFelder(s, tag) {
     { name: "art", label: "Art", wert: s ? s.art : "kommen", auswahl: [["kommen", "Kommen"], ["gehen", "Gehen"]] },
     { name: "datum", label: "Datum", typ: "date", wert: s ? tagVon(s.zeit) : tag, pflicht: true },
     { name: "zeit", label: "Uhrzeit", typ: "time", wert: s ? uhrzeit(s.zeit) : "", pflicht: true },
+    { name: "stempelart", label: "Stempelart", wert: s ? s.stempelart || "" : "", auswahl: STEMPELARTEN.map((a) => [a.id, a.name]) },
     { name: "notiz", label: "Grund / Notiz (freiwillig)", wert: s ? s.notiz || "" : "", platzhalter: "z.B. Stempeln vergessen" },
   ];
+}
+
+// Ohne die Spalte stempelart (sql/hofertime-7-stempelart.sql noch nicht
+// eingespielt) geht Arbeit weiter, eine andere Art meldet es verständlich.
+function ohneArtSpalte(e) { return /stempelart/i.test(String((e && e.message) || "")); }
+
+// Anwesend von – bis (seit 1.640.0, Wunsch Patrick 19. November 2026:
+// „Stempelfunktion für anwesend von bis anstelle von einzelnen
+// Stempelungen, wenn man etwas nachtragen will“): legt Kommen und Gehen
+// in einem Zug an, beide mit derselben Stempelart; ein Rückgängig für beide.
+async function anwesendNachtragen(personId, tag, neu, alle) {
+  const w = await alt.dialogFelder({ titel: "Anwesend nachtragen", felder: [
+    { name: "datum", label: "Datum", typ: "date", wert: tag, pflicht: true },
+    { name: "von", label: "Von", typ: "time", wert: "", pflicht: true },
+    { name: "bis", label: "Bis", typ: "time", wert: "", pflicht: true },
+    { name: "stempelart", label: "Stempelart", wert: "", auswahl: STEMPELARTEN.map((a) => [a.id, a.name]) },
+    { name: "notiz", label: "Grund / Notiz (freiwillig)", wert: "", platzhalter: "z.B. Stempeln vergessen" },
+  ], bestaetigen: "Speichern" });
+  if (!w) return;
+  const von = ausFeldern(w.datum, w.von);
+  const bis = ausFeldern(w.datum, w.bis);
+  if (!von || !bis) { alt.meldung("Datum, Von und Bis prüfen.", "warn"); return; }
+  if (new Date(bis) <= new Date(von)) { alt.meldung("Bis muss nach Von sein.", "warn"); return; }
+  // Überschneidung mit schon erfassten Paaren dieses Tages
+  const tagPaare = paareRechnen((alle || []).filter((x) => tagVon(x.zeit) === w.datum)).filter((p) => p.kommen && p.gehen);
+  const ms = (x) => new Date(x).getTime();
+  const kreuzt = tagPaare.find((p) => ms(p.kommen.zeit) < ms(bis) && ms(p.gehen.zeit) > ms(von));
+  if (kreuzt) {
+    alt.meldung("Überschneidet sich mit " + uhrzeit(kreuzt.kommen.zeit) + "–" + uhrzeit(kreuzt.gehen.zeit) + ". Bitte zuerst dort ändern.", "warn");
+    return;
+  }
+  await paarEinfuegen(personId, von, bis, w.stempelart || "", w.notiz, "Anwesend nachtragen", neu);
+}
+
+async function paarEinfuegen(personId, von, bis, art, notiz, text, neu, vorher) {
+  const zeile = (a, zeit) => {
+    const z = { person_id: personId, art: a, zeit, quelle: "nachgetragen", notiz: String(notiz || "").trim() || null };
+    if (art) z.stempelart = art;
+    return z;
+  };
+  const zeilen = (vorher || []).concat([zeile("kommen", von), zeile("gehen", bis)]);
+  const r = await alt.db.from("zeit_stempel").insert(zeilen).select("id");
+  if (r.error) {
+    alt.meldung(ohneArtSpalte(r.error) ? "Stempelart ist in der Datenbank noch nicht eingerichtet. Bitte einem Admin melden." : alt.fehlertext(r.error), "fehler");
+    return false;
+  }
+  alt.merkeSchritt(text, (r.data || []).map((x) => alt.rueckWeg("zeit_stempel", { id: x.id })));
+  alt.meldung("Gespeichert.", "gut");
+  neu();
+  return true;
+}
+
+// Rest vom Tag (seit 1.640.0, Wunsch Patrick 19. November 2026: „wenn
+// jemand angefangen hat zu arbeiten und dann wegen krank oder so nach
+// Hause muss, … Rest vom Tag mit krank etc. ausfüllen bis auf Sollzeit“):
+// ab dem Gehen ein Paar mit der gewählten Art, so lang, dass der Tag
+// die Sollzeit erreicht. Ist die Person noch eingestempelt, kommt das
+// Gehen zur gewählten Zeit gleich dazu.
+async function restVomTag(personId, tag, neu, t, rest) {
+  const laeuft = t.paare.find((p) => p.laeuft);
+  const letzte = t.paare.filter((p) => p.gehen).map((p) => p.gehen.zeit).sort((a, b) => new Date(a) - new Date(b)).pop();
+  const vorschlag = laeuft ? uhrzeit(new Date().toISOString()) : (letzte ? uhrzeit(letzte) : "");
+  const w = await alt.dialogFelder({ titel: "Rest vom Tag",
+    text: "Füllt den Tag bis zur Sollzeit auf. Noch " + dauerText(rest) + (laeuft ? ". Du bist noch eingestempelt, das Gehen kommt zur Uhrzeit unten dazu." : "."),
+    felder: [
+      { name: "stempelart", label: "Grund", wert: "krankheit", auswahl: STEMPELARTEN.filter((a) => a.id).map((a) => [a.id, a.name]) },
+      { name: "ab", label: laeuft ? "Gegangen um" : "Ab", typ: "time", wert: vorschlag, pflicht: true },
+      { name: "notiz", label: "Notiz (freiwillig)", wert: "" },
+    ], bestaetigen: "Auffüllen" });
+  if (!w) return;
+  const ab = ausFeldern(tag, w.ab);
+  if (!ab) { alt.meldung("Uhrzeit prüfen.", "warn"); return; }
+  let min = rest;
+  const vorher = [];
+  if (laeuft) {
+    if (new Date(ab) <= new Date(laeuft.kommen.zeit)) { alt.meldung("Gegangen muss nach dem Kommen sein (" + uhrzeit(laeuft.kommen.zeit) + ").", "warn"); return; }
+    // Das laufende Paar zählte bis jetzt; mit dem gewählten Gehen neu rechnen
+    const bisher = (new Date() - new Date(laeuft.kommen.zeit)) / 6e4;
+    const echt = (new Date(ab) - new Date(laeuft.kommen.zeit)) / 6e4;
+    min = rest + bisher - echt;
+    vorher.push({ person_id: personId, art: "gehen", zeit: ab, quelle: "nachgetragen", notiz: null });
+  } else if (letzte && new Date(ab) < new Date(letzte)) { alt.meldung("Ab muss nach dem letzten Gehen sein (" + uhrzeit(letzte) + ").", "warn"); return; }
+  min = Math.round(min);
+  if (min <= 0) { alt.meldung("Die Sollzeit ist schon erreicht.", "warn"); return; }
+  const bis = new Date(new Date(ab).getTime() + min * 6e4).toISOString();
+  await paarEinfuegen(personId, ab, bis, w.stempelart, w.notiz || "Rest vom Tag", "Rest vom Tag " + stempelartName(w.stempelart), neu, vorher);
 }
 
 async function nachtragen(personId, tag, neu) {
@@ -550,8 +646,9 @@ async function nachtragen(personId, tag, neu) {
   if (!w) return;
   const zeit = ausFeldern(w.datum, w.zeit);
   if (!zeit) { alt.meldung("Datum und Uhrzeit prüfen.", "warn"); return; }
-  const r = await alt.db.from("zeit_stempel").insert({ person_id: personId, art: w.art, zeit, quelle: "nachgetragen", notiz: w.notiz || null })
-    .select("id").single();
+  const z = { person_id: personId, art: w.art, zeit, quelle: "nachgetragen", notiz: w.notiz || null };
+  if (w.stempelart) z.stempelart = w.stempelart;
+  const r = await alt.db.from("zeit_stempel").insert(z).select("id").single();
   if (r.error) { alt.meldung(alt.fehlertext(r.error), "fehler"); return; }
   alt.merkeSchritt("Stempelung nachtragen", alt.rueckWeg("zeit_stempel", { id: r.data.id }));
   alt.meldung("Nachgetragen.", "gut");
@@ -563,9 +660,14 @@ async function aendern(s, neu) {
   if (!w) return;
   const zeit = ausFeldern(w.datum, w.zeit);
   if (!zeit) { alt.meldung("Datum und Uhrzeit prüfen.", "warn"); return; }
-  const r = await alt.db.from("zeit_stempel").update({ art: w.art, zeit, notiz: w.notiz || null }).eq("id", s.id);
-  if (r.error) { alt.meldung(alt.fehlertext(r.error), "fehler"); return; }
-  alt.merkeSchritt("Stempelung ändern", alt.rueckSetz("zeit_stempel", { art: s.art, zeit: s.zeit, notiz: s.notiz }, { id: s.id }));
+  const neuArt = w.stempelart || null;
+  const aend = { art: w.art, zeit, notiz: w.notiz || null };
+  if (neuArt !== (s.stempelart || null)) aend.stempelart = neuArt;
+  const r = await alt.db.from("zeit_stempel").update(aend).eq("id", s.id);
+  if (r.error) { alt.meldung(ohneArtSpalte(r.error) ? "Stempelart ist in der Datenbank noch nicht eingerichtet." : alt.fehlertext(r.error), "fehler"); return; }
+  const alt0 = { art: s.art, zeit: s.zeit, notiz: s.notiz };
+  if ("stempelart" in aend) alt0.stempelart = s.stempelart || null;
+  alt.merkeSchritt("Stempelung ändern", alt.rueckSetz("zeit_stempel", alt0, { id: s.id }));
   alt.meldung("Geändert.", "gut");
   neu();
 }

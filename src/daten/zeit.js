@@ -10,6 +10,28 @@ import { alt } from "../bruecke.jsx";
 
 export const MAX_PAAR_STUNDEN = 16;   // länger offen = Gehen vergessen
 
+// Stempelart (seit 1.640.0, Wunsch Patrick 19. November 2026: „anwesend
+// von bis … dort soll auch die Stempelart eingetragen werden können“,
+// „Rest vom Tag mit krank etc. ausfüllen bis auf Sollzeit“). Leer = Arbeit.
+// Eine andere Art steht an beiden Stempelungen des Paars (zeit_stempel.
+// stempelart, sql/hofertime-7-stempelart.sql). Bezahlte Arten zählen als
+// Zeit wie Arbeit; Kompensieren zählt nicht, das Soll bleibt, die Stunden
+// gehen also von der Gleitzeit ab.
+export const STEMPELARTEN = [
+  { id: "", name: "Arbeit" },
+  { id: "krankheit", name: "Krankheit" },
+  { id: "unfall", name: "Unfall" },
+  { id: "arzt", name: "Arzt / Zahnarzt" },
+  { id: "militaer", name: "Militär/Zivilschutz" },
+  { id: "feuerwehr", name: "Feuerwehr" },
+  { id: "schule", name: "Schule" },
+  { id: "kompensieren", name: "Kompensieren (von der Gleitzeit)" },
+];
+export function stempelartName(id) {
+  const a = STEMPELARTEN.find((x) => x.id === (id || ""));
+  return a ? a.name.replace(/ \(.*\)$/, "") : id;
+}
+
 export function tagVon(iso) {
   const d = new Date(iso);
   return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
@@ -50,7 +72,9 @@ export function paareRechnen(stempel, jetzt = new Date()) {
   }
   for (const p of paare) {
     const ende = p.gehen ? new Date(p.gehen.zeit) : (p.laeuft ? jetzt : null);
-    p.minuten = p.kommen && ende ? Math.max(0, (ende - new Date(p.kommen.zeit)) / 6e4) : 0;
+    p.dauer = p.kommen && ende ? Math.max(0, (ende - new Date(p.kommen.zeit)) / 6e4) : 0;
+    p.stempelart = (p.kommen && p.kommen.stempelart) || (p.gehen && p.gehen.stempelart) || "";
+    p.minuten = p.stempelart === "kompensieren" ? 0 : p.dauer;
     p.tag = tagVon((p.kommen || p.gehen).zeit);
   }
   return paare;
@@ -68,8 +92,9 @@ export const SPAET = { ab: 11 * 60, nach: 18 * 60, minuten: 150 };
 const tagesMinute = (iso) => { const d = new Date(iso); return d.getHours() * 60 + d.getMinutes(); };
 export function spaetGutschrift(t, einst) {
   if (!t || t.fehler || !einst || einst.spaet_gutschrift !== true) return 0;
-  const kommen = t.paare.filter((p) => p.kommen).map((p) => p.kommen.zeit).sort();
-  const gehen = t.paare.filter((p) => p.gehen).map((p) => p.gehen.zeit).sort();
+  const arbeit = t.paare.filter((p) => !p.stempelart);
+  const kommen = arbeit.filter((p) => p.kommen).map((p) => p.kommen.zeit).sort();
+  const gehen = arbeit.filter((p) => p.gehen).map((p) => p.gehen.zeit).sort();
   if (!kommen.length || !gehen.length) return 0;
   const letztes = gehen[gehen.length - 1];
   if (tagVon(letztes) !== t.tag) return 0;
@@ -82,9 +107,10 @@ export function tageRechnen(paare, einst) {
   const tage = new Map();
   for (const p of paare) {
     let t = tage.get(p.tag);
-    if (!t) { t = { tag: p.tag, paare: [], minuten: 0, fehler: 0 }; tage.set(p.tag, t); }
+    if (!t) { t = { tag: p.tag, paare: [], minuten: 0, fehler: 0, arten: {} }; tage.set(p.tag, t); }
     t.paare.push(p);
     t.minuten += p.minuten;
+    if (p.stempelart) t.arten[p.stempelart] = (t.arten[p.stempelart] || 0) + p.dauer;
     if (p.fehlt) t.fehler++;
   }
   if (einst !== undefined) tage.forEach((t) => { t.gutschrift = spaetGutschrift(t, einst); t.minuten += t.gutschrift; });
@@ -219,6 +245,17 @@ export function abwesendeTage(ferien, name, weitere) {
   return tage;
 }
 
+// Soll, das bis jetzt zählt (seit 1.640.0, Patrick 19. November 2026:
+// „warum steigt die Gleitzeit, obwohl die Sollzeit noch nicht erreicht
+// ist?“): frühere Tage ganz; heute höchstens so viel, wie schon gearbeitet
+// wurde. So bleibt die Gleitzeit während des Tages stehen und steigt erst,
+// wenn die Sollzeit überschritten ist. Am Abend zählt das ganze Soll.
+export function sollBisher(tag, heute, einst, abwesend, ist) {
+  if (tag < heute) return sollTag(tag, einst, abwesend);
+  if (tag > heute) return 0;
+  return Math.min(sollTag(tag, einst, abwesend), Math.max(0, ist || 0));
+}
+
 export function sollTag(tag, einst, abwesend) {
   if (freierTag(tag)) return 0;
   const a = abwesend && abwesend.get(tag);
@@ -330,7 +367,7 @@ export function saldoVerlauf(einst, stempelAlle, ferien, buchungen) {
   let min = einst.saldo_start_min || 0;
   for (let d = erster; d <= heute; d = alt.plusTage(d, 1)) {
     const ist = tage.get(d) ? tage.get(d).minuten : 0;
-    min += (jeTag.get(d) || 0) + ist - (d < heute ? sollTag(d, einst, abw) : 0);
+    min += (jeTag.get(d) || 0) + ist - sollBisher(d, heute, einst, abw, ist);
     aus.set(d, min);
   }
   // Vor dem Saldo-Beginn zurückgerechnet (seit 1.635.0, Wunsch Patrick
@@ -363,7 +400,7 @@ export function saldoRechnen(einst, stempelAlle, ferien, name, buchungen) {
   for (let d = erster; d <= heute; d = alt.plusTage(d, 1)) {
     const ist = tage.get(d) ? tage.get(d).minuten : 0;
     // Heute zählt das Soll erst, wenn der Tag vorbei ist
-    min += ist - (d < heute ? sollTag(d, einst, abw) : 0);
+    min += ist - sollBisher(d, heute, einst, abw, ist);
   }
   return { min, ab: erster };
 }
