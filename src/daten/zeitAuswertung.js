@@ -89,7 +89,10 @@ export function auswertungRechnen(d, filter) {
     const abwZahl = {}, monate = {}, liste = [];
     for (let t = d.von; t < d.bis; t = alt.plusTage(t, 1)) {
       const tg = tage.get(t);
-      const im = tg ? tg.minuten : 0;
+      // Bei Monatslöhnern zählt auch das Ist erst ab Beginn wie das Soll,
+      // sonst stand nach dem Einlesen der alten Stempel „135 h von 8 h“
+      // (Patrick 19.11.2026); die alten Tage stecken im Saldo-Start.
+      const im = tg && (!monatslohn || t >= beginn) ? tg.minuten : 0;
       const s = monatslohn && t < heute && t >= beginn ? sollTag(t, x.einst, abw) : 0;
       ist += im; soll += s;
       const a = abw.get(t);
