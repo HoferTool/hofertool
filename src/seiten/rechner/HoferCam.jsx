@@ -364,7 +364,7 @@ function MaschinenBild({ block, t34, gruppe }) {
   }, [!!block || !!gruppe]);
   if (gruppe && gruppe.bloecke.length) return <GruppenBild gruppe={gruppe} t34={t34} ref_={ref} mass={mass} />;
   if (!block) return null;
-  const r = bildBereich(block);
+  const r = bildBereich(block, t34);
   // Seit 1.426.3 (Patrick: „soll gut lesbar sein“): grösser, Rest des
   // Bilds abgedunkelt, Platz als Schild mit Grund über dem Werkzeug
   const t = "T" + block.platz;
@@ -380,7 +380,7 @@ function MaschinenBild({ block, t34, gruppe }) {
         </mask></defs>
         {/* Seit 1.584.0 (Patrick 16. November 2026: „im Werkzeug-Auswahlbild nur die Einheit anzeigen,
             welche montiert ist“): mit T3400 ein Bild ohne T3421–T3423 */}
-        <image href={import.meta.env.BASE_URL + (t34 === "3400" ? "hilfe/star-sb20rg-ohne34.png" : "hilfe/star-sb20rg.png")} x="0" y="0" width="512" height="512" />
+        <image href={import.meta.env.BASE_URL + (t34 === "3400" ? "hilfe/star-sb20rg-ohne34b.png" : "hilfe/star-sb20rg.png")} x="0" y="0" width="512" height="512" />
         <rect x="0" y="0" width="512" height="512" fill="rgba(20,30,45,.45)" mask="url(#cam-bild-maske)" />
         <rect className={"cam-bild__rahmen" + (r.verdeckt ? " cam-bild__rahmen--verdeckt" : "")} x={r.x} y={r.y} width={r.w} height={r.h} rx="5" />
         <rect className="cam-bild__schildgrund" x={sx} y={sy} width={sb} height={sh} rx="8" />
@@ -399,7 +399,7 @@ function MaschinenBild({ block, t34, gruppe }) {
 // so gross wie ein Kärtchen, nicht wie beim Platz einer Bearbeitung
 const GRUPPE_BILD = 300;
 function GruppenBild({ gruppe, t34, ref_, mass }) {
-  const rs = gruppe.bloecke.map((b) => bildBereich(b));
+  const rs = gruppe.bloecke.map((b) => bildBereich(b, t34));
   return (
     <div className="cam-bild cam-bild--gruppe" id="cam-bild" data-gruppe={gruppe.art} data-bereiche={rs.length} ref={ref_} style={{ width: Math.min(mass || GRUPPE_BILD, GRUPPE_BILD) + 12 }}>
       <svg viewBox="0 0 512 512">
@@ -407,7 +407,7 @@ function GruppenBild({ gruppe, t34, ref_, mass }) {
           <rect x="0" y="0" width="512" height="512" fill="#fff" />
           {rs.map((r, i) => <rect key={i} x={r.x - 3} y={r.y - 3} width={r.w + 6} height={r.h + 6} rx="6" fill="#000" />)}
         </mask></defs>
-        <image href={import.meta.env.BASE_URL + (t34 === "3400" ? "hilfe/star-sb20rg-ohne34.png" : "hilfe/star-sb20rg.png")} x="0" y="0" width="512" height="512" />
+        <image href={import.meta.env.BASE_URL + (t34 === "3400" ? "hilfe/star-sb20rg-ohne34b.png" : "hilfe/star-sb20rg.png")} x="0" y="0" width="512" height="512" />
         <rect x="0" y="0" width="512" height="512" fill="rgba(20,30,45,.45)" mask="url(#cam-bild-maske)" />
         {rs.map((r, i) => <rect key={i} className={"cam-bild__rahmen cam-bild__rahmen--blink" + (r.verdeckt ? " cam-bild__rahmen--verdeckt" : "")}
           x={r.x} y={r.y} width={r.w} height={r.h} rx="5" />)}

@@ -33,7 +33,7 @@ with sync_playwright() as p:
     pg.click("#cam-neu-seite")
     pg.hover("[data-block='1'] [data-camblock-platzfeld]"); pg.wait_for_timeout(300)
     href = pg.get_attribute("#cam-bild image", "href") if pg.locator("#cam-bild image").count() else ""
-    pruefe("Maschinenbild ohne T3421–T3423", "star-sb20rg-ohne34.png" in (href or ""))
+    pruefe("Maschinenbild ohne T3421–T3423", "star-sb20rg-ohne34b.png" in (href or ""))
     pg.locator("#cam-bild").screenshot(path=S + "bild_t3400.png")
     pg.select_option("[data-cam='t34']", "3421")
     pg.hover("[data-block='1'] [data-camblock-platzfeld]"); pg.wait_for_timeout(300)
@@ -46,6 +46,10 @@ with sync_playwright() as p:
     pg.select_option("[data-cam='t34']", "3400"); pg.hover("[data-cam-t34feld]"); pg.wait_for_timeout(300)
     pruefe("Bild bei Platz 34 (T3400)", pg.locator("#cam-bild[data-gruppe='t34'][data-bereiche='1']").count() == 1)
     pg.locator("#cam-bild").screenshot(path=S + "bild_platz34.png")
+    # seit 1.654.3: Frontwerkzeuge zur Hauptspindel sichtbar, nicht gestrichelt
+    pg.hover("#cam-neu-front"); pg.wait_for_timeout(300)
+    pruefe("Frontwerkzeuge Hauptspindel sichtbar", pg.locator("#cam-bild .cam-bild__rahmen--verdeckt").count() == 0 and pg.locator("#cam-bild .cam-bild__rahmen").count() == 8)
+    pg.locator("#cam-bild").screenshot(path=S + "bild_front3400.png")
     pg.select_option("[data-cam='t34']", "3421")
     pruefe("Nach Rückwechsel T342x wieder ok", pg.locator("[data-camblock-nichtmontiert]").count() == 0)
     # seit 1.591.0: Erklärungsbild zum Abstecher
