@@ -14912,3 +14912,7 @@ body.dunkel .ze-pablo { background: radial-gradient(circle at 50% 42%, #173f78 0
 #pad .pl-suche input { flex: 1; max-width: 560px; font-size: 16px; padding: 8px 12px; border-radius: 10px; border: 1px solid #b9c4d0; background: #fff; color: #10233a; }
 #pad .pl-suche input:focus { outline: 2px solid var(--akzent, #0b5cad); outline-offset: 1px; }
 body.dunkel #pad .pl-suche input { background: #1b2430; border-color: #3a4656; }
+
+/* HOFERTIME: Buchungen im Tagesverlauf (1.652.0) */
+.ze-paar--buchung { background: #e8f0fb; border-color: #9db8e0; color: #1d4f91; white-space: normal; }
+body.dunkel .ze-paar--buchung { background: #14243a; border-color: #2e4f7d; }

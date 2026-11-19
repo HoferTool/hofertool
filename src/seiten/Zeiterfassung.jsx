@@ -384,6 +384,14 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
                       {p.stempelart ? " " + stempelartName(p.stempelart) : ""}
                     </span>)) : null}
                   {a ? <span className="ze-abw">{ABW[a] || a}</span> : null}
+                  {/* Buchungen an diesem Tag (Umbuchung, Korrektur …), damit ein
+                      Sprung der Gleitzeit in der Zeile erklärt ist. Die Person
+                      sieht nur ihre Umbuchungen, der Admin alles (Patrick 19.11.2026). */}
+                  {sichtbar.filter((b) => String(b.datum).slice(0, 10) === d).map((b) => (
+                    <span key={"b" + b.id} className="ze-paar ze-paar--buchung" data-ze-buchung-tag={b.id}
+                      title={b.notiz || undefined}>
+                      {buchungsartName(b.art)}: {buchungText(b)}
+                    </span>))}
                   {t && t.gutschrift ? <span className="ze-abw ze-gutschrift">Spätschicht +{dauerText(t.gutschrift)}</span> : null}
                   {t && t.fehler ? <span className="ze-hinweis">Stempelung fehlt</span> : null}
                 </span>

@@ -190,6 +190,7 @@ with sync_playwright() as p:
     # Korrekturen und Auszahlungen sieht die Person nicht (1.651.0)
     pruefe("geheim" not in pg.inner_text("body") and pg.locator("[data-ze-buchung-art='korrektur_ferien']").count() == 0, "nur_zeit: Korrektur Ferien nicht sichtbar")
     pruefe(pg.locator("#ze-buchung").count() == 0, "nur_zeit: kein Knopf Buchung")
+    pruefe(pg.locator("[data-ze-buchung-tag]").count() == 0, "nur_zeit: Korrektur nicht im Tagesverlauf")
     pruefe(not pf, "keine Fehler im Browser: %s" % pf)
     br.close()
 
@@ -226,6 +227,7 @@ with sync_playwright() as p:
     pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(900)
     b = pg.evaluate("() => TEST.daten.zeit_buchungen.filter(x => x.art === 'korrektur_ferien')")
     pruefe(len(b) == 1 and b[0]["tage"] == -1.5, "Korrektur Ferien −1.5: %s" % b)
+    pruefe(pg.locator("[data-ze-buchung-tag]").count() >= 2 and "Korrektur Ferien" in pg.inner_text(".ze-tage"), "Admin sieht Buchungen im Tagesverlauf: %d" % pg.locator("[data-ze-buchung-tag]").count())
     pg.click("#ze-einst"); pg.wait_for_selector("#ze-profil")
     pg.fill("#ze-p-geburtstag", "1970-03-01"); pg.fill("#ze-p-pensum", "80")
     for n, h in [("1", "8"), ("2", "8"), ("3", "0"), ("4", "8"), ("5", "4")]: pg.fill("[data-ze-p-tag='%s']" % n, h)
@@ -248,6 +250,8 @@ with sync_playwright() as p:
     # Auswertung mit Abteilung, Grafiken und Excel
     br, pg, pf = start(p, "admin", extra="TEST.daten.zeit_feiertage = []; TEST.daten.zeit_buchungen = []; TEST.daten.zeit_ferienstufen = [];" +
         "TEST.daten.zeit_personen[0].abteilung = 'Langdreher';" +
+        # Mehr als 1'000 Stempel: die Auswertung muss seitenweise holen (1.655.0)
+        "for (let i = 0; i < 2400; i++) TEST.daten.zeit_stempel.unshift({id: 'alt' + i, person_id: 'u2', art: i % 2 ? 'gehen' : 'kommen', zeit: new Date(Date.now() - 86400000 * 40 + i * 1000).toISOString()});" +
         "TEST.rpc.zeit_abwesenheiten = () => [{person: 'x', von: '%s', tage: 1, abwesenheit: 'krankheit'}];" % tag_fehlt)
     pg.evaluate("location.hash='#/zeit'"); pg.wait_for_selector("#ze-knopf")
     pg.click("#ze-einst"); pg.wait_for_selector("#ze-p-abteilung")
@@ -259,6 +263,8 @@ with sync_playwright() as p:
     pg.wait_for_timeout(500)
     t = pg.inner_text("#ze-aus-tabelle")
     pruefe("Kurzdreher" in t, "Auswertung mit Abteilung: " + t[:200].replace("\n", " "))
+    n = pg.evaluate("() => TEST.protokoll.filter(x => x.tabelle === 'zeit_stempel' && x.art === 'select').length")
+    pruefe(n >= 3, "Auswertung holt Stempel seitenweise (%d Abfragen)" % n)
     pruefe(pg.locator("#ze-aus-g-ist .dg-zeile").count() >= 1, "Grafik Ist je Person")
     pruefe("Krankheit" in pg.inner_text("#ze-aus-g-abw").replace("\n", " ") or "Krankheit" in pg.inner_text(".ze-aus-legende"), "Grafik Abwesenheiten mit Krankheit")
     pg.click("#ze-aus-jahr"); pg.wait_for_selector("#ze-aus-g-monate", timeout=15000)

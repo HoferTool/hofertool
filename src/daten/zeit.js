@@ -147,14 +147,27 @@ export function quelleJetzt() {
 }
 
 export async function stempelLaden(personId, von, bis) {
-  let q = alt.db.from("zeit_stempel").select("*").gte("zeit", von).lt("zeit", bis).order("zeit");
-  if (personId) q = q.eq("person_id", personId);
-  const r = await alt.zeitlimit(q, 15000, "Zeiterfassung");
-  if (r.error) {
-    if (/zeit_stempel|relation|schema cache/i.test(String(r.error.message || ""))) return null;
-    throw r.error;
+  // Seitenweise je 1'000: der Server gibt nie mehr auf einmal. Die
+  // Auswertung holt alle Personen ab Jahresbeginn (über 17'000 Zeilen) und
+  // rechnete sonst nur mit den Stempeln vom Januar (Patrick 19.11.2026:
+  // Gleitzeit Tschanz 3:58 bei der Person, −6:14 in der Auswertung).
+  // Bei gleicher Zeit zuerst Gehen, dann Kommen ("gehen" < "kommen"),
+  // dann id, damit die Seiten eindeutig sind.
+  const SEITE = 1000;
+  const alle = [];
+  for (let ab = 0; ; ab += SEITE) {
+    let q = alt.db.from("zeit_stempel").select("*").gte("zeit", von).lt("zeit", bis).order("zeit").order("art").order("id");
+    if (personId) q = q.eq("person_id", personId);
+    const r = await alt.zeitlimit(q.range(ab, ab + SEITE - 1), 15000, "Zeiterfassung");
+    if (r.error) {
+      if (/zeit_stempel|relation|schema cache/i.test(String(r.error.message || ""))) return null;
+      throw r.error;
+    }
+    const d = r.data || [];
+    alle.push(...d);
+    if (d.length < SEITE) break;
   }
-  return r.data || [];
+  return alle;
 }
 
 // Stempeln jetzt. Rückgängig löscht die Zeile wieder.
