@@ -46,6 +46,17 @@ function todoModusDarf() {
   if (window.TEST && !window.TEST.navTodos) return false;
   return planerSichtbar() && !(alt.istArchiv && alt.istArchiv()) && !istPlanerTab();
 }
+// Wahl je Person (seit 1.644.0, Wunsch Patrick 19. November 2026: „dass
+// bei mir der Leistenbereich nicht verschwindet und die Todos hoch rücken
+// … man soll auswählen können, ob man es will“): mit „Menü immer zeigen“
+// unter Einstellungen → Allgemein bleiben die Menüpunkte stehen und die
+// Todos stehen darunter, ohne Wechsel nach 3 Minuten.
+export function menueFest() {
+  return alt.einstellung && alt.einstellung("navmenuefest");
+}
+export function menueFestAnwenden() {
+  if (todoModusDarf()) menueZeigen(menueFest() || document.body.classList.contains("nav--zeigt-menue"));
+}
 let menueUhr = 0, wechselUhr = 0;
 let menueSetzen = () => {};
 const WECHSEL = ["nav--zum-menue", "nav--menue-weg"];
@@ -55,13 +66,14 @@ function menueZeigen(an) {
   const b = document.body;
   if (!todoModusDarf()) { b.classList.remove("nav--todos", "nav--zeigt-menue", ...WECHSEL); return; }
   b.classList.remove("nav--schmal", "nav--klappt-auf", "nav--klappt-zu");
-  an = !!an;
+  const fest = menueFest();
+  an = !!an || fest;
   const setzen = () => {
     b.classList.toggle("nav--todos", !an);
     b.classList.toggle("nav--zeigt-menue", an);
     menueSetzen(an);
   };
-  if (an) menueUhr = setTimeout(() => menueZeigen(false), (window.TEST && window.TEST.todoMenueMs) || TODO_MENUE_MS);
+  if (an && !fest) menueUhr = setTimeout(() => menueZeigen(false), (window.TEST && window.TEST.todoMenueMs) || TODO_MENUE_MS);
   // Wechsel wie Auf- und Zuklappen (Patrick 17. November 2026). Die Todos
   // bleiben dabei immer sichtbar und gleiten an ihre neue Stelle (seit
   // 1.607.1, Patrick: „soll nicht kurz verschwinden“): zum Menü fliegen die
@@ -270,13 +282,16 @@ function Geruest() {
   const todoModus = todoModusDarf();
   useLayoutEffect(() => {
     menueSetzen = setMenueAuf;
-    menueZeigen(false);
+    menueZeigen(menueFest());
     return () => { clearTimeout(menueUhr); menueSetzen = () => {};
       document.body.classList.remove("nav--todos", "nav--zeigt-menue"); };
   }, []);
   const klappen = () => {
     // Admins klappen nicht ein: der Knopf wechselt zwischen Todos und Menü
-    if (todoModus) { menueZeigen(!document.body.classList.contains("nav--zeigt-menue")); return; }
+    if (todoModus) {
+      if (menueFest()) { alt.meldung("Das Menü bleibt immer stehen (Einstellungen → Allgemein → „Menü immer zeigen“)."); return; }
+      menueZeigen(!document.body.classList.contains("nav--zeigt-menue")); return;
+    }
     const b = document.body;
     const schmal = !b.classList.contains("nav--schmal") || b.classList.contains("nav--klappt-zu");
     alt.einstellungSetzenWert("navschmal", schmal ? "1" : "0");
