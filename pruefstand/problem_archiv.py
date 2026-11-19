@@ -60,7 +60,12 @@ with sync_playwright() as p:
             pruefe("Fenster zu nach Sprung", pg.locator("#problem-archiv").count() == 0)
             pg.goto(f"http://127.0.0.1:{PORT}/index.html#/planwand", wait_until="domcontentloaded")
             pg.wait_for_selector(".pw-balken"); pg.wait_for_timeout(1200)
-            for _ in range(3): pg.keyboard.press("Escape"); pg.wait_for_timeout(200)
+            # Nur so oft Escape, wie Fenster offen sind; sonst geht es zurück bis „Abmelden?“
+            for _ in range(4):
+                if pg.locator(".dialog-huelle").count() == 0: break
+                pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+            if pg.evaluate("location.hash") != "#/planwand":
+                pg.evaluate("location.hash='#/planwand'"); pg.wait_for_selector(".pw-balken"); pg.wait_for_timeout(600)
             # Hinweis im Auftragsfenster
             pg.locator(".pw-balken[data-auftrag='j1']").first.dblclick(); pg.wait_for_selector(".dialog--auftrag")
             pg.wait_for_timeout(500)

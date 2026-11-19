@@ -65,6 +65,11 @@ with sync_playwright() as p:
     pg.wait_for_selector("#pad-planer", timeout=20000); pg.wait_for_timeout(800)
     pruefe("#/planer" in pg.url, "Planer im eigenen Tab #/planer")
     pruefe(pg.locator("#pw-planer").count() == 0, "im Planer kein Planer-Knopf")
+    # Seit 1.648.0: HOCO Nr. zeigt den Auftrag auf der normalen Planwand im Haupt-Tab
+    pg.locator(".pl-zeile .pl-hoco").first.click(); haupt.wait_for_timeout(1500)
+    pruefe(pg.locator(".pad-pw, .dialog--auftrag").count() == 0, "kein Planwand-Fenster im Planer")
+    pruefe(haupt.locator(".dialog--auftrag").count() == 1 and len(ctx.pages) == 2, "Auftrag auf der normalen Planwand im Haupt-Tab")
+    haupt.locator(".dialog--auftrag #pl-nein").click(); haupt.wait_for_timeout(400)
     pg.screenshot(path=BILD + "/planer.png")
     zeile = lambda bez: pg.locator(".pl-zeile", has_text=bez).first
     notz = pg.locator("[data-pllieferant='Notz']")

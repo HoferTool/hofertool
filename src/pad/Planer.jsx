@@ -133,7 +133,7 @@ function lieferantenFenster(neu) {
 
 // ---------- Todo ----------
 
-function Todos({ d, neu, titel, oeffnen = planwandFensterOeffnen, titelKlick }) {
+function Todos({ d, neu, titel, oeffnen = planwandZeigen, titelKlick }) {
   const heute = d.heute;
   const bald = alt.plusTage(heute, 7);
   const posten = [];
@@ -274,7 +274,7 @@ function Abgeschlossen({ start, quitt: quittStart, zu, neu }) {
             (Wunsch Patrick 19. November 2026). Im Planer-Tab zum Balken über
             das Planwand-Fenster, sonst auf die Planwand. */}
         {problemArchivSichtbar() && <button className="knopf knopf--klein pl-abg__probleme" id="pl-abg-probleme"
-          onClick={() => { zu(); problemArchivOeffnen(null, istPlanerTab() ? (j) => planwandFensterOeffnen(j) : null); }}>
+          onClick={() => { zu(); problemArchivOeffnen(null, istPlanerTab() ? (j) => planwandZeigen(j) : null); }}>
           ⚠ Erledigte Probleme</button>}
         <button className="dialog__schliessen-inline" title="Schliessen" onClick={zu}>✕</button></div>
       <div className="pl-abg__liste">
@@ -343,6 +343,33 @@ async function todoBearbeiten(t, neu) {
     alt.meldung(/planer_todos|schema cache|does not exist/i.test(f.message || "")
       ? "Eigene Todos brauchen zuerst sql/planer-todos.sql." : alt.fehlertext(f), "fehler");
   }
+}
+
+// Links zur Planwand öffnen im Planer-Tab die normale Planwand im Tab, aus
+// dem der Planer kam, beim Balken mit Auftragsfenster, statt die Planwand
+// als Fenster über dem Planer (seit 1.648.0, Wunsch Patrick 19. November
+// 2026: „soll nicht Planwand nochmal aufmachen, sondern die normale“).
+// Fehlt dieser Tab, geht ein Tab mit der Planwand auf.
+function planwandZeigen(j) {
+  if (!istPlanerTab()) { planwandFensterOeffnen(j); return; }
+  let w = null;
+  try {
+    const o = window.opener;
+    if (o && !o.closed && o.hoferBalkenZeigen) {
+      if (!o.name) o.name = "hofer-haupt";
+      w = window.open("", o.name) || o;
+    }
+  } catch (f) { w = null; }
+  if (!w) w = window.open("", "hofer-haupt");
+  if (!w) { alt.meldung("Der Browser hat den Tab gesperrt. Bitte Pop-ups für das HoferTool erlauben.", "warn"); return; }
+  try { w.focus(); } catch (f) { /* egal */ }
+  const los = () => { try { if (w.hoferBalkenZeigen) { w.hoferBalkenZeigen(j.id); return true; } } catch (f) { /* lädt noch */ } return false; };
+  if (los()) return;
+  try {
+    if (!w.location.href || w.location.href === "about:blank") w.location.href = location.href.split("#")[0] + "#/planwand";
+  } catch (f) { /* egal */ }
+  let n = 0;
+  const t = setInterval(() => { if (los() || ++n > 120) clearInterval(t); }, 250);
 }
 
 // ---------- Material ----------
@@ -430,7 +457,7 @@ function Tabelle({ zeilen, d, neu, mitLieferant }) {
               aria-label="Erledigt" onClick={() => positionErledigt(z, d, neu)} />
             <span className={"pl-start" + (z.zuSpaet ? " pl-rot" : "")}>{z.anMaschine ? "jetzt" : tagText(z.start)}</span>
             <span className="pl-masch">{z.maschine}</span>
-            <button className="pl-hoco" onClick={() => planwandFensterOeffnen(z.j)}>{z.j.job_number}</button>
+            <button className="pl-hoco" onClick={() => planwandZeigen(z.j)}>{z.j.job_number}</button>
             <span className="pl-mat">
               <i className="pl-punkt" style={{ background: farbe ? farbe.hex : "#667" }} />
               <span>{z.j.material_bez}

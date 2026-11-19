@@ -170,7 +170,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.647.0";
+const APP_VERSION = "1.648.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5960,6 +5960,9 @@ document.addEventListener("keydown", (e) => {
 // Auftragsfenster öffnen.
 // ohneFenster: aus der Suche nur hinführen, das Fenster nicht öffnen
 // (Wunsch 12. Oktober 2026: „beim suchen den auftrag nie direkt öffnen“).
+// Der Planer-Tab ruft das über window.opener, damit seine Links die
+// normale Planwand zeigen (seit 1.648.0)
+window.hoferBalkenZeigen = (id) => { if (!istArchiv()) balkenZeigen(id); };
 function balkenZeigen(auftragId, ohneFenster) {
   if (!auftragId) return;
   plan.zeigeAuftrag = auftragId;
