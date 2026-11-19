@@ -17,6 +17,22 @@ export const MAX_PAAR_STUNDEN = 16;   // länger offen = Gehen vergessen
 // stempelart, sql/hofertime-7-stempelart.sql). Bezahlte Arten zählen als
 // Zeit wie Arbeit; Kompensieren zählt nicht, das Soll bleibt, die Stunden
 // gehen also von der Gleitzeit ab.
+// Buchungsarten in zeit_buchungen.art (seit 1.651.0, Wunsch Patrick
+// 19. November 2026: „Auszahlung Stundenlohn für die Stundenlöhner und
+// Auszahlung von Überstunden, Korrektur Gleitzeit und Korrektur Ferien,
+// diese sollen die Benutzer nicht sehen“). Leer = Umbuchung Ferien ↔
+// Gleitzeit, die sieht jede Person. Die anderen bucht nur der Admin von
+// HOFERTIME; sie zählen im Saldo mit, stehen aber nur bei ihm in der Liste.
+export const BUCHUNGSARTEN = [
+  { id: "auszahlung_ueberstunden", name: "Auszahlung Überstunden", feld: "minuten", nurMinus: true, lohn: "monat" },
+  { id: "auszahlung_stunden", name: "Auszahlung Stundenlohn", feld: "minuten", nurMinus: true, lohn: "stunde" },
+  { id: "korrektur_gz", name: "Korrektur Gleitzeit", feld: "minuten", lohn: "monat" },
+  { id: "korrektur_ferien", name: "Korrektur Ferien", feld: "tage" },
+];
+export const buchungsartName = (art) => (BUCHUNGSARTEN.find((a) => a.id === art) || { name: "Umbuchung" }).name;
+// Sieht die Person selbst diese Buchung?
+export const buchungSichtbar = (b) => !b.art;
+
 export const STEMPELARTEN = [
   { id: "", name: "Arbeit" },
   { id: "krankheit", name: "Krankheit" },

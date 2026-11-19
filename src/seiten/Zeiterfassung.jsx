@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
 import { alt, useDaten, useGemerkt } from "../bruecke.jsx";
 import {
   paareRechnen, tageRechnen, stand, stempeln, stempelLaden, uhrzeit, dauerText, tagVon,
-  montag, tagePlus, ausFeldern, sollTag, abwesendeTage, freierTag, ferienStand, fehlerSuchen, feiertageEintragen, feiertageLaden, saldoRechnen, saldoVerlauf, ferienStufenLaden, buchungenLaden, minutenJeFerientag, jubilaeen, STEMPELARTEN, stempelartName } from "../daten/zeit.js";
+  montag, tagePlus, ausFeldern, sollTag, abwesendeTage, freierTag, ferienStand, fehlerSuchen, feiertageEintragen, feiertageLaden, saldoRechnen, saldoVerlauf, ferienStufenLaden, buchungenLaden, minutenJeFerientag, jubilaeen, STEMPELARTEN, stempelartName, BUCHUNGSARTEN, buchungsartName, buchungSichtbar } from "../daten/zeit.js";
 import { zeitApp, istTerminal, terminalSetzen } from "./zeit/app.js";
 import { feiertageOeffnen, stufenOeffnen } from "./zeit/Feiertage.jsx";
 import { profilOeffnen } from "./zeit/Profil.jsx";
@@ -224,6 +224,8 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
       const iso = alt.isoDatum(d);
       if (iso.slice(0, 7) !== monat) { monat = iso.slice(0, 7); summe = 0; }
       summe += tage.get(iso) ? tage.get(iso).minuten : 0;
+      // Ausbezahlte Stunden (nur der Admin bucht sie) gehen an ihrem Tag weg
+      for (const b of buchungen || []) if (b.art === "auszahlung_stunden" && b.datum === iso) summe += Number(b.minuten) || 0;
       if (iso >= liste[0]) aufgelaufen.set(iso, summe);
     }
   }
@@ -263,6 +265,9 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
 
   const jahr = new Date().getFullYear();
   const fe = ferienStand(einst, abw, jahr, heute, { stufen, buchungen });
+  // Korrekturen und Auszahlungen sieht nur der Admin von HOFERTIME
+  const sichtbar = admin ? (buchungen || []) : (buchungen || []).filter(buchungSichtbar);
+  const gebuchtSicht = admin ? fe.gebucht : sichtbar.filter((b) => String(b.datum).startsWith(String(jahr))).reduce((x, b) => x + (Number(b.tage) || 0), 0);
   const ersterStempel = stempelAlle[0] && tagVon(stempelAlle[0].zeit);
   const fehlerListe = fehlerSuchen(tage, einst, abw, heute, (einst && einst.saldo_start_tag) || ersterStempel);
   const zumTag = (d) => { setAnsicht("woche"); setBezug(d); setOffen(d); };
@@ -306,6 +311,7 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
             <button className="knopf knopf--klein" id="ze-pin-aendern" onClick={pinAendern}>🔑 PIN ändern</button>}
           {admin && <button className="knopf knopf--klein" id="ze-einst" onClick={() => profilOeffnen(personId, name, einst, neu)}>👤 Profil</button>}
           {(admin || eigene) && monatslohn && <button className="knopf knopf--klein" id="ze-umbuchen" onClick={() => umbuchen(personId, name, einst, neu, !admin)}>⇄ Umbuchen</button>}
+          {admin && einst && <button className="knopf knopf--klein" id="ze-buchung" onClick={() => buchungAnlegen(personId, name, einst, neu)}>＋ Buchung</button>}
           {admin && konto && konto.nur_zeit && <>
             <button className="knopf knopf--klein" id="ze-pin" onClick={() => pinSetzen(konto)}>PIN setzen</button>
             <button className="knopf knopf--klein knopf--gefahr" id="ze-konto-aus" onClick={() => kontoAus(konto)}>Konto deaktivieren</button>
@@ -333,14 +339,15 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
           <b className={"ze-kachel__zahl" + (fe.rest < 0 ? " ze-minus" : "")} id="ze-ferien-rest">{alt.zahlText(fe.rest)} Tage übrig</b>
           <span className="klein">Anspruch {alt.zahlText(fe.anspruch)}
             {fe.uebertrag ? " (Übertrag " + alt.zahlText(fe.uebertrag) + ")" : ""}
-            {fe.gebucht ? " (umgebucht " + (fe.gebucht > 0 ? "+" : "") + alt.zahlText(fe.gebucht) + ")" : ""}
+            {gebuchtSicht ? " (" + (admin ? "gebucht " : "umgebucht ") + (gebuchtSicht > 0 ? "+" : "") + alt.zahlText(gebuchtSicht) + ")" : ""}
             {" "}· bezogen {fe.bezogen} · geplant {fe.geplant}</span>
-          {(buchungen || []).length > 0 && <div className="ze-buchungen klein" id="ze-buchungen">
-            {buchungen.slice(-5).map((b) => (
-              <span key={b.id} className="ze-buchung">
-                {alt.kurzDatum(b.datum)}: {Number(b.tage) > 0 ? "+" : ""}{alt.zahlText(b.tage)} Tage Ferien, {b.minuten > 0 ? "+" : ""}{dauerText(b.minuten)} Gleitzeit
+          {sichtbar.length > 0 && <div className="ze-buchungen klein" id="ze-buchungen">
+            {sichtbar.slice(-(admin ? 8 : 5)).map((b) => (
+              <span key={b.id} className={"ze-buchung" + (b.art ? " ze-buchung--admin" : "")} data-ze-buchung-art={b.art || "umbuchung"}>
+                {alt.kurzDatum(b.datum)}: {b.art ? buchungsartName(b.art) + " " : ""}
+                {buchungText(b)}
                 {b.notiz ? " · " + b.notiz : ""}
-                {(admin || eigene) && <button className="knopf knopf--klein knopf--still" aria-label="Umbuchung löschen" data-ze-umbuchung-weg={b.id} onClick={() => umbuchungWeg(b, neu, !admin)}>✕</button>}
+                {(admin || (eigene && !b.art)) && <button className="knopf knopf--klein knopf--still" aria-label="Buchung löschen" data-ze-umbuchung-weg={b.id} onClick={() => umbuchungWeg(b, neu, !admin)}>✕</button>}
               </span>))}
           </div>}
         </div>
@@ -817,8 +824,63 @@ async function umbuchen(personId, name, einst, neu, selbst) {
   neu();
 }
 
+function buchungText(b) {
+  const t = Number(b.tage) || 0, m = Number(b.minuten) || 0;
+  const teile = [];
+  if (t || !b.art) teile.push((t > 0 ? "+" : "") + alt.zahlText(t) + " Tage Ferien");
+  if (m || !b.art) teile.push((m > 0 ? "+" : "") + dauerText(m) + (b.art === "auszahlung_stunden" ? " Stunden" : " Gleitzeit"));
+  return teile.join(", ");
+}
+
+// ---------- Buchungen nur für den Admin von HOFERTIME ----------
+// Auszahlung Überstunden (Gleitzeit weg), Auszahlung Stundenlohn (weg von
+// den aufgelaufenen Stunden im Monat), Korrektur Gleitzeit und Korrektur
+// Ferien (beides plus oder minus). Wunsch Patrick 19. November 2026; die
+// Person sieht sie nicht. Geschrieben direkt in zeit_buchungen, das darf
+// nur zeit_admin().
+async function buchungAnlegen(personId, name, einst, neu) {
+  const stunde = einst.lohnart === "stunde";
+  const arten = BUCHUNGSARTEN.filter((a) => !a.lohn || a.lohn === (stunde ? "stunde" : "monat"));
+  const w = await alt.dialogFelder({
+    titel: "Buchung " + name,
+    text: "Diese Buchungen sieht " + name.split(" ")[0] + " nicht. Sie zählen aber in Gleitzeit, Ferien bzw. Stunden mit.",
+    felder: [
+      { name: "art", label: "Buchungsart", wert: arten[0].id, auswahl: arten.map((a) => [a.id, a.name]) },
+      { name: "wert", label: "Stunden (z.B. 12:30 oder 12.5) bzw. Tage; bei Korrektur mit − für weniger", wert: "", pflicht: true },
+      { name: "datum", label: "Gebucht am", typ: "date", wert: alt.isoDatum(new Date()), pflicht: true },
+      { name: "notiz", label: "Notiz (freiwillig)", wert: "" },
+    ],
+    bestaetigen: "Buchen",
+  });
+  if (!w) return;
+  const a = BUCHUNGSARTEN.find((x) => x.id === w.art);
+  const roh = String(w.wert || "").trim().replace(/[−–]/g, "-").replace(",", ".");
+  let zahl;
+  if (a.feld === "minuten" && /^-?\d+:\d{1,2}$/.test(roh)) {
+    const neg = roh.startsWith("-"); const [h, mm] = roh.replace("-", "").split(":").map(Number);
+    zahl = (neg ? -1 : 1) * (h * 60 + mm);
+  } else {
+    const n = Number(roh);
+    zahl = a.feld === "minuten" ? Math.round(n * 60) : Math.round(n * 100) / 100;
+  }
+  if (!Number.isFinite(zahl) || zahl === 0) { alt.meldung("Bitte eine Zahl eintragen, nicht 0.", "warn"); return; }
+  // Auszahlungen nehmen immer weg, egal ob mit oder ohne Minus getippt
+  if (a.nurMinus) zahl = -Math.abs(zahl);
+  const zeile = { person_id: personId, datum: w.datum, art: a.id, tage: a.feld === "tage" ? zahl : 0, minuten: a.feld === "minuten" ? zahl : 0, notiz: w.notiz || null };
+  const r = await alt.db.from("zeit_buchungen").insert(zeile).select().single();
+  if (r.error) {
+    alt.meldung(/art/i.test(String(r.error.message || ""))
+      ? "Die Datenbank kennt die Buchungsarten noch nicht (sql/hofertime-12-buchungsarten.sql)."
+      : "Nicht gebucht: " + alt.fehlertext(r.error), "fehler");
+    return;
+  }
+  alt.merkeSchritt(a.name + " " + name, alt.rueckWeg("zeit_buchungen", { id: r.data.id }));
+  alt.meldung(a.name + ": " + buchungText(r.data) + " gebucht.", "gut");
+  neu();
+}
+
 async function umbuchungWeg(b, neu, selbst) {
-  if (!await alt.nachfragen({ titel: "Umbuchung löschen?", text: "Ferien und Gleitzeit stehen danach wieder wie vorher.", bestaetigen: "Löschen", gefahr: true })) return;
+  if (!await alt.nachfragen({ titel: b.art ? buchungsartName(b.art) + " löschen?" : "Umbuchung löschen?", text: "Ferien und Gleitzeit stehen danach wieder wie vorher.", bestaetigen: "Löschen", gefahr: true })) return;
   const r = await alt.db.rpc("zeit_umbuchung_loeschen", { p_id: b.id });
   if (r.error) { alt.meldung(alt.fehlertext(r.error), "fehler"); return; }
   if (!selbst) alt.merkeSchritt("Umbuchung löschen", alt.rueckRein("zeit_buchungen", [b]));
