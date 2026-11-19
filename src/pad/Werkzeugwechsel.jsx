@@ -287,24 +287,24 @@ function rundenBilden(liste, sw) {
 // des Auftrags, noch leer und vor dem Index-Protokoll), Patrick 19. November
 // 2026: „warum ist das leer, sollte ausgefüllt sein“. Die Ablage wird dabei
 // gleich mit dem neuen Stand ersetzt.
-export function protokollWwZeigen(jobId) {
-  // Das Fenster muss sofort aufgehen (Safari am iPad), darum Maschine und
-  // Auftrag als leere Hüllen, die beim Laden gefüllt werden
-  const maschine = {}, auftrag = { id: jobId };
-  const laden = async () => {
+// Gezeigt wird es wie die übrigen Anhänge im Betrachter der App, nicht in
+// einem neuen Tab (Patrick 19. November 2026: „soll im gleichen Stil aufgehen“).
+export async function protokollWwZeigen(jobId) {
+  try {
     const j = await alt.db.from("jobs").select("id, job_number, fa_nr, machine_id").eq("id", jobId).single();
     if (j.error) throw j.error;
-    Object.assign(auftrag, j.data);
-    const m = await alt.db.from("machines").select("id, name, machine_number, type_id").eq("id", j.data.machine_id).single();
+    const auftrag = j.data;
+    const m = await alt.db.from("machines").select("id, name, machine_number, type_id").eq("id", auftrag.machine_id).single();
     if (m.error) throw m.error;
-    Object.assign(maschine, m.data);
-    return historieLaden(maschine);
-  };
-  let runden = [];
-  alt.historieAblegen(maschine, auftrag,
-    async () => { try { runden = await laden(); } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); } return runden; },
-    async () => (await indexPdfAufbau(maschine, auftrag).catch(() => null)) || blattSpalten(maschine, auftrag, runden),
-    true);
+    const maschine = m.data;
+    const runden = await historieLaden(maschine);
+    const { html, titel } = await alt.historieHtml(maschine, auftrag, runden,
+      async () => (await indexPdfAufbau(maschine, auftrag).catch(() => null)) || blattSpalten(maschine, auftrag, runden));
+    const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+    alt.betrachter(url, "Protokoll WW " + (auftrag.fa_nr || ""), false, "html");
+    // Die Ablage still mit dem neuen Stand ersetzen
+    if (alt.darfSchreiben()) alt.historieHochladen(auftrag, html, titel).catch(() => {});
+  } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
 }
 
 async function wechselHistorie(maschine, auftrag) {

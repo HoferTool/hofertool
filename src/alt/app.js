@@ -170,7 +170,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.649.1";
+const APP_VERSION = "1.649.2";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -8973,7 +8973,34 @@ function historieBlatt(maschine, auftrag, runden, titel, aufbau) {
     + '</div></body></html>';
 }
 
-async function historieAblegen(maschine, auftrag, runden, spaltenHolen, ohneAblage) {
+// Das Blatt der Historie als HTML samt Titel, ohne Fenster
+async function historieHtml(maschine, auftrag, runden, spaltenHolen) {
+  if (typeof runden === "function") runden = await runden();
+  let aufbau = null;
+  try { aufbau = spaltenHolen ? await spaltenHolen() : null; }
+  catch (f) { aufbau = null; }
+  const titel = "Werkzeugwechsel_"
+    + (auftrag && auftrag.job_number ? auftrag.job_number : maschine.name || "").replace(/[^A-Za-z0-9-]+/g, "_")
+    + "_" + isoDatum(new Date());
+  // Beim Index liefert das Protokoll sein eigenes Blatt (IndexProtokoll.jsx)
+  const html = aufbau && aufbau.html ? aufbau.html(titel) : historieBlatt(maschine, auftrag, runden, titel, aufbau);
+  return { html, titel };
+}
+
+// In der Ablage hinterlegen, damit die Historie beim Auftrag neben der WBG steht
+async function historieHochladen(auftrag, html, titel) {
+  const inhalt = /^<!doctype/i.test(html) ? html : "<!doctype html>" + html;
+  const name = "wbg/wz-" + Date.now() + "-" + titel + ".html";
+  const r = await db.storage.from("zeichnungen")
+    .upload(name, new Blob([inhalt], { type: "text/html" }), { contentType: "text/html" });
+  if (r.error) throw r.error;
+  const adresse = db.storage.from("zeichnungen").getPublicUrl(name).data.publicUrl;
+  const u = await db.from("jobs").update({ wz_historie_url: adresse }).eq("id", auftrag.id);
+  if (u.error) throw u.error;
+  return adresse;
+}
+
+async function historieAblegen(maschine, auftrag, runden, spaltenHolen) {
   // Das Fenster sofort öffnen, solange der Klick noch gilt; die Spalten
   // (Aufbau des Typs, Einrichtblatt) kommen erst danach. Darum darf
   // runden auch eine Funktion sein, die frisch lädt: Safari am iPad
@@ -8981,36 +9008,14 @@ async function historieAblegen(maschine, auftrag, runden, spaltenHolen, ohneAbla
   const fenster = window.open("", "_blank");
   if (!fenster) { meldung("Das Fenster wurde blockiert.", "warn"); return; }
   fenster.document.write('<!doctype html><meta charset="utf-8"><p style="font-family:Arial;padding:20px">Blatt wird vorbereitet …</p>');
-  if (typeof runden === "function") runden = await runden();
-  let aufbau = null;
-  try { aufbau = spaltenHolen ? await spaltenHolen() : null; }
-  catch (f) { aufbau = null; }
-
-  const titel = "Werkzeugwechsel_"
-    + (auftrag && auftrag.job_number ? auftrag.job_number : maschine.name).replace(/[^A-Za-z0-9-]+/g, "_")
-    + "_" + isoDatum(new Date());
+  const { html, titel } = await historieHtml(maschine, auftrag, runden, spaltenHolen);
   fenster.document.open();
-  // Beim Index liefert das Protokoll sein eigenes Blatt (IndexProtokoll.jsx)
-  fenster.document.write(aufbau && aufbau.html ? aufbau.html(titel) : historieBlatt(maschine, auftrag, runden, titel, aufbau));
+  fenster.document.write(html);
   fenster.document.close();
-
-  // Zusätzlich in der Ablage hinterlegen, damit die Historie später
-  // neben der WBG steht — auch ohne das geöffnete Fenster.
-  // Beim blossen Ansehen (Protokoll WW bei der HOCO Nr.) nur mit
-  // Schreibrecht, sonst käme eine Warnung, dass Ablegen nicht ging.
-  if (!auftrag || (ohneAblage && !darfSchreiben())) return;
+  if (!auftrag) return;
   try {
-    const inhalt = "<!doctype html>" + fenster.document.documentElement.outerHTML;
-    const name = "wbg/wz-" + Date.now() + "-" + titel + ".html";
-    const r = await db.storage.from("zeichnungen")
-      .upload(name, new Blob([inhalt], { type: "text/html" }),
-        { contentType: "text/html" });
-    if (r.error) throw r.error;
-    const adresse = db.storage.from("zeichnungen").getPublicUrl(name).data.publicUrl;
-    const u = await db.from("jobs").update({ wz_historie_url: adresse })
-      .eq("id", auftrag.id);
-    if (u.error) throw u.error;
-    if (!ohneAblage) meldung("Historie abgelegt — sie steht jetzt beim Auftrag neben der WBG.");
+    await historieHochladen(auftrag, html, titel);
+    meldung("Historie abgelegt — sie steht jetzt beim Auftrag neben der WBG.");
   } catch (f) {
     meldung("Im Fenster kannst du sie als PDF speichern. Ablegen ging nicht: "
       + fehlertext(f), "warn");
@@ -11077,7 +11082,7 @@ Object.assign(alt, {
   ladeHoco, ladeHocoAusAuftraegen, groesseAusAuftrag, dokListe,
   hocoDialog, blattPdfWaehlen, blattPdfAnHoco,
   ladeTypAufbau, platzVerschieben, platzEinreihen, toolVergleich, pathFarbe, blattPdfAmTyp,
-  einst, fehlerLesen, ROLLEN, planerLaden, langDatum, historieAblegen, einfuegenOhneUnbekannte,
+  einst, fehlerLesen, ROLLEN, planerLaden, langDatum, historieAblegen, historieHtml, historieHochladen, einfuegenOhneUnbekannte,
   farbzuteilungLaden, werkstoffKern, werkstoffSchluessel, werkstoffZuordnen, WERKSTOFFGRUPPEN,
   DOK_ARTEN, dokErkennen, dokZielSuchen, dokZielText,
   dokWaehlen, dokHochladen, dokLoeschen, wbgAufraeumen, personenLaden, fehlerAlsDatei,
