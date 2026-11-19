@@ -854,7 +854,7 @@ const PLATTEN = [[123, 293], [143, 287], [163, 277], [187, 263], [207, 253], [22
 const ZUR_GEGEN_FRONT = [[385, 284, 46, 20], [385, 264, 46, 19], [385, 244, 46, 19], [385, 223, 46, 19]];
 const ZUR_GEGEN_QUER = [[362, 285, 40, 14], [362, 262, 40, 14], [362, 239, 40, 14]];
 const ZUR_HAUPT_QUER = [[300, 255, 32, 17], [300, 233, 32, 17], [300, 209, 32, 17]];
-const QUER = [[255, 195, 15, 40], [269, 195, 15, 40], [284, 193, 16, 38]];
+const QUER = [[255, 195, 15, 40], [269, 195, 15, 40], [284, 193, 16, 38], [298, 181, 16, 38]];
 // Kanal 2 T2100–T2400 von rechts (Patrick 5. November 2026)
 const KANAL2 = [[145, 354, 43, 35], [127, 364, 41, 35], [109, 374, 39, 35], [93, 383, 40, 35]];
 const r4 = (a, text, verdeckt) => ({ x: a[0], y: a[1], w: a[2], h: a[3], text, verdeckt: !!verdeckt });
@@ -863,7 +863,9 @@ export function bildBereich(b) {
   if (b.art === "k2" || b.art === "k2a") return r4(KANAL2[Math.max(0, Math.min(3, Math.round(p / 100) - 21))], "Kanal 2");
   if (b.art === "seite") {
     const i = Math.round(p / 100) - 31;
-    return i >= 0 && i < 3 ? r4(QUER[i], "querangetrieben") : r4([298, 192, 14, 40], "querangetrieben (verdeckt)", true);
+    // T3400 ist seit 1.654.1 im Bild mit T3400 als viertes Werkzeug gezeichnet
+    // (Patrick 19. November 2026), im anderen Bild ist es nie montiert.
+    return r4(QUER[Math.max(0, Math.min(3, i))], "querangetrieben");
   }
   const gegen = anGegenspindel(b);
   if (b.art === "quer") {
