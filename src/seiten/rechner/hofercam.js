@@ -856,7 +856,7 @@ const ZUR_GEGEN_FRONT = [[385, 284, 46, 20], [385, 264, 46, 19], [385, 244, 46, 
 // Frontwerkzeuge zur Hauptspindel sichtbar, Rücken an Rücken zu denen der
 // Gegenspindel, gleiche Höhe; seit 1.654.5 kommen sie hinten aus dem Block,
 // der Block verdeckt ihr Ende (Patrick)
-const ZUR_HAUPT_FRONT = [[306, 268, 46, 20], [306, 248, 46, 19], [306, 228, 46, 19], [306, 207, 46, 19]];
+const ZUR_HAUPT_FRONT = [[316, 256, 36, 20], [316, 236, 36, 19], [316, 216, 36, 19], [316, 195, 36, 19]];
 const ZUR_GEGEN_QUER = [[362, 285, 40, 14], [362, 262, 40, 14], [362, 239, 40, 14]];
 const ZUR_HAUPT_QUER = [[300, 255, 32, 17], [300, 233, 32, 17], [300, 209, 32, 17]];
 const QUER = [[255, 195, 15, 40], [269, 195, 15, 40], [284, 193, 16, 38], [298, 181, 16, 38]];

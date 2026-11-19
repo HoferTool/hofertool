@@ -33,7 +33,7 @@ with sync_playwright() as p:
     pg.click("#cam-neu-seite")
     pg.hover("[data-block='1'] [data-camblock-platzfeld]"); pg.wait_for_timeout(300)
     href = pg.get_attribute("#cam-bild image", "href") if pg.locator("#cam-bild image").count() else ""
-    pruefe("Maschinenbild ohne T3421–T3423", "star-sb20rg-ohne34d.png" in (href or ""))
+    pruefe("Maschinenbild ohne T3421–T3423", "star-sb20rg-ohne34e.png" in (href or ""))
     pg.locator("#cam-bild").screenshot(path=S + "bild_t3400.png")
     pg.select_option("[data-cam='t34']", "3421")
     pg.hover("[data-block='1'] [data-camblock-platzfeld]"); pg.wait_for_timeout(300)
