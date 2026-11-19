@@ -9,6 +9,7 @@ import { alt, useDaten } from "../bruecke.jsx";
 import { teilLaden, pdfHochladen } from "./daten.js";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { einrichtblattAppOeffnen } from "../einrichtblatt/Blatt.jsx";
+import { protokollWwZeigen } from "../pad/Werkzeugwechsel.jsx";
 import { stueckzeitText, stueckzeitFragen, stueckzeitSetzen, laengeText, laengeSetzen, artInfoFragen }
   from "../daten/stueckzahl.js";
 
@@ -102,7 +103,6 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
   };
 
   const bearbeiten = async () => { if (await alt.hocoDialog(t)) nachAenderung(); };
-  const ansehen = (url, titel) => alt.betrachter(url, titel, true);
   const leer = <span className="gedaempft">—</span>;
 
   // Zustand als farbige Marke, wie die Zeichen auf der Planwand
@@ -221,7 +221,7 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
                   onClick={() => dokZeigen({ art: "wbg", titel: "WBG " + x.fa_nr, adresse: x.wbg_url, hoco: t.hoco_nr,
                     auftragId: x.id, fa: x.fa_nr, neu: () => neu() })}>WBG</button>
                 {x.wz_historie_url && <button className="knopf knopf--klein hocoteil__anhang hocoteil__anhang--wz" data-fadatei={x.wz_historie_url}
-                  onClick={() => ansehen(x.wz_historie_url, "Protokoll WW " + x.fa_nr)}>Protokoll WW</button>}
+                  onClick={() => protokollWwZeigen(x.id)}>Protokoll WW</button>}
                 {darf && <label className="knopf knopf--klein bildknopf">{x.wbg_url ? "WBG ersetzen" : "WBG wählen"}
                   <input type="file" accept="application/pdf" hidden data-wbgauftrag={x.id}
                     onChange={(e) => wbgWaehlen(x.id, e)} /></label>}

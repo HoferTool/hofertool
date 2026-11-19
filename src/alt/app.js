@@ -170,7 +170,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.649.0";
+const APP_VERSION = "1.649.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -8973,7 +8973,7 @@ function historieBlatt(maschine, auftrag, runden, titel, aufbau) {
     + '</div></body></html>';
 }
 
-async function historieAblegen(maschine, auftrag, runden, spaltenHolen) {
+async function historieAblegen(maschine, auftrag, runden, spaltenHolen, ohneAblage) {
   // Das Fenster sofort öffnen, solange der Klick noch gilt; die Spalten
   // (Aufbau des Typs, Einrichtblatt) kommen erst danach. Darum darf
   // runden auch eine Funktion sein, die frisch lädt: Safari am iPad
@@ -8996,7 +8996,9 @@ async function historieAblegen(maschine, auftrag, runden, spaltenHolen) {
 
   // Zusätzlich in der Ablage hinterlegen, damit die Historie später
   // neben der WBG steht — auch ohne das geöffnete Fenster.
-  if (!auftrag) return;
+  // Beim blossen Ansehen (Protokoll WW bei der HOCO Nr.) nur mit
+  // Schreibrecht, sonst käme eine Warnung, dass Ablegen nicht ging.
+  if (!auftrag || (ohneAblage && !darfSchreiben())) return;
   try {
     const inhalt = "<!doctype html>" + fenster.document.documentElement.outerHTML;
     const name = "wbg/wz-" + Date.now() + "-" + titel + ".html";
@@ -9008,7 +9010,7 @@ async function historieAblegen(maschine, auftrag, runden, spaltenHolen) {
     const u = await db.from("jobs").update({ wz_historie_url: adresse })
       .eq("id", auftrag.id);
     if (u.error) throw u.error;
-    meldung("Historie abgelegt — sie steht jetzt beim Auftrag neben der WBG.");
+    if (!ohneAblage) meldung("Historie abgelegt — sie steht jetzt beim Auftrag neben der WBG.");
   } catch (f) {
     meldung("Im Fenster kannst du sie als PDF speichern. Ablegen ging nicht: "
       + fehlertext(f), "warn");
