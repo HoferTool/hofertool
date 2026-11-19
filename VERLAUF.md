@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.642.0 — Planer: Meldungen quittieren, Daten, Material (19. November 2026)
+
+Material- und WBG-Meldungen im Todo des Planers haben einen Haken; quittiert stehen sie im Fenster „Abgeschlossen“ und lassen sich wieder öffnen (`app_config.planer_quittiert`). Start = Datum der Planwand statt geschätzter Verschiebung; Aufträge an der Maschine nie mehr „bestellen, zu spät“; Liefertermin nach Start wird rot gewarnt; „need …“, „noch bestellen“ usw. gelten als offen; Knopf „Auch Vorhandenes“.
+
 ## 1.630.0 — HOFERTIME: nur Patrick ist Admin (18. November 2026)
 
 In HOFERTIME gilt als Admin nur noch, wer in der neuen Tabelle `zeit_admins` steht (Patrick). Die anderen Admins des HoferTools sehen dort nur ihre eigenen Zeiten, keine Löhne, keine Auswertung. Die Tabelle lässt sich über die App nicht ändern, auch nicht von einem Admin. `sql/hofertime-5.sql`, Server-Funktion `zeit-konto` neu ausgeliefert.

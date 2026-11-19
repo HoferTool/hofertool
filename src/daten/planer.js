@@ -15,7 +15,7 @@
 //  änderbar (app_config.planer_lieferant_wahl).
 // =================================================================
 import { alt } from "../bruecke.jsx";
-import { materialZerlegen, materialDatenLaden, bedarfRechnen, startSchaetzen, istOffen, istRahmen, kgJeStange } from "./material.js";
+import { materialZerlegen, materialDatenLaden, bedarfRechnen, istOffen, istRahmen, kgJeStange } from "./material.js";
 
 // Gefunden in den Aufträgen (12. November 2026); gilt, solange in den
 // Einstellungen nichts gespeichert ist
@@ -30,6 +30,7 @@ export const WOCHENTAGE = [[1, "Mo"], [2, "Di"], [3, "Mi"], [4, "Do"], [5, "Fr"]
 const KONFIG = "material_lieferanten";
 const WAHL = "planer_lieferant_wahl";
 const REGELN = "material_regeln";
+const QUITT = "planer_quittiert";
 
 async function konfigLesen(schluessel) {
   const r = await alt.db.from("app_config").select("wert").eq("schluessel", schluessel).maybeSingle();
@@ -175,9 +176,15 @@ export function lieferantIn(text, liste) {
 const BE_RE = /\b20\d{8}\b/;
 // fehlt (nichts eingetragen), bestellt (BE-Nr.), da (Menge oder Lager
 // ohne BE-Nr.), offen (nur Text wie „Mat und FA noch orga“)
+// Texte wie „need: 210kg“, „noch bestellen“, „Mat und FA noch orga“ heissen:
+// noch nicht da (seit 1.642.0, Patrick 19. November 2026: „nicht alle
+// Materialien zeigt es an“; vorher galt „need: 210kg“ wegen der kg als da
+// und „… 2026008635 noch bestellen“ wegen der Nummer als bestellt)
+const NOCH_OFFEN_RE = /\bneed\b|\bbraucht?\b|noch\s+bestell|bestellen\s*!|\bfehlt\b|\borga\b/i;
 export function materialStand(j) {
   const t = String(j.material_menge || "").replace(/\|\s*$/, "").trim();
   if (!t) return "fehlt";
+  if (NOCH_OFFEN_RE.test(t)) return "offen";
   if (BE_RE.test(t)) return "bestellt";
   if (/\d\s*(kg|stg|st\b|stk|stangen)|lager|rest|vorhanden|\bda\b/i.test(t)) return "da";
   return "offen";
@@ -265,10 +272,11 @@ export function lieferbarText(l) {
 export async function planerLaden(tage) {
   const heute = heuteIso();
   const bis = werktagPlus(heute, tage || 10);
-  const [lieferanten, regeln, wahl, offenR, histR, qsR, todoR, maschinen] = await Promise.all([
+  const [lieferanten, regeln, wahl, quittiert, offenR, histR, qsR, todoR, maschinen] = await Promise.all([
     lieferantenLaden(),
     regelnLaden(),
     wahlLaden().catch(() => ({})),
+    quittiertLaden().catch(() => ({})),
     alt.db.from("planwand").select("*").is("ended_at", null),
     // Verlauf: in welchem Auftrag welches Material wo bestellt wurde
     alt.db.from("jobs").select("id, material_bez, material_menge, planned_from")
@@ -296,13 +304,17 @@ export async function planerLaden(tage) {
   }
 
   // Aufträge, die im Zeitraum anfangen oder schon dran sind
-  const geschaetzt = startSchaetzen(offen, heute);
   const material = await materialDatenLaden(offen).catch(() => null);
   const zeilen = [];
   for (const j of offen) {
     if (!j.planned_from || !String(j.material_bez || "").trim()) continue;
     const status = j.plan_status || "geplant";
-    const start = status === "geplant" ? ((geschaetzt[j.id] || {}).start || j.planned_from) : heute;
+    // Start wie auf der Planwand, nie vor heute (seit 1.642.0). Vorher die
+    // geschätzte Verschiebung aus startSchaetzen: die schob Aufträge, deren
+    // Datum auf der Planwand im Zeitraum liegt, aus der Liste hinaus, und
+    // „kommt zu spät“ rechnete mit einem späteren Tag als die Planwand zeigt.
+    const anMaschine = status !== "geplant";
+    const start = anMaschine ? heute : (j.planned_from < heute ? heute : j.planned_from);
     if (start > bis) continue;
     let stand = materialStand(j);
     const z = materialZerlegen(j.material_bez);
@@ -319,13 +331,20 @@ export async function planerLaden(tage) {
       hatKg = mengeKg(j);
       if (hatKg !== null && hatKg < bedarf.kg * 0.98) { fehltKg = Math.ceil(bedarf.kg - hatKg); stand = "teil"; }
     }
-    // Ganz da: für die Bestellung uninteressant (Patrick: „juckt nicht“)
-    if (stand === "da") continue;
-    // An der Maschine (läuft, Rüsten) und bestellt: nichts mehr zu tun
-    if (status !== "geplant" && stand === "bestellt") continue;
+    // An der Maschine (läuft, Rüsten): das Material ist dort, nur „reicht
+    // nicht“ zählt noch (seit 1.642.0, Patrick 19. November 2026: „bei
+    // manchen sagt es, es muss erst bestellt werden, nachdem der Auftrag
+    // angefangen hat“; leere Mengenfelder laufender Aufträge kamen als
+    // „fehlt, jetzt, zu spät“)
+    if (anMaschine && stand !== "teil") continue;
+    // Ganz da bleibt in der Liste, gezeigt aber nur mit „Auch Vorhandenes“
+    // (Patrick 1.507.1: „juckt nicht“)
+    // Bestellt, aber der Liefertermin liegt nach dem Start
+    const lt = stand === "bestellt" ? lieferterminIso(j.material_liefertermin) : null;
     const rest = material && z ? (material.posten || []).filter((p) => p.art === "lager" && !p.weg_am
       && (materialZerlegen(p.material) || {}).grund === z.grund) : [];
     zeilen.push({ j, start, stand, z, bedarf, regel: regelFuer(j.material_bez, regeln), hatKg, fehltKg, rest, rahmen: istRahmen(j),
+      anMaschine, liefertSpaet: !!(lt && lt > start),
       maschine: j.maschine_nr || nrVon[j.machine_id] || "",
       kandidaten: z && verlauf[z.grund] ? Object.entries(verlauf[z.grund])
         .sort((a, b) => b[1].anzahl - a[1].anzahl || b[1].zuletzt.localeCompare(a[1].zuletzt)).map(([n, e]) => ({ name: n, ...e })) : [] });
@@ -333,7 +352,7 @@ export async function planerLaden(tage) {
   zeilen.sort((a, b) => a.start.localeCompare(b.start) || String(a.maschine).localeCompare(String(b.maschine), "de", { numeric: true }));
   lieferantenVerteilen(zeilen, lieferanten, wahl);
 
-  return { heute, bis, tage, lieferanten, regeln, wahl, zeilen, offen, nrVon,
+  return { heute, bis, tage, lieferanten, regeln, wahl, zeilen, offen, nrVon, quittiert,
     qs: qsR.error ? [] : (qsR.data || []).filter((q) => !q.quittiert_am),
     todos: todoR.error ? null : (todoR.data || []) };
 }
@@ -363,7 +382,8 @@ export function lieferantenVerteilen(zeilen, lieferanten, wahl) {
     const l = z.lieferant && vonName[z.lieferant];
     const a = zuBestellen(z) && ankunft(l);
     z.ankunft = a || null;
-    z.zuSpaet = !!(a && a.da > z.start);
+    // An der Maschine nie „zu spät“: der Auftrag läuft schon
+    z.zuSpaet = !z.anMaschine && (!!(a && a.da > z.start) || !!z.liefertSpaet);
   }
   return zeilen;
 }
@@ -407,4 +427,36 @@ export async function todoLoeschen(t) {
   const { error } = await alt.db.from("planer_todos").delete().eq("id", t.id);
   if (error) throw error;
   alt.merkeSchritt("Todo löschen", alt.rueckRein("planer_todos", t));
+}
+
+// Liefertermin „14.12.26“ oder „14.12.2026“ als ISO, sonst null
+export function lieferterminIso(t) {
+  const m = String(t || "").match(/(\d{1,2})\.(\d{1,2})\.(\d{2}|\d{4})\b/);
+  if (!m) return null;
+  const j = m[3].length === 2 ? "20" + m[3] : m[3];
+  return j + "-" + m[2].padStart(2, "0") + "-" + m[1].padStart(2, "0");
+}
+
+// ---------- Quittierte Meldungen ----------
+// Meldungen, die der Planer von selbst zeigt (Material, läuft ohne WBG),
+// lassen sich abhaken und stehen dann im Fenster „Abgeschlossen“ (seit
+// 1.642.0, Wunsch Patrick 19. November 2026: „ein Erledigt-Feld, um gewisse
+// Meldungen zu quittieren, dass sie nicht mehr angezeigt werden, wie bei
+// Todos“). Gemeinsam für alle Admins in app_config.planer_quittiert als
+// {Schlüssel: {am, von, titel, unter}}, Schlüssel wie im Todo (m…, w…).
+export async function quittiertLaden() {
+  const q = await konfigLesen(QUITT);
+  return q && typeof q === "object" && !Array.isArray(q) ? q : {};
+}
+export async function meldungQuittieren(k, titel, unter, offeneIds) {
+  const q = await quittiertLaden();
+  // Aufräumen: Meldungen von Aufträgen, die nicht mehr offen sind
+  if (offeneIds) for (const x of Object.keys(q)) if (!offeneIds.has(x.slice(1))) delete q[x];
+  q[k] = { am: new Date().toISOString(), von: (alt.profil || {}).full_name || (alt.profil || {}).email || "", titel, unter };
+  await konfigSchreiben(QUITT, q);
+}
+export async function meldungWiederOffen(k) {
+  const q = await quittiertLaden();
+  delete q[k];
+  await konfigSchreiben(QUITT, q);
 }

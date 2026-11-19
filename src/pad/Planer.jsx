@@ -17,7 +17,7 @@ import { padZurueck } from "./Pad.jsx";
 import { istPlanerTab, planerTabVerlassen, planerSichtbar, planerTabOeffnen } from "./planerTab.js";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { planwandFensterOeffnen } from "./PlanwandFenster.jsx";
-import { planerLaden, zuBestellen, wahlSetzen, regelnLaden, regelnSpeichern, lieferbarText, lieferantLogoDaten, todoNeu, todoHaken, todoAendern, todoLoeschen } from "../daten/planer.js";
+import { planerLaden, zuBestellen, wahlSetzen, regelnLaden, regelnSpeichern, lieferbarText, lieferantLogoDaten, todoNeu, todoHaken, todoAendern, todoLoeschen, meldungQuittieren, meldungWiederOffen } from "../daten/planer.js";
 import MaterialLieferanten from "../einstellungen/MaterialLieferanten.jsx";
 import { Logo } from "../seiten/bestellungen/teile.jsx";
 
@@ -108,7 +108,10 @@ function Dashboard({ d, e, um, neu }) {
               ))}
             </span>
             <button className={"pl-knopf" + (e.nurFehlt ? " pl-knopf--an" : "")} id="pl-nurfehlt"
-              onClick={() => um((x) => { x.nurFehlt = !x.nurFehlt; })}>Nur zu bestellen</button>
+              onClick={() => um((x) => { x.nurFehlt = !x.nurFehlt; if (x.nurFehlt) x.mitDa = false; })}>Nur zu bestellen</button>
+            <button className={"pl-knopf" + (e.mitDa ? " pl-knopf--an" : "")} id="pl-mitda"
+              title="Auch Aufträge zeigen, deren Material schon ganz da ist"
+              onClick={() => um((x) => { x.mitDa = !x.mitDa; if (x.mitDa) x.nurFehlt = false; })}>Auch Vorhandenes</button>
           </div>
           <Material d={d} e={e} neu={neu} />
         </section>
@@ -139,18 +142,32 @@ function Todos({ d, neu, titel, oeffnen = planwandFensterOeffnen, titelKlick }) 
       unter: [j.job_number, j.problem_at ? alt.datumZeitKurz(j.problem_at) : "", j.problem_von].filter(Boolean).join(" · "),
       haken: () => alt.problemQuittieren(j, null, neu), auf: () => oeffnen(j) });
   }
+  // Meldungen von selbst lassen sich quittieren (seit 1.642.0), dann
+  // stehen sie nur noch im Fenster „Abgeschlossen“
+  const quitt = d.quittiert || {};
+  const offeneIds = new Set(d.offen.map((j) => String(j.id)));
+  const quittieren = (k, titel, unter) => async () => {
+    try { await meldungQuittieren(k, titel, unter, offeneIds); neu(); }
+    catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+  };
   for (const z of d.zeilen) {
-    if (!zuBestellen(z) || (z.start > bald && !z.zuSpaet)) continue;
-    posten.push({ k: "m" + z.j.id, art: "m", rot: z.zuSpaet, sort: "2" + z.start,
-      titel: "Material " + (z.stand === "offen" ? "offen" : z.stand === "teil" ? "reicht nicht" : "fehlt") + ": Start " + tagText(z.start) + (z.maschine ? " auf " + z.maschine : ""),
-      unter: [z.j.job_number, z.j.material_bez, z.stand === "offen" ? "„" + z.j.material_menge + "“" : "", z.stand === "teil" ? "fehlen noch " + zahl(z.fehltKg) + " kg" : "",
-        z.zuSpaet ? "kommt zu spät" : ""].filter(Boolean).join(" · "),
-      auf: () => oeffnen(z.j) });
+    if (!(zuBestellen(z) || z.liefertSpaet) || (z.start > bald && !z.zuSpaet)) continue;
+    const k = "m" + z.j.id;
+    if (quitt[k]) continue;
+    const titelM = (z.liefertSpaet ? "Liefertermin nach Start" : "Material " + (z.stand === "offen" ? "offen" : z.stand === "teil" ? "reicht nicht" : "fehlt"))
+      + ": Start " + tagText(z.start) + (z.maschine ? " auf " + z.maschine : "");
+    const unterM = [z.j.job_number, z.j.material_bez, z.stand === "offen" ? "„" + z.j.material_menge + "“" : "", z.stand === "teil" ? "fehlen noch " + zahl(z.fehltKg) + " kg" : "",
+      z.liefertSpaet ? "geliefert " + z.j.material_liefertermin : z.zuSpaet ? "kommt zu spät" : ""].filter(Boolean).join(" · ");
+    posten.push({ k, art: "m", rot: z.zuSpaet, sort: "2" + z.start, titel: titelM, unter: unterM,
+      haken: quittieren(k, titelM, unterM), auf: () => oeffnen(z.j) });
   }
   for (const j of d.offen) {
     if (j.plan_status !== "laeuft" || j.wbg_url) continue;
-    posten.push({ k: "w" + j.id, art: "wbg", sort: "3" + j.job_number,
-      titel: (j.maschine_nr ? j.maschine_nr + " " : "") + "läuft ohne WBG", unter: j.job_number, auf: () => oeffnen(j) });
+    const k = "w" + j.id;
+    if (quitt[k]) continue;
+    const titelW = (j.maschine_nr ? j.maschine_nr + " " : "") + "läuft ohne WBG";
+    posten.push({ k, art: "wbg", sort: "3" + j.job_number, titel: titelW, unter: j.job_number,
+      haken: quittieren(k, titelW, j.job_number), auf: () => oeffnen(j) });
   }
   // „Nur für mich“ sieht nur, wer es geschrieben hat (seit 1.521.0)
   const ich = alt.meineProfilId();
@@ -158,6 +175,7 @@ function Todos({ d, neu, titel, oeffnen = planwandFensterOeffnen, titelKlick }) 
   // Erledigtes steht nicht mehr in der Liste, nur im Fenster „Abgeschlossen“
   // (seit 1.529.0, Wunsch Patrick 13. November 2026)
   const erledigt = sichtbar.filter((t) => t.erledigt_am);
+  const nQuitt = Object.keys(d.quittiert || {}).filter((k) => offeneIds.has(k.slice(1))).length;
   const eigene = sichtbar.filter((t) => !t.erledigt_am);
   eigene.sort((a, b) => String(a.faellig || "9").localeCompare(String(b.faellig || "9")));
   for (const t of eigene) {
@@ -193,11 +211,11 @@ function Todos({ d, neu, titel, oeffnen = planwandFensterOeffnen, titelKlick }) 
             ? <h2><button className="pl-titelknopf" id="nav-todo-dashboard" title="Planer-Dashboard öffnen (eigener Tab)"
                 onClick={titelKlick}>{titel || "Todo"} {offen > 0 && <span className="pl-anzahl">{offen}</span>} <span className="pl-titelpfeil" aria-hidden="true">↗</span></button></h2>
             : <h2>{titel || "Todo"} {offen > 0 && <span className="pl-anzahl">{offen}</span>}</h2>}
-          {d.todos !== null && <span className="pl-gruppe">
-            <button className="pl-knopf" id="pl-abgeschlossen" title="Erledigte Todos ansehen oder wieder öffnen"
-              onClick={() => abgeschlossenFenster(d, neu)}>✓ Abgeschlossen{erledigt.length > 0 ? " (" + erledigt.length + ")" : ""}</button>
-            <button className="pl-plus" id="pl-todo-neu" title="Eigenes Todo" onClick={() => todoBearbeiten(null, neu)}>+</button>
-          </span>}
+          <span className="pl-gruppe">
+            <button className="pl-knopf" id="pl-abgeschlossen" title="Erledigte Todos und quittierte Meldungen ansehen oder wieder öffnen"
+              onClick={() => abgeschlossenFenster(d, neu)}>✓ Abgeschlossen{erledigt.length + nQuitt > 0 ? " (" + (erledigt.length + nQuitt) + ")" : ""}</button>
+            {d.todos !== null && <button className="pl-plus" id="pl-todo-neu" title="Eigenes Todo" onClick={() => todoBearbeiten(null, neu)}>+</button>}
+          </span>
         </div>
         <div className="pl-liste">
           {!posten.length && <p className="pl-leer">Nichts zu tun. 🎉</p>}
@@ -225,11 +243,18 @@ function Todos({ d, neu, titel, oeffnen = planwandFensterOeffnen, titelKlick }) 
 // zuoberst (seit 1.529.0, Wunsch Patrick 13. November 2026). Das Fenster
 // lädt selbst neu, damit es nach dem Wieder-Öffnen stimmt.
 function abgeschlossenFenster(d, neu) {
-  fensterOeffnen((zu) => <Abgeschlossen start={d.todos} zu={zu} neu={neu} />);
+  const offeneIds = new Set(d.offen.map((j) => String(j.id)));
+  const q = Object.entries(d.quittiert || {}).filter(([k]) => offeneIds.has(k.slice(1))).map(([k, v]) => ({ k, ...v }));
+  fensterOeffnen((zu) => <Abgeschlossen start={d.todos} quitt={q} zu={zu} neu={neu} />);
 }
 
-function Abgeschlossen({ start, zu, neu }) {
+function Abgeschlossen({ start, quitt: quittStart, zu, neu }) {
   const [todos, setTodos] = useState(start || []);
+  const [quitt, setQuitt] = useState(quittStart || []);
+  const meldungOffen = async (m) => {
+    try { await meldungWiederOffen(m.k); setQuitt((x) => x.filter((y) => y.k !== m.k)); neu(); }
+    catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+  };
   const ich = alt.meineProfilId();
   const liste = todos.filter((t) => t.erledigt_am && (t.fuer_alle !== false || t.erstellt_von === ich))
     .sort((a, b) => String(b.erledigt_am).localeCompare(String(a.erledigt_am)));
@@ -245,7 +270,16 @@ function Abgeschlossen({ start, zu, neu }) {
       <div className="dialog__kopf"><h2>Abgeschlossen</h2>
         <button className="dialog__schliessen-inline" title="Schliessen" onClick={zu}>✕</button></div>
       <div className="pl-abg__liste">
-        {!liste.length && <p className="pl-abg__leer">Noch nichts abgeschlossen.</p>}
+        {!liste.length && !quitt.length && <p className="pl-abg__leer">Noch nichts abgeschlossen.</p>}
+        {[...quitt].sort((a, b) => String(b.am).localeCompare(String(a.am))).map((m) => (
+          <div key={m.k} className="pl-abg__zeile" data-plabgmeldung={m.k}>
+            <span className="pl-abg__text">
+              <b><span className={"pl-schild pl-schild--" + (m.k[0] === "w" ? "wbg" : "m")}>{m.k[0] === "w" ? "WBG" : "M"}</span>{m.titel}</b>
+              <small>{[m.unter, "quittiert " + (m.am ? alt.datumZeitKurz(m.am) : ""), m.von].filter(Boolean).join(" · ")}</small>
+            </span>
+            <button className="knopf knopf--still" data-plmeldungwieder={m.k} onClick={() => meldungOffen(m)}>↶ Wieder offen</button>
+          </div>
+        ))}
         {liste.map((t) => (
           <div key={t.id} className="pl-abg__zeile" data-plabg={t.id}>
             <span className="pl-abg__text">
@@ -308,6 +342,8 @@ async function todoBearbeiten(t, neu) {
 function Material({ d, e, neu }) {
   let zeilen = d.zeilen;
   if (e.nurFehlt) zeilen = zeilen.filter(zuBestellen);
+  // Ganz vorhandenes Material nur auf Wunsch (seit 1.642.0)
+  else if (!e.mitDa) zeilen = zeilen.filter((z) => z.stand !== "da");
   if (!zeilen.length) return <p className="pl-leer">Keine Aufträge mit Material bis {tagText(d.bis)}.</p>;
   if (e.ansicht === "start") {
     return <div className="pl-gruppen"><div className="pl-lief"><Tabelle zeilen={zeilen} d={d} neu={neu} mitLieferant /></div></div>;
@@ -316,13 +352,14 @@ function Material({ d, e, neu }) {
   const gruppen = new Map();
   const dazu = (k, z) => { if (!gruppen.has(k)) gruppen.set(k, []); gruppen.get(k).push(z); };
   for (const z of zeilen) {
-    if (z.lieferant) dazu(z.lieferant, z);
+    if (z.stand === "da") dazu("__da", z);
+    else if (z.lieferant) dazu(z.lieferant, z);
     else if (z.stand === "bestellt") dazu("__bestellt", z);
     else dazu("__offen", z);
   }
   const fehlend = (l) => l.filter(zuBestellen);
   const reihe = [...gruppen.keys()].sort((a, b) => {
-    const rang = (k) => (k === "__bestellt" ? 3 : k === "__offen" ? 1 : fehlend(gruppen.get(k)).length ? 0 : 2);
+    const rang = (k) => (k === "__da" ? 4 : k === "__bestellt" ? 3 : k === "__offen" ? 1 : fehlend(gruppen.get(k)).length ? 0 : 2);
     const ga = gruppen.get(a), gb = gruppen.get(b);
     return rang(a) - rang(b) || gb.some((z) => z.zuSpaet) - ga.some((z) => z.zuSpaet)
       || fehlend(gb).length - fehlend(ga).length || a.localeCompare(b, "de");
@@ -333,7 +370,7 @@ function Material({ d, e, neu }) {
         const l = vonName[k];
         const liste = gruppen.get(k);
         const fehlt = fehlend(liste);
-        const titel = k === "__bestellt" ? "Bestellt, Lieferant nicht erkannt"
+        const titel = k === "__da" ? "Schon da" : k === "__bestellt" ? "Bestellt, Lieferant nicht erkannt"
           : k === "__offen" ? "Lieferant offen" : k;
         const lb = lieferbarText(l);
         const an = fehlt.find((z) => z.ankunft);
@@ -343,7 +380,7 @@ function Material({ d, e, neu }) {
               {k.indexOf("__") !== 0 && <span className="pl-lief__logo"><Logo lief={lieferantLogoDaten(l || { name: k })} name={k} /></span>}
               <span className="pl-lief__name">{titel}</span>
               {lb && <span className="pl-marke pl-marke--grau">{lb}</span>}
-              {k !== "__bestellt" && k !== "__offen" && !lb && <span className="pl-marke pl-marke--grau">Lieferzeit unbekannt</span>}
+              {k.indexOf("__") !== 0 && !lb && <span className="pl-marke pl-marke--grau">Lieferzeit unbekannt</span>}
               {an && <span className={"pl-marke " + (fehlt.some((z) => z.zuSpaet) ? "pl-marke--rot" : "pl-marke--gruen")}>
                 heute bestellt: da {tagText(an.ankunft.da)}</span>}
               {k === "__offen" && <span className="pl-marke pl-marke--grau">noch nie mit Lieferant bestellt</span>}
@@ -376,11 +413,12 @@ function Tabelle({ zeilen, d, neu, mitLieferant }) {
     <div className="pl-tabelle">
       {zeilen.map((z) => {
         const farbe = alt.auftragFarbe ? alt.auftragFarbe(z.j, z.j.material_bez) : null;
-        const [st, ton] = STAND[z.stand];
+        const [st, ton0] = STAND[z.stand];
+        const ton = z.liefertSpaet ? "rot" : ton0;
         const fehlt = zuBestellen(z);
         return (
           <div key={z.j.id} className={"pl-zeile" + (z.zuSpaet ? " pl-zeile--spaet" : "")} data-plzeile={z.j.job_number}>
-            <span className={"pl-start" + (z.zuSpaet ? " pl-rot" : "")}>{z.j.plan_status === "geplant" ? tagText(z.start) : "jetzt"}</span>
+            <span className={"pl-start" + (z.zuSpaet ? " pl-rot" : "")}>{z.anMaschine ? "jetzt" : tagText(z.start)}</span>
             <span className="pl-masch">{z.maschine}</span>
             <button className="pl-hoco" onClick={() => planwandFensterOeffnen(z.j)}>{z.j.job_number}</button>
             <span className="pl-mat">
@@ -393,7 +431,7 @@ function Tabelle({ zeilen, d, neu, mitLieferant }) {
             <span className="pl-bedarf">{z.bedarf ? <><b>{(z.bedarf.sicher ? "" : "ca. ") + zahl(z.bedarf.kg) + " kg"}</b><small>{z.bedarf.stangen + " Stangen"}</small></> : bedarfText(z)}</span>
             <span className="pl-stand">
               <span className={"pl-chip pl-chip--" + ton}>{st}{z.stand === "teil" ? " " + zahl(z.fehltKg) + " kg (" + zahl(Math.round(z.hatKg)) + " kg da/bestellt)" : ""}{z.stand === "bestellt" && z.j.material_liefertermin ? " · " + z.j.material_liefertermin : ""}
-                {z.zuSpaet ? " · zu spät!" : ""}</span>
+                {z.liefertSpaet ? " · Liefertermin nach Start!" : z.zuSpaet ? " · zu spät!" : ""}</span>
               {fehlt && (mitLieferant || z.quelle) && <LieferantWahl z={z} d={d} neu={neu} />}
               {(z.stand === "offen" || z.stand === "teil") && <small className="pl-text">„{z.j.material_menge}“</small>}
             </span>

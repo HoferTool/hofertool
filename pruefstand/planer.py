@@ -21,6 +21,13 @@ DATEN = """;
   geplant[3].material_bez = 'CuZn39Pb3 rd 8'; geplant[3].material_menge = '300 kg · Schmobi 2026008672';
   geplant[4].material_bez = '1.4305 rd 20 h9'; geplant[4].material_menge = '20 kg · Notz 2026001234';
   geplant[4].target_quantity = 5000; geplant[4].stand = 0; TEST.teilJob = geplant[4].job_number;
+  // Seit 1.642.0: „need“ heisst offen, Liefertermin nach Start, laufend ohne Menge nicht
+  const iso = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+  const dmy = (n) => { const x = iso(n); return x.slice(8, 10) + '.' + x.slice(5, 7) + '.' + x.slice(2, 4); };
+  if (geplant[5]) { geplant[5].material_bez = 'X14CrMoS17 rd 33 h9'; geplant[5].material_menge = 'need: 210kg'; geplant[5].planned_from = iso(2); TEST.needJob = geplant[5].job_number; }
+  if (geplant[6]) { geplant[6].material_bez = 'CuZn21Si3 rd 13 h9'; geplant[6].material_menge = 'Metalix 2026008765 130kg'; geplant[6].planned_from = iso(1); geplant[6].material_liefertermin = dmy(6); TEST.ltJob = geplant[6].job_number; }
+  const lauf = J.filter(j => j.plan_status === 'laeuft' && !j.ended_at);
+  if (lauf[0]) { lauf[0].material_bez = 'CuNi7Zn39Pb3Mn2 rd 017 mm h9'; lauf[0].material_menge = null; TEST.laufJob = lauf[0].job_number; }
   TEST.daten.hoco_parts = TEST.daten.hoco_parts || [];
   TEST.daten.hoco_parts.push({ hoco_nr: geplant[4].job_number, teil_laenge_mm: 30, teil_mass_bestaetigt: true });
   const alt = (id, bez, menge, tag) => J.push({ id, job_number: '19999-' + id, machine_id: 'm-l1', plan_status: 'fertig',
@@ -81,6 +88,28 @@ with sync_playwright() as p:
     tz = pg.locator(f"[data-plzeile='{teil}']")
     pruefe(tz.count() == 1 and "fehlen noch" in tz.inner_text(), "Teilmenge: fehlen noch … kg " + (tz.inner_text() if tz.count() else ""))
     pruefe(pg.locator(".pl-zeile", has_text="X10CrNiS18").count() == 0, "Material ganz da wird nicht gezeigt")
+    nj = pg.evaluate("TEST.needJob"); lj = pg.evaluate("TEST.ltJob"); rj = pg.evaluate("TEST.laufJob")
+    pruefe(nj and pg.locator(f"[data-plzeile='{nj}']", has_text="offen").count() == 1, "„need: 210kg“ gilt als offen")
+    pruefe(lj and pg.locator(f"[data-plzeile='{lj}']", has_text="Liefertermin nach Start").count() == 1, "Liefertermin nach Start gewarnt")
+    pruefe(rj and pg.locator(f"[data-plzeile='{rj}']").count() == 0, "laufender Auftrag ohne Menge nicht als fehlt")
+    pruefe(pg.locator(".pl-zeile .pl-start", has_text="jetzt").filter(has_text="zu spät").count() == 0, "an der Maschine nie zu spät")
+    # Auch Vorhandenes zeigt ganz vorhandenes Material
+    pg.click("#pl-mitda"); pg.wait_for_timeout(500)
+    pruefe(pg.locator("[data-pllieferant='Schon da']").count() == 1, "Auch Vorhandenes: Gruppe Schon da")
+    pg.click("#pl-mitda"); pg.wait_for_timeout(500)
+    pruefe(pg.locator("[data-pllieferant='Schon da']").count() == 0, "ohne: Schon da weg")
+    # Meldungen quittieren
+    mtodo = pg.locator("[data-pltodo='m']", has_text=nj)
+    pruefe(mtodo.count() == 1 and mtodo.locator("button.pl-haken").count() == 1, "Material-Meldung hat Haken")
+    mtodo.locator("button.pl-haken").click(); pg.wait_for_timeout(800)
+    pruefe(pg.locator("[data-pltodo='m']", has_text=nj).count() == 0, "quittierte Meldung weg")
+    pruefe(pg.evaluate("Object.keys(JSON.parse(TEST.daten.app_config.find(c => c.schluessel === 'planer_quittiert').wert)).length") == 1, "gespeichert in planer_quittiert")
+    pg.click("#pl-abgeschlossen"); pg.wait_for_selector("#pl-abg")
+    pruefe(pg.locator("#pl-abg [data-plabgmeldung]", has_text=nj).count() == 1, "Abgeschlossen zeigt quittierte Meldung")
+    pg.locator("#pl-abg [data-plmeldungwieder]").first.click(); pg.wait_for_timeout(800)
+    pruefe(pg.locator("#pl-abg [data-plabgmeldung]").count() == 0, "Meldung wieder offen")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-pltodo='m']", has_text=nj).count() == 1, "Meldung wieder im Todo")
     pruefe(pg.locator("[data-pltodo='problem']").count() >= 1, "Problem im Todo")
     pruefe(pg.locator("[data-pltodo='eigen']").count() == 1, "eigenes Todo")
     # Tipp aufs Lieferantenfeld: gleich das Regelfenster, vorgefüllt aus dem Verlauf
