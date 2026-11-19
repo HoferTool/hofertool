@@ -14916,3 +14916,12 @@ body.dunkel #pad .pl-suche input { background: #1b2430; border-color: #3a4656; }
 /* HOFERTIME: Buchungen im Tagesverlauf (1.652.0) */
 .ze-paar--buchung { background: #e8f0fb; border-color: #9db8e0; color: #1d4f91; white-space: normal; }
 body.dunkel .ze-paar--buchung { background: #14243a; border-color: #2e4f7d; }
+
+/* HOFERTIME: Stempeln über WLAN (1.656.0) */
+.ze-wlan { max-width: 640px; }
+.ze-wlan__links { background: #fff8e6; border: 1px solid #f0d58a; border-radius: 10px; padding: 10px 12px; margin: 10px 0; }
+.ze-wlan__link { display: grid; grid-template-columns: 70px 1fr auto; gap: 8px; align-items: center; margin-top: 8px; }
+.ze-wlan__link code { word-break: break-all; font-size: 12px; background: #fff; border: 1px solid var(--linie); border-radius: 6px; padding: 4px 6px; }
+body.dunkel .ze-wlan__links { background: #3a2f12; border-color: #6b5420; }
+body.dunkel .ze-wlan__link code { background: #161c23; }
+@media (max-width: 520px) { .ze-wlan__link { grid-template-columns: 1fr; } }

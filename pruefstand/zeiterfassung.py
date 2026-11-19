@@ -191,6 +191,13 @@ with sync_playwright() as p:
     pruefe("geheim" not in pg.inner_text("body") and pg.locator("[data-ze-buchung-art='korrektur_ferien']").count() == 0, "nur_zeit: Korrektur Ferien nicht sichtbar")
     pruefe(pg.locator("#ze-buchung").count() == 0, "nur_zeit: kein Knopf Buchung")
     pruefe(pg.locator("[data-ze-buchung-tag]").count() == 0, "nur_zeit: Korrektur nicht im Tagesverlauf")
+    # Stempeln über WLAN: Link erstellen zeigt Kommen und Gehen (1.656.0)
+    pg.evaluate("() => { TEST.rpc.zeit_link_stand = () => null; TEST.rpc.zeit_link_erstellen = () => 'abc123abc123abc123abc123abc123abc123'; }")
+    pg.click("#ze-wlan-knopf"); pg.wait_for_selector("#ze-wlan-neu"); pg.click("#ze-wlan-neu"); pg.wait_for_selector("#ze-wlan-links")
+    k = pg.inner_text("[data-ze-wlan-link='kommen']")
+    pruefe("zeit-wlan?art=kommen&s=abc123" in k and pg.locator("[data-ze-wlan-link='gehen']").count() == 1, "WLAN-Link Kommen und Gehen: " + k)
+    pg.screenshot(path=BILD + "/zeit-wlan.png")
+    pg.click("#ze-wlan .dialog__x")
     pruefe(not pf, "keine Fehler im Browser: %s" % pf)
     br.close()
 

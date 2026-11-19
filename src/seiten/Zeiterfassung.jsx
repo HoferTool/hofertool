@@ -22,6 +22,7 @@ import { feiertageOeffnen, stufenOeffnen } from "./zeit/Feiertage.jsx";
 import { profilOeffnen } from "./zeit/Profil.jsx";
 import Panel from "./zeit/Panel.jsx";
 import { gesichtOeffnen } from "./zeit/GesichtEinlernen.jsx";
+import { wlanOeffnen } from "./zeit/WlanLink.jsx";
 import Auswertung from "./zeit/Auswertung.jsx";
 import { ABWESENHEITEN } from "../daten/abwesenheit.js";
 
@@ -309,6 +310,7 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
           {(admin || eigene) && <button className="knopf knopf--klein" id="ze-gesicht-knopf" onClick={() => gesichtOeffnen(personId, name)}>🙂 Gesicht</button>}
           {eigene && konto && (konto.ohne_passwort || konto.nur_zeit) &&
             <button className="knopf knopf--klein" id="ze-pin-aendern" onClick={pinAendern}>🔑 PIN ändern</button>}
+          {eigene && <button className="knopf knopf--klein" id="ze-wlan-knopf" onClick={wlanOeffnen}>📶 WLAN-Stempeln</button>}
           {admin && <button className="knopf knopf--klein" id="ze-einst" onClick={() => profilOeffnen(personId, name, einst, neu)}>👤 Profil</button>}
           {(admin || eigene) && monatslohn && <button className="knopf knopf--klein" id="ze-umbuchen" onClick={() => umbuchen(personId, name, einst, neu, !admin)}>⇄ Umbuchen</button>}
           {admin && einst && <button className="knopf knopf--klein" id="ze-buchung" onClick={() => buchungAnlegen(personId, name, einst, neu)}>＋ Buchung</button>}
