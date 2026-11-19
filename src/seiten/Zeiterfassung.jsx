@@ -389,7 +389,7 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
                   {spalte.has(d) ? dauerText(spalte.get(d)) : ""}</span>}
               </button>
               {offen === d && <TagOffen tag={d} stempel={stempelAlle.filter((x) => tagVon(x.zeit) === d)} personId={personId} neu={neu}
-                versteckt={(ferien || []).filter((f) => f.id && f.planwand === false && alt.arbeitstage(f.von, Number(f.tage) || 1).includes(d))}
+                abwesend={(ferien || []).filter((f) => f.id && alt.arbeitstage(f.von, Number(f.tage) || 1).includes(d))}
                 alle={stempelAlle} tagInfo={t} soll={sollTag(d, einst, abw)}
                 abwesendDarf={admin || eigene} selbst={!admin} planName={planName(einst, konto, name)} />}
             </div>);
@@ -451,7 +451,7 @@ function GleitzeitVerlauf({ verlauf, liste, heute, zumTag, titel }) {
     </section>);
 }
 
-function TagOffen({ tag, stempel, personId, neu, abwesendDarf, selbst, planName: wer, alle, tagInfo, soll, versteckt }) {
+function TagOffen({ tag, stempel, personId, neu, abwesendDarf, selbst, planName: wer, alle, tagInfo, soll, abwesend }) {
   const rest = soll - (tagInfo ? tagInfo.minuten : 0);
   const gearbeitet = tagInfo && tagInfo.paare.some((p) => !p.stempelart && p.kommen);
   return (
@@ -465,11 +465,13 @@ function TagOffen({ tag, stempel, personId, neu, abwesendDarf, selbst, planName:
           <button className="knopf knopf--klein" onClick={() => aendern(s, neu)}>Ändern</button>
           <button className="knopf knopf--klein knopf--gefahr" onClick={() => loeschen(s, neu)}>Löschen</button>
         </div>)) : <p className="klein">Keine Stempelungen.</p>}
-      {(versteckt || []).map((f) => (
-        <div key={f.id} className="ze-eintrag" data-ze-krank={f.id}>
-          <b>{ABW[f.abwesenheit] || f.abwesenheit}</b>
-          <span className="klein">{[(Number(f.tage) || 1) > 1 ? "ab " + alt.kurzDatum(f.von) + ", " + f.tage + " Tage" : "", "nicht auf der Planwand", f.note].filter(Boolean).join(" · ")}</span>
-          {abwesendDarf && <button className="knopf knopf--klein knopf--gefahr" onClick={() => verstecktLoeschen(personId, f, neu)}>Löschen</button>}
+      {(abwesend || []).map((f) => (
+        <div key={f.id} className="ze-eintrag" data-ze-abwesenheit={f.id}>
+          <b>{ABW[f.abwesenheit || "ferien"] || f.abwesenheit}</b>
+          <span className="klein">{[(Number(f.tage) || 1) > 1 ? "ab " + alt.kurzDatum(f.von) + ", " + f.tage + " Tage" : "",
+            f.planwand === false ? "nicht auf der Planwand" : "auf der Planwand", f.note].filter(Boolean).join(" · ")}</span>
+          {abwesendDarf && <button className="knopf knopf--klein" data-ze-abw-aendern onClick={() => abwesenheitAendern(personId, f, neu, selbst)}>Ändern</button>}
+          {abwesendDarf && <button className="knopf knopf--klein knopf--gefahr" data-ze-abw-loeschen onClick={() => abwesenheitLoeschen(personId, f, neu, selbst)}>Löschen</button>}
         </div>))}
       <div className="ze-offen__knoepfe">
         <button className="knopf knopf--klein knopf--haupt" data-ze-anwesend onClick={() => anwesendNachtragen(personId, tag, neu, alle)}>+ Anwesend von – bis</button>
@@ -547,13 +549,61 @@ async function abwesendEintragen(wer, tag, neu, selbst) {
   neu();
 }
 
-// Krankheit, die nicht auf der Planwand steht, kann man dort nicht
-// löschen, darum hier (Admin von HOFERTIME oder die Person selbst).
-async function verstecktLoeschen(personId, f, neu) {
-  const name = ABW[f.abwesenheit] || f.abwesenheit;
-  if (!await alt.nachfragen({ titel: name + " löschen?", text: name + " ab " + alt.kurzDatum(f.von) + " wird gelöscht.", bestaetigen: "Löschen", gefahr: true })) return;
+// Eingetragene Abwesenheiten ändern und löschen, auch nachträglich
+// (seit 1.649.0, Wunsch Patrick 19. November 2026: „eingetragene
+// abwesenheiten müssen geändert werden können, auch nachträglich“), alle
+// Einträge der Person, auch die auf der Planwand. Über Funktionen in der
+// Datenbank (sql/hofertime-10-abwesenheit-aendern.sql), damit auch die
+// Person selbst mit reinem HOFERTIME-Konto darf. Rückgängig nur für den
+// Admin, der die Tabelle direkt schreiben darf.
+async function abwesenheitAendern(personId, f, neu, selbst) {
+  const art = f.abwesenheit || "ferien";
+  const w = await alt.dialogFelder({
+    titel: "Abwesenheit ändern",
+    text: "Gilt auch für die Planwand. Ungeplante Krankheit steht nicht auf der Planwand.",
+    felder: [
+      { name: "art", label: "Art", wert: art, auswahl: ABWESENHEITEN.map((a) => [a.id, a.name]) },
+      { name: "von", label: "Erster Tag", typ: "date", wert: f.von, pflicht: true },
+      { name: "tage", label: "Anzahl Arbeitstage", wert: String(Number(f.tage) || 1), ziffern: true, pflicht: true },
+      { name: "notiz", label: "Notiz (freiwillig)", wert: f.note || "" },
+      { name: "geplant", label: "Krankheit geplant (z. B. Operation): auch auf der Planwand zeigen", typ: "haken", wert: art === "krankheit" && f.planwand !== false },
+    ],
+    bestaetigen: "Speichern" });
+  if (!w) return;
+  const tage = Math.round(Number(String(w.tage).replace(",", ".")));
+  if (!w.von || !(tage >= 1 && tage <= 260)) { alt.meldung("Erster Tag und Anzahl Tage prüfen.", "warn"); return; }
+  const von = alt.naechsterArbeitstag(w.von);
+  const vorher = selbst ? [] : await alt.rueckSichern("vacations", { id: f.id });
+  const r = await alt.db.rpc("zeit_abwesenheit_aendern", { p_person: personId, p_id: f.id, p_von: von, p_tage: tage,
+    p_art: w.art, p_notiz: String(w.notiz || "").trim() || null, p_geplant: !!w.geplant });
+  if (r.error) {
+    alt.meldung(/zeit_abwesenheit_aendern|function|schema cache/i.test(r.error.message || "")
+      ? "Ändern ist in der Datenbank noch nicht eingerichtet (sql/hofertime-10-abwesenheit-aendern.sql)."
+      : "Nicht geändert: " + alt.fehlertext(r.error), "fehler");
+    return;
+  }
+  const name = ABW[w.art] || w.art;
+  if (vorher[0]) {
+    const { id, ...alte } = vorher[0];
+    alt.merkeSchritt(name + " geändert", alt.rueckSetz("vacations", alte, { id }));
+  }
+  alt.meldung(name + " geändert.", "gut");
+  neu();
+}
+
+async function abwesenheitLoeschen(personId, f, neu, selbst) {
+  const name = ABW[f.abwesenheit || "ferien"] || f.abwesenheit;
+  if (!await alt.nachfragen({ titel: name + " löschen?", text: name + " ab " + alt.kurzDatum(f.von) + ((Number(f.tage) || 1) > 1 ? ", " + f.tage + " Tage," : "")
+    + " wird gelöscht" + (f.planwand === false ? "." : ", auch auf der Planwand."), bestaetigen: "Löschen", gefahr: true })) return;
+  const vorher = selbst ? [] : await alt.rueckSichern("vacations", { id: f.id });
   const r = await alt.db.rpc("zeit_abwesenheit_loeschen", { p_person: personId, p_id: f.id });
-  if (r.error) { alt.meldung("Nicht gelöscht: " + alt.fehlertext(r.error), "fehler"); return; }
+  if (r.error) {
+    alt.meldung(/nicht gefunden/i.test(r.error.message || "") && f.planwand !== false
+      ? "Löschen von Einträgen auf der Planwand ist in der Datenbank noch nicht eingerichtet (sql/hofertime-10-abwesenheit-aendern.sql)."
+      : "Nicht gelöscht: " + alt.fehlertext(r.error), "fehler");
+    return;
+  }
+  if (vorher.length) alt.merkeSchritt(name + " gelöscht", alt.rueckRein("vacations", vorher));
   alt.meldung(name + " gelöscht.", "gut");
   neu();
 }
