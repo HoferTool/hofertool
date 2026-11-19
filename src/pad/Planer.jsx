@@ -11,7 +11,8 @@
 //  Todos stehen im Fenster „Abgeschlossen“ neben dem Todo-Titel. Rechts das Material der nächsten Aufträge,
 //  nach Lieferant gebündelt (Rechnung in src/daten/planer.js).
 // =================================================================
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { passtWoerter } from "../teile/Suchfeld.jsx";
 import { alt } from "../bruecke.jsx";
 import { padZurueck } from "./Pad.jsx";
 import { istPlanerTab, planerTabVerlassen, planerSichtbar, planerTabOeffnen } from "./planerTab.js";
@@ -89,11 +90,47 @@ export default function Planer({ d, neu }) {
   );
 }
 
+// Suche im Planer (seit 1.653.0, Wunsch Patrick 19. November 2026: „Suchfunktion
+// einbauen, auch per Strg + F“): filtert Todos und Materialliste nach allen
+// Wörtern (HOCO Nr., Material, Lieferant, Maschine, Text). Strg + F springt im
+// Planer ins Feld statt in die Suche der Planwand, Escape leert es.
+function useSucheTaste(ref, setSuche) {
+  useEffect(() => {
+    const taste = (ev) => {
+      if ((ev.ctrlKey || ev.metaKey) && !ev.altKey && ev.key.toLowerCase() === "f") {
+        if (document.querySelector(".dialog-huelle")) return;
+        ev.preventDefault(); ev.stopPropagation();
+        const f = ref.current; if (f) { f.focus(); f.select(); }
+      }
+      // Escape im Feld leert nur die Suche; vor dem Escape der App, das sonst
+      // „Planer verlassen?“ fragt
+      if (ev.key === "Escape" && ev.target === ref.current && ref.current.value) {
+        ev.preventDefault(); ev.stopPropagation(); setSuche("");
+      }
+    };
+    window.addEventListener("keydown", taste, true);
+    return () => window.removeEventListener("keydown", taste, true);
+  }, [ref, setSuche]);
+}
+
+function zeileFelder(z) {
+  return [z.j.job_number, z.j.fa_nr, z.j.material_bez, z.j.material_menge, z.j.material_liefertermin, z.maschine, z.lieferant,
+    z.quelle, STAND[z.stand] && STAND[z.stand][0], z.anMaschine ? "jetzt" : tagText(z.start)];
+}
+
 function Dashboard({ d, e, um, neu }) {
+  const [suche, setSuche] = useState("");
+  const ref = useRef(null);
+  useSucheTaste(ref, setSuche);
   return (
     <>
+      <div className="pl-suche">
+        <input ref={ref} id="pl-suche" type="search" value={suche} placeholder="Suchen: HOCO Nr., Material, Lieferant, Maschine … (Strg + F)"
+          data-ohne-leiste="" onChange={(ev) => setSuche(ev.target.value)} />
+        {suche && <button className="pl-knopf" id="pl-suche-weg" onClick={() => { setSuche(""); ref.current && ref.current.focus(); }}>✕ Leeren</button>}
+      </div>
       <div className="pl" id="pad-planer">
-        <Todos d={d} neu={neu} />
+        <Todos d={d} neu={neu} suche={suche} />
         <section className="pl-karte pl-material">
           <div className="pl-kopf">
             <h2>Material für die nächsten Aufträge</h2>
@@ -114,7 +151,7 @@ function Dashboard({ d, e, um, neu }) {
               ))}
             </span>
           </div>
-          <Material d={d} e={e} neu={neu} />
+          <Material d={d} e={e} neu={neu} suche={suche} />
         </section>
       </div>
     </>
@@ -133,7 +170,7 @@ function lieferantenFenster(neu) {
 
 // ---------- Todo ----------
 
-function Todos({ d, neu, titel, oeffnen = planwandZeigen, titelKlick }) {
+function Todos({ d, neu, titel, oeffnen = planwandZeigen, titelKlick, suche = "" }) {
   const heute = d.heute;
   const bald = alt.plusTage(heute, 7);
   const posten = [];
@@ -193,6 +230,8 @@ function Todos({ d, neu, titel, oeffnen = planwandZeigen, titelKlick }) {
   // den gemeldeten kommen“)
   const RANG = { problem: 0, eigen: 2, m: 3, wbg: 4 };
   posten.sort((a, b) => RANG[a.art] - RANG[b.art] || a.sort.localeCompare(b.sort));
+  const alle = posten.length;
+  if (suche.trim()) posten.splice(0, posten.length, ...posten.filter((p) => passtWoerter(suche, [p.titel, p.unter])));
   const offen = posten.filter((p) => !p.erledigt).length;
   const z = {
     prob: posten.filter((p) => p.art === "problem").length,
@@ -219,7 +258,7 @@ function Todos({ d, neu, titel, oeffnen = planwandZeigen, titelKlick }) {
           </span>
         </div>
         <div className="pl-liste">
-          {!posten.length && <p className="pl-leer">Nichts zu tun. 🎉</p>}
+          {!posten.length && <p className="pl-leer">{alle ? "Nichts gefunden für „" + suche.trim() + "“." : "Nichts zu tun. 🎉"}</p>}
           {posten.map((p) => (
             <div key={p.k} className={"pl-todo__eintrag" + (p.rot ? " pl-todo__eintrag--rot" : "") + (p.erledigt ? " pl-todo__eintrag--erledigt" : "")}
               data-pltodo={p.art}>
@@ -374,11 +413,12 @@ function planwandZeigen(j) {
 
 // ---------- Material ----------
 
-function Material({ d, e, neu }) {
+function Material({ d, e, neu, suche = "" }) {
   // Immer alles, auch ganz Vorhandenes in der Gruppe „Schon da“ (seit 1.646.0),
   // ausser Positionen, die als erledigt abgehakt sind (seit 1.647.0)
   const quitt = d.quittiert || {};
-  const zeilen = d.zeilen.filter((z) => !quitt["z" + z.j.id]);
+  const zeilen = d.zeilen.filter((z) => !quitt["z" + z.j.id] && passtWoerter(suche, zeileFelder(z)));
+  if (!zeilen.length && suche.trim()) return <p className="pl-leer" data-plsuche-leer="">Kein Material gefunden für „{suche.trim()}“.</p>;
   if (!zeilen.length) return <p className="pl-leer">Keine Aufträge mit Material bis {tagText(d.bis)}.</p>;
   if (e.ansicht === "start") {
     return <div className="pl-gruppen"><div className="pl-lief"><Tabelle zeilen={zeilen} d={d} neu={neu} mitLieferant /></div></div>;

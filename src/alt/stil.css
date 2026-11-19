@@ -14906,3 +14906,9 @@ body.dunkel .ze-pablo { background: radial-gradient(circle at 50% 42%, #173f78 0
 /* HOFERCAM: Erklärungsbild Schnabelzange Gegenspindel (seit 1.640.0, Wunsch Patrick 19. November 2026) */
 .cam-gruppe:has(.cam-mitbild) { position: relative; }
 .cam-mitbild .cam-ab__bild { width: 432px; }
+
+/* Suche im Planer (seit 1.653.0) */
+#pad .pl-suche { display: flex; gap: 8px; align-items: center; padding: 14px 16px 0; }
+#pad .pl-suche input { flex: 1; max-width: 560px; font-size: 16px; padding: 8px 12px; border-radius: 10px; border: 1px solid #b9c4d0; background: #fff; color: #10233a; }
+#pad .pl-suche input:focus { outline: 2px solid var(--akzent, #0b5cad); outline-offset: 1px; }
+body.dunkel #pad .pl-suche input { background: #1b2430; border-color: #3a4656; }

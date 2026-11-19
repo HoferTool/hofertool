@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.653.0 (19. November 2026)
+
+- Planer: Suchfeld oben über Todos und Materialliste, Strg + F springt hinein, Escape leert es (Wunsch Patrick: „Suchfunktion einbauen, auch per Strg + F“).
+
 ## 1.648.0 (19. November 2026)
 
 - Planer: Links zur Planwand öffnen die normale Planwand im Haupt-Tab beim Auftrag, nicht mehr die Planwand als Fenster im Planer.
