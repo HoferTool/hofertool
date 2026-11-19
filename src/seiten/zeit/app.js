@@ -54,3 +54,16 @@ function gemerkteVergessen() {
   } catch (f) { /* egal */ }
 }
 if (istTerminal()) gemerkteVergessen();
+
+// HOFERTIME am Handy bleibt angemeldet (seit 1.650.0, Wunsch Patrick
+// 19. November 2026: „flavia will mit dem samsung aber immer direkt
+// einsteigen können. auf den handys kannst du das freigeben“): keine
+// Abmeldung nach 5 Minuten Ruhe und nach 4 Stunden, die Anmeldung wird
+// immer gemerkt. Handy = Finger und kurze Bildschirmseite unter 600
+// Punkten (iPads und PCs nicht), nie am Stempel-Terminal.
+export function zeitHandy() {
+  if (!zeitApp || istTerminal()) return false;
+  try {
+    return matchMedia("(pointer: coarse)").matches && Math.min(screen.width, screen.height) < 600;
+  } catch (f) { return false; }
+}

@@ -30,6 +30,8 @@ def start(p, rolle, adresse="hofertime/index.html", extra="", breite=1440, hoehe
     body = FAKE + (";\n(TEST.daten.profiles.find(x => x.id === 'u1') || {}).role = '%s';\n" % rolle) + \
         "TEST.daten.zeit_stempel = %s; TEST.daten.zeit_personen = %s; TEST.daten.zeit_verlauf = [];\n" % (json.dumps(STEMPEL), json.dumps(EINST)) + \
         "TEST.rpc.zeit_abwesenheiten = () => %s; TEST.funktionen = TEST.funktionen || {};\n" % json.dumps(FERIEN) + \
+        "TEST.rpc.zeit_umbuchen = (a) => { const b = { id: 'b' + Date.now(), person_id: a.p_person, datum: a.p_datum, tage: a.p_tage, minuten: Math.round(-a.p_tage * 510), notiz: a.p_notiz }; (TEST.daten.zeit_buchungen = TEST.daten.zeit_buchungen || []).push(b); return b; };\n" + \
+        "TEST.rpc.zeit_umbuchung_loeschen = (a) => { TEST.daten.zeit_buchungen = (TEST.daten.zeit_buchungen || []).filter(x => x.id !== a.p_id); return true; };\n" + \
         "TEST.funktionen['zeit-konto'] = (b) => { TEST.daten.profiles.push({ id: 'z9', email: 'z@x', full_name: b.name, role: 'mitarbeiter', is_active: true, nur_zeit: true }); return { id: 'z9' }; };\n" + extra
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=body))
     for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
@@ -174,6 +176,17 @@ with sync_playwright() as p:
     r = pg.evaluate("() => TEST.protokoll.filter(x => x.art === 'rpc' && x.name === 'zeit_abwesend_neu').map(x => x.args)")
     pruefe(len(r) == 1 and r[0]["p_art"] == "krankheit" and r[0]["p_tage"] == 1 and r[0]["p_geplant"] is False,
            "nur_zeit: selbst abwesend eingetragen, ungeplant (1.641.0): %s" % r)
+    # Selbst umbuchen am Handy (1.650.0)
+    pruefe(pg.locator("#ze-umbuchen").count() == 1, "nur_zeit: Knopf Umbuchen da")
+    if pg.locator("#ze-umbuchen").count():
+        pg.click("#ze-umbuchen"); pg.wait_for_selector(".dialog-huelle select")
+        pg.select_option(".dialog-huelle select", "zuGleitzeit")
+        pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(900)
+        r = pg.evaluate("() => TEST.protokoll.filter(x => x.art === 'rpc' && x.name === 'zeit_umbuchen').map(x => x.args)")
+        pruefe(len(r) == 1 and r[0]["p_tage"] == -1 and r[0]["p_person"] == "u1", "nur_zeit: selbst umgebucht über zeit_umbuchen: %s" % r)
+        pruefe(pg.locator("[data-ze-umbuchung-weg]").count() == 1, "nur_zeit: eigene Umbuchung mit ✕")
+        pg.click("[data-ze-umbuchung-weg]"); pg.wait_for_selector(".dialog-huelle [data-ja]"); pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(900)
+        pruefe(pg.evaluate("() => (TEST.daten.zeit_buchungen || []).length") == 0, "nur_zeit: eigene Umbuchung gelöscht")
     pruefe(not pf, "keine Fehler im Browser: %s" % pf)
     br.close()
 

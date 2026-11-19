@@ -18,7 +18,7 @@ import { statistikZurueck } from "../seiten/Statistik.jsx";
 import Kalkulation, { kalkulationZurueck } from "../seiten/Kalkulation.jsx";
 import Lager from "../seiten/Lager.jsx";
 import Zeiterfassung from "../seiten/Zeiterfassung.jsx";
-import { zeitApp, istZeitAdresse } from "../seiten/zeit/app.js";
+import { zeitApp, istZeitAdresse, zeitHandy } from "../seiten/zeit/app.js";
 import Reihen from "../seiten/Reihen.jsx";
 import QmAlternativ from "../seiten/QmAlternativ.jsx";
 import "../seiten/Kalender.jsx";
@@ -170,7 +170,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.649.2";
+const APP_VERSION = "1.650.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -8658,9 +8658,16 @@ function zuletztSchreiben(sofort) {
 
 // Beim Start mit noch gültiger Sitzung: war die Person zu lange weg?
 function zuLangeWeg(p) {
-  if (!p || !p.id || istAndererNutzer(p)) return false;
+  if (!p || !p.id || istAndererNutzer(p) || handyBleibt(p)) return false;
   const zuletzt = zuletztLesen(p.id);
   return zuletzt > 0 && Date.now() - zuletzt >= LEERLAUF_MAX_MS;
+}
+
+// HOFERTIME am Handy: nie von selbst abmelden (seit 1.650.0), ausser beim
+// Panel-Konto des Stempel-Pads
+function handyBleibt(p) {
+  const k = p || profil;
+  return zeitHandy() && !(k && k.zeit_terminal);
 }
 
 function leerlaufAktiv() {
@@ -8706,6 +8713,11 @@ function leerlaufStoppen() {
 
 function leerlaufPruefen() {
   if (!leerlauf.takt || !profil) return;
+  if (handyBleibt()) {
+    leerlauf.letzte = Date.now();
+    if (leerlauf.hinweis) { leerlauf.hinweis.remove(); leerlauf.hinweis = null; }
+    return;
+  }
   // Obergrenze 4 Stunden vor allen Ausnahmen; nur Gerätekonten und ein
   // laufendes Hochladen im Temp-Ordner halten sie auf
   if (!istAndererNutzer() && !document.querySelector(".temp__liste--laeuft")) {

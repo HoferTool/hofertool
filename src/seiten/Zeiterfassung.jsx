@@ -305,7 +305,7 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
           {eigene && konto && (konto.ohne_passwort || konto.nur_zeit) &&
             <button className="knopf knopf--klein" id="ze-pin-aendern" onClick={pinAendern}>🔑 PIN ändern</button>}
           {admin && <button className="knopf knopf--klein" id="ze-einst" onClick={() => profilOeffnen(personId, name, einst, neu)}>👤 Profil</button>}
-          {admin && monatslohn && <button className="knopf knopf--klein" id="ze-umbuchen" onClick={() => umbuchen(personId, name, einst, neu)}>⇄ Umbuchen</button>}
+          {(admin || eigene) && monatslohn && <button className="knopf knopf--klein" id="ze-umbuchen" onClick={() => umbuchen(personId, name, einst, neu, !admin)}>⇄ Umbuchen</button>}
           {admin && konto && konto.nur_zeit && <>
             <button className="knopf knopf--klein" id="ze-pin" onClick={() => pinSetzen(konto)}>PIN setzen</button>
             <button className="knopf knopf--klein knopf--gefahr" id="ze-konto-aus" onClick={() => kontoAus(konto)}>Konto deaktivieren</button>
@@ -340,7 +340,7 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
               <span key={b.id} className="ze-buchung">
                 {alt.kurzDatum(b.datum)}: {Number(b.tage) > 0 ? "+" : ""}{alt.zahlText(b.tage)} Tage Ferien, {b.minuten > 0 ? "+" : ""}{dauerText(b.minuten)} Gleitzeit
                 {b.notiz ? " · " + b.notiz : ""}
-                {admin && <button className="knopf knopf--klein knopf--still" aria-label="Umbuchung löschen" onClick={() => umbuchungWeg(b, neu)}>✕</button>}
+                {(admin || eigene) && <button className="knopf knopf--klein knopf--still" aria-label="Umbuchung löschen" data-ze-umbuchung-weg={b.id} onClick={() => umbuchungWeg(b, neu, !admin)}>✕</button>}
               </span>))}
           </div>}
         </div>
@@ -782,7 +782,11 @@ async function verlaufZeigen(personId, name) {
 // Wunsch Patrick 18. November 2026: „Ferienguthaben und Gleitzeit sollen
 // umgebucht werden können, in beide Richtungen“. Ein Ferientag gilt so
 // viel wie die Sollzeit eines durchschnittlichen Arbeitstags im Profil.
-async function umbuchen(personId, name, einst, neu) {
+// Seit 1.650.0 bucht jede Person mit Monatslohn selbst um, auch am Handy
+// (Wunsch Patrick 19. November 2026). Gebucht wird über die Funktion
+// zeit_umbuchen, die die Gleitzeit selbst aus der Sollzeit rechnet;
+// Rückgängig nur beim Admin, nur er darf die Tabelle direkt ändern.
+async function umbuchen(personId, name, einst, neu, selbst) {
   const proTag = minutenJeFerientag(einst);
   if (!proTag) { alt.meldung("Im Profil fehlt die Sollzeit, ohne sie lässt sich nicht umbuchen.", "warn"); return; }
   const w = await alt.dialogFelder({
@@ -800,20 +804,24 @@ async function umbuchen(personId, name, einst, neu) {
   const t = Number(String(w.tage).replace(",", "."));
   if (!Number.isFinite(t) || t <= 0) { alt.meldung("Bitte eine Zahl grösser als 0 eintragen.", "warn"); return; }
   const tage = w.richtung === "zuFerien" ? t : -t;
-  const r = await alt.db.from("zeit_buchungen").insert({
-    person_id: personId, datum: w.datum, tage, minuten: Math.round(-tage * proTag), notiz: w.notiz || null,
-  }).select().single();
-  if (r.error) { alt.meldung("Nicht umgebucht: " + alt.fehlertext(r.error), "fehler"); return; }
-  alt.merkeSchritt("Umbuchen " + name, alt.rueckWeg("zeit_buchungen", { id: r.data.id }));
+  const r = await alt.db.rpc("zeit_umbuchen", { p_person: personId, p_datum: w.datum, p_tage: tage, p_notiz: w.notiz || null });
+  if (r.error) {
+    alt.meldung(/zeit_umbuchen|function/i.test(String(r.error.message || ""))
+      ? "Umbuchen geht noch nicht, die Datenbank kennt es noch nicht (sql/hofertime-11-umbuchen-selbst.sql)."
+      : "Nicht umgebucht: " + alt.fehlertext(r.error), "fehler");
+    return;
+  }
+  const b = Array.isArray(r.data) ? r.data[0] : r.data;
+  if (!selbst && b && b.id) alt.merkeSchritt("Umbuchen " + name, alt.rueckWeg("zeit_buchungen", { id: b.id }));
   alt.meldung("Umgebucht: " + (tage > 0 ? "+" : "") + alt.zahlText(tage) + " Ferientage, " + dauerText(Math.round(-tage * proTag)) + " Gleitzeit.", "gut");
   neu();
 }
 
-async function umbuchungWeg(b, neu) {
+async function umbuchungWeg(b, neu, selbst) {
   if (!await alt.nachfragen({ titel: "Umbuchung löschen?", text: "Ferien und Gleitzeit stehen danach wieder wie vorher.", bestaetigen: "Löschen", gefahr: true })) return;
-  const r = await alt.db.from("zeit_buchungen").delete().eq("id", b.id);
+  const r = await alt.db.rpc("zeit_umbuchung_loeschen", { p_id: b.id });
   if (r.error) { alt.meldung(alt.fehlertext(r.error), "fehler"); return; }
-  alt.merkeSchritt("Umbuchung löschen", alt.rueckRein("zeit_buchungen", [b]));
+  if (!selbst) alt.merkeSchritt("Umbuchung löschen", alt.rueckRein("zeit_buchungen", [b]));
   neu();
 }
 

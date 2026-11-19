@@ -17,7 +17,7 @@ import { createRoot } from "react-dom/client";
 import { alt } from "../bruecke.jsx";
 import { bildHell } from "../teile/profilbilder.js";
 import { planwandVorladenHoechstens } from "../daten/planwandStand.js";
-import { zeitApp, istTerminal } from "../seiten/zeit/app.js";
+import { zeitApp, istTerminal, zeitHandy } from "../seiten/zeit/app.js";
 
 let wurzel = null;
 
@@ -451,7 +451,9 @@ function Anmeldung() {
 // aufPasswort gesetzt heisst: Das Feld nimmt eine PIN.
 // Rückmeldungen gibt es keine als Meldung unten rechts: Nur wenn etwas
 // nicht stimmt, erscheint der Grund direkt unter dem Feld.
-function useAnmelden(vorgabeMail, aufPasswort, hinweis, immerMerken) {
+function useAnmelden(vorgabeMail, aufPasswort, hinweis, immerMerkenKonto) {
+  // HOFERTIME am Handy merkt die Anmeldung immer (seit 1.650.0)
+  const immerMerken = immerMerkenKonto || zeitHandy();
   const [laeuft, setLaeuft] = useState(false);
   const [fehler, setFehler] = useState(hinweis ? { text: hinweis, n: 0 } : null);
   const nameRef = useRef(null);
@@ -534,7 +536,7 @@ function useAnmelden(vorgabeMail, aufPasswort, hinweis, immerMerken) {
 
   const knopf = (<>
     {istTerminal() ? null : immerMerken
-      ? <div className="login__merken login__merken--immer" id="lmerk-immer">Dieses Konto bleibt angemeldet.</div>
+      ? <div className="login__merken login__merken--immer" id="lmerk-immer">{immerMerkenKonto ? "Dieses Konto bleibt angemeldet." : "Dieses Handy bleibt angemeldet."}</div>
       : <label className="schalter login__merken"><input type="checkbox" id="lmerk" defaultChecked ref={merkRef} />
           <span>Auf diesem Gerät merken</span></label>}
     <button type="submit" className={"knopf knopf--haupt knopf--breit" + (laeuft ? " login__knopf--laeuft" : "")}
