@@ -14893,3 +14893,12 @@ body.dunkel .ze-pablo { background: radial-gradient(circle at 50% 42%, #173f78 0
 /* Knopf „Erledigte Probleme“ im Fenster Abgeschlossen des Planers (seit 1.645.0) */
 .pl-abg .dialog__kopf h2 { margin-right: auto; }
 .pl-abg__probleme { flex: none; }
+
+/* Planer: Haken je Materialposition (seit 1.647.0) – vorne eine schmale Spalte */
+#pad .pl-zeile { grid-template-columns: 30px 92px 64px 108px minmax(140px, 1.5fr) 110px minmax(170px, 1.4fr); }
+#pad .pl-zeile__haken { width: 26px; height: 26px; border-radius: 7px; position: relative; cursor: pointer; }
+#pad .pl-zeile__haken:hover { border-color: #2fae62; background: rgba(47, 174, 98, .15); }
+#pad .pl-zeile__haken:hover::after { content: "✓"; position: absolute; inset: 0; display: grid; place-items: center; color: #2fae62; font-weight: 700; }
+@media (max-width: 1000px) {
+  #pad .pl-zeile { grid-template-columns: 30px 84px 44px 1fr 1fr; }
+}

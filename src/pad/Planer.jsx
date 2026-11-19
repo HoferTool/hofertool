@@ -98,6 +98,7 @@ function Dashboard({ d, e, um, neu }) {
           <div className="pl-kopf">
             <h2>Material für die nächsten Aufträge</h2>
             <button className="pl-knopf" id="pl-lieferanten" onClick={() => lieferantenFenster(neu)}>⚙ Lieferanten</button>
+            <MatErledigtKnopf d={d} neu={neu} />
           </div>
           <div className="pl-filter">
             <span className="pl-gruppe">
@@ -153,7 +154,7 @@ function Todos({ d, neu, titel, oeffnen = planwandFensterOeffnen, titelKlick }) 
   for (const z of d.zeilen) {
     if (!(zuBestellen(z) || z.liefertSpaet) || (z.start > bald && !z.zuSpaet)) continue;
     const k = "m" + z.j.id;
-    if (quitt[k]) continue;
+    if (quitt[k] || quitt["z" + z.j.id]) continue;
     const titelM = (z.liefertSpaet ? "Liefertermin nach Start" : "Material " + (z.stand === "offen" ? "offen" : z.stand === "teil" ? "reicht nicht" : "fehlt"))
       + ": Start " + tagText(z.start) + (z.maschine ? " auf " + z.maschine : "");
     const unterM = [z.j.job_number, z.j.material_bez, z.stand === "offen" ? "„" + z.j.material_menge + "“" : "", z.stand === "teil" ? "fehlen noch " + zahl(z.fehltKg) + " kg" : "",
@@ -175,7 +176,7 @@ function Todos({ d, neu, titel, oeffnen = planwandFensterOeffnen, titelKlick }) 
   // Erledigtes steht nicht mehr in der Liste, nur im Fenster „Abgeschlossen“
   // (seit 1.529.0, Wunsch Patrick 13. November 2026)
   const erledigt = sichtbar.filter((t) => t.erledigt_am);
-  const nQuitt = Object.keys(d.quittiert || {}).filter((k) => offeneIds.has(k.slice(1))).length;
+  const nQuitt = Object.keys(d.quittiert || {}).filter((k) => k[0] !== "z" && offeneIds.has(k.slice(1))).length;
   const eigene = sichtbar.filter((t) => !t.erledigt_am);
   eigene.sort((a, b) => String(a.faellig || "9").localeCompare(String(b.faellig || "9")));
   for (const t of eigene) {
@@ -244,7 +245,7 @@ function Todos({ d, neu, titel, oeffnen = planwandFensterOeffnen, titelKlick }) 
 // lädt selbst neu, damit es nach dem Wieder-Öffnen stimmt.
 function abgeschlossenFenster(d, neu) {
   const offeneIds = new Set(d.offen.map((j) => String(j.id)));
-  const q = Object.entries(d.quittiert || {}).filter(([k]) => offeneIds.has(k.slice(1))).map(([k, v]) => ({ k, ...v }));
+  const q = Object.entries(d.quittiert || {}).filter(([k]) => k[0] !== "z" && offeneIds.has(k.slice(1))).map(([k, v]) => ({ k, ...v }));
   fensterOeffnen((zu) => <Abgeschlossen start={d.todos} quitt={q} zu={zu} neu={neu} />);
 }
 
@@ -347,8 +348,10 @@ async function todoBearbeiten(t, neu) {
 // ---------- Material ----------
 
 function Material({ d, e, neu }) {
-  // Immer alles, auch ganz Vorhandenes in der Gruppe „Schon da“ (seit 1.646.0)
-  const zeilen = d.zeilen;
+  // Immer alles, auch ganz Vorhandenes in der Gruppe „Schon da“ (seit 1.646.0),
+  // ausser Positionen, die als erledigt abgehakt sind (seit 1.647.0)
+  const quitt = d.quittiert || {};
+  const zeilen = d.zeilen.filter((z) => !quitt["z" + z.j.id]);
   if (!zeilen.length) return <p className="pl-leer">Keine Aufträge mit Material bis {tagText(d.bis)}.</p>;
   if (e.ansicht === "start") {
     return <div className="pl-gruppen"><div className="pl-lief"><Tabelle zeilen={zeilen} d={d} neu={neu} mitLieferant /></div></div>;
@@ -403,7 +406,7 @@ function Material({ d, e, neu }) {
 }
 
 function bedarfText(z) {
-  if (!z.bedarf) return z.rahmen ? "Rahmen" : "–";
+  if (!z.bedarf) return z.ohneBedarf || "–";
   return (z.bedarf.sicher ? "" : "ca. ") + zahl(z.bedarf.kg) + " kg · " + z.bedarf.stangen + " St.";
 }
 
@@ -423,6 +426,8 @@ function Tabelle({ zeilen, d, neu, mitLieferant }) {
         const fehlt = zuBestellen(z);
         return (
           <div key={z.j.id} className={"pl-zeile" + (z.zuSpaet ? " pl-zeile--spaet" : "")} data-plzeile={z.j.job_number}>
+            <button className="pl-haken pl-zeile__haken" data-plzerledigt={z.j.id} title="Erledigt, anders geregelt: aus der Liste nehmen"
+              aria-label="Erledigt" onClick={() => positionErledigt(z, d, neu)} />
             <span className={"pl-start" + (z.zuSpaet ? " pl-rot" : "")}>{z.anMaschine ? "jetzt" : tagText(z.start)}</span>
             <span className="pl-masch">{z.maschine}</span>
             <button className="pl-hoco" onClick={() => planwandFensterOeffnen(z.j)}>{z.j.job_number}</button>
@@ -443,6 +448,64 @@ function Tabelle({ zeilen, d, neu, mitLieferant }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// Einzelne Positionen der Materialliste abhaken (seit 1.647.0, Wunsch Patrick
+// 19. November 2026: „bei Lieferanten einzelne Pos wegmachen, weil man es
+// anders geregelt hat“). Gemeinsam für alle Admins in app_config.planer_quittiert
+// unter „z<Auftrag>“; die Meldung „Material fehlt“ im Todo fällt damit auch weg.
+// Oben „✓ Erledigte (n)“ zeigt sie mit „Wieder offen“. Ist der Auftrag nicht
+// mehr offen, räumt das nächste Abhaken den Eintrag weg.
+function zTexte(z) {
+  return [(z.j.job_number || "") + " · " + (z.j.material_bez || ""),
+    ["Start " + (z.anMaschine ? "jetzt" : tagText(z.start)), z.maschine, z.lieferant, bedarfText(z)].filter(Boolean).join(" · ")];
+}
+async function positionErledigt(z, d, neu) {
+  const [titel, unter] = zTexte(z);
+  const k = "z" + z.j.id;
+  try {
+    await meldungQuittieren(k, titel, unter, new Set(d.offen.map((j) => String(j.id))));
+    alt.meldung("Position erledigt: " + z.j.job_number + ". Wieder holen unter „✓ Erledigte“.", "gut");
+    neu();
+  } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+}
+
+function matErledigte(d) {
+  const offeneIds = new Set(d.offen.map((j) => String(j.id)));
+  return Object.entries(d.quittiert || {}).filter(([k]) => k[0] === "z" && offeneIds.has(k.slice(1)))
+    .map(([k, v]) => ({ k, ...v }));
+}
+
+function MatErledigtKnopf({ d, neu }) {
+  const n = matErledigte(d).length;
+  return <button className="pl-knopf" id="pl-mat-erledigt" title="Abgehakte Positionen ansehen oder wieder öffnen"
+    onClick={() => fensterOeffnen((zu) => <MatErledigt start={matErledigte(d)} zu={zu} neu={neu} />)}>✓ Erledigte ({n})</button>;
+}
+
+function MatErledigt({ start, zu, neu }) {
+  const [liste, setListe] = useState(start);
+  const wieder = async (m) => {
+    try { await meldungWiederOffen(m.k); setListe((x) => x.filter((y) => y.k !== m.k)); neu(); }
+    catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+  };
+  return (
+    <div className="dialog dialog--breit pl-abg" id="pl-mat-erl">
+      <div className="dialog__kopf"><h2>Erledigte Positionen</h2>
+        <button className="dialog__schliessen-inline" title="Schliessen" onClick={zu}>✕</button></div>
+      <div className="pl-abg__liste">
+        {!liste.length && <p className="pl-abg__leer">Keine erledigten Positionen.</p>}
+        {[...liste].sort((a, b) => String(b.am).localeCompare(String(a.am))).map((m) => (
+          <div key={m.k} className="pl-abg__zeile" data-plmaterl={m.k.slice(1)}>
+            <span className="pl-abg__text">
+              <b>{m.titel}</b>
+              <small>{[m.unter, "erledigt " + (m.am ? alt.datumZeitKurz(m.am) : ""), m.von].filter(Boolean).join(" · ")}</small>
+            </span>
+            <button className="knopf knopf--still" data-plmatwieder={m.k.slice(1)} onClick={() => wieder(m)}>↶ Wieder offen</button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

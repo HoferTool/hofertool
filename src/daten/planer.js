@@ -319,9 +319,16 @@ export async function planerLaden(tage) {
     let stand = materialStand(j);
     const z = materialZerlegen(j.material_bez);
     let bedarf = null;
-    if (material && material.teile[j.job_number]) {
-      const b = bedarfRechnen(j, material.teile[j.job_number], material.maschineVon[j.machine_id], false);
+    // Warum kein Bedarf (seit 1.647.0, Patrick 19. November 2026: „warum steht
+    // bei manchen Rahmen und bei anderen nur ein Strich“): meist fehlt die
+    // Länge des Fertigteils, das hat mit Rahmen nichts zu tun
+    let ohneBedarf = "Länge fehlt";
+    const teil = material && material.teile[j.job_number];
+    if (teil) {
+      const b = bedarfRechnen(j, teil, material.maschineVon[j.machine_id], false);
       if (b && b.kg) bedarf = { kg: Math.ceil(b.kg), stangen: b.stangen, sicher: b.sicher };
+      else if (b) ohneBedarf = "nichts mehr offen";
+      else if (Number(teil.teil_laenge_mm) > 0) ohneBedarf = "Mass nicht lesbar";
     }
     // Teilmenge (Wunsch Patrick 12. November 2026: „wenn nur Teilmenge
     // vorhanden ist, soll es anzeigen, noch so viel“): da oder bestellt,
@@ -343,7 +350,7 @@ export async function planerLaden(tage) {
     const lt = stand === "bestellt" ? lieferterminIso(j.material_liefertermin) : null;
     const rest = material && z ? (material.posten || []).filter((p) => p.art === "lager" && !p.weg_am
       && (materialZerlegen(p.material) || {}).grund === z.grund) : [];
-    zeilen.push({ j, start, stand, z, bedarf, regel: regelFuer(j.material_bez, regeln), hatKg, fehltKg, rest, rahmen: istRahmen(j),
+    zeilen.push({ j, start, stand, z, bedarf, regel: regelFuer(j.material_bez, regeln), hatKg, fehltKg, rest, rahmen: istRahmen(j), ohneBedarf,
       anMaschine, liefertSpaet: !!(lt && lt > start),
       maschine: j.maschine_nr || nrVon[j.machine_id] || "",
       kandidaten: z && verlauf[z.grund] ? Object.entries(verlauf[z.grund])
