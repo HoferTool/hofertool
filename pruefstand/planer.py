@@ -87,17 +87,15 @@ with sync_playwright() as p:
     teil = pg.evaluate("TEST.teilJob")
     tz = pg.locator(f"[data-plzeile='{teil}']")
     pruefe(tz.count() == 1 and "fehlen noch" in tz.inner_text(), "Teilmenge: fehlen noch … kg " + (tz.inner_text() if tz.count() else ""))
-    pruefe(pg.locator(".pl-zeile", has_text="X10CrNiS18").count() == 0, "Material ganz da wird nicht gezeigt")
+    pruefe(pg.locator("[data-pllieferant='Schon da'] .pl-zeile", has_text="X10CrNiS18").count() >= 1, "Material ganz da steht unter Schon da")
     nj = pg.evaluate("TEST.needJob"); lj = pg.evaluate("TEST.ltJob"); rj = pg.evaluate("TEST.laufJob")
     pruefe(nj and pg.locator(f"[data-plzeile='{nj}']", has_text="offen").count() == 1, "„need: 210kg“ gilt als offen")
     pruefe(lj and pg.locator(f"[data-plzeile='{lj}']", has_text="Liefertermin nach Start").count() == 1, "Liefertermin nach Start gewarnt")
     pruefe(rj and pg.locator(f"[data-plzeile='{rj}']").count() == 0, "laufender Auftrag ohne Menge nicht als fehlt")
     pruefe(pg.locator(".pl-zeile .pl-start", has_text="jetzt").filter(has_text="zu spät").count() == 0, "an der Maschine nie zu spät")
-    # Auch Vorhandenes zeigt ganz vorhandenes Material
-    pg.click("#pl-mitda"); pg.wait_for_timeout(500)
-    pruefe(pg.locator("[data-pllieferant='Schon da']").count() == 1, "Auch Vorhandenes: Gruppe Schon da")
-    pg.click("#pl-mitda"); pg.wait_for_timeout(500)
-    pruefe(pg.locator("[data-pllieferant='Schon da']").count() == 0, "ohne: Schon da weg")
+    # Seit 1.646.0 immer alles: keine Filterknöpfe, Zeitraum 2 / 4 / 6 Wochen
+    pruefe(pg.locator("#pl-mitda, #pl-nurfehlt").count() == 0, "keine Filterknöpfe mehr")
+    pruefe([pg.locator("[data-plzeit]").nth(i).inner_text() for i in range(3)] == ["2 Wochen", "4 Wochen", "6 Wochen"], "Zeitraum 2 / 4 / 6 Wochen")
     # Meldungen quittieren
     mtodo = pg.locator("[data-pltodo='m']", has_text=nj)
     pruefe(mtodo.count() == 1 and mtodo.locator("button.pl-haken").count() == 1, "Material-Meldung hat Haken")

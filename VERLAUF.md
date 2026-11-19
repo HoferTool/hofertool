@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.646.0 — Planer: 2, 4, 6 Wochen und immer alles (19. November 2026)
+
+Zeitraum für das Material jetzt 2, 4 oder 6 Wochen. Die Knöpfe „Nur zu bestellen“ und „Auch Vorhandenes“ sind weg, es steht immer alles da, Vorhandenes unter „Schon da“.
+
 ## 1.645.0 — Erledigte Probleme nur noch im Planer (19. November 2026)
 
 Der Knopf „Erledigte Probleme“ oben auf der Planwand ist weg. Das Archiv öffnet man jetzt im Planer (Dashboard) im Fenster „✓ Abgeschlossen“ mit „⚠ Erledigte Probleme“. Der Hinweis „frühere Probleme“ im Auftragsfenster bleibt.

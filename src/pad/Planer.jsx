@@ -24,10 +24,14 @@ import { Logo } from "../seiten/bestellungen/teile.jsx";
 
 export { planerSichtbar };
 
-const ZEITRAUM = [[5, "1 Woche"], [10, "2 Wochen"], [20, "4 Wochen"]];
+// Seit 1.646.0 2, 4 oder 6 Wochen und immer alles, ohne „Nur zu bestellen“ und
+// „Auch Vorhandenes“ (Wunsch Patrick 19. November 2026: „mach 2 Wochen, 4, dann 6 …
+// einfach alles immer anzeigen“)
+const ZEITRAUM = [[10, "2 Wochen"], [20, "4 Wochen"], [30, "6 Wochen"]];
 const einst = () => {
   const p = alt.pad;
-  if (!p.planer) p.planer = { tage: 10, ansicht: "lieferant", nurFehlt: false };
+  if (!p.planer) p.planer = { tage: 10, ansicht: "lieferant" };
+  if (!ZEITRAUM.some(([t]) => t === p.planer.tage)) p.planer.tage = 10;
   return p.planer;
 };
 
@@ -108,11 +112,6 @@ function Dashboard({ d, e, um, neu }) {
                   onClick={() => um((x) => { x.tage = t; })}>{text}</button>
               ))}
             </span>
-            <button className={"pl-knopf" + (e.nurFehlt ? " pl-knopf--an" : "")} id="pl-nurfehlt"
-              onClick={() => um((x) => { x.nurFehlt = !x.nurFehlt; if (x.nurFehlt) x.mitDa = false; })}>Nur zu bestellen</button>
-            <button className={"pl-knopf" + (e.mitDa ? " pl-knopf--an" : "")} id="pl-mitda"
-              title="Auch Aufträge zeigen, deren Material schon ganz da ist"
-              onClick={() => um((x) => { x.mitDa = !x.mitDa; if (x.mitDa) x.nurFehlt = false; })}>Auch Vorhandenes</button>
           </div>
           <Material d={d} e={e} neu={neu} />
         </section>
@@ -348,10 +347,8 @@ async function todoBearbeiten(t, neu) {
 // ---------- Material ----------
 
 function Material({ d, e, neu }) {
-  let zeilen = d.zeilen;
-  if (e.nurFehlt) zeilen = zeilen.filter(zuBestellen);
-  // Ganz vorhandenes Material nur auf Wunsch (seit 1.643.0)
-  else if (!e.mitDa) zeilen = zeilen.filter((z) => z.stand !== "da");
+  // Immer alles, auch ganz Vorhandenes in der Gruppe „Schon da“ (seit 1.646.0)
+  const zeilen = d.zeilen;
   if (!zeilen.length) return <p className="pl-leer">Keine Aufträge mit Material bis {tagText(d.bis)}.</p>;
   if (e.ansicht === "start") {
     return <div className="pl-gruppen"><div className="pl-lief"><Tabelle zeilen={zeilen} d={d} neu={neu} mitLieferant /></div></div>;
