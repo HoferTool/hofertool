@@ -381,6 +381,13 @@ export function saldoVerlauf(einst, stempelAlle, ferien, buchungen) {
     for (let d = alt.plusTage(erster, -1); d >= frueh; d = alt.plusTage(d, -1)) {
       aus.set(d, stand);
       const ist = tage.get(d) ? tage.get(d).minuten : 0;
+      // Tage ohne Stempelung vor dem Saldo-Start zählen nicht (seit 1.648.1,
+      // Patrick 19. November 2026: „per 18.11 müssen die Salden mit dem
+      // alten System übereinstimmen“, Flavia 9.–13.11. als Kompensieren
+      // statt Ferien). Das alte System hat solche Tage schon gebucht
+      // (Ferien, Schule, Krankheit …), die Planwand kennt sie oft nicht
+      // oder mit anderer Art; mit Soll abgezogen stimmte der Verlauf nicht.
+      if (!ist) continue;
       stand -= (jeTag.get(d) || 0) + ist - sollTag(d, einst, abw);
     }
   }
