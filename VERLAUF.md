@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.645.0 — Erledigte Probleme nur noch im Planer (19. November 2026)
+
+Der Knopf „Erledigte Probleme“ oben auf der Planwand ist weg. Das Archiv öffnet man jetzt im Planer (Dashboard) im Fenster „✓ Abgeschlossen“ mit „⚠ Erledigte Probleme“. Der Hinweis „frühere Probleme“ im Auftragsfenster bleibt.
+
 ## 1.643.0 — Planer: Meldungen quittieren, Daten, Material (19. November 2026)
 
 Material- und WBG-Meldungen im Todo des Planers haben einen Haken; quittiert stehen sie im Fenster „Abgeschlossen“ und lassen sich wieder öffnen (`app_config.planer_quittiert`). Start = Datum der Planwand statt geschätzter Verschiebung; Aufträge an der Maschine nie mehr „bestellen, zu spät“; Liefertermin nach Start wird rot gewarnt; „need …“, „noch bestellen“ usw. gelten als offen; Knopf „Auch Vorhandenes“.

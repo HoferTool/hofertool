@@ -5,7 +5,8 @@
 //  „✓ Erledigt“ löscht das Problem am Auftrag. Die Datenbank schreibt
 //  vorher von selbst eine Zeile in problem_archiv (Auslöser
 //  jobs_problem_archiv, sql/problem-archiv.sql), hier wird nur gelesen.
-//  Knopf oben auf der Planwand, im Auftragsfenster „Frühere Probleme“
+//  Knopf im Planer unter „Abgeschlossen“ (bis 1.644.x oben auf der
+//  Planwand), im Auftragsfenster „Frühere Probleme“
 //  für die HOCO Nr. Nicht für Externe, nicht im Archiv der Planwand.
 // =================================================================
 import { useMemo, useState } from "react";
@@ -67,7 +68,7 @@ export async function fruehereProblemeZahl(hoco) {
   } catch (f) { return 0; }
 }
 
-function Archiv({ zu, start, maschinen, hoco }) {
+function Archiv({ zu, start, maschinen, hoco, hinzeigen }) {
   const [liste, setListe] = useState(start);
   const [suche, setSuche] = useState("");
   const admin = alt.istAdmin();
@@ -80,7 +81,8 @@ function Archiv({ zu, start, maschinen, hoco }) {
   const zeigen = (z) => {
     if (!z.job_id) { alt.meldung("Dieser Auftrag ist gelöscht.", "warn"); return; }
     zu();
-    alt.balkenZeigen(z.job_id, true);
+    if (hinzeigen) hinzeigen({ id: z.job_id, job_number: z.job_number });
+    else alt.balkenZeigen(z.job_id, true);
   };
 
   const weg = async (z) => {
@@ -127,7 +129,7 @@ function Archiv({ zu, start, maschinen, hoco }) {
     </div>);
 }
 
-export async function problemArchivOeffnen(hoco) {
+export async function problemArchivOeffnen(hoco, hinzeigen) {
   let start, maschinen;
   try {
     [start, maschinen] = await Promise.all([laden(hoco), maschinenNamen()]);
@@ -137,5 +139,5 @@ export async function problemArchivOeffnen(hoco) {
       ? "Das Archiv ist in der Datenbank noch nicht eingerichtet (sql/problem-archiv.sql)." : t, "fehler");
     return;
   }
-  fensterOeffnen((zu) => <Archiv zu={zu} start={start} maschinen={maschinen} hoco={hoco} />);
+  fensterOeffnen((zu) => <Archiv zu={zu} start={start} maschinen={maschinen} hoco={hoco} hinzeigen={hinzeigen} />);
 }

@@ -17,6 +17,7 @@ import { padZurueck } from "./Pad.jsx";
 import { istPlanerTab, planerTabVerlassen, planerSichtbar, planerTabOeffnen } from "./planerTab.js";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { planwandFensterOeffnen } from "./PlanwandFenster.jsx";
+import { problemArchivOeffnen, problemArchivSichtbar } from "../planwand/ProblemArchiv.jsx";
 import { planerLaden, zuBestellen, wahlSetzen, regelnLaden, regelnSpeichern, lieferbarText, lieferantLogoDaten, todoNeu, todoHaken, todoAendern, todoLoeschen, meldungQuittieren, meldungWiederOffen } from "../daten/planer.js";
 import MaterialLieferanten from "../einstellungen/MaterialLieferanten.jsx";
 import { Logo } from "../seiten/bestellungen/teile.jsx";
@@ -268,6 +269,13 @@ function Abgeschlossen({ start, quitt: quittStart, zu, neu }) {
   return (
     <div className="dialog dialog--breit pl-abg" id="pl-abg">
       <div className="dialog__kopf"><h2>Abgeschlossen</h2>
+        {/* Erledigte Probleme der Aufträge (Archiv seit 1.634.0) stehen seit
+            1.645.0 nur noch hier, nicht mehr als Knopf auf der Planwand
+            (Wunsch Patrick 19. November 2026). Im Planer-Tab zum Balken über
+            das Planwand-Fenster, sonst auf die Planwand. */}
+        {problemArchivSichtbar() && <button className="knopf knopf--klein pl-abg__probleme" id="pl-abg-probleme"
+          onClick={() => { zu(); problemArchivOeffnen(null, istPlanerTab() ? (j) => planwandFensterOeffnen(j) : null); }}>
+          ⚠ Erledigte Probleme</button>}
         <button className="dialog__schliessen-inline" title="Schliessen" onClick={zu}>✕</button></div>
       <div className="pl-abg__liste">
         {!liste.length && !quitt.length && <p className="pl-abg__leer">Noch nichts abgeschlossen.</p>}

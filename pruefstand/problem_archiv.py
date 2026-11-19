@@ -1,4 +1,5 @@
-# Archiv erledigter Probleme (seit 1.634.0): Knopf auf der Planwand,
+# Archiv erledigter Probleme (seit 1.634.0; seit 1.645.0 nur im Planer unter
+# „Abgeschlossen“, kein Knopf mehr auf der Planwand),
 # Liste mit Suche, Sprung zum Balken, Hinweis im Auftragsfenster,
 # Admin löscht mit Rückgängig, Externe sehen den Knopf nicht
 import time
@@ -19,6 +20,11 @@ fehler = []
 def pruefe(name, ok):
     print(("ok   " if ok else "FALSCH ") + name)
     if not ok: fehler.append(name)
+def oeffnen(pg):
+    # Im Planer-Tab: Abgeschlossen, dann „Erledigte Probleme“
+    pg.evaluate("location.hash='#/planer'"); pg.wait_for_selector("#pad-planer #pl-abgeschlossen", timeout=15000); pg.wait_for_timeout(600)
+    pg.click("#pad-planer #pl-abgeschlossen"); pg.wait_for_selector("#pl-abg-probleme")
+    pg.click("#pl-abg-probleme"); pg.wait_for_selector("#problem-archiv")
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
     for breite, hoehe, art in [(1600, 950, "pc"), (390, 844, "handy")]:
@@ -30,8 +36,8 @@ with sync_playwright() as p:
         pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
         pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#planwand'")
         pg.wait_for_selector(".pw-balken"); pg.wait_for_timeout(800)
-        pruefe(art + ": Knopf da", pg.locator("#pw-problemarchiv").count() == 1)
-        pg.click("#pw-problemarchiv"); pg.wait_for_selector("#problem-archiv")
+        pruefe(art + ": kein Knopf auf der Planwand", pg.locator("#pw-problemarchiv").count() == 0)
+        oeffnen(pg)
         pruefe(art + ": zwei Einträge", pg.locator("[data-problemarchiv]").count() == 2)
         pruefe(art + ": ersetzt vermerkt", pg.locator(".problemarchiv__ersetzt").count() == 1)
         pg.wait_for_timeout(700); pg.screenshot(path=SP + "problemarchiv_" + art + ".png")
@@ -49,9 +55,12 @@ with sync_playwright() as p:
             pg.keyboard.press("Control+z"); pg.wait_for_timeout(800)
             pruefe("Rückgängig holt ihn zurück", pg.evaluate("TEST.daten.problem_archiv.length") == 2)
             # Zum Balken springen
-            pg.click("#pw-problemarchiv"); pg.wait_for_selector("#problem-archiv")
+            oeffnen(pg)
             pg.locator("[data-problemarchiv='pa1'] [data-problemarchiv-zeigen]").click(); pg.wait_for_timeout(900)
             pruefe("Fenster zu nach Sprung", pg.locator("#problem-archiv").count() == 0)
+            pg.goto(f"http://127.0.0.1:{PORT}/index.html#/planwand", wait_until="domcontentloaded")
+            pg.wait_for_selector(".pw-balken"); pg.wait_for_timeout(1200)
+            for _ in range(3): pg.keyboard.press("Escape"); pg.wait_for_timeout(200)
             # Hinweis im Auftragsfenster
             pg.locator(".pw-balken[data-auftrag='j1']").first.dblclick(); pg.wait_for_selector(".dialog--auftrag")
             pg.wait_for_timeout(500)

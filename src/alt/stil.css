@@ -14889,3 +14889,7 @@ body.dunkel .ze-pablo { background: radial-gradient(circle at 50% 42%, #173f78 0
 @keyframes ze-pablo-atmen { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.025); } }
 @keyframes ze-pablo-blick { 0%, 40%, 100% { transform: translateX(0); } 55%, 70% { transform: translateX(6px); } }
 @media (prefers-reduced-motion: reduce) { .ze-pablo__bild img, .ze-pablo__bild svg, .ze-pablo__welle, .ze-pablo__pupille { animation: none; } }
+
+/* Knopf „Erledigte Probleme“ im Fenster Abgeschlossen des Planers (seit 1.645.0) */
+.pl-abg .dialog__kopf h2 { margin-right: auto; }
+.pl-abg__probleme { flex: none; }
