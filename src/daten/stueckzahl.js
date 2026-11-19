@@ -19,7 +19,7 @@
 import { alt } from "../bruecke.jsx";
 import { auswahlDialog } from "../teile/Dialoge.jsx";
 import { zifferblock } from "../pad/Zifferblock.jsx";
-import { laengeVersuchen } from "./material.js";
+import { laengeVersuchen, materialTeilGeaendert } from "./material.js";
 
 const WT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 
@@ -185,6 +185,9 @@ export async function laengeSetzen(hocoNr, mm, quelle) {
       teil_mass_bestaetigt: !!mm, teil_mass_quelle: mm ? (quelle || "Pad") : null });
     if (n.error) throw n.error;
   }
+  // Mengen überall gleich neu rechnen, ohne Neuladen (seit 1.654.0)
+  materialTeilGeaendert(hocoNr, { teil_laenge_mm: mm, teil_mass_bestaetigt: !!mm,
+    teil_mass_quelle: mm ? (quelle || "Pad") : null }).catch(() => null);
 }
 
 // Das Fenster. o: { titel, text, hoco, auf, zeit, laenge ({mm, sicher}

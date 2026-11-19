@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.654.0 (19. November 2026)
+
+- Materialmengen rechnen sofort neu, ohne Neuladen, wenn Länge, Form, Material der HOCO Nr., Typwerte oder Faktoren geändert werden, auch auf anderen Geräten (Mat. info., Planer, Seite Material).
+
 ## 1.653.0 (19. November 2026)
 
 - Planer: Suchfeld oben über Todos und Materialliste, Strg + F springt hinein, Escape leert es (Wunsch Patrick: „Suchfunktion einbauen, auch per Strg + F“).

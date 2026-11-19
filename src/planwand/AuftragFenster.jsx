@@ -28,7 +28,7 @@ import { materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { wiederOeffner } from "../teile/wiederherstellen.js";
 import { useWaschprog } from "../daten/waschprog.js";
-import { matInfo, MAT_INFO_ERKLAERUNG, materialImHaus } from "../daten/material.js";
+import { matInfo, MAT_INFO_ERKLAERUNG, materialImHaus, materialAbhoeren } from "../daten/material.js";
 import { ImHausEinblendung } from "./MaterialImHaus.jsx";
 import { mahnBilder } from "../daten/mahnbilder.js";
 import { inEigenesFenster, eigeneFensterZu } from "../teile/eigenesFenster.js";
@@ -374,6 +374,10 @@ async function letzterAuftrag(nr) {
 }
 
 function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v, leer, zu }) {
+  // „Mat. info.“ rechnet gleich neu, wenn jemand Länge, Form oder Typwerte
+  // ändert, ohne Neuladen (seit 1.654.0, Wunsch Patrick 19. November 2026)
+  const [, matNeu] = useState(0);
+  useEffect(() => materialAbhoeren(() => matNeu((n) => n + 1)), []);
   const darf = alt.darfPlanen();
   // Ohne Planungsrecht ist das Fenster zum Nachschauen da: ändern lässt
   // sich nur, was auch vorher schon ging, also Zustand und Problem melden

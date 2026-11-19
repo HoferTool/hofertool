@@ -20,6 +20,7 @@ import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { planwandFensterOeffnen } from "./PlanwandFenster.jsx";
 import { problemArchivOeffnen, problemArchivSichtbar } from "../planwand/ProblemArchiv.jsx";
 import { planerLaden, zuBestellen, wahlSetzen, regelnLaden, regelnSpeichern, lieferbarText, lieferantLogoDaten, todoNeu, todoHaken, todoAendern, todoLoeschen, meldungQuittieren, meldungWiederOffen } from "../daten/planer.js";
+import { materialAbhoeren } from "../daten/material.js";
 import MaterialLieferanten from "../einstellungen/MaterialLieferanten.jsx";
 import { Logo } from "../seiten/bestellungen/teile.jsx";
 
@@ -71,6 +72,18 @@ function useHell() {
   }, []);
 }
 
+// Ändert jemand Länge, Form oder Typwerte, rechnet die Liste gleich neu
+// (seit 1.654.0, Wunsch Patrick 19. November 2026: „live, ohne neu laden“)
+function useMaterialNeu(fn) {
+  const ref = useRef(fn);
+  ref.current = fn;
+  useEffect(() => {
+    let warte = null;
+    const weg = materialAbhoeren(() => { clearTimeout(warte); warte = setTimeout(() => ref.current(), 600); });
+    return () => { clearTimeout(warte); weg(); };
+  }, []);
+}
+
 const TAGE = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 const tagText = (iso) => (iso ? TAGE[new Date(iso + "T12:00:00").getDay()] + " " + alt.kurzDatum(iso) : "");
 const zahl = (n) => (alt.zahlText ? alt.zahlText(n) : String(n));
@@ -82,6 +95,7 @@ export default function Planer({ d, neu }) {
   const e = einst();
   const um = (aendern) => { aendern(e); neu(); };
   useHell();
+  useMaterialNeu(neu);
   return (
     <>
       <Zurueck />
@@ -692,8 +706,9 @@ export function NavTodos() {
     const sicht = () => { if (!document.hidden) laden(); };
     document.addEventListener("visibilitychange", sicht);
     window.addEventListener("hofer-planer-neu", laden);
+    const matWeg = materialAbhoeren(laden);
     return () => { weg = true; clearInterval(uhr); document.removeEventListener("visibilitychange", sicht);
-      window.removeEventListener("hofer-planer-neu", laden); };
+      window.removeEventListener("hofer-planer-neu", laden); matWeg(); };
   }, []);
   if (!d) return null;
   const neu = () => window.dispatchEvent(new Event("hofer-planer-neu"));

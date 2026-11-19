@@ -31,7 +31,7 @@
 import { useEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
-import { materialZerlegen, querschnittMm2, formFuerTeil, kategorienListe, werkstoffWahlVon, werkstoffGenau, dichtenLaden,
+import { materialTeilGeaendert, materialZerlegen, querschnittMm2, formFuerTeil, kategorienListe, werkstoffWahlVon, werkstoffGenau, dichtenLaden,
   STANGE_STANDARD_MM, STUMPEN_STANDARD_MM, PLANIEREN_STANDARD_MM } from "../daten/material.js";
 
 const AUSSCHUSS_STANDARD = 0;
@@ -210,6 +210,7 @@ export default function MaterialRechner() {
       if (r && r.error) { setGemerkt("Form konnte nicht gemerkt werden."); return; }
       hocoInfo.teil.rechner_form = form;
       hocoInfo.teil.rechner_innen_mm = innenMm;
+      materialTeilGeaendert(nr, { rechner_form: form, rechner_innen_mm: innenMm }).catch(() => null);
       setGemerkt((FORMEN.find((x) => x[0] === form) || [, ""])[1]
         + (innenMm ? " innen " + zahlFeld(innenMm) + " mm" : "") + " für " + nr + " gemerkt.");
     }, 700);

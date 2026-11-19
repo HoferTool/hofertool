@@ -11,6 +11,7 @@
 import { useLayoutEffect, useReducer, useRef } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
 import { alleEinlesen } from "../../einrichtblatt/Einlesen.jsx";
+import { materialTypGeaendert } from "../../daten/material.js";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 
 let ladeNr = 0;
@@ -173,7 +174,9 @@ export const typAktion = {
     }
     senden(alt.db.from("machine_types").update(daten).eq("id", t.id),
       "Gespeichert.", nachher, ["Ändern von " + t.name,
-        alt.rueckSetz("machine_types", vorher, { id: t.id })]);
+        alt.rueckSetz("machine_types", vorher, { id: t.id })])
+      // Stange, Rest-Stumpen und Abstecher gehen gleich in die Mengen (seit 1.654.0)
+      .then((ok) => { if (ok) materialTypGeaendert(t.id, daten); });
   },
 
   async loeschen(t, anzahl, nachher) {

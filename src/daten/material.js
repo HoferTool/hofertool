@@ -159,6 +159,9 @@ export async function dichtenSpeichern(neu) {
   if (error) throw error;
   eigeneDichte = { ...neu };
   dichteGeladen = Date.now();
+  // Mengen gleich mit dem neuen Faktor (seit 1.654.0); die Funktion
+  // steht weiter unten, wird aber erst jetzt aufgerufen
+  materialFaktorGeaendert();
 }
 const NUR_BUCHSTABEN = /^[a-z-]+$/;
 
@@ -397,6 +400,7 @@ export const istOffen = (j) => !j.ended_at && OFFEN.has(j.plan_status || "geplan
 // ---------- Laden ----------
 
 let stand = null;          // zuletzt geladen, für die Planwand
+let standAuftraege = [];   // die Aufträge dazu, zum Neurechnen ohne Neuladen
 let fehlt = false;         // Tabelle noch nicht da: still nichts zeigen
 
 export async function postenLaden(mitWeg) {
@@ -444,6 +448,7 @@ export async function orteSpeichern(liste) {
 
 // Alles, was die Rechnung braucht, in einem Zug
 export async function materialDatenLaden(auftraege) {
+  abgleichStarten();
   await dichtenLaden();
   const offene = (auftraege || []).filter(istOffen);
   const [posten, teile, maschinen, typen] = await Promise.all([
@@ -468,6 +473,7 @@ export async function materialFuerPlanwand(auftraege) {
     const d = await materialDatenLaden(auftraege);
     // Die Daten bleiben dabei, für die Zeile „Mat. info.“ (matInfo)
     stand = d ? { ...materialRechnen(auftraege, d), daten: d } : null;
+    standAuftraege = auftraege || [];
     // Fehlende Längen still nachholen, gezählt wird beim nächsten Laden
     if (d) setTimeout(() => laengenNachholen(d.teile), 5000);
   } catch (f) {
@@ -476,6 +482,115 @@ export async function materialFuerPlanwand(auftraege) {
   return stand;
 }
 export const materialStand = () => stand;
+
+// ---------- Sofort neu rechnen, wenn sich Stammdaten ändern ----------
+// Seit 1.654.0 (Wunsch Patrick 19. November 2026: „alle Materialrechnungen
+// live, ohne neu laden … wenn man Stammdaten ändert, soll es gleich die
+// Menge auch anpassen“). Wer Länge, Form, Typwerte oder Faktoren
+// speichert, ruft danach materialTeilGeaendert / materialTypGeaendert /
+// materialFaktorGeaendert. Dieses Gerät rechnet gleich neu (ohne Anfrage),
+// meldet über einen Realtime-Kanal ohne Datenbank („broadcast“) nur, was
+// sich geändert hat, und alle anderen Geräte holen genau diese eine Zeile
+// frisch, zufällig verteilt über ein paar Sekunden. Die Meldung selbst
+// trägt keine Werte, gerechnet wird immer mit dem Stand der Datenbank.
+// Danach geht das Ereignis „hofer-material“ an Auftragsfenster, Planer
+// und Seite Material, die sich dann neu zeichnen bzw. neu laden.
+// hoco_parts steht bewusst nicht in der Realtime-Liste: die Aufgabe
+// HoferTool schreibt dort viele Zeichnungen, das liefe sonst an alle.
+const MAT_EREIGNIS = "hofer-material";
+let kanal = null;
+const TEIL_SPALTEN = ["teil_d_mm", "teil_laenge_mm", "teil_mass_bestaetigt", "teil_mass_quelle", "rechner_form", "rechner_innen_mm"];
+
+function neuRechnen() {
+  if (stand && stand.daten) {
+    try { stand = { ...materialRechnen(standAuftraege, stand.daten), daten: stand.daten }; }
+    catch (f) { console.warn("Material:", f.message); }
+  }
+  try { window.dispatchEvent(new CustomEvent(MAT_EREIGNIS)); } catch (f) { /* ohne Fenster */ }
+}
+
+function melden(nachricht) {
+  try { if (kanal && typeof kanal.send === "function") kanal.send({ type: "broadcast", event: "geaendert", payload: nachricht }); }
+  catch (f) { /* die anderen holen es beim nächsten Laden */ }
+}
+
+// Eine HOCO Nr. frisch aus der Datenbank in den Stand legen
+async function teilFrisch(nr) {
+  if (!stand || !stand.daten || !nr) return;
+  const t = await teileLaden([nr]).catch(() => null);
+  if (t && t[nr]) stand.daten.teile[nr] = t[nr];
+}
+
+async function vonAnderem(n) {
+  if (!n || typeof n !== "object") return;
+  if (n.art === "teil" && n.nr) await teilFrisch(String(n.nr));
+  else if (n.art === "typ" && n.typ && stand && stand.daten) {
+    let r = null;
+    try { r = await alt.db.from("machine_types").select("*").eq("id", n.typ).maybeSingle(); } catch (f) { /* nächstes Mal */ }
+    if (r && r.data) typSetzen(n.typ, r.data);
+    try { alt.stammVergessen && alt.stammVergessen(); } catch (f) { /* nur das Gedächtnis */ }
+  } else if (n.art === "faktor") await dichtenLaden(true).catch(() => null);
+  neuRechnen();
+}
+
+function abgleichStarten() {
+  if (kanal || !alt.db || typeof alt.db.channel !== "function") return;
+  if ((alt.istArchiv && alt.istArchiv()) || (alt.istExtern && alt.istExtern())) return;
+  try {
+    let warte = null;
+    const offen = [];
+    kanal = alt.db.channel("hofer-material", { config: { broadcast: { self: false } } })
+      .on("broadcast", { event: "geaendert" }, (e) => {
+        offen.push(e && e.payload);
+        // Zufällig etwas warten, damit nicht alle Geräte im selben
+        // Augenblick nachfragen (wie seit 1.616.0 bei den Aufträgen)
+        clearTimeout(warte);
+        warte = setTimeout(async () => {
+          const liste = offen.splice(0);
+          for (const n of liste) { try { await vonAnderem(n); } catch (f) { /* nächste */ } }
+        }, 300 + Math.round(Math.random() * 3000));
+      })
+      .subscribe();
+  } catch (f) { kanal = null; }
+}
+
+function typSetzen(typId, felder) {
+  if (!stand || !stand.daten) return;
+  Object.values(stand.daten.maschineVon || {}).forEach((m) => {
+    if (String(m.type_id) === String(typId)) m.typ = { ...(m.typ || {}), ...felder };
+  });
+}
+
+// felder: was gespeichert wurde (nur Spalten für die Rechnung zählen).
+// Ohne felder holt es die Zeile frisch.
+export async function materialTeilGeaendert(nr, felder) {
+  nr = String(nr || "").trim();
+  if (!nr) return;
+  if (stand && stand.daten) {
+    const f = {};
+    Object.keys(felder || {}).forEach((k) => { if (TEIL_SPALTEN.includes(k)) f[k] = felder[k]; });
+    if (felder && Object.keys(f).length) stand.daten.teile[nr] = { ...(stand.daten.teile[nr] || { hoco_nr: nr }), ...f };
+    else if (!felder) await teilFrisch(nr);
+  }
+  neuRechnen();
+  melden({ art: "teil", nr });
+}
+export function materialTypGeaendert(typId, felder) {
+  if (!typId) return;
+  typSetzen(typId, felder || {});
+  try { alt.stammVergessen && alt.stammVergessen(); } catch (f) { /* nur das Gedächtnis */ }
+  neuRechnen();
+  melden({ art: "typ", typ: typId });
+}
+export function materialFaktorGeaendert() {
+  neuRechnen();
+  melden({ art: "faktor" });
+}
+// Für React: zeichnet neu bzw. ruft fn, sobald sich Material geändert hat
+export function materialAbhoeren(fn) {
+  window.addEventListener(MAT_EREIGNIS, fn);
+  return () => window.removeEventListener(MAT_EREIGNIS, fn);
+}
 
 // ---------- Längen selbst nachholen ----------
 // (Wunsch Patrick 15. Oktober 2026: „soll überall versuchen, wir
@@ -512,6 +627,9 @@ export async function laengeVersuchen(nr, typId) {
       await alt.db.from("hoco_parts").update({ teil_d_mm: m.d, teil_laenge_mm: m.laenge,
         teil_mass_bestaetigt: false, teil_mass_quelle: "Einrichtblatt: " + m.text.slice(0, 120) })
         .eq("hoco_nr", nr).is("teil_laenge_mm", null);
+      // Gleich in die Mengen (seit 1.654.0), frisch gelesen, weil die
+      // Zeile oben nur schreibt, wo noch keine Länge stand
+      materialTeilGeaendert(nr).catch(() => null);
       return { mm: m.laenge, sicher: false, text: m.text };
     }
     if (m && !grund) grund = m.grund + (m.text ? ": " + m.text : "");

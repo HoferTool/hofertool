@@ -14,7 +14,7 @@
 // =================================================================
 import { useEffect, useState } from "react";
 import { alt, useDaten, useGemerkt } from "../bruecke.jsx";
-import { materialDatenLaden, materialRechnen, postenMengeText, laengenNachholen,
+import { materialAbhoeren, materialDatenLaden, materialRechnen, postenMengeText, laengenNachholen,
   orteLaden, orteSpeichern, werkstoffSuchtext, werkstoffBeide } from "../daten/material.js";
 import { postenFenster } from "../material/PostenFenster.jsx";
 import { materialHistorieOeffnen } from "../material/Historie.jsx";
@@ -43,6 +43,8 @@ export default function Material({ auffrischen }) {
   const [suche, setSuche] = useState(gemerkt.suche);
   useGemerkt(gemerkt, { suche });
   const { daten, fehler, neu } = useDaten(laden, [auffrischen]);
+  // Stammdaten geändert (hier oder an einem anderen Gerät): gleich neu (seit 1.654.0)
+  useEffect(() => materialAbhoeren(neu), [neu]);
 
   // Restmaterial gehört keinem Auftrag (seit 1.104.0); wo es passt,
   // zeigt das rote M beim Posten

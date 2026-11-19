@@ -56,7 +56,7 @@ import { symboleLaden, symbolHtml, symbolInfoZeigen, symbolInfoSetzen, symbolInf
   symbolInfoOffen, M_SYMBOL, symbolModusAktiv, symbolAnAuftrag, symbolAmBalkenKlick, symbolAnwendenEnde } from "../daten/symbole.js";
 import { zeichnungNrSofort, zeichnungNrHolen } from "../daten/zeichnungNr.js";
 import { waschprogGemerkt } from "../daten/waschprog.js";
-import { materialFuerPlanwand, postenLaden, materialZerlegen, nochGebraucht, werkstoffGenau, matInfo, werkstoffSuchtext,
+import { materialFuerPlanwand, materialTeilGeaendert, postenLaden, materialZerlegen, nochGebraucht, werkstoffGenau, matInfo, werkstoffSuchtext,
   werkstoffNummernLaden, werkstoffBeide } from "../daten/material.js";
 import { postenFenster } from "../material/PostenFenster.jsx";
 import Material from "../seiten/Material.jsx";
@@ -170,7 +170,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.653.0";
+const APP_VERSION = "1.654.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -9461,6 +9461,9 @@ async function hocoDialog(teil, vorgabe) {
       .select();
     if (!u.error) nachgezogen = (u.data || []).length;
   }
+  // Mengen der Aufträge gleich neu rechnen, auch auf anderen Geräten
+  // (seit 1.654.0); die Planwand holt die geänderten Aufträge selbst
+  if (nachgezogen) materialTeilGeaendert(nummer).catch(() => null);
 
   meldung(nachgezogen
     ? "Gespeichert. " + nachgezogen
