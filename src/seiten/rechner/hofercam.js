@@ -58,6 +58,9 @@ export const FELDER = [
   { gruppe: "Kanal 2 Abgreifen", felder: [
     { name: "annaehern", text: "Annähern Z vor das Teil", einheit: "mm", lang: "Abstand vor dem Teil, positiv eingeben; im Programm mit Minus: G0Z-…(EILGANG …MM VOR STUCK)" },
     { name: "ueber", text: "Über das Teil Z", einheit: "mm", lang: "Ende: G1G98Z…F5000.(…MM UBER DEM STUCK)" },
+    // Seit 1.640.0 (Wunsch Patrick 19. November 2026): Länge, um die die
+    // Schnabelzange der Gegenspindel aus der Überwurfmutter heraussteht
+    { name: "schnabel", text: "B Schnabelzange", einheit: "mm", lang: "Ende Kanal 2: G131B… = Länge, um die die Schnabelzange aus der Überwurfmutter (Spindelnase) der Gegenspindel heraussteht; leer = B0." },
   ] },
 ];
 
@@ -124,6 +127,8 @@ function kopfWerte(w) {
     A: v(w, "A"), W: v(w, "W"), S: String(w.S ?? "").trim(), X: v(w, "X"), Z: v(w, "Z"), F: v(w, "F"), B: v(w, "B"),
     SCHLICHT: v(w, "schlicht"), PLAN: v(w, "plan"), ABZ: mitPunkt(abVersatz(w)),
     // Seit 1.419.1: Annähern positiv eingeben, im Programm immer mit Minus
+    // Seit 1.640.0: leer wie bisher B0.
+    SCHNABEL: zahl(w.schnabel) ?? "0.",
     ANNAEHERN: an, ANNAEHERN_MM: ohneMinus(an), UEBER: ue, UEBER_MM: ohneMinus(ue),
   };
 }

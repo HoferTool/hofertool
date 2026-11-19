@@ -109,7 +109,7 @@ export function kopfLesen(k1, k2) {
     return start ? zeilen.slice(0, i < 0 ? zeilen.length : i + 1) : zeilen.slice(j < 0 ? zeilen.length : j);
   };
   const nimm = (w) => {
-    const map = { A: "A", W: "W", S: "S", X: "X", Z: "Z", F: "F", B: "B", SCHLICHT: "schlicht", PLAN: "plan", UEBER: "ueber", DATUM: "datum", KUERZEL: "kuerzel", HOCO: "hoco" };
+    const map = { A: "A", W: "W", S: "S", X: "X", Z: "Z", F: "F", B: "B", SCHLICHT: "schlicht", PLAN: "plan", UEBER: "ueber", SCHNABEL: "schnabel", DATUM: "datum", KUERZEL: "kuerzel", HOCO: "hoco" };
     for (const [n, feld] of Object.entries(map)) if (w[n] != null && w[n] !== "") f[feld] = w[n];
     if (w.ANNAEHERN) f.annaehern = ohneMinus(w.ANNAEHERN);
     if (w.NAME) f.hoco = w.NAME.replace(/^\(|\)$/g, "");

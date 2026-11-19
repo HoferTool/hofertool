@@ -25,6 +25,7 @@ import { WerkzeugFeld } from "./CamWerkzeugBild.jsx";
 import { simulationOeffnen } from "./CamSim3D.jsx";
 import { VORLAGEN, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen } from "./camVorlagen.js";
 import AbstecherBild from "./AbstecherBild.jsx";
+import SchnabelBild from "./SchnabelBild.jsx";
 import { hofercamTutorialOeffnen } from "../start/NeuesTutorial.jsx";
 import { EinstichBild, EinstichSteuerung } from "./CamEinstichBild.jsx";
 import { FELDER, HD_STUFEN, abVersatz, AB_VERSATZ_VORGABE, plaetzeVon, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, handZurueck, markenPaare, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
@@ -639,6 +640,7 @@ export default function HoferCam() {
   const [gespeichert, setGespeichertRoh] = useState(gespeichertCam);
   // Erklärungsbild zum Abstecher, solange Maus oder Schreibmarke dort sind (seit 1.591.0)
   const [abBild, setAbBild] = useState({});
+  const [schnabelBild, setSchnabelBild] = useState({});
   const [kopfZu, setKopfZu] = useState(() => { try { return localStorage.getItem("hofer.cam.kopfZu") === "1"; } catch { return false; } });
   const setGespeichert = (z) => { gespeichertCam = z; setGespeichertRoh(z); };
   const laden = (d) => {
@@ -822,11 +824,17 @@ export default function HoferCam() {
             <legend>{g.gruppe}</legend>
             {g.felder.map((d) => (
               <label key={d.name} title={(d.lang || d.text) + (fehler[d.name] ? " – " + fehler[d.name] : "")}
-                className={"cam-feld" + (fehler[d.name] && fehler[d.name] !== "leer" ? " cam-feld--fehler" : "") + (d.art === "text" ? " cam-feld--text" : "")}>
+                className={"cam-feld" + (fehler[d.name] && fehler[d.name] !== "leer" ? " cam-feld--fehler" : "") + (d.art === "text" ? " cam-feld--text" : "") + (d.name === "schnabel" ? " cam-mitbild" : "")}
+                {...(d.name === "schnabel" ? {
+                  onMouseEnter: () => setSchnabelBild((a) => ({ ...a, maus: true })), onMouseLeave: () => setSchnabelBild((a) => ({ ...a, maus: false })),
+                  onFocus: () => setSchnabelBild((a) => ({ ...a, fokus: true })), onBlur: () => setSchnabelBild((a) => ({ ...a, fokus: false })) } : {})}>
                 <span>{d.text}{d.einheit && /^[a-zA-Z/]+$/.test(d.einheit) && <small className="cam-einheit"> [{d.einheit}]</small>}</span>
                 {d.name === "datum" ? <DatumFeld wert={w.datum ?? ""} setze={(x) => setze("datum", x)} />
                   : <input data-cam={d.name} value={w[d.name] ?? ""} placeholder={d.einheit || ""} inputMode={d.art === "text" ? "text" : "decimal"}
                   onChange={(e) => setze(d.name, e.target.value)} />}
+                {/* Seit 1.640.0: Erklärungsbild wie beim Abstecher */}
+                {d.name === "schnabel" && (schnabelBild.maus || schnabelBild.fokus) && <div className="cam-ab__bild" data-cam-schnabelbild-feld>
+                  <SchnabelBild b={w.schnabel} /></div>}
               </label>
             ))}
           </fieldset>

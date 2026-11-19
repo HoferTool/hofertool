@@ -14902,3 +14902,7 @@ body.dunkel .ze-pablo { background: radial-gradient(circle at 50% 42%, #173f78 0
 @media (max-width: 1000px) {
   #pad .pl-zeile { grid-template-columns: 30px 84px 44px 1fr 1fr; }
 }
+
+/* HOFERCAM: Erklärungsbild Schnabelzange Gegenspindel (seit 1.640.0, Wunsch Patrick 19. November 2026) */
+.cam-gruppe:has(.cam-mitbild) { position: relative; }
+.cam-mitbild .cam-ab__bild { width: 432px; }

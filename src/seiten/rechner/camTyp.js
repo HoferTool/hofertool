@@ -134,7 +134,7 @@ M800
 M1894
 M1883D3(HD EIN)
 M82
-G131B0.
+G131B{SCHNABEL}
 M15
 G0Z{ANNAEHERN}(EILGANG {ANNAEHERN_MM}MM VOR STUCK)
 M68
@@ -465,6 +465,7 @@ export const PLATZHALTER_KOPF = [
   ["SCHLICHT", "Schlichtzugabe Z"], ["PLAN", "Zugabe Plan hinten W"],
   ["ABZ", "Versatz Abstecher minus B (10.), normal 0."],
   ["ANNAEHERN", "Annähern Z mit Minus (-10.)"], ["ANNAEHERN_MM", "Annähern ohne Minus und Punkt (10)"],
+  ["SCHNABEL", "B Schnabelzange Gegenspindel (G131B…), leer 0."],
   ["UEBER", "Über das Teil Z"], ["UEBER_MM", "Über das Teil ohne Minus und Punkt"],
 ];
 export const PLATZHALTER_BLOCK = [
