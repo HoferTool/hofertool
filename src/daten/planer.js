@@ -177,7 +177,7 @@ const BE_RE = /\b20\d{8}\b/;
 // fehlt (nichts eingetragen), bestellt (BE-Nr.), da (Menge oder Lager
 // ohne BE-Nr.), offen (nur Text wie „Mat und FA noch orga“)
 // Texte wie „need: 210kg“, „noch bestellen“, „Mat und FA noch orga“ heissen:
-// noch nicht da (seit 1.642.0, Patrick 19. November 2026: „nicht alle
+// noch nicht da (seit 1.643.0, Patrick 19. November 2026: „nicht alle
 // Materialien zeigt es an“; vorher galt „need: 210kg“ wegen der kg als da
 // und „… 2026008635 noch bestellen“ wegen der Nummer als bestellt)
 const NOCH_OFFEN_RE = /\bneed\b|\bbraucht?\b|noch\s+bestell|bestellen\s*!|\bfehlt\b|\borga\b/i;
@@ -309,7 +309,7 @@ export async function planerLaden(tage) {
   for (const j of offen) {
     if (!j.planned_from || !String(j.material_bez || "").trim()) continue;
     const status = j.plan_status || "geplant";
-    // Start wie auf der Planwand, nie vor heute (seit 1.642.0). Vorher die
+    // Start wie auf der Planwand, nie vor heute (seit 1.643.0). Vorher die
     // geschätzte Verschiebung aus startSchaetzen: die schob Aufträge, deren
     // Datum auf der Planwand im Zeitraum liegt, aus der Liste hinaus, und
     // „kommt zu spät“ rechnete mit einem späteren Tag als die Planwand zeigt.
@@ -332,7 +332,7 @@ export async function planerLaden(tage) {
       if (hatKg !== null && hatKg < bedarf.kg * 0.98) { fehltKg = Math.ceil(bedarf.kg - hatKg); stand = "teil"; }
     }
     // An der Maschine (läuft, Rüsten): das Material ist dort, nur „reicht
-    // nicht“ zählt noch (seit 1.642.0, Patrick 19. November 2026: „bei
+    // nicht“ zählt noch (seit 1.643.0, Patrick 19. November 2026: „bei
     // manchen sagt es, es muss erst bestellt werden, nachdem der Auftrag
     // angefangen hat“; leere Mengenfelder laufender Aufträge kamen als
     // „fehlt, jetzt, zu spät“)

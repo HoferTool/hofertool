@@ -21,7 +21,7 @@ DATEN = """;
   geplant[3].material_bez = 'CuZn39Pb3 rd 8'; geplant[3].material_menge = '300 kg · Schmobi 2026008672';
   geplant[4].material_bez = '1.4305 rd 20 h9'; geplant[4].material_menge = '20 kg · Notz 2026001234';
   geplant[4].target_quantity = 5000; geplant[4].stand = 0; TEST.teilJob = geplant[4].job_number;
-  // Seit 1.642.0: „need“ heisst offen, Liefertermin nach Start, laufend ohne Menge nicht
+  // Seit 1.643.0: „need“ heisst offen, Liefertermin nach Start, laufend ohne Menge nicht
   const iso = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
   const dmy = (n) => { const x = iso(n); return x.slice(8, 10) + '.' + x.slice(5, 7) + '.' + x.slice(2, 4); };
   if (geplant[5]) { geplant[5].material_bez = 'X14CrMoS17 rd 33 h9'; geplant[5].material_menge = 'need: 210kg'; geplant[5].planned_from = iso(2); TEST.needJob = geplant[5].job_number; }

@@ -3,7 +3,7 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
-## 1.642.0 — Planer: Meldungen quittieren, Daten, Material (19. November 2026)
+## 1.643.0 — Planer: Meldungen quittieren, Daten, Material (19. November 2026)
 
 Material- und WBG-Meldungen im Todo des Planers haben einen Haken; quittiert stehen sie im Fenster „Abgeschlossen“ und lassen sich wieder öffnen (`app_config.planer_quittiert`). Start = Datum der Planwand statt geschätzter Verschiebung; Aufträge an der Maschine nie mehr „bestellen, zu spät“; Liefertermin nach Start wird rot gewarnt; „need …“, „noch bestellen“ usw. gelten als offen; Knopf „Auch Vorhandenes“.
 

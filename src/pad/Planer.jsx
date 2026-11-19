@@ -142,7 +142,7 @@ function Todos({ d, neu, titel, oeffnen = planwandFensterOeffnen, titelKlick }) 
       unter: [j.job_number, j.problem_at ? alt.datumZeitKurz(j.problem_at) : "", j.problem_von].filter(Boolean).join(" · "),
       haken: () => alt.problemQuittieren(j, null, neu), auf: () => oeffnen(j) });
   }
-  // Meldungen von selbst lassen sich quittieren (seit 1.642.0), dann
+  // Meldungen von selbst lassen sich quittieren (seit 1.643.0), dann
   // stehen sie nur noch im Fenster „Abgeschlossen“
   const quitt = d.quittiert || {};
   const offeneIds = new Set(d.offen.map((j) => String(j.id)));
@@ -342,7 +342,7 @@ async function todoBearbeiten(t, neu) {
 function Material({ d, e, neu }) {
   let zeilen = d.zeilen;
   if (e.nurFehlt) zeilen = zeilen.filter(zuBestellen);
-  // Ganz vorhandenes Material nur auf Wunsch (seit 1.642.0)
+  // Ganz vorhandenes Material nur auf Wunsch (seit 1.643.0)
   else if (!e.mitDa) zeilen = zeilen.filter((z) => z.stand !== "da");
   if (!zeilen.length) return <p className="pl-leer">Keine Aufträge mit Material bis {tagText(d.bis)}.</p>;
   if (e.ansicht === "start") {
