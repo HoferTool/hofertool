@@ -306,7 +306,9 @@ with sync_playwright() as p:
         "Object.assign(TEST.daten.profiles.find(x => x.id === 'u1'), {nur_zeit: true, zeit_terminal: true, andere_nutzer: true});"
         "TEST.rpc.zeit_panel_personen = () => %s; TEST.rpc.zeit_panel_gesichter = () => [{person_id: 'u1', muster: [Array(128).fill(0.1)]}];" % json.dumps(leute), 1180, 820)
     pg.wait_for_selector("#ze-panel-ohne", timeout=20000)
-    pruefe(pg.locator("[data-ze-panel]").count() == 0 and pg.locator(".ze-panel__kamera--gross").count() == 1, "Panel startet mit der Kamera, ohne Namen")
+    pruefe(pg.locator("[data-ze-panel]").count() == 0 and pg.locator("#ze-panel-pablo").count() == 1, "Panel startet mit Pablo, ohne Namen")
+    pruefe("SCHAU MIR IN DIE AUGEN" in pg.inner_text("#ze-panel-pablo"), "Text SCHAU MIR IN DIE AUGEN")
+    pruefe(pg.evaluate("getComputedStyle(document.querySelector('#ze-panel-video')).opacity") == "0", "eigenes Kamerabild unsichtbar")
     pg.wait_for_timeout(4000)
     pg.screenshot(path=BILD + "/zeit-panel-kamera.png")
     pg.click("#ze-panel-ohne"); pg.wait_for_selector("[data-ze-panel]")

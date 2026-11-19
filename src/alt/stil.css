@@ -14860,3 +14860,32 @@ body.dunkel .auf-fruehere { background: #3a3012; border-color: #8a6d1e; }
 /* HOFERTIME: Paar mit Stempelart (Krankheit, Arzt …), seit 1.640.0 */
 .ze-paar--art { border-style: dashed; color: #8a4b00; background: #fff4e5; }
 body.dunkel .ze-paar--art { background: #3a2a12; }
+
+/* HOFERTIME 1.642.0: Pablo statt eigenem Kamerabild am Stempel-Pad
+   (Wunsch Patrick 19. November 2026), im Stil der Anmeldung */
+.ze-panel-rahmen--kamera { padding: 0; gap: 0; }
+.ze-pablo { position: relative; min-height: calc(100dvh - 110px); width: 100%; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 16px; padding: 22px 16px 28px; border-radius: 22px; overflow: hidden;
+  background: radial-gradient(circle at 50% 42%, #1d5cb4 0%, #0a4596 38%, #003884 70%, #002a63 100%); color: #fff; }
+.ze-pablo * { color: #fff; }
+.ze-pablo__logo { width: min(200px, 44vw); height: auto; opacity: .95; }
+.ze-pablo__uhr { font-size: 2.6rem; font-weight: 600; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+.ze-pablo__bild { position: relative; width: min(38vh, 70vw, 360px); aspect-ratio: 1; display: flex; align-items: center; justify-content: center; }
+.ze-pablo__bild img, .ze-pablo__bild svg { position: relative; z-index: 1; width: 100%; height: 100%; object-fit: cover; border-radius: 50%;
+  border: 6px solid #fff; box-shadow: 0 0 0 10px rgba(255,255,255,.12), 0 18px 50px rgba(0,0,0,.35); background: #0a4596;
+  animation: ze-pablo-atmen 4s ease-in-out infinite; }
+.ze-pablo__bild svg { padding: 14%; }
+.ze-pablo__pupille { animation: ze-pablo-blick 6s ease-in-out infinite; }
+.ze-pablo__welle { position: absolute; inset: 0; border-radius: 50%; border: 2px solid rgba(255,255,255,.45);
+  animation: ze-pablo-welle 3.2s ease-out infinite; }
+.ze-pablo__welle--2 { animation-delay: 1.6s; }
+.ze-pablo__text { font-size: clamp(1.8rem, 5vw, 3.2rem); font-weight: 800; letter-spacing: .06em; text-align: center;
+  text-shadow: 0 4px 18px rgba(0,0,0,.3); }
+.ze-pablo__ohne { margin-top: 6px; font-size: 1.1rem; padding: 14px 28px; border-radius: 999px; cursor: pointer;
+  background: #fff; border: 0; font-weight: 600; }
+.ze-pablo__ohne, .ze-pablo .ze-pablo__ohne { color: #003884 !important; -webkit-text-fill-color: #003884; }
+body.dunkel .ze-pablo { background: radial-gradient(circle at 50% 42%, #173f78 0%, #0d2c58 45%, #081a36 100%); }
+@keyframes ze-pablo-welle { from { transform: scale(1); opacity: .8; } to { transform: scale(1.45); opacity: 0; } }
+@keyframes ze-pablo-atmen { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.025); } }
+@keyframes ze-pablo-blick { 0%, 40%, 100% { transform: translateX(0); } 55%, 70% { transform: translateX(6px); } }
+@media (prefers-reduced-motion: reduce) { .ze-pablo__bild img, .ze-pablo__bild svg, .ze-pablo__welle, .ze-pablo__pupille { animation: none; } }

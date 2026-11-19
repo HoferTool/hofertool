@@ -148,6 +148,13 @@ export default function Panel() {
     waehlen: (p) => { setPerGesicht(true); setWahl(p); },
   });
   const kameraZuerst = erk.bereit && !erk.fehler && !namen;
+  // Statt des eigenen Bilds schaut Pablo (Wunsch Patrick 19. November
+  // 2026); das Bild steht nur in der Datenbank (pad_mahnbilder)
+  const [pablo, setPablo] = useState(null);
+  useEffect(() => {
+    if (!erk.bereit) return;
+    alt.db.rpc("zeit_panel_bild").then((r) => { if (!r.error && typeof r.data === "string" && r.data) setPablo(r.data); }, () => {});
+  }, [erk.bereit]);
   // Nach Stempeln, Saldo oder „Nicht ich“ wieder die Kamera
   useEffect(() => { if (wahl || fertig || saldo) setNamen(false); }, [wahl, fertig, saldo]);
   // Namen ohne Tippen: nach 30 Sekunden zurück zur Kamera
@@ -265,13 +272,20 @@ export default function Panel() {
     // Stelle bleibt (sonst startet sie bei jedem Wechsel neu); die
     // Reihenfolge Uhr, Bild, Text macht CSS (order).
     inhalt = (
-      <>
-        <b className="ze-panel__uhr ze-panel__kamera-uhr">{zeit}</b>
-        <div className="ze-panel__kamera-unten" id="ze-panel-gesicht">
-          <div className="ze-panel__kamera-text">Schau in die Kamera</div>
-          <button className="knopf ze-panel__ohne" id="ze-panel-ohne" onClick={() => setNamen(true)}>Nicht mit Gesichtserkennung</button>
+      <section className="ze-pablo" id="ze-panel-pablo">
+        <img className="ze-pablo__logo" src="./logo-weiss.svg" alt="Hofer + Co" />
+        <b className="ze-pablo__uhr">{zeit}</b>
+        <div className="ze-pablo__bild" id="ze-panel-gesicht">
+          <span className="ze-pablo__welle" /><span className="ze-pablo__welle ze-pablo__welle--2" />
+          {pablo ? <img src={pablo} alt="" id="ze-pablo-bild" />
+            : <svg viewBox="0 0 200 200" aria-hidden="true">
+              <ellipse cx="62" cy="100" rx="38" ry="46" fill="#fff" /><ellipse cx="138" cy="100" rx="38" ry="46" fill="#fff" />
+              <circle className="ze-pablo__pupille" cx="66" cy="106" r="16" fill="#003884" />
+              <circle className="ze-pablo__pupille" cx="134" cy="106" r="16" fill="#003884" /></svg>}
         </div>
-      </>);
+        <div className="ze-pablo__text">SCHAU MIR IN DIE AUGEN</div>
+        <button className="ze-pablo__ohne" id="ze-panel-ohne" onClick={() => setNamen(true)}>Nicht mit Gesichtserkennung</button>
+      </section>);
   } else {
   const s = suche.trim().toLowerCase();
   const liste = (leute || []).filter((p) => !s || String(p.full_name || "").toLowerCase().includes(s));
@@ -304,7 +318,7 @@ export default function Panel() {
   return (
     <div className={"ze-panel-rahmen" + (kameraZuerst ? " ze-panel-rahmen--kamera" : "")}>
       {inhalt}
-      {erk.bereit && <video ref={erk.video} className={"ze-panel__kamera" + (kameraZuerst ? " ze-panel__kamera--gross" : "")}
+      {erk.bereit && <video ref={erk.video} className="ze-panel__kamera"
         id="ze-panel-video" playsInline muted autoPlay />}
     </div>);
 }
