@@ -380,7 +380,7 @@ function MaschinenBild({ block, t34, gruppe }) {
         </mask></defs>
         {/* Seit 1.584.0 (Patrick 16. November 2026: „im Werkzeug-Auswahlbild nur die Einheit anzeigen,
             welche montiert ist“): mit T3400 ein Bild ohne T3421–T3423 */}
-        <image href={import.meta.env.BASE_URL + (t34 === "3400" ? "hilfe/star-sb20rg-ohne34c.png" : "hilfe/star-sb20rg.png")} x="0" y="0" width="512" height="512" />
+        <image href={import.meta.env.BASE_URL + (t34 === "3400" ? "hilfe/star-sb20rg-ohne34d.png" : "hilfe/star-sb20rg.png")} x="0" y="0" width="512" height="512" />
         <rect x="0" y="0" width="512" height="512" fill="rgba(20,30,45,.45)" mask="url(#cam-bild-maske)" />
         <rect className={"cam-bild__rahmen" + (r.verdeckt ? " cam-bild__rahmen--verdeckt" : "")} x={r.x} y={r.y} width={r.w} height={r.h} rx="5" />
         <rect className="cam-bild__schildgrund" x={sx} y={sy} width={sb} height={sh} rx="8" />
@@ -407,7 +407,7 @@ function GruppenBild({ gruppe, t34, ref_, mass }) {
           <rect x="0" y="0" width="512" height="512" fill="#fff" />
           {rs.map((r, i) => <rect key={i} x={r.x - 3} y={r.y - 3} width={r.w + 6} height={r.h + 6} rx="6" fill="#000" />)}
         </mask></defs>
-        <image href={import.meta.env.BASE_URL + (t34 === "3400" ? "hilfe/star-sb20rg-ohne34c.png" : "hilfe/star-sb20rg.png")} x="0" y="0" width="512" height="512" />
+        <image href={import.meta.env.BASE_URL + (t34 === "3400" ? "hilfe/star-sb20rg-ohne34d.png" : "hilfe/star-sb20rg.png")} x="0" y="0" width="512" height="512" />
         <rect x="0" y="0" width="512" height="512" fill="rgba(20,30,45,.45)" mask="url(#cam-bild-maske)" />
         {rs.map((r, i) => <rect key={i} className={"cam-bild__rahmen cam-bild__rahmen--blink" + (r.verdeckt ? " cam-bild__rahmen--verdeckt" : "")}
           x={r.x} y={r.y} width={r.w} height={r.h} rx="5" />)}

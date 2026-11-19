@@ -854,8 +854,9 @@ const PLATTEN = [[123, 293], [143, 287], [163, 277], [187, 263], [207, 253], [22
 const ZUR_GEGEN_FRONT = [[385, 284, 46, 20], [385, 264, 46, 19], [385, 244, 46, 19], [385, 223, 46, 19]];
 // Seit 1.654.3 (Patrick 19. November 2026): im Bild mit T3400 sind die vier
 // Frontwerkzeuge zur Hauptspindel sichtbar, Rücken an Rücken zu denen der
-// Gegenspindel, gleiche Höhe
-const ZUR_HAUPT_FRONT = [[336, 283, 46, 20], [336, 263, 46, 19], [336, 243, 46, 19], [336, 222, 46, 19]];
+// Gegenspindel, gleiche Höhe; seit 1.654.5 kommen sie hinten aus dem Block,
+// der Block verdeckt ihr Ende (Patrick)
+const ZUR_HAUPT_FRONT = [[306, 268, 46, 20], [306, 248, 46, 19], [306, 228, 46, 19], [306, 207, 46, 19]];
 const ZUR_GEGEN_QUER = [[362, 285, 40, 14], [362, 262, 40, 14], [362, 239, 40, 14]];
 const ZUR_HAUPT_QUER = [[300, 255, 32, 17], [300, 233, 32, 17], [300, 209, 32, 17]];
 const QUER = [[255, 195, 15, 40], [269, 195, 15, 40], [284, 193, 16, 38], [298, 181, 16, 38]];
