@@ -39,4 +39,18 @@ export function istTerminal() {
 }
 export function terminalSetzen(an) {
   try { if (an) localStorage.setItem(TERMINAL, "1"); else localStorage.removeItem(TERMINAL); } catch (f) { /* egal */ }
+  if (an) gemerkteVergessen();
 }
+
+// Am Stempel-Pad gilt nie eine gemerkte Anmeldung, immer PIN oder
+// Passwort (Wunsch Patrick 19. November 2026: „auf dem Stempel-Pad nie
+// Auto-Login akzeptieren, es muss immer der PIN eingegeben werden“).
+// Darum vergisst ein Terminal alle aufgehobenen Schlüssel, von HOFERTIME
+// und vom HoferTool, auch die von früher, bevor es Terminal wurde.
+function gemerkteVergessen() {
+  try {
+    localStorage.removeItem("hofer.geraet.sitzungen");
+    localStorage.removeItem("hofer.geraet.sitzungen.zeit");
+  } catch (f) { /* egal */ }
+}
+if (istTerminal()) gemerkteVergessen();

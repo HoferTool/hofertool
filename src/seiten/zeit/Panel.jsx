@@ -16,6 +16,7 @@ import {
   uhrzeit, dauerText, saldoRechnen, ferienStand, abwesendeTage, feiertageEintragen, feiertageLaden,
   tageRechnen, paareRechnen, montag, tagePlus,
 } from "../../daten/zeit.js";
+import { terminalSetzen } from "./app.js";
 import { gesichtLesen, personFinden, kameraStarten, kameraMoeglich } from "./gesicht.js";
 
 // Kamera am Panel je Gerät ein oder aus (Vorgabe ein)
@@ -126,6 +127,9 @@ async function personenHolen() {
 }
 
 export default function Panel() {
+  // Ein Gerät mit dem Panel-Konto ist ein Stempel-Pad: dort gilt nie
+  // eine gemerkte Anmeldung, immer PIN (Wunsch Patrick 19. November 2026)
+  useEffect(() => { terminalSetzen(true); }, []);
   const [leute, setLeute] = useState(null);
   const [fehler, setFehler] = useState("");
   const [wahl, setWahl] = useState(null);

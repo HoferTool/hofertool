@@ -245,7 +245,8 @@ function Anmeldung() {
     setAuswahlFehler("");
     const quelle = ev.currentTarget.querySelector(".login__kachel-bild");
     const von = quelle ? quelle.getBoundingClientRect() : null;
-    const gemerkt = alt.sitzungGemerkt(konto.email);
+    // Am Stempel-Pad nie mit gemerkter Anmeldung hinein (seit 1.640.1)
+    const gemerkt = !istTerminal() && alt.sitzungGemerkt(konto.email);
 
     if (!gemerkt) return insFeld(konto, !!konto.ohne_passwort, "", von);
 
