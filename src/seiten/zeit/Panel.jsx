@@ -17,7 +17,7 @@ import {
   tageRechnen, paareRechnen, montag, tagePlus,
 } from "../../daten/zeit.js";
 import { terminalSetzen } from "./app.js";
-import { gesichtLesen, personFinden, kameraStarten, kameraMoeglich } from "./gesicht.js";
+import { gesichtLesen, personFinden, kameraStarten, kameraMoeglich, lichtHinweis } from "./gesicht.js";
 
 // Kamera am Panel je Gerät ein oder aus (Vorgabe ein)
 const KAMERA_KEY = "hofer.zeit.kamera";
@@ -76,7 +76,12 @@ function useErkennung({ an, aktiv, leute, waehlen }) {
           while (r.length > 3) r.shift();
           if (!g) { setHinweis(""); nichtErkannt.current = 0; }
           else if (!gut) setHinweis(g.gross < 0.08 ? "Etwas näher kommen" : "Bitte gerade in die Kamera schauen");
-          else if (!p) { nichtErkannt.current++; setHinweis(nichtErkannt.current >= 6 ? "Nicht erkannt. Unten auf „Nicht mit Gesichtserkennung“ tippen." : "Einen Moment …"); }
+          else if (!p) {
+            nichtErkannt.current++;
+            const licht = lichtHinweis(g.licht);
+            setHinweis(licht && nichtErkannt.current >= 2 ? licht
+              : nichtErkannt.current >= 6 ? "Nicht erkannt. Unten auf „Nicht mit Gesichtserkennung“ tippen." : "Einen Moment …");
+          }
           else { nichtErkannt.current = 0; setHinweis("Einen Moment …"); }
           const treffer = p ? r.filter((x) => x && x.id === p.id) : [];
           if (p && treffer.length >= 2 && !(pause.current[p.id] > Date.now())) {

@@ -14947,3 +14947,24 @@ body.dunkel .ze-wlan__link code { background: #161c23; }
 
 /* HOFERTIME 1.658.0: Hinweis der Gesichtserkennung unter „Schau mir in die Augen“ */
 .ze-pablo__hinweis { min-height: 1.6em; font-size: 1.15rem; opacity: .85; text-align: center; margin-top: -.2rem; }
+
+/* HOFERTIME 1.659.0: Gesicht Foto für Foto einlernen */
+.ze-gesicht__bild { border: 4px solid transparent; box-sizing: border-box; transition: border-color .2s; }
+.ze-gesicht__bild--ok { border-color: #1f9d55; }
+.ze-gesicht__bild--nein { border-color: #d64545; }
+.ze-gesicht__blitz { position: absolute; inset: 0; background: #fff; pointer-events: none; animation: ze-blitz .35s ease-out forwards; }
+@keyframes ze-blitz { from { opacity: .85; } to { opacity: 0; } }
+.ze-gesicht__text { color: #b42318; }
+.ze-gesicht__text--ok { color: #1f7a44; }
+body.dunkel .ze-gesicht__text { color: #ff8a80 !important; }
+body.dunkel .ze-gesicht__text--ok { color: #7ee2a8 !important; }
+.ze-gesicht__fotos { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+.ze-gesicht__punkt { width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  font-size: .85rem; font-weight: 600; background: #e6ebf1; color: #4a5a6a; }
+.ze-gesicht__punkt--da { background: #1f9d55; color: #fff; }
+.ze-gesicht__punkt--jetzt { background: #003884; color: #fff; }
+body.dunkel .ze-gesicht__punkt { background: #2a3440; }
+body.dunkel .ze-gesicht__punkt--da { background: #1f9d55; }
+body.dunkel .ze-gesicht__punkt--jetzt { background: #2f6fd0; }
+.ze-gesicht__auftrag { font-size: 1.1rem; margin: 4px 0 8px; }
+.ze-gesicht__bild { max-height: 42vh; aspect-ratio: auto; height: min(42vh, calc((min(560px, 100vw) - 48px) * .75)); }

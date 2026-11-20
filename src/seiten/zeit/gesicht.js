@@ -53,7 +53,51 @@ export async function gesichtLesen(video) {
     gross: b.width / (video.videoWidth || 1),
     sicher: g.detection.score,
     anzahl: erg.length,
+    licht: lichtMessen(video, b),
   };
+}
+
+// Licht am Gesicht (seit 1.659.0, Patrick 20. November 2026: „liegt es
+// evtl. am Licht?“): mittlere Helligkeit 0–255 im Gesicht und im ganzen
+// Bild, auf einem kleinen Bild gerechnet. Daraus ein Hinweis, wenn es
+// zu dunkel ist oder das Licht von hinten kommt (Fenster im Rücken).
+let leinwand = null;
+function lichtMessen(video, box) {
+  try {
+    const w = 80, h = Math.round(80 * (video.videoHeight || 3) / (video.videoWidth || 4));
+    if (!leinwand) leinwand = document.createElement("canvas");
+    leinwand.width = w; leinwand.height = h;
+    const c = leinwand.getContext("2d", { willReadFrequently: true });
+    c.drawImage(video, 0, 0, w, h);
+    const d = c.getImageData(0, 0, w, h).data;
+    const fx = w / (video.videoWidth || 1), fy = h / (video.videoHeight || 1);
+    const x0 = Math.max(0, Math.floor(box.x * fx)), x1 = Math.min(w, Math.ceil((box.x + box.width) * fx));
+    const y0 = Math.max(0, Math.floor(box.y * fy)), y1 = Math.min(h, Math.ceil((box.y + box.height) * fy));
+    let alle = 0, n = 0, ges = 0, m = 0;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      const l = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      alle += l; n++;
+      if (x >= x0 && x < x1 && y >= y0 && y < y1) { ges += l; m++; }
+    }
+    return { gesicht: m ? ges / m : null, bild: n ? alle / n : null };
+  } catch { return null; }
+}
+
+// Was am Licht nicht stimmt, als Text für die Person, sonst ""
+export function lichtHinweis(licht) {
+  if (!licht || licht.gesicht == null) return "";
+  if (licht.gesicht < 55) return "Zu dunkel im Gesicht. Mehr Licht von vorne.";
+  if (licht.bild - licht.gesicht > 45) return "Gegenlicht: das Licht kommt von hinten. Anders hinstellen.";
+  if (licht.gesicht > 225) return "Zu hell im Gesicht.";
+  return "";
+}
+
+// Abstand eines Musters zum Mittelwert anderer (fürs Einlernen: passt
+// die neue Aufnahme zu den bisherigen?)
+export function abstandZu(muster, liste) {
+  const mi = liste && liste.length === 1 ? liste[0] : mittel(liste);
+  return mi ? abstand(muster, mi) : 0;
 }
 
 function abstand(a, b) {
