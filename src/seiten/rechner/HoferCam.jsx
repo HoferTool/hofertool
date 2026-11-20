@@ -401,6 +401,7 @@ function MaschinenBild({ block, t34, gruppe }) {
 // alle Plätze des Knopfs zugleich, blinkend, ohne Schild je Platz
 // Patrick 17. November 2026: „wird zu gross angezeigt“, darum höchstens
 // so gross wie ein Kärtchen, nicht wie beim Platz einer Bearbeitung
+const K2_ARTEN = ["k2", "k2a", "k2b"];
 const GRUPPE_BILD = 300;
 // Seit 1.670.0: Frontbohrapparat auf einem Platz der SW-20 ins Bild
 // zeichnen, das querangetriebene Werkzeug dort aufgehellt
@@ -711,17 +712,27 @@ export default function HoferCam() {
     melden();
   };
   const bloecke = w.bloecke || [];
-  const setzeBloecke = (neu) => setze("bloecke", neu);
+  // Seit 1.675.0 (Wunsch Patrick 20. November 2026: „Kanal 2 soll bei den
+  // Bearbeitungen immer als letztes sein“): Bearbeitungen nur in Kanal 2
+  // stehen in der Liste immer hinter allen anderen, unter sich in ihrer
+  // Reihenfolge; an der Gegenspindel (Kanal 1 und 2) bleiben, wo sie sind
+  const k2Ende = (l) => [...l.filter((b) => !K2_ARTEN.includes(b.art)), ...l.filter((b) => K2_ARTEN.includes(b.art))];
+  const setzeBloecke = (neu) => setze("bloecke", k2Ende(neu));
+  // auch bei geöffneten oder eingelesenen Programmen
+  useEffect(() => {
+    const s = k2Ende(bloecke);
+    if (s.some((b, i) => b !== bloecke[i])) setzeBloecke(s);
+  }, [bloecke]);
   const blockAendern = (id, feld, wert) => setzeBloecke(bloecke.map((b) => (b.id === id ? { ...b, [feld]: wert } : b)));
   const blockSchieben = (i, um) => {
     const j = i + um;
     if (j < 0 || j >= bloecke.length) return;
     const neu = [...bloecke];
     [neu[i], neu[j]] = [neu[j], neu[i]];
-    setzeBloecke(markenOrdnen({ ...w, bloecke: neu }));
+    setzeBloecke(markenOrdnen({ ...w, bloecke: k2Ende(neu) }));
   };
   // Seit 1.579.0: nach jedem Umstellen die Wartemarken der Reihe nach neu
-  const ordnenMitMarken = (neu) => setzeBloecke(markenOrdnen({ ...w, bloecke: neu }));
+  const ordnenMitMarken = (neu) => setzeBloecke(markenOrdnen({ ...w, bloecke: k2Ende(neu) }));
   const frei = freieMarken(w);
   // Seit 1.668.0 (SW-20, Wunsch Patrick 20. November 2026: „bei der Auswahl
   // der Wartemarken anklicken können, für welche Kanäle sie gelten“): je
@@ -1085,6 +1096,11 @@ export default function HoferCam() {
                     dem Pfeil ein- und ausklappen, gemerkt am Block (zu) */}
                 <button className="cam-block__pfeil" data-camblock-pfeil={i} title={b.zu ? "NC-Code zeigen" : "NC-Code einklappen"}
                   aria-expanded={!b.zu} onClick={() => blockAendern(b.id, "zu", !b.zu)}>{b.zu ? "▸" : "▾"}</button>
+                {/* Seit 1.675.0 (Wunsch Patrick 20. November 2026: „gib bei den
+                    Bearbeitungen an, um welchen Kanal es sich handelt“) */}
+                {(() => { const ek = eigenerKanal(b), beide = ek === 2 && !K2_ARTEN.includes(b.art);
+                  return <span className={"cam-block__kanal cam-block__kanal--k" + (beide ? "12" : ek)} data-camblock-kanal={i}
+                    title={beide ? "Kanal 1 und Kanal 2 (Gegenspindel)" : "Kanal " + ek}>{beide ? "K1+K2" : "K" + ek}</span>; })()}
                 {/* Seit 1.596.0 (Wunsch Patrick 17. November 2026: „das Feld
                     Bezeichnung immer an vorderster Stelle und dann das Werkzeug“) */}
                 {!b.frei && <label className="cam-feld cam-feld--text" title="Steht in Klammern hinter dem Werkzeugaufruf"><span>Bezeichnung</span>

@@ -15126,3 +15126,10 @@ body.dunkel .erp-liste, body.dunkel .erp-pos { border-color: #3a4d66; }
 
 /* HOFERCAM: Alle Bearbeitungen ein- und aufklappen (1.674.0) */
 .cam-alle-zu { display: flex; gap: 6px; margin: 4px 0 6px; }
+
+/* HOFERCAM: Kanal je Bearbeitung (1.675.0) */
+.cam .cam-block__kanal { align-self: center; font-size: 12px; font-weight: 700; padding: 2px 7px; border-radius: 10px;
+  color: #fff !important; -webkit-text-fill-color: #fff; background: #1f5fa8; white-space: nowrap; }
+.cam .cam-block__kanal--k2 { background: #138a8a; }
+.cam .cam-block__kanal--k3 { background: #7a55b5; }
+.cam .cam-block__kanal--k12 { background: linear-gradient(90deg, #1f5fa8, #138a8a); }
