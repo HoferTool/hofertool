@@ -17,6 +17,7 @@ import {
   tageRechnen, paareRechnen, montag, tagePlus,
 } from "../../daten/zeit.js";
 import { terminalSetzen } from "./app.js";
+import { stempelBildHolen, StempelBild } from "./stempelBild.jsx";
 import { gesichtLesen, personFinden, kameraStarten, kameraMoeglich, lichtHinweis } from "./gesicht.js";
 
 // Kamera am Panel je Gerät ein oder aus (Vorgabe ein)
@@ -243,7 +244,7 @@ export default function Panel() {
   }
   useEffect(() => {
     if (!fertig) return undefined;
-    const t = setTimeout(() => { setFertig(null); setSuche(""); }, 5000);
+    const t = setTimeout(() => { setFertig(null); setSuche(""); }, fertig.bild ? 7000 : 5000);
     return () => clearTimeout(t);
   }, [fertig]);
 
@@ -254,7 +255,8 @@ export default function Panel() {
     setLaeuft(false);
     if (r.error || !r.data) { alt.meldung("Nicht gestempelt: " + alt.fehlertext(r.error), "fehler"); return; }
     const gelernt = perGesicht ? erk.lernen(wahl.id) : (erk.vergessen(), null);
-    setFertig({ gelernt, art, zeit: uhrzeit(r.data.zeit || new Date().toISOString()), name: wahl.full_name, id: r.data.id });
+    const bild = await stempelBildHolen(wahl.id);
+    setFertig({ gelernt, bild, art, zeit: uhrzeit(r.data.zeit || new Date().toISOString()), name: wahl.full_name, id: r.data.id });
     setWahl(null);
     laden();
   }
@@ -273,8 +275,8 @@ export default function Panel() {
   let inhalt;
   if (fertig) {
     inhalt = (
-      <div className={"ze-bestaetigt ze-bestaetigt--" + fertig.art} id="ze-bestaetigt">
-        <div className="ze-bestaetigt__haken">✓</div>
+      <div className={"ze-bestaetigt ze-bestaetigt--" + fertig.art + (fertig.bild ? " ze-bestaetigt--bild" : "")} id="ze-bestaetigt">
+        {fertig.bild ? <StempelBild name={fertig.bild} art={fertig.art} /> : <div className="ze-bestaetigt__haken">✓</div>}
         <div className="ze-bestaetigt__text">{fertig.art === "kommen" ? "Eingestempelt" : "Ausgestempelt"} {fertig.zeit}</div>
         <div className="ze-bestaetigt__name">{fertig.art === "kommen" ? "Guten Tag" : "Schönen Feierabend"}, {String(fertig.name || "").split(" ")[0]}</div>
         <div className="ze-panel__nach">

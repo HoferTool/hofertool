@@ -30,6 +30,8 @@ function offlineListe() {
       const liste = alle.filter((d) => d !== "./sw.js" && !d.endsWith(".ico") && !d.startsWith("./meldungen/")
         // Erklärvideos sind gross und werden nur bei Bedarf geladen
         && !d.startsWith("./hilfe/")
+        // Stempel-Animationen von HOFERTIME nur bei Bedarf
+        && !d.startsWith("./hofertime/stempel/")
         // Die Texterkennung (13 MB) holt das Gerät erst beim ersten Foto
         && !d.startsWith("./tesseract/")
         // OpenCascade für die STEP-Ansicht in HOFER2DTO3D (8 MB) nur bei Bedarf

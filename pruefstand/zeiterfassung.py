@@ -299,7 +299,8 @@ with sync_playwright() as p:
         "Object.assign(TEST.daten.profiles.find(x => x.id === 'u1'), {nur_zeit: true, zeit_terminal: true, andere_nutzer: true});"
         "TEST.rpc.zeit_panel_personen = () => %s; TEST.rpc.zeit_panel_saldo = () => (%s);"
         "TEST.rpc.zeit_panel_stempeln = (a) => ({ id: 'p1', person_id: a.p_person, art: a.p_art, zeit: new Date().toISOString() });"
-        "TEST.rpc.zeit_panel_zurueck = () => true;" % (json.dumps(leute), json.dumps(saldo)), 1180, 820)
+        "TEST.rpc.zeit_panel_zurueck = () => true;"
+        "TEST.rpc.zeit_stempel_bild = (a) => a.p_person === 'u2' ? 'feuerwehr' : null;" % (json.dumps(leute), json.dumps(saldo)), 1180, 820)
     pg.wait_for_selector("[data-ze-panel]")
     pruefe(pg.locator("[data-ze-panel]").count() == 2 and pg.locator(".ze-panel__kachel--da").count() == 1, "Panel: zwei Personen, eine da")
     pg.screenshot(path=BILD + "/zeit-panel.png")
@@ -315,8 +316,15 @@ with sync_playwright() as p:
     pg.click("#ze-panel-saldo-zu"); pg.click("[data-ze-panel='u1']"); pg.click("#ze-panel-knopf"); pg.wait_for_selector("#ze-bestaetigt")
     st = [x for x in pg.evaluate("() => TEST.protokoll") if x.get("art") == "rpc" and x.get("name") == "zeit_panel_stempeln"]
     pruefe(len(st) == 1 and st[0]["args"] == {"p_person": "u1", "p_art": "kommen"}, "Panel stempelt Kommen")
+    pruefe(pg.locator(".ze-bestaetigt__haken").count() == 1 and pg.locator("[data-ze-stempelbild]").count() == 0, "Patrick: Haken ohne Animation")
     pg.click("#ze-panel-zurueck"); pg.wait_for_timeout(500)
     pruefe(pg.locator("#ze-bestaetigt").count() == 0, "Rückgängig schliesst die Bestätigung")
+    # Animation nach dem Stempeln (1.660.0): Anna bekommt Feuerwehr, Patrick den Haken
+    pg.click("[data-ze-panel='u2']"); pg.click("#ze-panel-knopf"); pg.wait_for_selector("#ze-bestaetigt")
+    pg.wait_for_function("() => { const i = document.querySelector('[data-ze-stempelbild]'); return i && i.complete && i.naturalWidth > 0; }", timeout=8000)
+    pruefe(pg.get_attribute("[data-ze-stempelbild]", "src").endswith("feuerwehr-gehen.webp"), "Anna: Feuerwehr-Animation beim Gehen")
+    pg.screenshot(path=BILD + "/zeit-panel-animation.png")
+    pg.click("#ze-panel-zurueck"); pg.wait_for_timeout(300)
     pruefe(not pf, "keine Fehler im Browser: %s" % pf)
     br.close()
 

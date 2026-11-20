@@ -23,6 +23,7 @@ import { profilOeffnen } from "./zeit/Profil.jsx";
 import Panel from "./zeit/Panel.jsx";
 import { gesichtOeffnen } from "./zeit/GesichtEinlernen.jsx";
 import { wlanOeffnen } from "./zeit/WlanLink.jsx";
+import { stempelBildHolen, StempelBild } from "./zeit/stempelBild.jsx";
 import Auswertung from "./zeit/Auswertung.jsx";
 import { ABWESENHEITEN } from "../daten/abwesenheit.js";
 
@@ -169,12 +170,12 @@ function AppKopf({ name, panel }) {
 // Nach dem Stempeln am Terminal: gross bestätigen, dann abmelden
 function Bestaetigung({ b }) {
   useEffect(() => {
-    const t = setTimeout(() => { if (alt.jetztAbmelden) alt.jetztAbmelden(); }, b.fehler && b.fehler.length ? 9000 : 4000);
+    const t = setTimeout(() => { if (alt.jetztAbmelden) alt.jetztAbmelden(); }, b.fehler && b.fehler.length ? 9000 : (b.bild ? 6000 : 4000));
     return () => clearTimeout(t);
   }, []);
   return (
-    <div className={"ze-bestaetigt ze-bestaetigt--" + b.art} id="ze-bestaetigt" onClick={() => alt.jetztAbmelden && alt.jetztAbmelden()}>
-      <div className="ze-bestaetigt__haken">✓</div>
+    <div className={"ze-bestaetigt ze-bestaetigt--" + b.art + (b.bild ? " ze-bestaetigt--bild" : "")} id="ze-bestaetigt" onClick={() => alt.jetztAbmelden && alt.jetztAbmelden()}>
+      {b.bild ? <StempelBild name={b.bild} art={b.art} /> : <div className="ze-bestaetigt__haken">✓</div>}
       <div className="ze-bestaetigt__text">{b.art === "kommen" ? "Eingestempelt" : "Ausgestempelt"} {b.zeit}</div>
       <div className="ze-bestaetigt__name">{b.art === "kommen" ? "Guten Tag" : "Schönen Feierabend"}, {b.name}</div>
       {b.fehler && b.fehler.length > 0 && <div className="ze-bestaetigt__fehler">
@@ -189,6 +190,12 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
   const { daten, fehler, neu } = useDaten(() => laden(personId, ansicht, bezug), [personId, ansicht, bezug, auffrischen]);
   const [laeuft, setLaeuft] = useState(false);
   const [bestaetigt, setBestaetigt] = useState(null);
+  const [animation, setAnimation] = useState(null);
+  useEffect(() => {
+    if (!animation) return undefined;
+    const t = setTimeout(() => setAnimation(null), 5000);
+    return () => clearTimeout(t);
+  }, [animation]);
   const jetzt = stand(daten && !daten.fehlt ? daten.stempelAlle : []);
   useTakt(jetzt.da);
 
@@ -239,10 +246,13 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
     const art = jetzt.da ? "gehen" : "kommen";
     const r = await stempeln(art, personId);
     setLaeuft(false);
+    const bild = r && eigene ? await stempelBildHolen(personId) : null;
     if (r && eigene && istTerminal() && zeitApp) {
-      setBestaetigt({ art, zeit: uhrzeit(r.zeit), name: name.split(" ")[0], fehler: fehlerListe });
+      setBestaetigt({ art, zeit: uhrzeit(r.zeit), name: name.split(" ")[0], fehler: fehlerListe, bild });
       return;
     }
+    // Animation auch beim Stempeln am Handy oder PC, ohne Abmelden
+    if (bild) setAnimation({ art, bild });
     if (r && fehlerListe.length) alt.meldung(fehlerListe.length + (fehlerListe.length === 1 ? " Sache stimmt" : " Sachen stimmen") + " noch nicht, siehe oben.", "warn");
     if (r) {
       alt.meldung((art === "kommen" ? "Eingestempelt " : "Ausgestempelt ") + uhrzeit(r.zeit) + (eigene ? "" : " für " + name) + ".", "gut");
@@ -275,6 +285,9 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
   return (
     <>
       {bestaetigt && <Bestaetigung b={bestaetigt} />}
+      {animation && !bestaetigt && <div className={"ze-bestaetigt ze-bestaetigt--bild ze-bestaetigt--" + animation.art} id="ze-stempelbild" onClick={() => setAnimation(null)}>
+        <StempelBild name={animation.bild} art={animation.art} />
+      </div>}
       <section className={"karte ze-stempel" + (jetzt.da ? " ze-stempel--da" : "")}>
         <div className="ze-stempel__text">
           <div className="ze-stempel__name">{name}{einst ? <span className="klein"> · {LOHNART[einst.lohnart] || ""}</span> : null}</div>
