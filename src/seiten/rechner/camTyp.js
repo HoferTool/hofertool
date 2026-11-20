@@ -156,6 +156,7 @@ M99
 %`,
   "dreh.k1": `T{PLATZ}{BEZ_K}
 [hd] M1881D{HD}
+[g50] G50S{G50}
 {G96}{DREH}S{S}T{T}
 {VOR}
 G0X[#531+1.]Z{ANZ}
@@ -170,6 +171,7 @@ M1`,
   "dreh.k2": `{PAARE2}`,
   "front.k1": `T{PLATZ}{BEZ_K}
 [hd] M1882D{HD}
+[g50] G50S{G50}
 {G96}{DREH}S{S}T{T}
 {VOR}
 G0Z{ANZ}
@@ -193,6 +195,7 @@ M1`,
   "frontGegen.k2": `M75
 /T2000({BEZ_GEGEN})
 {M1}
+[g50] /G50S{G50}
 /{G96}{DREH}S{S}
 /{VOR}
 /G0Z{ANZ}
@@ -275,6 +278,7 @@ M1
 [hd] /M1884D{HD}
 /T{PLATZ}{BEZ_K}
 /G23
+[g50] /G50S{G50}
 /{G96}{DREH}S{S}T{T2V}
 /{VOR}
 /G0X{VORX}
@@ -474,7 +478,7 @@ export const PLATZHALTER_BLOCK = [
   ["BEZ", "Bezeichnung"], ["BEZ_K", "Bezeichnung in Klammern, leer ohne"],
   ["BEZ_GEGEN", "Bezeichnung mit „MIT GEGENSPINDEL“"], ["HD", "Hochdruck-Stufe"],
   ["DREH", "Drehrichtung mit M (M3, M4, M36, M37)"], ["S", "Drehzahl (bei Vc gerechnet, bei G96 Vc)"],
-  ["G96", "„G96“, wenn G96 gewählt, sonst leer"], ["VOR", "G98 oder G99"],
+  ["G96", "„G96“, wenn G96 gewählt, sonst leer"], ["G50", "Drehzahlbegrenzung bei G96 (U/min)"], ["VOR", "G98 oder G99"],
   ["ANZ", "Anfahren Z"], ["WEGZ", "Zurück Z"], ["WEGF", "Wegfahren F"], ["WINKEL", "„,A45.“ oder leer"],
   ["X", "Position X"], ["Y", "„Y…“ oder leer"], ["VORX", "Vorpositionieren X"], ["VORZ", "Vorpositionieren Z"],
   ["NX", "G50 X"], ["NZ", "G50 Z"], ["M1", "Marke Start"], ["M2", "Marke 2 bzw. Ende"], ["M3", "Marke Ende (Frontangetrieben)"],
@@ -483,7 +487,7 @@ export const PLATZHALTER_BLOCK = [
 ];
 export const BEDINGUNGEN = [
   ["hd", "Hochdruck gewählt"], ["hdaus", "Hochdruck gewählt und „HD am Ende aus“ an"],
-  ["g96", "G96 gewählt"], ["m38", "„M38 am Ende“ an"], ["m5", "„M5 am Ende“ an"], ["y", "Position Y eingetragen"],
+  ["g96", "G96 gewählt"], ["g50", "G96 mit Drehzahlbegrenzung"], ["m38", "„M38 am Ende“ an"], ["m5", "„M5 am Ende“ an"], ["y", "Position Y eingetragen"],
 ];
 
 // Unbekannte Platzhalter und Bedingungen einer Vorlage, für den Hinweis
@@ -563,7 +567,7 @@ export function wirksamB(b) {
   const n = { ...b };
   for (const k of aus) if (k in vg) n[k] = vg[k];
   // Drehzahl fest: dann auch keine Schnittgeschwindigkeit
-  if (aus.includes("S")) { n.sArt = "S"; n.g96 = false; }
+  if (aus.includes("S")) { n.sArt = "S"; n.g96 = false; n.g50 = ""; }
   return n;
 }
 

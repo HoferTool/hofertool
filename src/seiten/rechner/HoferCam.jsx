@@ -460,7 +460,7 @@ function herunterladen(e, zeilen, nr) {
 // erzeugt, ist gelb; die App setzt es nach jedem Neurechnen wieder ein
 // (handAnwenden in hofercam.js).
 // Einheiten der Felder in den Bearbeitungen (Marken haben keine)
-const BLOCK_EINHEIT = { S: "U/min", vc: "m/min", vcD: "mm", X: "mm", Y: "mm", anZ: "mm", wegZ: "mm", wegA: "Grad",
+const BLOCK_EINHEIT = { S: "U/min", g50: "U/min", vc: "m/min", vcD: "mm", X: "mm", Y: "mm", anZ: "mm", wegZ: "mm", wegA: "Grad",
   vorX: "mm", vorZ: "mm", nX: "mm", nZ: "mm" };
 let fokusNach = null;
 function Kanaele({ prog, sync, fehler, bereich, bereich2, w, handSetzen, einlesen }) {
@@ -1033,6 +1033,7 @@ export default function HoferCam() {
                     <label className="cam-feld cam-g96" title="G96 konstante Schnittgeschwindigkeit: im Kopf der Bearbeitung G96 mit S = Vc, am Ende G97">
                       <input type="checkbox" data-camblock="g96" checked={!!b.g96}
                         onChange={(e) => blockAendern(b.id, "g96", e.target.checked)} /><span>G96</span></label>
+                    {b.g96 && feld("g50", "Max. S", "Drehzahlbegrenzung G50 S… in U/min (steht vor G96), leer = ohne", 64)}
                     {!b.g96 && feld("vcD", "Ø", front ? "Werkzeug-Ø in mm" : "Durchmesser in mm, leer = Material-Ø A aus G266", 54)}
                     <span className="cam-vc-s klein" data-camblock-s={i} title={b.g96 ? "Mit G96 steht Vc als S im Programm" : "Daraus gerechnete Drehzahl"}>
                       {b.g96 ? (drehzahl(b, wirksamW(w)) ? "G96 S" + drehzahl(b, wirksamW(w)) : "S –") : (drehzahl(b, wirksamW(w)) ? "= S" + drehzahl(b, wirksamW(w)) : "S –")}</span>

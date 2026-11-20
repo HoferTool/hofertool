@@ -312,6 +312,8 @@ function blockWerte(b, w, marke) {
   const art = vorlageArt(b);
   const bez = String(b.bez || "").trim();
   const g96 = b.sArt === "vc" && !!b.g96;
+  // Seit 1.662.0: Drehzahlbegrenzung G50S… vor G96, nur mit G96 und Wert
+  const g50 = g96 && zahl(b.g50) != null && Number(zahl(b.g50)) > 0 ? String(Math.round(Number(zahl(b.g50)))) : "";
   const roh = String(b.S ?? "").trim();
   const mitVc = art === "dreh" || art === "front" || art === "frontGegen" || art === "k2";
   const S = mitVc ? drehzahl(b, w) ?? roh : roh;
@@ -326,14 +328,14 @@ function blockWerte(b, w, marke) {
   const werte = {
     PLATZ: platz, T: Number(b.platz) / 100, T2: platz.slice(-2), T2V: platz.slice(0, 2),
     BEZ: bez, BEZ_K: bez ? "(" + bez + ")" : "", BEZ_GEGEN: mitGegen(bez), HD: String(b.hd ?? ""),
-    DREH: "M" + dreh, S, G96: g96 ? "G96" : "", VOR: vorZeile(b),
+    DREH: "M" + dreh, S, G96: g96 ? "G96" : "", G50: g50, VOR: vorZeile(b),
     ANZ: g("anZ"), WEGZ: g("wegZ"), WEGF: g("wegF"),
     WINKEL: String(b.wegA ?? "").trim() === "" ? "" : ",A" + (zahl(b.wegA) ?? b.wegA),
     X: g("X"), Y: zahl(b.Y) != null ? "Y" + zahl(b.Y) : "",
     VORX: g("vorX"), VORZ: g("vorZ"), NX: g("nX"), NZ: g("nZ"),
     M1: mk.m1 || "", M2: mk.m2 || "", M3: mk.m3 || "",
   };
-  const bed = { hd: !!b.hd, hdaus: !!b.hd && !b.hdAn, g96, m38: !b.spAn, m5: !b.ohneM5, y: zahl(b.Y) != null };
+  const bed = { hd: !!b.hd, hdaus: !!b.hd && !b.hdAn, g96, g50: !!g50, m38: !b.spAn, m5: !b.ohneM5, y: zahl(b.Y) != null };
   blockEigene(b, w, werte, bed);
   const listen = {
     CODE: codeZeilen(b),

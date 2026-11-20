@@ -18,7 +18,7 @@ const MARKE = "(M(?:[2-9]\\d\\d|20|40|41|82|83))";
 // Muster je Platzhalter; zusammenstehende wie {G96}{DREH}S{S}T{T} brauchen
 // enge Muster, sonst nimmt der erste zu viel
 const MUSTER = {
-  G96: "((?:G96)?)", DREH: "(M\\d+)", T: "(\\d+)", T2: "(\\d+)", T2V: "(\\d+)", PLATZ: "(\\d{3,4})",
+  G96: "((?:G96)?)", G50: "(\\d+)", DREH: "(M\\d+)", T: "(\\d+)", T2: "(\\d+)", T2V: "(\\d+)", PLATZ: "(\\d{3,4})",
   HD: "(\\d*)", VOR: "(G9[89])", WINKEL: "((?:,A[-+\\d.]+)?)", Y: "((?:Y[-+\\d.]+)?)",
   M1: MARKE, M2: MARKE, M3: MARKE, NR: "(\\d{1,4})", NR2: "(\\d{1,4})",
   BEZ_K: "((?:\\(.*\\))?)", NAME: "((?:\\(.*\\))?)", BEZ_GEGEN: "(.*)",
@@ -148,7 +148,7 @@ function blockAus(art, x1, x2) {
   b.hd = bed.hd ? String(w.HD || "") : "";
   if (b.hd && "hdaus" in bed && !bed.hdaus) b.hdAn = true;
   if (w.DREH) b.dreh = w.DREH.replace(/^M/i, "");
-  if (w.G96) { b.sArt = "vc"; b.g96 = true; b.vc = w.S || ""; b.S = ""; } else if (w.S != null) b.S = w.S;
+  if (w.G96) { b.sArt = "vc"; b.g96 = true; b.vc = w.S || ""; b.S = ""; if (w.G50) b.g50 = w.G50; } else if (w.S != null) b.S = w.S;
   if (w.VOR) b.vor = w.VOR.replace(/^G/i, "");
   const feld = { ANZ: "anZ", WEGZ: "wegZ", WEGF: "wegF", X: "X", VORX: "vorX", VORZ: "vorZ", NX: "nX", NZ: "nZ" };
   for (const [n, f] of Object.entries(feld)) if (w[n] != null) b[f] = w[n];
