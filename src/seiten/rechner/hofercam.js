@@ -171,8 +171,11 @@ export const plaetzeVon = (gruppe) => typ().plaetze[gruppe] || [];
 // beides geht nicht“): w.t34 "3400" oder "3421". Seit 1.591.0 leer = T3400
 // (Wunsch Patrick 17. November 2026: „bei Bestückung soll T3400 Standard sein“)
 export const t34Von = (w) => (w && String(w.t34) === "3421" ? "3421" : "3400");
+// SW-20 (seit 1.665.0): Frontbearbeitung nur auf Plätzen mit Frontbohrapparat (Bestückung)
+const istSw = () => (typ().kanaele || 2) > 2;
 export function montiert(gruppe, w) {
   const l = plaetzeVon(gruppe);
+  if (istSw()) return gruppe === "front" ? l.filter((p) => swFrontVon(w).includes(Number(p))) : l;
   const t = t34Von(w);
   if (gruppe === "seite" && t !== "3400") return l.filter((p) => String(p) !== "3400");
   if (gruppe === "quer" && t === "3400") return [];
@@ -180,6 +183,7 @@ export function montiert(gruppe, w) {
 }
 export function nichtMontiert(b, w) {
   const p = String(b.platz ?? ""), t = t34Von(w);
+  if (istSw()) return b.art === "front" && !b.frei && !swFrontVon(w).includes(Number(p));
   return (p === "3400" && t !== "3400") || (/^342[1-3]$/.test(p) && t === "3400");
 }
 // Die SB-20RG hat nur vier Hochdruck-Stufen (Patrick 7. November 2026: „es gibt nur 4 nicht 6“).
@@ -238,7 +242,7 @@ export function drehzahl(b, w = {}) {
 
 export function blockFehler(b, w = {}) {
   const f = {};
-  if (nichtMontiert(b, w)) f.platz = "T" + b.platz + " ist nicht montiert (Kopfdaten: Platz 34)";
+  if (nichtMontiert(b, w)) f.platz = "T" + b.platz + (istSw() ? " hat keinen Frontbohrapparat (Bestückung)" : " ist nicht montiert (Kopfdaten: Platz 34)");
   if (b.frei) return f;
   b = wirksamB(b); w = wirksamW(w);
   if (b.art === "k2a") {
@@ -280,6 +284,16 @@ export function blockFehler(b, w = {}) {
     else if (!b.g96 && vcDurchmesser(b, w) == null) f.vcD = b.art === "front" ? "Ø fehlt" : "Ø fehlt (oder A oben)";
   } else if (!/^\d+$/.test(String(b.S).trim()) || Number(b.S) <= 0) f.S = "ganze Zahl";
   if (zahl(b.anZ) == null) f.anZ = "Zahl fehlt";
+  // SW-20: Front mit X, G50 Z, Y freiwillig; Drehen ohne Wegfahren
+  if (istSw()) {
+    if (b.art === "front") {
+      if (zahl(b.X) == null) f.X = "Zahl fehlt";
+      if (String(b.Y ?? "").trim() !== "" && zahl(b.Y) == null) f.Y = "Zahl oder leer";
+      if (zahl(b.nZ) == null) f.nZ = "Zahl fehlt";
+    }
+    if (b.g96 && String(b.S ?? "").trim() !== "" && !/^\d+$/.test(String(b.S).trim())) f.S = "ganze Zahl oder leer";
+    return f;
+  }
   if (b.art === "front") {
     if (zahl(b.wegZ) == null) f.wegZ = "Zahl fehlt";
     if (anGegenspindel(b)) {
@@ -339,7 +353,10 @@ function blockWerte(b, w, marke) {
   const g = (n) => zahl(b[n]) ?? String(b[n] ?? "");
   const platz = String(b.platz ?? "");
   const werte = {
-    PLATZ: platz, T: Number(b.platz) / 100, T2: platz.slice(-2), T2V: platz.slice(0, 2),
+    PLATZ: platz, TK: String(Math.floor(Number(platz) / 100)).padStart(2, "0"),
+    // SW-20 (1.665.0): mit G96 vorne die eingetippte Start-Drehzahl, sonst S
+    SSTART: g96 ? (/^\d+$/.test(roh) ? roh : g50) : S,
+    T: Number(b.platz) / 100, T2: platz.slice(-2), T2V: platz.slice(0, 2),
     BEZ: bez, BEZ_K: bez ? "(" + bez + ")" : "", BEZ_GEGEN: mitGegen(bez), HD: String(b.hd ?? ""),
     DREH: "M" + dreh, S, G96: g96 ? "G96" : "", G50: g50, VOR: vorZeile(b),
     ANZ: g("anZ"), WEGZ: g("wegZ"), WEGF: g("wegF"),

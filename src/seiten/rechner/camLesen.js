@@ -18,7 +18,7 @@ const MARKE = "(M(?:[2-9]\\d\\d|20|40|41|82|83))";
 // Muster je Platzhalter; zusammenstehende wie {G96}{DREH}S{S}T{T} brauchen
 // enge Muster, sonst nimmt der erste zu viel
 const MUSTER = {
-  G96: "((?:G96)?)", G50: "(\\d+)", DREH: "(M\\d+)", T: "(\\d+)", T2: "(\\d+)", T2V: "(\\d+)", PLATZ: "(\\d{3,4})",
+  G96: "((?:G96)?)", G50: "(\\d+)", DREH: "(M\\d+)", T: "(\\d+)", TK: "(\\d+)", SSTART: "(\\d+)", T2: "(\\d+)", T2V: "(\\d+)", PLATZ: "(\\d{3,4})",
   HD: "(\\d*)", VOR: "(G9[89])", WINKEL: "((?:,A[-+\\d.]+)?)", Y: "((?:Y[-+\\d.]+)?)",
   M1: MARKE, M2: MARKE, M3: MARKE, NR: "(\\d{1,4})", NR2: "(\\d{1,4})",
   BEZ_K: "((?:\\(.*\\))?)", NAME: "((?:\\(.*\\))?)", BEZ_GEGEN: "(.*)",
@@ -128,9 +128,18 @@ export function kopfLesen(k1, k2) {
 }
 
 // ---------- Bearbeitungen ----------
-const mitte = (zeilen) => {
+const mitte = (zeilen, kanal) => {
   const i = zeilen.findIndex((z) => /^\(Ende Kopf\)$/i.test(z)), j = zeilen.findIndex((z) => /^\(Start Ende\)$/i.test(z));
-  return zeilen.slice(i < 0 ? 0 : i + 1, j < 0 ? zeilen.length : j);
+  if (i >= 0 || j >= 0 || !kanal) return zeilen.slice(i < 0 ? 0 : i + 1, j < 0 ? zeilen.length : j);
+  // SW-20 (1.665.0): Kopf und Ende ohne „(Ende Kopf)“ / „(Start Ende)“;
+  // der Kopf ist so lang wie seine Vorlage, das Ende beginnt bei der
+  // ersten festen Zeile der Ende-Vorlage
+  const v = typ().vorlagen, zahl = (t) => String(t || "").split(/\r?\n/).filter((z) => z.trim() && !/^\s*\[/.test(z)).length;
+  const n = zahl(v["k" + kanal + "kopf"]);
+  const erste = String(v["k" + kanal + "ende"] || "").split(/\r?\n/).map((z) => z.trim()).find(Boolean) || "";
+  const fest = erste && !/[{[]/.test(erste) ? erste.toUpperCase() : null;
+  let e = fest ? zeilen.findIndex((z, k) => k >= n && z.toUpperCase() === fest) : -1;
+  return zeilen.slice(Math.min(n, zeilen.length), e < 0 ? zeilen.length : e);
 };
 const istM1 = (z) => /^M0?1$/i.test(z);
 
@@ -148,12 +157,16 @@ function blockAus(art, x1, x2) {
   b.hd = bed.hd ? String(w.HD || "") : "";
   if (b.hd && "hdaus" in bed && !bed.hdaus) b.hdAn = true;
   if (w.DREH) b.dreh = w.DREH.replace(/^M/i, "");
-  if (w.G96) { b.sArt = "vc"; b.g96 = true; b.vc = w.S || ""; b.S = ""; if (w.G50) b.g50 = w.G50; } else if (w.S != null) b.S = w.S;
+  // SW-20 (1.665.0): G96 nur als Bedingung, vorne die Start-Drehzahl
+  if (!w.G96 && "SSTART" in w) {
+    if (bed.g96) { b.sArt = "vc"; b.g96 = true; b.vc = w.S || ""; b.S = w.SSTART; b.g50 = w.G50 || ""; }
+    else { b.sArt = "S"; b.g96 = false; b.S = w.SSTART; }
+  } else if (w.G96) { b.sArt = "vc"; b.g96 = true; b.vc = w.S || ""; b.S = ""; if (w.G50) b.g50 = w.G50; } else if (w.S != null) b.S = w.S;
   if (w.VOR) b.vor = w.VOR.replace(/^G/i, "");
   const feld = { ANZ: "anZ", WEGZ: "wegZ", WEGF: "wegF", X: "X", VORX: "vorX", VORZ: "vorZ", NX: "nX", NZ: "nZ" };
   for (const [n, f] of Object.entries(feld)) if (w[n] != null) b[f] = w[n];
   if ("WINKEL" in w) b.wegA = w.WINKEL.replace(/^,A/i, "");
-  if (w.Y) b.Y = w.Y.replace(/^Y/i, "");
+  if ("Y" in w) b.Y = String(w.Y || "").replace(/^Y/i, "");
   if (gegen) for (const n of ["M1", "M2", "M3"]) if (w[n]) b[n.toLowerCase()] = w[n].toUpperCase();
   if ("m38" in bed && !bed.m38) b.spAn = true;
   if ("m5" in bed && !bed.m5) b.ohneM5 = true;
@@ -211,6 +224,8 @@ const K1_ARTEN = { dreh: ["dreh"], front: ["front", "frontGegen"], seite: ["seit
 function besteVorlage(arten, zeilen, kanal) {
   let best = null;
   for (const art of arten) {
+    // Nur Arten, die der Maschinentyp hat (SW-20: vorerst Drehen und Front)
+    if (typ().arten && !typ().arten.includes(art)) continue;
     const r = vorlageLesen(typ().vorlagen[art + ".k" + kanal], zeilen);
     if (!r.ersteGut) continue;
     if (!best || r.fehl < best.r.fehl) best = { art, r };
@@ -255,7 +270,7 @@ export function bloeckeLesen(k1, k2) {
   const unklar = [];
   const werkzeug = (s) => (s.find((z) => /^\/?T\d{3,4}/i.test(z)) || s[0] || "").replace(/^\//, "").match(/^T\d+/i)?.[0] || s[0];
   // Kanal 1 zuerst; jede Bearbeitung hat ihre Stelle p1 (und p2 in Kanal 2)
-  const t1 = k1 ? abschnitteVon(mitte(k1), (z) => /^T\d{3,4}(\(|$)/i.test(z) && !/^T0+(\(|$)/.test(z)) : { ab: [], zwischen: [] };
+  const t1 = k1 ? abschnitteVon(mitte(k1, (typ().kanaele || 2) > 2 ? 1 : 0), (z) => /^T\d{3,4}(\(|$)/i.test(z) && !/^T0+(\(|$)/.test(z)) : { ab: [], zwischen: [] };
   const liste = [];
   t1.ab.forEach((s, i) => {
     const platz = s[0].match(/^T(\d{3,4})/i)[1];
@@ -272,7 +287,7 @@ export function bloeckeLesen(k1, k2) {
   // Die Marke Ende der Frontangetriebenen an der Gegenspindel steht in
   // Kanal 2 nach dem M1
   const m3 = new Set(liste.filter((x) => x.best?.art === "querGegen").map((x) => String(x.best.r.werte.M3 || "").toUpperCase()));
-  const t2 = k2 ? abschnitteVon(mitte(k2), (z) => /^M75$/i.test(z),
+  const t2 = k2 ? abschnitteVon(mitte(k2, (typ().kanaele || 2) > 2 ? 2 : 0), (z) => /^M75$/i.test(z),
     (z, s) => /^M0?5$/i.test(z) || (s.some(istT2000) && m3.has(markeVon(z)))) : { ab: [], zwischen: [] };
   const gegen2 = [];
   t2.ab.forEach((s, pos) => {

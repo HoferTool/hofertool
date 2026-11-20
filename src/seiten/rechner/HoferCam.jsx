@@ -749,13 +749,17 @@ export default function HoferCam() {
     const zeilen = { 1: vorher.k1, 2: vorher.k2, 3: vorher.k3 };
     for (const r of gelesen) zeilen[r.kanal] = r.zeilen;
     const nur = (k) => (gelesen.some((r) => r.kanal === k) ? zeilen[k] : null);
-    // Seit 1.663.0: die Bearbeitungen erkennt die App vorerst nur bei der
-    // SB-20RG; bei der SW-20 kommen nur die Felder oben und der Text
+    // Seit 1.663.0: die Felder oben liest die App vorerst nur bei der
+    // SB-20RG; seit 1.665.0 bei der SW-20 auch die Bearbeitungen Kanal 1
+    // (Drehen und Front, die übrigen „wie eingelesen“)
     const kopf = sb ? kopfLesen(nur(1), nur(2)) : {};
-    const { bloecke, unklar } = sb ? bloeckeLesen(zeilen[1], zeilen[2]) : { bloecke: [], unklar: [] };
+    const { bloecke, unklar } = bloeckeLesen(zeilen[1], zeilen[2]);
+    // SW-20: Frontbohrapparat dort, wo eine Frontbearbeitung eingelesen wurde
+    const swF = sb ? [] : bloecke.filter((b) => b.art === "front").map((b) => Number(b.platz));
     let neu = { ...w, ...kopf };
     for (const r of gelesen) neu = { ...neu, ...r.felder };
     neu.bloecke = bloecke;
+    if (swF.length) neu.swFront = [...new Set([...swFrontVon(w), ...swF])].sort((x, y) => x - y);
     // Seit 1.582.0: Bestückung von Platz 34 aus dem Programm
     if (bloecke.some((b) => String(b.platz) === "3400")) neu.t34 = "3400";
     else if (bloecke.some((b) => /^342[1-3]$/.test(String(b.platz)))) neu.t34 = "3421";
@@ -933,21 +937,36 @@ export default function HoferCam() {
         const rs = knopfUeber.sw.map((p) => sw20Bereich(p, w)).filter(Boolean);
         return <MaschinenBild gruppe={{ art: knopfUeber.art, text: knopfUeber.art[0] === "p" && rs[0] ? "T" + knopfUeber.sw[0] + " · " + rs[0].text : knopfUeber.text, bereiche: rs, nummern: knopfUeber.sw, bild: SW20_BILD, gross: 420 }} />;
       })()}
-      {!sb && <div className="cam-bearb cam-bearb--spaeter" id="cam-bearb-spaeter">
-        <b>Bearbeitungen</b> Für die {typInfo(w.typ).name} gibt es vorerst nur Kopf und Ende der drei Kanäle.
-        Die Bearbeitungen kommen Schritt für Schritt nach deinen Beispielen. Bis dahin lässt sich jede Zeile im
-        Programm unten von Hand ändern.</div>}
-      {sb && <>
+      {<>
       {(() => {
         // Seit 1.426.6 wieder nur, solange die Maus über einer Bearbeitung ist
         // (Patrick: „doch nicht eingeblendet bleiben“)
         const bb = bloecke.find((x) => x.id === ueber);
+        // SW-20: Bild der SW-20 mit dem Platz der Bearbeitung (Knöpfe zeigt swMaus oben)
+        if (!sb) {
+          if (!bb) return null;
+          const p = Number(vorPlatz && vorPlatz.id === bb.id ? vorPlatz.platz : bb.platz);
+          const r = sw20Bereich(p, w);
+          return r ? <MaschinenBild gruppe={{ art: "swblock", text: "T" + p + " · " + r.text, bereiche: [r], nummern: [p], bild: SW20_BILD, gross: 420 }} /> : null;
+        }
         const kg = !bb && knopfUeber ? knopfGruppe(knopfUeber.art, w, knopfUeber.text) : null;
         return <MaschinenBild t34={t34Von(w)} gruppe={kg} block={bb && vorPlatz && vorPlatz.id === bb.id ? { ...bb, platz: vorPlatz.platz } : bb} />;
       })()}
       <div className="cam-bearb" id="cam-bearb">
         <div className="cam-bearb__kopf">
           <b>Bearbeitungen Kanal 1</b>
+          {/* Seit 1.665.0 SW-20: Drehwerkzeug T100–T400 und Frontbohrapparat
+              nach Patricks T200 und T600 (20. November 2026) */}
+          {!sb && <>
+          <button className="knopf knopf--klein" id="cam-neu-dreh" {...swMaus("swdreh", plaetzeVon("dreh").map(Number), "Drehwerkzeug Kanal 1")}
+            onClick={() => { const nb = neuerBlock(bloecke, "dreh", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Drehwerkzeug {spanne("dreh")}</button>
+          <button className="knopf knopf--klein" id="cam-neu-front" disabled={!montiert("front", w).length}
+            title={montiert("front", w).length ? "" : "Zuerst unter Bestückung T500 oder T600 mit Frontbohrapparat wählen"}
+            {...swMaus("swfront", montiert("front", w).map(Number), "Frontbohrapparat Kanal 1")}
+            onClick={() => { const nb = neuerBlock(bloecke, "front", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Frontbohrapparat {montiert("front", w).map((p) => "T" + p).join(", ") || "(Bestückung)"}</button>
+          <span className="klein">Weitere Bearbeitungen folgen nach deinen Beispielen.</span>
+          </>}
+          {sb && <>
           <button className="knopf knopf--klein" id="cam-neu-dreh" {...knopfMaus("dreh", "Drehwerkzeug")}
             onClick={() => { const nb = neuerBlock(bloecke, "dreh", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Drehwerkzeug {spanne("dreh")}</button>
           <button className="knopf knopf--klein" id="cam-neu-front" {...knopfMaus("front", "Frontwerkzeug")}
@@ -958,17 +977,18 @@ export default function HoferCam() {
           {/* Seit 1.582.0 nur, wenn T3421–T3423 montiert sind */}
           {t34Von(w) !== "3400" && <button className="knopf knopf--klein" id="cam-neu-quer" {...knopfMaus("quer", "Frontangetrieben")}
             onClick={() => { const nb = neuerBlock(bloecke, "quer", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Frontangetrieben {spanne("quer", w)}</button>}
+          </>}
         </div>
         {/* Seit 1.425.3 (Wunsch Patrick 5. November 2026): Kanal 2 in einer
             eigenen Zeile darunter */}
-        <div className="cam-bearb__kopf">
+        {sb && <div className="cam-bearb__kopf">
           <b>Bearbeitungen Kanal 2</b>
           {/* Seit 1.420.0: Drehwerkzeug nur in Kanal 2 */}
           <button className="knopf knopf--klein" id="cam-neu-k2" {...knopfMaus("k2", "Stehende Werkzeuge")}
             onClick={() => { const nb = neuerBlock(bloecke, "k2", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Stehende Werkzeuge {spanne("k2")}</button>
           <button className="knopf knopf--klein" id="cam-neu-k2a" {...knopfMaus("k2a", "Angetrieben")}
             onClick={() => { const nb = neuerBlock(bloecke, "k2a", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Angetrieben {spanne("k2")}</button>
-        </div>
+        </div>}
         {bloecke.length === 0 && <p className="klein">Noch keine Bearbeitung. Sie kommt zwischen „(Ende Kopf)“ und „(Start Ende)“.</p>}
         {/* Seit 1.405.0 (Wunsch Patrick 5. November 2026): Bearbeitungen am
             Griff ⠿ untereinander verschieben, statt Pfeilen */}
@@ -1023,7 +1043,7 @@ export default function HoferCam() {
                     waehlen={(p) => { blockAendern(b.id, "platz", p); setUeber(b.id); }}
                     vorschau={(p) => { setVorPlatz(p ? { id: b.id, platz: p } : null); if (p) setUeber(b.id); }} />
                   {bf.platz && <small className="cam-fehltext" data-camblock-nichtmontiert={i}>nicht montiert</small>}</label>
-                {(front || (quer && !seite)) && <label className="cam-feld" title="Hauptspindel oder Gegenspindel"><span>Spindel</span>
+                {sb && (front || (quer && !seite)) && <label className="cam-feld" title="Hauptspindel oder Gegenspindel"><span>Spindel</span>
                   <select data-camblock="spindel" value={b.spindel || "haupt"} onChange={(e) => blockAendern(b.id, "spindel", e.target.value)}>
                     <option value="haupt">Hauptspindel</option>
                     <option value="gegen">Gegenspindel (Kanal 2 mit T2000)</option>
@@ -1043,7 +1063,7 @@ export default function HoferCam() {
                   <select data-camblock="vor" value={vorschubArt(b)} onChange={(e) => blockAendern(b.id, "vor", e.target.value)}>
                     <option value="99">G99 mm/U</option><option value="98">G98 mm/min</option>
                   </select></label>}
-                {be.hd && <label className="cam-feld cam-g96" title={"Am Ende der Bearbeitung den Hochdruck mit " + (k2 ? "M1894" : quer ? "M1893" : front ? "M1892" : "M1891") + " ausschalten"}>
+                {be.hd && (sb || !front) && <label className="cam-feld cam-g96" title={"Am Ende der Bearbeitung den Hochdruck mit " + (k2 ? "M1894" : quer ? "M1893" : front ? "M1892" : "M1891") + " ausschalten"}>
                   <input type="checkbox" data-camblock="hdAus" checked={!b.hdAn}
                     onChange={(e) => blockAendern(b.id, "hdAn", !e.target.checked)} /><span>HD am Ende aus</span></label>}
                 {k2a ? <>
@@ -1092,6 +1112,7 @@ export default function HoferCam() {
                       <input type="checkbox" data-camblock="g96" checked={!!b.g96}
                         onChange={(e) => blockAendern(b.id, "g96", e.target.checked)} /><span>G96</span></label>
                     {b.g96 && feld("g50", "Max. S", "Drehzahlbegrenzung G50 S… in U/min (steht vor G96), leer = ohne", 64)}
+                    {!sb && b.g96 && feld("S", "Start S", "Drehzahl im Werkzeugaufruf vor G96 (M3S…T..), leer = wie Max. S", 60)}
                     {!b.g96 && feld("vcD", "Ø", front ? "Werkzeug-Ø in mm" : "Durchmesser in mm, leer = Material-Ø A aus G266", 54)}
                     <span className="cam-vc-s klein" data-camblock-s={i} title={b.g96 ? "Mit G96 steht Vc als S im Programm" : "Daraus gerechnete Drehzahl"}>
                       {b.g96 ? (drehzahl(b, wirksamW(w)) ? "G96 S" + drehzahl(b, wirksamW(w)) : "S –") : (drehzahl(b, wirksamW(w)) ? "= S" + drehzahl(b, wirksamW(w)) : "S –")}</span>
@@ -1106,6 +1127,13 @@ export default function HoferCam() {
                     <label className="cam-feld cam-g96" title="Nach M1 die Spindel mit M5 stoppen">
                       <input type="checkbox" data-camblock="m5" checked={!b.ohneM5}
                         onChange={(e) => blockAendern(b.id, "ohneM5", !e.target.checked)} /><span>M5 am Ende</span></label>
+                  </> : front && !sb
+                  ? <>
+                    {/* SW-20 (1.665.0) nach Patricks T600 */}
+                    {feld("X", "Position X", "G0X… vor dem Anfahren", 58)}
+                    {feld("Y", "Position Y", "G0X…Y…, leer = ohne Y", 58)}
+                    {feld("anZ", "Vorpos. Z", "G0Z… Vorpositionieren; am Ende G50Z… zurück auf diesen Wert", 58)}
+                    {feld("nZ", "Nullpunkt Z", "G50Z… Nullpunkt setzen; am Ende G1Z…F2.0 auf diesen Wert", 58)}
                   </> : front
                   ? <>
                     {feld("anZ", "Anfahren Z", b.spindel === "gegen" ? "Kanal 2: G0Z… der Gegenspindel vor dem Werkzeug" : "G0Z… vor dem Teil")}

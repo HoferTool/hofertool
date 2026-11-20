@@ -340,6 +340,40 @@ M1`,
 // Abgrenzung von Claude (Patrick gefragt): der Block mit M131 / M133, in
 // dem Kanal 3 an der Hauptspindel arbeitet, gehört zu den Bearbeitungen.
 const V_SW20 = {
+  // Seit 1.665.0: Frontbohrapparat Kanal 1 (T500 / T600), nach Patricks
+  // T600 (BOHREN D4.5) vom 20. November 2026: Korrektur zweistellig (T06),
+  // X und Y positionieren, Z vor, Nullpunkt mit G50Z setzen, nach dem Code
+  // zurück auf den Nullpunkt und G50Z zurücksetzen, M01, G28U0.
+  "front.k1": `T{PLATZ}{BEZ_K}
+[hd] M1882D{HD}
+{G96}{DREH}S{S}T{TK}
+G0X{X}{Y}
+G0Z{ANZ}
+G50Z{NZ}
+{CODE}
+G1Z{NZ}F2.0
+G50Z{ANZ}
+T0
+M01
+G28U0.`,
+  "front.k2": `{PAARE2}`,
+  // Seit 1.665.0: Drehwerkzeug Kanal 1 (T100–T400), nach Patricks T200
+  // (DREHEN AUSSEN) vom 20. November 2026: Drehzahl und Korrektur zuerst,
+  // dann Hochdruck, Anfahren, G50 und G96; am Ende G28U0. vor M01. Mit
+  // G96 steht vorne die Start-Drehzahl, S in der G96-Zeile ist Vc.
+  "dreh.k1": `T{PLATZ}{BEZ_K}
+{DREH}S{SSTART}T{TK}
+[hd] M1881D{HD}
+G0X[#531+1.]Z{ANZ}
+[g50] G50S{G50}
+[g96] G96S{S}
+{CODE}
+[hdaus] M1891
+[g96] G97
+T0
+G28U0.
+M01`,
+  "dreh.k2": `{PAARE2}`,
   k1kopf: `%
 O{NR}{NAME}(N)
 ({DATUM_KUERZEL})
@@ -527,6 +561,14 @@ const PLAETZE = {
 // Vorgaben der Felder oben (Programm) und je neue Bearbeitung
 const VORGABEN = { A: "17", W: "15.125", S: "3000", X: "-0.8", Z: "167.85", F: "0.03", B: "1.5",
   schlicht: "-0.1", plan: "0.20", annaehern: "10", ueber: "4" };
+// SW-20 (seit 1.665.0): Plätze nach dem Handbuch Kapitel 8, Kanal 1
+// T100–T400 Drehwerkzeuge, T500 / T600 mit Frontbohrapparat, T700 quer;
+// Kanal 2 T2100–T2800. Nur die Frontbearbeitung hat schon eine Vorlage,
+// die übrigen werden beim Einlesen „wie eingelesen“.
+const PLAETZE_SW20 = { ...PLAETZE, dreh: ["100", "200", "300", "400"], front: ["500", "600"], seite: ["700"], quer: [],
+  k2: ["2100", "2200", "2300", "2400", "2500", "2600", "2700", "2800"] };
+const BLOECKE_SW20 = { dreh: { hd: "3", dreh: "3", S: "2500", sArt: "vc", vc: "350", g96: "1", g50: "5000", anZ: "-0.5" },
+  front: { hd: "3", dreh: "3", S: "3000", X: "0.0", Y: "0.0", anZ: "5.00", nZ: "-0.50" } };
 const BLOECKE = {
   dreh: { hd: "4", dreh: "3", S: "3000", anZ: "0", wegF: "0.05", wegA: "45" },
   front: { hd: "4", dreh: "3", S: "2500", anZ: "5.0", wegZ: "0" },
@@ -539,7 +581,8 @@ const BLOECKE = {
 export const BLOCK_FELDER = {
   hd: "Hochdruck-Stufe (leer = kein)", dreh: "Drehrichtung (Zahl hinter M)", S: "Drehzahl S",
   anZ: "Anfahren Z", wegZ: "Zurück Z", wegF: "Wegfahren F", wegA: "Wegfahren Winkel",
-  X: "Position X", vorX: "Vorpositionieren X", vorZ: "Vorpositionieren Z", nX: "G50 X", nZ: "G50 Z",
+  sArt: "Eingabe S oder vc", vc: "Schnittgeschwindigkeit Vc", g96: "G96 (1 = an)", g50: "Max. S (G50)",
+  X: "Position X", Y: "Position Y (leer = ohne)", vorX: "Vorpositionieren X", vorZ: "Vorpositionieren Z", nX: "G50 X", nZ: "G50 Z",
   vor: "Vorschub 98 oder 99 (leer = von selbst)",
 };
 const MARKEN = { ab: 300, schritt: 10 };
@@ -549,14 +592,16 @@ export function vorgabeTyp(id = TYP) {
   return {
     id: info.id, name: info.name, kanaele: info.kanaele, nummern: [...info.nummern],
     // Bearbeitungsarten dieses Typs (SW-20: noch keine, folgen nach Patrick)
-    arten: sw ? [] : ARTEN.map((a) => a.id),
+    // Seit 1.665.0 beim SW-20 die Frontbearbeitung Kanal 1
+    arten: sw ? ["dreh", "front"] : ARTEN.map((a) => a.id),
     vorlagen: sw ? { ...V, ...V_SW20 } : { ...V },
-    plaetze: Object.fromEntries(Object.entries(PLAETZE).map(([k, l]) => [k, [...l]])),
+    plaetze: Object.fromEntries(Object.entries(sw ? PLAETZE_SW20 : PLAETZE).map(([k, l]) => [k, [...l]])),
     vorgaben: sw ? { ...VORGABEN_SW20 } : { ...VORGABEN },
-    bloecke: Object.fromEntries(Object.entries(BLOECKE).map(([k, o]) => [k, { ...o }])),
+    bloecke: Object.fromEntries(Object.entries(sw ? { ...BLOECKE, ...BLOECKE_SW20 } : BLOECKE).map(([k, o]) => [k, { ...o }])),
     marken: { ...MARKEN },
     // SW-20: Kopf und Ende haben kein {PLAN}, das Feld oben bleibt dort weg
-    felder: { aus: sw ? { kopf: ["plan"] } : {}, eigene: [] },
+    // Frontbearbeitung SW-20: ohne G99/G98 und ohne „Zurück Z“ (Patricks T600)
+    felder: { aus: sw ? { kopf: ["plan"], dreh: ["vor", "wegA", "wegF"], front: ["vor"] } : {}, eigene: [] },
   };
 }
 
@@ -661,7 +706,7 @@ export const PLATZHALTER_KOPF = [
   ["UEBER", "Über das Teil Z"], ["UEBER_MM", "Über das Teil ohne Minus und Punkt"],
 ];
 export const PLATZHALTER_BLOCK = [
-  ["PLATZ", "Werkzeugplatz (1400)"], ["T", "Platz durch 100 (14), Korrektur"],
+  ["PLATZ", "Werkzeugplatz (1400)"], ["T", "Platz durch 100 (14), Korrektur"], ["TK", "Korrektur zweistellig (06 bei T600)"], ["SSTART", "Drehzahl vor G96 (sonst wie S)"],
   ["T2", "letzte zwei Ziffern des Platzes (21 bei 3421)"], ["T2V", "erste zwei Ziffern (21 bei 2100)"],
   ["BEZ", "Bezeichnung"], ["BEZ_K", "Bezeichnung in Klammern, leer ohne"],
   ["BEZ_GEGEN", "Bezeichnung mit „MIT GEGENSPINDEL“"], ["HD", "Hochdruck-Stufe"],

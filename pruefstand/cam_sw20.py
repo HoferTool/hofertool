@@ -36,7 +36,8 @@ with sync_playwright() as p:
     reihe = lambda n, m: pg.eval_on_selector_all(f"[data-kanal='{n}']", "(e, m) => { const x = e.find(r => (r.querySelector('.cam-text')||{}).textContent?.trim().startsWith(m)); return x ? x.dataset.reihe : null }", m)
     pruefe("M200P123 in allen drei auf einer Reihe", reihe(1, "M200P123") is not None and reihe(1, "M200P123") == reihe(2, "M200P123") == reihe(3, "M200P123"))
     pruefe("M420P13 in Kanal 1 und 3 auf einer Reihe", reihe(1, "M420P13") is not None and reihe(1, "M420P13") == reihe(3, "M420P13"))
-    pruefe("Keine Bearbeitungsknöpfe für Kanal 1", pg.locator("#cam-neu-dreh").count() == 0)
+    pruefe("SW-20: Drehwerkzeug-Knopf da, Front ohne Bestückung gesperrt", pg.locator("#cam-neu-dreh").count() == 1 and pg.is_disabled("#cam-neu-front"))
+    pruefe("SW-20: keine Bearbeitungen Kanal 2", pg.locator("#cam-neu-k2").count() == 0)
     # Seit 1.664.0: Bestückung mit Frontbohrapparat und Bild der SW-20
     pruefe("Bestückung SW-20 mit fünf Plätzen", pg.locator("[data-cam-swfront]").count() == 5)
     pg.hover("[data-cam-swkanal='1']"); pg.wait_for_timeout(300)
@@ -52,6 +53,29 @@ with sync_playwright() as p:
     pruefe("T1300 als Frontbohrapparat", "Frontbohrapparat" in pg.inner_text("#cam-bild"))
     pg.mouse.move(5, 5); pg.wait_for_timeout(200)
     pruefe("Bild weg ohne Maus", pg.locator("#cam-bild").count() == 0)
+    # Seit 1.665.0: Bearbeitungen nach Patricks T600 und T200
+    pg.click("[data-cam-swfront='600'] input"); pg.wait_for_timeout(200)
+    pg.click("#cam-neu-front"); pg.wait_for_timeout(300)
+    pg.fill("[data-block='0'] [data-camblock='bez']", "BOHREN D4.5")
+    pg.fill("[data-block='0'] [data-camblock='code']", "G83W9.80Q3200P200F0.10"); pg.wait_for_timeout(300)
+    k1 = k(1)
+    i = k1.index("T600(BOHREN D4.5)") if "T600(BOHREN D4.5)" in k1 else -1
+    soll = ["T600(BOHREN D4.5)", "M1882D3", "M3S3000T06", "G0X0.0Y0.0", "G0Z5.00", "G50Z-0.50", "G83W9.80Q3200P200F0.10",
+            "G1Z-0.50F2.0", "G50Z5.00", "T0", "M01", "G28U0."]
+    pruefe("T600 wie Patricks Beispiel", i >= 0 and [z.strip() for z in k1[i:i + 12]] == soll)
+    pg.click("#cam-neu-dreh"); pg.wait_for_timeout(300)
+    pg.click("[data-block='1'] .cam-wahl__knopf"); pg.wait_for_timeout(200)
+    pg.click("[data-block='1'] [data-platz='200']"); pg.wait_for_timeout(200)
+    pg.fill("[data-block='1'] [data-camblock='bez']", "DREHEN AUSSEN")
+    pg.fill("[data-block='1'] [data-camblock='code']", "G1X14.00F2.0\nG1X[#531+1.],A45.F0.06"); pg.wait_for_timeout(300)
+    k1 = k(1)
+    i = next((n for n, z in enumerate(k1) if z.startswith("T") and "(DREHEN AUSSEN)" in z), -1)
+    soll = ["M3S2500T0", "M1881D3", "G0X[#531+1.]Z-0.5", "G50S5000", "G96S350", "G1X14.00F2.0", "G1X[#531+1.],A45.F0.06",
+            "M1891", "G97", "T0", "G28U0.", "M01"]
+    got = [z.strip() for z in k1[i + 1:i + 13]] if i >= 0 else []
+    pruefe("Drehwerkzeug wie Patricks T200", len(got) == 12 and got[0].startswith("M3S2500T0") and got[1:] == soll[1:])
+    pruefe("Keine roten Felder", pg.locator(".cam-feld--fehler").count() == 0)
+    pg.screenshot(path=ORDNER + "/sw20_bearbeitungen.png", full_page=True)
     # Einlesen: drei Dateien aus dem Erzeugten mit Nr. 1272 / 2272 / 3272
     def datei(name, zeilen, alt, neu):
         t = "\n".join(zeilen).replace(alt, neu)
@@ -64,6 +88,10 @@ with sync_playwright() as p:
     pruefe("Nr. aus O1272 gelesen", pg.input_value("[data-cam='nr']") in ("272", "0272", "1272"))
     pruefe("Kanal 3 zeigt O3272", any(z.startswith("O3272") for z in k(3)))
     pruefe("Nach Einlesen keine roten Marken", pg.locator(".cam-zeile--fehler").count() == 0)
+    pruefe("Nach Einlesen zwei Bearbeitungen erkannt", pg.locator("[data-blockid]").count() == 2 and pg.locator("[data-camblock-frei]").count() == 0)
+    violett = pg.eval_on_selector_all(".cam-zeile--ein", "e => e.map(x => (x.closest('[data-kanal]')||{}).dataset?.kanal + ':' + x.textContent)")
+    violett = [v for v in violett if not v.split(":", 1)[1].lstrip("0123456789").startswith("O")]
+    pruefe("Nach Einlesen ausser der O-Zeile nichts violett " + str(violett[:6]), len(violett) == 0)
     # Zurück zu SB-20RG
     pg.once("dialog", lambda d: d.accept())
     pg.select_option("#cam-typwahl", "star-sb20rg"); pg.wait_for_timeout(300)
