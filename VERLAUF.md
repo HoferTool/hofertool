@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.661.1 (20. November 2026)
+
+- Drucken über den Pool-Rechner: die Meldung „Der Pool-Rechner hat sich länger nicht gemeldet“ kam fälschlich, weil die Datenbank sein Lebenszeichen nur alle 10 Minuten neu schreibt (status-sparsam), die App aber schon nach 2 Minuten warnte. Jetzt erst nach 12 Minuten (`poolLebt` in `src/teile/poolDruck.js`).
+
 ## 1.659.1 (20. November 2026)
 
 - Einrichtblatt: eingefügte Bilder lassen sich im eigenen Fenster des Auftragsfensters wieder ziehen und in der Grösse ändern, Strg + V geht dort auch (Patrick: „kann ich si nicht schiben und gröser kleiner machen“).

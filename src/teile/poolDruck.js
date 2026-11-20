@@ -60,7 +60,12 @@ export function poolA4Drucker(k) {
 export function poolLebt(k) {
   k = k || konfig;
   const z = k && k.stand && k.stand.gesehen;
-  return !!z && Date.now() - new Date(z).getTime() < 120000;
+  // Der Pool-Rechner meldet sich jede Minute, die Datenbank schreibt den
+  // Stand aber nur, wenn sich etwas geändert hat, sonst höchstens alle
+  // 10 Minuten (sql/status-sparsam.sql). Mit 2 Minuten kam darum oft
+  // fälschlich „hat sich länger nicht gemeldet“, obwohl er gleich druckte
+  // (Patrick 20. November 2026). 12 Minuten = 10 Minuten plus Spielraum.
+  return !!z && Date.now() - new Date(z).getTime() < 12 * 60000;
 }
 
 // Kann der Pool-Rechner Excel? (Excel-Dateien druckt er mit Excel)
