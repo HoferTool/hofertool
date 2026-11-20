@@ -59,7 +59,7 @@ export default function Start({ auffrischen, module }) {
       {!module && <Solaranlage />}
       <p className="gruss">{alt.begruessung()}{name ? ", " + name : ""}</p>
       {module}
-      {module && <Solaranlage />}
+      {module && <h2 className="sm-heute">Heute</h2>}
       {/* Sicherung, Pool-Rechner, Drucker, Solar: nur wenn etwas nicht
           stimmt, nur Admins (Wunsch Patrick 3. November 2026) */}
       {admin && <Systemzustand auffrischen={auffrischen} />}
@@ -88,6 +88,7 @@ export default function Start({ auffrischen, module }) {
       <Notizen auffrischen={auffrischen} />
       <EinkaufKurz auffrischen={auffrischen} />
       <Geburtstage leute={geb.daten} fehler={geb.fehler} />
+      {module && <Solaranlage />}
     </>
   );
 }

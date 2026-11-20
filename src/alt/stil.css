@@ -14999,51 +14999,65 @@ body:not(.dunkel) .cam .cam-spalte--kopf.cam-spalte--k3 { background: #e7e0f3; b
 .cam-marken-kanaele label { display: inline-flex; align-items: center; gap: 2px; cursor: pointer; }
 .cam-marken-kanal--eigen { opacity: .6; cursor: default; }
 
-/* ---------- Startseite mit Modulen, Vorschau #/startneu (seit 1.670.0) ----------
-   Wunsch Patrick 20. November 2026. Kacheln je Modul, darin die Seiten.
-   Am PC alle offen im Raster, am Handy zugeklappt, ein Tipp öffnet eines. */
+/* ---------- Neue Startseite „Was willst du machen?“, Testseite #/startneu ----------
+   1.670.0 Module, seit 1.671.0 Aufgaben ohne Menü (Wunsch Patrick 20. November 2026).
+   body.aufgabe-modus: Menü links und Handy-Menü weg. body.mit-aufgabenleiste: die
+   Leiste der Aufgabe steht am PC oben im Inhalt, am Handy unten wie eine App. */
 .sm-vorschau { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
   background: var(--marke-hell); border: 1px dashed var(--marke); border-radius: 8px;
   padding: 8px 12px; margin-bottom: 12px; font-size: 14px; }
 .sm-vorschau > span { flex: 1 1 260px; }
-.sm-vorschau__haken { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 body.dunkel .sm-vorschau { background: #1d2a3d; }
-.sm-module { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 14px; margin: 4px 0 18px; }
-.sm-modul { background: var(--flaeche); border: 1px solid var(--linie); border-radius: 12px;
-  overflow: hidden; box-shadow: 0 1px 3px rgba(20, 30, 50, .08);
-  border-top: 4px solid var(--sm-farbe); display: flex; flex-direction: column; }
-.sm-modul__kopf { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
-  background: none; border: 0; padding: 14px 14px 10px; cursor: default; color: inherit; font: inherit; }
-.sm-modul__zeichen { flex: none; width: 44px; height: 44px; border-radius: 11px; display: grid;
-  place-items: center; background: var(--sm-farbe); color: #fff; }
-.sm-modul__zeichen svg { width: 24px; height: 24px; }
-body.dunkel .sm-modul__zeichen, body.dunkel .sm-modul__zeichen * { color: #fff !important; }
-.sm-modul__name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.sm-modul__name strong { font-size: 18px; line-height: 1.2; }
-.sm-modul__name small { color: var(--gedaempft); font-size: 13px; line-height: 1.3; }
-.sm-modul__zahl { display: none; }
-.sm-modul__liste { list-style: none; margin: 0; padding: 0 8px 10px; }
-.sm-punkt { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
-  background: none; border: 0; border-radius: 8px; padding: 8px 8px; cursor: pointer;
-  color: inherit; font: inherit; }
-.sm-punkt:hover, .sm-punkt:focus-visible { background: var(--marke-hell); }
-body.dunkel .sm-punkt:hover { background: #243245; }
-.sm-punkt__zeichen { flex: none; width: 22px; height: 22px; color: var(--sm-farbe); }
-.sm-punkt__zeichen svg { width: 22px; height: 22px; }
-.sm-punkt__text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.sm-punkt__text b { font-weight: 600; font-size: 15px; }
-.sm-punkt__text small { color: var(--gedaempft); font-size: 12.5px; }
-.sm-punkt__pfeil { color: var(--gedaempft); font-size: 20px; }
+.sm-wahl { margin: 6px 0 22px; }
+.sm-wahl__frage { font-size: 22px; margin: 0 0 12px; }
+.sm-wahl__raster { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.sm-aufgabe { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left;
+  background: var(--flaeche); border: 1px solid var(--linie); border-radius: 16px; padding: 16px;
+  cursor: pointer; color: inherit; font: inherit; min-height: 132px;
+  box-shadow: 0 1px 3px rgba(20, 30, 50, .08); transition: transform .15s, box-shadow .15s, border-color .15s; }
+.sm-aufgabe:hover, .sm-aufgabe:focus-visible { transform: translateY(-2px); border-color: var(--sm-farbe);
+  box-shadow: 0 6px 18px rgba(20, 30, 50, .14); }
+.sm-aufgabe:active { transform: scale(.98); }
+.sm-aufgabe__zeichen { width: 48px; height: 48px; border-radius: 13px; display: grid; place-items: center;
+  background: var(--sm-farbe); color: #fff; margin-bottom: 4px; }
+.sm-aufgabe__zeichen svg { width: 26px; height: 26px; }
+body.dunkel .sm-aufgabe__zeichen, body.dunkel .sm-aufgabe__zeichen * { color: #fff !important; }
+.sm-aufgabe__titel { font-size: 18px; font-weight: 700; line-height: 1.2; }
+.sm-aufgabe__frage { font-size: 13px; color: var(--gedaempft); line-height: 1.3; }
+.sm-heute { font-size: 20px; margin: 8px 0 10px; }
+body .kopfkarte + .gruss { margin-top: 14px; }
 @media (max-width: 640px) {
-  .sm-module { grid-template-columns: 1fr; gap: 10px; }
-  .sm-modul__kopf { cursor: pointer; padding: 12px; }
-  .sm-modul__zahl { display: grid; place-items: center; min-width: 28px; height: 28px; border-radius: 14px;
-    background: var(--marke-hell); font-size: 13px; font-weight: 600; }
-  .sm-modul:not(.sm-modul--offen) .sm-modul__liste { display: none; }
+  .sm-wahl__raster { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .sm-aufgabe { min-height: 118px; padding: 13px; border-radius: 14px; }
+  .sm-aufgabe__titel { font-size: 16px; }
+  .sm-aufgabe__frage { font-size: 12px; }
 }
-/* „Ohne Menü ansehen“: wie es nach dem Übernehmen aussähe */
-body.startneu-ohne-nav .nav { display: none !important; }
-body.startneu-ohne-nav .rahmen { grid-template-columns: none !important; display: block !important; }
-body.startneu-ohne-nav .inhalt { max-width: 1240px; margin: 0 auto; }
-.sm-module ~ #db-solar, body .kopfkarte + .gruss { margin-top: 14px; }
+body.aufgabe-modus .nav, body.aufgabe-modus .handymenue { display: none !important; }
+body.aufgabe-modus .rahmen { grid-template-columns: none !important; display: block !important; }
+body.aufgabe-modus .inhalt { max-width: 1240px; margin: 0 auto; }
+.aufgabe-leiste { position: sticky; top: var(--kopfhoehe); z-index: 40; display: flex; align-items: center;
+  gap: 10px; width: 100%; box-sizing: border-box; max-width: 1240px; margin: 0 auto; padding: 8px 14px; background: var(--flaeche);
+  border-bottom: 3px solid var(--auf-farbe); box-shadow: 0 2px 8px rgba(20, 30, 50, .06); }
+.aufgabe-leiste__start, .aufgabe-leiste__punkt { display: inline-flex; align-items: center; gap: 7px;
+  border: 1px solid var(--linie); background: var(--flaeche); color: inherit; font: inherit; font-size: 14px;
+  border-radius: 999px; padding: 6px 13px; cursor: pointer; text-decoration: none; white-space: nowrap; }
+.aufgabe-leiste__punkt.aktiv { background: var(--auf-farbe); border-color: var(--auf-farbe); color: #fff; }
+body.dunkel .aufgabe-leiste__punkt.aktiv, body.dunkel .aufgabe-leiste__punkt.aktiv * { color: #fff !important; }
+.aufgabe-leiste__zeichen { width: 18px; height: 18px; display: inline-grid; }
+.aufgabe-leiste__zeichen svg { width: 18px; height: 18px; }
+.aufgabe-leiste__titel { font-weight: 700; color: var(--auf-farbe); margin-right: 4px; white-space: nowrap; }
+.aufgabe-leiste__punkte { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+@media (max-width: 640px) {
+  .aufgabe-leiste { position: fixed; top: auto; bottom: 0; left: 0; right: 0; max-width: none; z-index: 60;
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); gap: 0; border-bottom: 0;
+    border-top: 3px solid var(--auf-farbe); box-shadow: 0 -2px 10px rgba(20, 30, 50, .12); }
+  .aufgabe-leiste__titel { display: none; }
+  .aufgabe-leiste__punkte { flex: 1; gap: 0; }
+  .aufgabe-leiste__start, .aufgabe-leiste__punkt { flex: 1 1 0; min-width: 54px; flex-direction: column; gap: 2px;
+    border: 0; border-radius: 10px; padding: 6px 2px; font-size: 11px; background: none; }
+  .aufgabe-leiste__zeichen, .aufgabe-leiste__zeichen svg { width: 22px; height: 22px; }
+  .aufgabe-leiste__punkt.aktiv { background: none; color: var(--auf-farbe); }
+  .aufgabe-leiste__punkt.aktiv .aufgabe-leiste__zeichen { color: var(--auf-farbe); }
+  body.dunkel .aufgabe-leiste__punkt.aktiv, body.dunkel .aufgabe-leiste__punkt.aktiv * { color: #8fb6ff !important; }
+  body.mit-aufgabenleiste .inhalt { padding-bottom: 90px; }
+}
