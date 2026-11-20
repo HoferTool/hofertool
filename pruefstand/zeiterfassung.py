@@ -322,7 +322,7 @@ with sync_playwright() as p:
     # Animation nach dem Stempeln (1.661.0): Anna bekommt Feuerwehr, Patrick den Haken
     pg.click("[data-ze-panel='u2']"); pg.click("#ze-panel-knopf"); pg.wait_for_selector("#ze-bestaetigt")
     pg.wait_for_function("() => { const i = document.querySelector('[data-ze-stempelbild]'); return i && i.complete && i.naturalWidth > 0; }", timeout=8000)
-    pruefe(pg.get_attribute("[data-ze-stempelbild]", "src").endswith("feuerwehr-gehen.webp"), "Anna: Feuerwehr-Animation beim Gehen")
+    pruefe(pg.get_attribute("[data-ze-stempelbild]", "src").split("?")[0].endswith("feuerwehr-gehen.webp"), "Anna: Feuerwehr-Animation beim Gehen")
     pg.screenshot(path=BILD + "/zeit-panel-animation.png")
     pg.click("#ze-panel-zurueck"); pg.wait_for_timeout(300)
     pruefe(not pf, "keine Fehler im Browser: %s" % pf)

@@ -14,6 +14,6 @@ export async function stempelBildHolen(personId) {
 
 export function StempelBild({ name, art }) {
   if (!name) return null;
-  const src = "./hofertime/stempel/" + name + "-" + (art === "gehen" ? "gehen" : "kommen") + ".webp";
+  const src = "./hofertime/stempel/" + name + "-" + (art === "gehen" ? "gehen" : "kommen") + ".webp?2";
   return <img className="ze-bestaetigt__bild" src={src} alt="" data-ze-stempelbild={name} />;
 }
