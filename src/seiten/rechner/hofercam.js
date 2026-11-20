@@ -175,7 +175,7 @@ export const t34Von = (w) => (w && String(w.t34) === "3421" ? "3421" : "3400");
 const istSw = () => (typ().kanaele || 2) > 2;
 export function montiert(gruppe, w) {
   const l = plaetzeVon(gruppe);
-  if (istSw()) return gruppe === "front" ? l.filter((p) => swFrontVon(w).includes(Number(p))) : l;
+  if (istSw()) return gruppe === "front" || gruppe === "k3f" ? l.filter((p) => swFrontVon(w).includes(Number(p))) : l;
   const t = t34Von(w);
   if (gruppe === "seite" && t !== "3400") return l.filter((p) => String(p) !== "3400");
   if (gruppe === "quer" && t === "3400") return [];
@@ -183,7 +183,7 @@ export function montiert(gruppe, w) {
 }
 export function nichtMontiert(b, w) {
   const p = String(b.platz ?? ""), t = t34Von(w);
-  if (istSw()) return b.art === "front" && !b.frei && !swFrontVon(w).includes(Number(p));
+  if (istSw()) return (b.art === "front" || b.art === "k3f") && !b.frei && !swFrontVon(w).includes(Number(p));
   return (p === "3400" && t !== "3400") || (/^342[1-3]$/.test(p) && t === "3400");
 }
 // Die SB-20RG hat nur vier Hochdruck-Stufen (Patrick 7. November 2026: „es gibt nur 4 nicht 6“).
@@ -245,6 +245,14 @@ export function blockFehler(b, w = {}) {
   if (nichtMontiert(b, w)) f.platz = "T" + b.platz + (istSw() ? " hat keinen Frontbohrapparat (Bestückung)" : " ist nicht montiert (Kopfdaten: Platz 34)");
   if (b.frei) return f;
   b = wirksamB(b); w = wirksamW(w);
+  // Kanal 3 SW-20 (1.666.0)
+  if (b.art === "k3f" || b.art === "k3d") {
+    if (!/^\d+$/.test(String(b.S).trim()) || Number(b.S) <= 0) f.S = "ganze Zahl";
+    const pflicht = b.art === "k3f" ? ["X", "anZ", "zuZ", "wegZ"] : ["vorX", "anZ", "nZ"];
+    for (const n of pflicht) if (zahl(b[n]) == null) f[n] = "Zahl fehlt";
+    for (const n of ["Y", "C"]) if (String(b[n] ?? "").trim() !== "" && zahl(b[n]) == null) f[n] = "Zahl oder leer";
+    return f;
+  }
   if (b.art === "k2a") {
     if (!/^\d+$/.test(String(b.S).trim()) || Number(b.S) <= 0) f.S = "ganze Zahl";
     return f;
@@ -347,7 +355,7 @@ function blockWerte(b, w, marke) {
   // Drehrichtung je Art: stehend M3 / M4, angetrieben M36 / M37
   const dreh = art === "k2" ? (b.dreh === "3" ? 3 : 4)
     : art === "k2a" ? (b.dreh === "36" ? 36 : 37)
-    : art === "seite" || art === "quer" || art === "querGegen" ? (b.dreh === "37" ? 37 : 36)
+    : art === "seite" || art === "quer" || art === "querGegen" || art === "k3f" ? (b.dreh === "37" ? 37 : 36)
     : (b.dreh === "4" ? 4 : 3);
   const mk = marke || (anGegenspindel(b) ? STANDARD_MARKEN[b.art] : null) || {};
   const g = (n) => zahl(b[n]) ?? String(b[n] ?? "");
@@ -363,9 +371,11 @@ function blockWerte(b, w, marke) {
     WINKEL: String(b.wegA ?? "").trim() === "" ? "" : ",A" + (zahl(b.wegA) ?? b.wegA),
     X: g("X"), Y: zahl(b.Y) != null ? "Y" + zahl(b.Y) : "",
     VORX: g("vorX"), VORZ: g("vorZ"), NX: g("nX"), NZ: g("nZ"),
+    // Kanal 3 SW-20 (1.666.0): C, Anfahren im Vorschub, Hochdruck-Ausgang M188x
+    C: g("C"), ZUZ: g("zuZ"), HDN: String(b.hdN ?? "").trim() || "3",
     M1: mk.m1 || "", M2: mk.m2 || "", M3: mk.m3 || "",
   };
-  const bed = { hd: !!b.hd, hdaus: !!b.hd && !b.hdAn, g96, g50: !!g50, m38: !b.spAn, m5: !b.ohneM5, y: zahl(b.Y) != null };
+  const bed = { hd: !!b.hd, hdaus: !!b.hd && !b.hdAn, g96, g50: !!g50, m38: !b.spAn, m5: !b.ohneM5, y: zahl(b.Y) != null, c: zahl(b.C) != null };
   blockEigene(b, w, werte, bed);
   const listen = {
     CODE: codeZeilen(b),
@@ -379,10 +389,23 @@ function blockWerte(b, w, marke) {
 const freiZeilen = (b) => String(b.code || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
 const freiK2 = (b) => b.art === "k2" || b.art === "k2a";
 export function blockZeilen(b, w = {}, marke) {
-  if (b.frei) return freiK2(b) ? [] : freiZeilen(b);
+  if (b.frei) return freiK2(b) || istK3(b) ? [] : freiZeilen(b);
+  if (istK3(b)) return [];
   const x = blockWerte(b, w, marke);
   return vorlageFuellen(typ().vorlagen[x.art + ".k1"], { ...x, schraeg });
 }
+
+// Seit 1.666.0 Kanal 3 (SW-20): nur Bearbeitungen mit Vorlage „….k3“
+export const istK3 = (b) => String((b && b.art) || "").startsWith("k3");
+export function blockZeilen3(b, w = {}, marke) {
+  if (!istK3(b)) return [];
+  if (b.frei) return freiZeilen(b);
+  const x = blockWerte(b, w, marke);
+  return vorlageFuellen(typ().vorlagen[x.art + ".k3"], { ...x, schraeg });
+}
+// Zeilen eines Blocks im Kanal 1, 2 oder 3
+export const blockZeilenK = (b, kanal, w = {}, marke) =>
+  kanal === 3 ? blockZeilen3(b, w, marke) : kanal === 2 ? blockZeilen2(b, marke, w) : blockZeilen(b, w, marke);
 
 // Seit 1.405.0: Kanal 2 bei einem Frontwerkzeug an der Gegenspindel,
 // nach Patricks O1458 (T2000, Wege in Z, G28W0.): die Gegenspindel fährt
@@ -392,6 +415,7 @@ export function blockZeilen(b, w = {}, marke) {
 export const mitGegen = (bez) => (bez ? bez + " " : "") + "MIT GEGENSPINDEL";
 export function blockZeilen2(b, marke, w = {}) {
   if (b.frei) return freiK2(b) ? freiZeilen(b) : [];
+  if (istK3(b)) return [];
   const x = blockWerte(b, w, marke);
   return vorlageFuellen(typ().vorlagen[x.art + ".k2"], { ...x, schraeg });
 }
@@ -543,16 +567,26 @@ export function programme(w) {
   const k1 = kanal1(w), k2 = kanal2(w), k3 = kanal3(w);
   // Seit 1.398.0: je Block die Zeilen in Kanal 1 (von–bis, ab 1), damit
   // die Anzeige die angewählte Bearbeitung hervorheben kann
-  const bereiche = {}, bereiche2 = {};
+  const bereiche = {}, bereiche2 = {}, bereiche3 = {};
   const bloecke = w.bloecke || [];
   const marken = markenVergeben(bloecke, [...k1.kopf, ...k1.ende, ...k2.kopf, ...k2.ende, ...k3.kopf, ...k3.ende]);
-  let ab = k1.kopf.length, ab2 = k2.kopf.length;
-  const bearb2 = [];
+  let ab = k1.kopf.length, ab2 = k2.kopf.length, ab3 = k3.kopf.length;
+  const bearb2 = [], bearb3 = [];
+  const her3 = k3.kopf.map(() => "kopf");
   // Seit 1.624.0: Herkunft je Zeile, „kopf“ (Programmkopf und -ende),
   // „vorlage“ (feste Zeilen der Bearbeitung) oder „code“ (aus den Feldern
   // der Bearbeitung), Wunsch Patrick 18. November 2026
   const her1 = k1.kopf.map(() => "kopf"), her2 = k2.kopf.map(() => "kopf");
   const bearb1 = bloecke.flatMap((b) => {
+    // Kanal 3 (1.666.0): eigene Bearbeitungen zwischen Kopf und Ende von Kanal 3
+    if (istK3(b)) {
+      const z3 = blockZeilen3(b, w, marken[b.id]);
+      her3.push(...herkunft(b, z3, 3, w, marken[b.id]));
+      bereiche3[b.id] = [ab3 + 1, ab3 + z3.length];
+      ab3 += z3.length;
+      bearb3.push(...z3);
+      return [];
+    }
     const z = blockZeilen(b, w, marken[b.id]);
     her1.push(...herkunft(b, z, 1, w, marken[b.id]));
     bereiche[b.id] = [ab + 1, ab + z.length];
@@ -571,11 +605,11 @@ export function programme(w) {
   });
   her1.push(...k1.ende.map(() => "kopf")); her2.push(...k2.ende.map(() => "kopf"));
   return {
-    bereiche, bereiche2, bereiche3: {}, marken, her1, her2,
-    her3: [...k3.kopf, ...k3.ende].map(() => "kopf"),
+    bereiche, bereiche2, bereiche3, marken, her1, her2,
+    her3: [...her3, ...k3.ende.map(() => "kopf")],
     k1: [...k1.kopf, ...bearb1, ...k1.ende],
     k2: [...k2.kopf, ...bearb2, ...k2.ende],
-    k3: [...k3.kopf, ...k3.ende],
+    k3: [...k3.kopf, ...bearb3, ...k3.ende],
     nr1: nrKanal(w, 1), nr2: nrKanal(w, 2), nr3: nrKanal(w, 3),
   };
 }
@@ -819,7 +853,7 @@ function herkunft(b, gen, kanal, w, marke) {
   if (!b.frei && (b.k1 || b.k2)) {
     const platz = (o) => o && Object.fromEntries(Object.entries(o).map(([k, v]) => [k, String(v).split(/\r?\n/).map((z) => (z.trim() ? "\u0002" : "")).join("\n")]));
     const b2 = { ...b, k1: platz(b.k1), k2: platz(b.k2) };
-    const s = kanal === 1 ? blockZeilen(b2, w, marke) : blockZeilen2(b2, marke, w);
+    const s = blockZeilenK(b2, kanal, w, marke);
     if (s.length === gen.length) s.forEach((z, i) => { if (String(z).includes("\u0002")) her[i] = "code"; });
   }
   return her;
@@ -843,14 +877,13 @@ export function handZurueck(w, kanal, zeilen) {
   const wv = wirksamW(w);
   const bloecke = w.bloecke || [];
   const p = programme(w);
-  if (kanal === 3) return { hand: handNeu(w, 3, p.k3, zeilen) };
-  const auto = kanal === 1 ? p.k1 : p.k2;
-  const ber = kanal === 1 ? p.bereiche : p.bereiche2;
+  const auto = kanal === 1 ? p.k1 : kanal === 2 ? p.k2 : p.k3;
+  const ber = kanal === 1 ? p.bereiche : kanal === 2 ? p.bereiche2 : p.bereiche3;
   let geaendert = false;
   const neuBl = bloecke.map((b) => {
     const r = bereichMitHand(auto, zeilen, ber[b.id]);
     if (!r) return b;
-    const gen = kanal === 1 ? blockZeilen(b, wv, p.marken[b.id]) : blockZeilen2(b, p.marken[b.id], wv);
+    const gen = blockZeilenK(b, kanal, wv, p.marken[b.id]);
     const lage = codeLage(b, gen, kanal, wv, p.marken[b.id]);
     if (!lage) return b;
     const code = codeAusBereich(gen, lage.k, lage.n, r);
@@ -864,14 +897,14 @@ export function handZurueck(w, kanal, zeilen) {
   if (!geaendert) return { hand: handNeu(w, kanal, auto, zeilen) };
   const w2 = { ...w, bloecke: neuBl };
   const p2 = programme(w2);
-  return { hand: handNeu(w2, kanal, kanal === 1 ? p2.k1 : p2.k2, zeilen), bloecke: neuBl };
+  return { hand: handNeu(w2, kanal, kanal === 1 ? p2.k1 : kanal === 2 ? p2.k2 : p2.k3, zeilen), bloecke: neuBl };
 }
 // Wo im erzeugten Block der NC-Code steht: { k: erste Zeile, n: Anzahl, schraeg }
 function codeLage(b, gen, kanal, w, marke) {
   if (b.frei) return gen.length ? { k: 0, n: gen.length, schraeg: false } : null;
   const c = codeZeilen(b);
   if (!c.length) {
-    const s = kanal === 1 ? blockZeilen({ ...b, code: "\u0001" }, w, marke) : blockZeilen2({ ...b, code: "\u0001" }, marke, w);
+    const s = blockZeilenK({ ...b, code: "\u0001" }, kanal, w, marke);
     const k = s.findIndex((z) => String(z).includes("\u0001"));
     return k < 0 ? null : { k, n: 0, schraeg: String(s[k]).startsWith("/") };
   }

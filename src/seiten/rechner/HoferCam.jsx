@@ -470,7 +470,7 @@ function herunterladen(e, zeilen, nr) {
 // (handAnwenden in hofercam.js).
 // Einheiten der Felder in den Bearbeitungen (Marken haben keine)
 const BLOCK_EINHEIT = { S: "U/min", g50: "U/min", vc: "m/min", vcD: "mm", X: "mm", Y: "mm", anZ: "mm", wegZ: "mm", wegA: "Grad",
-  vorX: "mm", vorZ: "mm", nX: "mm", nZ: "mm" };
+  vorX: "mm", vorZ: "mm", nX: "mm", nZ: "mm", C: "Grad", zuZ: "mm" };
 let fokusNach = null;
 function Kanaele({ prog, sync, fehler, bereich, bereich2, w, handSetzen, einlesen }) {
   const kasten = useRef(null);
@@ -753,9 +753,9 @@ export default function HoferCam() {
     // SB-20RG; seit 1.665.0 bei der SW-20 auch die Bearbeitungen Kanal 1
     // (Drehen und Front, die übrigen „wie eingelesen“)
     const kopf = sb ? kopfLesen(nur(1), nur(2)) : {};
-    const { bloecke, unklar } = bloeckeLesen(zeilen[1], zeilen[2]);
+    const { bloecke, unklar } = bloeckeLesen(zeilen[1], zeilen[2], sb ? null : zeilen[3]);
     // SW-20: Frontbohrapparat dort, wo eine Frontbearbeitung eingelesen wurde
-    const swF = sb ? [] : bloecke.filter((b) => b.art === "front").map((b) => Number(b.platz));
+    const swF = sb ? [] : bloecke.filter((b) => b.art === "front" || b.art === "k3f").map((b) => Number(b.platz));
     let neu = { ...w, ...kopf };
     for (const r of gelesen) neu = { ...neu, ...r.felder };
     neu.bloecke = bloecke;
@@ -979,6 +979,17 @@ export default function HoferCam() {
             onClick={() => { const nb = neuerBlock(bloecke, "quer", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Frontangetrieben {spanne("quer", w)}</button>}
           </>}
         </div>
+        {/* Seit 1.666.0 SW-20: Kanal 3 (Rückseitenblock) nach Patricks T1300
+            und T1600 aus O3272 (20. November 2026) */}
+        {!sb && <div className="cam-bearb__kopf">
+          <b>Bearbeitungen Kanal 3</b>
+          <button className="knopf knopf--klein" id="cam-neu-k3f" disabled={!montiert("k3f", w).length}
+            title={montiert("k3f", w).length ? "" : "Zuerst unter Bestückung T1300, T1400 oder T1500 mit Frontbohrapparat wählen"}
+            {...swMaus("swk3f", montiert("k3f", w).map(Number), "Frontbohrapparat Kanal 3")}
+            onClick={() => { const nb = neuerBlock(bloecke, "k3f", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Frontbohrapparat {montiert("k3f", w).map((p) => "T" + p).join(", ") || "(Bestückung)"}</button>
+          <button className="knopf knopf--klein" id="cam-neu-k3d" {...swMaus("swk3d", plaetzeVon("k3d").map(Number), "Feste Werkzeuge Kanal 3")}
+            onClick={() => { const nb = neuerBlock(bloecke, "k3d", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Feste Werkzeuge {spanne("k3d")}</button>
+        </div>}
         {/* Seit 1.425.3 (Wunsch Patrick 5. November 2026): Kanal 2 in einer
             eigenen Zeile darunter */}
         {sb && <div className="cam-bearb__kopf">
@@ -1001,6 +1012,7 @@ export default function HoferCam() {
           const quer = b.art === "quer" || seite;
           const k2a = b.art === "k2a";
           const k2 = b.art === "k2" || k2a;
+          const k3f = b.art === "k3f", k3d = b.art === "k3d", k3 = k3f || k3d;
           // Kanal-2-Blöcke verhalten sich wie die Gegenspindel: NC-Code in
           // Kanal 2, Markenpaare geben ein Feld für Kanal 1
           const gegen = ((quer || front) && b.spindel === "gegen") || k2;
@@ -1019,7 +1031,7 @@ export default function HoferCam() {
             </label>
           );
           return { key: b.id, inhalt: (
-            <div key={b.id} className={"cam-block" + (b.art === "k2" || b.art === "k2a" ? " cam-block--k2" : "") + (b.id === aktiv ? " cam-block--aktiv" : "")} data-block={i} data-blockid={b.id}
+            <div key={b.id} className={"cam-block" + (b.art === "k2" || b.art === "k2a" ? " cam-block--k2" : "") + (k3 ? " cam-block--k3" : "") + (b.id === aktiv ? " cam-block--aktiv" : "")} data-block={i} data-blockid={b.id}
               onFocusCapture={() => setAktiv(b.id)} onPointerDown={() => setAktiv(b.id)}>
               <div className="cam-block__zeile">
                 {/* Seit 1.399.0 (Wunsch Patrick 5. November 2026): NC-Code mit
@@ -1038,8 +1050,8 @@ export default function HoferCam() {
                 <label className={"cam-feld" + (bf.platz ? " cam-feld--fehler" : "")} data-camblock-platzfeld={i}
                   onPointerEnter={(e) => { if (e.pointerType === "mouse") setUeber(b.id); }}
                   onPointerLeave={() => setUeber((x) => (x === b.id ? null : x))}
-                  title={k2 ? "Werkzeugplatz Kanal 2" : quer ? "Werkzeugplatz (angetrieben, Weg mit der Gegenspindel)" : front ? "Werkzeugplatz (Frontwerkzeug fest)" : "Werkzeugplatz (Drehwerkzeug Kanal 1)"}><span>Platz</span>
-                  <PlatzWahl wert={b.platz} plaetze={montiert(k2 ? "k2" : seite ? "seite" : quer ? "quer" : front ? "front" : "dreh", w)}
+                  title={k3f ? "Frontbohrapparat Kanal 3" : k3d ? "Festes Werkzeug Kanal 3" : k2 ? "Werkzeugplatz Kanal 2" : quer ? "Werkzeugplatz (angetrieben, Weg mit der Gegenspindel)" : front ? "Werkzeugplatz (Frontwerkzeug fest)" : "Werkzeugplatz (Drehwerkzeug Kanal 1)"}><span>Platz</span>
+                  <PlatzWahl wert={b.platz} plaetze={montiert(k3 ? b.art : k2 ? "k2" : seite ? "seite" : quer ? "quer" : front ? "front" : "dreh", w)}
                     waehlen={(p) => { blockAendern(b.id, "platz", p); setUeber(b.id); }}
                     vorschau={(p) => { setVorPlatz(p ? { id: b.id, platz: p } : null); if (p) setUeber(b.id); }} />
                   {bf.platz && <small className="cam-fehltext" data-camblock-nichtmontiert={i}>nicht montiert</small>}</label>
@@ -1055,18 +1067,49 @@ export default function HoferCam() {
                   <button className="knopf knopf--klein" data-camblock-standard={i}
                     title="Felder der Vorlage einschalten; der Code bleibt im NC-Feld und wird in die Vorlage eingebaut"
                     onClick={() => blockAendern(b.id, "frei", false)}>Mit Vorlage aufbauen</button></span> : <>
-                {!aus("hd") && <label className="cam-feld" title={k2 ? "Hochdruck M1884D… vor dem Werkzeugaufruf, am Ende M1894 aus" : quer ? "Hochdruck M1883D… ein, am Ende M1893 aus" : front ? "Hochdruck M1882D… ein, am Ende M1892 aus" : "Hochdruck M1881D… ein, am Ende M1891 aus"}><span>Hochdruck</span>
+                {!aus("hd") && <label className="cam-feld" title={k3d ? "Hochdruck M188…D… ein, am Ende M189… aus" : k2 ? "Hochdruck M1884D… vor dem Werkzeugaufruf, am Ende M1894 aus" : quer ? "Hochdruck M1883D… ein, am Ende M1893 aus" : front ? "Hochdruck M1882D… ein, am Ende M1892 aus" : "Hochdruck M1881D… ein, am Ende M1891 aus"}><span>Hochdruck</span>
                   <select data-camblock="hd" value={b.hd} onChange={(e) => blockAendern(b.id, "hd", e.target.value)}>
-                    {(HD_STUFEN.includes(b.hd || "") ? HD_STUFEN : [...HD_STUFEN, b.hd]).map((h) => <option key={h} value={h}>{h ? "Stufe " + h : "kein"}</option>)}
+                    {(() => { const st = k3 ? [...HD_STUFEN, "5"] : HD_STUFEN; return st.includes(b.hd || "") ? st : [...st, b.hd]; })().map((h) => <option key={h} value={h}>{h ? "Stufe " + h : "kein"}</option>)}
                   </select></label>}
                 {!aus("vor") && <label className="cam-feld" title={"Vorschub je Umdrehung (G99) oder je Minute (G98)" + (gegen ? ", in Kanal 2" : "") + "; am Ende der Bearbeitung immer wieder G99"}><span>Vorschub</span>
                   <select data-camblock="vor" value={vorschubArt(b)} onChange={(e) => blockAendern(b.id, "vor", e.target.value)}>
                     <option value="99">G99 mm/U</option><option value="98">G98 mm/min</option>
                   </select></label>}
+                {k3d && be.hd && <label className="cam-feld" title="Ausgang des Hochdrucks: M188…D… ein, M189… aus (bei T1600 im Beispiel M1883)"><span>HD-Ausgang</span>
+                  <select data-camblock="hdN" value={b.hdN || "3"} onChange={(e) => blockAendern(b.id, "hdN", e.target.value)}>
+                    {["1", "2", "3", "4"].map((h) => <option key={h} value={h}>{"M188" + h}</option>)}
+                  </select></label>}
                 {be.hd && (sb || !front) && <label className="cam-feld cam-g96" title={"Am Ende der Bearbeitung den Hochdruck mit " + (k2 ? "M1894" : quer ? "M1893" : front ? "M1892" : "M1891") + " ausschalten"}>
                   <input type="checkbox" data-camblock="hdAus" checked={!b.hdAn}
                     onChange={(e) => blockAendern(b.id, "hdAn", !e.target.checked)} /><span>HD am Ende aus</span></label>}
-                {k2a ? <>
+                {k3f ? <>
+                  {/* Seit 1.666.0 nach Patricks T1300 (Kanal 3, 20. November 2026) */}
+                  {!aus("dreh") && <label className="cam-feld" title="Frontbohrapparat: M36 Rechtslauf, M37 Linkslauf"><span>Richtung</span>
+                    <select data-camblock="dreh" value={b.dreh === "37" ? "37" : "36"} onChange={(e) => blockAendern(b.id, "dreh", e.target.value)}>
+                      <option value="36">M36</option><option value="37">M37</option>
+                    </select></label>}
+                  {feld("S", "Drehzahl S", "Drehzahl des Frontbohrapparats (M36/M37 S…T..)")}
+                  {feld("anZ", "Vorpos. Z", "G0Z… gleich nach dem Werkzeugaufruf", 58)}
+                  {feld("X", "Position X", "G0X…Y…", 58)}
+                  {feld("Y", "Position Y", "G0X…Y…, leer = ohne Y", 58)}
+                  {feld("C", "Position C", "G0C… vor M6, leer = ohne", 58)}
+                  {feld("zuZ", "Anfahren Z", "G1Z…F3.0 an das Teil", 58)}
+                  {feld("wegZ", "Zurück Z", "Am Ende G1Z…F10.0", 58)}
+                  <label className="cam-feld cam-g96" title="Am Ende den Frontbohrapparat mit M38 ausschalten">
+                    <input type="checkbox" data-camblock="m38" checked={!b.spAn}
+                      onChange={(e) => blockAendern(b.id, "spAn", !e.target.checked)} /><span>M38 am Ende</span></label>
+                </> : k3d ? <>
+                  {/* Seit 1.666.0 nach Patricks T1600 (Kanal 3, 20. November 2026) */}
+                  {!aus("dreh") && <label className="cam-feld" title="Drehrichtung"><span>Richtung</span>
+                    <select data-camblock="dreh" value={b.dreh === "4" ? "4" : "3"} onChange={(e) => blockAendern(b.id, "dreh", e.target.value)}>
+                      <option value="3">M3</option><option value="4">M4</option>
+                    </select></label>}
+                  {feld("S", "Drehzahl S", "Drehzahl (M3/M4 S…T..)")}
+                  {feld("vorX", "Vorpos. X", "G0X… vor dem Anfahren", 58)}
+                  {feld("anZ", "Vorpos. Z", "G0Z… Vorpositionieren", 58)}
+                  {feld("nZ", "Nullpunkt Z", "G50Z… Nullpunkt setzen", 58)}
+                  {feld("Y", "Position Y", "G0Y… nach G50, leer = ohne", 58)}
+                </> : k2a ? <>
                   {/* Seit 1.425.0: angetrieben in Kanal 2 */}
                   {!aus("dreh") && <label className="cam-feld" title="Angetriebenes Werkzeug: M36 Rechtslauf, M37 Linkslauf"><span>Richtung</span>
                     <select data-camblock="dreh" value={b.dreh === "36" ? "36" : "37"} onChange={(e) => blockAendern(b.id, "dreh", e.target.value)}>
@@ -1188,7 +1231,7 @@ export default function HoferCam() {
                     placeholder={gegen ? "NC-Code für Kanal 2 (zwei Marken direkt nacheinander, z.B. M350 und M360, geben Platz für Kanal 1)" : "NC-Code der Bearbeitung hier einfügen (aus Kontur, Bohren / Fräsen …; zwei Marken direkt nacheinander geben Platz für Kanal 2)"}
                     value={b.code} onChange={(e) => { marke.current[b.id] = e.target.selectionStart; blockAendern(b.id, "code", e.target.value); }} />
                 </>}
-              {!b.zu && markenPaare(b).map(([x, y]) => {
+              {!b.zu && !k3 && markenPaare(b).map(([x, y]) => {
                 // Seit 1.416.0: an der Gegenspindel ist der NC-Code Kanal 2
                 // und das Feld Kanal 1, sonst umgekehrt
                 const fk = gegen ? "k1" : "k2", ander = gegen ? 1 : 2;

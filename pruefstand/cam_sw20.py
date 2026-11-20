@@ -75,6 +75,28 @@ with sync_playwright() as p:
     got = [z.strip() for z in k1[i + 1:i + 13]] if i >= 0 else []
     pruefe("Drehwerkzeug wie Patricks T200", len(got) == 12 and got[0].startswith("M3S2500T0") and got[1:] == soll[1:])
     pruefe("Keine roten Felder", pg.locator(".cam-feld--fehler").count() == 0)
+    # Seit 1.666.0: Kanal 3 nach Patricks T1300 und T1600 aus O3272
+    pg.click("#cam-neu-k3f"); pg.wait_for_timeout(300)
+    pg.fill("[data-block='2'] [data-camblock='bez']", "ZENTRIEREN M1.7")
+    pg.fill("[data-block='2'] [data-camblock='X']", "9.95")
+    pg.fill("[data-block='2'] [data-camblock='zuZ']", "25.20")
+    pg.fill("[data-block='2'] [data-camblock='code']", "G1W1.45F0.08"); pg.wait_for_timeout(300)
+    k3 = [z.strip() for z in k(3)]
+    i = k3.index("T1300(ZENTRIEREN M1.7)") if "T1300(ZENTRIEREN M1.7)" in k3 else -1
+    soll = ["T1300(ZENTRIEREN M1.7)", "M36S5000T13", "G0Z-2.0", "G0X9.95Y0.0", "M5", "M7", "M8", "G0C0.1", "M6", "G1Z25.20F3.0",
+            "G1W1.45F0.08", "M1892(HD AUS)", "G80", "G4U0.02", "G1Z1.00F10.0", "G28U0.", "M7", "M9", "M38", "G0T0", "M01"]
+    pruefe("Kanal 3 T1300 wie Patricks Beispiel " + str(k3[i:i + 21]), i >= 0 and k3[i:i + 21] == soll)
+    pg.click("#cam-neu-k3d"); pg.wait_for_timeout(300)
+    pg.fill("[data-block='3'] [data-camblock='bez']", "SCHLICHTEN BIS Z22.3")
+    pg.fill("[data-block='3'] [data-camblock='code']", "G1X14.40F1.0"); pg.wait_for_timeout(300)
+    k3 = [z.strip() for z in k(3)]
+    i = k3.index("T1600(SCHLICHTEN BIS Z22.3)") if "T1600(SCHLICHTEN BIS Z22.3)" in k3 else -1
+    soll = ["T1600(SCHLICHTEN BIS Z22.3)", "G99", "M3S4500T16", "M1883D5", "G0X0.00", "G0Z25.00", "G50Z-0.50", "G0Y0.00",
+            "G1X14.40F1.0", "M1893(HD AUS)", "M01", "G28U0.", "G0T0"]
+    pruefe("Kanal 3 T1600 wie Patricks Beispiel " + str(k3[i:i + 13]), i >= 0 and k3[i:i + 13] == soll)
+    pruefe("Kanal 1 ohne T1300/T1600", not any(z.startswith("T1300") or z.startswith("T1600") for z in k(1)))
+    pruefe("Kanal 3 ohne rote Felder", pg.locator(".cam-feld--fehler").count() == 0)
+    k3 = k(3)
     pg.screenshot(path=ORDNER + "/sw20_bearbeitungen.png", full_page=True)
     # Einlesen: drei Dateien aus dem Erzeugten mit Nr. 1272 / 2272 / 3272
     def datei(name, zeilen, alt, neu):
@@ -88,7 +110,7 @@ with sync_playwright() as p:
     pruefe("Nr. aus O1272 gelesen", pg.input_value("[data-cam='nr']") in ("272", "0272", "1272"))
     pruefe("Kanal 3 zeigt O3272", any(z.startswith("O3272") for z in k(3)))
     pruefe("Nach Einlesen keine roten Marken", pg.locator(".cam-zeile--fehler").count() == 0)
-    pruefe("Nach Einlesen zwei Bearbeitungen erkannt", pg.locator("[data-blockid]").count() == 2 and pg.locator("[data-camblock-frei]").count() == 0)
+    pruefe("Nach Einlesen vier Bearbeitungen erkannt", pg.locator("[data-blockid]").count() == 4 and pg.locator("[data-camblock-frei]").count() == 0)
     violett = pg.eval_on_selector_all(".cam-zeile--ein", "e => e.map(x => (x.closest('[data-kanal]')||{}).dataset?.kanal + ':' + x.textContent)")
     violett = [v for v in violett if not v.split(":", 1)[1].lstrip("0123456789").startswith("O")]
     pruefe("Nach Einlesen ausser der O-Zeile nichts violett " + str(violett[:6]), len(violett) == 0)

@@ -507,6 +507,48 @@ G28W0M5
 N777
 M99
 %`,
+  // Seit 1.666.0 Kanal 3: Frontbohrapparat T1300–T1500 nach Patricks
+  // T1300 aus O3272 (20. November 2026); Kanal 1 und 2 bekommen nichts
+  "k3f.k1": ``,
+  "k3f.k2": ``,
+  "k3f.k3": `T{PLATZ}{BEZ_K}
+{DREH}S{S}T{TK}
+G0Z{ANZ}
+G0X{X}{Y}
+M5
+M7
+M8
+[c] G0C{C}
+M6
+G1Z{ZUZ}F3.0
+{CODE}
+M1892(HD AUS)
+G80
+G4U0.02
+G1Z{WEGZ}F10.0
+G28U0.
+M7
+M9
+[m38] M38
+G0T0
+M01`,
+  // Feste Werkzeuge T1600–T1900 nach Patricks T1600 (20. November 2026);
+  // Hochdruck mit Ausgang M188x / M189x (T1600 M1883, T1700 M1884 …)
+  "k3d.k1": ``,
+  "k3d.k2": ``,
+  "k3d.k3": `T{PLATZ}{BEZ_K}
+{VOR}
+{DREH}S{S}T{TK}
+[hd] M188{HDN}D{HD}
+G0X{VORX}
+G0Z{ANZ}
+G50Z{NZ}
+[y] G0{Y}
+{CODE}
+[hdaus] M189{HDN}(HD AUS)
+M01
+G28U0.
+G0T0`,
   k3kopf: `%
 O{NR3}{NAME}(N)
 ({DATUM_KUERZEL})
@@ -539,6 +581,9 @@ export const ARTEN = [
   { id: "querGegen", text: "Frontangetrieben, Gegenspindel", plaetze: "quer" },
   { id: "k2", text: "Kanal 2 stehende Werkzeuge", plaetze: "k2" },
   { id: "k2a", text: "Kanal 2 angetrieben", plaetze: "k2" },
+  // Seit 1.666.0 nur SW-20: Kanal 3, Frontbohrapparat T1300–T1500
+  { id: "k3f", text: "Kanal 3 Frontbohrapparat", plaetze: "k3f" },
+  { id: "k3d", text: "Kanal 3 feste Werkzeuge", plaetze: "k3d" },
 ];
 export const vorlageArt = (b) => ((b.art === "front" || b.art === "quer") && b.spindel === "gegen" ? b.art + "Gegen" : b.art || "dreh");
 
@@ -549,6 +594,8 @@ export const PLATZ_GRUPPEN = [
   { id: "seite", text: "Querangetrieben" },
   { id: "quer", text: "Frontangetrieben" },
   { id: "k2", text: "Kanal 2" },
+  { id: "k3f", text: "Kanal 3 Frontbohrapparat" },
+  { id: "k3d", text: "Kanal 3 feste Werkzeuge" },
 ];
 const PLAETZE = {
   dreh: ["100", "200", "300", "400", "500", "600"],
@@ -566,8 +613,13 @@ const VORGABEN = { A: "17", W: "15.125", S: "3000", X: "-0.8", Z: "167.85", F: "
 // Kanal 2 T2100–T2800. Nur die Frontbearbeitung hat schon eine Vorlage,
 // die übrigen werden beim Einlesen „wie eingelesen“.
 const PLAETZE_SW20 = { ...PLAETZE, dreh: ["100", "200", "300", "400"], front: ["500", "600"], seite: ["700"], quer: [],
-  k2: ["2100", "2200", "2300", "2400", "2500", "2600", "2700", "2800"] };
+  k2: ["2100", "2200", "2300", "2400", "2500", "2600", "2700", "2800"], k3f: ["1300", "1400", "1500"],
+  k3d: ["1600", "1700", "1800", "1900"] };
 const BLOECKE_SW20 = { dreh: { hd: "3", dreh: "3", S: "2500", sArt: "vc", vc: "350", g96: "1", g50: "5000", anZ: "-0.5" },
+  // Kanal 3 Frontbohrapparat (1.666.0) nach Patricks T1300
+  k3f: { dreh: "36", S: "5000", X: "", Y: "0.0", anZ: "-2.0", C: "0.1", zuZ: "", wegZ: "1.00" },
+  // Kanal 3 feste Werkzeuge (1.666.0) nach Patricks T1600
+  k3d: { hd: "5", hdN: "3", dreh: "3", S: "4500", vor: "99", vorX: "0.00", anZ: "25.00", nZ: "-0.50", Y: "0.00" },
   front: { hd: "3", dreh: "3", S: "3000", X: "0.0", Y: "0.0", anZ: "5.00", nZ: "-0.50" } };
 const BLOECKE = {
   dreh: { hd: "4", dreh: "3", S: "3000", anZ: "0", wegF: "0.05", wegA: "45" },
@@ -584,6 +636,7 @@ export const BLOCK_FELDER = {
   sArt: "Eingabe S oder vc", vc: "Schnittgeschwindigkeit Vc", g96: "G96 (1 = an)", g50: "Max. S (G50)",
   X: "Position X", Y: "Position Y (leer = ohne)", vorX: "Vorpositionieren X", vorZ: "Vorpositionieren Z", nX: "G50 X", nZ: "G50 Z",
   vor: "Vorschub 98 oder 99 (leer = von selbst)",
+  C: "Position C (leer = ohne)", hdN: "Hochdruck-Ausgang (M188…)", zuZ: "Anfahren Z im Vorschub",
 };
 const MARKEN = { ab: 300, schritt: 10 };
 
@@ -593,7 +646,7 @@ export function vorgabeTyp(id = TYP) {
     id: info.id, name: info.name, kanaele: info.kanaele, nummern: [...info.nummern],
     // Bearbeitungsarten dieses Typs (SW-20: noch keine, folgen nach Patrick)
     // Seit 1.665.0 beim SW-20 die Frontbearbeitung Kanal 1
-    arten: sw ? ["dreh", "front"] : ARTEN.map((a) => a.id),
+    arten: sw ? ["dreh", "front", "k3f", "k3d"] : ARTEN.map((a) => a.id).filter((a) => !a.startsWith("k3")),
     vorlagen: sw ? { ...V, ...V_SW20 } : { ...V },
     plaetze: Object.fromEntries(Object.entries(sw ? PLAETZE_SW20 : PLAETZE).map(([k, l]) => [k, [...l]])),
     vorgaben: sw ? { ...VORGABEN_SW20 } : { ...VORGABEN },
@@ -601,7 +654,7 @@ export function vorgabeTyp(id = TYP) {
     marken: { ...MARKEN },
     // SW-20: Kopf und Ende haben kein {PLAN}, das Feld oben bleibt dort weg
     // Frontbearbeitung SW-20: ohne G99/G98 und ohne „Zurück Z“ (Patricks T600)
-    felder: { aus: sw ? { kopf: ["plan"], dreh: ["vor", "wegA", "wegF"], front: ["vor"] } : {}, eigene: [] },
+    felder: { aus: sw ? { kopf: ["plan"], dreh: ["vor", "wegA", "wegF"], front: ["vor"], k3f: ["vor", "hd"] } : {}, eigene: [] },
   };
 }
 
@@ -714,13 +767,13 @@ export const PLATZHALTER_BLOCK = [
   ["G96", "„G96“, wenn G96 gewählt, sonst leer"], ["G50", "Drehzahlbegrenzung bei G96 (U/min)"], ["VOR", "G98 oder G99"],
   ["ANZ", "Anfahren Z"], ["WEGZ", "Zurück Z"], ["WEGF", "Wegfahren F"], ["WINKEL", "„,A45.“ oder leer"],
   ["X", "Position X"], ["Y", "„Y…“ oder leer"], ["VORX", "Vorpositionieren X"], ["VORZ", "Vorpositionieren Z"],
-  ["NX", "G50 X"], ["NZ", "G50 Z"], ["M1", "Marke Start"], ["M2", "Marke 2 bzw. Ende"], ["M3", "Marke Ende (Frontangetrieben)"],
+  ["NX", "G50 X"], ["NZ", "G50 Z"], ["C", "Position C"], ["HDN", "Hochdruck-Ausgang (3 bei M1883)"], ["ZUZ", "Anfahren Z im Vorschub (G1Z…F3.0)"], ["M1", "Marke Start"], ["M2", "Marke 2 bzw. Ende"], ["M3", "Marke Ende (Frontangetrieben)"],
   ["CODE", "NC-Code der Bearbeitung (allein auf der Zeile, /{CODE} mit „/“)"],
   ["PAARE", "Markenpaare mit Code aus „Kanal 1 zwischen …“"], ["PAARE2", "Markenpaare mit Code aus „Kanal 2 zwischen …“"],
 ];
 export const BEDINGUNGEN = [
   ["hd", "Hochdruck gewählt"], ["hdaus", "Hochdruck gewählt und „HD am Ende aus“ an"],
-  ["g96", "G96 gewählt"], ["g50", "G96 mit Drehzahlbegrenzung"], ["m38", "„M38 am Ende“ an"], ["m5", "„M5 am Ende“ an"], ["y", "Position Y eingetragen"],
+  ["g96", "G96 gewählt"], ["g50", "G96 mit Drehzahlbegrenzung"], ["m38", "„M38 am Ende“ an"], ["m5", "„M5 am Ende“ an"], ["y", "Position Y eingetragen"], ["c", "Position C eingetragen"],
 ];
 
 // Unbekannte Platzhalter und Bedingungen einer Vorlage, für den Hinweis

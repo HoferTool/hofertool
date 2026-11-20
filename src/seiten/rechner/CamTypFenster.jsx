@@ -242,10 +242,10 @@ function Fenster({ zu }) {
             <label className="cam-feld camtyp-art"><span>Bearbeitung</span>
               <select data-camtyp-art value={art} onChange={(e) => setArt(e.target.value)}>
                 {arten.map((a) => <option key={a.id} value={a.id}>{a.text}
-                  {t.vorlagen[a.id + ".k1"] !== v.vorlagen[a.id + ".k1"] || t.vorlagen[a.id + ".k2"] !== v.vorlagen[a.id + ".k2"] ? " •" : ""}</option>)}
+                  {["k1", "k2", "k3"].some((k) => t.vorlagen[a.id + "." + k] !== v.vorlagen[a.id + "." + k]) ? " •" : ""}</option>)}
               </select></label>
             <div className="camtyp-zwei">
-              {["k1", "k2"].map((k) => (
+              {(art.startsWith("k3") ? ["k3"] : ["k1", "k2"]).map((k) => (
                 <Vorlage key={art + k} name={"Kanal " + k.slice(1)} wert={t.vorlagen[art + "." + k]} vorgabe={v.vorlagen[art + "." + k]}
                   setze={(x) => vorlage(art + "." + k, x)} block darf={darf} extra={eigeneNamen(t, art)} />
               ))}
@@ -259,7 +259,7 @@ function Fenster({ zu }) {
           {reiter === "felder" && <Eingabefelder t={t} aendern={aendern} darf={darf} ort={feldOrt} setOrt={setFeldOrt} />}
           {reiter === "werte" && <div className="camtyp-werte">
             <fieldset className="cam-gruppe"><legend>Werkzeugplätze (mit Komma)</legend>
-              {PLATZ_GRUPPEN.map((g) => (
+              {PLATZ_GRUPPEN.filter((g) => t.plaetze[g.id]).map((g) => (
                 <label key={g.id} className="cam-feld cam-feld--text camtyp-breit"><span>{g.text}</span>
                   <input data-camtyp-plaetze={g.id} readOnly={!darf} defaultValue={t.plaetze[g.id].join(", ")}
                     onBlur={(e) => {

@@ -403,6 +403,8 @@ export function simAufbauen(wRoh) {
     const platz = "T" + (b.platz || "");
     const titel = platz + (b.bez ? " " + b.bez : "");
     const art = b.art || "dreh";
+    // Kanal 3 der SW-20 (1.666.0) rechnet die Simulation noch nicht
+    if (art.startsWith("k3")) return;
     const gegen = (art === "front" || art === "quer") && b.spindel === "gegen";
     const kanal = art === "k2" || art === "k2a" || gegen ? 2 : 1;
     const wzOk = wzVollstaendig(bRoh);

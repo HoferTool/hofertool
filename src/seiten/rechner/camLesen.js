@@ -18,7 +18,7 @@ const MARKE = "(M(?:[2-9]\\d\\d|20|40|41|82|83))";
 // Muster je Platzhalter; zusammenstehende wie {G96}{DREH}S{S}T{T} brauchen
 // enge Muster, sonst nimmt der erste zu viel
 const MUSTER = {
-  G96: "((?:G96)?)", G50: "(\\d+)", DREH: "(M\\d+)", T: "(\\d+)", TK: "(\\d+)", SSTART: "(\\d+)", T2: "(\\d+)", T2V: "(\\d+)", PLATZ: "(\\d{3,4})",
+  G96: "((?:G96)?)", HDN: "(\\d)", G50: "(\\d+)", DREH: "(M\\d+)", T: "(\\d+)", TK: "(\\d+)", SSTART: "(\\d+)", T2: "(\\d+)", T2V: "(\\d+)", PLATZ: "(\\d{3,4})",
   HD: "(\\d*)", VOR: "(G9[89])", WINKEL: "((?:,A[-+\\d.]+)?)", Y: "((?:Y[-+\\d.]+)?)",
   M1: MARKE, M2: MARKE, M3: MARKE, NR: "(\\d{1,4})", NR2: "(\\d{1,4})",
   BEZ_K: "((?:\\(.*\\))?)", NAME: "((?:\\(.*\\))?)", BEZ_GEGEN: "(.*)",
@@ -163,10 +163,13 @@ function blockAus(art, x1, x2) {
     else { b.sArt = "S"; b.g96 = false; b.S = w.SSTART; }
   } else if (w.G96) { b.sArt = "vc"; b.g96 = true; b.vc = w.S || ""; b.S = ""; if (w.G50) b.g50 = w.G50; } else if (w.S != null) b.S = w.S;
   if (w.VOR) b.vor = w.VOR.replace(/^G/i, "");
-  const feld = { ANZ: "anZ", WEGZ: "wegZ", WEGF: "wegF", X: "X", VORX: "vorX", VORZ: "vorZ", NX: "nX", NZ: "nZ" };
+  const feld = { ANZ: "anZ", WEGZ: "wegZ", WEGF: "wegF", X: "X", VORX: "vorX", VORZ: "vorZ", NX: "nX", NZ: "nZ", C: "C", ZUZ: "zuZ", HDN: "hdN" };
   for (const [n, f] of Object.entries(feld)) if (w[n] != null) b[f] = w[n];
   if ("WINKEL" in w) b.wegA = w.WINKEL.replace(/^,A/i, "");
   if ("Y" in w) b.Y = String(w.Y || "").replace(/^Y/i, "");
+  // Kanal 3 (1.666.0): Zeile mit Bedingung fehlt = Feld leer
+  if ("y" in bed && !bed.y) b.Y = "";
+  if ("c" in bed && !bed.c) b.C = "";
   if (gegen) for (const n of ["M1", "M2", "M3"]) if (w[n]) b[n.toLowerCase()] = w[n].toUpperCase();
   if ("m38" in bed && !bed.m38) b.spAn = true;
   if ("m5" in bed && !bed.m5) b.ohneM5 = true;
@@ -261,10 +264,10 @@ const istT2000 = (z) => /^\/?T2000\(/i.test(z);
 
 // k1, k2: eingelesene Zeilen je Kanal (oder null). Ergebnis: Bearbeitungen
 // in der Reihenfolge des Programms und wie viele Abschnitte nicht passten
-export function bloeckeLesen(k1, k2) {
+export function bloeckeLesen(k1, k2, k3) {
   // Leerzeilen und Leerzeichen am Rand zählen nicht (Patricks Programme haben welche)
   const sauber = (l) => l && l.map((z) => z.trim()).filter(Boolean);
-  k1 = sauber(k1); k2 = sauber(k2);
+  k1 = sauber(k1); k2 = sauber(k2); k3 = sauber(k3);
   const id = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   // Nicht erkannte Abschnitte mit ihrem Werkzeug, für die Meldung
   const unklar = [];
@@ -327,6 +330,22 @@ export function bloeckeLesen(k1, k2) {
     }
   }
   gegen2.filter((q) => q.frei).forEach((q) => unklar.push("T2000"));
+  // Kanal 3 (SW-20, seit 1.666.0): Frontbohrapparat T1300–T1500 und feste
+  // Werkzeuge T1600–T1900; andere Stücke (M131 / M133 …) bleiben im Text
+  const arten3 = (typ().arten || []).filter((a) => a.startsWith("k3"));
+  if (k3 && arten3.length) {
+    const t3 = abschnitteVon(mitte(k3, 3), (z) => /^T\d{3,4}(\(|$)/i.test(z) && !/^T0+(\(|$)/.test(z));
+    t3.ab.forEach((s, pos) => {
+      const platz = s[0].match(/^T(\d{3,4})/i)[1];
+      const art = arten3.find((a) => plaetzeVon(a).includes(platz));
+      if (!art) return;
+      const best = besteVorlage([art], s, 3);
+      if (zuSchlecht(best, s)) { liste.push({ b: freiBlock(art, s, platz), p1: Infinity, p3: pos }); return; }
+      const b = blockAus(art, null, best.r);
+      b.code = (best.r.liste || []).join("\n");
+      liste.push({ b, p1: Infinity, p3: pos });
+    });
+  }
   // Code für den anderen Kanal zwischen Markenpaaren, mit dessen Stelle
   const p1 = paareIn(t1.zwischen), p2 = paareIn(t2.zwischen);
   for (const x of liste) {
@@ -344,7 +363,7 @@ export function bloeckeLesen(k1, k2) {
     const nach = mit1.find((y) => y.p2 != null && y.p2 > x.p2);
     x.p1 = nach ? nach.p1 - 0.25 : Infinity;
   }
-  const aus = liste.map((x, i) => ({ ...x, i })).sort((a, b) => a.p1 - b.p1 || (a.p2 ?? 0) - (b.p2 ?? 0) || a.i - b.i).map((x) => x.b);
+  const aus = liste.map((x, i) => ({ ...x, i })).sort((a, b) => (a.p1 === b.p1 ? 0 : a.p1 - b.p1) || (a.p3 ?? 0) - (b.p3 ?? 0) || (a.p2 ?? 0) - (b.p2 ?? 0) || a.i - b.i).map((x) => x.b);
   aus.forEach((b) => { b.id = id(); });
   return { bloecke: aus, unklar };
 }
@@ -352,5 +371,5 @@ export function bloeckeLesen(k1, k2) {
 // Probe für den Prüfstand: lässt sich ein erzeugtes Programm verlustfrei lesen?
 export function rundlauf(w) {
   const p = programme(w);
-  return bloeckeLesen(p.k1, p.k2);
+  return bloeckeLesen(p.k1, p.k2, p.k3);
 }

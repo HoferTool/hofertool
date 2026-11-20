@@ -14990,3 +14990,6 @@ body:not(.dunkel) .cam .cam-spalte--kopf.cam-spalte--k3 { background: #e7e0f3; b
 .cam-sw-bestueck { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
 .cam-sw-bestueck label { display: inline-flex; gap: 4px; align-items: center; cursor: pointer; }
 .cam-sw-kanaele { display: inline-flex; gap: 6px; margin-left: 8px; }
+
+/* 1.666.0: Bearbeitungen Kanal 3 der SW-20 violett wie die Spalte */
+.cam .cam-block--k3 { border-left: 4px solid #7a55b5; }
