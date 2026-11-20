@@ -128,3 +128,76 @@ export function gegenQuader(o, e) {
   return [{ z0: o.z - e.abstand - e.tiefe, z1: o.z - e.abstand, x0: o.x + a0 - 16, x1: o.x + a1 + 18,
     y0: o.y - e.breite / 2, y1: o.y + e.breite / 2, art: "gehaeuse" }];
 }
+
+// =================================================================
+//  Star SW-20 (seit 1.669.0, Wunsch Patrick 20. November 2026: „bau mir
+//  auch die Maschinensimulation anhand des Bildes. Kanal 1 und 3 sind
+//  eigenständig. Auf Kanal 1 bewegt sich in Z das Material, auf Kanal 3
+//  in Z der Werkzeugträger, auf beiden Kanälen X und Y der Werkzeugträger“).
+//  Zwei Träger an der Hauptspindel: Träger 1 oben (+X) mit T100–T400
+//  (Platten) und T500–T700 (angetrieben quer, T500/T600 wahlweise mit
+//  Frontbohrapparat), Träger 3 gegenüber unten (−X, gespiegelt) mit
+//  T1100–T1200 (Platten), T1300–T1500 (angetrieben quer oder
+//  Frontbohrapparat) und T1600–T1900 (feste Frontwerkzeuge). Masse von
+//  Claude geschätzt nach dem Bild und den Teilungen der SB-20RG, Lage je
+//  Platz wie bei platzLage (Spitze, wenn der Träger in seiner Null steht,
+//  x und y im eigenen Träger: beim Träger 3 zeigen sie zur anderen Seite).
+// =================================================================
+export const MASCHINE_SW20 = {
+  dreh: { teilung: 25 },
+  quer: { abstand: 36.5, teilung: 31, dz: -7 },
+  front: { dz: -45, block: 40, schaft: 30 },
+  fest: { dz: -40, teilungX: 25, y: 163.5 }, // T1600–T1900 auf Träger 3
+  kopf: { abstand: 20, r: 38, L: 110, nase: 22, naseL: 22 },
+};
+
+// Platz → Lage der Spitze am Träger; traeger 1 oder 3; frontAuf: Plätze
+// mit Frontbohrapparat (Bestückung)
+export function platzLageSw(platz, frontAuf = [], m = MASCHINE_SW20) {
+  const t = Number(platz) || 0;
+  const auf = frontAuf.map(Number).includes(t);
+  const quer = (k0, k) => {
+    const y = k0 * m.dreh.teilung + m.quer.abstand + k * m.quer.teilung;
+    return auf ? { art: "front", dz: m.front.dz, x: 0, y } : { art: "quer", dz: m.quer.dz, x: 0, y };
+  };
+  if (t >= 100 && t <= 400 && t % 100 === 0) return { traeger: 1, art: "dreh", dz: 0, x: 0, y: (t / 100 - 1) * m.dreh.teilung };
+  if (t >= 500 && t <= 700 && t % 100 === 0) return { traeger: 1, ...quer(3, t / 100 - 5) };
+  if (t >= 1100 && t <= 1200 && t % 100 === 0) return { traeger: 3, art: "dreh", dz: 0, x: 0, y: (t / 100 - 11) * m.dreh.teilung };
+  if (t >= 1300 && t <= 1500 && t % 100 === 0) return { traeger: 3, ...quer(1, t / 100 - 13) };
+  if (t >= 1600 && t <= 1900 && t % 100 === 0) return { traeger: 3, art: "front", dz: m.fest.dz, x: -(t / 100 - 16) * m.fest.teilungX, y: m.fest.y };
+  return null;
+}
+
+// Quader eines Trägers der SW-20. o = Null des Trägers an der Maschine
+// {z, x, y}; spiegel: Träger 3 (lokales x und y zeigen nach −X / −Y)
+export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null, m = MASCHINE_SW20) {
+  const q = [], sg = traeger === 3 ? -1 : 1;
+  const box = (z0, z1, x0, x1, y0, y1, art) => {
+    const xa = o.x + sg * x0, xb = o.x + sg * x1, ya = o.y + sg * y0, yb = o.y + sg * y1;
+    q.push({ z0: o.z + z0, z1: o.z + z1, x0: Math.min(xa, xb), x1: Math.max(xa, xb), y0: Math.min(ya, yb), y1: Math.max(ya, yb), art });
+  };
+  const nPl = traeger === 3 ? 2 : 4, t0 = traeger === 3 ? 1100 : 100;
+  for (let k = 0; k <= nPl; k++) {
+    const y = (k - 0.5) * m.dreh.teilung;
+    box(-12, 0, 12, 80, y - 6.4, y + 6.4, "platte");
+  }
+  for (let k = 0; k < nPl; k++) {
+    const y = k * m.dreh.teilung, t = t0 + k * 100;
+    if (benutzt && !benutzt.has(t) && t !== aktiv) continue;
+    box(-12, 0, 3, 40, y - 6, y + 6, "halter");
+    if (t !== aktiv) box(-5, 0, 0, 6, y - 3, y + 3, "schneide");
+  }
+  // angetriebene Plätze: Gehäuse quer oder Frontbohrapparat
+  const q0 = traeger === 3 ? 1300 : 500;
+  for (let k = 0; k < 3; k++) {
+    const l = platzLageSw(q0 + k * 100, frontAuf, m);
+    if (l.art === "front") box(l.dz - m.front.schaft - m.front.block, l.dz - m.front.schaft, -14, 16, l.y - 12, l.y + 12, "gehaeuse");
+    else box(l.dz - 8, l.dz + 8, 24, 70, l.y - 9, l.y + 9, "gehaeuse");
+  }
+  // feste Frontwerkzeuge T1600–T1900 auf Träger 3
+  if (traeger === 3) {
+    const f = m.fest;
+    box(f.dz - 30 - 40, f.dz - 30, -3 * f.teilungX - 14, 16, f.y - 16, f.y + 16, "gehaeuse");
+  }
+  return q;
+}

@@ -273,11 +273,11 @@ function DateiSchild({ k }) {
 
 // 3D-Simulation und Programm einlesen, im Reiter und im eigenen Fenster
 function FensterKnoepfe({ w, einlesen, eigen }) {
-  // Seit 1.663.0: die 3D-Simulation kennt vorerst nur die SB-20RG
+  // Seit 1.669.0 auch die SW-20 (Kanal 1 und 3 an der Hauptspindel)
   const sb = typInfo(w && w.typ).kanaele === 2;
   return (<>
     {/* Seit 1.547.0: 3D-Simulation Drehen und Bohren von vorne (Patrick 14. November 2026, Schritt 2) */}
-    {sb && <button className="knopf knopf--klein" id={eigen ? "cam-sim-auf" : "cam-sim-auf-fenster"} data-cam-sim="1"
+    {<button className="knopf knopf--klein" id={eigen ? "cam-sim-auf" : "cam-sim-auf-fenster"} data-cam-sim="1"
       title="Drehen, Bohren und Fräsen in 3D, Kanal 1 und Kanal 2, mit den Werkzeugen der Bearbeitungen"
       onClick={() => simulationOeffnen(w)}>🧊 3D-Simulation</button>}
     <EinlesenKnopf id={eigen ? "cam-einlesen" : "cam-einlesen-fenster"} merkmal={{ "data-cam-einlesen-alle": "1" }} einlesen={einlesen}

@@ -15,7 +15,7 @@ import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { RASTER, materialStand, simAufbauen, umrissVon, plattenHuelle, bohrerHuelle, innenTiefe } from "./camSim.js";
 import { drehKoerper, abstechKoerper, fraeserKoerper } from "./camKoerper.js";
 import { stepFertig, stepHolen, stepLokal, stepDrehKoerper, stepRundKoerper } from "./camStep.js";
-import { MASCHINE_SB20RG, GEGEN_SB20RG, platzLage, traegerQuader, gegenEinheit, gegenQuader } from "./camMaschine.js";
+import { MASCHINE_SB20RG, GEGEN_SB20RG, platzLage, traegerQuader, gegenEinheit, gegenQuader, platzLageSw, traegerSwQuader } from "./camMaschine.js";
 
 // Seit 1.558.3 wie an der Maschine: Führungsbüchse links, das Teil schaut
 // nach rechts, schräg von vorne auf die Stirn (Patrick 16. November 2026:
@@ -440,7 +440,7 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
   g.setLineDash([]);
   for (const t of koerper.length ? [] : ueber.werkzeuge) {
     g.beginPath();
-    t.pts.forEach((p, i) => { const q = ebene(p.z, p.r); if (i) g.lineTo(q.x, q.y); else g.moveTo(q.x, q.y); });
+    t.pts.forEach((p, i) => { const q = ebene(p.z, p.r, p.phi); if (i) g.lineTo(q.x, q.y); else g.moveTo(q.x, q.y); });
     g.closePath(); g.fillStyle = t.farbe; g.strokeStyle = t.rand; g.lineWidth = 1.2; g.fill(); g.stroke();
   }
   for (const st of koerper.length ? [] : ueber.stangen || []) {
@@ -534,15 +534,15 @@ function Simulation({ w, zu }) {
   // Seit 1.587.0: beim versetzten Abstecher sitzt die Platte von T100 um
   // den wirksamen Versatz vor der Ebene der Drehwerkzeuge
   const lageVon = (platz) => {
-    const l = platzLage(platz);
+    const l = sim.sw ? platzLageSw(platz, sim.swFront) : platzLage(platz);
     return l && Number(platz) === 100 && sim.abVersatz ? { ...l, dz: -sim.abVersatz } : l;
   };
   const kopfZ = useMemo(() => {
     let z = sim.zMax + 2;
     for (const x of sim.schritte) {
-      if (x.kanal !== 1) continue;
+      if (x.kanal !== 1 || x.zTraeger) continue;
       const l = lageVon(x.platz);
-      if (l) for (const p of x.punkte) z = Math.max(z, p.z - (x.dzVorne ?? l.dz) + 2);
+      if (l) for (const p of x.punkte) z = Math.max(z, p.z - (x.pfad === 3 ? x.dzVorne : x.dzVorne ?? l.dz) + 2);
     }
     return z + BUECHSE_L + MASCHINE_SB20RG.kopf.abstand;
   }, [sim]);
@@ -588,7 +588,9 @@ function Simulation({ w, zu }) {
       // 17. November 2026: „beim Fräsen der Nuten bewegt sich die
       // Führungsbüchse und nicht das Material“)
       if (x.kanal !== kanal || x.von >= n || !x.punkte.length) continue;
-      wzJetzt = x.punkte[Math.min(n, x.bis) - x.von - 1];
+      // SW-20 Kanal 3 mit M131: der Träger 3 fährt in Z, das Material steht,
+      // darum bleibt die Ansicht am Anfang der Bearbeitung stehen
+      wzJetzt = x.zTraeger ? x.punkte[0] : x.punkte[Math.min(n, x.bis) - x.von - 1];
     }
     const zMitte = (bereich0.zmin + bereich0.zmax) / 2;
     const dz = wzJetzt ? wzJetzt.z - zMitte : 0;
@@ -602,7 +604,7 @@ function Simulation({ w, zu }) {
       let lauf = [], vor = null;
       const fertig = () => { if (lauf.length > 1) ueber.bahnen.push({ pts: lauf, farbe: vor ? farbe : "rgba(90,105,120,.8)", strich: !vor, dick: vor ? 1.6 : 1 }); };
       for (const p of pts) {
-        const zp = akt.modus === "bohr" || akt.art === "front" ? { z: p.z, r: p.r } : p;
+        const zp = akt.modus === "bohr" || akt.art === "front" ? { z: p.z, r: p.r, phi: p.phi } : p;
         if (vor !== null && p.vor !== vor) { fertig(); lauf = [lauf[lauf.length - 1]]; }
         vor = p.vor; lauf.push(zp);
       }
@@ -611,11 +613,14 @@ function Simulation({ w, zu }) {
       ueber.spitze = p;
       if (akt.wz && akt.modus === "dreh") {
         const h = plattenHuelle(akt.wz, innenTiefe(akt));
-        if (h) ueber.werkzeuge.push({ pts: h.umriss.map((q) => ({ z: p.z + q.z, r: p.r + q.x })), farbe: "rgba(224,161,42,.92)", rand: "#7a5410" });
+        if (h) ueber.werkzeuge.push({ pts: h.umriss.map((q) => ({ z: p.z + q.z, r: p.r + q.x, phi: p.phi })), farbe: "rgba(224,161,42,.92)", rand: "#7a5410" });
         // seit 1.621.0 als 3D-Körper, mit Maschine zeichnet der Träger den Schaft
         const netz = dreiD && akt.wz.step && stepFertig(akt.wz.step.url);
+        const k0 = ueber.koerper.length;
         if (netz) ueber.koerper.push(...stepDrehKoerper(stepLokal(netz, akt.wz, false), p));
         else if (h && dreiD) ueber.koerper.push(...drehKoerper(akt.wz, p, h.umriss, !maschineAn && akt.art === "dreh"));
+        // Kanal 3 der SW-20: Träger gegenüber, der Körper um die Achse gedreht
+        if (akt.pfad === 3) for (let j = k0; j < ueber.koerper.length; j++) ueber.koerper[j] = { ...ueber.koerper[j], pts: ueber.koerper[j].pts.map((q) => [q[0], -q[1], -q[2]]) };
       } else if (akt.wz && akt.modus === "c") {
         // Achse in der Ansicht: Kanal 2 von hinten (z und w gespiegelt)
         const ax = kanal === 2 ? [-p.ax[0], p.ax[1], -p.ax[2]] : p.ax;
@@ -634,7 +639,7 @@ function Simulation({ w, zu }) {
         if (dreiD) ueber.koerper.push(...abstechKoerper(p, Bw, A / 2 + 4));
       } else if (akt.wz && akt.modus === "bohr") {
         const u = bohrerHuelle(akt.wz).umriss;
-        const auf = (l) => l.map((q) => ({ z: p.z - q.x, r: p.r + q.z }));
+        const auf = (l) => l.map((q) => ({ z: p.z - q.x, r: p.r + q.z, phi: p.phi }));
         ueber.werkzeuge.push({ pts: auf(u.schaft), farbe: "rgba(180,190,200,.95)", rand: "#5b6875" });
         ueber.werkzeuge.push({ pts: auf(u.schneide), farbe: "rgba(224,161,42,.92)", rand: "#7a5410" });
         const netz = dreiD && akt.wz.step && stepFertig(akt.wz.step.url);
@@ -645,8 +650,37 @@ function Simulation({ w, zu }) {
     // Seit 1.580.0: Werkzeugträger von Kanal 1 mit allen Werkzeugen, er
     // fährt in X und Y wie das Werkzeug, das gerade arbeitet; der Platz aus
     // camMaschine.js gibt die Lage am Träger
-    let traeger = null, roll = 0;
-    if (maschineAn && kanal === 1) {
+    let traeger = null, roll = 0, swLage = null;
+    // SW-20 (seit 1.669.0): zwei Träger an der Hauptspindel. Kanal 1 fährt
+    // das Material in Z (die Drehebene wandert im Teil), Träger 1 und 3 in
+    // X und Y; Kanal 3 fährt mit M131 seinen Träger in Z3 (das Material
+    // steht), mit M133 steuert Kanal 3 Z1 und das Material fährt
+    if (sim.sw && kanal === 1) {
+      const A2 = A / 2;
+      let zE = vorne, t1 = { z: vorne, x: A2 + 3, y: 0 }, t3 = { x: -(A2 + 25), y: 0 }, rel3 = -20, sAkt = null, pAkt = null;
+      for (const x of sim.schritte) {
+        if (x.kanal !== 1 || x.von >= n || !x.punkte.length) continue;
+        const q = x.punkte[Math.min(n, x.bis) - x.von - 1];
+        const l = lageVon(x.platz);
+        sAkt = x; pAkt = q;
+        if (!l) continue;
+        if (x.pfad === 3) {
+          const X = q.mx != null ? q.mx : -q.r, Y = q.my != null ? q.my : 0;
+          const z3 = q.z - l.dz;
+          if (x.m133) zE = q.z - x.dzVorne;
+          t3 = { x: X + l.x, y: Y + l.y };
+          rel3 = z3 - zE;
+        } else {
+          const X = q.mx != null ? q.mx : q.r, Y = q.my != null ? q.my : 0;
+          zE = q.z - (x.dzVorne ?? l.dz);
+          t1 = { z: zE, x: X - l.x, y: Y - l.y };
+        }
+      }
+      if (t1.z !== zE) t1 = { ...t1, z: zE };
+      swLage = { zE, t1, t3: { ...t3, z: zE + rel3 }, aktiv: sAkt ? sAkt.platz : 0, pfad: sAkt ? sAkt.pfad : 1 };
+      if (pAkt) roll = ((pAkt.c || 0) * Math.PI) / 180;
+      if (maschineAn) traeger = { ...(swLage.pfad === 3 ? swLage.t3 : swLage.t1), aktiv: swLage.aktiv, pfad: swLage.pfad };
+    } else if (maschineAn && kanal === 1) {
       let sAkt = null, pAkt = null;
       for (const x of sim.schritte) {
         if (x.kanal !== 1 || x.von >= n || !x.punkte.length) continue;
@@ -691,7 +725,8 @@ function Simulation({ w, zu }) {
       // Seit 1.585.0: Spitze steht fest vor der Drehebene (Z aus dem Programm)
       if (wzJetzt && akt && akt.kanal === 1 && akt.dzVorne != null) zb = wzJetzt.z - akt.dzVorne + 2;
       // mit Maschine steht die Büchse fest am Träger, 2 mm hinter den Drehwerkzeugen
-      if (traeger) zb = traeger.z + 2;
+      if (traeger && !swLage) zb = traeger.z + 2;
+      if (swLage) zb = swLage.zE + 2;
       ueber.buechse = { z: zb, ri: A / 2, ra: BUECHSE_R, L: BUECHSE_L };
     }
     // Mit Bohrungen und Fräsungen aus C und Y: Strahlen statt Maler
@@ -699,7 +734,19 @@ function Simulation({ w, zu }) {
     const strahl = vx && umriss ? { st, vox: vx, kanal2: kanal === 2, Wt: W, q: laeuft ? 0.45 : 1 } : null;
     const k = MASCHINE_SB20RG.kopf, gs = GEGEN_SB20RG.spindel;
     let maschine = null, gegen = null;
-    if (kanal === 1 && maschineAn) {
+    if (kanal === 1 && maschineAn && swLage) {
+      const benutzt = new Set(sim.schritte.filter((x) => x.kanal === 1).map((x) => x.platz));
+      maschine = {
+        quader: [...traegerSwQuader(swLage.t1, 1, swLage.aktiv, sim.swFront, benutzt), ...traegerSwQuader(swLage.t3, 3, swLage.aktiv, sim.swFront, benutzt)],
+        roll, grob: laeuft, kopf: { z: kopfZ, ri: A / 2, nase: k.nase, naseL: k.naseL, r: k.r, L: k.L },
+      };
+      maschine.koepfe = [maschine.kopf];
+      if (abS && n > abS.von) {
+        const pa = abS.punkte[Math.min(n, abS.bis) - abS.von - 1];
+        gegen = { z: (pa && pa.g != null ? pa.g : sim.greif) - wegZ, ri: A / 2, nase: Math.max(gs.nase, A / 2 + 4), naseL: gs.naseL, r: gs.r, L: gs.L, dir: -1 };
+        maschine.koepfe.push(gegen);
+      }
+    } else if (kanal === 1 && maschineAn) {
       maschine = {
         quader: traeger ? traegerQuader(traeger, traeger.aktiv, undefined, sim.t34, { vor: A / 2 + 1, b: Math.max(0.5, sim.roh.B || 2), dz: -(sim.abVersatz || 0) }, traeger.spitze, new Set(sim.schritte.filter((x) => x.kanal === 1).map((x) => x.platz))) : [], roll, grob: laeuft,
         kopf: { z: kopfZ, ri: A / 2, nase: k.nase, naseL: k.naseL, r: k.r, L: k.L },
@@ -749,6 +796,7 @@ function Simulation({ w, zu }) {
         if (pAkt.phi != null && Math.hypot(yM, wM) > 1e-6) roll = Math.atan2(wM, yM) - pAkt.phi;
       }
     }
+    cv.__sw = swLage;
     cv.__traeger = traeger; cv.__kopf = maschine ? maschine.kopf || null : null; cv.__roll = roll; cv.__gegen = gegen; cv.__quader = maschine ? maschine.quader : null;
     cv.__stand = stand; cv.__sim = sim; cv.__strahl = !!strahl; cv.__werkzeuge = ueber.werkzeuge; cv.__koerper = ueber.koerper.length; cv.__step = !!(stepUrl && stepFertig(stepUrl)); cv.__buechse = ueber.buechse; cv.__weg = wegZ; cv.__ansichtZ = dz; // für den Prüfstand
     // Rohmaterial: Stirn vorne nur vorne (Kanal 1), vor der Übergabe
@@ -813,13 +861,13 @@ function Simulation({ w, zu }) {
     <div className="dialog cam-sim" id="cam-sim">
       <div className="cam-sim__kopf">
         <b>3D-Simulation</b>
-        <span className="cam-sim__hinweis klein">Kanal 1 vorne an der Hauptspindel, danach Kanal 2 an der Rückseite. Ziehen dreht, Mausrad zoomt.</span>
+        <span className="cam-sim__hinweis klein">{sim && sim.sw ? "Kanal 1 und Kanal 3 vorne an der Hauptspindel (Kanal 3 an der Stelle von M133), danach Kanal 2 an der Rückseite." : "Kanal 1 vorne an der Hauptspindel, danach Kanal 2 an der Rückseite."} Ziehen dreht, Mausrad zoomt.</span>
         <button className="knopf knopf--klein" title="Schliessen" onClick={zu}>✕</button>
       </div>
       <div className="cam-sim__haupt">
         <div className="cam-sim__bildteil" ref={rahmen}>
           <div className="cam-sim__titel" id="cam-sim-titel">
-            {kanal === 2 ? "Kanal 2 · Rückseite in der Gegenspindel" : "Kanal 1 · Vorderseite"}
+            {kanal === 2 ? "Kanal 2 · Rückseite in der Gegenspindel" : akt && akt.pfad === 3 ? "Kanal 3 · an der Hauptspindel" + (akt.zTraeger ? ", Träger 3 fährt in Z" : ", Material fährt (M133)") : "Kanal 1 · Vorderseite"}
             {n >= gesamt && gesamt ? " · Fertigteil" : akt && n > akt.von && n <= akt.bis ? " · " + akt.titel : ""}
           </div>
           <canvas ref={leinwand} className="cam-sim__bild" id="cam-sim-bild" data-cam-sim-n={n} style={{ height: HOCH + "px", width: "100%" }}
@@ -874,7 +922,7 @@ function Simulation({ w, zu }) {
               <button key={s.id} data-cam-sim-schritt={s.i} className={"cam-sim__schritt" + (aktiv ? " aktiv" : "") + (s.status === "fehlt" ? " cam-sim__schritt--fehlt" : s.status ? " cam-sim__schritt--grau" : "")}
                 disabled={!s.punkte.length} title="Bis ans Ende dieser Bearbeitung springen"
                 onClick={() => { setLaeuft(false); setN(s.bis); }}>
-                <span className="cam-sim__k">K{s.kanal}</span>
+                <span className="cam-sim__k">K{s.pfad || s.kanal}</span>
                 <span className="cam-sim__name">{s.titel}</span>
                 {s.status && <small>{STATUS[s.status]}</small>}
               </button>);

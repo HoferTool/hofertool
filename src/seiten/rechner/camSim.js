@@ -19,7 +19,7 @@
 //  Programm je Bearbeitung (ohne Handänderungen im Programmfenster).
 // =================================================================
 
-import { blockZeilen, blockZeilen2, bereichMitHand, k1Zeilen, markenPaare, markenVergeben, programme, programmeMitHand, zahl, abVersatz, t34Von } from "./hofercam.js";
+import { blockZeilen, blockZeilen2, blockZeilen3, kanalZahl, swFrontVon, bereichMitHand, bereichLage, k1Zeilen, markenPaare, markenVergeben, programme, programmeMitHand, zahl, abVersatz, t34Von } from "./hofercam.js";
 import { wirksamB, wirksamW } from "./camTyp.js";
 import { fraeserUmriss, plattenUmriss, wzArt, wzVollstaendig } from "./camWerkzeug.js";
 import { SPITZEN } from "./kontur.js";
@@ -182,6 +182,9 @@ export function bahnLesen(zeilen, v, { mitG50 = false, start = null } = {}) {
       if (mitG50) { g50++; an = g50 % 2 === 1; }
       continue;
     }
+    // SW-20 (1.669.0): M50 X[13] / M51 (Nachführen der Achsen) und
+    // Z3= / W3= (Z3 aus Kanal 3) fahren hier nicht, simAufbauen rechnet M50
+    if (/^M5[01](?!\d)/.test(s) || /[XYZUW]3\s*=/.test(s)) continue;
     if (/G28/.test(s)) { if (/[HC]/.test(s.replace(/G28/, "")) && !polar) c = 0; continue; }
     if (/G80/.test(s)) { zyk = null; continue; }
     if (/^T\d/.test(s) || /G4(?!\d)|G04|G23|G22/.test(s)) continue;
@@ -389,6 +392,113 @@ function ersteVorZ(roh, zeilen) {
   return roh[j].z;
 }
 
+// G50 mit Z: Wert, sonst null
+function g50Z(roh) {
+  const t = sauber(roh);
+  if (!/G50/.test(t)) return null;
+  const m = t.replace(/G50/, "").match(/Z\s*([-+]?\d*\.?\d+)/);
+  return m ? Number(m[1]) : null;
+}
+// Abstand Vorposition − Nullpunkt beim ersten G50Z (Spitze vor der Stirn
+// = vor der Drehebene, wie seit 1.585.0 bei den festen Frontwerkzeugen)
+function vorG50(zeilen) {
+  let z = null;
+  for (const roh of zeilen) {
+    const n = g50Z(roh);
+    if (n != null) return z == null ? null : z - n;
+    const t = sauber(roh);
+    if (/^M|^T|G28/.test(t)) continue;
+    const m = t.match(/Z\s*([-+]?\d*\.?\d+)/);
+    if (m) z = Number(m[1]);
+  }
+  return null;
+}
+
+// Kanal 3 der SW-20 an der Hauptspindel (seit 1.669.0). Laut Handbuch
+// (8-14-24 und M131/M133): mit M131 (Vorgabe) steuert Kanal 1 Z1, das
+// Material; Kanal 3 fährt seinen Träger in Z3 → zTraeger, das Material
+// steht. Mit M133 übernimmt Kanal 3 Z1, Spindel und Zange: der Träger 3
+// steht in Z, das Material fährt (Patricks O3272: „M131(1) … G0Z0.0
+// M133(1)“). M142 (Überlagerung Z1–Z3) bewegt ebenfalls den Träger 3.
+// Träger 3 steht der Hauptspindel gegenüber (−X, gespiegelt).
+function k3Schritt(s, b, zeilen, v, W, prog, wa) {
+  // Modus: zuletzt M131 oder M133 vor der Bearbeitung in Kanal 3
+  let modus = "M131";
+  const k3 = prog.k3 || [];
+  const lage = bereichLage(prog.auto3 || [], k3, prog.bereiche3 && prog.bereiche3[b.id]);
+  const bis = lage ? lage[0] : 0;
+  for (let k = 0; k < bis && k < k3.length; k++) { const t = sauber(k3[k]); if (/^M13[13](?!\d)/.test(t)) modus = t.slice(0, 4); }
+  for (const z of zeilen) {
+    const t = sauber(z);
+    if (/^M13[13](?!\d)/.test(t)) modus = t.slice(0, 4);
+    if (/^M142(?!\d)/.test(t)) modus = "M142";
+    if (/G0?[01](?!\d)|^[XZUW]/.test(t) && /[XZUW]/.test(t.replace(/[GMST]\d+(\.\d)?/g, ""))) break;
+  }
+  s.m133 = modus === "M133";
+  s.zTraeger = !s.m133;
+  const mitG50 = zeilen.some((z) => g50Z(z) != null);
+  let roh = m50Folgen(zeilen, v, prog, mitG50, !s.m133);
+  s.zeilen = zeilen;
+  const dreht = s.art === "k3f";
+  let zT;
+  if (mitG50) {
+    zT = (p) => p.z;
+    const dz = vorG50(zeilen);
+    s.dzVorne = dz == null ? -0.5 : -dz;
+  } else {
+    const erst = roh.find((p) => p.z != null);
+    const an = num(b.anZ) ?? (erst ? erst.z : 0);
+    zT = (p) => p.z - an - 0.5;
+    s.dzVorne = -(an + 0.5);
+  }
+  s.punkte = roh.map((p) => {
+    if (dreht) {
+      const uM = -(p.x || 0) / 2, wM = -(p.y || 0);
+      const { t } = imTeil(p, 1, uM, wM, zT(p), W);
+      return { z: t[0], r: Math.hypot(t[1], t[2]), phi: Math.atan2(t[2], t[1]), t, ax: [-1, 0, 0], vor: p.vor, nr: p.nr, mx: uM, my: wM, c: p.c || 0 };
+    }
+    return { z: zT(p), r: Math.abs(p.x || 0) / 2, phi: Math.PI, vor: p.vor, nr: p.nr, mx: -Math.abs(p.x || 0) / 2, my: -(p.y || 0), c: p.c || 0 };
+  });
+  if (dreht) { s.achse = "laengs"; s.modus = wa === "fraes" ? "c" : null; if (wa === "dreh") s.status = "nurBahnA"; }
+  else s.modus = wa === "fraes" ? "bohr" : wa === "dreh" ? "dreh" : null;
+}
+
+// M50 X[13] / Y[13] / Y[-13] … M51 (Handbuch 8-14-19): X3 bzw. Y3 fahren
+// die Wege von X1 / Y1 aus Kanal 1 mit. Die Wege von Kanal 1 kommen aus
+// dem Kanal-1-Programm zwischen derselben Wartemarke wie vor M50 in
+// Kanal 3 und der nächsten Marke dort; ohne M133 fährt das Material dabei
+// auch Z1, das zählt im Teil mit. M50 X[31] (Kanal 1 folgt Kanal 3) wird
+// nur übergangen.
+function m50Folgen(zeilen, v, prog, mitG50, mitZ) {
+  const L = zeilen.map(sauber);
+  const i50 = L.findIndex((t) => /^M50(?!\d)/.test(t) && /\[\s*-?13\s*\]/.test(t));
+  if (i50 < 0) return bahnLesen(zeilen, { ...v }, { mitG50 });
+  const t50 = L[i50];
+  const fx = /X\s*\[\s*13\s*\]/.test(t50) ? 1 : 0;
+  const fy = /Y\s*\[\s*13\s*\]/.test(t50) ? 1 : /Y\s*\[\s*-13\s*\]/.test(t50) ? -1 : 0;
+  let marke = null;
+  for (let k = i50 - 1; k >= 0; k--) { const m = L[k].match(/^(M\d{3}P\d+)/); if (m) { marke = m[1]; break; } }
+  const vor = bahnLesen(zeilen.slice(0, i50 + 1), { ...v }, { mitG50 });
+  const p0 = vor[vor.length - 1];
+  const k1 = prog.k1 || [], S1 = k1.map(sauber);
+  const j = marke ? S1.findIndex((t) => t.startsWith(marke)) : -1;
+  if (!p0 || j < 0) return bahnLesen(zeilen, { ...v }, { mitG50 });
+  let j2 = S1.findIndex((t, k) => k > j && /^M\d{3}(?!\d)/.test(t) && /^M[2-9]\d\d/.test(t));
+  if (j2 < 0) j2 = S1.length;
+  const vorher = bahnLesen(k1.slice(0, j + 1), { ...v });
+  const s1 = vorher[vorher.length - 1] || null;
+  const weg1 = bahnLesen(k1.slice(j + 1, j2), { ...v }, { start: s1 });
+  const q0 = s1 || weg1[0];
+  const folge = q0 ? weg1.map((q) => ({
+    x: p0.x + fx * ((q.x ?? q0.x) - q0.x), z: p0.z + (mitZ ? (q.z ?? q0.z) - q0.z : 0),
+    y: p0.y + fy * ((q.y || 0) - (q0.y || 0)), c: p0.c, vor: q.vor, nr: i50,
+  })) : [];
+  const p1 = folge[folge.length - 1] || p0;
+  const rest = bahnLesen(zeilen.slice(i50 + 1), { ...v }, { mitG50: false, start: { x: p1.x, z: p1.z, y: p1.y, c: p1.c } })
+    .map((p) => ({ ...p, nr: p.nr + i50 + 1 }));
+  return [...vor, ...folge, ...rest];
+}
+
 export function simAufbauen(wRoh) {
   const w = wirksamW(wRoh);
   const A = num(w.A) || 10, W = num(w.W) || 10, B = num(w.B) || 0;
@@ -396,6 +506,8 @@ export function simAufbauen(wRoh) {
   const prog = programmeMitHand(w);
   const marken = prog.marken || markenVergeben(w.bloecke || []);
   const vorne = -Math.abs(num(w.schlicht) || 0);
+  // SW-20 (1.669.0): drei Kanäle, Kanal 3 arbeitet an der Hauptspindel
+  const sw = kanalZahl() > 2;
   const schritte = [];
   let cZ = -Infinity, hatGew = false;
   (w.bloecke || []).forEach((bRoh, i) => {
@@ -403,18 +515,34 @@ export function simAufbauen(wRoh) {
     const platz = "T" + (b.platz || "");
     const titel = platz + (b.bez ? " " + b.bez : "");
     const art = b.art || "dreh";
-    // Kanal 3 der SW-20 (1.666.0) rechnet die Simulation noch nicht
-    if (art.startsWith("k3") || art === "k2b") return;
+    // Kanal 3 der SW-20: seit 1.669.0 in der Simulation (an der Hauptspindel)
+    const k3 = sw && art.startsWith("k3");
+    if (!sw && (art.startsWith("k3") || art === "k2b")) return;
     const gegen = (art === "front" || art === "quer") && b.spindel === "gegen";
-    const kanal = art === "k2" || art === "k2a" || gegen ? 2 : 1;
+    const kanal = art === "k2" || art === "k2a" || art === "k2b" || gegen ? 2 : 1;
     const wzOk = wzVollstaendig(bRoh);
     const wa = wzOk ? wzArt(bRoh) : null;
-    const s = { i, id: b.id, kanal, titel, platz: Number(b.platz) || 0, art, gegen, wz: wzOk ? bRoh.wz : null, wzArt: wa, punkte: [], modus: null, status: "" };
-    let zeilen = kanal === 2 ? blockZeilen2(b, marken[b.id], w) : blockZeilen(b, w, marken[b.id]);
+    const s = { i, id: b.id, kanal, pfad: k3 ? 3 : kanal, titel, platz: Number(b.platz) || 0, art, gegen, wz: wzOk ? bRoh.wz : null, wzArt: wa, punkte: [], modus: null, status: "" };
+    let zeilen = k3 ? blockZeilen3(b, w, marken[b.id]) : kanal === 2 ? blockZeilen2(b, marken[b.id], w) : blockZeilen(b, w, marken[b.id]);
     // Seit 1.618.1: genau so, wie es im Programmfenster steht (mit Handänderungen)
-    const mitHand = kanal === 2 ? bereichMitHand(prog.auto2, prog.k2, prog.bereiche2[b.id]) : bereichMitHand(prog.auto1, prog.k1, prog.bereiche[b.id]);
+    const mitHand = k3 ? bereichMitHand(prog.auto3, prog.k3, prog.bereiche3[b.id])
+      : kanal === 2 ? bereichMitHand(prog.auto2, prog.k2, prog.bereiche2[b.id]) : bereichMitHand(prog.auto1, prog.k1, prog.bereiche[b.id]);
     if (mitHand) zeilen = mitHand;
-    if (ANGETRIEBEN.has(art)) {
+    if (sw && kanal === 1 && !k3) { const l = bereichLage(prog.auto1, prog.k1, prog.bereiche[b.id]); s.zeile1 = l ? l[0] : Infinity; }
+    if (k3) {
+      k3Schritt(s, b, zeilen, v, W, prog, wa);
+      if (s.modus === "c") for (const p of s.punkte) if (p.vor) cZ = Math.max(cZ, p.t[0] + (num(bRoh.wz?.d) || 6) / 2 + 0.5);
+    } else if (sw && (art === "front" || art === "k2b") && zeilen.some((z) => g50Z(z) != null)) {
+      // SW-20 Frontbohrapparat Kanal 1 (G50Z wie Patricks T600): Z nach
+      // G50 ist die Lage im Teil, die Spitze steht Vorposition − Nullpunkt
+      // vor der Drehebene
+      const roh = bahnLesen(zeilen, { ...v }, { mitG50: true });
+      s.zeilen = zeilen;
+      s.punkte = roh.map((p) => ({ z: p.z, r: Math.abs(p.x || 0) / 2, vor: p.vor, nr: p.nr, mx: (p.x || 0) / 2, my: p.y || 0 }));
+      const dz = vorG50(zeilen);
+      if (kanal === 1 && dz != null) s.dzVorne = -dz;
+      s.modus = wa === "fraes" ? "bohr" : wa === "dreh" ? "dreh" : null;
+    } else if (ANGETRIEBEN.has(art)) {
       // Frontangetrieben an der Gegenspindel: X und Y stehen in Kanal 1,
       // dazu der Kanal-1-Code zwischen den Markenpaaren an ihrer Stelle
       if (art === "quer" && gegen) {
@@ -468,7 +596,8 @@ export function simAufbauen(wRoh) {
     } else {
       // Seit 1.561.0: Kanal 2 wie eingelesen ohne G50 (ältere Programme
       // bohren direkt mit der Gegenspindel) rechnet wie ein Frontwerkzeug
-      const ohneG50 = art === "k2" && !zeilen.some((z) => /G50/i.test(z));
+      // Seit 1.669.0 zählt nur G50 mit X oder Z (SW-20: G50S4000 ist die Drehzahlbegrenzung)
+      const ohneG50 = art === "k2" && !zeilen.some((z) => /G50/i.test(z) && /[XZ]/i.test(String(z).replace(/\(.*?\)/g, "").replace(/G50/i, "")));
       const roh = bahnLesen(zeilen, { ...v }, { mitG50: art === "k2" && !ohneG50 });
       s.zeilen = zeilen;
       // Bohr- und Fräswerkzeuge an Front: Teil 0.5 mm vor „Anfahren Z“,
@@ -515,7 +644,14 @@ export function simAufbauen(wRoh) {
   const greif = Math.max(1, Math.min(W - 0.5, num(w.ueber) || Math.max(2, W / 2)));
   const ab1 = abstechSchritt(A, W + Math.abs(num(w.plan) || 0), B, num(w.X) || 0, Math.abs(num(w.annaehern) ?? 10), greif);
   // Kanal 1 zuerst, dann Abstechen, dann Kanal 2, je in der Reihenfolge der Bearbeitungen
-  const sortiert = [...schritte.filter((s) => s.kanal === 1), ab1, ...schritte.filter((s) => s.kanal === 2)];
+  // SW-20: Kanal 3 dort, wo Kanal 1 mit M133 auf Kanal 3 wartet (O1272:
+  // „M131(1) M133(1) … M131(2)“), ohne M133 nach Kanal 1
+  let vor1 = schritte.filter((s) => s.kanal === 1 && s.pfad !== 3), nach1 = [];
+  if (sw) {
+    const i133 = (prog.k1 || []).findIndex((z) => /^M133(?!\d)/.test(sauber(z)));
+    if (i133 >= 0) { nach1 = vor1.filter((s) => s.zeile1 > i133); vor1 = vor1.filter((s) => !(s.zeile1 > i133)); }
+  }
+  const sortiert = [...vor1, ...schritte.filter((s) => s.pfad === 3), ...nach1, ab1, ...schritte.filter((s) => s.kanal === 2)];
   let ab = 0;
   sortiert.forEach((s) => { s.von = ab; ab += s.punkte.length; s.bis = ab; });
   const zMax = Math.min(300, Math.max(W + B + 3, ...sortiert.filter((s) => s.kanal === 1 && !s.achse).flatMap((s) => s.punkte.filter((p) => p.vor).map((p) => p.z + 1))));
@@ -524,6 +660,7 @@ export function simAufbauen(wRoh) {
   // der Führungsbüchse aus dem Bild läuft
   const zStange = zMax + Math.max(80, 4 * (zMax - vorne + A));
   return {
+    sw, swFront: sw ? swFrontVon(wRoh) : [],
     roh: { A, W, B, vorne }, schritte: sortiert, gesamt: ab, zMax, zStange, hatK2: sortiert.some((s) => s.kanal === 2),
     // Platz 34: T3400 oder T3421–T3423 montiert, die Simulation zeigt nur das Montierte
     t34: t34Von(wRoh),

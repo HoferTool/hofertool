@@ -831,8 +831,14 @@ const ohne = (a, b) => new Set([...a].filter((i) => !b.has(i)));
 // mit Handänderungen. bereich = [von, bis] ab 1 im erzeugten Programm auto;
 // über die gleichen Zeilen von auto und mit findet es Anfang und Ende dort.
 export function bereichMitHand(auto, mit, bereich) {
+  const l = bereichLage(auto, mit, bereich);
+  return l ? mit.slice(l[0], l[1] + 1) : null;
+}
+// Seit 1.669.0: Lage [von, bis] (ab 0) des Bereichs im Programm mit
+// Handänderungen, für die Simulation der SW-20 (M131 / M133 davor)
+export function bereichLage(auto, mit, bereich) {
   if (!bereich) return null;
-  if (auto === mit || auto.length === mit.length && auto.every((z, i) => z === mit[i])) return auto.slice(bereich[0] - 1, bereich[1]);
+  if (auto === mit || auto.length === mit.length && auto.every((z, i) => z === mit[i])) return [bereich[0] - 1, bereich[1] - 1];
   const zu = new Map(gleicheZeilen(auto, mit));
   const a = bereich[0] - 1, b = bereich[1] - 1;
   let von = zu.get(a);
@@ -845,7 +851,7 @@ export function bereichMitHand(auto, mit, bereich) {
     let k = b + 1; while (k < auto.length && !zu.has(k)) k++;
     bis = k < auto.length ? zu.get(k) - 1 : mit.length - 1;
   }
-  return bis >= von ? mit.slice(von, bis + 1) : [];
+  return bis >= von ? [von, bis] : [von, von - 1];
 }
 
 function ausEingelesen(r, h) {
