@@ -12,7 +12,7 @@ import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { gesichtLaden, gesichtLesen, kameraStarten, kameraMoeglich } from "./gesicht.js";
 
-const ANZAHL = 6;
+const ANZAHL = 8;
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function Fenster({ zu, personId, name }) {
@@ -50,7 +50,7 @@ function Fenster({ zu, personId, name }) {
         const g = await gesichtLesen(video.current);
         if (!g) setText("Kein Gesicht zu sehen. Näher hin und gut beleuchtet.");
         else if (g.anzahl > 1) setText("Bitte nur eine Person vor der Kamera.");
-        else if (g.gross < 0.18) setText("Etwas näher an die Kamera.");
+        else if (g.gross < 0.12) setText("Etwas näher an die Kamera.");
         else { muster.push(g.muster); setText("Aufgenommen " + muster.length + " von " + ANZAHL + " … Kopf leicht bewegen."); }
         await warte(350);
       }

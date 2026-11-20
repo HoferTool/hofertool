@@ -35,11 +35,16 @@ export function gesichtLaden() {
 
 // Ein Gesicht im Bild: { muster: Array(128), gross, mitte } oder null.
 // Bei mehreren Gesichtern zählt das grösste (wer vor dem Panel steht).
+// Seit 1.658.0 (Patrick 20. November 2026: „funktioniert schlecht auf dem
+// iPad“) mit feinerem Raster 416, und findet es nichts, nochmals mit 608:
+// so kommen auch Gesichter weiter weg oder schräg von unten dazu.
 export async function gesichtLesen(video) {
   const api = await gesichtLaden();
   if (!video || video.readyState < 2) return null;
-  const erg = await api.detectAllFaces(video, new api.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
+  const lesen = (gr) => api.detectAllFaces(video, new api.TinyFaceDetectorOptions({ inputSize: gr, scoreThreshold: 0.4 }))
     .withFaceLandmarks().withFaceDescriptors();
+  let erg = await lesen(416);
+  if (!erg || !erg.length) erg = await lesen(608);
   if (!erg || !erg.length) return null;
   const g = erg.sort((a, b) => b.detection.box.area - a.detection.box.area)[0];
   const b = g.detection.box;
@@ -57,27 +62,43 @@ function abstand(a, b) {
   return Math.sqrt(s);
 }
 
-// Unter 0.45 gilt als dieselbe Person (face-api nennt 0.6 als Grenze,
-// wir sind strenger, damit nie für jemand anderen gestempelt wird).
-// Und der Zweitbeste muss deutlich weiter weg sein.
-export const GRENZE = 0.45;
+// Mittelwert aller Aufnahmen einer Person: liegt näher an „ihrem“
+// Gesicht als jede einzelne Aufnahme mit Licht und Kopfhaltung von dort.
+function mittel(liste) {
+  const ok = (liste || []).filter((m) => Array.isArray(m) && m.length === 128);
+  if (ok.length < 2) return null;
+  const s = new Array(128).fill(0);
+  for (const m of ok) for (let i = 0; i < 128; i++) s[i] += m[i];
+  return s.map((x) => x / ok.length);
+}
+
+// Unter GRENZE gilt als dieselbe Person (face-api nennt 0.6 als Grenze,
+// wir bleiben strenger, damit nie für jemand anderen gewählt wird), und
+// der Zweitbeste muss deutlich weiter weg sein. Seit 1.658.0 0.5 statt
+// 0.45 und Vorsprung 0.05 statt 0.06, dafür muss das Panel die Person in
+// 2 von 3 Bildern finden (Panel.jsx).
+export const GRENZE = 0.5;
+export const VORSPRUNG = 0.05;
 export function personFinden(muster, gesichter) {
   const je = [];
   for (const g of gesichter || []) {
     let best = Infinity;
-    for (const m of g.muster || []) if (Array.isArray(m) && m.length === muster.length) best = Math.min(best, abstand(muster, m));
+    const alle = (g.muster || []).filter((m) => Array.isArray(m) && m.length === muster.length);
+    const mi = mittel(alle);
+    if (mi) alle.push(mi);
+    for (const m of alle) best = Math.min(best, abstand(muster, m));
     if (best < Infinity) je.push({ id: g.person_id, d: best });
   }
   je.sort((a, b) => a.d - b.d);
   const [erst, zweit] = je;
   if (!erst || erst.d >= GRENZE) return null;
-  if (zweit && zweit.d - erst.d < 0.06) return null;
+  if (zweit && zweit.d - erst.d < VORSPRUNG) return null;
   return erst;
 }
 
 export async function kameraStarten(video) {
   const s = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }, audio: false,
+    video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false,
   });
   video.srcObject = s;
   video.setAttribute("playsinline", "");

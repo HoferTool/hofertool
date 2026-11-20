@@ -33,8 +33,13 @@ function useErkennung({ an, aktiv, leute, waehlen }) {
   const [gesichter, setGesichter] = useState(null);
   const [stand, setStand] = useState("");
   const [fehler, setFehler] = useState(false);
+  const [hinweis, setHinweis] = useState("");
   const pause = useRef({});
-  const zuletzt = useRef(null);
+  const letzte = useRef([]);
+  const nichtErkannt = useRef(0);
+  // Wen die Kamera zuletzt gewählt hat, mit dem Muster aus dem Bild: nach
+  // dem Stempeln lernt das Panel es dazu (lernen)
+  const erkannt = useRef(null);
   const aktivRef = useRef(aktiv);
   aktivRef.current = aktiv;
   const leuteRef = useRef(leute);
@@ -62,20 +67,35 @@ function useErkennung({ an, aktiv, leute, waehlen }) {
       if (aktivRef.current && video.current) {
         try {
           const g = await gesichtLesen(video.current);
-          const p = g && g.gross >= 0.15 && g.sicher >= 0.6 ? personFinden(g.muster, gesichter) : null;
-          if (p && !(pause.current[p.id] > Date.now())) {
-            if (zuletzt.current === p.id) {
-              const person = (leuteRef.current || []).find((x) => x.id === p.id);
-              zuletzt.current = null;
-              if (person) { pause.current[p.id] = Date.now() + 20000; waehlenRef.current(person); }
-            } else zuletzt.current = p.id;
-          } else zuletzt.current = null;
+          // Seit 1.658.0 kleiner und unsicherer erlaubt (iPad am Eingang,
+          // Leute stehen weiter weg), dafür 2 von 3 Bildern dieselbe Person
+          const gut = g && g.gross >= 0.08 && g.sicher >= 0.5;
+          const p = gut ? personFinden(g.muster, gesichter) : null;
+          const r = letzte.current;
+          r.push(p ? { id: p.id, d: p.d, muster: g.muster } : null);
+          while (r.length > 3) r.shift();
+          if (!g) { setHinweis(""); nichtErkannt.current = 0; }
+          else if (!gut) setHinweis(g.gross < 0.08 ? "Etwas näher kommen" : "Bitte gerade in die Kamera schauen");
+          else if (!p) { nichtErkannt.current++; setHinweis(nichtErkannt.current >= 6 ? "Nicht erkannt. Unten auf „Nicht mit Gesichtserkennung“ tippen." : "Einen Moment …"); }
+          else { nichtErkannt.current = 0; setHinweis("Einen Moment …"); }
+          const treffer = p ? r.filter((x) => x && x.id === p.id) : [];
+          if (p && treffer.length >= 2 && !(pause.current[p.id] > Date.now())) {
+            const person = (leuteRef.current || []).find((x) => x.id === p.id);
+            if (person) {
+              const bester = treffer.sort((a, b) => a.d - b.d)[0];
+              erkannt.current = { id: p.id, d: bester.d, muster: bester.muster };
+              letzte.current = [];
+              setHinweis("");
+              pause.current[p.id] = Date.now() + 20000;
+              waehlenRef.current(person);
+            }
+          }
         } catch (f) {
           setStand("Gesichtserkennung: " + alt.fehlertext(f));
           setFehler(true);
         }
-      }
-      if (!weg) timer = setTimeout(runde, 700);
+      } else if (letzte.current.length) { letzte.current = []; setHinweis(""); }
+      if (!weg) timer = setTimeout(runde, 450);
     };
     kameraStarten(video.current).then((s) => {
       if (weg) { s(); return; }
@@ -86,7 +106,26 @@ function useErkennung({ an, aktiv, leute, waehlen }) {
     return () => { weg = true; clearTimeout(timer); if (stopp) stopp(); };
   }, [bereit, gesichter]);
 
-  return { video, bereit, stand, fehler, anzahl: gesichter ? gesichter.length : 0 };
+  // Nachlernen (seit 1.658.0): hat die Kamera die Person sicher gewählt
+  // (Abstand unter 0.42) und sie stempelt, kommt das Muster aus dem Bild
+  // dieses iPads dazu, mit seinem Licht und Blickwinkel. Die Datenbank
+  // behält davon die letzten 8 (zeit_panel_gesicht_lernen).
+  function lernen(personId) {
+    const e = erkannt.current;
+    erkannt.current = null;
+    if (!e || e.id !== personId || !(e.d < 0.42)) return null;
+    alt.db.rpc("zeit_panel_gesicht_lernen", { p_person: personId, p_muster: e.muster }).then((r) => {
+      if (r.error) return;
+      setGesichter((alt0) => (alt0 || []).map((g) => g.person_id === personId ? { ...g, muster: [...(g.muster || []), e.muster] } : g));
+    }, () => {});
+    return personId;
+  }
+  function verlernen(personId) {
+    alt.db.rpc("zeit_panel_gesicht_verlernen", { p_person: personId }).then(() => {}, () => {});
+    setGesichter((alt0) => (alt0 || []).map((g) => g.person_id === personId ? { ...g, muster: (g.muster || []).slice(0, -1) } : g));
+  }
+
+  return { video, bereit, stand, fehler, hinweis, lernen, verlernen, vergessen: () => { erkannt.current = null; }, anzahl: gesichter ? gesichter.length : 0 };
 }
 
 // Saldo am Panel ohne Stempeln (Wunsch Patrick 18. November 2026: „es
@@ -209,7 +248,8 @@ export default function Panel() {
       .then((x) => x, (f) => ({ error: f }));
     setLaeuft(false);
     if (r.error || !r.data) { alt.meldung("Nicht gestempelt: " + alt.fehlertext(r.error), "fehler"); return; }
-    setFertig({ art, zeit: uhrzeit(r.data.zeit || new Date().toISOString()), name: wahl.full_name, id: r.data.id });
+    const gelernt = perGesicht ? erk.lernen(wahl.id) : (erk.vergessen(), null);
+    setFertig({ gelernt, art, zeit: uhrzeit(r.data.zeit || new Date().toISOString()), name: wahl.full_name, id: r.data.id });
     setWahl(null);
     laden();
   }
@@ -218,6 +258,8 @@ export default function Panel() {
     const r = await alt.db.rpc("zeit_panel_zurueck", { p_id: fertig.id });
     if (r.error || r.data === false) { alt.meldung("Geht nicht mehr zurück, bitte in HOFERTIME korrigieren.", "warn"); return; }
     alt.meldung("Zurückgenommen.", "gut");
+    // Falsche Person: das eben Gelernte wieder weg
+    if (fertig.gelernt) erk.verlernen(fertig.gelernt);
     setFertig(null);
     laden();
   }
@@ -289,6 +331,7 @@ export default function Panel() {
               <circle className="ze-pablo__pupille" cx="134" cy="106" r="16" fill="#003884" /></svg>}
         </div>
         <div className="ze-pablo__text">SCHAU MIR IN DIE AUGEN</div>
+        <div className="ze-pablo__hinweis" id="ze-panel-hinweis">{erk.hinweis || "\u00a0"}</div>
         <button className="ze-pablo__ohne" id="ze-panel-ohne" onClick={() => setNamen(true)}>Nicht mit Gesichtserkennung</button>
       </section>);
   } else {

@@ -14944,3 +14944,6 @@ body.dunkel .ze-wlan__link code { background: #161c23; }
 .wartung-huelle #wartung.wartung--fenster .wartung__knoepfe .knopf { font-size: 13px !important; padding: 6px 10px !important;
   min-height: 34px !important; height: auto !important; line-height: 1.2 !important; flex: 1 1 auto; padding-left: 6px !important; padding-right: 6px !important; }
 .wartung-huelle #wartung.wartung--fenster .wartung__ziel { font-size: 11px; padding: 1px 6px; }
+
+/* HOFERTIME 1.658.0: Hinweis der Gesichtserkennung unter „Schau mir in die Augen“ */
+.ze-pablo__hinweis { min-height: 1.6em; font-size: 1.15rem; opacity: .85; text-align: center; margin-top: -.2rem; }
