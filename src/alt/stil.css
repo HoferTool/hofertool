@@ -14984,3 +14984,9 @@ body:not(.dunkel) .cam .cam-spalte--kopf.cam-spalte--k3 { background: #e7e0f3; b
 .camtyp-vorschau--3 { grid-template-columns: 1fr 1fr 1fr; }
 .cam-bearb--spaeter { padding: 10px 12px; border: 1px dashed #9fb3c8; border-radius: 10px; margin: 10px 0; font-size: 14px; }
 .cam-typ select { font: inherit; font-weight: 700; padding: 2px 6px; }
+
+/* Seit 1.664.0: Platznummern im Bild der SW-20 */
+.cam-bild__nr { font: 700 11px system-ui, sans-serif; fill: #c25e00; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.cam-sw-bestueck { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+.cam-sw-bestueck label { display: inline-flex; gap: 4px; align-items: center; cursor: pointer; }
+.cam-sw-kanaele { display: inline-flex; gap: 6px; margin-left: 8px; }

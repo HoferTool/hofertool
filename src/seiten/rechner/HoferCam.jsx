@@ -28,7 +28,7 @@ import AbstecherBild from "./AbstecherBild.jsx";
 import SchnabelBild from "./SchnabelBild.jsx";
 import { hofercamTutorialOeffnen } from "../start/NeuesTutorial.jsx";
 import { EinstichBild, EinstichSteuerung } from "./CamEinstichBild.jsx";
-import { nrKanal, FELDER, HD_STUFEN, abVersatz, AB_VERSATZ_VORGABE, plaetzeVon, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, handZurueck, markenPaare, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
+import { SW20_BILD, SW20_FRONT_PLAETZE, SW20_KANAL_PLAETZE, sw20Bereich, swFrontVon, nrKanal, FELDER, HD_STUFEN, abVersatz, AB_VERSATZ_VORGABE, plaetzeVon, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, handZurueck, markenPaare, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Seit 1.427.0 (Wunsch Patrick 5. November 2026: „vordefinierte
 // Bearbeitungen aus einer Liste einfügen … in eine bestehende
@@ -365,6 +365,7 @@ function MaschinenBild({ block, t34, gruppe }) {
     win.addEventListener("resize", rechnen);
     return () => { win.removeEventListener("resize", rechnen); };
   }, [!!block || !!gruppe]);
+  if (gruppe && gruppe.bereiche) return <GruppenBild gruppe={gruppe} ref_={ref} mass={mass} />;
   if (gruppe && gruppe.bloecke.length) return <GruppenBild gruppe={gruppe} t34={t34} ref_={ref} mass={mass} />;
   if (!block) return null;
   const r = bildBereich(block, t34);
@@ -402,18 +403,23 @@ function MaschinenBild({ block, t34, gruppe }) {
 // so gross wie ein Kärtchen, nicht wie beim Platz einer Bearbeitung
 const GRUPPE_BILD = 300;
 function GruppenBild({ gruppe, t34, ref_, mass }) {
-  const rs = gruppe.bloecke.map((b) => bildBereich(b, t34));
+  // Seit 1.664.0 bringt die SW-20 ihre Bereiche und ihr Bild selbst mit
+  const rs = gruppe.bereiche || gruppe.bloecke.map((b) => bildBereich(b, t34));
+  const bild = gruppe.bild || { datei: t34 === "3400" ? "hilfe/star-sb20rg-ohne34e.png" : "hilfe/star-sb20rg.png", b: 512, h: 512 };
+  // Bei mehreren Plätzen je Platz ein kleines Schild mit der T-Nr.
+  const schilder = gruppe.bereiche && gruppe.nummern;
   return (
-    <div className="cam-bild cam-bild--gruppe" id="cam-bild" data-gruppe={gruppe.art} data-bereiche={rs.length} ref={ref_} style={{ width: Math.min(mass || GRUPPE_BILD, GRUPPE_BILD) + 12 }}>
-      <svg viewBox="0 0 512 512">
+    <div className="cam-bild cam-bild--gruppe" id="cam-bild" data-gruppe={gruppe.art} data-bereiche={rs.length} ref={ref_} style={{ width: Math.min(mass || GRUPPE_BILD, gruppe.gross || GRUPPE_BILD) + 12 }}>
+      <svg viewBox={`0 0 ${bild.b} ${bild.h}`}>
         <defs><mask id="cam-bild-maske">
-          <rect x="0" y="0" width="512" height="512" fill="#fff" />
+          <rect x="0" y="0" width={bild.b} height={bild.h} fill="#fff" />
           {rs.map((r, i) => <rect key={i} x={r.x - 3} y={r.y - 3} width={r.w + 6} height={r.h + 6} rx="6" fill="#000" />)}
         </mask></defs>
-        <image href={import.meta.env.BASE_URL + (t34 === "3400" ? "hilfe/star-sb20rg-ohne34e.png" : "hilfe/star-sb20rg.png")} x="0" y="0" width="512" height="512" />
-        <rect x="0" y="0" width="512" height="512" fill="rgba(20,30,45,.45)" mask="url(#cam-bild-maske)" />
+        <image href={import.meta.env.BASE_URL + bild.datei} x="0" y="0" width={bild.b} height={bild.h} />
+        <rect x="0" y="0" width={bild.b} height={bild.h} fill="rgba(20,30,45,.45)" mask="url(#cam-bild-maske)" />
         {rs.map((r, i) => <rect key={i} className={"cam-bild__rahmen cam-bild__rahmen--blink" + (r.verdeckt ? " cam-bild__rahmen--verdeckt" : "")}
           x={r.x} y={r.y} width={r.w} height={r.h} rx="5" />)}
+        {schilder && rs.map((r, i) => <text key={"t" + i} className="cam-bild__nr" x={r.x + r.w / 2} y={r.y + r.h / 2 + 4} textAnchor="middle">T{gruppe.nummern[i]}</text>)}
       </svg>
       <div className="cam-bild__text">{gruppe.text}</div>
     </div>
@@ -626,6 +632,13 @@ export default function HoferCam() {
   const [aktiv, setAktivRoh] = useState(aktivId);
   const [ueber, setUeber] = useState(null);
   const [knopfUeber, setKnopfUeber] = useState(null);
+  // SW-20: Maus oder Fokus über einem Platz der Bestückung bzw. einem Kanal
+  const swMaus = (art, sw, text) => ({
+    onPointerEnter: (e) => { if (e.pointerType === "mouse") setKnopfUeber({ art, sw, text }); },
+    onPointerLeave: () => setKnopfUeber((x) => (x && x.art === art ? null : x)),
+    onFocus: () => setKnopfUeber({ art, sw, text }),
+    onBlur: () => setKnopfUeber((x) => (x && x.art === art ? null : x)),
+  });
   const knopfMaus = (art, label) => ({
     onPointerEnter: (e) => { if (e.pointerType === "mouse") setKnopfUeber({ art, text: label + " " + spanne(art === "k2a" ? "k2" : art, w) }); },
     onPointerLeave: () => setKnopfUeber((x) => (x && x.art === art ? null : x)),
@@ -887,6 +900,28 @@ export default function HoferCam() {
             <AbstecherBild art={w.abArt} versatz={String(w.abVersatz ?? "").trim() || AB_VERSATZ_VORGABE} b={w.B} abz={abVersatz(w)} /></div>}
           </span>
         </fieldset>}
+        {/* Seit 1.664.0 (Patrick 20. November 2026): Bestückung der SW-20. Der
+            Frontbohrapparat sitzt wahlweise statt des querangetriebenen Werkzeugs
+            auf T500, T600, T1300, T1400 oder T1500 (Handbuch); die Maus über
+            einem Platz oder einem Kanal zeigt die Werkzeuge im Bild */}
+        {!sb && <fieldset className="cam-gruppe" id="cam-sw-bestueckung">
+          <legend>Bestückung</legend>
+          <div className="cam-sw-bestueck">
+            <span title="Statt des querangetriebenen Werkzeugs kann auf diesen Plätzen ein Frontbohrapparat montiert sein">Frontbohrapparat auf:</span>
+            {SW20_FRONT_PLAETZE.map((p) => {
+              const an = swFrontVon(w).includes(p);
+              return <label key={p} data-cam-swfront={p} {...swMaus("p" + p, [p], "T" + p)}>
+                <input type="checkbox" checked={an} onChange={(e) => {
+                  const l = swFrontVon(w).filter((x) => x !== p);
+                  setze("swFront", e.target.checked ? [...l, p].sort((a, b) => a - b) : l);
+                }} /> T{p}</label>;
+            })}
+            <span className="cam-sw-kanaele">
+              {[[1, "Kanal 1"], [3, "Kanal 3"], [2, "Kanal 2"]].map(([k, t]) => <span key={k} className="knopf knopf--klein" tabIndex={0} data-cam-swkanal={k}
+                {...swMaus("k" + k, SW20_KANAL_PLAETZE[k], t + ": Werkzeuge")}>{t} im Bild</span>)}
+            </span>
+          </div>
+        </fieldset>}
         {eigeneFelder("kopf").length > 0 && <fieldset className="cam-gruppe" id="cam-eigene">
           <legend>Eigene Felder</legend>
           {eigeneFelder("kopf").map((f) => <EigenFeld key={f.id} f={f} o={w} merkmal="data-cam-eigen"
@@ -894,6 +929,10 @@ export default function HoferCam() {
         </fieldset>}
       </div>}
 
+      {!sb && knopfUeber && knopfUeber.sw && (() => {
+        const rs = knopfUeber.sw.map((p) => sw20Bereich(p, w)).filter(Boolean);
+        return <MaschinenBild gruppe={{ art: knopfUeber.art, text: knopfUeber.art[0] === "p" && rs[0] ? "T" + knopfUeber.sw[0] + " · " + rs[0].text : knopfUeber.text, bereiche: rs, nummern: knopfUeber.sw, bild: SW20_BILD, gross: 420 }} />;
+      })()}
       {!sb && <div className="cam-bearb cam-bearb--spaeter" id="cam-bearb-spaeter">
         <b>Bearbeitungen</b> Für die {typInfo(w.typ).name} gibt es vorerst nur Kopf und Ende der drei Kanäle.
         Die Bearbeitungen kommen Schritt für Schritt nach deinen Beispielen. Bis dahin lässt sich jede Zeile im

@@ -917,6 +917,51 @@ const QUER = [[255, 195, 15, 40], [269, 195, 15, 40], [284, 193, 16, 38], [298, 
 // Kanal 2 T2100–T2400 von rechts (Patrick 5. November 2026)
 const KANAL2 = [[145, 354, 43, 35], [127, 364, 41, 35], [109, 374, 39, 35], [93, 383, 40, 35]];
 const r4 = (a, text, verdeckt) => ({ x: a[0], y: a[1], w: a[2], h: a[3], text, verdeckt: !!verdeckt });
+// Seit 1.664.0 (Patrick 20. November 2026): Bild der SW-20 (public/hilfe/
+// star-sw20.png, 603 × 637) mit den Plätzen je Block aus dem Handbuch
+// Kapitel 8 („T-Befehle je PATH“): Kanal 1 Platten T100–T400 (unten nach
+// oben), angetrieben quer T500–T700; Kanal 3 Platten T1100–T1200,
+// angetrieben quer T1300–T1500, Frontbohrapparat fest T1600–T1900;
+// Kanal 2 Rückseiteneinheit oben T2400–T2100, unten T2800–T2500 (von
+// links). Lage von Claude geschätzt, Patrick: „wir können immer noch
+// korrigieren“
+export const SW20_BILD = { datei: "hilfe/star-sw20.png", b: 603, h: 637 };
+const SW20_FLAECHEN = {
+  100: [228, 393, 34, 15], 200: [228, 377, 34, 15], 300: [228, 361, 34, 15], 400: [228, 345, 34, 15],
+  500: [233, 296, 28, 21], 600: [233, 275, 28, 20], 700: [233, 255, 28, 20],
+  1100: [325, 299, 38, 16], 1200: [325, 277, 38, 16],
+  1300: [335, 238, 30, 17], 1400: [333, 206, 45, 18], 1500: [333, 190, 45, 15],
+  1600: [340, 131, 40, 19], 1700: [340, 111, 40, 19], 1800: [340, 91, 40, 19], 1900: [340, 71, 40, 19],
+};
+[2400, 2300, 2200, 2100].forEach((p, i) => { SW20_FLAECHEN[p] = [160 + 25 * i, 485, 26, 50]; });
+[2800, 2700, 2600, 2500].forEach((p, i) => { SW20_FLAECHEN[p] = [160 + 25 * i, 537, 26, 50]; });
+// Plätze, auf denen statt des querangetriebenen Werkzeugs der
+// Frontbohrapparat sitzen kann (Handbuch: T500, T600, T1300–T1500; T700
+// laut Handbuch nur Schlitzapparat, Patrick nannte auch T700)
+export const SW20_FRONT_PLAETZE = [500, 600, 1300, 1400, 1500];
+export const SW20_KANAL_PLAETZE = {
+  1: [100, 200, 300, 400, 500, 600, 700],
+  3: [1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900],
+  2: [2100, 2200, 2300, 2400, 2500, 2600, 2700, 2800],
+};
+// Bestückung: Liste der Plätze mit Frontbohrapparat in w.swFront
+export function swFrontVon(w) {
+  const l = Array.isArray(w && w.swFront) ? w.swFront.map(Number) : [];
+  return SW20_FRONT_PLAETZE.filter((p) => l.includes(p));
+}
+export function sw20Bereich(platz, w) {
+  const p = Number(platz);
+  const a = SW20_FLAECHEN[p];
+  if (!a) return null;
+  let text;
+  if (p <= 400) text = p === 100 ? "Kanal 1 · Abstechen" : "Kanal 1 · Drehwerkzeug";
+  else if (p <= 700) text = "Kanal 1 · " + (swFrontVon(w).includes(p) ? "Frontbohrapparat" : "angetrieben quer");
+  else if (p <= 1200) text = "Kanal 3 · Drehwerkzeug";
+  else if (p <= 1500) text = "Kanal 3 · " + (swFrontVon(w).includes(p) ? "Frontbohrapparat" : "angetrieben quer");
+  else if (p <= 1900) text = "Kanal 3 · Frontbohrapparat fest";
+  else text = "Kanal 2 · Rückseite " + (p === 2400 || p === 2800 ? "fest" : "fest oder angetrieben");
+  return r4(a, text);
+}
 export function bildBereich(b, t34) {
   const p = Number(b.platz);
   if (b.art === "k2" || b.art === "k2a") return r4(KANAL2[Math.max(0, Math.min(3, Math.round(p / 100) - 21))], "Kanal 2");

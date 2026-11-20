@@ -37,6 +37,21 @@ with sync_playwright() as p:
     pruefe("M200P123 in allen drei auf einer Reihe", reihe(1, "M200P123") is not None and reihe(1, "M200P123") == reihe(2, "M200P123") == reihe(3, "M200P123"))
     pruefe("M420P13 in Kanal 1 und 3 auf einer Reihe", reihe(1, "M420P13") is not None and reihe(1, "M420P13") == reihe(3, "M420P13"))
     pruefe("Keine Bearbeitungsknöpfe für Kanal 1", pg.locator("#cam-neu-dreh").count() == 0)
+    # Seit 1.664.0: Bestückung mit Frontbohrapparat und Bild der SW-20
+    pruefe("Bestückung SW-20 mit fünf Plätzen", pg.locator("[data-cam-swfront]").count() == 5)
+    pg.hover("[data-cam-swkanal='1']"); pg.wait_for_timeout(300)
+    pruefe("Kanal 1 im Bild: 7 Plätze", pg.get_attribute("#cam-bild", "data-bereiche") == "7")
+    pg.screenshot(path=ORDNER + "/sw20_bild_k1.png")
+    pg.hover("[data-cam-swkanal='3']"); pg.wait_for_timeout(300)
+    pruefe("Kanal 3 im Bild: 9 Plätze", pg.get_attribute("#cam-bild", "data-bereiche") == "9")
+    pg.screenshot(path=ORDNER + "/sw20_bild_k3.png")
+    pg.hover("[data-cam-swkanal='2']"); pg.wait_for_timeout(300)
+    pruefe("Kanal 2 im Bild: 8 Plätze", pg.get_attribute("#cam-bild", "data-bereiche") == "8")
+    pg.screenshot(path=ORDNER + "/sw20_bild_k2.png")
+    pg.click("[data-cam-swfront='1300'] input"); pg.hover("[data-cam-swfront='1300']"); pg.wait_for_timeout(300)
+    pruefe("T1300 als Frontbohrapparat", "Frontbohrapparat" in pg.inner_text("#cam-bild"))
+    pg.mouse.move(5, 5); pg.wait_for_timeout(200)
+    pruefe("Bild weg ohne Maus", pg.locator("#cam-bild").count() == 0)
     # Einlesen: drei Dateien aus dem Erzeugten mit Nr. 1272 / 2272 / 3272
     def datei(name, zeilen, alt, neu):
         t = "\n".join(zeilen).replace(alt, neu)
