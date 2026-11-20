@@ -14998,3 +14998,52 @@ body:not(.dunkel) .cam .cam-spalte--kopf.cam-spalte--k3 { background: #e7e0f3; b
 .cam-marken-kanaele { display: inline-flex; align-items: center; gap: 6px; margin-left: 4px; }
 .cam-marken-kanaele label { display: inline-flex; align-items: center; gap: 2px; cursor: pointer; }
 .cam-marken-kanal--eigen { opacity: .6; cursor: default; }
+
+/* ---------- Startseite mit Modulen, Vorschau #/startneu (seit 1.670.0) ----------
+   Wunsch Patrick 20. November 2026. Kacheln je Modul, darin die Seiten.
+   Am PC alle offen im Raster, am Handy zugeklappt, ein Tipp öffnet eines. */
+.sm-vorschau { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+  background: var(--marke-hell); border: 1px dashed var(--marke); border-radius: 8px;
+  padding: 8px 12px; margin-bottom: 12px; font-size: 14px; }
+.sm-vorschau > span { flex: 1 1 260px; }
+.sm-vorschau__haken { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+body.dunkel .sm-vorschau { background: #1d2a3d; }
+.sm-module { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 14px; margin: 4px 0 18px; }
+.sm-modul { background: var(--flaeche); border: 1px solid var(--linie); border-radius: 12px;
+  overflow: hidden; box-shadow: 0 1px 3px rgba(20, 30, 50, .08);
+  border-top: 4px solid var(--sm-farbe); display: flex; flex-direction: column; }
+.sm-modul__kopf { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  background: none; border: 0; padding: 14px 14px 10px; cursor: default; color: inherit; font: inherit; }
+.sm-modul__zeichen { flex: none; width: 44px; height: 44px; border-radius: 11px; display: grid;
+  place-items: center; background: var(--sm-farbe); color: #fff; }
+.sm-modul__zeichen svg { width: 24px; height: 24px; }
+body.dunkel .sm-modul__zeichen, body.dunkel .sm-modul__zeichen * { color: #fff !important; }
+.sm-modul__name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.sm-modul__name strong { font-size: 18px; line-height: 1.2; }
+.sm-modul__name small { color: var(--gedaempft); font-size: 13px; line-height: 1.3; }
+.sm-modul__zahl { display: none; }
+.sm-modul__liste { list-style: none; margin: 0; padding: 0 8px 10px; }
+.sm-punkt { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  background: none; border: 0; border-radius: 8px; padding: 8px 8px; cursor: pointer;
+  color: inherit; font: inherit; }
+.sm-punkt:hover, .sm-punkt:focus-visible { background: var(--marke-hell); }
+body.dunkel .sm-punkt:hover { background: #243245; }
+.sm-punkt__zeichen { flex: none; width: 22px; height: 22px; color: var(--sm-farbe); }
+.sm-punkt__zeichen svg { width: 22px; height: 22px; }
+.sm-punkt__text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.sm-punkt__text b { font-weight: 600; font-size: 15px; }
+.sm-punkt__text small { color: var(--gedaempft); font-size: 12.5px; }
+.sm-punkt__pfeil { color: var(--gedaempft); font-size: 20px; }
+@media (max-width: 640px) {
+  .sm-module { grid-template-columns: 1fr; gap: 10px; }
+  .sm-modul__kopf { cursor: pointer; padding: 12px; }
+  .sm-modul__zahl { display: grid; place-items: center; min-width: 28px; height: 28px; border-radius: 14px;
+    background: var(--marke-hell); font-size: 13px; font-weight: 600; }
+  .sm-modul:not(.sm-modul--offen) .sm-modul__liste { display: none; }
+}
+/* „Ohne Menü ansehen“: wie es nach dem Übernehmen aussähe */
+body.startneu-ohne-nav .nav { display: none !important; }
+body.startneu-ohne-nav .rahmen { grid-template-columns: none !important; display: block !important; }
+body.startneu-ohne-nav .inhalt { max-width: 1240px; margin: 0 auto; }
+.sm-module ~ #db-solar, body .kopfkarte + .gruss { margin-top: 14px; }

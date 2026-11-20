@@ -16,6 +16,7 @@ import { abwesenheit } from "../daten/abwesenheit.js";
 import NcFunktionen, { ncAnsicht } from "../seiten/NcFunktionen.jsx";
 import { statistikZurueck } from "../seiten/Statistik.jsx";
 import Kalkulation, { kalkulationZurueck } from "../seiten/Kalkulation.jsx";
+import StartModule from "../seiten/StartModule.jsx";
 import Lager from "../seiten/Lager.jsx";
 import Zeiterfassung from "../seiten/Zeiterfassung.jsx";
 import { zeitApp, istZeitAdresse, zeitHandy } from "../seiten/zeit/app.js";
@@ -170,7 +171,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.669.1";
+const APP_VERSION = "1.670.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3304,6 +3305,7 @@ function seiteSichtbar(pfad) {
   if ((pfad === "material" || pfad === "maschinen" || pfad === "statistik" || pfad === "kalender" || pfad === "einlagen" || pfad === "hofer2dto3d" || pfad === "qs") && meineRolle() === "dienst") return false;
   if (pfad === "infoboard" || pfad === "pausenraum") return infoboardSichtbar();
   if (pfad === "bildschirme") return SEITEN.some((s) => s.gruppe === "bildschirme" && seiteSichtbar(s.pfad));
+  if (pfad === "startneu") return istAdmin() && !istExtern();
   if (pfad === "kalkulation") return kalkulationSehen(profil) && !istExtern();
   // Lager für eigene Teile, provisorisch nur Admins (seit 1.557.0)
   if (pfad === "lager") return istAdmin() && !istExtern();
@@ -11001,6 +11003,9 @@ async function planArchivDaten() {
 
 const SEITEN = [
   { pfad: "dashboard",    titel: "Start",        zeichen: SYM.start, zeige: seiteDashboard },
+  // Vorschau der Startseite mit Modulen, nur Admins, nicht im Menü
+  // (Wunsch Patrick 20. November 2026: „zuerst bauen, dann übernehmen“)
+  { pfad: "startneu",     titel: "Start (Vorschau)", gruppe: "vorschau", zeichen: SYM.start, zeige: reactSeite(StartModule) },
   { pfad: "planwand",     titel: "Planwand",     zeichen: SYM.planwand, zeige: seitePlanwand },
   { pfad: "produktion",   titel: "Produktion",   zeichen: SYM.produktion, zeige: seiteProduktion },
   // Parks, Typen und jede Maschine mit Infos, Wartung und Batterien,
@@ -11056,7 +11061,7 @@ const SEITEN = [
 
 // Was die neu gebauten React-Seiten vom alten Programm brauchen
 Object.assign(alt, {
-  camSehen,
+  camSehen, SYM,
   meineProfilId, parkIstExtern, padParkVerborgen, leerlaufAktiv,
   zeitlimit, meldung, nachfragen, fehlertext, fehlerMerken, dialogFelder, auswahlDialog,
   merkeSchritt, rueckWeg, rueckRein, rueckSetz, rueckStand, rueckSichern, rueckLeeren, personName, zielPersonFinden, darfSchreiben,

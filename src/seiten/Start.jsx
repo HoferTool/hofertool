@@ -27,7 +27,7 @@ import Umfragen from "./start/Umfragen.jsx";
 // Externe und Dienst fragen gar nicht erst nach Problemen
 const keineProbleme = async () => [];
 
-export default function Start({ auffrischen }) {
+export default function Start({ auffrischen, module }) {
   const profil = alt.profil;
   const name = (profil && (profil.full_name || profil.email.split("@")[0])) || "";
   // Einmal laden, für die Karte unten und für das Band oben
@@ -54,8 +54,12 @@ export default function Start({ auffrischen }) {
           : <img className="kopfkarte__logo" src={alt.LOGO_WEISS} alt="Hofer + Co." />}
         <Wetter />
       </section>
-      <Solaranlage />
+      {/* Mit Modulen (Vorschau #/startneu, seit 1.670.0) stehen Gruss und
+          Module gleich unter dem Kopf, die Solaranlage danach */}
+      {!module && <Solaranlage />}
       <p className="gruss">{alt.begruessung()}{name ? ", " + name : ""}</p>
+      {module}
+      {module && <Solaranlage />}
       {/* Sicherung, Pool-Rechner, Drucker, Solar: nur wenn etwas nicht
           stimmt, nur Admins (Wunsch Patrick 3. November 2026) */}
       {admin && <Systemzustand auffrischen={auffrischen} />}
