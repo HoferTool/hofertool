@@ -28,7 +28,7 @@ import AbstecherBild from "./AbstecherBild.jsx";
 import SchnabelBild from "./SchnabelBild.jsx";
 import { hofercamTutorialOeffnen } from "../start/NeuesTutorial.jsx";
 import { EinstichBild, EinstichSteuerung } from "./CamEinstichBild.jsx";
-import { SW20_BILD, SW20_FRONT_PLAETZE, SW20_KANAL_PLAETZE, sw20Bereich, swFrontVon, nrKanal, FELDER, HD_STUFEN, abVersatz, AB_VERSATZ_VORGABE, plaetzeVon, platzGruppe, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, handZurueck, markenPaare, eigenerKanal, kanalZahl, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
+import { SW20_BILD, SW20_FRONT_BILD, SW20_FRONT_RICHTUNG, SW20_FRONT_PLAETZE, SW20_KANAL_PLAETZE, sw20Bereich, swFrontVon, nrKanal, FELDER, HD_STUFEN, abVersatz, AB_VERSATZ_VORGABE, plaetzeVon, platzGruppe, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, handZurueck, markenPaare, eigenerKanal, kanalZahl, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Seit 1.427.0 (Wunsch Patrick 5. November 2026: „vordefinierte
 // Bearbeitungen aus einer Liste einfügen … in eine bestehende
@@ -402,6 +402,21 @@ function MaschinenBild({ block, t34, gruppe }) {
 // Patrick 17. November 2026: „wird zu gross angezeigt“, darum höchstens
 // so gross wie ein Kärtchen, nicht wie beim Platz einer Bearbeitung
 const GRUPPE_BILD = 300;
+// Seit 1.670.0: Frontbohrapparat auf einem Platz der SW-20 ins Bild
+// zeichnen, das querangetriebene Werkzeug dort aufgehellt
+function FrontBohrer({ platz }) {
+  const f = SW20_FRONT_BILD[platz];
+  if (!f) return null;
+  const [bx, by] = f.bei, [dx, dy] = SW20_FRONT_RICHTUNG, nx = -dy, ny = dx;
+  const p = (t, o) => (bx + dx * t + nx * o).toFixed(1) + "," + (by + dy * t + ny * o).toFixed(1);
+  const L1 = 13, L2 = 4, L3 = 9, w1 = 4.6, w2 = 1.6;
+  return (<g className="cam-bild__front" data-cam-front={platz}>
+    <polygon points={[p(0, w1), p(L1, w1), p(L1, -w1), p(0, -w1)].join(" ")} fill="url(#cam-bild-gelb)" stroke="#7a6526" strokeWidth=".8" />
+    <polygon points={[p(L1, w1 * .75), p(L1 + L2, w1 * .55), p(L1 + L2, -w1 * .55), p(L1, -w1 * .75)].join(" ")} fill="#e9c35a" stroke="#7a6526" strokeWidth=".7" />
+    <polygon points={[p(L1 + L2, w2), p(L1 + L2 + L3, w2), p(L1 + L2 + L3 + 2.5, 0), p(L1 + L2 + L3, -w2), p(L1 + L2, -w2)].join(" ")} fill="#c9a640" stroke="#6b5520" strokeWidth=".6" />
+    <ellipse cx={bx} cy={by} rx={w1 * .55} ry={w1} transform={`rotate(${(Math.atan2(dy, dx) * 180 / Math.PI).toFixed(1)} ${bx} ${by})`} fill="#f7e3a0" stroke="#7a6526" strokeWidth=".8" />
+  </g>);
+}
 function GruppenBild({ gruppe, t34, ref_, mass }) {
   // Seit 1.664.0 bringt die SW-20 ihre Bereiche und ihr Bild selbst mit
   const rs = gruppe.bereiche || gruppe.bloecke.map((b) => bildBereich(b, t34));
@@ -414,8 +429,13 @@ function GruppenBild({ gruppe, t34, ref_, mass }) {
         <defs><mask id="cam-bild-maske">
           <rect x="0" y="0" width={bild.b} height={bild.h} fill="#fff" />
           {rs.map((r, i) => <rect key={i} x={r.x - 3} y={r.y - 3} width={r.w + 6} height={r.h + 6} rx="6" fill="#000" />)}
-        </mask></defs>
+        </mask>
+        <linearGradient id="cam-bild-gelb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fff2bf" /><stop offset=".5" stopColor="#f3d27a" /><stop offset="1" stopColor="#d9ad45" /></linearGradient>
+        <filter id="cam-bild-weich" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.5" /></filter></defs>
         <image href={import.meta.env.BASE_URL + bild.datei} x="0" y="0" width={bild.b} height={bild.h} />
+        {(gruppe.front || []).map((pl) => SW20_FRONT_BILD[pl] && <rect key={"d" + pl} x={SW20_FRONT_BILD[pl].deck[0]} y={SW20_FRONT_BILD[pl].deck[1]}
+          width={SW20_FRONT_BILD[pl].deck[2]} height={SW20_FRONT_BILD[pl].deck[3]} rx="5" fill="#fff" opacity=".9" filter="url(#cam-bild-weich)" />)}
+        {(gruppe.front || []).map((pl) => <FrontBohrer key={"f" + pl} platz={pl} />)}
         <rect x="0" y="0" width={bild.b} height={bild.h} fill="rgba(20,30,45,.45)" mask="url(#cam-bild-maske)" />
         {rs.map((r, i) => <rect key={i} className={"cam-bild__rahmen cam-bild__rahmen--blink" + (r.verdeckt ? " cam-bild__rahmen--verdeckt" : "")}
           x={r.x} y={r.y} width={r.w} height={r.h} rx="5" />)}
@@ -475,9 +495,10 @@ let fokusNach = null;
 function Kanaele({ prog, sync, fehler, bereich, bereich2, w, handSetzen, einlesen }) {
   const kasten = useRef(null);
   // Seit 1.663.0 zwei oder drei Kanäle (SW-20)
-  const kn = prog.k3 && prog.k3.length ? [1, 2, 3] : [1, 2];
+  // Seit 1.670.0 Kanal 3 gleich nach Kanal 1 (Wunsch Patrick 20. November 2026)
+  const kn = prog.k3 && prog.k3.length ? [1, 3, 2] : [1, 2];
   const imBereich = (z, k) => {
-    const b = k === 0 ? bereich : k === 1 ? bereich2 : null;
+    const b = k === 1 ? bereich : k === 2 ? bereich2 : null;
     return z && b && z.nr >= b[0] && z.nr <= b[1];
   };
   const zeilenVon = (k) => prog["k" + k];
@@ -556,18 +577,18 @@ function Kanaele({ prog, sync, fehler, bereich, bereich2, w, handSetzen, einlese
             </span>
           </div>))}
         {sync.reihen.map((r, i) => (
-          kn.map((kk) => r["k" + kk]).map((z, k) => (
-            <div key={i + "-" + k} data-reihe={i} data-kanal={k + 1} data-nr={z ? z.nr : undefined}
-              className={"cam-zeile" + (r.sync ? " cam-zeile--sync" : "") + (!z ? " cam-zeile--leer" : "")
-                + (z && prog["gelb" + (k + 1)]?.has(z.nr - 1) ? " cam-zeile--hand" : "")
-                + (z && prog["ein" + (k + 1)]?.has(z.nr - 1) ? " cam-zeile--ein" : "")
+          kn.map((k) => [k, r["k" + k]]).map(([k, z]) => (
+            <div key={i + "-" + k} data-reihe={i} data-kanal={k} data-nr={z ? z.nr : undefined}
+              className={"cam-zeile" + (r.sync && (!r.syncK || r.syncK.has(k)) ? " cam-zeile--sync" : "") + (!z ? " cam-zeile--leer" : "")
+                + (z && prog["gelb" + k]?.has(z.nr - 1) ? " cam-zeile--hand" : "")
+                + (z && prog["ein" + k]?.has(z.nr - 1) ? " cam-zeile--ein" : "")
                 + (z?.fehler ? " cam-zeile--fehler" : "") + (imBereich(z, k) ? " cam-zeile--aktiv" : "")
-                + (z ? " cam-zeile--her-" + (prog["her" + (k + 1)]?.[z.nr - 1] || "kopf") : "")}>
+                + (z ? " cam-zeile--her-" + (prog["her" + k]?.[z.nr - 1] || "kopf") : "")}>
               <span className="cam-nr">{z ? z.nr : ""}</span>
               {z
                 ? <span className="cam-text" key={z.nr + ":" + z.text} contentEditable suppressContentEditableWarning spellCheck={false}
-                    onBlur={(e) => zeileFertig(k + 1, z.nr, e.currentTarget.textContent)}
-                    onKeyDown={(e) => taste(e, k + 1, z.nr)}>{z.text}</span>
+                    onBlur={(e) => zeileFertig(k, z.nr, e.currentTarget.textContent)}
+                    onKeyDown={(e) => taste(e, k, z.nr)}>{z.text}</span>
                 : <span className="cam-text" />}
             </div>
           ))
@@ -945,7 +966,7 @@ export default function HoferCam() {
 
       {!sb && knopfUeber && knopfUeber.sw && (() => {
         const rs = knopfUeber.sw.map((p) => sw20Bereich(p, w)).filter(Boolean);
-        return <MaschinenBild gruppe={{ art: knopfUeber.art, text: knopfUeber.art[0] === "p" && rs[0] ? "T" + knopfUeber.sw[0] + " · " + rs[0].text : knopfUeber.text, bereiche: rs, nummern: knopfUeber.sw, bild: SW20_BILD, gross: 420 }} />;
+        return <MaschinenBild gruppe={{ art: knopfUeber.art, text: knopfUeber.art[0] === "p" && rs[0] ? "T" + knopfUeber.sw[0] + " · " + rs[0].text : knopfUeber.text, bereiche: rs, nummern: knopfUeber.sw, bild: SW20_BILD, gross: 420, front: swFrontVon(w) }} />;
       })()}
       {<>
       {(() => {
@@ -957,7 +978,7 @@ export default function HoferCam() {
           if (!bb) return null;
           const p = Number(vorPlatz && vorPlatz.id === bb.id ? vorPlatz.platz : bb.platz);
           const r = sw20Bereich(p, w);
-          return r ? <MaschinenBild gruppe={{ art: "swblock", text: "T" + p + " · " + r.text, bereiche: [r], nummern: [p], bild: SW20_BILD, gross: 420 }} /> : null;
+          return r ? <MaschinenBild gruppe={{ art: "swblock", text: "T" + p + " · " + r.text, bereiche: [r], nummern: [p], bild: SW20_BILD, gross: 420, front: swFrontVon(w) }} /> : null;
         }
         const kg = !bb && knopfUeber ? knopfGruppe(knopfUeber.art, w, knopfUeber.text) : null;
         return <MaschinenBild t34={t34Von(w)} gruppe={kg} block={bb && vorPlatz && vorPlatz.id === bb.id ? { ...bb, platz: vorPlatz.platz } : bb} />;
@@ -989,13 +1010,6 @@ export default function HoferCam() {
             onClick={() => { const nb = neuerBlock(bloecke, "quer", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Frontangetrieben {spanne("quer", w)}</button>}
           </>}
         </div>
-        {/* Seit 1.667.0 SW-20: Kanal 2 nach Patricks T2100, T2700 und T2600 */}
-        {!sb && <div className="cam-bearb__kopf">
-          <b>Bearbeitungen Kanal 2</b>
-          {[["k2", "Drehen"], ["k2b", "Bohren stehend"], ["k2a", "Angetrieben"]].map(([a, t]) => (
-            <button key={a} className="knopf knopf--klein" id={"cam-neu-" + a} {...swMaus("sw" + a, plaetzeVon(a).map(Number), t + " Kanal 2")}
-              onClick={() => { const nb = neuerBlock(bloecke, a, w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ {t} {spanne(a)}</button>))}
-        </div>}
         {/* Seit 1.666.0 SW-20: Kanal 3 (Rückseitenblock) nach Patricks T1300
             und T1600 aus O3272 (20. November 2026) */}
         {!sb && <div className="cam-bearb__kopf">
@@ -1006,6 +1020,13 @@ export default function HoferCam() {
             onClick={() => { const nb = neuerBlock(bloecke, "k3f", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Frontbohrapparat {montiert("k3f", w).map((p) => "T" + p).join(", ") || "(Bestückung)"}</button>
           <button className="knopf knopf--klein" id="cam-neu-k3d" {...swMaus("swk3d", plaetzeVon("k3d").map(Number), "Feste Werkzeuge Kanal 3")}
             onClick={() => { const nb = neuerBlock(bloecke, "k3d", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Feste Werkzeuge {spanne("k3d")}</button>
+        </div>}
+        {/* Seit 1.667.0 SW-20: Kanal 2 nach Patricks T2100, T2700 und T2600 */}
+        {!sb && <div className="cam-bearb__kopf">
+          <b>Bearbeitungen Kanal 2</b>
+          {[["k2", "Drehen"], ["k2b", "Bohren stehend"], ["k2a", "Angetrieben"]].map(([a, t]) => (
+            <button key={a} className="knopf knopf--klein" id={"cam-neu-" + a} {...swMaus("sw" + a, plaetzeVon(a).map(Number), t + " Kanal 2")}
+              onClick={() => { const nb = neuerBlock(bloecke, a, w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ {t} {spanne(a)}</button>))}
         </div>}
         {/* Seit 1.425.3 (Wunsch Patrick 5. November 2026): Kanal 2 in einer
             eigenen Zeile darunter */}

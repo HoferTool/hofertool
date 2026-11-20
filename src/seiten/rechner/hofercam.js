@@ -722,14 +722,25 @@ export function synchronisieren(...listen) {
     }
     kan.forEach((k) => { pos[k] = bis[k]; });
   };
-  for (const e of anker) {
+  // Seit 1.670.0: ein Kanal, für den eine Marke nicht gilt (z.B. Kanal 2
+  // bei M420P13), läuft daneben weiter bis zu seiner nächsten eigenen
+  // Marke, statt mit leeren Zeilen auf die anderen zu warten (Patrick
+  // 20. November 2026: „warum macht kanal 2 nichts bis m420P13?“)
+  const naechste = (ai, k) => {
+    for (let j = ai; j < anker.length; j++) if (k in anker[j].at) return anker[j].at[k];
+    return zl(k).length;
+  };
+  anker.forEach((e, ai) => {
+    const drin = kan.filter((k) => k in e.at);
+    const n = Math.max(0, ...drin.map((k) => e.at[k] - pos[k]));
     const bis = {};
-    kan.forEach((k) => { bis[k] = k in e.at ? e.at[k] : pos[k]; });
+    kan.forEach((k) => { bis[k] = k in e.at ? e.at[k] : Math.min(pos[k] + n, naechste(ai, k)); });
     abschnitt(bis);
-    const r = { ...leer(), sync: true };
+    const r = { ...leer(), sync: true, syncK: new Set(drin.map((k) => k + 1)) };
     Object.entries(e.at).forEach(([k, i]) => { r["k" + (Number(k) + 1)] = zelle(Number(k), i); pos[k] = i + 1; });
+    kan.forEach((k) => { if (!(k in e.at) && pos[k] < naechste(ai, k)) { r["k" + (k + 1)] = zelle(k, pos[k]); pos[k]++; } });
     reihen.push(r);
-  }
+  });
   const ende = {};
   kan.forEach((k) => { ende[k] = zl(k).length; });
   abschnitt(ende);
@@ -1051,6 +1062,19 @@ export const SW20_KANAL_PLAETZE = {
   3: [1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900],
   2: [2100, 2200, 2300, 2400, 2500, 2600, 2700, 2800],
 };
+// Seit 1.670.0 (Wunsch Patrick 20. November 2026: „wenn Frontbohrapparate
+// montiert sind, sollst du sie im Bild auch so anzeigen“): je Platz die
+// Fläche, die das querangetriebene Werkzeug im Bild überdeckt (deck), und
+// wo der Frontbohrapparat sitzt (bei); er zeigt wie die festen
+// Frontwerkzeuge T1600–T1900 in Richtung Z (SW20_FRONT_RICHTUNG)
+export const SW20_FRONT_BILD = {
+  500: { deck: [243, 293, 40, 22], bei: [240, 303] },
+  600: { deck: [243, 272, 32, 20], bei: [240, 283] },
+  1300: { deck: [326, 240, 27, 18], bei: [350, 250] },
+  1400: { deck: [326, 206, 35, 21], bei: [356, 216] },
+  1500: { deck: [326, 189, 35, 18], bei: [356, 198] },
+};
+export const SW20_FRONT_RICHTUNG = [0.78, 0.62];
 // Bestückung: Liste der Plätze mit Frontbohrapparat in w.swFront
 export function swFrontVon(w) {
   const l = Array.isArray(w && w.swFront) ? w.swFront.map(Number) : [];
