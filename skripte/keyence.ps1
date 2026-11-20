@@ -270,6 +270,38 @@ function Durchlauf {
       $status.ordnerListe = @(Get-ChildItem -LiteralPath $pfad -Directory -ErrorAction SilentlyContinue |
         Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 25 | ForEach-Object {
           $_.Name + " | " + $_.LastWriteTime.ToString("dd.MM. HH:mm") + " | " + (@(Get-ChildItem -LiteralPath $_.FullName -File -ErrorAction SilentlyContinue | Group-Object Extension | ForEach-Object { $_.Name + ":" + $_.Count }) -join " ") })
+      # Einmal je Programmstart: Beispiele der Bilddateien des Geräts (.bi3, .xps)
+      # in die Ablage, damit das Format bekannt ist (Patrick 20. November 2026:
+      # „Keyence Berichte sollten wenn möglich auch das Bild enthalten“)
+      if (-not $script:bildProbeGemacht -and -not $Probe) {
+        $script:bildProbeGemacht = $true
+        try {
+          $bilder = @(Get-ChildItem -LiteralPath $pfad -File -Recurse -ErrorAction SilentlyContinue |
+            Where-Object { $_.Extension -in @(".bi3", ".xps") } | Sort-Object LastWriteTimeUtc -Descending)
+          $wahl = @($bilder | Where-Object { $_.Extension -eq ".bi3" } | Select-Object -First 3) +
+                  @($bilder | Where-Object { $_.Extension -eq ".xps" } | Select-Object -First 1)
+          $status.bildNamen = @($bilder | Select-Object -First 30 | ForEach-Object {
+            $_.FullName.Substring($pfad.Length).TrimStart('\') + " | " + $_.LastWriteTime.ToString("dd.MM. HH:mm:ss") + " | " + $_.Length })
+          $status.bildProbe = @()
+          foreach ($bd in $wahl) {
+            $kopfBytes = ""
+            try { $fs = [IO.File]::OpenRead($bd.FullName); $buf = New-Object byte[] 48; $n = $fs.Read($buf, 0, 48); $fs.Close()
+                  $kopfBytes = ($buf[0..($n-1)] | ForEach-Object { $_.ToString("x2") }) -join "" } catch { }
+            $url = $null
+            if ($bd.Length -le 8MB) {
+              $ziel = "keyence-probe/" + ([Guid]::NewGuid().ToString("N").Substring(0, 8)) + $bd.Extension
+              $h = Kopf; $h["x-upsert"] = "true"
+              Invoke-RestMethod -Method Post -Uri "$U/storage/v1/object/zeichnungen/$ziel" -Headers $h `
+                -ContentType "application/octet-stream" -InFile $bd.FullName | Out-Null
+              $url = "$U/storage/v1/object/public/zeichnungen/$ziel"
+            }
+            $status.bildProbe += ($bd.FullName.Substring($pfad.Length).TrimStart('\') + " | " + $bd.Length + " | " + $kopfBytes + " | " + $url)
+          }
+        } catch { $status.bildProbeFehler = $_.Exception.Message }
+        $script:bildMerk = @{ namen = $status.bildNamen; probe = $status.bildProbe; fehler = $status.bildProbeFehler }
+      }
+      # Bei jedem Lauf wieder mitmelden, sonst überschreibt der nächste Stand sie
+      if ($script:bildMerk) { $status.bildNamen = $script:bildMerk.namen; $status.bildProbe = $script:bildMerk.probe; $status.bildProbeFehler = $script:bildMerk.fehler }
       $nochFrei = $hoechstensJeLauf
       foreach ($d in $dateien) {
         $kennung = Kennung $d
