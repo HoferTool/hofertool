@@ -17,7 +17,7 @@ import { dateiBeobachten, dateiFehler, dateiNeuWaehlen, dateienFuerName, dateien
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
 import { ModulWahl, modulEmpfaenger, modulZustandAblage } from "./modulTab.jsx";
-import { TYP_NAME, eigeneFelder, eigenWert, feldAus, typBeobachten, wirksamB, wirksamW } from "./camTyp.js";
+import { TYPEN, typInfo, typVon, typWaehlen, eigeneFelder, eigenWert, feldAus, typBeobachten, wirksamB, wirksamW } from "./camTyp.js";
 import { camTypFensterOeffnen, camTypLaden } from "./CamTypFenster.jsx";
 import { bloeckeLesen, kopfLesen } from "./camLesen.js";
 import { wzFehler, wzText } from "./camWerkzeug.js";
@@ -28,7 +28,7 @@ import AbstecherBild from "./AbstecherBild.jsx";
 import SchnabelBild from "./SchnabelBild.jsx";
 import { hofercamTutorialOeffnen } from "../start/NeuesTutorial.jsx";
 import { EinstichBild, EinstichSteuerung } from "./CamEinstichBild.jsx";
-import { FELDER, HD_STUFEN, abVersatz, AB_VERSATZ_VORGABE, plaetzeVon, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, handZurueck, markenPaare, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
+import { nrKanal, FELDER, HD_STUFEN, abVersatz, AB_VERSATZ_VORGABE, plaetzeVon, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, handZurueck, markenPaare, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Seit 1.427.0 (Wunsch Patrick 5. November 2026: „vordefinierte
 // Bearbeitungen aus einer Liste einfügen … in eine bestehende
@@ -203,6 +203,7 @@ function programmFensterAuf() {
 function ImFenster() {
   useGemerkt();
   const w = { ...gemerkt };
+  typWaehlen(typVon(w), true);
   const prog = programmeMitHand(w);
   const bereich = prog.bereiche[aktivId];
   // Im Fenster rollt die markierte Bearbeitung von selbst ins Bild
@@ -216,7 +217,7 @@ function ImFenster() {
   const einlesen = (dateien, k) => einlesenJetzt && einlesenJetzt(dateien, k);
   return (<>
     <FensterKnoepfe w={w} einlesen={einlesen} />
-    <Kanaele prog={prog} sync={synchronisieren(prog.k1, prog.k2)} fehler={pruefen(w)} bereich={bereich} bereich2={prog.bereiche2[aktivId]}
+    <Kanaele prog={prog} sync={synchronisieren(prog.k1, prog.k2, prog.k3 && prog.k3.length ? prog.k3 : undefined)} fehler={pruefen(w)} bereich={bereich} bereich2={prog.bereiche2[aktivId]}
       w={w} handSetzen={handSetzen} einlesen={einlesen} />
   </>);
 }
@@ -272,13 +273,15 @@ function DateiSchild({ k }) {
 
 // 3D-Simulation und Programm einlesen, im Reiter und im eigenen Fenster
 function FensterKnoepfe({ w, einlesen, eigen }) {
+  // Seit 1.663.0: die 3D-Simulation kennt vorerst nur die SB-20RG
+  const sb = typInfo(w && w.typ).kanaele === 2;
   return (<>
     {/* Seit 1.547.0: 3D-Simulation Drehen und Bohren von vorne (Patrick 14. November 2026, Schritt 2) */}
-    <button className="knopf knopf--klein" id={eigen ? "cam-sim-auf" : "cam-sim-auf-fenster"} data-cam-sim="1"
+    {sb && <button className="knopf knopf--klein" id={eigen ? "cam-sim-auf" : "cam-sim-auf-fenster"} data-cam-sim="1"
       title="Drehen, Bohren und Fräsen in 3D, Kanal 1 und Kanal 2, mit den Werkzeugen der Bearbeitungen"
-      onClick={() => simulationOeffnen(w)}>🧊 3D-Simulation</button>
+      onClick={() => simulationOeffnen(w)}>🧊 3D-Simulation</button>}
     <EinlesenKnopf id={eigen ? "cam-einlesen" : "cam-einlesen-fenster"} merkmal={{ "data-cam-einlesen-alle": "1" }} einlesen={einlesen}
-      title="Bestehendes Programm (Kanal 1 und / oder Kanal 2) einlesen, Abweichungen zum Standard violett">📂 Programm einlesen</EinlesenKnopf>
+      title={"Bestehendes Programm (" + (sb ? "Kanal 1 und / oder Kanal 2" : "eine bis drei Dateien, Kanal 1 bis 3") + ") einlesen, Abweichungen zum Standard violett"}>📂 Programm einlesen</EinlesenKnopf>
   </>);
 }
 
@@ -465,11 +468,13 @@ const BLOCK_EINHEIT = { S: "U/min", g50: "U/min", vc: "m/min", vcD: "mm", X: "mm
 let fokusNach = null;
 function Kanaele({ prog, sync, fehler, bereich, bereich2, w, handSetzen, einlesen }) {
   const kasten = useRef(null);
+  // Seit 1.663.0 zwei oder drei Kanäle (SW-20)
+  const kn = prog.k3 && prog.k3.length ? [1, 2, 3] : [1, 2];
   const imBereich = (z, k) => {
-    const b = k === 0 ? bereich : bereich2;
+    const b = k === 0 ? bereich : k === 1 ? bereich2 : null;
     return z && b && z.nr >= b[0] && z.nr <= b[1];
   };
-  const zeilenVon = (k) => (k === 1 ? prog.k1 : prog.k2);
+  const zeilenVon = (k) => prog["k" + k];
   // Seit 1.619.0: Änderungen im NC-Code einer Bearbeitung gehen zurück in die Bearbeitung
   const setzen = (k, zeilen) => { const r = handZurueck(w, k, zeilen); handSetzen(r.hand, r.bloecke); };
   useEffect(() => {
@@ -505,7 +510,7 @@ function Kanaele({ prog, sync, fehler, bereich, bereich2, w, handSetzen, einlese
     } else if (e.key === "Escape") { e.preventDefault(); e.currentTarget.textContent = zeilenVon(k)[nr - 1]; e.currentTarget.blur(); }
   };
   const verwerfen = (k) => { const h = { ...(w.hand || {}) }; delete h["k" + k]; handSetzen(h); };
-  const verloren = [[1, prog.verloren1], [2, prog.verloren2]].filter(([, v]) => v && v.length);
+  const verloren = kn.map((k) => [k, prog["verloren" + k]]).filter(([, v]) => v && v.length);
   const leerF = Object.keys(fehler).filter((n) => fehler[n] === "leer");
   fehler = Object.fromEntries(Object.entries(fehler).filter(([, t]) => t !== "leer"));
   const zuViel = Object.keys(fehler).length > 0;
@@ -514,12 +519,12 @@ function Kanaele({ prog, sync, fehler, bereich, bereich2, w, handSetzen, einlese
         {/* Seit 1.624.0: woher die Zeilen kommen (Wunsch Patrick 18. November 2026) */}
         <span className="cam-herkunft" id="cam-herkunft"><i className="cam-her cam-her--code" />NC-Code der Bearbeitung
           <i className="cam-her cam-her--vorlage" />Kopf und Ende der Bearbeitung <i className="cam-her cam-her--kopf" />Programmkopf und -ende</span>
-        {(prog.ein1?.size > 0 || prog.ein2?.size > 0) && <span className="cam-stand--ein" id="cam-ein-stand">Violett = eingelesen, anders als der Standard.</span>}
-        {(w.hand?.k1 || w.hand?.k2) && <span className="cam-stand--hand" id="cam-hand-stand">Gelb = von Hand geändert.
-          {[1, 2].filter((k) => w.hand?.["k" + k]).map((k) => (
+        {kn.some((k) => prog["ein" + k]?.size > 0) && <span className="cam-stand--ein" id="cam-ein-stand">Violett = eingelesen, anders als der Standard.</span>}
+        {kn.some((k) => w.hand?.["k" + k]) && <span className="cam-stand--hand" id="cam-hand-stand">Gelb = von Hand geändert.
+          {kn.filter((k) => w.hand?.["k" + k]).map((k) => (
             <button key={k} className="knopf knopf--klein" data-cam-verwerfen={k} onClick={() => verwerfen(k)}>Kanal {k} wie erzeugt</button>))} </span>}
         {sync.fehler
-          ? <span className="cam-stand--fehler">{sync.fehler === 1 ? "1 Marke hat" : sync.fehler + " Marken haben"} im anderen Kanal kein Gegenstück.</span>
+          ? <span className="cam-stand--fehler">{sync.fehler === 1 ? "1 Marke hat" : sync.fehler + " Marken haben"} {kn.length > 2 ? "in keinem anderen Kanal ein" : "im anderen Kanal kein"} Gegenstück.</span>
           : <span>Alle Synchronisationsmarken sind gepaart.</span>}
         {leerF.length > 0 && <span className="cam-stand--leer" id="cam-leer-stand"> Noch leer: {leerF.map((n) => n === "nr" ? "Nr." : (FELDER.flatMap((g) => g.felder).find((d) => d.name === n)?.text || n)).join(", ")}.</span>}
         {zuViel && <span className="cam-stand--fehler"> Rot: {Object.entries(fehler).map(([n, t]) => n === "nr" ? "Nr. " + t : n + " " + t).join(", ")}.</span>}
@@ -531,37 +536,27 @@ function Kanaele({ prog, sync, fehler, bereich, bereich2, w, handSetzen, einlese
           {v.map((x, i) => <pre key={i}>{x.zeilen.length ? x.zeilen.join("\n") : "(Zeilen gelöscht: " + x.war.join(" / ") + ")"}</pre>)}
           <button className="knopf knopf--klein" onClick={() => setzen(k, zeilenVon(k))}>Erledigt</button>
         </div>))}
-      <div className="cam-kanaele" id="cam-kanaele" ref={kasten}>
-        <div className="cam-spalte cam-spalte--kopf">
-          <b>Kanal 1 · O{prog.nr1}</b>
-          <span>
-            <button className="knopf knopf--klein" data-cam-kopieren="1" onClick={(e) => kopieren(e, prog.k1, 1)}>Kopieren</button>
-            <button className="knopf knopf--klein" data-cam-laden="1" onClick={(e) => herunterladen(e, prog.k1, prog.nr1)}>Herunterladen</button>
-            {/* Seit 1.542.0: jeder Kanal für sich, die Dateien liegen oft in verschiedenen Ordnern */}
-            {einlesen && <EinlesenKnopf kanal={1} merkmal={{ "data-cam-einlesen": "1" }} einlesen={einlesen}
-              title="Programm für Kanal 1 aus einer Datei einlesen, der andere Kanal bleibt">📂 Einlesen</EinlesenKnopf>}
-            <DateiSchild k={1} />
-          </span>
-        </div>
-        <div className="cam-spalte cam-spalte--kopf">
-          <b>Kanal 2 · O{prog.nr2}</b>
-          <span>
-            <button className="knopf knopf--klein" data-cam-kopieren="2" onClick={(e) => kopieren(e, prog.k2, 2)}>Kopieren</button>
-            <button className="knopf knopf--klein" data-cam-laden="2" onClick={(e) => herunterladen(e, prog.k2, prog.nr2)}>Herunterladen</button>
-            {/* Seit 1.542.0: jeder Kanal für sich, die Dateien liegen oft in verschiedenen Ordnern */}
-            {einlesen && <EinlesenKnopf kanal={2} merkmal={{ "data-cam-einlesen": "2" }} einlesen={einlesen}
-              title="Programm für Kanal 2 aus einer Datei einlesen, der andere Kanal bleibt">📂 Einlesen</EinlesenKnopf>}
-            <DateiSchild k={2} />
-          </span>
-        </div>
+      <div className={"cam-kanaele" + (kn.length > 2 ? " cam-kanaele--3" : "")} id="cam-kanaele" ref={kasten}>
+        {kn.map((k) => (
+          <div key={k} className={"cam-spalte cam-spalte--kopf cam-spalte--k" + k}>
+            <b>Kanal {k} · O{prog["nr" + k]}</b>
+            <span>
+              <button className="knopf knopf--klein" data-cam-kopieren={k} onClick={(e) => kopieren(e, prog["k" + k], k)}>Kopieren</button>
+              <button className="knopf knopf--klein" data-cam-laden={k} onClick={(e) => herunterladen(e, prog["k" + k], prog["nr" + k])}>Herunterladen</button>
+              {/* Seit 1.542.0: jeder Kanal für sich, die Dateien liegen oft in verschiedenen Ordnern */}
+              {einlesen && <EinlesenKnopf kanal={k} merkmal={{ "data-cam-einlesen": String(k) }} einlesen={einlesen}
+                title={"Programm für Kanal " + k + " aus einer Datei einlesen, die anderen Kanäle bleiben"}>📂 Einlesen</EinlesenKnopf>}
+              <DateiSchild k={k} />
+            </span>
+          </div>))}
         {sync.reihen.map((r, i) => (
-          [r.k1, r.k2].map((z, k) => (
+          kn.map((kk) => r["k" + kk]).map((z, k) => (
             <div key={i + "-" + k} data-reihe={i} data-kanal={k + 1} data-nr={z ? z.nr : undefined}
               className={"cam-zeile" + (r.sync ? " cam-zeile--sync" : "") + (!z ? " cam-zeile--leer" : "")
-                + (z && (k === 0 ? prog.gelb1 : prog.gelb2)?.has(z.nr - 1) ? " cam-zeile--hand" : "")
-                + (z && (k === 0 ? prog.ein1 : prog.ein2)?.has(z.nr - 1) ? " cam-zeile--ein" : "")
+                + (z && prog["gelb" + (k + 1)]?.has(z.nr - 1) ? " cam-zeile--hand" : "")
+                + (z && prog["ein" + (k + 1)]?.has(z.nr - 1) ? " cam-zeile--ein" : "")
                 + (z?.fehler ? " cam-zeile--fehler" : "") + (imBereich(z, k) ? " cam-zeile--aktiv" : "")
-                + (z ? " cam-zeile--her-" + ((k === 0 ? prog.her1 : prog.her2)?.[z.nr - 1] || "kopf") : "")}>
+                + (z ? " cam-zeile--her-" + (prog["her" + (k + 1)]?.[z.nr - 1] || "kopf") : "")}>
               <span className="cam-nr">{z ? z.nr : ""}</span>
               {z
                 ? <span className="cam-text" key={z.nr + ":" + z.text} contentEditable suppressContentEditableWarning spellCheck={false}
@@ -648,9 +643,14 @@ export default function HoferCam() {
   const [schnabelBild, setSchnabelBild] = useState({});
   const [kopfZu, setKopfZu] = useState(() => { try { return localStorage.getItem("hofer.cam.kopfZu") === "1"; } catch { return false; } });
   const setGespeichert = (z) => { gespeichertCam = z; setGespeichertRoh(z); };
+  // Seit 1.663.0 (Wunsch Patrick 20. November 2026: „die nächste machen,
+  // Star SW20“): der Maschinentyp gehört zum Programm (w.typ, leer = SB-20RG)
+  typWaehlen(typVon(w), true);
+  const sb = typInfo(w.typ).kanaele === 2;
   const laden = (d) => {
     // Felder, die es beim Speichern noch nicht gab, bekommen die Vorgabe
     const neu = { ...vorgabe(), ...d, bloecke: Array.isArray(d.bloecke) ? d.bloecke : [] };
+    typWaehlen(typVon(neu), true);
     // Seit 1.591.0 ist T3400 Vorgabe: ältere Programme ohne Wahl, die T3421–T3423
     // brauchen, behalten die frontangetriebenen
     if (!d.t34 && neu.bloecke.some((b) => /^342[1-3]$/.test(String(b.platz)))) neu.t34 = "3421";
@@ -701,9 +701,9 @@ export default function HoferCam() {
     const f = () => setW((x) => (x.hand === gemerkt.hand && x.bloecke === gemerkt.bloecke ? x : { ...x, hand: gemerkt.hand, bloecke: gemerkt.bloecke }));
     hoerer.add(f); return () => { hoerer.delete(f); };
   }, []);
-  const sync = useMemo(() => synchronisieren(prog.k1, prog.k2), [prog]);
+  const sync = useMemo(() => synchronisieren(prog.k1, prog.k2, prog.k3 && prog.k3.length ? prog.k3 : undefined), [prog]);
 
-  const ncBeide = text(prog.k1) + text(prog.k2);
+  const ncBeide = text(prog.k1) + text(prog.k2) + (prog.k3 && prog.k3.length ? text(prog.k3) : "");
 
   // Seit 1.541.0: bestehendes Programm einlesen. Die Felder oben kommen
   // aus Kanal 1 (Nr., HOCO Nr., G170, G266), der Text wird wie eine
@@ -718,7 +718,7 @@ export default function HoferCam() {
       const roh = await d.text();
       let r = programmLesen(roh);
       if (r.fehler) { alt.meldung(d.name + ": " + r.fehler, "fehler"); continue; }
-      r = { ...r, griff: x.griff || null, roh, o: r.kanal === 2 ? r.nr + 1000 : r.nr };
+      r = { ...r, griff: x.griff || null, roh, o: Number(nrKanal({ nr: r.nr }, r.kanal)) };
       if (kanalVorgabe && r.kanal !== kanalVorgabe) r = { ...r, kanal: kanalVorgabe, felder: w.nr ? {} : { nr: r.felder.nr } };
       gelesen.push(r);
     }
@@ -733,11 +733,13 @@ export default function HoferCam() {
     // geändert wurde), damit Kanal 1 und Kanal 2 nacheinander gehen; die
     // Felder oben kommen nur aus den eingelesenen Kanälen
     const vorher = programmeMitHand(w);
-    const zeilen = { 1: vorher.k1, 2: vorher.k2 };
+    const zeilen = { 1: vorher.k1, 2: vorher.k2, 3: vorher.k3 };
     for (const r of gelesen) zeilen[r.kanal] = r.zeilen;
     const nur = (k) => (gelesen.some((r) => r.kanal === k) ? zeilen[k] : null);
-    const kopf = kopfLesen(nur(1), nur(2));
-    const { bloecke, unklar } = bloeckeLesen(zeilen[1], zeilen[2]);
+    // Seit 1.663.0: die Bearbeitungen erkennt die App vorerst nur bei der
+    // SB-20RG; bei der SW-20 kommen nur die Felder oben und der Text
+    const kopf = sb ? kopfLesen(nur(1), nur(2)) : {};
+    const { bloecke, unklar } = sb ? bloeckeLesen(zeilen[1], zeilen[2]) : { bloecke: [], unklar: [] };
     let neu = { ...w, ...kopf };
     for (const r of gelesen) neu = { ...neu, ...r.felder };
     neu.bloecke = bloecke;
@@ -746,7 +748,7 @@ export default function HoferCam() {
     else if (bloecke.some((b) => /^342[1-3]$/.test(String(b.platz)))) neu.t34 = "3421";
     const p = programme(neu);
     let hand = { ...(w.hand || {}) };
-    for (const k of [1, 2]) {
+    for (const k of sb ? [1, 2] : [1, 2, 3]) {
       const r = gelesen.find((x) => x.kanal === k);
       // Angezeigt bleibt genau, was eingelesen bzw. vorher zu sehen war;
       // was nicht dem Standard entspricht, ist violett
@@ -754,15 +756,15 @@ export default function HoferCam() {
       // Nr. und Kopf von vorher stehen)
       if (r) delete hand["k" + k];
       else if (!hand["k" + k]) continue;
-      hand = handNeu({ hand }, k, k === 1 ? p.k1 : p.k2, r ? r.zeilen : vorher["k" + k]);
+      hand = handNeu({ hand }, k, p["k" + k], r ? r.zeilen : vorher["k" + k]);
       if (r && hand["k" + k]) hand["k" + k].ein = r.zeilen;
     }
     neu.hand = hand;
     Object.assign(gemerkt, neu);
     setW(neu);
     melden();
-    alt.meldung("Eingelesen: " + gelesen.map((r) => "Kanal " + r.kanal + " (O" + String(r.kanal === 2 ? r.nr + 1000 : r.nr).padStart(4, "0") + ")").join(", ")
-      + ", " + (bloecke.length === 1 ? "1 Bearbeitung" : bloecke.length + " Bearbeitungen") + " erkannt"
+    alt.meldung("Eingelesen: " + gelesen.map((r) => "Kanal " + r.kanal + " (O" + String(r.o).padStart(4, "0") + ")").join(", ")
+      + (sb ? ", " + (bloecke.length === 1 ? "1 Bearbeitung" : bloecke.length + " Bearbeitungen") + " erkannt" : "")
       + (unklar.length ? ", nicht erkannt: " + unklar.join(", ") + " (stehen nur im Programm)" : "")
       + ". Violett = anders als der Standard."
       + (gelesen.some((r) => r.griff) ? " „Speichern“ aktualisiert auch die Datei." : ""), unklar.length ? "warn" : "gut");
@@ -773,7 +775,18 @@ export default function HoferCam() {
     <div className="karte cam">
       <div className="cam-kopf">
         <h2 className="karte__titel">HOFERCAM</h2>
-        <span className="cam-typ">Maschinentyp: <b>{TYP_NAME}</b></span>
+        <label className="cam-typ">Maschinentyp:{" "}
+          <select id="cam-typwahl" value={typInfo(w.typ).id} onChange={async (e) => {
+            const id = e.target.value;
+            if (id === typInfo(w.typ).id) return;
+            const hatWas = bloecke.length > 0 || Object.keys(w.hand || {}).length > 0;
+            if (hatWas && !(await alt.nachfragen({ titel: "Maschinentyp wechseln",
+              text: "Bearbeitungen und Änderungen im Programm gehören zum bisherigen Typ und werden entfernt. Die Felder oben bleiben.",
+              bestaetigen: "Wechseln", gefahr: true }))) return;
+            typWaehlen(id, true);
+            const neu = { ...w, typ: id, bloecke: [], hand: {} };
+            Object.assign(gemerkt, neu); setW(neu); setAktiv(null); setTypStand((n) => n + 1); melden();
+          }}>{TYPEN.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
         {/* Seit 1.441.0: Einstellungen des Typs, ändern nur Admins */}
         {alt.istAdmin && alt.istAdmin() && <button className="knopf knopf--klein" id="cam-typ-einst" title="Kopf, Ende, Bearbeitungen, Plätze und Vorgaben dieses Maschinentyps einstellen"
           onClick={camTypFensterOeffnen}>⚙ Maschinentyp</button>}
@@ -804,8 +817,9 @@ export default function HoferCam() {
               bestaetigen: "Schliessen", gefahr: true }))) return;
             setGespeichert(null);
             setAktiv(null);
-            await Promise.all([dateiVergessen(1), dateiVergessen(2)]);
-            laden(vorgabe());
+            await Promise.all([dateiVergessen(1), dateiVergessen(2), dateiVergessen(3)]);
+            // der gewählte Maschinentyp bleibt
+            laden({ ...vorgabe(), ...(w.typ ? { typ: w.typ } : {}) });
           }}>Schliessen</button>
       </div>
       <NcStand kurz="camab" gespeichert={gespeichert} nc={ncBeide} />
@@ -820,8 +834,8 @@ export default function HoferCam() {
           {kopfZu ? "▸" : "▾"} Kopfdaten</button>
         {kopfZu && <span className="cam-kopfdaten__werte klein" id="cam-kopf-werte">
           {FELDER.flatMap((g) => g.felder).filter((d) => !feldAus("kopf", d.name) && String(w[d.name] ?? "").trim() !== "")
-            .map((d) => d.text + " " + w[d.name]).concat(t34Von(w) === "3400" ? "T3400 montiert" : "T3421–T3423 montiert")
-            .concat(w.abArt === "versetzt" ? "Abstecher versetzt " + (String(w.abVersatz ?? "").trim() || AB_VERSATZ_VORGABE) : "Abstecher normal").join(" · ")}</span>}
+            .map((d) => d.text + " " + w[d.name]).concat(!sb ? [] : t34Von(w) === "3400" ? "T3400 montiert" : "T3421–T3423 montiert")
+            .concat(!sb ? [] : w.abArt === "versetzt" ? "Abstecher versetzt " + (String(w.abVersatz ?? "").trim() || AB_VERSATZ_VORGABE) : "Abstecher normal").join(" · ")}</span>}
       </div>
       {!kopfZu && <div className="cam-gruppen">
         {FELDER.map((g) => ({ ...g, felder: g.felder.filter((d) => !feldAus("kopf", d.name)) })).filter((g) => g.felder.length).map((g) => (
@@ -844,7 +858,7 @@ export default function HoferCam() {
             ))}
           </fieldset>
         ))}
-        <fieldset className="cam-gruppe">
+        {sb && <fieldset className="cam-gruppe">
           <legend>Bestückung</legend>
           <label className="cam-feld" data-cam-t34feld
             onPointerEnter={(e) => { if (e.pointerType === "mouse") setKnopfUeber({ art: "t34", text: "" }); }}
@@ -872,7 +886,7 @@ export default function HoferCam() {
           {(abBild.maus || abBild.fokus) && <div className="cam-ab__bild" data-cam-abbild-feld>
             <AbstecherBild art={w.abArt} versatz={String(w.abVersatz ?? "").trim() || AB_VERSATZ_VORGABE} b={w.B} abz={abVersatz(w)} /></div>}
           </span>
-        </fieldset>
+        </fieldset>}
         {eigeneFelder("kopf").length > 0 && <fieldset className="cam-gruppe" id="cam-eigene">
           <legend>Eigene Felder</legend>
           {eigeneFelder("kopf").map((f) => <EigenFeld key={f.id} f={f} o={w} merkmal="data-cam-eigen"
@@ -880,6 +894,11 @@ export default function HoferCam() {
         </fieldset>}
       </div>}
 
+      {!sb && <div className="cam-bearb cam-bearb--spaeter" id="cam-bearb-spaeter">
+        <b>Bearbeitungen</b> Für die {typInfo(w.typ).name} gibt es vorerst nur Kopf und Ende der drei Kanäle.
+        Die Bearbeitungen kommen Schritt für Schritt nach deinen Beispielen. Bis dahin lässt sich jede Zeile im
+        Programm unten von Hand ändern.</div>}
+      {sb && <>
       {(() => {
         // Seit 1.426.6 wieder nur, solange die Maus über einer Bearbeitung ist
         // (Patrick: „doch nicht eingeblendet bleiben“)
@@ -1118,6 +1137,7 @@ export default function HoferCam() {
           ) };
         })} />
       </div>
+      </>}
 
       {fensterZu
         ? <div className="cam-imfenster" id="cam-imfenster">Das NC-Programm ist im eigenen Fenster offen.

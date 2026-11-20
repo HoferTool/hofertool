@@ -77,7 +77,7 @@ export async function dateienFuerName(name) {
 // Browser nicht): Schreibrecht für die Dateien holen
 export async function schreibrechtHolen() {
   const ok = {};
-  for (const k of [1, 2]) {
+  for (const k of [1, 2, 3]) {
     const d = aktuell[k];
     if (!d) continue;
     try {
@@ -93,14 +93,14 @@ export async function schreibrechtHolen() {
 // unter dem gespeicherten Namen merken. prog = programmeMitHand(w).
 export async function dateienSchreiben(prog, name, recht) {
   const gut = [], fehler = [];
-  for (const k of [1, 2]) {
+  for (const k of [1, 2, 3]) {
     const d = aktuell[k];
     if (!d) continue;
     const vorher = fehler.length;
     await einSchreiben(k, d, prog, recht, gut, fehler);
     if (fehler.length > vorher) grund[k] = fehler[fehler.length - 1]; else delete grund[k];
   }
-  if (name && (aktuell[1] || aktuell[2])) { try { await idbTun("put", aktuell, JE_NAME(name)); } catch (f) { /* ohne IndexedDB */ } }
+  if (name && (aktuell[1] || aktuell[2] || aktuell[3])) { try { await idbTun("put", aktuell, JE_NAME(name)); } catch (f) { /* ohne IndexedDB */ } }
   melden();
   return { gut, fehler };
 }

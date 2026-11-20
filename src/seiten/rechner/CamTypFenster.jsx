@@ -15,7 +15,7 @@ import { inEigenesFenster } from "../../teile/eigenesFenster.js";
 import { Reiter } from "../../teile/Reiter.jsx";
 import {
   ARTEN, BEDINGUNGEN, BLOCK_FELDER, CONFIG_SCHLUESSEL, FELD_ARTEN, FELD_ORTE, PLATZ_GRUPPEN, PLATZHALTER_BLOCK, PLATZHALTER_KOPF,
-  TYP, TYP_NAME, eigeneFehler, eigeneNamen, eigeneVorgaben, eingebauteFelder, mitTyp, typ, typAbweichungen, typMischen, typSetzen,
+  TYP, typenGeladen, typGespeichertSetzen, eigeneFehler, eigeneNamen, eigeneVorgaben, eingebauteFelder, mitTyp, typ, typAbweichungen, typMischen, typSetzen,
   vorgabeTyp, vorlageFehler,
 } from "./camTyp.js";
 import { FELDER, neuerBlock, programme } from "./hofercam.js";
@@ -32,7 +32,7 @@ async function alleLesen() {
   try { const o = typeof text === "string" ? JSON.parse(text) : text; return o && typeof o === "object" ? o : {}; } catch (f) { return {}; }
 }
 export function camTypLaden() {
-  if (!geladen) geladen = alleLesen().then((alle) => { typSetzen(typMischen(alle[TYP] || {})); }).catch((f) => {
+  if (!geladen) geladen = alleLesen().then((alle) => { typenGeladen(alle); }).catch((f) => {
     geladen = null;
     alt.fehlerMerken && alt.fehlerMerken("HOFERCAM-Typen laden", String((f && f.message) || f));
   });
@@ -41,7 +41,10 @@ export function camTypLaden() {
 
 const KOPF_TEILE = [
   ["k1kopf", "Kanal 1 Kopf"], ["k1ende", "Kanal 1 Ende"], ["k2kopf", "Kanal 2 Kopf"], ["k2ende", "Kanal 2 Ende"],
+  ["k3kopf", "Kanal 3 Kopf"], ["k3ende", "Kanal 3 Ende"],
 ];
+// Seit 1.663.0 je Maschinentyp: Kanal 3 nur, wo der Typ drei Kanäle hat
+const kopfTeile = (t) => KOPF_TEILE.filter(([k]) => (t.kanaele || 2) > 2 || !k.startsWith("k3"));
 
 // Beispiel für die Vorschau: Kopf und Ende mit einer Bearbeitung der gewählten Art
 function beispiel(t, artId) {
@@ -50,7 +53,8 @@ function beispiel(t, artId) {
     const grund = a.id.replace("Gegen", "");
     const b = { ...neuerBlock([], grund), id: "beispiel", bez: "BEISPIEL", code: "G1X5.F0.1\nG0Z2." };
     if (a.id.endsWith("Gegen")) b.spindel = "gegen";
-    const w = { ...vorgabeWerte(t), eigen: eigeneVorgaben("kopf"), nr: "458", hoco: "10841-0009", datum: "06.11.26", kuerzel: "PR", bloecke: [b] };
+    const w = { ...vorgabeWerte(t), eigen: eigeneVorgaben("kopf"), nr: "458", hoco: "10841-0009", datum: "06.11.26", kuerzel: "PR",
+      bloecke: (t.arten || []).length ? [b] : [], typ: t.id };
     return programme(w);
   });
 }
@@ -169,7 +173,8 @@ function Eingabefelder({ t, aendern, darf, ort, setOrt }) {
 function Fenster({ zu }) {
   const darf = !!(alt.istAdmin && alt.istAdmin());
   const [t, setT] = useState(() => kopie(typ()));
-  const v = useMemo(() => vorgabeTyp(), []);
+  const v = useMemo(() => vorgabeTyp(t.id), []);
+  const arten = ARTEN.filter((a) => !t.arten || t.arten.includes(a.id));
   const [reiter, setReiter] = useState("kopf");
   const [kopfTeil, setKopfTeil] = useState("k1kopf");
   const [art, setArt] = useState("dreh");
@@ -189,14 +194,15 @@ function Fenster({ zu }) {
       const vorher = await alt.rueckSichern("app_config", { schluessel: CONFIG_SCHLUESSEL });
       const alle = await alleLesen();
       const ab = typAbweichungen(t);
-      if (Object.keys(ab).length) alle[TYP] = ab; else delete alle[TYP];
+      if (Object.keys(ab).length) alle[t.id] = ab; else delete alle[t.id];
       const r = await alt.db.from("app_config").upsert([{ schluessel: CONFIG_SCHLUESSEL, wert: JSON.stringify(alle) }], { onConflict: "schluessel" });
       if (r && r.error) throw r.error;
-      alt.merkeSchritt("HOFERCAM " + TYP_NAME, vorher.length
+      alt.merkeSchritt("HOFERCAM " + t.name, vorher.length
         ? alt.rueckRein("app_config", vorher, "schluessel")
         : alt.rueckWeg("app_config", { schluessel: CONFIG_SCHLUESSEL }));
-      typSetzen(typMischen(ab));
-      alt.meldung("Einstellungen " + TYP_NAME + " gespeichert", "gut");
+      typGespeichertSetzen(t.id, ab);
+      typSetzen(typMischen(ab, t.id));
+      alt.meldung("Einstellungen " + t.name + " gespeichert", "gut");
       zu();
     } catch (f) {
       alt.meldung("Speichern ging nicht: " + ((f && f.message) || f), "fehler");
@@ -207,22 +213,22 @@ function Fenster({ zu }) {
   // Im Reiter Eingabefelder zeigt die Vorschau eine Bearbeitung der gewählten Art
   const vorschau = reiter === "bearb" || (reiter === "felder" && feldOrt !== "kopf")
     ? [ausschnitt(prog.k1, prog.bereiche.beispiel), ausschnitt(prog.k2, prog.bereiche2.beispiel)]
-    : [prog.k1, prog.k2];
+    : [prog.k1, prog.k2, ...(prog.k3 && prog.k3.length ? [prog.k3] : [])];
 
   return (
     <div className="dialog camtyp" id="camtyp">
       <div className="camtyp__kopf">
-        <h3>HOFERCAM · Maschinentyp {TYP_NAME}</h3>
+        <h3>HOFERCAM · Maschinentyp {t.name}</h3>
         <button className="knopf knopf--klein" id="camtyp-zu" onClick={zu}>✕</button>
       </div>
       {!darf && <p className="klein camtyp-nur">Nur Admins können hier etwas ändern.</p>}
       <Reiter merkmal="camtyp-reiter" aktiv={reiter} waehlen={setReiter}
-        reiter={[["kopf", "Kopf und Ende"], ["bearb", "Bearbeitungen"], ["felder", "Eingabefelder"], ["werte", "Plätze, Vorgaben, Marken"]]} />
+        reiter={[["kopf", "Kopf und Ende"], ...(arten.length ? [["bearb", "Bearbeitungen"]] : []), ["felder", "Eingabefelder"], ["werte", "Plätze, Vorgaben, Marken"]]} />
       <div className="camtyp__inhalt">
         <div className="camtyp__links">
           {reiter === "kopf" && <>
             <div className="camtyp-wahl">
-              {KOPF_TEILE.map(([k, text]) => (
+              {kopfTeile(t).map(([k, text]) => (
                 <button key={k} data-camtyp-teil={k} className={"knopf knopf--klein" + (kopfTeil === k ? " knopf--primaer" : "")}
                   onClick={() => setKopfTeil(k)}>{text}{t.vorlagen[k] !== v.vorlagen[k] ? " •" : ""}</button>
               ))}
@@ -235,7 +241,7 @@ function Fenster({ zu }) {
           {reiter === "bearb" && <>
             <label className="cam-feld camtyp-art"><span>Bearbeitung</span>
               <select data-camtyp-art value={art} onChange={(e) => setArt(e.target.value)}>
-                {ARTEN.map((a) => <option key={a.id} value={a.id}>{a.text}
+                {arten.map((a) => <option key={a.id} value={a.id}>{a.text}
                   {t.vorlagen[a.id + ".k1"] !== v.vorlagen[a.id + ".k1"] || t.vorlagen[a.id + ".k2"] !== v.vorlagen[a.id + ".k2"] ? " •" : ""}</option>)}
               </select></label>
             <div className="camtyp-zwei">
@@ -292,7 +298,7 @@ function Fenster({ zu }) {
         </div>
         <div className="camtyp__rechts">
           <b>Vorschau {vorschau.length && (reiter === "bearb" || (reiter === "felder" && feldOrt !== "kopf")) ? "dieser Bearbeitung" : "(Beispiel mit einer Bearbeitung)"}</b>
-          <div className="camtyp-vorschau">
+          <div className={"camtyp-vorschau" + (vorschau.length > 2 ? " camtyp-vorschau--3" : "")}>
             {vorschau.map((z, i) => (
               <div key={i}><span className="klein">Kanal {i + 1}</span>
                 <pre data-camtyp-vorschau={i + 1}>{z.length ? z.join("\n") : "(keine Zeilen)"}</pre></div>
@@ -328,6 +334,6 @@ export function camTypFensterOeffnen() {
   if (!eigenMoeglich()) return;
   const huellen = document.querySelectorAll(".camtyp-huelle");
   const huelle = huellen[huellen.length - 1];
-  if (huelle) inEigenesFenster(huelle, zu, { titel: "HOFERCAM · Maschinentyp " + TYP_NAME, still: true,
+  if (huelle) inEigenesFenster(huelle, zu, { titel: "HOFERCAM · Maschinentyp " + typ().name, still: true,
     lage: { x: window.screenX + 60, y: window.screenY + 60 } });
 }

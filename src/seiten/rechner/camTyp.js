@@ -28,6 +28,17 @@
 
 export const TYP = "star-sb20rg";
 export const TYP_NAME = "Star SB-20RG";
+// Seit 1.663.0 (Wunsch Patrick 20. November 2026: „Können wir jetzt die
+// nächste machen. Star SW20“): zweiter Typ mit drei Kanälen. Kopf und Ende
+// nach Patricks O1272 / O2272 / O3272 (10844-0049), Bearbeitungen folgen
+// Schritt für Schritt nach seinen Beispielen.
+export const TYP_SW20 = "star-sw20";
+// kanaele: Anzahl Kanäle; nummern: O-Nummer je Kanal = Nr. + Wert
+export const TYPEN = [
+  { id: TYP, name: TYP_NAME, kanaele: 2, nummern: [0, 1000] },
+  { id: TYP_SW20, name: "Star SW-20", kanaele: 3, nummern: [1000, 2000, 3000] },
+];
+export const typInfo = (id) => TYPEN.find((x) => x.id === id) || TYPEN[0];
 export const CONFIG_SCHLUESSEL = "hofercam_typen";
 
 // ---------- Vorgaben (Stand 1.440.0, Patricks O0458 / O1458) ----------
@@ -324,6 +335,165 @@ M76
 M1`,
 };
 
+// ---------- Star SW-20: Kopf und Ende (Patricks O1272 / O2272 / O3272) ----------
+// Kanal 1 Hauptspindel, Kanal 2 Gegenspindel, Kanal 3 Rückseitenblock.
+// Abgrenzung von Claude (Patrick gefragt): der Block mit M131 / M133, in
+// dem Kanal 3 an der Hauptspindel arbeitet, gehört zu den Bearbeitungen.
+const V_SW20 = {
+  k1kopf: `%
+O{NR}{NAME}(N)
+({DATUM_KUERZEL})
+G266A{A}W{W}S{S}X{X}Z{Z}F{F}B{B}
+(A=)(MATERIAL DIA.)
+(W=)(PART LENGTH)
+(S=)(MAIN SPINDLE RPM ABST.)
+(X=)(END OF CUTOFF POS.)
+(Z=)(B0 POS.)
+(F=)(CUTOFF FEED)
+(B=)(CUTOFF INSERT WIDTH)
+M1881D1
+G125
+G300(ABSTECH-U-PROG.)
+G97
+M1891
+G40M9
+G99M3S1409
+M11
+G4U0.2
+G0Z{SCHLICHT}T0(PLANDREH-ZUGABE)
+M10
+G4U0.20
+T100
+G0W-12.50
+M27
+G0Z-0.50
+/M25
+N12
+M200P123
+M20
+G99
+M25`,
+  k1ende: `M420P13
+M800P123
+T100(ABSTECHEN)
+M3S{S}T01
+M25
+G0X[#531+1]Z[#530+#528]
+G4U0.20
+G1W0.10F0.10
+M1881D2(HD EIN)
+M82
+M40
+M1898
+G1X{X}F0.12
+M1891(HD AUS)
+M41
+M83
+M80
+/G0X22.00W-0.5
+/G0W1.80
+/M98P7000
+M81
+M99
+%`,
+  k2kopf: `%
+O{NR2}{NAME}
+({DATUM_KUERZEL})
+G130
+G40G99M9
+M5
+G0T0
+G28W0
+T2000
+M200P123
+M20
+G10L52
+N1620P2R350
+G11
+M84`,
+  k2ende: `N12
+M75
+/T2900(AUSWERFEN)
+/M5
+/G130
+/G98
+/G1Z55.00F5000
+/M11
+/G4U2.0
+/M14
+/G4U2.0
+/M15
+/M84
+/M27
+M76
+G28W0.
+G99
+M1896
+G10L52
+N1620P2R50
+G11
+G900J777
+M1011
+M4S200
+T2000
+(M131 1)
+(M133 1)
+(M131 2)
+(M420P13)
+N19
+M800P123
+M101
+M1012
+M4S2200
+G0Z20.00
+M82
+G131B{SCHNABEL}(*SCHNABELZANGE*)
+M11
+M1011D5
+G0Z{ANNAEHERN}
+M68
+(M14)
+G98G1Z{UEBER}F1000.00
+G99M10
+M15
+M1012
+M69
+G133
+M40
+M41
+G4
+G4
+M68
+G0W-20.0
+M69
+M83
+G130
+(M27)
+G28W0M5
+N777
+M99
+%`,
+  k3kopf: `%
+O{NR3}{NAME}(N)
+({DATUM_KUERZEL})
+T1100
+G28U0
+G40G99
+G140
+M200P123
+M20`,
+  k3ende: `M420P13
+M800P123
+(M82)
+(M40)
+(M41)
+(M83)
+T1100
+M99
+%`,
+};
+const VORGABEN_SW20 = { A: "", W: "", S: "", X: "", Z: "", F: "", B: "", schlicht: "", plan: "", annaehern: "", ueber: "" };
+
 // Bearbeitungsarten in der Reihenfolge der Knöpfe; `art` und `spindel`
 // am Block bestimmen die Vorlage (Gegenspindel hat eigene)
 export const ARTEN = [
@@ -374,20 +544,25 @@ export const BLOCK_FELDER = {
 };
 const MARKEN = { ab: 300, schritt: 10 };
 
-export function vorgabeTyp() {
+export function vorgabeTyp(id = TYP) {
+  const info = typInfo(id), sw = info.id === TYP_SW20;
   return {
-    vorlagen: { ...V },
+    id: info.id, name: info.name, kanaele: info.kanaele, nummern: [...info.nummern],
+    // Bearbeitungsarten dieses Typs (SW-20: noch keine, folgen nach Patrick)
+    arten: sw ? [] : ARTEN.map((a) => a.id),
+    vorlagen: sw ? { ...V, ...V_SW20 } : { ...V },
     plaetze: Object.fromEntries(Object.entries(PLAETZE).map(([k, l]) => [k, [...l]])),
-    vorgaben: { ...VORGABEN },
+    vorgaben: sw ? { ...VORGABEN_SW20 } : { ...VORGABEN },
     bloecke: Object.fromEntries(Object.entries(BLOECKE).map(([k, o]) => [k, { ...o }])),
     marken: { ...MARKEN },
-    felder: { aus: {}, eigene: [] },
+    // SW-20: Kopf und Ende haben kein {PLAN}, das Feld oben bleibt dort weg
+    felder: { aus: sw ? { kopf: ["plan"] } : {}, eigene: [] },
   };
 }
 
 // Gespeicherte Abweichungen über die Vorgabe legen
-export function typMischen(ab = {}) {
-  const t = vorgabeTyp();
+export function typMischen(ab = {}, id = TYP) {
+  const t = vorgabeTyp(id);
   for (const [k, txt] of Object.entries(ab.vorlagen || {})) if (k in t.vorlagen && typeof txt === "string") t.vorlagen[k] = txt;
   for (const [k, l] of Object.entries(ab.plaetze || {})) if (k in t.plaetze && Array.isArray(l) && l.length) t.plaetze[k] = l.map(String);
   for (const [k, w] of Object.entries(ab.vorgaben || {})) if (k in t.vorgaben) t.vorgaben[k] = String(w);
@@ -406,7 +581,7 @@ export function typMischen(ab = {}) {
 
 // Nur die Abweichungen von der Vorgabe, zum Speichern
 export function typAbweichungen(t) {
-  const v = vorgabeTyp(), ab = {};
+  const v = vorgabeTyp(t.id), ab = {};
   const vorl = Object.fromEntries(Object.entries(t.vorlagen).filter(([k, x]) => x !== v.vorlagen[k]));
   if (Object.keys(vorl).length) ab.vorlagen = vorl;
   const pl = Object.fromEntries(Object.entries(t.plaetze).filter(([k, l]) => l.join(",") !== v.plaetze[k].join(",")));
@@ -435,6 +610,19 @@ export function typBeobachten(f) { typHoerer.add(f); return () => typHoerer.dele
 // Für die Vorschau im Fenster: mit einem ungespeicherten Stand rechnen,
 // ohne jemanden zu benachrichtigen
 export function mitTyp(t, f) { const vorher = aktiv; aktiv = t; try { return f(); } finally { aktiv = vorher; } }
+// Seit 1.663.0 mehrere Typen: die gespeicherten Abweichungen aller Typen
+// (app_config.hofercam_typen) und welcher gerade gilt. HOFERCAM wählt den
+// Typ des offenen Programms (w.typ) mit typWaehlen.
+let gespeichertAlle = {};
+export function typenGeladen(alle) { gespeichertAlle = alle || {}; typSetzen(typMischen(gespeichertAlle[aktiv.id] || {}, aktiv.id)); }
+export function typGespeichertSetzen(id, ab) { if (ab && Object.keys(ab).length) gespeichertAlle[id] = ab; else delete gespeichertAlle[id]; }
+export const typVon = (w) => typInfo(w && w.typ).id;
+export function typWaehlen(id, still) {
+  id = typInfo(id).id;
+  if (aktiv.id === id) return;
+  aktiv = typMischen(gespeichertAlle[id] || {}, id);
+  if (!still) typHoerer.forEach((f) => f());
+}
 
 // ---------- Vorlage ausfüllen ----------
 // `werte`: Platzhalter → Text, `bed`: Bedingung → wahr/falsch,

@@ -13,6 +13,10 @@ import { typ, vorlageArt, vorlageFuellen, blockEigene, eigeneVorgaben, feldAus, 
 // bis M999, dazu M20, M40, M41, M82, M83. Vierstellige wie M1881 / M1891
 // (Hochdruck ein / aus) sind keine.
 const MARKEN_EINZELN = new Set([20, 40, 41, 82, 83]);
+// Seit 1.663.0 (SW-20, Handbuch Kap. 8-11): M131 / M133 (Z1 und Hauptspindel
+// auf PATH1 bzw. PATH3) und M142 / M143 (Superposition Z1-Z3) lassen PATH1
+// und PATH3 aufeinander warten; „(1)“ dahinter ist nur ein Kommentar
+const MARKEN_K13 = new Set([131, 133, 142, 143]);
 export function istMarkeNr(n) { return MARKEN_EINZELN.has(n) || (n >= 200 && n <= 999); }
 
 // Marke einer Zeile oder null; Kommentare in Klammern zählen nicht
@@ -22,7 +26,7 @@ export function markeVon(zeile) {
   let m;
   while ((m = re.exec(ohne))) {
     const n = Number(m[1]);
-    if (m[1].length <= 3 && istMarkeNr(n)) return "M" + n;
+    if (m[1].length <= 3 && (istMarkeNr(n) || MARKEN_K13.has(n))) return "M" + n;
   }
   return null;
 }
@@ -118,11 +122,11 @@ const mitPunkt = (n) => (Number.isInteger(n) ? n + "." : String(n));
 // Seit 1.441.0 stehen Kopf und Ende als Vorlage in camTyp.js und sind je
 // Maschinentyp änderbar; die Vorgabe gibt genau das alte Programm aus
 function kopfWerte(w) {
-  const nr = Number(w.nr) || 0;
+  const nr = Number(w.nr) || 0, nn = typ().nummern || [0, 1000, 2000];
   const an = "-" + String(v(w, "annaehern")).replace(/^[-+]/, ""), ue = v(w, "ueber");
   const datum = String(w.datum || "").trim(), kuerzel = String(w.kuerzel || "").trim();
   return {
-    NR: nr4(nr), NR2: nr4(nr + 1000), NAME: w.hoco ? "(" + w.hoco + ")" : "", HOCO: String(w.hoco || ""),
+    NR: nr4(nr + nn[0]), NR2: nr4(nr + nn[1]), NR3: nr4(nr + (nn[2] ?? 2000)), NAME: w.hoco ? "(" + w.hoco + ")" : "", HOCO: String(w.hoco || ""),
     DATUM_KUERZEL: [datum, kuerzel].filter(Boolean).join(" "), DATUM: datum, KUERZEL: kuerzel,
     A: v(w, "A"), W: v(w, "W"), S: String(w.S ?? "").trim(), X: v(w, "X"), Z: v(w, "Z"), F: v(w, "F"), B: v(w, "B"),
     SCHLICHT: v(w, "schlicht"), PLAN: v(w, "plan"), ABZ: mitPunkt(abVersatz(w)),
@@ -142,6 +146,15 @@ function kanal2(w) {
   const t = typ().vorlagen, x = kopfAlles(w);
   return { kopf: vorlageFuellen(t.k2kopf, x), ende: vorlageFuellen(t.k2ende, x) };
 }
+
+// Seit 1.663.0 Kanal 3 (SW-20), vorerst nur Kopf und Ende
+function kanal3(w) {
+  const t = typ().vorlagen, x = kopfAlles(w);
+  if (!t.k3kopf && !t.k3ende) return { kopf: [], ende: [] };
+  return { kopf: vorlageFuellen(t.k3kopf || "", x), ende: vorlageFuellen(t.k3ende || "", x) };
+}
+export const kanalZahl = () => typ().kanaele || 2;
+export const nrKanal = (w, k) => nr4((Number(w && w.nr) || 0) + ((typ().nummern || [0, 1000, 2000])[k - 1] ?? 0));
 
 // ---------- Bearbeitungen ----------
 // Drehwerkzeuge Kanal 1 (Patrick 5. November 2026): T100 bis T600. Kopf
@@ -510,12 +523,12 @@ export function wartemarkenEinsetzen(w, id, pos, einsetzen) {
 // Ganze Programme je Kanal; die Bearbeitungen stehen zwischen Kopf und Ende
 export function programme(w) {
   w = wirksamW(w);
-  const k1 = kanal1(w), k2 = kanal2(w);
+  const k1 = kanal1(w), k2 = kanal2(w), k3 = kanal3(w);
   // Seit 1.398.0: je Block die Zeilen in Kanal 1 (von–bis, ab 1), damit
   // die Anzeige die angewählte Bearbeitung hervorheben kann
   const bereiche = {}, bereiche2 = {};
   const bloecke = w.bloecke || [];
-  const marken = markenVergeben(bloecke, [...k1.kopf, ...k1.ende, ...k2.kopf, ...k2.ende]);
+  const marken = markenVergeben(bloecke, [...k1.kopf, ...k1.ende, ...k2.kopf, ...k2.ende, ...k3.kopf, ...k3.ende]);
   let ab = k1.kopf.length, ab2 = k2.kopf.length;
   const bearb2 = [];
   // Seit 1.624.0: Herkunft je Zeile, „kopf“ (Programmkopf und -ende),
@@ -541,56 +554,84 @@ export function programme(w) {
   });
   her1.push(...k1.ende.map(() => "kopf")); her2.push(...k2.ende.map(() => "kopf"));
   return {
-    bereiche, bereiche2, marken, her1, her2,
+    bereiche, bereiche2, bereiche3: {}, marken, her1, her2,
+    her3: [...k3.kopf, ...k3.ende].map(() => "kopf"),
     k1: [...k1.kopf, ...bearb1, ...k1.ende],
     k2: [...k2.kopf, ...bearb2, ...k2.ende],
-    nr1: nr4(Number(w.nr) || 0), nr2: nr4((Number(w.nr) || 0) + 1000),
+    k3: [...k3.kopf, ...k3.ende],
+    nr1: nrKanal(w, 1), nr2: nrKanal(w, 2), nr3: nrKanal(w, 3),
   };
 }
 
-// Zwei Kanäle nebeneinander: gleiche Marken auf dieselbe Zeile, dazwischen
+// Kanäle nebeneinander: gleiche Marken auf dieselbe Zeile, dazwischen
 // Leerzeilen. Gepaart wird über die längste gemeinsame Folge der Marken;
-// eine Marke ohne Gegenstück im anderen Kanal bleibt allein (fehler).
-export function synchronisieren(z1, z2) {
-  const m1 = [], m2 = [];
-  z1.forEach((z, i) => { const m = markeVon(z); if (m) m1.push({ i, m }); });
-  z2.forEach((z, i) => { const m = markeVon(z); if (m) m2.push({ i, m }); });
-  // Längste gemeinsame Folge
-  const L = Array.from({ length: m1.length + 1 }, () => new Array(m2.length + 1).fill(0));
-  for (let a = m1.length - 1; a >= 0; a--) for (let b = m2.length - 1; b >= 0; b--) {
-    L[a][b] = m1[a].m === m2[b].m ? L[a + 1][b + 1] + 1 : Math.max(L[a + 1][b], L[a][b + 1]);
+// eine Marke ohne Gegenstück in einem anderen Kanal bleibt allein (fehler).
+// Seit 1.663.0 für zwei oder drei Kanäle (SW-20): die Marken werden Kanal
+// für Kanal in eine gemeinsame Folge gelegt; was in mindestens zwei Kanälen
+// steht, kommt auf eine Zeile, ein Kanal ohne diese Marke läuft weiter.
+function lcsPaare(a, b) {
+  const L = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+  for (let i = a.length - 1; i >= 0; i--) for (let j = b.length - 1; j >= 0; j--)
+    L[i][j] = a[i] === b[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  const p = [];
+  for (let i = 0, j = 0; i < a.length && j < b.length;) {
+    if (a[i] === b[j]) { p.push([i, j]); i++; j++; }
+    else if (L[i + 1][j] >= L[i][j + 1]) i++;
+    else j++;
   }
-  const paare = [];
-  for (let a = 0, b = 0; a < m1.length && b < m2.length;) {
-    if (m1[a].m === m2[b].m) { paare.push([m1[a].i, m2[b].i]); a++; b++; }
-    else if (L[a + 1][b] >= L[a][b + 1]) a++;
-    else b++;
+  return p;
+}
+export function synchronisieren(...listen) {
+  const kan = listen.map((z, k) => (Array.isArray(z) ? k : -1)).filter((k) => k >= 0);
+  const zl = (k) => listen[k];
+  // gemeinsame Folge: [{ m, at: {k: i} }]
+  let folge = [];
+  for (const k of kan) {
+    const mk = [];
+    zl(k).forEach((z, i) => { const m = markeVon(z); if (m) mk.push({ i, m }); });
+    const paare = lcsPaare(folge.map((e) => e.m), mk.map((x) => x.m));
+    const neu = [];
+    let a = 0, b = 0;
+    for (const [pa, pb] of [...paare, [folge.length, mk.length]]) {
+      while (a < pa) neu.push(folge[a++]);
+      while (b < pb) { neu.push({ m: mk[b].m, at: { [k]: mk[b].i } }); b++; }
+      if (pa < folge.length) { neu.push({ ...folge[pa], at: { ...folge[pa].at, [k]: mk[pb].i } }); a = pa + 1; b = pb + 1; }
+    }
+    folge = neu;
   }
-  const gepaart1 = new Set(paare.map((p) => p[0])), gepaart2 = new Set(paare.map((p) => p[1]));
-  const zelle = (zeilen, i, gepaart) => {
-    const m = markeVon(zeilen[i]);
-    return { text: zeilen[i], nr: i + 1, marke: m, fehler: !!m && !gepaart.has(i) };
+  const anker = folge.filter((e) => Object.keys(e.at).length >= 2);
+  const gepaart = {};
+  kan.forEach((k) => { gepaart[k] = new Set(); });
+  anker.forEach((e) => Object.entries(e.at).forEach(([k, i]) => gepaart[k].add(i)));
+  const zelle = (k, i) => {
+    const m = markeVon(zl(k)[i]);
+    return { text: zl(k)[i], nr: i + 1, marke: m, fehler: !!m && !gepaart[k].has(i) };
   };
   const reihen = [];
-  let p1 = 0, p2 = 0;
-  const abschnitt = (bis1, bis2) => {
-    const n = Math.max(bis1 - p1, bis2 - p2);
-    for (let k = 0; k < n; k++) {
-      const i1 = p1 + k, i2 = p2 + k;
-      reihen.push({
-        k1: i1 < bis1 ? zelle(z1, i1, gepaart1) : null,
-        k2: i2 < bis2 ? zelle(z2, i2, gepaart2) : null,
-      });
+  const pos = {};
+  kan.forEach((k) => { pos[k] = 0; });
+  const leer = () => { const r = {}; kan.forEach((k) => { r["k" + (k + 1)] = null; }); return r; };
+  const abschnitt = (bis) => {
+    const n = Math.max(...kan.map((k) => bis[k] - pos[k]));
+    for (let j = 0; j < n; j++) {
+      const r = leer();
+      kan.forEach((k) => { const i = pos[k] + j; if (i < bis[k]) r["k" + (k + 1)] = zelle(k, i); });
+      reihen.push(r);
     }
-    p1 = bis1; p2 = bis2;
+    kan.forEach((k) => { pos[k] = bis[k]; });
   };
-  for (const [i1, i2] of paare) {
-    abschnitt(i1, i2);
-    reihen.push({ sync: true, k1: zelle(z1, i1, gepaart1), k2: zelle(z2, i2, gepaart2) });
-    p1 = i1 + 1; p2 = i2 + 1;
+  for (const e of anker) {
+    const bis = {};
+    kan.forEach((k) => { bis[k] = k in e.at ? e.at[k] : pos[k]; });
+    abschnitt(bis);
+    const r = { ...leer(), sync: true };
+    Object.entries(e.at).forEach(([k, i]) => { r["k" + (Number(k) + 1)] = zelle(Number(k), i); pos[k] = i + 1; });
+    reihen.push(r);
   }
-  abschnitt(z1.length, z2.length);
-  const fehler = reihen.reduce((n, r) => n + (r.k1?.fehler ? 1 : 0) + (r.k2?.fehler ? 1 : 0), 0);
+  const ende = {};
+  kan.forEach((k) => { ende[k] = zl(k).length; });
+  abschnitt(ende);
+  const fehler = reihen.reduce((n, r) => n + kan.reduce((m, k) => m + (r["k" + (k + 1)]?.fehler ? 1 : 0), 0), 0);
   return { reihen, fehler };
 }
 
@@ -666,17 +707,20 @@ export function handAnwenden(neu, h) {
 export function programmeMitHand(w) {
   const p = programme(w);
   const h = w.hand || {};
-  const r1 = handAnwenden(p.k1, h.k1), r2 = handAnwenden(p.k2, h.k2);
+  const r1 = handAnwenden(p.k1, h.k1), r2 = handAnwenden(p.k2, h.k2), r3 = handAnwenden(p.k3, h.k3);
   // Seit 1.541.0: Abweichungen, die so aus einem eingelesenen Programm
   // stammen, violett statt gelb (danach von Hand Geändertes bleibt gelb)
   // Seit 1.544.0 gelten Leerzeilen nie als Abweichung (Patrick 14. November
   // 2026: „du musst leerzeilen, nicht als differenz anzeigen“)
   const ohneLeer = (set, z) => new Set([...set].filter((i) => String(z[i] ?? "").trim() !== ""));
   const ein1 = ohneLeer(ausEingelesen(r1, h.k1), r1.zeilen), ein2 = ohneLeer(ausEingelesen(r2, h.k2), r2.zeilen);
-  return { ...p, auto1: p.k1, auto2: p.k2, k1: r1.zeilen, k2: r2.zeilen,
+  const ein3 = ohneLeer(ausEingelesen(r3, h.k3), r3.zeilen);
+  return { ...p, auto1: p.k1, auto2: p.k2, auto3: p.k3, k1: r1.zeilen, k2: r2.zeilen, k3: r3.zeilen,
     her1: herkunftMitHand(p.k1, r1.zeilen, p.her1), her2: herkunftMitHand(p.k2, r2.zeilen, p.her2),
+    her3: herkunftMitHand(p.k3, r3.zeilen, p.her3),
     gelb1: ohneLeer(ohne(r1.gelb, ein1), r1.zeilen), gelb2: ohneLeer(ohne(r2.gelb, ein2), r2.zeilen), ein1, ein2,
-    verloren1: r1.verloren, verloren2: r2.verloren };
+    gelb3: ohneLeer(ohne(r3.gelb, ein3), r3.zeilen), ein3,
+    verloren1: r1.verloren, verloren2: r2.verloren, verloren3: r3.verloren };
 }
 const ohne = (a, b) => new Set([...a].filter((i) => !b.has(i)));
 // Seit 1.618.1 (Patrick 17. November 2026: „du machst in der simulation
@@ -722,8 +766,11 @@ export function programmLesen(text) {
   const oZeile = zeilen.find((z) => /^O\d{1,4}/i.test(z.trim()));
   if (!oZeile) return { fehler: "keine Programmnummer (O…) gefunden" };
   const o = Number(oZeile.trim().match(/^O(\d{1,4})/i)[1]);
-  const kanal = o >= 1000 ? 2 : 1, nr = kanal === 2 ? o - 1000 : o;
-  if (nr < 1 || nr > 999) return { fehler: "O" + o + " passt nicht (O0001–O0999 oder O1001–O1999)" };
+  // Seit 1.663.0 je Maschinentyp: SB-20RG O0nnn / O1nnn, SW-20 O1nnn / O2nnn / O3nnn
+  const nn = typ().nummern || [0, 1000];
+  let kanal = 0, nr = 0;
+  nn.forEach((b, k) => { if (o - b >= 1 && o - b <= 999) { kanal = k + 1; nr = o - b; } });
+  if (!kanal) return { fehler: "O" + o + " passt nicht zu " + typ().name + " (" + nn.map((b) => "O" + nr4(b + 1) + "–O" + nr4(b + 999)).join(", ") + ")" };
   const felder = { nr: String(nr) };
   if (kanal === 1) {
     const name = oZeile.match(/\(([^)]*)\)/);
@@ -733,6 +780,10 @@ export function programmLesen(text) {
       const t = g170[1].trim().split(/\s+/);
       if (t.length > 1 && /^[A-Za-zÄÖÜäöü]{1,4}$/.test(t[t.length - 1])) felder.kuerzel = t.pop();
       felder.datum = t.join(" ");
+    } else {
+      // SW-20: Datum und Kürzel als Kommentar unter der O-Zeile, „(10.02.2026 T.ECKER)“
+      const dk = zeilen.map((z) => z.trim().match(/^\((\d{1,2}\.\d{1,2}\.\d{2,4})\s*([^)]*)\)$/)).find(Boolean);
+      if (dk) { felder.datum = dk[1]; if (dk[2].trim()) felder.kuerzel = dk[2].trim(); }
     }
     const g266 = zeilen.find((z) => /^G266/i.test(z.trim()));
     if (g266) for (const m of g266.trim().slice(4).matchAll(/([AWSXZFB])([-+]?[\d.]+|#\d+)/gi)) felder[m[1].toUpperCase()] = m[2];
@@ -775,6 +826,7 @@ export function handZurueck(w, kanal, zeilen) {
   const wv = wirksamW(w);
   const bloecke = w.bloecke || [];
   const p = programme(w);
+  if (kanal === 3) return { hand: handNeu(w, 3, p.k3, zeilen) };
   const auto = kanal === 1 ? p.k1 : p.k2;
   const ber = kanal === 1 ? p.bereiche : p.bereiche2;
   let geaendert = false;

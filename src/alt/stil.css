@@ -14974,3 +14974,13 @@ body.dunkel .ze-gesicht__punkt--jetzt { background: #2f6fd0; }
   box-shadow: 0 18px 50px rgba(0,0,0,.35); display: block; }
 .ze-bestaetigt--bild { gap: 14px; }
 .ze-bestaetigt--bild .ze-bestaetigt__text { font-size: 2em; }
+
+/* HOFERCAM mit drei Kanälen (seit 1.663.0, Star SW-20): drei Spalten, der
+   dritte Kopf violett; am schmalen Bildschirm rollt der Kasten seitlich */
+.cam-kanaele--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); font-size: 12px; }
+.cam-kanaele--3 .cam-nr { flex-basis: 2.2em; }
+@media (max-width: 1100px) { .cam-kanaele--3 { grid-template-columns: repeat(3, minmax(260px, 1fr)); overflow-x: auto; } }
+body:not(.dunkel) .cam .cam-spalte--kopf.cam-spalte--k3 { background: #e7e0f3; border-left-color: #7a55b5; color: #33204f; }
+.camtyp-vorschau--3 { grid-template-columns: 1fr 1fr 1fr; }
+.cam-bearb--spaeter { padding: 10px 12px; border: 1px dashed #9fb3c8; border-radius: 10px; margin: 10px 0; font-size: 14px; }
+.cam-typ select { font: inherit; font-weight: 700; padding: 2px 6px; }
