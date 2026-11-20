@@ -15061,3 +15061,11 @@ body.dunkel .aufgabe-leiste__punkt.aktiv, body.dunkel .aufgabe-leiste__punkt.akt
   body.dunkel .aufgabe-leiste__punkt.aktiv, body.dunkel .aufgabe-leiste__punkt.aktiv * { color: #8fb6ff !important; }
   body.mit-aufgabenleiste .inhalt { padding-bottom: 90px; }
 }
+/* Aufgaben (1.671.1): Reiter, die schon in der Aufgabenleiste stehen,
+   nicht nochmals oben auf der Seite; auf dem Handy alle Knöpfe gleich breit */
+body.aufgabe-ohne-seitenreiter .reiter--seite { display: none !important; }
+@media (max-width: 640px) {
+  /* Start und Punkte gleich breit nebeneinander wie in einer App */
+  .aufgabe-leiste__punkte { display: contents; }
+  .aufgabe-leiste__start, .aufgabe-leiste__punkt { min-width: 0; font-size: 11px; }
+}

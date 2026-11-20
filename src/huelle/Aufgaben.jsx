@@ -34,18 +34,16 @@ export const AUFGABEN = [
     punkte: [seite("planwand", "Planwand"),
       { kurz: "Planer", zeichen: "kalender", sichtbar: planerSichtbar, tun: planerTabOeffnen },
       seite("material", "Material")] },
-  { id: "maschine", titel: "An der Maschine", frage: "Stückzahlen, Einrichtblätter, Pad", zeichen: "produktion", farbe: "#1f7a4d",
+  { id: "maschine", titel: "An der Maschine", frage: "Stückzahlen, Einrichtblätter, Maschinen", zeichen: "produktion", farbe: "#1f7a4d",
     punkte: [reiter("produktion", "erfassen", "Stückzahlen"), reiter("produktion", "richten", "Einrichten"),
-      { kurz: "Pad Mode", zeichen: "start", sichtbar: keinDienst, tun: () => alt.padOeffnen() },
       seite("maschinen", "Maschinen")] },
   { id: "bestellen", titel: "Bestellen", frage: "Werkzeug, Einkaufsliste, Lager", zeichen: "bestellungen", farbe: "#c0611b",
     punkte: [reiter("bestellungen", "offen", "Offen"), reiter("bestellungen", "bestellt", "Bestellt"),
-      reiter("bestellungen", "artikel", "Artikel"),
+      reiter("bestellungen", "historie", "Historie"), reiter("bestellungen", "artikel", "Artikel"),
       { kurz: "Einkauf", zeichen: "einkauf", sichtbar: intern, tun: einkaufOeffnen },
       seite("lager", "Lager")] },
   { id: "programmieren", titel: "Programmieren", frage: "HOFERCAM, Kontur, 3D", zeichen: "nc", farbe: "#5b3fa0",
-    punkte: [reiter("nc", "cam", "HOFERCAM"), reiter("nc", "kontur", "Kontur"), reiter("nc", "bohren", "Bohren"),
-      reiter("nc", "rechner", "Rechner"), seite("hofer2dto3d", "2D → 3D"), seite("einlagen", "Einlagen")] },
+    punkte: [seite("nc", "NC-PRO"), seite("hofer2dto3d", "2D → 3D"), seite("einlagen", "Einlagen")] },
   { id: "qualitaet", titel: "Qualität", frage: "Ausschuss, Prüfmittel, Messberichte, QMS", zeichen: "pruefmittel", farbe: "#b5761a",
     punkte: [reiter("qs", "ausschuss", "Ausschuss"), reiter("qs", "pruefmittel", "Prüfmittel"),
       reiter("produktion", "keyence", "Keyence"), seite("qmalt", "QMS")] },
@@ -111,6 +109,13 @@ export function AufgabeLeiste({ seite: offen }) {
     document.body.classList.toggle("aufgabe-modus", !!a || vorschau);
     document.body.classList.toggle("mit-aufgabenleiste", !!a);
   }, [!!a, vorschau]);
+  // Stehen Reiter der offenen Seite schon in der Leiste, ist die
+  // Reiterreihe der Seite doppelt und fällt weg (Patrick: „ineinander“)
+  const reiterInLeiste = !!a && a.punkte.some((p) => p.pfad === offen && p.wert);
+  useEffect(() => {
+    document.body.classList.toggle("aufgabe-ohne-seitenreiter", reiterInLeiste);
+    return () => document.body.classList.remove("aufgabe-ohne-seitenreiter");
+  }, [reiterInLeiste]);
   if (!a) return null;
   const aktiv = (p) => p.pfad === offen && (!p.wert || reiterAktiv(p.pfad) === p.wert);
   return (

@@ -32,6 +32,7 @@ with sync_playwright() as p:
         pg.screenshot(path=BILD + "/aufgabe-" + name + ".png")
         pg.click("[data-aufgabe-punkt=Artikel]"); pg.wait_for_timeout(800)
         akt = pg.locator(".aufgabe-leiste__punkt.aktiv").all_inner_texts(); pruefe(name + ": Artikel aktiv " + str(akt), [t.strip() for t in akt] == ["Artikel"])
+        sr = pg.locator(".reiter--seite:visible").count(); pruefe(name + ": keine doppelten Reiter oben (" + str(sr) + ")", sr == 0)
         pg.click(".aufgabe-leiste__start"); pg.wait_for_timeout(800)
         pruefe(name + ": zurück zur Wahl", pg.locator("#sm-module").count() == 1 and pg.locator("#aufgabe-leiste").count() == 0)
         pg.click("#sm-vorschau a"); pg.wait_for_timeout(800)
