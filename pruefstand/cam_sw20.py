@@ -37,7 +37,7 @@ with sync_playwright() as p:
     pruefe("M200P123 in allen drei auf einer Reihe", reihe(1, "M200P123") is not None and reihe(1, "M200P123") == reihe(2, "M200P123") == reihe(3, "M200P123"))
     pruefe("M420P13 in Kanal 1 und 3 auf einer Reihe", reihe(1, "M420P13") is not None and reihe(1, "M420P13") == reihe(3, "M420P13"))
     pruefe("SW-20: Drehwerkzeug-Knopf da, Front ohne Bestückung gesperrt", pg.locator("#cam-neu-dreh").count() == 1 and pg.is_disabled("#cam-neu-front"))
-    pruefe("SW-20: keine Bearbeitungen Kanal 2", pg.locator("#cam-neu-k2").count() == 0)
+    pruefe("SW-20: Knöpfe Kanal 2", all(pg.locator(x).count() == 1 for x in ["#cam-neu-k2", "#cam-neu-k2b", "#cam-neu-k2a"]))
     # Seit 1.664.0: Bestückung mit Frontbohrapparat und Bild der SW-20
     pruefe("Bestückung SW-20 mit fünf Plätzen", pg.locator("[data-cam-swfront]").count() == 5)
     pg.hover("[data-cam-swkanal='1']"); pg.wait_for_timeout(300)
@@ -97,6 +97,40 @@ with sync_playwright() as p:
     pruefe("Kanal 1 ohne T1300/T1600", not any(z.startswith("T1300") or z.startswith("T1600") for z in k(1)))
     pruefe("Kanal 3 ohne rote Felder", pg.locator(".cam-feld--fehler").count() == 0)
     k3 = k(3)
+    # Seit 1.667.0: Kanal 2 nach Patricks T2100, T2700 und T2600
+    pg.click("#cam-neu-k2"); pg.wait_for_timeout(300)
+    pg.fill("[data-block='4'] [data-camblock='bez']", "DREHEN PLANIEREN")
+    pg.fill("[data-block='4'] [data-camblock='code']", "G1X-0.50F0.05\nG0Z-1.00"); pg.wait_for_timeout(300)
+    k2 = [z.strip() for z in k(2)]
+    i = k2.index("/T2100(DREHEN PLANIEREN)") if "/T2100(DREHEN PLANIEREN)" in k2 else -1
+    soll = ["M75", "/T2100(DREHEN PLANIEREN)", "/M3S3000T21", "/G0X19.00Z-1.00", "/M1886D1", "/G1X-0.50F0.05", "/G0Z-1.00",
+            "M76", "G28W0.", "M1896", "T0", "M01"]
+    pruefe("Kanal 2 T2100 wie Patricks Beispiel " + str(k2[i - 1:i + 11]), i >= 1 and k2[i - 1:i + 11] == soll)
+    pg.click("#cam-neu-k2b"); pg.wait_for_timeout(300)
+    pg.fill("[data-block='5'] [data-camblock='bez']", "ZENTRIEREN")
+    pg.fill("[data-block='5'] [data-camblock='code']", "G1Z-0.10F0.50\nG1W1.55F0.05"); pg.wait_for_timeout(300)
+    k2 = [z.strip() for z in k(2)]
+    i = k2.index("/T2700(ZENTRIEREN)") if "/T2700(ZENTRIEREN)" in k2 else -1
+    soll = ["M75", "/T2700(ZENTRIEREN)", "/M3S2000T27", "/G0Z-0.50", "/G1Z-0.10F0.50", "/G1W1.55F0.05", "M76", "M01", "G28W0.", "T0"]
+    pruefe("Kanal 2 T2700 wie Patricks Beispiel " + str(k2[i - 1:i + 9]), i >= 1 and k2[i - 1:i + 9] == soll)
+    pg.click("#cam-neu-k2a"); pg.wait_for_timeout(300)
+    pg.click("[data-block='6'] .cam-wahl__knopf"); pg.wait_for_timeout(200)
+    pg.click("[data-block='6'] [data-platz='2600']"); pg.wait_for_timeout(200)
+    pg.fill("[data-block='6'] [data-camblock='bez']", "QUERNUT")
+    pg.fill("[data-block='6'] [data-camblock='C']", "90.")
+    pg.fill("[data-block='6'] [data-camblock='code']", "G0X15.00Y-3.00Z-0.50\nG1Z3.045F0.05"); pg.wait_for_timeout(300)
+    k2 = [z.strip() for z in k(2)]
+    i = k2.index("/T2600(QUERNUT)") if "/T2600(QUERNUT)" in k2 else -1
+    soll = ["M75", "/T2600(QUERNUT)", "/M56S2500T26", "/M7", "/M8", "/G0C90.", "/G0X15.00Y-3.00Z-0.50", "/G1Z3.045F0.05",
+            "G0T0", "G28W0.", "M01", "M76", "M58", "G28W0.", "T0"]
+    pruefe("Kanal 2 T2600 wie Patricks Beispiel " + str(k2[i - 1:i + 14]), i >= 1 and k2[i - 1:i + 14] == soll)
+    pruefe("Kanal 2 ohne rote Felder", pg.locator(".cam-feld--fehler").count() == 0)
+    # M1882 am Anfang des Frontbohrapparats wählbar
+    pg.select_option("[data-block='2'] [data-camblock='hd']", "3"); pg.wait_for_timeout(300)
+    k3 = [z.strip() for z in k(3)]
+    i = k3.index("T1300(ZENTRIEREN M1.7)") if "T1300(ZENTRIEREN M1.7)" in k3 else -1
+    pruefe("T1300 mit M1882D3", i >= 0 and k3[i + 1] == "M1882D3")
+    k2 = k(2); k3 = k(3)
     pg.screenshot(path=ORDNER + "/sw20_bearbeitungen.png", full_page=True)
     # Einlesen: drei Dateien aus dem Erzeugten mit Nr. 1272 / 2272 / 3272
     def datei(name, zeilen, alt, neu):
@@ -110,7 +144,7 @@ with sync_playwright() as p:
     pruefe("Nr. aus O1272 gelesen", pg.input_value("[data-cam='nr']") in ("272", "0272", "1272"))
     pruefe("Kanal 3 zeigt O3272", any(z.startswith("O3272") for z in k(3)))
     pruefe("Nach Einlesen keine roten Marken", pg.locator(".cam-zeile--fehler").count() == 0)
-    pruefe("Nach Einlesen vier Bearbeitungen erkannt", pg.locator("[data-blockid]").count() == 4 and pg.locator("[data-camblock-frei]").count() == 0)
+    pruefe("Nach Einlesen sieben Bearbeitungen erkannt", pg.locator("[data-blockid]").count() == 7 and pg.locator("[data-camblock-frei]").count() == 0)
     violett = pg.eval_on_selector_all(".cam-zeile--ein", "e => e.map(x => (x.closest('[data-kanal]')||{}).dataset?.kanal + ':' + x.textContent)")
     violett = [v for v in violett if not v.split(":", 1)[1].lstrip("0123456789").startswith("O")]
     pruefe("Nach Einlesen ausser der O-Zeile nichts violett " + str(violett[:6]), len(violett) == 0)

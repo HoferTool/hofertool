@@ -166,6 +166,9 @@ export const nrKanal = (w, k) => nr4((Number(w && w.nr) || 0) + ((typ().nummern 
 
 // Seit 1.441.0 je Maschinentyp änderbar (camTyp.js)
 export const plaetzeVon = (gruppe) => typ().plaetze[gruppe] || [];
+// Platzgruppe einer Bearbeitungsart: beim SB-20RG teilen sich Kanal 2
+// stehend und angetrieben die Plätze, die SW-20 hat eigene (1.667.0)
+export const platzGruppe = (art) => (typ().plaetze[art] ? art : art === "k2a" || art === "k2b" ? "k2" : art);
 // Seit 1.582.0 (Wunsch Patrick 16. November 2026: „oben in den Kopfdaten
 // soll ausgewählt werden können, ob T3400 montiert ist oder T3421–T3423,
 // beides geht nicht“): w.t34 "3400" oder "3421". Seit 1.591.0 leer = T3400
@@ -211,7 +214,7 @@ const neueId = () => Date.now().toString(36) + Math.random().toString(36).slice(
 
 export function neuerBlock(bloecke = [], art = "dreh", w = null) {
   const belegt = new Set(bloecke.map((b) => b.platz));
-  const gruppe = art === "k2a" ? "k2" : art;
+  const gruppe = platzGruppe(art);
   const l = w ? montiert(gruppe, w) : plaetzeVon(gruppe);
   const platz = l.find((p) => !belegt.has(p)) || l[0] || "";
   const nb = { id: neueId(), art, platz, bez: "", ...(typ().bloecke[art] || {}), eigen: eigeneVorgaben(art), code: "" };
@@ -251,6 +254,17 @@ export function blockFehler(b, w = {}) {
     const pflicht = b.art === "k3f" ? ["X", "anZ", "zuZ", "wegZ"] : ["vorX", "anZ", "nZ"];
     for (const n of pflicht) if (zahl(b[n]) == null) f[n] = "Zahl fehlt";
     for (const n of ["Y", "C"]) if (String(b[n] ?? "").trim() !== "" && zahl(b[n]) == null) f[n] = "Zahl oder leer";
+    return f;
+  }
+  // Kanal 2 SW-20 (1.667.0)
+  if (istSw() && (b.art === "k2" || b.art === "k2a" || b.art === "k2b")) {
+    if (b.art === "k2" && b.sArt === "vc") {
+      if (zahl(b.vc) == null || !(Number(zahl(b.vc)) > 0)) f.vc = "Zahl fehlt";
+      if (!b.g96 && vcDurchmesser(b, w) == null) f.vcD = "Ø fehlt";
+    } else if (!/^\d+$/.test(String(b.S).trim()) || Number(b.S) <= 0) f.S = "ganze Zahl";
+    const pflicht = b.art === "k2" ? ["vorX", "anZ"] : b.art === "k2b" ? ["anZ"] : [];
+    for (const n of pflicht) if (zahl(b[n]) == null) f[n] = "Zahl fehlt";
+    if (String(b.C ?? "").trim() !== "" && zahl(b.C) == null) f.C = "Zahl oder leer";
     return f;
   }
   if (b.art === "k2a") {
@@ -354,7 +368,7 @@ function blockWerte(b, w, marke) {
   const S = mitVc ? drehzahl(b, w) ?? roh : roh;
   // Drehrichtung je Art: stehend M3 / M4, angetrieben M36 / M37
   const dreh = art === "k2" ? (b.dreh === "3" ? 3 : 4)
-    : art === "k2a" ? (b.dreh === "36" ? 36 : 37)
+    : art === "k2a" ? (istSw() ? (b.dreh === "57" ? 57 : 56) : b.dreh === "36" ? 36 : 37)
     : art === "seite" || art === "quer" || art === "querGegen" || art === "k3f" ? (b.dreh === "37" ? 37 : 36)
     : (b.dreh === "4" ? 4 : 3);
   const mk = marke || (anGegenspindel(b) ? STANDARD_MARKEN[b.art] : null) || {};
@@ -387,7 +401,7 @@ function blockWerte(b, w, marke) {
 // Bearbeitung „wie eingelesen“ (seit 1.561.0): der NC-Code steht
 // unverändert im Programm, ohne Vorlage, im Kanal ihrer Art
 const freiZeilen = (b) => String(b.code || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
-const freiK2 = (b) => b.art === "k2" || b.art === "k2a";
+const freiK2 = (b) => b.art === "k2" || b.art === "k2a" || b.art === "k2b";
 export function blockZeilen(b, w = {}, marke) {
   if (b.frei) return freiK2(b) || istK3(b) ? [] : freiZeilen(b);
   if (istK3(b)) return [];

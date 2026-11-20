@@ -404,7 +404,7 @@ export function simAufbauen(wRoh) {
     const titel = platz + (b.bez ? " " + b.bez : "");
     const art = b.art || "dreh";
     // Kanal 3 der SW-20 (1.666.0) rechnet die Simulation noch nicht
-    if (art.startsWith("k3")) return;
+    if (art.startsWith("k3") || art === "k2b") return;
     const gegen = (art === "front" || art === "quer") && b.spindel === "gegen";
     const kanal = art === "k2" || art === "k2a" || gegen ? 2 : 1;
     const wzOk = wzVollstaendig(bRoh);
@@ -468,7 +468,7 @@ export function simAufbauen(wRoh) {
     } else {
       // Seit 1.561.0: Kanal 2 wie eingelesen ohne G50 (ältere Programme
       // bohren direkt mit der Gegenspindel) rechnet wie ein Frontwerkzeug
-      const ohneG50 = art === "k2" && b.frei && !zeilen.some((z) => /G50/i.test(z));
+      const ohneG50 = art === "k2" && !zeilen.some((z) => /G50/i.test(z));
       const roh = bahnLesen(zeilen, { ...v }, { mitG50: art === "k2" && !ohneG50 });
       s.zeilen = zeilen;
       // Bohr- und Fräswerkzeuge an Front: Teil 0.5 mm vor „Anfahren Z“,

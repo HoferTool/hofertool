@@ -21,7 +21,7 @@ const MUSTER = {
   G96: "((?:G96)?)", HDN: "(\\d)", G50: "(\\d+)", DREH: "(M\\d+)", T: "(\\d+)", TK: "(\\d+)", SSTART: "(\\d+)", T2: "(\\d+)", T2V: "(\\d+)", PLATZ: "(\\d{3,4})",
   HD: "(\\d*)", VOR: "(G9[89])", WINKEL: "((?:,A[-+\\d.]+)?)", Y: "((?:Y[-+\\d.]+)?)",
   M1: MARKE, M2: MARKE, M3: MARKE, NR: "(\\d{1,4})", NR2: "(\\d{1,4})",
-  BEZ_K: "((?:\\(.*\\))?)", NAME: "((?:\\(.*\\))?)", BEZ_GEGEN: "(.*)",
+  BEZ_K: "\\s*((?:\\(.*\\))?)", NAME: "((?:\\(.*\\))?)", BEZ_GEGEN: "(.*)",
 };
 const esc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -221,7 +221,7 @@ function paareIn(zeilen) {
   return aus;
 }
 
-const gruppeVon = (platz) => ["dreh", "front", "seite", "quer", "k2"].find((g) => plaetzeVon(g).includes(String(platz)));
+const gruppeVon = (platz) => ["dreh", "front", "seite", "quer", "k2", "k2a", "k2b"].find((g) => plaetzeVon(g).includes(String(platz)));
 const K1_ARTEN = { dreh: ["dreh"], front: ["front", "frontGegen"], seite: ["seite"], quer: ["quer", "querGegen"] };
 
 function besteVorlage(arten, zeilen, kanal) {
@@ -295,13 +295,17 @@ export function bloeckeLesen(k1, k2, k3) {
   const gegen2 = [];
   t2.ab.forEach((s, pos) => {
     if (s.some(istT2000)) { if (!istEnde2(s)) gegen2.push({ s, pos, frei: true }); return; }
-    const best = besteVorlage(["k2", "k2a"], s, 2);
+    // SW-20 (1.667.0): eigene Plätze je Art, die Vorlage folgt dem Platz
+    const pl2 = (werkzeug(s).match(/^T(\d{3,4})/i) || [])[1];
+    const gp = pl2 && typ().plaetze.k2b ? gruppeVon(pl2) : null;
+    const best = besteVorlage(gp && gp.startsWith("k2") ? [gp] : ["k2", "k2a", "k2b"], s, 2);
     if (zuSchlecht(best, s)) {
       if (istEnde2(s)) return;
       const platz = (werkzeug(s).match(/^T(\d{3,4})/i) || [])[1];
-      if (platz && gruppeVon(platz) === "k2") {
-        // angetrieben, wenn M36/M37 eingeschaltet wird
-        const art = s.some((z) => /^\/?M3[67]S/i.test(z)) ? "k2a" : "k2";
+      const gr2 = platz && gruppeVon(platz);
+      if (gr2 && gr2.startsWith("k2")) {
+        // angetrieben, wenn M36/M37 (SW-20: M56/M57) eingeschaltet wird
+        const art = gr2 !== "k2" ? gr2 : s.some((z) => /^\/?M[35][67]S/i.test(z)) ? "k2a" : "k2";
         liste.push({ b: freiBlock(art, s, platz), p1: null, p2: pos }); return;
       }
       unklar.push(werkzeug(s)); return;

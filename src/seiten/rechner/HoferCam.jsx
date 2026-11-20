@@ -28,7 +28,7 @@ import AbstecherBild from "./AbstecherBild.jsx";
 import SchnabelBild from "./SchnabelBild.jsx";
 import { hofercamTutorialOeffnen } from "../start/NeuesTutorial.jsx";
 import { EinstichBild, EinstichSteuerung } from "./CamEinstichBild.jsx";
-import { SW20_BILD, SW20_FRONT_PLAETZE, SW20_KANAL_PLAETZE, sw20Bereich, swFrontVon, nrKanal, FELDER, HD_STUFEN, abVersatz, AB_VERSATZ_VORGABE, plaetzeVon, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, handZurueck, markenPaare, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
+import { SW20_BILD, SW20_FRONT_PLAETZE, SW20_KANAL_PLAETZE, sw20Bereich, swFrontVon, nrKanal, FELDER, HD_STUFEN, abVersatz, AB_VERSATZ_VORGABE, plaetzeVon, platzGruppe, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, handZurueck, markenPaare, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Seit 1.427.0 (Wunsch Patrick 5. November 2026: „vordefinierte
 // Bearbeitungen aus einer Liste einfügen … in eine bestehende
@@ -434,7 +434,7 @@ function knopfGruppe(art, w, text) {
   if (art === "t34") return t34Von(w) === "3400"
     ? { art, text: "Platz 34: T3400 querangetrieben", bloecke: [{ art: "seite", platz: 3400 }] }
     : { art, text: "Platz 34: T3421–T3423 frontangetrieben", bloecke: [3421, 3422, 3423].flatMap((p) => [{ art: "quer", platz: p }, { art: "quer", platz: p, spindel: "gegen" }]) };
-  const gruppe = art === "k2a" ? "k2" : art;
+  const gruppe = platzGruppe(art);
   const l = montiert(gruppe, w);
   const bl = [];
   l.forEach((p) => {
@@ -640,7 +640,7 @@ export default function HoferCam() {
     onBlur: () => setKnopfUeber((x) => (x && x.art === art ? null : x)),
   });
   const knopfMaus = (art, label) => ({
-    onPointerEnter: (e) => { if (e.pointerType === "mouse") setKnopfUeber({ art, text: label + " " + spanne(art === "k2a" ? "k2" : art, w) }); },
+    onPointerEnter: (e) => { if (e.pointerType === "mouse") setKnopfUeber({ art, text: label + " " + spanne(platzGruppe(art), w) }); },
     onPointerLeave: () => setKnopfUeber((x) => (x && x.art === art ? null : x)),
   });
   // Platz, über dem die Maus in der offenen Auswahl steht: { id, platz }
@@ -979,6 +979,13 @@ export default function HoferCam() {
             onClick={() => { const nb = neuerBlock(bloecke, "quer", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Frontangetrieben {spanne("quer", w)}</button>}
           </>}
         </div>
+        {/* Seit 1.667.0 SW-20: Kanal 2 nach Patricks T2100, T2700 und T2600 */}
+        {!sb && <div className="cam-bearb__kopf">
+          <b>Bearbeitungen Kanal 2</b>
+          {[["k2", "Drehen"], ["k2b", "Bohren stehend"], ["k2a", "Angetrieben"]].map(([a, t]) => (
+            <button key={a} className="knopf knopf--klein" id={"cam-neu-" + a} {...swMaus("sw" + a, plaetzeVon(a).map(Number), t + " Kanal 2")}
+              onClick={() => { const nb = neuerBlock(bloecke, a, w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ {t} {spanne(a)}</button>))}
+        </div>}
         {/* Seit 1.666.0 SW-20: Kanal 3 (Rückseitenblock) nach Patricks T1300
             und T1600 aus O3272 (20. November 2026) */}
         {!sb && <div className="cam-bearb__kopf">
@@ -1011,7 +1018,8 @@ export default function HoferCam() {
           const seite = b.art === "seite";
           const quer = b.art === "quer" || seite;
           const k2a = b.art === "k2a";
-          const k2 = b.art === "k2" || k2a;
+          const k2b = b.art === "k2b";
+          const k2 = b.art === "k2" || k2a || k2b;
           const k3f = b.art === "k3f", k3d = b.art === "k3d", k3 = k3f || k3d;
           // Kanal-2-Blöcke verhalten sich wie die Gegenspindel: NC-Code in
           // Kanal 2, Markenpaare geben ein Feld für Kanal 1
@@ -1031,7 +1039,7 @@ export default function HoferCam() {
             </label>
           );
           return { key: b.id, inhalt: (
-            <div key={b.id} className={"cam-block" + (b.art === "k2" || b.art === "k2a" ? " cam-block--k2" : "") + (k3 ? " cam-block--k3" : "") + (b.id === aktiv ? " cam-block--aktiv" : "")} data-block={i} data-blockid={b.id}
+            <div key={b.id} className={"cam-block" + (k2 ? " cam-block--k2" : "") + (k3 ? " cam-block--k3" : "") + (b.id === aktiv ? " cam-block--aktiv" : "")} data-block={i} data-blockid={b.id}
               onFocusCapture={() => setAktiv(b.id)} onPointerDown={() => setAktiv(b.id)}>
               <div className="cam-block__zeile">
                 {/* Seit 1.399.0 (Wunsch Patrick 5. November 2026): NC-Code mit
@@ -1051,7 +1059,7 @@ export default function HoferCam() {
                   onPointerEnter={(e) => { if (e.pointerType === "mouse") setUeber(b.id); }}
                   onPointerLeave={() => setUeber((x) => (x === b.id ? null : x))}
                   title={k3f ? "Frontbohrapparat Kanal 3" : k3d ? "Festes Werkzeug Kanal 3" : k2 ? "Werkzeugplatz Kanal 2" : quer ? "Werkzeugplatz (angetrieben, Weg mit der Gegenspindel)" : front ? "Werkzeugplatz (Frontwerkzeug fest)" : "Werkzeugplatz (Drehwerkzeug Kanal 1)"}><span>Platz</span>
-                  <PlatzWahl wert={b.platz} plaetze={montiert(k3 ? b.art : k2 ? "k2" : seite ? "seite" : quer ? "quer" : front ? "front" : "dreh", w)}
+                  <PlatzWahl wert={b.platz} plaetze={montiert(k3 ? b.art : k2 ? platzGruppe(b.art) : seite ? "seite" : quer ? "quer" : front ? "front" : "dreh", w)}
                     waehlen={(p) => { blockAendern(b.id, "platz", p); setUeber(b.id); }}
                     vorschau={(p) => { setVorPlatz(p ? { id: b.id, platz: p } : null); if (p) setUeber(b.id); }} />
                   {bf.platz && <small className="cam-fehltext" data-camblock-nichtmontiert={i}>nicht montiert</small>}</label>
@@ -1069,17 +1077,17 @@ export default function HoferCam() {
                     onClick={() => blockAendern(b.id, "frei", false)}>Mit Vorlage aufbauen</button></span> : <>
                 {!aus("hd") && <label className="cam-feld" title={k3d ? "Hochdruck M188…D… ein, am Ende M189… aus" : k2 ? "Hochdruck M1884D… vor dem Werkzeugaufruf, am Ende M1894 aus" : quer ? "Hochdruck M1883D… ein, am Ende M1893 aus" : front ? "Hochdruck M1882D… ein, am Ende M1892 aus" : "Hochdruck M1881D… ein, am Ende M1891 aus"}><span>Hochdruck</span>
                   <select data-camblock="hd" value={b.hd} onChange={(e) => blockAendern(b.id, "hd", e.target.value)}>
-                    {(() => { const st = k3 ? [...HD_STUFEN, "5"] : HD_STUFEN; return st.includes(b.hd || "") ? st : [...st, b.hd]; })().map((h) => <option key={h} value={h}>{h ? "Stufe " + h : "kein"}</option>)}
+                    {(() => { const st = !sb ? [...HD_STUFEN, "5"] : HD_STUFEN; return st.includes(b.hd || "") ? st : [...st, b.hd]; })().map((h) => <option key={h} value={h}>{h ? "Stufe " + h : "kein"}</option>)}
                   </select></label>}
                 {!aus("vor") && <label className="cam-feld" title={"Vorschub je Umdrehung (G99) oder je Minute (G98)" + (gegen ? ", in Kanal 2" : "") + "; am Ende der Bearbeitung immer wieder G99"}><span>Vorschub</span>
                   <select data-camblock="vor" value={vorschubArt(b)} onChange={(e) => blockAendern(b.id, "vor", e.target.value)}>
                     <option value="99">G99 mm/U</option><option value="98">G98 mm/min</option>
                   </select></label>}
-                {k3d && be.hd && <label className="cam-feld" title="Ausgang des Hochdrucks: M188…D… ein, M189… aus (bei T1600 im Beispiel M1883)"><span>HD-Ausgang</span>
+                {(k3d || (!sb && b.art === "k2")) && be.hd && <label className="cam-feld" title="Ausgang des Hochdrucks: M188…D… ein, M189… aus (T1600 im Beispiel M1883, T2100 M1886)"><span>HD-Ausgang</span>
                   <select data-camblock="hdN" value={b.hdN || "3"} onChange={(e) => blockAendern(b.id, "hdN", e.target.value)}>
-                    {["1", "2", "3", "4"].map((h) => <option key={h} value={h}>{"M188" + h}</option>)}
+                    {["1", "2", "3", "4", "5", "6"].map((h) => <option key={h} value={h}>{"M188" + h}</option>)}
                   </select></label>}
-                {be.hd && (sb || !front) && <label className="cam-feld cam-g96" title={"Am Ende der Bearbeitung den Hochdruck mit " + (k2 ? "M1894" : quer ? "M1893" : front ? "M1892" : "M1891") + " ausschalten"}>
+                {be.hd && (sb || !front) && !k3f && <label className="cam-feld cam-g96" title={"Am Ende der Bearbeitung den Hochdruck mit " + (k2 ? "M1894" : quer ? "M1893" : front ? "M1892" : "M1891") + " ausschalten"}>
                   <input type="checkbox" data-camblock="hdAus" checked={!b.hdAn}
                     onChange={(e) => blockAendern(b.id, "hdAn", !e.target.checked)} /><span>HD am Ende aus</span></label>}
                 {k3f ? <>
@@ -1109,6 +1117,25 @@ export default function HoferCam() {
                   {feld("anZ", "Vorpos. Z", "G0Z… Vorpositionieren", 58)}
                   {feld("nZ", "Nullpunkt Z", "G50Z… Nullpunkt setzen", 58)}
                   {feld("Y", "Position Y", "G0Y… nach G50, leer = ohne", 58)}
+                </> : k2b ? <>
+                  {/* Seit 1.667.0 SW-20 nach Patricks T2700 */}
+                  {!aus("dreh") && <label className="cam-feld" title="Drehrichtung"><span>Richtung</span>
+                    <select data-camblock="dreh" value={b.dreh === "4" ? "4" : "3"} onChange={(e) => blockAendern(b.id, "dreh", e.target.value)}>
+                      <option value="3">M3</option><option value="4">M4</option>
+                    </select></label>}
+                  {feld("S", "Drehzahl S", "Drehzahl (M3/M4 S…T..)")}
+                  {feld("anZ", "Vorpos. Z", "G0Z… vor dem Bohren", 58)}
+                </> : k2a && !sb ? <>
+                  {/* Seit 1.667.0 SW-20 nach Patricks T2600: M56 ein, M58 aus */}
+                  {!aus("dreh") && <label className="cam-feld" title="Angetriebenes Werkzeug Kanal 2: M56 oder M57"><span>Richtung</span>
+                    <select data-camblock="dreh" value={b.dreh === "57" ? "57" : "56"} onChange={(e) => blockAendern(b.id, "dreh", e.target.value)}>
+                      <option value="56">M56</option><option value="57">M57</option>
+                    </select></label>}
+                  {feld("S", "Drehzahl S", "Drehzahl des angetriebenen Werkzeugs (M56 S…T..)")}
+                  {feld("C", "Position C", "G0C… nach M7 M8, leer = ohne", 58)}
+                  <label className="cam-feld cam-g96" title="Am Ende das angetriebene Werkzeug mit M58 ausschalten">
+                    <input type="checkbox" data-camblock="m38" checked={!b.spAn}
+                      onChange={(e) => blockAendern(b.id, "spAn", !e.target.checked)} /><span>M58 am Ende</span></label>
                 </> : k2a ? <>
                   {/* Seit 1.425.0: angetrieben in Kanal 2 */}
                   {!aus("dreh") && <label className="cam-feld" title="Angetriebenes Werkzeug: M36 Rechtslauf, M37 Linkslauf"><span>Richtung</span>
@@ -1161,7 +1188,11 @@ export default function HoferCam() {
                       {b.g96 ? (drehzahl(b, wirksamW(w)) ? "G96 S" + drehzahl(b, wirksamW(w)) : "S –") : (drehzahl(b, wirksamW(w)) ? "= S" + drehzahl(b, wirksamW(w)) : "S –")}</span>
                   </>
                   : feld("S", "Drehzahl S", "Drehzahl")}</>}
-                {k2 ? <>
+                {k2 && !sb ? <>
+                    {/* SW-20 (1.667.0) nach Patricks T2100 */}
+                    {feld("vorX", "Vorpos. X", "G0X…Z… vor dem Drehen", 58)}
+                    {feld("anZ", "Vorpos. Z", "G0X…Z… vor dem Drehen", 58)}
+                  </> : k2 ? <>
                     {/* Seit 1.420.0 nach Patricks T2100 (5. November 2026) */}
                     {feld("vorX", "Vorpos. X", "G0X… vor der Nullpunktverschiebung; am Ende G50Z…X… zurück", 58)}
                     {feld("vorZ", "Vorpos. Z", "G0Z… vor der Nullpunktverschiebung; am Ende G50Z…X… zurück", 58)}

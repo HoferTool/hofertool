@@ -507,11 +507,52 @@ G28W0M5
 N777
 M99
 %`,
+  // Seit 1.667.0 Kanal 2 der SW-20 nach Patricks T2100 (Drehen), T2700
+  // (Bohren stehend) und T2600 (angetrieben) vom 20. November 2026
+  "k2.k2": `M75
+/T{PLATZ}{BEZ_K}
+/{DREH}S{SSTART}T{TK}
+/G0X{VORX}Z{ANZ}
+[hd] /M188{HDN}D{HD}
+[g50] /G50S{G50}
+[g96] /G96S{S}
+/{CODE}
+[g96] /G97
+M76
+G28W0.
+[hdaus] M189{HDN}
+T0
+M01`,
+  "k2b.k1": `{PAARE}`,
+  "k2b.k2": `M75
+/T{PLATZ}{BEZ_K}
+/{DREH}S{S}T{TK}
+/G0Z{ANZ}
+/{CODE}
+M76
+M01
+G28W0.
+T0`,
+  "k2a.k2": `M75
+/T{PLATZ}{BEZ_K}
+/{DREH}S{S}T{TK}
+/M7
+/M8
+[c] /G0C{C}
+/{CODE}
+G0T0
+G28W0.
+M01
+M76
+[m38] M58
+G28W0.
+T0`,
   // Seit 1.666.0 Kanal 3: Frontbohrapparat T1300–T1500 nach Patricks
   // T1300 aus O3272 (20. November 2026); Kanal 1 und 2 bekommen nichts
   "k3f.k1": ``,
   "k3f.k2": ``,
   "k3f.k3": `T{PLATZ}{BEZ_K}
+[hd] M1882D{HD}
 {DREH}S{S}T{TK}
 G0Z{ANZ}
 G0X{X}{Y}
@@ -581,6 +622,7 @@ export const ARTEN = [
   { id: "querGegen", text: "Frontangetrieben, Gegenspindel", plaetze: "quer" },
   { id: "k2", text: "Kanal 2 stehende Werkzeuge", plaetze: "k2" },
   { id: "k2a", text: "Kanal 2 angetrieben", plaetze: "k2" },
+  { id: "k2b", text: "Kanal 2 Bohren stehend", plaetze: "k2b" },
   // Seit 1.666.0 nur SW-20: Kanal 3, Frontbohrapparat T1300–T1500
   { id: "k3f", text: "Kanal 3 Frontbohrapparat", plaetze: "k3f" },
   { id: "k3d", text: "Kanal 3 feste Werkzeuge", plaetze: "k3d" },
@@ -594,6 +636,8 @@ export const PLATZ_GRUPPEN = [
   { id: "seite", text: "Querangetrieben" },
   { id: "quer", text: "Frontangetrieben" },
   { id: "k2", text: "Kanal 2" },
+  { id: "k2a", text: "Kanal 2 angetrieben" },
+  { id: "k2b", text: "Kanal 2 Bohren stehend" },
   { id: "k3f", text: "Kanal 3 Frontbohrapparat" },
   { id: "k3d", text: "Kanal 3 feste Werkzeuge" },
 ];
@@ -613,11 +657,15 @@ const VORGABEN = { A: "17", W: "15.125", S: "3000", X: "-0.8", Z: "167.85", F: "
 // Kanal 2 T2100–T2800. Nur die Frontbearbeitung hat schon eine Vorlage,
 // die übrigen werden beim Einlesen „wie eingelesen“.
 const PLAETZE_SW20 = { ...PLAETZE, dreh: ["100", "200", "300", "400"], front: ["500", "600"], seite: ["700"], quer: [],
-  k2: ["2100", "2200", "2300", "2400", "2500", "2600", "2700", "2800"], k3f: ["1300", "1400", "1500"],
+  k2: ["2100", "2200", "2300", "2400"], k2a: ["2500", "2600"], k2b: ["2700", "2800"], k3f: ["1300", "1400", "1500"],
   k3d: ["1600", "1700", "1800", "1900"] };
 const BLOECKE_SW20 = { dreh: { hd: "3", dreh: "3", S: "2500", sArt: "vc", vc: "350", g96: "1", g50: "5000", anZ: "-0.5" },
   // Kanal 3 Frontbohrapparat (1.666.0) nach Patricks T1300
-  k3f: { dreh: "36", S: "5000", X: "", Y: "0.0", anZ: "-2.0", C: "0.1", zuZ: "", wegZ: "1.00" },
+  // Kanal 2 (1.667.0) nach Patricks T2100, T2600 und T2700
+  k2: { hd: "1", hdN: "6", dreh: "3", sArt: "S", S: "3000", vorX: "19.00", anZ: "-1.00" },
+  k2a: { dreh: "56", S: "2500", C: "" },
+  k2b: { dreh: "3", S: "2000", anZ: "-0.50" },
+  k3f: { hd: "", dreh: "36", S: "5000", X: "", Y: "0.0", anZ: "-2.0", C: "0.1", zuZ: "", wegZ: "1.00" },
   // Kanal 3 feste Werkzeuge (1.666.0) nach Patricks T1600
   k3d: { hd: "5", hdN: "3", dreh: "3", S: "4500", vor: "99", vorX: "0.00", anZ: "25.00", nZ: "-0.50", Y: "0.00" },
   front: { hd: "3", dreh: "3", S: "3000", X: "0.0", Y: "0.0", anZ: "5.00", nZ: "-0.50" } };
@@ -646,7 +694,7 @@ export function vorgabeTyp(id = TYP) {
     id: info.id, name: info.name, kanaele: info.kanaele, nummern: [...info.nummern],
     // Bearbeitungsarten dieses Typs (SW-20: noch keine, folgen nach Patrick)
     // Seit 1.665.0 beim SW-20 die Frontbearbeitung Kanal 1
-    arten: sw ? ["dreh", "front", "k3f", "k3d"] : ARTEN.map((a) => a.id).filter((a) => !a.startsWith("k3")),
+    arten: sw ? ["dreh", "front", "k2", "k2b", "k2a", "k3f", "k3d"] : ARTEN.map((a) => a.id).filter((a) => !a.startsWith("k3") && a !== "k2b"),
     vorlagen: sw ? { ...V, ...V_SW20 } : { ...V },
     plaetze: Object.fromEntries(Object.entries(sw ? PLAETZE_SW20 : PLAETZE).map(([k, l]) => [k, [...l]])),
     vorgaben: sw ? { ...VORGABEN_SW20 } : { ...VORGABEN },
@@ -654,7 +702,7 @@ export function vorgabeTyp(id = TYP) {
     marken: { ...MARKEN },
     // SW-20: Kopf und Ende haben kein {PLAN}, das Feld oben bleibt dort weg
     // Frontbearbeitung SW-20: ohne G99/G98 und ohne „Zurück Z“ (Patricks T600)
-    felder: { aus: sw ? { kopf: ["plan"], dreh: ["vor", "wegA", "wegF"], front: ["vor"], k3f: ["vor", "hd"] } : {}, eigene: [] },
+    felder: { aus: sw ? { kopf: ["plan"], dreh: ["vor", "wegA", "wegF"], front: ["vor"], k2: ["vor"], k2a: ["vor", "hd"], k2b: ["vor", "hd"], k3f: ["vor"] } : {}, eigene: [] },
   };
 }
 
