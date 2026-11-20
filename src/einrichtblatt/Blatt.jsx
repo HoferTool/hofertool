@@ -602,12 +602,16 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbei
 function FreieBilder({ bilder, aendern }) {
   const [wahl, setWahl] = useState(null);
   const [zug, setZug] = useState(null);   // { id, x, y, w } während des Ziehens
+  const hilleRef = useRef(null);
   const liste = Array.isArray(bilder) ? bilder : [];
   useEffect(() => {
     if (!wahl || !aendern) return undefined;
     const weg = (e) => { if (!e.target.closest || !e.target.closest("[data-eba-fbild]")) setWahl(null); };
-    document.addEventListener("pointerdown", weg, true);
-    return () => document.removeEventListener("pointerdown", weg, true);
+    // Im eigenen Fenster (Auftragsfenster ⧉) liegt das Blatt in einem
+    // anderen Dokument, darum dort horchen, nicht im Hauptfenster
+    const doc = (hilleRef.current && hilleRef.current.ownerDocument) || document;
+    doc.addEventListener("pointerdown", weg, true);
+    return () => doc.removeEventListener("pointerdown", weg, true);
   }, [wahl, !!aendern]);
   if (!liste.length) return null;
   const greifen = (e, b, art) => {
@@ -617,6 +621,10 @@ function FreieBilder({ bilder, aendern }) {
     const seite = e.currentTarget.closest("[data-eba-seite]");
     if (!seite) return;
     const r = seite.getBoundingClientRect();
+    // Bewegung im Fenster des Blatts verfolgen: im eigenen Fenster kamen
+    // die Bewegungen sonst nie im Hauptfenster an, das Bild blieb stehen
+    // (Patrick 20. November 2026: „kann ich si nicht schiben“)
+    const win = (e.currentTarget.ownerDocument && e.currentTarget.ownerDocument.defaultView) || window;
     const start = { cx: e.clientX, cy: e.clientY, x: b.x, y: b.y, w: b.w };
     let jetzt = null;
     const ziehen = (ev) => {
@@ -628,18 +636,18 @@ function FreieBilder({ bilder, aendern }) {
       setZug(jetzt);
     };
     const los = () => {
-      window.removeEventListener("pointermove", ziehen);
-      window.removeEventListener("pointerup", los);
-      window.removeEventListener("pointercancel", los);
+      win.removeEventListener("pointermove", ziehen);
+      win.removeEventListener("pointerup", los);
+      win.removeEventListener("pointercancel", los);
       setZug(null);
       if (jetzt) {
         const r1 = (n) => Math.round(n * 100) / 100;
         aendern(liste.map((x) => (x.id === b.id ? Object.assign({}, x, { x: r1(jetzt.x), y: r1(jetzt.y), w: r1(jetzt.w) }) : x)));
       }
     };
-    window.addEventListener("pointermove", ziehen);
-    window.addEventListener("pointerup", los);
-    window.addEventListener("pointercancel", los);
+    win.addEventListener("pointermove", ziehen);
+    win.addEventListener("pointerup", los);
+    win.addEventListener("pointercancel", los);
   };
   const loeschen = async (e, b) => {
     e.stopPropagation();
@@ -648,7 +656,7 @@ function FreieBilder({ bilder, aendern }) {
     aendern(liste.filter((x) => x.id !== b.id));
   };
   return (
-    <div className={"eba-fbilder" + (aendern ? " eba-fbilder--aendern" : "")} data-eba-fbilder="">
+    <div ref={hilleRef} className={"eba-fbilder" + (aendern ? " eba-fbilder--aendern" : "")} data-eba-fbilder="">
       {liste.map((b0) => {
         const b = zug && zug.id === b0.id ? Object.assign({}, b0, zug) : b0;
         const an = aendern && wahl === b.id;
@@ -741,12 +749,13 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
     const r = el.getBoundingClientRect();
     const dx = e.clientX - r.left, dy = e.clientY - r.top;
     e.preventDefault();
+    const win = el.ownerDocument.defaultView || window;   // auch im eigenen Fenster
     const weiter = (ev) => setLage({
-      x: Math.max(0, Math.min(window.innerWidth - r.width, ev.clientX - dx)),
-      y: Math.max(0, Math.min(window.innerHeight - 60, ev.clientY - dy)) });
-    const ende = () => { window.removeEventListener("pointermove", weiter); window.removeEventListener("pointerup", ende); };
-    window.addEventListener("pointermove", weiter);
-    window.addEventListener("pointerup", ende);
+      x: Math.max(0, Math.min(win.innerWidth - r.width, ev.clientX - dx)),
+      y: Math.max(0, Math.min(win.innerHeight - 60, ev.clientY - dy)) });
+    const ende = () => { win.removeEventListener("pointermove", weiter); win.removeEventListener("pointerup", ende); };
+    win.addEventListener("pointermove", weiter);
+    win.addEventListener("pointerup", ende);
   };
   const [artikel, setArtikel] = useState(null);
   const [bildWahl, setBildWahl] = useState(false);
@@ -853,12 +862,13 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
     const r = el.getBoundingClientRect();
     const dx = e.clientX - r.left, dy = e.clientY - r.top;
     e.preventDefault();
+    const win = el.ownerDocument.defaultView || window;   // auch im eigenen Fenster
     const weiter = (ev) => setWzbLage({
-      x: Math.max(0, Math.min(window.innerWidth - r.width, ev.clientX - dx)),
-      y: Math.max(0, Math.min(window.innerHeight - 60, ev.clientY - dy)) });
-    const ende = () => { window.removeEventListener("pointermove", weiter); window.removeEventListener("pointerup", ende); };
-    window.addEventListener("pointermove", weiter);
-    window.addEventListener("pointerup", ende);
+      x: Math.max(0, Math.min(win.innerWidth - r.width, ev.clientX - dx)),
+      y: Math.max(0, Math.min(win.innerHeight - 60, ev.clientY - dy)) });
+    const ende = () => { win.removeEventListener("pointermove", weiter); win.removeEventListener("pointerup", ende); };
+    win.addEventListener("pointermove", weiter);
+    win.addEventListener("pointerup", ende);
   };
   const wzbTnr = (p.tnr != null && String(p.tnr).trim()) || platzName(nr) || "";
   return (<>
@@ -1496,6 +1506,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
     finally { setLaeuft(false); }
   };
   // Strg + V fügt ein Bild aus der Zwischenablage ein (nicht in Feldern)
+  const klebenDort = useRef(null);
   const einfuegenRef = useRef(bildEinfuegen);
   einfuegenRef.current = bildEinfuegen;
   useEffect(() => {
@@ -1509,8 +1520,13 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
       e.preventDefault();
       einfuegenRef.current(f);
     };
-    document.addEventListener("paste", kleben);
-    return () => document.removeEventListener("paste", kleben);
+    // Auch im eigenen Fenster: dort ist ein anderes Dokument; angemeldet
+    // wird es beim ersten Antippen der Bühne (klebenDort)
+    const docs = new Set();
+    const an = (doc) => { if (doc && !docs.has(doc)) { docs.add(doc); doc.addEventListener("paste", kleben); } };
+    an(document);
+    klebenDort.current = an;
+    return () => { klebenDort.current = null; docs.forEach((doc) => doc.removeEventListener("paste", kleben)); };
   }, [darf, !!zseite]);
   const bildKnopf = darf && !zseite && <>
     <button className="knopf knopf--klein" data-eba-bild-neu="" disabled={laeuft} title="Bild einfügen, auch mit Strg + V"
@@ -1578,7 +1594,8 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
         <span><b>{platzName(kopie) || "Feld ohne T-Nr."} kopieren:</b> jetzt einen oder mehrere Plätze antippen. Die T-Nr. bleibt die des Platzes, ein Werkzeug dort wird ersetzt.</span>
         <button className="knopf knopf--klein knopf--haupt" data-eba-kopie-ab="" onClick={() => setKopie(null)}>Fertig</button>
       </div>}
-      <div className="betrachter__buehne eba-buehne" ref={seite} onClick={() => { if (platz) offenesNehmen(entwurf); setPlatz(null); setMarkiert(null); }}>
+      <div className="betrachter__buehne eba-buehne" ref={seite}
+        onPointerDownCapture={(e) => { if (klebenDort.current) klebenDort.current(e.currentTarget.ownerDocument); }} onClick={() => { if (platz) offenesNehmen(entwurf); setPlatz(null); setMarkiert(null); }}>
         {zseite && bearbeiten && <div className="eba-zseite-leiste" onClick={(e) => e.stopPropagation()}>
           <label>Name <input className="eba-zseite-name" data-eba-seite-name="" value={zseite.name || ""}
             onChange={(e) => seiteAendern(seiteNr - 1, { name: e.target.value })} /></label>
