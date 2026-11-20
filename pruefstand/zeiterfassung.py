@@ -319,7 +319,7 @@ with sync_playwright() as p:
     pruefe(pg.locator(".ze-bestaetigt__haken").count() == 1 and pg.locator("[data-ze-stempelbild]").count() == 0, "Patrick: Haken ohne Animation")
     pg.click("#ze-panel-zurueck"); pg.wait_for_timeout(500)
     pruefe(pg.locator("#ze-bestaetigt").count() == 0, "Rückgängig schliesst die Bestätigung")
-    # Animation nach dem Stempeln (1.660.0): Anna bekommt Feuerwehr, Patrick den Haken
+    # Animation nach dem Stempeln (1.661.0): Anna bekommt Feuerwehr, Patrick den Haken
     pg.click("[data-ze-panel='u2']"); pg.click("#ze-panel-knopf"); pg.wait_for_selector("#ze-bestaetigt")
     pg.wait_for_function("() => { const i = document.querySelector('[data-ze-stempelbild]'); return i && i.complete && i.naturalWidth > 0; }", timeout=8000)
     pruefe(pg.get_attribute("[data-ze-stempelbild]", "src").endswith("feuerwehr-gehen.webp"), "Anna: Feuerwehr-Animation beim Gehen")

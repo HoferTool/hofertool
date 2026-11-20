@@ -14969,7 +14969,7 @@ body.dunkel .ze-gesicht__punkt--jetzt { background: #2f6fd0; }
 .ze-gesicht__auftrag { font-size: 1.1rem; margin: 4px 0 8px; }
 .ze-gesicht__bild { max-height: 42vh; aspect-ratio: auto; height: min(42vh, calc((min(560px, 100vw) - 48px) * .75)); }
 
-/* HOFERTIME: Animation nach dem Stempeln für bestimmte Personen (1.660.0) */
+/* HOFERTIME: Animation nach dem Stempeln für bestimmte Personen (1.661.0) */
 .ze-bestaetigt__bild { width: min(50vmin, 480px); height: auto; aspect-ratio: 1; border-radius: 22px;
   box-shadow: 0 18px 50px rgba(0,0,0,.35); display: block; }
 .ze-bestaetigt--bild { gap: 14px; }
