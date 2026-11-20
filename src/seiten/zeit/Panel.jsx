@@ -153,7 +153,12 @@ export default function Panel() {
   const [pablo, setPablo] = useState(null);
   useEffect(() => {
     if (!erk.bereit) return;
-    alt.db.rpc("zeit_panel_bild").then((r) => { if (!r.error && typeof r.data === "string" && r.data) setPablo(r.data); }, () => {});
+    // Alle 15 Minuten neu fragen: an einem Tag kann ein Ersatzbild gelten
+    // (app_config zeit_panel_bild_heute, Wunsch Patrick 20. November 2026)
+    const holen = () => alt.db.rpc("zeit_panel_bild").then((r) => { if (!r.error && typeof r.data === "string" && r.data) setPablo(r.data); }, () => {});
+    holen();
+    const t = setInterval(holen, 15 * 60 * 1000);
+    return () => clearInterval(t);
   }, [erk.bereit]);
   // Nach Stempeln, Saldo oder „Nicht ich“ wieder die Kamera
   useEffect(() => { if (wahl || fertig || saldo) setNamen(false); }, [wahl, fertig, saldo]);
