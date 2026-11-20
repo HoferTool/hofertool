@@ -16,6 +16,7 @@ import { abwesenheit } from "../daten/abwesenheit.js";
 import NcFunktionen, { ncAnsicht } from "../seiten/NcFunktionen.jsx";
 import { statistikZurueck } from "../seiten/Statistik.jsx";
 import Kalkulation, { kalkulationZurueck } from "../seiten/Kalkulation.jsx";
+import Erp from "../seiten/Erp.jsx";
 import StartModule from "../seiten/StartModule.jsx";
 import Lager from "../seiten/Lager.jsx";
 import Zeiterfassung from "../seiten/Zeiterfassung.jsx";
@@ -171,7 +172,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.671.1";
+const APP_VERSION = "1.672.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -210,7 +211,7 @@ function escapeZurueck() {
     // (seit 1.318.0 ein Reiter der Produktion)
     if (wo === "produktion" && prod.ansicht === "statistik" && statistikZurueck()) return;
     // Kalkulation: aus einer Kalkulation zurück zur Liste
-    if (wo === "kalkulation" && kalkulationZurueck()) return;
+    if ((wo === "kalkulation" || wo === "erp") && kalkulationZurueck()) return;
     if (wo === "produktion" && prod.ansicht && prod.ansicht !== "erfassen") {
       prod.ansicht = "erfassen"; zeichneSeite(); return;
     }
@@ -3236,6 +3237,12 @@ function empfangSehen(u) {
 function kalkulationSehen(u) {
   return !!(u && u.einstellungen && u.einstellungen.kalkulationSehen);
 }
+// Test ERP (seit 1.672.0, Wunsch Patrick 20. November 2026: „vorläufig nur
+// für mich“): nur mit Vermerk erpSehen am Konto, die Datenbank prüft dasselbe
+// (erp_darf() in sql/erp-test.sql)
+function erpSehen(u) {
+  return !!(u && u.einstellungen && u.einstellungen.erpSehen);
+}
 // Hofer + Co Zahlensprint zum Reihen lernen: nur mit dem Vermerk reihenSehen am Konto
 // (Wunsch Patrick 14. November 2026: „nur für Patrick Ruch“)
 function reihenSehen(u) {
@@ -3307,6 +3314,7 @@ function seiteSichtbar(pfad) {
   if (pfad === "bildschirme") return SEITEN.some((s) => s.gruppe === "bildschirme" && seiteSichtbar(s.pfad));
   if (pfad === "startneu") return istAdmin() && !istExtern();
   if (pfad === "kalkulation") return kalkulationSehen(profil) && !istExtern();
+  if (pfad === "erp") return erpSehen(profil) && !istExtern();
   // Lager für eigene Teile, provisorisch nur Admins (seit 1.557.0)
   if (pfad === "lager") return istAdmin() && !istExtern();
   // Zeiterfassung (seit 1.626.0): alle Personen ausser Externen, Dienst und
@@ -10889,6 +10897,8 @@ SYM.pruefmittel = svg('<path d="M3 12h4M17 12h4"/><rect x="7" y="9" width="10" h
 
 SYM.kalkulation = svg('<rect x="4.5" y="2.5" width="15" height="19" rx="2"/>'
   + '<path d="M8 7h8M8 11h8M8 15h4"/><path d="M13.5 18h3"/><path d="M14 15h3"/>');
+// Test ERP: Zahnrad mit Pfeilkreis (durchgängige Prozesskette)
+SYM.erp = svg('<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/>');
 
 // Hofer + Co Zahlensprint: Zahnrad mit Mal-Zeichen (seit 1.552.0 im Hofer-Stil)
 SYM.reihen = svg('<path d="M12 2.5l1.6 2.2 2.7-.6.6 2.7 2.4 1.3-1 2.5 1 2.5-2.4 1.3-.6 2.7-2.7-.6L12 21.5l-1.6-2.2-2.7.6-.6-2.7-2.4-1.3 1-2.5-1-2.5 2.4-1.3.6-2.7 2.7.6z"/>'
@@ -11017,7 +11027,10 @@ const SEITEN = [
   // Statistik ist seit 1.318.0 ein Reiter der Produktion (Wunsch Patrick
   // 30. Oktober 2026), #/statistik führt dorthin
   // Kalkulation wie im Gewatec, vorerst nur für Patrick (seit 1.214.0)
-  { pfad: "kalkulation",  titel: "Kalkulation",  zeichen: SYM.kalkulation, zeige: reactSeite(Kalkulation) },
+  // Kalkulation seit 1.672.0 im Menü des Test ERP (Wunsch Patrick 20. November 2026),
+  // #/kalkulation geht weiter, steht aber nicht mehr im Menü
+  { pfad: "kalkulation",  titel: "Kalkulation",  zeichen: SYM.kalkulation, zeige: reactSeite(Kalkulation), gruppe: "erp" },
+  { pfad: "erp",          titel: "Test ERP",     zeichen: SYM.erp, zeige: reactSeite(Erp) },
   // Den Reiter QM (1.458.0 bis 1.473.x) gibt es nicht mehr, nur noch
   // QMS (Wunsch Patrick 10. November 2026)
   // QMS: schlankes QM-System nach ISO 9001 (seit 1.463.0, bis 1.473.x „QM alternativ“)

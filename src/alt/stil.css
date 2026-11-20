@@ -15069,3 +15069,57 @@ body.aufgabe-ohne-seitenreiter .reiter--seite { display: none !important; }
   .aufgabe-leiste__punkte { display: contents; }
   .aufgabe-leiste__start, .aufgabe-leiste__punkt { min-width: 0; font-size: 11px; }
 }
+
+/* ===== Test ERP (seit 1.672.0) ===== */
+.erp-schild { display: inline-block; margin-left: 10px; padding: 2px 10px; border-radius: 999px; font-size: 13px;
+  font-weight: 600; vertical-align: middle; background: #e6edf6; color: #1f3b63; }
+.erp-schild.erp-gut { background: #dcf2e2; color: #1d5e2f; }
+.erp-unterreiter { margin-top: 4px; }
+.erp-suche { min-width: 220px; flex: 1; max-width: 420px; }
+.erp-fenster { width: min(760px, 96vw); max-height: 92vh; overflow-y: auto; }
+.erp-fenster--breit { width: min(1180px, 96vw); }
+.erp-formular { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px 14px; align-items: end; }
+.erp-formular__titel { grid-column: 1 / -1; margin: 12px 0 0; font-size: 15px; color: var(--blau, #1f4f8f); }
+.erp-feld { min-width: 0; }
+.erp-feld input, .erp-feld select, .erp-feld textarea { width: 100%; box-sizing: border-box; }
+.erp-feld--breit { grid-column: 1 / -1; }
+.erp-feld--artikel { flex: 3 1 260px; }
+.erp-liste { border: 1px solid #c9d3df; border-radius: 10px; padding: 8px 10px 10px; margin: 10px 0; min-width: 0; }
+.erp-liste legend { padding: 0 6px; font-weight: 600; }
+.erp-liste__zeile { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; margin-bottom: 8px; }
+.erp-liste__zeile > .erp-feld { flex: 1 1 120px; }
+.erp-pos { border-bottom: 1px dashed #c9d3df; padding-bottom: 6px; margin-bottom: 8px; }
+.erp-wahlzeile { padding: 8px 0; border-bottom: 1px solid #e3e8ee; }
+.erp-wahlzeile > .feld-haken { flex: 2 1 260px; }
+.erp-tabelle-huelle { overflow-x: auto; margin: 8px 0; }
+.erp-tabelle { width: 100%; border-collapse: collapse; font-size: 14px; }
+.erp-tabelle th, .erp-tabelle td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #e3e8ee; vertical-align: top; }
+.erp-tabelle th { background: #eef2f7; font-weight: 600; white-space: nowrap; }
+.erp-tabelle tr.erp-klick { cursor: pointer; }
+.erp-tabelle tr.erp-klick:hover td { background: #f3f7fc; }
+.erp-tabelle tr.erp-blass td { opacity: .55; }
+.erp-tabelle tr.erp-gut td:last-child { color: #1d7a3a; font-weight: 600; }
+.erp-tabelle tr.erp-minus td { color: #9b2c2c; }
+.erp-links a { margin-right: 8px; }
+.erp-kopf { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px 16px; margin: 6px 0 10px; }
+.erp-kopf div { min-width: 0; }
+.erp-kopf dt { font-size: 12px; color: #5a6878; }
+.erp-kopf dd { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
+.erp-summe { display: flex; gap: 18px; justify-content: flex-end; flex-wrap: wrap; margin: 4px 0 8px; }
+.erp-aktionen { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.erp-folge { margin: 4px 0; }
+.erp-abrufe { margin: 4px 0 0 18px; padding: 0; font-size: 13px; }
+.erp-abrufe .erp-gut { color: #1d7a3a; }
+.erp-ag { display: flex; padding: 4px 0; }
+.erp-buchungen { margin: 8px 0; }
+.erp-buchungen summary { cursor: pointer; font-weight: 600; }
+.erp-spur { margin: 10px 0; padding: 12px 14px; }
+.erp-spur h3 { margin: 0 0 6px; }
+.erp-spur__teil ul { margin: 2px 0 8px 18px; padding: 0; }
+body.dunkel .erp-schild { background: #2a3d57; }
+body.dunkel .erp-schild.erp-gut { background: #1f4a2c; }
+body.dunkel .erp-tabelle th { background: #233247; }
+body.dunkel .erp-tabelle th, body.dunkel .erp-tabelle td, body.dunkel .erp-wahlzeile { border-color: #34465e; }
+body.dunkel .erp-tabelle tr.erp-klick:hover td { background: #1d2b3e; }
+body.dunkel .erp-liste, body.dunkel .erp-pos { border-color: #3a4d66; }
+.erp-kalk .seitentitel { font-size: 20px; margin-top: 6px; }

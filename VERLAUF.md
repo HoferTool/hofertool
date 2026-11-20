@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.672.0 (20. November 2026)
+
+- Neuer Menüpunkt **Test ERP** (nur mit Vermerk `erpSehen`, nie Externe): Stammdaten (Kunden, Lieferanten, Artikel mit Index, Bedingungen, Lager), Aufträge und Rahmenaufträge mit Lieferplan, Fertigungsaufträge mit Arbeitsplan, Material und Fertigmeldung, Bestellungen mit Wareneingang, Lieferscheine nur aus Bestand mit gleichem Index, Rechnungen aus Lieferscheinen (Sammel- oder Einzelrechnung), freie Rechnungen, Gutschriften, Proforma, Fibu-Export nur Debitoren (Rechnungen und Gutschriften), Rückverfolgung je Charge bis zum Rohmaterial (Pflichtenheft Patrick). Die bestehende Kalkulation steht jetzt als Reiter im Test ERP statt im Menü (Wunsch Patrick); daraus legt „Artikel und Arbeitsplan anlegen“ den Artikel mit Index und Arbeitsplan an. Prüfstand `erp_test.py`.
+
 ## 1.661.1 (20. November 2026)
 
 - Drucken über den Pool-Rechner: die Meldung „Der Pool-Rechner hat sich länger nicht gemeldet“ kam fälschlich, weil die Datenbank sein Lebenszeichen nur alle 10 Minuten neu schreibt (status-sparsam), die App aber schon nach 2 Minuten warnte. Jetzt erst nach 12 Minuten (`poolLebt` in `src/teile/poolDruck.js`).
