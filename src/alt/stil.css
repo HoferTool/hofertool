@@ -15123,3 +15123,6 @@ body.dunkel .erp-tabelle th, body.dunkel .erp-tabelle td, body.dunkel .erp-wahlz
 body.dunkel .erp-tabelle tr.erp-klick:hover td { background: #1d2b3e; }
 body.dunkel .erp-liste, body.dunkel .erp-pos { border-color: #3a4d66; }
 .erp-kalk .seitentitel { font-size: 20px; margin-top: 6px; }
+
+/* HOFERCAM: Alle Bearbeitungen ein- und aufklappen (1.674.0) */
+.cam-alle-zu { display: flex; gap: 6px; margin: 4px 0 6px; }

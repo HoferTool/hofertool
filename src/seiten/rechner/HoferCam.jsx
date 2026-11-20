@@ -1038,6 +1038,14 @@ export default function HoferCam() {
           <button className="knopf knopf--klein" id="cam-neu-k2a" {...knopfMaus("k2a", "Angetrieben")}
             onClick={() => { const nb = neuerBlock(bloecke, "k2a", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Angetrieben {spanne("k2")}</button>
         </div>}
+        {/* Seit 1.674.0 (Wunsch Patrick 20. November 2026: „mach eine Option
+            alle Bearbeitungen einklappen“): setzt zu an allen Bearbeitungen */}
+        {bloecke.length > 1 && <div className="cam-alle-zu">
+          <button className="knopf knopf--klein" id="cam-alle-zu" onClick={() => setzeBloecke(bloecke.map((b) => ({ ...b, zu: true })))}
+            disabled={bloecke.every((b) => b.zu)}>▸ Alle Bearbeitungen einklappen</button>
+          <button className="knopf knopf--klein" id="cam-alle-auf" onClick={() => setzeBloecke(bloecke.map((b) => ({ ...b, zu: false })))}
+            disabled={bloecke.every((b) => !b.zu)}>▾ Alle aufklappen</button>
+        </div>}
         {bloecke.length === 0 && <p className="klein">Noch keine Bearbeitung. Sie kommt zwischen „(Ende Kopf)“ und „(Start Ende)“.</p>}
         {/* Seit 1.405.0 (Wunsch Patrick 5. November 2026): Bearbeitungen am
             Griff ⠿ untereinander verschieben, statt Pfeilen */}
