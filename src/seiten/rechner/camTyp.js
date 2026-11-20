@@ -357,6 +357,7 @@ T0
 M01
 G28U0.`,
   "front.k2": `{PAARE2}`,
+  "front.k3": `{PAARE3}`,
   // Seit 1.665.0: Drehwerkzeug Kanal 1 (T100–T400), nach Patricks T200
   // (DREHEN AUSSEN) vom 20. November 2026: Drehzahl und Korrektur zuerst,
   // dann Hochdruck, Anfahren, G50 und G96; am Ende G28U0. vor M01. Mit
@@ -374,6 +375,7 @@ T0
 G28U0.
 M01`,
   "dreh.k2": `{PAARE2}`,
+  "dreh.k3": `{PAARE3}`,
   k1kopf: `%
 O{NR}{NAME}(N)
 ({DATUM_KUERZEL})
@@ -524,6 +526,7 @@ G28W0.
 T0
 M01`,
   "k2b.k1": `{PAARE}`,
+  "k2b.k3": `{PAARE3}`, "k2.k3": `{PAARE3}`, "k2a.k3": `{PAARE3}`,
   "k2b.k2": `M75
 /T{PLATZ}{BEZ_K}
 /{DREH}S{S}T{TK}
@@ -549,8 +552,8 @@ G28W0.
 T0`,
   // Seit 1.666.0 Kanal 3: Frontbohrapparat T1300–T1500 nach Patricks
   // T1300 aus O3272 (20. November 2026); Kanal 1 und 2 bekommen nichts
-  "k3f.k1": ``,
-  "k3f.k2": ``,
+  "k3f.k1": `{PAARE}`,
+  "k3f.k2": `{PAARE2}`,
   "k3f.k3": `T{PLATZ}{BEZ_K}
 [hd] M1882D{HD}
 {DREH}S{S}T{TK}
@@ -575,8 +578,8 @@ G0T0
 M01`,
   // Feste Werkzeuge T1600–T1900 nach Patricks T1600 (20. November 2026);
   // Hochdruck mit Ausgang M188x / M189x (T1600 M1883, T1700 M1884 …)
-  "k3d.k1": ``,
-  "k3d.k2": ``,
+  "k3d.k1": `{PAARE}`,
+  "k3d.k2": `{PAARE2}`,
   "k3d.k3": `T{PLATZ}{BEZ_K}
 {VOR}
 {DREH}S{S}T{TK}
@@ -785,7 +788,7 @@ export function vorlageFuellen(text, { werte = {}, bed = {}, listen = {}, schrae
     }
     if (weg) continue;
     const t = z.trim();
-    const lm = t.match(/^(\/?)\{(CODE|PAARE|PAARE2)\}$/);
+    const lm = t.match(/^(\/?)\{(CODE|PAARE|PAARE2|PAARE3)\}$/);
     if (lm) { const l = listen[lm[2]] || []; aus.push(...(lm[1] ? l.map(schraeg) : l)); continue; }
     const fertig = t.replace(/\{([A-Z0-9_]+)\}/g, (a, n) => (n in werte ? String(werte[n]) : a));
     if (fertig !== "") aus.push(fertig);
@@ -817,7 +820,7 @@ export const PLATZHALTER_BLOCK = [
   ["X", "Position X"], ["Y", "„Y…“ oder leer"], ["VORX", "Vorpositionieren X"], ["VORZ", "Vorpositionieren Z"],
   ["NX", "G50 X"], ["NZ", "G50 Z"], ["C", "Position C"], ["HDN", "Hochdruck-Ausgang (3 bei M1883)"], ["ZUZ", "Anfahren Z im Vorschub (G1Z…F3.0)"], ["M1", "Marke Start"], ["M2", "Marke 2 bzw. Ende"], ["M3", "Marke Ende (Frontangetrieben)"],
   ["CODE", "NC-Code der Bearbeitung (allein auf der Zeile, /{CODE} mit „/“)"],
-  ["PAARE", "Markenpaare mit Code aus „Kanal 1 zwischen …“"], ["PAARE2", "Markenpaare mit Code aus „Kanal 2 zwischen …“"],
+  ["PAARE", "Markenpaare mit Code aus „Kanal 1 zwischen …“"], ["PAARE2", "Markenpaare mit Code aus „Kanal 2 zwischen …“"], ["PAARE3", "Markenpaare mit Code aus „Kanal 3 zwischen …“"],
 ];
 export const BEDINGUNGEN = [
   ["hd", "Hochdruck gewählt"], ["hdaus", "Hochdruck gewählt und „HD am Ende aus“ an"],
@@ -922,7 +925,7 @@ export function eigeneFehler(t) {
   for (const e of t.felder.eigene) {
     if (!e.text.trim()) f[e.id] = "Name fehlt";
     if (!/^[A-Z][A-Z0-9_]*$/.test(e.ph)) f[e.id] = "Platzhalter: Grossbuchstaben, Ziffern, _ (mit Buchstabe vorne)";
-    else if (eingebaut.has(e.ph) || ["CODE", "PAARE", "PAARE2"].includes(e.ph)) f[e.id] = "{" + e.ph + "} gibt es schon eingebaut";
+    else if (eingebaut.has(e.ph) || ["CODE", "PAARE", "PAARE2", "PAARE3"].includes(e.ph)) f[e.id] = "{" + e.ph + "} gibt es schon eingebaut";
     else if (bed.has(e.ph.toLowerCase())) f[e.id] = "[" + e.ph.toLowerCase() + "] gibt es schon als Bedingung";
     else if (gesehen.has(e.ph)) f[e.id] = "{" + e.ph + "} doppelt";
     gesehen.add(e.ph);

@@ -125,12 +125,27 @@ with sync_playwright() as p:
             "G0T0", "G28W0.", "M01", "M76", "M58", "G28W0.", "T0"]
     pruefe("Kanal 2 T2600 wie Patricks Beispiel " + str(k2[i - 1:i + 14]), i >= 1 and k2[i - 1:i + 14] == soll)
     pruefe("Kanal 2 ohne rote Felder", pg.locator(".cam-feld--fehler").count() == 0)
+    # Seit 1.668.0: Wartemarken mit P je Kanal (T200 in Kanal 1 wartet mit Kanal 3)
+    pruefe("Kanäle der Wartemarken: 1 fest, 2 an", pg.is_disabled("[data-cammarken-kanaele='1'] [data-cammarken-k='1']")
+           and pg.is_checked("[data-cammarken-kanaele='1'] [data-cammarken-k='2']"))
+    pg.click("[data-cammarken-kanaele='1'] [data-cammarken-k='2']"); pg.click("[data-cammarken-kanaele='1'] [data-cammarken-k='3']")
+    pg.click("[data-cammarken-auf='1']"); pg.wait_for_timeout(300)
+    code = pg.input_value("[data-block='1'] [data-camblock='code']")
+    pruefe("Marken mit P13 eingesetzt " + code.replace("\n", " | "), code.count("P13") == 2)
+    pruefe("Feld für Kanal 3, keins für Kanal 2", pg.locator("[data-block='1'] [data-camk-kanal='3']").count() == 1
+           and pg.locator("[data-block='1'] [data-camk-kanal='2']").count() == 0)
+    pg.fill("[data-block='1'] [data-camk-kanal='3'] textarea", "G0Z1.0"); pg.wait_for_timeout(300)
+    k3 = [z.strip() for z in k(3)]
+    mk = [z for z in k3 if "P13" in z and z.startswith("M3")]
+    pruefe("Kanal 3 hat die Marken mit G0Z1.0 dazwischen " + str(mk), len(mk) == 2 and k3[k3.index(mk[0]) + 1] == "G0Z1.0")
+    pruefe("Kanal 2 ohne P13", not any(z.strip().startswith("M3") and "P13" in z for z in k(2)))
+    pruefe("Marken P13 ohne rote Marken", pg.locator(".cam-zeile--fehler").count() == 0)
     # M1882 am Anfang des Frontbohrapparats wählbar
     pg.select_option("[data-block='2'] [data-camblock='hd']", "3"); pg.wait_for_timeout(300)
     k3 = [z.strip() for z in k(3)]
     i = k3.index("T1300(ZENTRIEREN M1.7)") if "T1300(ZENTRIEREN M1.7)" in k3 else -1
     pruefe("T1300 mit M1882D3", i >= 0 and k3[i + 1] == "M1882D3")
-    k2 = k(2); k3 = k(3)
+    k1 = k(1); k2 = k(2); k3 = k(3)
     pg.screenshot(path=ORDNER + "/sw20_bearbeitungen.png", full_page=True)
     # Einlesen: drei Dateien aus dem Erzeugten mit Nr. 1272 / 2272 / 3272
     def datei(name, zeilen, alt, neu):

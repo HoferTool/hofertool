@@ -393,8 +393,9 @@ function blockWerte(b, w, marke) {
   blockEigene(b, w, werte, bed);
   const listen = {
     CODE: codeZeilen(b),
-    PAARE: markenPaare(b).flatMap(([x, y]) => [x, ...k1Zeilen(b, x, y), y]),
-    PAARE2: markenPaare(b).flatMap(([x, y]) => [x, ...k1Zeilen(b, x, y, "k2"), y]),
+    PAARE: paarZeilen(b, 1),
+    PAARE2: paarZeilen(b, 2),
+    PAARE3: paarZeilen(b, 3),
   };
   return { art, werte, bed, listen };
 }
@@ -404,18 +405,20 @@ const freiZeilen = (b) => String(b.code || "").split(/\r?\n/).map((z) => z.trim(
 const freiK2 = (b) => b.art === "k2" || b.art === "k2a" || b.art === "k2b";
 export function blockZeilen(b, w = {}, marke) {
   if (b.frei) return freiK2(b) || istK3(b) ? [] : freiZeilen(b);
-  if (istK3(b)) return [];
   const x = blockWerte(b, w, marke);
-  return vorlageFuellen(typ().vorlagen[x.art + ".k1"], { ...x, schraeg });
+  const v = typ().vorlagen[x.art + ".k1"];
+  return v ? vorlageFuellen(v, { ...x, schraeg }) : [];
 }
 
 // Seit 1.666.0 Kanal 3 (SW-20): nur Bearbeitungen mit Vorlage „….k3“
 export const istK3 = (b) => String((b && b.art) || "").startsWith("k3");
 export function blockZeilen3(b, w = {}, marke) {
-  if (!istK3(b)) return [];
-  if (b.frei) return freiZeilen(b);
+  if (b.frei) return istK3(b) ? freiZeilen(b) : [];
   const x = blockWerte(b, w, marke);
-  return vorlageFuellen(typ().vorlagen[x.art + ".k3"], { ...x, schraeg });
+  // Seit 1.668.0: auch Bearbeitungen in Kanal 1 und 2 geben Kanal 3 die
+  // Marken mit P…3 samt Feld (Vorlage „….k3“ mit {PAARE3})
+  const v = typ().vorlagen[x.art + ".k3"];
+  return v ? vorlageFuellen(v, { ...x, schraeg }) : [];
 }
 // Zeilen eines Blocks im Kanal 1, 2 oder 3
 export const blockZeilenK = (b, kanal, w = {}, marke) =>
@@ -429,9 +432,9 @@ export const blockZeilenK = (b, kanal, w = {}, marke) =>
 export const mitGegen = (bez) => (bez ? bez + " " : "") + "MIT GEGENSPINDEL";
 export function blockZeilen2(b, marke, w = {}) {
   if (b.frei) return freiK2(b) ? freiZeilen(b) : [];
-  if (istK3(b)) return [];
   const x = blockWerte(b, w, marke);
-  return vorlageFuellen(typ().vorlagen[x.art + ".k2"], { ...x, schraeg });
+  const v = typ().vorlagen[x.art + ".k2"];
+  return v ? vorlageFuellen(v, { ...x, schraeg }) : [];
 }
 // Seit 1.414.0 (Wunsch Patrick 5. November 2026: „innerhalb der
 // Bearbeitung Wartemarken setzen … auf Kanal 2 z.B. M350 und M360 direkt
@@ -443,12 +446,40 @@ export function blockZeilen2(b, marke, w = {}) {
 // einem Kanal Wartemarken innerhalb der freien Programmierung setze, soll
 // für den anderen Kanal das Fenster aufgehen“): auch bei Bearbeitungen
 // in Kanal 1; dann steht der Code des Felds in Kanal 2 (`k2` am Block)
+// Seit 1.668.0 (SW-20, Patrick 20. November 2026: „M300P123, müssen die
+// Marken in alle 3 Kanäle. M300P12 nur in Kanal 1 und 2, M300P13 nur in
+// Kanal 1 und 3“): das P an der Marke sagt, welche Kanäle warten. Jedes
+// Paar bekommt als dritten Wert die anderen Kanäle (ohne P wie bisher der
+// andere Kanal, 1 ↔ 2), als vierten und fünften die Marken samt P, wie sie
+// in die anderen Kanäle kommen. Das Feld je Kanal heisst `k1`, `k2`, `k3`.
+export const eigenerKanal = (b) => (istK3(b) ? 3 : ["k2", "k2a", "k2b"].includes(b.art) || anGegenspindel(b) ? 2 : 1);
+export function markeMitP(zeile) {
+  const ohne = String(zeile).replace(/\([^)]*\)?/g, "").toUpperCase();
+  const re = /M(\d+)(P[123]+)?/g;
+  let m;
+  while ((m = re.exec(ohne))) {
+    const n = Number(m[1]);
+    if (m[1].length <= 3 && (istMarkeNr(n) || MARKEN_K13.has(n))) return { m: "M" + n, p: m[2] ? m[2].slice(1) : "" };
+  }
+  return null;
+}
 export function markenPaare(b) {
-  const m = String(b.code || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean).map(markeVon);
+  const m = String(b.code || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean).map(markeMitP);
+  const eigen = eigenerKanal(b);
+  const ziele = (x) => {
+    if (!x.p) return [eigen === 1 ? 2 : 1];
+    return [...new Set(x.p.split("").map(Number))].filter((k) => k !== eigen && k <= kanalZahl()).sort();
+  };
   const paare = [];
-  for (let i = 0; i + 1 < m.length; i++) if (m[i] && m[i + 1] && m[i] !== m[i + 1]) { paare.push([m[i], m[i + 1]]); i++; }
+  for (let i = 0; i + 1 < m.length; i++) if (m[i] && m[i + 1] && m[i].m !== m[i + 1].m) {
+    paare.push([m[i].m, m[i + 1].m, ziele(m[i]), m[i].m + (m[i].p ? "P" + m[i].p : ""), m[i + 1].m + (m[i + 1].p ? "P" + m[i + 1].p : "")]);
+    i++;
+  }
   return paare;
 }
+// Zeilen für Kanal k aus den Paaren: Marke, Code aus dem Feld, Marke
+export const paarZeilen = (b, k) => markenPaare(b).filter((p) => p[2].includes(k))
+  .flatMap(([x, y, , xt, yt]) => [xt, ...k1Zeilen(b, x, y, "k" + k), yt]);
 export const k1Zeilen = (b, x, y, feld = "k1") =>
   String((b[feld] || {})[x + "-" + y] || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
 export const anGegenspindel = (b) => (b.art === "front" || b.art === "quer") && b.spindel === "gegen";
@@ -461,7 +492,7 @@ export function markenVergeben(bloecke, belegtZeilen = []) {
   bloecke.forEach((b) => {
     String(b.code || "").split(/\r?\n/).forEach((z) => { const m = markeVon(z); if (m) belegt.add(m); });
     if (anGegenspindel(b)) [b.m1, b.m2, b.m3].map(markeNorm).filter(Boolean).forEach((m) => belegt.add(m));
-    [...Object.values(b.k1 || {}), ...Object.values(b.k2 || {})].forEach((c) => String(c).split(/\r?\n/).forEach((z) => { const m = markeVon(z); if (m) belegt.add(m); }));
+    [...Object.values(b.k1 || {}), ...Object.values(b.k2 || {}), ...Object.values(b.k3 || {})].forEach((c) => String(c).split(/\r?\n/).forEach((z) => { const m = markeVon(z); if (m) belegt.add(m); }));
   });
   const marken = {};
   // Beginn und Schritt seit 1.441.0 je Maschinentyp (Vorgabe M300, 10)
@@ -496,8 +527,8 @@ export function markenVergeben(bloecke, belegtZeilen = []) {
 // vor dem NC-Code, Marke Ende danach, leere werden dabei fest gesetzt.
 function kopfEndeMarken(w) {
   w = wirksamW(w);
-  const k1 = kanal1(w), k2 = kanal2(w);
-  return new Set([...k1.kopf, ...k1.ende, ...k2.kopf, ...k2.ende].map(markeVon).filter(Boolean));
+  const k1 = kanal1(w), k2 = kanal2(w), k3 = kanal3(w);
+  return new Set([...k1.kopf, ...k1.ende, ...k2.kopf, ...k2.ende, ...k3.kopf, ...k3.ende].map(markeVon).filter(Boolean));
 }
 // alle Marken einer Zeile (ausserhalb von Klammern) ersetzen
 function markenErsetzen(zeile, fn) {
@@ -518,7 +549,7 @@ export function markenOrdnen(w) {
   bloecke.forEach((b) => {
     if (b.frei) { sammeln(b.code); return; }
     sammeln(b.code);
-    [...Object.values(b.k1 || {}), ...Object.values(b.k2 || {})].forEach(sammeln);
+    [...Object.values(b.k1 || {}), ...Object.values(b.k2 || {}), ...Object.values(b.k3 || {})].forEach(sammeln);
     if (anGegenspindel(b)) [b.m1, b.m2, b.m3].map(markeNorm).filter((m) => m && fest(m)).forEach((m) => reserviert.add(m));
   });
   let n = ab;
@@ -552,6 +583,7 @@ export function markenOrdnen(w) {
     r.code = textMarken(b.code, zu);
     if (b.k1) r.k1 = felder(b.k1);
     if (b.k2) r.k2 = felder(b.k2);
+    if (b.k3) r.k3 = felder(b.k3);
     if (gegen) { if (b.art === "quer") r.m3 = slot(b.m3); else r.m2 = slot(b.m2); }
     return r;
   });
@@ -561,17 +593,19 @@ export function freieMarken(w) {
   const { ab, schritt } = typ().marken;
   const belegt = new Set(kopfEndeMarken(w));
   const p = programme(w);
-  [...p.k1, ...p.k2].forEach((z) => markenErsetzen(z, (m) => { belegt.add(m); return m; }));
+  [...p.k1, ...p.k2, ...(p.k3 || [])].forEach((z) => markenErsetzen(z, (m) => { belegt.add(m); return m; }));
   const r = [];
   for (let n = ab; n <= 999; n += schritt) if (!belegt.has("M" + n)) r.push("M" + n);
   return r;
 }
 // Knopf „+ Wartemarken“: zwei freie Marken nach der Zeile mit der
 // Schreibmarke einsetzen, danach alles der Reihe nach neu vergeben
-export function wartemarkenEinsetzen(w, id, pos, einsetzen) {
+// Seit 1.668.0: `kanaele` (SW-20, angeklickt) gibt das P an der Marke, z.B. [1, 3] → M300P13
+export function wartemarkenEinsetzen(w, id, pos, einsetzen, kanaele) {
   const frei = freieMarken(w);
   if (frei.length < 2) return null;
-  const bloecke = (w.bloecke || []).map((b) => (b.id === id ? { ...b, code: einsetzen(b.code, [frei[0], frei[1]], pos) } : b));
+  const p = kanaele && kanaele.length ? "P" + [...kanaele].sort().join("") : "";
+  const bloecke = (w.bloecke || []).map((b) => (b.id === id ? { ...b, code: einsetzen(b.code, [frei[0] + p, frei[1] + p], pos) } : b));
   return markenOrdnen({ ...w, bloecke });
 }
 
@@ -593,18 +627,21 @@ export function programme(w) {
   const her1 = k1.kopf.map(() => "kopf"), her2 = k2.kopf.map(() => "kopf");
   const bearb1 = bloecke.flatMap((b) => {
     // Kanal 3 (1.666.0): eigene Bearbeitungen zwischen Kopf und Ende von Kanal 3
-    if (istK3(b)) {
-      const z3 = blockZeilen3(b, w, marken[b.id]);
+    // seit 1.668.0 geben alle Bearbeitungen jedem Kanal ihre Zeilen
+    // (Kanal 3 auch die Marken mit P…3 aus Kanal 1 und 2)
+    const z3 = blockZeilen3(b, w, marken[b.id]);
+    if (z3.length || istK3(b)) {
       her3.push(...herkunft(b, z3, 3, w, marken[b.id]));
       bereiche3[b.id] = [ab3 + 1, ab3 + z3.length];
       ab3 += z3.length;
       bearb3.push(...z3);
-      return [];
     }
     const z = blockZeilen(b, w, marken[b.id]);
-    her1.push(...herkunft(b, z, 1, w, marken[b.id]));
-    bereiche[b.id] = [ab + 1, ab + z.length];
-    ab += z.length;
+    if (z.length || !istK3(b)) {
+      her1.push(...herkunft(b, z, 1, w, marken[b.id]));
+      bereiche[b.id] = [ab + 1, ab + z.length];
+      ab += z.length;
+    }
     // Seit 1.416.0: Markenpaare im Code von Kanal 1 geben Kanal 2 die
     // Marken mit dem Code aus dem Feld dazwischen
     // (seit 1.441.0 auch das über die Vorlage der Art für Kanal 2)
@@ -864,9 +901,9 @@ function herkunft(b, gen, kanal, w, marke) {
   const her = gen.map(() => "vorlage");
   const lage = codeLage(b, gen, kanal, w, marke);
   if (lage) for (let i = lage.k; i < lage.k + lage.n; i++) her[i] = "code";
-  if (!b.frei && (b.k1 || b.k2)) {
+  if (!b.frei && (b.k1 || b.k2 || b.k3)) {
     const platz = (o) => o && Object.fromEntries(Object.entries(o).map(([k, v]) => [k, String(v).split(/\r?\n/).map((z) => (z.trim() ? "\u0002" : "")).join("\n")]));
-    const b2 = { ...b, k1: platz(b.k1), k2: platz(b.k2) };
+    const b2 = { ...b, k1: platz(b.k1), k2: platz(b.k2), k3: platz(b.k3) };
     const s = blockZeilenK(b2, kanal, w, marke);
     if (s.length === gen.length) s.forEach((z, i) => { if (String(z).includes("\u0002")) her[i] = "code"; });
   }

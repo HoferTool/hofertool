@@ -12,7 +12,7 @@ import { typ } from "./camTyp.js";
 import { markeVon, plaetzeVon, markenPaare, programme, neuerBlock } from "./hofercam.js";
 
 const BED_RE = /^\s*\[(!?)([a-z0-9]+)\]\s?/i;
-const LISTE_RE = /^(\/?)\{(CODE|PAARE|PAARE2)\}$/;
+const LISTE_RE = /^(\/?)\{(CODE|PAARE|PAARE2|PAARE3)\}$/;
 // Wartemarken wie istMarkeNr: M20, M40, M41, M82, M83, M200–M999
 const MARKE = "(M(?:[2-9]\\d\\d|20|40|41|82|83))";
 // Muster je Platzhalter; zusammenstehende wie {G96}{DREH}S{S}T{T} brauchen
@@ -337,8 +337,9 @@ export function bloeckeLesen(k1, k2, k3) {
   // Kanal 3 (SW-20, seit 1.666.0): Frontbohrapparat T1300–T1500 und feste
   // Werkzeuge T1600–T1900; andere Stücke (M131 / M133 …) bleiben im Text
   const arten3 = (typ().arten || []).filter((a) => a.startsWith("k3"));
+  let t3 = { ab: [], zwischen: [] };
   if (k3 && arten3.length) {
-    const t3 = abschnitteVon(mitte(k3, 3), (z) => /^T\d{3,4}(\(|$)/i.test(z) && !/^T0+(\(|$)/.test(z));
+    t3 = abschnitteVon(mitte(k3, 3), (z) => /^T\d{3,4}(\(|$)/i.test(z) && !/^T0+(\(|$)/.test(z));
     t3.ab.forEach((s, pos) => {
       const platz = s[0].match(/^T(\d{3,4})/i)[1];
       const art = arten3.find((a) => plaetzeVon(a).includes(platz));
@@ -351,13 +352,19 @@ export function bloeckeLesen(k1, k2, k3) {
     });
   }
   // Code für den anderen Kanal zwischen Markenpaaren, mit dessen Stelle
-  const p1 = paareIn(t1.zwischen), p2 = paareIn(t2.zwischen);
+  // Seit 1.668.0 je Kanal aus dem P der Marke (ohne P der andere Kanal)
+  const pk = { 1: paareIn(t1.zwischen), 2: paareIn(t2.zwischen), 3: paareIn(t3.zwischen) };
   for (const x of liste) {
-    const gegen = x.b.spindel === "gegen", nurK2 = x.b.art === "k2" || x.b.art === "k2a";
-    for (const [a, c] of markenPaare(x.b)) {
+    if (x.b.spindel === "gegen") continue;
+    for (const [a, c, ziele] of markenPaare(x.b)) {
       const k = a + "-" + c;
-      if (!gegen && !nurK2 && p2[k]) { (x.b.k2 ||= {})[k] = p2[k].zeilen.join("\n"); if (x.p2 == null) x.p2 = p2[k].pos; }
-      if (nurK2 && p1[k]) { (x.b.k1 ||= {})[k] = p1[k].zeilen.join("\n"); if (x.p1 == null) x.p1 = p1[k].pos; }
+      for (const z of ziele) {
+        const q = pk[z][k];
+        if (!q) continue;
+        (x.b["k" + z] ||= {})[k] = q.zeilen.join("\n");
+        if (z === 1 && x.p1 == null) x.p1 = q.pos;
+        if (z === 2 && x.p2 == null) x.p2 = q.pos;
+      }
     }
   }
   // Reihenfolge: nach der Stelle in Kanal 1; was nur in Kanal 2 steht,

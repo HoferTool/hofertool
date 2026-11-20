@@ -28,7 +28,7 @@ import AbstecherBild from "./AbstecherBild.jsx";
 import SchnabelBild from "./SchnabelBild.jsx";
 import { hofercamTutorialOeffnen } from "../start/NeuesTutorial.jsx";
 import { EinstichBild, EinstichSteuerung } from "./CamEinstichBild.jsx";
-import { SW20_BILD, SW20_FRONT_PLAETZE, SW20_KANAL_PLAETZE, sw20Bereich, swFrontVon, nrKanal, FELDER, HD_STUFEN, abVersatz, AB_VERSATZ_VORGABE, plaetzeVon, platzGruppe, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, handZurueck, markenPaare, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
+import { SW20_BILD, SW20_FRONT_PLAETZE, SW20_KANAL_PLAETZE, sw20Bereich, swFrontVon, nrKanal, FELDER, HD_STUFEN, abVersatz, AB_VERSATZ_VORGABE, plaetzeVon, platzGruppe, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, handZurueck, markenPaare, eigenerKanal, kanalZahl, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Seit 1.427.0 (Wunsch Patrick 5. November 2026: „vordefinierte
 // Bearbeitungen aus einer Liste einfügen … in eine bestehende
@@ -702,6 +702,16 @@ export default function HoferCam() {
   // Seit 1.579.0: nach jedem Umstellen die Wartemarken der Reihe nach neu
   const ordnenMitMarken = (neu) => setzeBloecke(markenOrdnen({ ...w, bloecke: neu }));
   const frei = freieMarken(w);
+  // Seit 1.668.0 (SW-20, Wunsch Patrick 20. November 2026: „bei der Auswahl
+  // der Wartemarken anklicken können, für welche Kanäle sie gelten“): je
+  // Bearbeitung die angeklickten Kanäle, der eigene immer dabei; Vorgabe
+  // der eigene und Kanal 1 bzw. 2
+  const [markenK, setMarkenK] = useState({});
+  const markenKanaele = (b) => {
+    const eigen = eigenerKanal(b);
+    const l = markenK[b.id] || [eigen, eigen === 1 ? 2 : 1];
+    return [...new Set([eigen, ...l])].sort();
+  };
   const fehler = pruefen(w);
   // Seit 1.441.0: Einstellungen des Maschinentyps laden und nach dem
   // Speichern neu rechnen
@@ -1249,7 +1259,14 @@ export default function HoferCam() {
                       onClick={() => setVorlageBei(vorlageBei === "m" + b.id ? null : "m" + b.id)}>+ Aus Modul</button>
                     {!b.frei && <button className="knopf knopf--klein" data-cammarken-auf={i} disabled={frei.length < 2}
                       title={"Zwei freie Wartemarken nach der Zeile mit der Schreibmarke einsetzen; alle Marken der Bearbeitungen werden der Reihe nach neu vergeben (Kopf und Ende bleiben). Frei: " + (frei.join(", ") || "keine")}
-                      onClick={() => { const nb = wartemarkenEinsetzen(w, b.id, marke.current[b.id], zeilenEinsetzen); if (nb) setzeBloecke(nb); }}>+ Wartemarken</button>}
+                      onClick={() => { const nb = wartemarkenEinsetzen(w, b.id, marke.current[b.id], zeilenEinsetzen, kanalZahl() > 2 ? markenKanaele(b) : null); if (nb) setzeBloecke(nb); }}>+ Wartemarken</button>}
+                    {!b.frei && kanalZahl() > 2 && <span className="cam-marken-kanaele klein" data-cammarken-kanaele={i}
+                      title="Für welche Kanäle die Wartemarken gelten (gibt das P, z.B. M300P13 = Kanal 1 und 3)">für Kanal
+                      {[1, 2, 3].map((k) => { const eigen = eigenerKanal(b) === k, an = markenKanaele(b).includes(k); return (
+                        <label key={k} className={eigen ? "cam-marken-kanal--eigen" : ""}>
+                          <input type="checkbox" data-cammarken-k={k} checked={an} disabled={eigen}
+                            onChange={() => setMarkenK({ ...markenK, [b.id]: an ? markenKanaele(b).filter((q) => q !== k) : [...markenKanaele(b), k] })} /> {k}</label>); })}
+                    </span>}
                     {!b.frei && <span className="klein cam-marken-frei" data-cammarken-frei title={frei.join(", ")}>
                       {frei.length ? "frei ab " + frei[0] + " · noch " + frei.length : "keine Marke mehr frei"}</span>}
                   </div>
@@ -1262,18 +1279,19 @@ export default function HoferCam() {
                     placeholder={gegen ? "NC-Code für Kanal 2 (zwei Marken direkt nacheinander, z.B. M350 und M360, geben Platz für Kanal 1)" : "NC-Code der Bearbeitung hier einfügen (aus Kontur, Bohren / Fräsen …; zwei Marken direkt nacheinander geben Platz für Kanal 2)"}
                     value={b.code} onChange={(e) => { marke.current[b.id] = e.target.selectionStart; blockAendern(b.id, "code", e.target.value); }} />
                 </>}
-              {!b.zu && !k3 && markenPaare(b).map(([x, y]) => {
+              {!b.zu && markenPaare(b).flatMap(([x, y, ziele, xt, yt]) => ziele.map((ander) => {
                 // Seit 1.416.0: an der Gegenspindel ist der NC-Code Kanal 2
-                // und das Feld Kanal 1, sonst umgekehrt
-                const fk = gegen ? "k1" : "k2", ander = gegen ? 1 : 2;
+                // und das Feld Kanal 1, sonst umgekehrt; seit 1.668.0 je
+                // Kanal aus dem P der Marke (M300P13 → Feld für Kanal 3)
+                const fk = "k" + ander, eigen = eigenerKanal(b);
                 return (
-                <label key={x + "-" + y} className="cam-k1" data-camk1={x + "-" + y}>
-                  <span className="klein">Kanal {ander} zwischen {x} und {y}</span>
+                <label key={x + "-" + y + "-" + ander} className="cam-k1" data-camk1={x + "-" + y} data-camk-kanal={ander}>
+                  <span className="klein">Kanal {ander} zwischen {xt} und {yt}</span>
                   <CodeFeld min={3}
-                    placeholder={"NC-Code für Kanal " + ander + ", während Kanal " + (3 - ander) + " zwischen " + x + " und " + y + " wartet"}
+                    placeholder={"NC-Code für Kanal " + ander + ", während Kanal " + eigen + " zwischen " + x + " und " + y + " wartet"}
                     value={(b[fk] || {})[x + "-" + y] || ""}
                     onChange={(e) => blockAendern(b.id, fk, { ...(b[fk] || {}), [x + "-" + y]: e.target.value })} />
-                </label>); })}
+                </label>); }))}
             </div>
           ) };
         })} />
