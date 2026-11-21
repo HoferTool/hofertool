@@ -760,6 +760,20 @@ export function ringeSchneiden(st, k, lo, hi) {
     if (hi < b - 1e-6) neu.push([hi, b]);
   }
   neu.sort((x, y) => y[1] - x[1]);
+  // Seit 1.690.2 (Patrick 21. November 2026, 10844-0049: „komische
+  // Absätze“): mehr als zwei Ringe gehen nicht. Vorher fiel der innerste
+  // weg, so verschwand bei Einstichen in Z nacheinander auf mehreren
+  // Durchmessern (T2100: X14, X11, X8 bis Z0.8) eine ganze Scheibe.
+  // Jetzt werden die zwei Ringe mit der kleinsten Lücke dazwischen
+  // zusammengelegt: lieber kurz etwas Material zu viel als ein Loch.
+  while (neu.length > 2) {
+    let m = 1, luecke = Infinity;
+    for (let i = 1; i < neu.length; i++) {
+      const l = neu[i - 1][0] - neu[i][1];
+      if (l < luecke) { luecke = l; m = i; }
+    }
+    neu.splice(m - 1, 2, [neu[m][0], neu[m - 1][1]]);
+  }
   if (neu.length > 1 && !st.kernA) kernVon(st);
   const r0 = neu[0] || [0, 0];
   aussen[k] = Math.max(0, r0[1]); innen[k] = Math.max(0, r0[1] > 0 ? r0[0] : 0);
