@@ -385,3 +385,44 @@ export function swK2Quader(o, aktiv, benutzt = null, m = SW20_K2) {
   }
   return q;
 }
+
+// =================================================================
+//  SB-20RG an der festen Maschine (seit 1.691.0, Wunsch Patrick
+//  21. November 2026: „hast du alle Anpassungen seit der SW-20 auch für die
+//  SB-20 übernommen? … auch die Simulation soll auf dem gleichen Stand
+//  sein“). Masse aus dem Star-Handbuch der SB-20RG (Unterlagen SB-20):
+//  Gegenspindel in Grundstellung mit der Stirn rund 223.5 mm vor der
+//  Drehebene, 4-Spindel-Rückseiteneinheit T2100–T2400 fest unter der Achse
+//  (X2 125 / 161 / 194 / 227), Spitzen rund 174.5 mm vor der Drehebene,
+//  Block 72 mm tief, ohne Y2. Die Werkzeuge der Bohreinheit zur
+//  Gegenspindel (T1100–T1400, T3421–T3423) zeigen auf der anderen Seite
+//  der Bohreinheit nach vorne, Spitzen geschätzt 155 mm vor der Drehebene.
+// =================================================================
+export const SB20_K2 = {
+  spitze: -174.5,
+  platz: { 2100: [-125, 0], 2200: [-161, 0], 2300: [-194, 0], 2400: [-227, 0] },
+  gegenHeim: -223.5,
+  gegenSpitze: -155,
+  ablage: { x: -175, y: -70, dz: 120 },
+};
+
+// Fester Rückseitenblock der SB-20RG; o = {z: Spitze an der Maschine}
+export function sbK2Quader(o, aktiv, benutzt = null, m = SB20_K2) {
+  const q = [];
+  const box = (z0, z1, x0, x1, y0, y1, art) => q.push({ z0: o.z + z0, z1: o.z + z1, x0, x1, y0, y1, art });
+  const walze = (achse, z, x, y, L, r, art, r2 = r) => q.push(walzeTeil(achse, o.z + z, x, y, L, r, art, r2));
+  box(30, 102, -248, -104, -24, 24, "block");
+  box(102, 116, -256, -96, -32, 32, "schlitten");
+  for (const xx of [-240, -112]) for (const yy of [-16, 16]) walze("z", 30, xx, yy, -1.6, 2.4, "schraube");
+  for (const [t, [x, y]] of Object.entries(m.platz)) {
+    const nr = Number(t);
+    box(18, 30, x - 12, x + 12, y - 12, y + 12, "gold");
+    walze("z", 18, x, y, -8, 9, "gold");
+    walze("z", 10, x, y, -2.5, 7.5, "mutter", 6.4);
+    if (benutzt && !benutzt.has(nr) && nr !== aktiv) continue;
+    if (nr === aktiv) continue;
+    walze("z", 7.5, x, y, -5.5, 2.5, "werkzeug");
+    walze("z", 2, x, y, -2, 1.6, "schneide", 0.3);
+  }
+  return q;
+}

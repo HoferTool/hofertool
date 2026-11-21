@@ -55,7 +55,9 @@ with sync_playwright() as p:
     namen = pg.evaluate("() => document.querySelector('#cam-sim-bild').__sim.schritte.map((x) => x.titel + ' K' + x.kanal)")
     print(namen)
     pg.click("[data-cam-sim-schritt='0']"); pg.wait_for_timeout(200)
-    pruefe("Vor der Übergabe keine Gegenspindel", E("gegen") is None)
+    # seit 1.691.0 wie bei der SW-20: Gegenspindel immer sichtbar, vor der Übergabe in der Grundstellung
+    g0 = E("gegen")
+    pruefe("Vor der Übergabe Gegenspindel in der Grundstellung", g0 and g0["x"] == 0 and g0["z"] < -150)
     # Seit 1.586.0: Vorposition (G0Z-10.) und Überfahren (G1Z8.) vor dem Abstechen
     ab = pg.evaluate("() => document.querySelector('#cam-sim-bild').__sim.schritte.find((x) => x.modus === 'abstech')")
     def gehe(k):
@@ -75,12 +77,21 @@ with sync_playwright() as p:
     g = E("gegen"); print("Übergabe", g)
     pruefe("Übergabe: Gegenspindel greift vorne über das Teil", g and g["dir"] == -1)
     pg.locator("#cam-sim").screenshot(path=S + "gegen_uebergabe.png")
-    pg.click("[data-cam-sim-schritt='1']"); pg.wait_for_timeout(300)
-    g = E("gegen"); t = E("traeger"); print("Kanal 2", g, t)
-    pruefe("Kanal 2: Gegenspindel 8 mm über dem Teil (Z2 = 15 - 8)", g and g["dir"] == 1 and abs(g["z"] - 7) < 1e-9)
-    pruefe("Kanal 2: Einheit am angetriebenen Werkzeug", t and 2100 <= t["aktiv"] <= 2400)
-    pruefe("Kanal 2: Werkzeug bei X8 steht 4 mm neben der Achse", t and abs((t["x"] ** 2 + t["y"] ** 2) ** 0.5 - 4) < 0.01)
+    # seit 1.691.0: in Kanal 2 steht das Teil in der Gegenspindel (frame), die
+    # 4-Spindel-Rückseiteneinheit steht fest, das Teil fährt zum Werkzeug
+    s1 = pg.evaluate("() => document.querySelector('#cam-sim-bild').__sim.schritte.find((x) => x.kanal === 2)")
+    k = max(i for i, q in enumerate(s1["punkte"]) if q.get("vor"))
+    pg.evaluate("(n) => { const r = document.querySelector('#cam-sim-regler'); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(r, n); r.dispatchEvent(new Event('input', { bubbles: true })); }", s1["von"] + k + 1)
+    pg.wait_for_timeout(300)
+    g = E("gegen"); fr = E("frame"); k2 = E("k2"); print("Kanal 2", g, fr, k2)
+    pruefe("Kanal 2: Teil in der Gegenspindel (Rahmen gedreht)", fr and fr["s"] == -1)
+    pruefe("Kanal 2: Einheit am angetriebenen Werkzeug", k2 and 2100 <= k2["aktiv"] <= 2400)
+    pruefe("Kanal 2: Werkzeug bei X8 steht 4 mm neben der Achse", fr and abs(abs(fr["xf"] + 125) - 4) < 0.01)
+    pruefe("Kanal 2: Gegenspindel hält das Teil", g and abs(g["x"] - fr["xf"]) < 1e-6)
     pg.locator("#cam-sim").screenshot(path=S + "gegen_k2.png")
+    pg.click("#cam-sim-ende"); pg.wait_for_timeout(300)
+    pruefe("Am Ende liegt das Teil in der Schale", E("ablage") == "teil")
+    pruefe("Simultan wird angeboten", pg.locator("#cam-sim-simultan").count() == 1)
     pg.click("#cam-sim-maschine"); pg.wait_for_timeout(200)
     pruefe("Ohne Maschine keine Gegenspindel", E("gegen") is None)
     pg.click("#cam-sim-maschine")

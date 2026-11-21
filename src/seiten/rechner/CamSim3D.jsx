@@ -15,7 +15,7 @@ import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { RASTER, materialStand, simAufbauen, umrissVon, plattenHuelle, bohrerHuelle, innenTiefe, huelleFuer } from "./camSim.js";
 import { drehKoerper, abstechKoerper, fraeserKoerper } from "./camKoerper.js";
 import { stepFertig, stepHolen, stepLokal, stepDrehKoerper, stepRundKoerper } from "./camStep.js";
-import { MASCHINE_SB20RG, GEGEN_SB20RG, platzLage, traegerQuader, gegenEinheit, gegenQuader, platzLageSw, traegerSwQuader, swGehaeuseVorne, MASCHINE_SW20, SW20_K2, swK2Quader, walzeTeil } from "./camMaschine.js";
+import { MASCHINE_SB20RG, GEGEN_SB20RG, platzLage, traegerQuader, gegenEinheit, gegenQuader, platzLageSw, traegerSwQuader, swGehaeuseVorne, MASCHINE_SW20, SW20_K2, swK2Quader, walzeTeil, SB20_K2, sbK2Quader } from "./camMaschine.js";
 
 // Seit 1.558.3 wie an der Maschine: Führungsbüchse links, das Teil schaut
 // nach rechts, schräg von vorne auf die Stirn (Patrick 16. November 2026:
@@ -694,7 +694,9 @@ function Simulation({ w, zu }) {
   const rahmen = useRef(null), leinwand = useRef(null), ziehen = useRef(null), finger = useRef(new Map());
   const { gesamt, schritte } = sim;
   const abSchritt = schritte.find((s) => s.modus === "abstech");
-  const simMoeglich = !!(sim.sw && sim.hatK2 && abSchritt);
+  // seit 1.691.0 auch an der SB-20RG, ausser Kanal 2 braucht Werkzeuge von
+  // Träger 1 (Front an der Gegenspindel), dann geht es nur nacheinander
+  const simMoeglich = !!(sim.hatK2 && abSchritt && (sim.sw || !schritte.some((s) => s.kanal === 2 && (s.art === "front" || s.art === "quer"))));
   // Zeit simultan: bis Tm laufen Kanal 1/3 (bis vor dem Abstechen) und
   // Kanal 2 gleichzeitig, wer früher fertig ist, wartet; danach Abstechen
   // und Übergabe
@@ -891,7 +893,26 @@ function Simulation({ w, zu }) {
     // X und Y; Kanal 3 fährt mit M131 seinen Träger in Z3 (das Material
     // steht), mit M133 steuert Kanal 3 Z1 und das Material fährt
     // Lage der Träger bei Punkt nn (Kanal 1 und 3)
+    // SB-20RG (seit 1.691.0): ein Träger, Drehebene aus dem Werkzeug, das
+    // gerade arbeitet, G28 U fährt ihn in X zurück
+    const sbLageBei = (nn) => {
+      const A2 = A / 2;
+      let zE = vorne, t1 = { z: vorne, x: A2 + 3, y: 0 }, sAkt = null, pAkt = null, zurueck = false;
+      for (const x of sim.schritte) {
+        if (x.kanal !== 1 || x.von >= nn || !x.punkte.length) continue;
+        const q = x.punkte[Math.min(nn, x.bis) - x.von - 1];
+        const l = lageVon(x.platz);
+        sAkt = x; pAkt = q;
+        if (!l) continue;
+        const X = q.mx != null ? q.mx : q.r, Y = q.my != null ? q.my : 0;
+        zE = q.z - (x.dzVorne ?? l.dz);
+        t1 = { z: zE, x: X - l.x, y: Y - l.y };
+        if (nn >= x.bis && (x.zeilen || []).some((z) => /G28\s*U/i.test(String(z)))) { t1 = { ...t1, x: A2 + 40 }; zurueck = true; } else zurueck = false;
+      }
+      return { zE, t1, t3: null, aktiv: sAkt && !zurueck ? sAkt.platz : 0, zurueck, pfad: 1, roll: pAkt ? ((pAkt.c || 0) * Math.PI) / 180 : 0 };
+    };
     const swLageBei = (nn) => {
+      if (!sim.sw) return sbLageBei(nn);
       const A2 = A / 2;
       let zE = vorne, t1 = { z: vorne, x: A2 + 3, y: 0 }, t3 = { x: -(A2 + 25), y: 0 }, rel3 = swSpitzen.rel3, sAkt = null, pAkt = null, zurueck = false;
       for (const x of sim.schritte) {
@@ -953,6 +974,12 @@ function Simulation({ w, zu }) {
         // noch nichts gefahren: T100 über dem Rohteil an der Stirn
         traeger = { z: vorne, x: A / 2 + 3, y: 0, aktiv: 0 };
       }
+      // feste Maschine (seit 1.691.0): Drehebene und G28 U wie bei der SW-20
+      swLage = sbLageBei(n);
+      if (swLage.zurueck && traeger) {
+        traeger = { ...traeger, x: swLage.t1.x, aktiv: 0, spitze: null };
+        ueber.koerper = []; ueber.werkzeuge = []; ueber.stangen = []; ueber.spitze = null;
+      }
     }
     // Vorne fährt das Material in Z durch die Führungsbüchse, rund 2 mm
     // hinter den Drehwerkzeugen (Patrick 14. November 2026). Sie steht im
@@ -989,7 +1016,9 @@ function Simulation({ w, zu }) {
     // auf dem Werkzeugträger von Kanal 2“): alles an der Maschine, gezählt
     // ab der Drehebene am Ende von Kanal 1; in Kanal 2 steht das Teil in der
     // Gegenspindel um X gedreht (frame), die Ansicht bleibt dieselbe
-    const swMaschine = sim.sw && maschineAn;
+    const swMaschine = maschineAn;
+    // Masse von Kanal 2 je Maschine
+    const M2 = sim.sw ? SW20_K2 : SB20_K2;
     const swEnde = swMaschine && kanal === 2 ? swLageBei(abS ? abS.bis : gesamt) : null;
     const swEbene = swMaschine ? (kanal === 1 ? swLage.zE : swEnde.zE) : null;
     let frame = null, swK2 = null;
@@ -1000,21 +1029,28 @@ function Simulation({ w, zu }) {
         if (x.kanal !== 2 || x.von >= nn || !x.punkte.length) continue;
         sAkt = x; pAkt = x.punkte[Math.min(nn, x.bis) - x.von - 1];
       }
-      const spitzeW = ebene + SW20_K2.spitze;
+      const spitzeW = ebene + M2.spitze;
       if (!pAkt) return { frame: { s: -1, z0: spitzeW - 25, xf: 0, yf: 0 }, k2: { aktiv: 0, y: 0 }, roll: null, sAkt, pAkt, weg: false };
       const yM = pAkt.mx != null ? pAkt.mx : pAkt.r, wM = pAkt.my != null ? pAkt.my : 0;
       if (pAkt.phi != null && Math.hypot(yM, wM) > 1e-6) r2 = Math.atan2(wM, yM) - pAkt.phi;
       const ph = (pAkt.phi || 0) + (r2 != null ? r2 : roll), r = pAkt.r || 0;
       const pX = r * Math.cos(ph), pY = r * Math.sin(ph);
-      const [lx, ly] = SW20_K2.platz[sAkt.platz] || SW20_K2.platz[2100];
-      const fr = { s: -1, z0: spitzeW + pAkt.z, xf: lx - pX, yf: 0 };
+      const [lx, ly] = M2.platz[sAkt.platz] || M2.platz[2100];
+      let fr = { s: -1, z0: spitzeW + pAkt.z, xf: lx - pX, yf: 0 };
       let k2 = { aktiv: sAkt.platz, y: -pY - ly }, weg = false;
+      // SB-20RG: Werkzeuge der Bohreinheit von Träger 1 zur Gegenspindel,
+      // Träger 1 steht mit dem Werkzeug auf der Achse, die Gegenspindel kommt
+      if (!sim.sw && (sAkt.art === "front" || sAkt.art === "quer")) {
+        const l = platzLage(sAkt.platz);
+        fr = { s: -1, z0: ebene + M2.gegenSpitze + pAkt.z, xf: -pX, yf: 0 };
+        k2 = { aktiv: 0, y: 0, t1: l ? { z: ebene, x: -l.x, y: -l.y - pY, aktiv: sAkt.platz } : null };
+      }
       // G28 U / G28 W am Ende: Gegenspindel fährt in X bzw. Z in die Grundstellung
       if (nn >= sAkt.bis) {
         const zl = (sAkt.zeilen || []).map(String);
         const u = zl.some((z) => /G28\s*U/i.test(z)), wz = zl.some((z) => /G28\s*W/i.test(z));
         if (u) fr.xf = 0;
-        if (wz) fr.z0 = ebene + SW20_K2.gegenHeim + W - sim.greif;
+        if (wz) fr.z0 = ebene + M2.gegenHeim + W - sim.greif;
         if (u || wz) { k2 = { aktiv: 0, y: 0 }; weg = true; }
       }
       return { frame: fr, k2, roll: r2, sAkt, pAkt, weg };
@@ -1031,7 +1067,8 @@ function Simulation({ w, zu }) {
     // steht die Gegenspindel leer in der Grundstellung, das Teil liegt in
     // einer Schale neben dem Block Kanal 2 (grösseres X, im Bild links)
     const ablage = swMaschine && sim.hatK2 ? {
-      frame: { s: -1, z0: swEbene + SW20_K2.spitze + W, xf: SW20_K2.versatz.x + 275, yf: 30 },
+      frame: sim.sw ? { s: -1, z0: swEbene + SW20_K2.spitze + W, xf: SW20_K2.versatz.x + 275, yf: 30 }
+        : { s: -1, z0: swEbene + M2.spitze + W + (M2.ablage.dz || 0), xf: M2.ablage.x, yf: M2.ablage.y },
       schale: true,
     } : null;
     const abgelegt = !!ablage && !zeit && n >= gesamt;
@@ -1056,8 +1093,9 @@ function Simulation({ w, zu }) {
     }
     if (swMaschine) {
       // ganze Maschine im Bild: Mitte 45 mm vor der Drehebene
-      const halb = (bereich0.zmax - bereich0.zmin) / 2, mitte = swEbene - 45;
-      bereich = { ...bereich0, zmin: mitte - halb, zmax: mitte + halb, px: schieb.x, py: schieb.y, diag: 470, mx: 60, my: -70 };
+      const halb = (bereich0.zmax - bereich0.zmin) / 2, mitte = swEbene - (sim.sw ? 45 : 95);
+      bereich = sim.sw ? { ...bereich0, zmin: mitte - halb, zmax: mitte + halb, px: schieb.x, py: schieb.y, diag: 470, mx: 60, my: -70 }
+        : { ...bereich0, zmin: mitte - halb, zmax: mitte + halb, px: schieb.x, py: schieb.y, diag: 520, mx: -40, my: 110 };
     } else if (maschineAn) {
       const ebene = kanal === 1 ? (swLage ? swLage.zE : traeger ? traeger.z : vorne) : null;
       const dzM = ebene != null ? ebene - (bereich0.zmin + bereich0.zmax) / 2 + 10 : dz;
@@ -1073,10 +1111,16 @@ function Simulation({ w, zu }) {
       const lg = kanal === 1 ? swLage : { ...swEnde, aktiv: 0 };
       const benutzt = new Set(sim.schritte.map((x) => x.platz));
       const zb = swEbene + 2;
+      // SB-20RG: Träger 1 aus Kanal 1, in Kanal 2 wo Kanal 1 ihn liess
+      // oder mit dem Werkzeug zur Gegenspindel auf der Achse
+      const sbT1 = kanal === 1 ? traeger : swK2 && swK2.t1 ? swK2.t1 : { ...lg.t1, aktiv: 0 };
+      const ab1 = { vor: A / 2 + 1, b: Math.max(0.5, sim.roh.B || 2), dz: -(sim.abVersatz || 0) };
       maschine = {
-        quader: [...traegerSwQuader(lg.t1, 1, lg.aktiv, sim.swFront, benutzt, MASCHINE_SW20, sim.swSchlitz, swSpitzen.dz, sim.swFest),
+        quader: sim.sw ? [...traegerSwQuader(lg.t1, 1, lg.aktiv, sim.swFront, benutzt, MASCHINE_SW20, sim.swSchlitz, swSpitzen.dz, sim.swFest),
           ...traegerSwQuader(lg.t3, 3, lg.aktiv, sim.swFront, benutzt, MASCHINE_SW20, false, swSpitzen.dz, sim.swFest),
-          ...swK2Quader({ z: swEbene + SW20_K2.spitze, y: swK2 ? swK2.y : 0 }, swK2 ? swK2.aktiv : 0, benutzt)],
+          ...swK2Quader({ z: swEbene + SW20_K2.spitze, y: swK2 ? swK2.y : 0 }, swK2 ? swK2.aktiv : 0, benutzt)]
+          : [...(sbT1 ? traegerQuader(sbT1, sbT1.aktiv, undefined, sim.t34, ab1, kanal === 1 ? sbT1.spitze : null, new Set(sim.schritte.filter((x) => x.kanal === 1).map((x) => x.platz))) : []),
+            ...sbK2Quader({ z: swEbene + M2.spitze }, swK2 ? swK2.aktiv : 0, benutzt)],
         roll, grob: laeuft, kopf: { z: kopfZ, ri: A / 2, nase: k.nase, naseL: k.naseL, r: k.r, L: k.L },
       };
       // Flansch der Führungsbüchse (C1 im Bild)
@@ -1113,13 +1157,13 @@ function Simulation({ w, zu }) {
           const pa = abS.punkte[Math.min(n, abS.bis) - abS.von - 1];
           gegen = gGelb((pa && pa.g != null ? pa.g : sim.greif) - wegZ, 0);
         } else if (zweit && !zweit.abgelegt) gegen = gGelb(zweit.frame.z0 - (W - sim.greif), zweit.frame.xf);
-        else gegen = gGelb(swEbene + SW20_K2.gegenHeim, 0);
+        else gegen = gGelb(swEbene + M2.gegenHeim, 0);
       } else {
         // Büchse und Rest der Stange bleiben an der Hauptspindel
         maschine.koepfe.push({ z: zb, ri: A / 2, nase: BUECHSE_R, naseL: BUECHSE_L, r: BUECHSE_R, L: 0, art: "buechse" });
         const rest = W + (abS ? abS.breite : 0);
         if (kopfZ > rest) maschine.koepfe.push({ z: rest, ri: 0, nase: A / 2, naseL: kopfZ - rest, r: A / 2, L: 0, art: "roh" });
-        gegen = abgelegt ? gGelb(swEbene + SW20_K2.gegenHeim, 0) : gGelb(frame.z0 - (W - sim.greif), frame.xf);
+        gegen = abgelegt ? gGelb(swEbene + M2.gegenHeim, 0) : gGelb(frame.z0 - (W - sim.greif), frame.xf);
       }
       // Schale für das ausgeworfene Teil neben dem Block Kanal 2
       if (ablage && (abgelegt || abgelegtB)) {
@@ -1278,7 +1322,7 @@ function Simulation({ w, zu }) {
         <div className="cam-sim__bildteil" ref={rahmen}>
           <div className="cam-sim__titel" id="cam-sim-titel">
             {kanal === 2 ? "Kanal 2 · Rückseite in der Gegenspindel" : akt && akt.pfad === 3 ? "Kanal 3 · an der Hauptspindel" + (akt.zTraeger ? ", Träger 3 fährt in Z" : ", Material fährt (M133)") : "Kanal 1 · Vorderseite"}
-            {teilAnsicht ? " · Fertigteil als 3D-Modell (ziehen dreht und schwenkt, Mausrad zoomt)" : n >= gesamt && gesamt ? (sim.sw && maschineAn && sim.hatK2 ? " · Fertigteil ausgeworfen, liegt neben Kanal 2" : " · Fertigteil") : akt && n > akt.von && n <= akt.bis ? " · " + akt.titel : zeit && nT < zeit.Tm && n >= zeit.L1 ? " · wartet auf Kanal 2" : ""}
+            {teilAnsicht ? " · Fertigteil als 3D-Modell (ziehen dreht und schwenkt, Mausrad zoomt)" : n >= gesamt && gesamt ? (maschineAn && sim.hatK2 ? " · Fertigteil ausgeworfen, liegt neben Kanal 2" : " · Fertigteil") : akt && n > akt.von && n <= akt.bis ? " · " + akt.titel : zeit && nT < zeit.Tm && n >= zeit.L1 ? " · wartet auf Kanal 2" : ""}
             {aktB && <span id="cam-sim-titel2">{" · gleichzeitig Kanal 2: " + aktB.titel}</span>}
             {zeit && nB != null && !aktB && nT > 0 && <span id="cam-sim-titel2">{" · Kanal 2 wartet"}</span>}
           </div>
