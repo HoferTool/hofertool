@@ -15,7 +15,7 @@ import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { RASTER, materialStand, simAufbauen, umrissVon, plattenHuelle, bohrerHuelle, innenTiefe, huelleFuer } from "./camSim.js";
 import { drehKoerper, abstechKoerper, fraeserKoerper } from "./camKoerper.js";
 import { stepFertig, stepHolen, stepLokal, stepDrehKoerper, stepRundKoerper } from "./camStep.js";
-import { MASCHINE_SB20RG, GEGEN_SB20RG, platzLage, traegerQuader, gegenEinheit, gegenQuader, platzLageSw, traegerSwQuader, MASCHINE_SW20 } from "./camMaschine.js";
+import { MASCHINE_SB20RG, GEGEN_SB20RG, platzLage, traegerQuader, gegenEinheit, gegenQuader, platzLageSw, traegerSwQuader, swGehaeuseVorne, MASCHINE_SW20 } from "./camMaschine.js";
 
 // Seit 1.558.3 wie an der Maschine: Führungsbüchse links, das Teil schaut
 // nach rechts, schräg von vorne auf die Stirn (Patrick 16. November 2026:
@@ -56,7 +56,7 @@ function wertBei(l, z, seite) {
 function abbildung(W, H, { bereich, dreh, zoom }) {
   const { zmin, zmax, rmax } = bereich;
   const zm = (zmin + zmax) / 2;
-  const diag = Math.hypot(zmax - zmin, 2 * rmax) || 1;
+  const diag = bereich.diag || Math.hypot(zmax - zmin, 2 * rmax) || 1;
   const s = Math.min(W, H) / (diag * 1.1) * zoom;
   const ca = Math.cos(dreh.a), sa = Math.sin(dreh.a), cb = Math.cos(dreh.b), sb = Math.sin(dreh.b);
   // Zeilen der Drehung (Welt x = z − zm, y = +X, w = +Y)
@@ -68,7 +68,7 @@ function abbildung(W, H, { bereich, dreh, zoom }) {
     const cc = Math.cos(c), sc = Math.sin(c);
     for (const r of [r1, r2, r3]) { const a = r[1], b = r[2]; r[1] = a * cc + b * sc; r[2] = -a * sc + b * cc; }
   }
-  return { zm, s, ox: W / 2, oy: H / 2 + 10, r1, r2, r3 };
+  return { zm, s, ox: W / 2 + (bereich.px || 0), oy: H / 2 + 10 + (bereich.py || 0), r1, r2, r3 };
 }
 const LICHT = [-0.45, 0.65, 0.62].map((c, _, v) => c / Math.hypot(...v));
 const GLANZ = (() => { const v = [LICHT[0], LICHT[1], LICHT[2] + 1]; const l = Math.hypot(...v); return v.map((c) => c / l); })();
@@ -245,7 +245,7 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
   g.clearRect(0, 0, W, H);
   const { zmin, zmax, rmax } = bereich;
   const zm = (zmin + zmax) / 2;
-  const diag = Math.hypot(zmax - zmin, 2 * rmax) || 1;
+  const diag = bereich.diag || Math.hypot(zmax - zmin, 2 * rmax) || 1;
   const s = Math.min(W, H) / (diag * 1.1) * zoom;
   const ca = Math.cos(dreh.a), sa = Math.sin(dreh.a), cb = Math.cos(dreh.b), sb = Math.sin(dreh.b);
   const hin = ca >= 0; // +w zum Betrachter: dann ist das Viertel 0 … 90° offen, sonst −90 … 0°
@@ -259,7 +259,7 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
   const Hh = (() => { const v = [L[0], L[1], L[2] + 1]; const l = Math.hypot(...v); return v.map((c) => c / l); })();
   const liste = [];
   let ziel = liste;
-  const ox = W / 2, oy = H / 2 + 10;
+  const ox = W / 2 + (bereich.px || 0), oy = H / 2 + 10 + (bereich.py || 0);
   const P = (p) => ({ x: ox + p.x * s, y: oy - p.y * s });
   const achseT = (z) => ansicht(z, 0, 0).t;
   const flaeche = (pts, art, zc) => {
@@ -531,6 +531,8 @@ function Simulation({ w, zu }) {
   const [maschineAn, setMaschineAn] = useState(() => { try { return localStorage.getItem("hofer.camSim.maschine") !== "0"; } catch { return true; } });
   const [dreh, setDreh] = useState(SCHRAEG);
   const [zoom, setZoom] = useState(1);
+  // Ansicht verschieben (seit 1.682.0): Shift, rechte oder mittlere Maustaste ziehen, zwei Finger
+  const [schieb, setSchieb] = useState({ x: 0, y: 0 });
   const [schnitt, setSchnitt] = useState(true);
   // seit 1.621.0 Werkzeug als 3D-Körper (Patrick 18. November 2026), je Gerät gemerkt
   const [dreiD, setDreiD] = useState(() => { try { return localStorage.getItem("hofer.camSim.wz3d") !== "0"; } catch { return true; } });
@@ -563,6 +565,35 @@ function Simulation({ w, zu }) {
     const l = sim.sw ? platzLageSw(platz, sim.swFront) : platzLage(platz);
     return l && Number(platz) === 100 && sim.abVersatz ? { ...l, dz: -sim.abVersatz } : l;
   };
+  // SW-20 (seit 1.682.0, Patrick 21. November 2026: „die Werkzeuge auf
+  // Kanal 1 und 3 sind auf einem festen Block montiert … wenn die Maschine
+  // bewegt, fahren alle Werkzeuge pro Kanal mit … wenn Z3 fährt, bewegen
+  // sich die Werkzeuge in Z, nicht das Material“): jeder Träger ist ein
+  // starrer Block. Wie weit ein Werkzeug vorne aus seinem Träger steht,
+  // gibt das Programm (Vorposition vor G50, „dzVorne“), fest je Platz.
+  // Mit M133 steht Träger 3 in Z an einer festen Stelle zur Drehebene
+  // (rel3), das Material fährt; mit M131 fährt Träger 3 als Ganzes in Z3.
+  // rel3 so gewählt, dass die Werkzeuge im Mittel so weit vorstehen wie im
+  // Bild und keines hinter seinem Gehäuse liegt.
+  const swSpitzen = useMemo(() => {
+    if (!sim.sw) return null;
+    const lage = (pl) => platzLageSw(pl, sim.swFront);
+    const k3 = sim.schritte.filter((x) => x.kanal === 1 && x.pfad === 3 && x.dzVorne != null && lage(x.platz));
+    let rel3 = -2;
+    if (k3.length) {
+      const d = k3.map((x) => x.dzVorne - lage(x.platz).dz).sort((a, b) => a - b);
+      rel3 = d[Math.floor(d.length / 2)];
+      // kein Werkzeug hinter der Vorderkante seines Gehäuses
+      for (const x of k3) rel3 = Math.min(rel3, x.dzVorne - swGehaeuseVorne(lage(x.platz), MASCHINE_SW20) - 5);
+    }
+    const dz = {};
+    for (const x of sim.schritte) {
+      if (x.kanal !== 1 || x.dzVorne == null || !lage(x.platz)) continue;
+      if (dz[x.platz] != null) continue;
+      dz[x.platz] = x.pfad === 3 ? x.dzVorne - rel3 : x.dzVorne;
+    }
+    return { rel3, dz };
+  }, [sim]);
   const kopfZ = useMemo(() => {
     let z = sim.zMax + 2;
     for (const x of sim.schritte) {
@@ -620,7 +651,7 @@ function Simulation({ w, zu }) {
     }
     const zMitte = (bereich0.zmin + bereich0.zmax) / 2;
     const dz = wzJetzt ? wzJetzt.z - zMitte : 0;
-    const bereich = { ...bereich0, zmin: bereich0.zmin + dz, zmax: bereich0.zmax + dz };
+    let bereich = { ...bereich0, zmin: bereich0.zmin + dz, zmax: bereich0.zmax + dz, px: schieb.x, py: schieb.y };
     // Bahn und Werkzeug des aktuellen Schritts
     const ueber = { bahnen: [], werkzeuge: [], stangen: [], koerper: [], spitze: null, buechse: null };
     if (akt && akt.kanal === kanal && akt.punkte.length && n > akt.von) {
@@ -683,7 +714,7 @@ function Simulation({ w, zu }) {
     // steht), mit M133 steuert Kanal 3 Z1 und das Material fährt
     if (sim.sw && kanal === 1) {
       const A2 = A / 2;
-      let zE = vorne, t1 = { z: vorne, x: A2 + 3, y: 0 }, t3 = { x: -(A2 + 25), y: 0 }, rel3 = -20, sAkt = null, pAkt = null;
+      let zE = vorne, t1 = { z: vorne, x: A2 + 3, y: 0 }, t3 = { x: -(A2 + 25), y: 0 }, rel3 = swSpitzen.rel3, sAkt = null, pAkt = null;
       for (const x of sim.schritte) {
         if (x.kanal !== 1 || x.von >= n || !x.punkte.length) continue;
         const q = x.punkte[Math.min(n, x.bis) - x.von - 1];
@@ -692,10 +723,11 @@ function Simulation({ w, zu }) {
         if (!l) continue;
         if (x.pfad === 3) {
           const X = q.mx != null ? q.mx : -q.r, Y = q.my != null ? q.my : 0;
-          const z3 = q.z - l.dz;
-          if (x.m133) zE = q.z - x.dzVorne;
+          const tip = swSpitzen.dz[x.platz] ?? l.dz;
           t3 = { x: X + l.x, y: Y - l.y }; // seit 1.680.0 Träger 3 in Y nicht mehr gespiegelt
-          rel3 = z3 - zE;
+          // M133: Kanal 3 fährt Z1, das Material; Träger 3 steht fest
+          // M131/M142: Träger 3 fährt in Z3, das Material steht
+          if (x.m133) { zE = q.z - x.dzVorne; rel3 = swSpitzen.rel3; } else rel3 = q.z - tip - zE;
         } else {
           const X = q.mx != null ? q.mx : q.r, Y = q.my != null ? q.my : 0;
           zE = q.z - (x.dzVorne ?? l.dz);
@@ -755,6 +787,18 @@ function Simulation({ w, zu }) {
       if (swLage) zb = swLage.zE + 2;
       ueber.buechse = { z: zb, ri: A / 2, ra: BUECHSE_R, L: BUECHSE_L };
     }
+    // Seit 1.682.0 (Patrick 21. November 2026: „wenn Maschinenansicht
+    // aktiviert ist, soll sich Bildzoom und Position der Ansicht nicht
+    // ändern, ich will die Maschine arbeiten sehen und selber zoomen,
+    // verschieben und drehen“): mit Maschine steht die Ansicht fest an der
+    // Maschine (vorne an der Drehebene, die das Material durchfährt), der
+    // Massstab ist für beide Kanäle derselbe
+    if (maschineAn) {
+      const ebene = kanal === 1 ? (swLage ? swLage.zE : traeger ? traeger.z : vorne) : null;
+      const dzM = ebene != null ? ebene - (bereich0.zmin + bereich0.zmax) / 2 + 10 : dz;
+      const diag = Math.hypot(sim.zMax - vorne + 8, 2 * Math.max(A / 2 + 2, BUECHSE_R + 1));
+      bereich = { ...bereich0, zmin: bereich0.zmin + dzM, zmax: bereich0.zmax + dzM, px: schieb.x, py: schieb.y, diag };
+    }
     // Mit Bohrungen und Fräsungen aus C und Y: Strahlen statt Maler
     const vx = stand.vox && stand.vox.weg > 0 ? stand.vox : null;
     const strahl = (vx || (st && st.kernA)) && umriss ? { st, vox: vx, kanal2: kanal === 2, Wt: W, q: laeuft ? 0.45 : 1 } : null;
@@ -763,7 +807,7 @@ function Simulation({ w, zu }) {
     if (kanal === 1 && maschineAn && swLage) {
       const benutzt = new Set(sim.schritte.filter((x) => x.kanal === 1).map((x) => x.platz));
       maschine = {
-        quader: [...traegerSwQuader(swLage.t1, 1, swLage.aktiv, sim.swFront, benutzt, MASCHINE_SW20, sim.swSchlitz), ...traegerSwQuader(swLage.t3, 3, swLage.aktiv, sim.swFront, benutzt)],
+        quader: [...traegerSwQuader(swLage.t1, 1, swLage.aktiv, sim.swFront, benutzt, MASCHINE_SW20, sim.swSchlitz, swSpitzen.dz), ...traegerSwQuader(swLage.t3, 3, swLage.aktiv, sim.swFront, benutzt, MASCHINE_SW20, false, swSpitzen.dz)],
         roll, grob: laeuft, kopf: { z: kopfZ, ri: A / 2, nase: k.nase, naseL: k.naseL, r: k.r, L: k.L },
       };
       maschine.koepfe = [maschine.kopf];
@@ -828,7 +872,7 @@ function Simulation({ w, zu }) {
     // Rohmaterial: Stirn vorne nur vorne (Kanal 1), vor der Übergabe
     const roh = { R: A / 2, vorne: kanal === 1 && !wegZ ? vorne : null };
     malen(g, breite, HOCH, { umriss, strahl, bereich, dreh: sim && sim.sw ? { ...dreh, c: SW_BLICK } : dreh, zoom, schnitt, ueber, roh, maschine, roll, hinweis: umriss ? "" : "Kein Material" });
-  }, [sim, stand, n, kanal, akt, dreh, zoom, schnitt, breite, laeuft, maschineAn, kopfZ, dreiD, stepStand]);
+  }, [sim, stand, n, kanal, akt, dreh, zoom, schnitt, breite, laeuft, maschineAn, kopfZ, dreiD, stepStand, schieb, swSpitzen]);
 
   useEffect(() => {
     if (!laeuft) return undefined;
@@ -853,8 +897,12 @@ function Simulation({ w, zu }) {
   const runter = (e) => {
     finger.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     e.currentTarget.setPointerCapture?.(e.pointerId);
-    ziehen.current = { x: e.clientX, y: e.clientY, d: dreh, z: zoom, abst: null };
-    if (finger.current.size === 2) { const [p, q] = [...finger.current.values()]; ziehen.current.abst = Math.hypot(p.x - q.x, p.y - q.y); }
+    ziehen.current = { x: e.clientX, y: e.clientY, d: dreh, z: zoom, abst: null, s: schieb, schieben: e.shiftKey || e.button === 1 || e.button === 2 };
+    if (finger.current.size === 2) {
+      const [p, q] = [...finger.current.values()];
+      ziehen.current.abst = Math.hypot(p.x - q.x, p.y - q.y);
+      ziehen.current.mitte = { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 };
+    }
   };
   const bewegen = (e) => {
     const z = ziehen.current; if (!z) return;
@@ -862,8 +910,11 @@ function Simulation({ w, zu }) {
     if (finger.current.size === 2 && z.abst) {
       const [p, q] = [...finger.current.values()];
       setZoom(Math.max(0.3, Math.min(20, z.z * Math.hypot(p.x - q.x, p.y - q.y) / z.abst)));
+      // zwei Finger verschieben dabei die Ansicht
+      setSchieb({ x: z.s.x + (p.x + q.x) / 2 - z.mitte.x, y: z.s.y + (p.y + q.y) / 2 - z.mitte.y });
       return;
     }
+    if (z.schieben) { setSchieb({ x: z.s.x + e.clientX - z.x, y: z.s.y + e.clientY - z.y }); return; }
     setDreh({ a: z.d.a + (e.clientX - z.x) * 0.01, b: Math.max(-1.5, Math.min(1.5, z.d.b + (e.clientY - z.y) * 0.01)) });
   };
   const hoch = (e) => { finger.current.delete(e.pointerId); if (!finger.current.size) ziehen.current = null; };
@@ -887,7 +938,7 @@ function Simulation({ w, zu }) {
     <div className="dialog cam-sim" id="cam-sim">
       <div className="cam-sim__kopf">
         <b>3D-Simulation</b>
-        <span className="cam-sim__hinweis klein">{sim && sim.sw ? "Kanal 1 und Kanal 3 vorne an der Hauptspindel (Kanal 3 an der Stelle von M133), danach Kanal 2 an der Rückseite." : "Kanal 1 vorne an der Hauptspindel, danach Kanal 2 an der Rückseite."} Ziehen dreht, Mausrad zoomt.</span>
+        <span className="cam-sim__hinweis klein">{sim && sim.sw ? "Kanal 1 und Kanal 3 vorne an der Hauptspindel (Kanal 3 an der Stelle von M133), danach Kanal 2 an der Rückseite." : "Kanal 1 vorne an der Hauptspindel, danach Kanal 2 an der Rückseite."} Ziehen dreht, Mausrad zoomt, Shift oder rechte Maustaste ziehen verschiebt.</span>
         <button className="knopf knopf--klein" title="Schliessen" onClick={zu}>✕</button>
       </div>
       <div className="cam-sim__haupt">
@@ -897,7 +948,7 @@ function Simulation({ w, zu }) {
             {n >= gesamt && gesamt ? " · Fertigteil" : akt && n > akt.von && n <= akt.bis ? " · " + akt.titel : ""}
           </div>
           <canvas ref={leinwand} className="cam-sim__bild" id="cam-sim-bild" data-cam-sim-n={n} style={{ height: HOCH + "px", width: "100%" }}
-            onPointerDown={runter} onPointerMove={bewegen} onPointerUp={hoch} onPointerCancel={hoch} />
+            onPointerDown={runter} onPointerMove={bewegen} onPointerUp={hoch} onPointerCancel={hoch} onContextMenu={(e) => e.preventDefault()} />
           <div className="cam-sim__knoepfe">
             <button className="knopf knopf--klein knopf--primaer" id="cam-sim-start" onClick={() => {
               if (laeuft) { setLaeuft(false); return; }
@@ -931,7 +982,7 @@ function Simulation({ w, zu }) {
               onChange={(e) => { setDreiD(e.target.checked); try { localStorage.setItem("hofer.camSim.wz3d", e.target.checked ? "1" : "0"); } catch { /* egal */ } }} /><span>3D-Werkzeug</span></label>
             {stepUrl && !stepFertig(stepUrl) && <span className="klein" data-cam-sim-step>{stepStand.url === stepUrl && stepStand.fehler ? "STEP nicht lesbar: " + stepStand.fehler : "STEP wird gelesen …"}</span>}
             <label className="schalter"><input type="checkbox" id="cam-sim-schnitt" checked={schnitt} onChange={(e) => setSchnitt(e.target.checked)} /><span>Aufgeschnitten</span></label>
-            <button className="knopf knopf--klein" onClick={() => { setDreh(SCHRAEG); setZoom(1); }}>Schräg</button>
+            <button className="knopf knopf--klein" onClick={() => { setDreh(SCHRAEG); setZoom(1); setSchieb({ x: 0, y: 0 }); }}>Schräg</button>
             <button className="knopf knopf--klein" onClick={() => setDreh(SEITE)}>Von der Seite</button>
             <input type="range" min={0} max={gesamt} value={n} className="cam-sim__regler" id="cam-sim-regler"
               onChange={(e) => { setLaeuft(false); setN(Number(e.target.value)); }} />

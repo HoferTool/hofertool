@@ -183,7 +183,17 @@ export function platzLageSw(platz, frontAuf = [], m = MASCHINE_SW20) {
 // schlitz (1.679.0): Schlitzapparat auf T700. Angenommen (Patrick kann
 // korrigieren): Gehäuse wie quer, Sägescheibe Ø40, 1 mm dick, in der
 // Ebene X–Z (Achse in Y), Scheibe reicht von der Spitze 40 mm in +X
-export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null, m = MASCHINE_SW20, schlitz = false) {
+// Vorderkante (zum Teil hin) des Gehäuses eines Frontwerkzeugs im Träger
+export function swGehaeuseVorne(l, m = MASCHINE_SW20) {
+  if (!l || l.art !== "front") return -Infinity;
+  return Number(l.y) >= m.y[1600] && l.traeger === 3 && l.dz === m.fest.dz ? m.fest.dz - 30 : l.dz - m.front.schaft;
+}
+
+// spitzen (seit 1.682.0): {platz: dz} wie weit die Spitze eines Werkzeugs
+// aus dem Programm vor der Null seines Trägers steht; der Träger ist ein
+// starrer Block, jedes benutzte Frontwerkzeug steckt mit einem Schaft in
+// seinem Gehäuse und fährt mit, auch wenn es gerade nicht arbeitet
+export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null, m = MASCHINE_SW20, schlitz = false, spitzen = null) {
   const q = [], sg = traeger === 3 ? -1 : 1;
   const box = (z0, z1, x0, x1, y0, y1, art) => {
     const xa = o.x + sg * x0, xb = o.x + sg * x1;
@@ -222,6 +232,19 @@ export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null
   if (traeger === 3) {
     const f = m.fest;
     box(f.dz - 30 - 40, f.dz - 30, -14, 16, m.y[1600] - 12, m.y[1900] + 12, "gehaeuse");
+  }
+  // Schaft und Schneide der benutzten Frontwerkzeuge dieses Trägers
+  const front = traeger === 3 ? [1300, 1400, 1500, 1600, 1700, 1800, 1900] : [500, 600, 700];
+  for (const t of front) {
+    if (benutzt && !benutzt.has(t) && t !== aktiv) continue;
+    const l = platzLageSw(t, frontAuf, m);
+    if (!l || l.art !== "front") continue;
+    const tip = spitzen && spitzen[t] != null ? spitzen[t] : l.dz;
+    const hinten = swGehaeuseVorne(l, m);
+    // das arbeitende Werkzeug zeichnet seinen Körper selbst ab der Spitze
+    const vorne = t === aktiv ? tip - 10 : tip - 2;
+    if (vorne > hinten) box(hinten, vorne, -3, 3, l.y - 3, l.y + 3, "halter");
+    if (t !== aktiv) box(tip - 2, tip, -1.5, 1.5, l.y - 1.5, l.y + 1.5, "schneide");
   }
   return q;
 }
