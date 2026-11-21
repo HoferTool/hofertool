@@ -682,7 +682,7 @@ function Simulation({ w, zu }) {
           const X = q.mx != null ? q.mx : -q.r, Y = q.my != null ? q.my : 0;
           const z3 = q.z - l.dz;
           if (x.m133) zE = q.z - x.dzVorne;
-          t3 = { x: X + l.x, y: Y + l.y };
+          t3 = { x: X + l.x, y: Y - l.y }; // seit 1.680.0 Träger 3 in Y nicht mehr gespiegelt
           rel3 = z3 - zE;
         } else {
           const X = q.mx != null ? q.mx : q.r, Y = q.my != null ? q.my : 0;

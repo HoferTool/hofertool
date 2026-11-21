@@ -143,11 +143,25 @@ export function gegenQuader(o, e) {
 //  Platz wie bei platzLage (Spitze, wenn der Träger in seiner Null steht,
 //  x und y im eigenen Träger: beim Träger 3 zeigen sie zur anderen Seite).
 // =================================================================
+// Seit 1.680.0 (Patrick 21. November 2026: „die Anordnung der Werkzeuge
+// stimmt nicht in der Simulation, baue es genau nach dem Bild“): Lage je
+// Platz aus dem Bild public/hilfe/star-sw20.png gemessen, Abstände je
+// Träger mit der Teilung der Platten (25 mm) umgerechnet. Träger 1 von
+// unten nach oben T100–T400, dann T500–T700; Träger 3 von unten nach oben
+// T1100, T1200, dann T1500, T1400, T1300 (T1300 oben, Patrick), darüber
+// T1600–T1900 übereinander (vorher nebeneinander in X). Träger 3 ist nur
+// in X gespiegelt (Werkzeuge zeigen zur anderen Seite), in Y steht er wie
+// im Bild: die Plätze steigen nach oben wie bei Träger 1.
 export const MASCHINE_SW20 = {
   dreh: { teilung: 25 },
-  quer: { abstand: 36.5, teilung: 31, dz: -7 },
+  quer: { dz: -7 },
   front: { dz: -45, block: 40, schaft: 30 },
-  fest: { dz: -40, teilungX: 25, y: 163.5 }, // T1600–T1900 auf Träger 3
+  fest: { dz: -40 }, // T1600–T1900 auf Träger 3
+  // Y je Platz (Spitze bzw. Achse) im eigenen Träger
+  y: {
+    100: 0, 200: 25, 300: 50, 400: 75, 500: 134, 600: 168, 700: 202,
+    1100: 0, 1200: 25, 1500: 62, 1400: 84, 1300: 106, 1600: 185, 1700: 208, 1800: 231, 1900: 254,
+  },
   kopf: { abstand: 20, r: 38, L: 110, nase: 22, naseL: 22 },
 };
 
@@ -155,48 +169,45 @@ export const MASCHINE_SW20 = {
 // mit Frontbohrapparat (Bestückung)
 export function platzLageSw(platz, frontAuf = [], m = MASCHINE_SW20) {
   const t = Number(platz) || 0;
+  const y = m.y[t];
+  if (y == null) return null;
   const auf = frontAuf.map(Number).includes(t);
-  const quer = (k0, k) => {
-    const y = k0 * m.dreh.teilung + m.quer.abstand + k * m.quer.teilung;
-    return auf ? { art: "front", dz: m.front.dz, x: 0, y } : { art: "quer", dz: m.quer.dz, x: 0, y };
-  };
-  if (t >= 100 && t <= 400 && t % 100 === 0) return { traeger: 1, art: "dreh", dz: 0, x: 0, y: (t / 100 - 1) * m.dreh.teilung };
-  if (t >= 500 && t <= 700 && t % 100 === 0) return { traeger: 1, ...quer(3, t / 100 - 5) };
-  if (t >= 1100 && t <= 1200 && t % 100 === 0) return { traeger: 3, art: "dreh", dz: 0, x: 0, y: (t / 100 - 11) * m.dreh.teilung };
-  if (t >= 1300 && t <= 1500 && t % 100 === 0) return { traeger: 3, ...quer(1, t / 100 - 13) };
-  if (t >= 1600 && t <= 1900 && t % 100 === 0) return { traeger: 3, art: "front", dz: m.fest.dz, x: -(t / 100 - 16) * m.fest.teilungX, y: m.fest.y };
-  return null;
+  const traeger = t >= 1000 ? 3 : 1;
+  if (t <= 400 || t === 1100 || t === 1200) return { traeger, art: "dreh", dz: 0, x: 0, y };
+  if (t >= 1600) return { traeger, art: "front", dz: m.fest.dz, x: 0, y };
+  return auf ? { traeger, art: "front", dz: m.front.dz, x: 0, y } : { traeger, art: "quer", dz: m.quer.dz, x: 0, y };
 }
 
 // Quader eines Trägers der SW-20. o = Null des Trägers an der Maschine
-// {z, x, y}; spiegel: Träger 3 (lokales x und y zeigen nach −X / −Y)
+// {z, x, y}; Träger 3: lokales x zeigt nach −X (gespiegelt), y wie Träger 1
 // schlitz (1.679.0): Schlitzapparat auf T700. Angenommen (Patrick kann
 // korrigieren): Gehäuse wie quer, Sägescheibe Ø40, 1 mm dick, in der
 // Ebene X–Z (Achse in Y), Scheibe reicht von der Spitze 40 mm in +X
 export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null, m = MASCHINE_SW20, schlitz = false) {
   const q = [], sg = traeger === 3 ? -1 : 1;
   const box = (z0, z1, x0, x1, y0, y1, art) => {
-    const xa = o.x + sg * x0, xb = o.x + sg * x1, ya = o.y + sg * y0, yb = o.y + sg * y1;
-    q.push({ z0: o.z + z0, z1: o.z + z1, x0: Math.min(xa, xb), x1: Math.max(xa, xb), y0: Math.min(ya, yb), y1: Math.max(ya, yb), art });
+    const xa = o.x + sg * x0, xb = o.x + sg * x1;
+    q.push({ z0: o.z + z0, z1: o.z + z1, x0: Math.min(xa, xb), x1: Math.max(xa, xb), y0: o.y + y0, y1: o.y + y1, art });
   };
-  const nPl = traeger === 3 ? 2 : 4, t0 = traeger === 3 ? 1100 : 100;
-  for (let k = 0; k <= nPl; k++) {
-    const y = (k - 0.5) * m.dreh.teilung;
+  const dreh = traeger === 3 ? [1100, 1200] : [100, 200, 300, 400];
+  const yd = dreh.map((t) => m.y[t]);
+  for (let k = 0; k <= dreh.length; k++) {
+    const y = yd[0] + (k - 0.5) * m.dreh.teilung;
     box(-12, 0, 12, 80, y - 6.4, y + 6.4, "platte");
   }
-  for (let k = 0; k < nPl; k++) {
-    const y = k * m.dreh.teilung, t = t0 + k * 100;
-    if (benutzt && !benutzt.has(t) && t !== aktiv) continue;
+  dreh.forEach((t, k) => {
+    const y = yd[k];
+    if (benutzt && !benutzt.has(t) && t !== aktiv) return;
     box(-12, 0, 3, 40, y - 6, y + 6, "halter");
     if (t !== aktiv) box(-5, 0, 0, 6, y - 3, y + 3, "schneide");
-  }
+  });
   // angetriebene Plätze: Gehäuse quer oder Frontbohrapparat
-  const q0 = traeger === 3 ? 1300 : 500;
-  for (let k = 0; k < 3; k++) {
-    const l = platzLageSw(q0 + k * 100, frontAuf, m);
-    if (l.art === "front") box(l.dz - m.front.schaft - m.front.block, l.dz - m.front.schaft, -14, 16, l.y - 12, l.y + 12, "gehaeuse");
+  const quer = traeger === 3 ? [1300, 1400, 1500] : [500, 600, 700];
+  for (const t of quer) {
+    const l = platzLageSw(t, frontAuf, m);
+    if (l.art === "front") box(l.dz - m.front.schaft - m.front.block, l.dz - m.front.schaft, -14, 16, l.y - 10, l.y + 10, "gehaeuse");
     else box(l.dz - 8, l.dz + 8, 24, 70, l.y - 9, l.y + 9, "gehaeuse");
-    if (schlitz && traeger === 1 && q0 + k * 100 === 700) {
+    if (schlitz && traeger === 1 && t === 700) {
       const R = 20;
       box(l.dz - 3, l.dz + 3, 20, 24, l.y - 3, l.y + 3, "halter");
       // Scheibe in Streifen angenähert
@@ -210,7 +221,7 @@ export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null
   // feste Frontwerkzeuge T1600–T1900 auf Träger 3
   if (traeger === 3) {
     const f = m.fest;
-    box(f.dz - 30 - 40, f.dz - 30, -3 * f.teilungX - 14, 16, f.y - 16, f.y + 16, "gehaeuse");
+    box(f.dz - 30 - 40, f.dz - 30, -14, 16, m.y[1600] - 12, m.y[1900] + 12, "gehaeuse");
   }
   return q;
 }

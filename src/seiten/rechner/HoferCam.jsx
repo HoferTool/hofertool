@@ -28,7 +28,7 @@ import AbstecherBild from "./AbstecherBild.jsx";
 import SchnabelBild from "./SchnabelBild.jsx";
 import { hofercamTutorialOeffnen } from "../start/NeuesTutorial.jsx";
 import { EinstichBild, EinstichSteuerung } from "./CamEinstichBild.jsx";
-import { bereichLage, zLang, feldFuerTyp, SW20_BILD, SW20_APPARAT, SW20_APPARAT_LAGE, SW20_SCHLITZ_BILD, swApparate, swSchlitzVon, SW20_FRONT_PLAETZE, SW20_KANAL_PLAETZE, sw20Bereich, swFrontVon, swFrontArt, nrKanal, FELDER, HD_STUFEN, abVersatz, AB_VERSATZ_VORGABE, plaetzeVon, platzGruppe, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, handZurueck, markenPaare, eigenerKanal, kanalZahl, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
+import { bereichLage, zLang, feldFuerTyp, SW20_BILD, SW20_FRONT_BILD, SW20_SCHLITZ_BILD, swApparate, swSchlitzVon, SW20_FRONT_PLAETZE, SW20_KANAL_PLAETZE, sw20Bereich, swFrontVon, swFrontArt, nrKanal, FELDER, HD_STUFEN, abVersatz, AB_VERSATZ_VORGABE, plaetzeVon, platzGruppe, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, handZurueck, markenPaare, eigenerKanal, kanalZahl, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Seit 1.427.0 (Wunsch Patrick 5. November 2026: „vordefinierte
 // Bearbeitungen aus einer Liste einfügen … in eine bestehende
@@ -424,17 +424,17 @@ function SwApparat({ platz, art }) {
       </g>
     </g>);
   }
-  const l = SW20_APPARAT_LAGE[platz];
+  // Seit 1.680.0 je Platz ein eigener Ausschnitt: Halter anstelle des Querwerkzeugs
+  const l = SW20_FRONT_BILD[platz] && SW20_FRONT_BILD[platz][art === "fest" ? "fest" : "an"];
   if (!l) return null;
-  const { b, h } = SW20_APPARAT, href = base + (art === "fest" ? "hilfe/sw20-apparat-fest.png" : "hilfe/sw20-apparat.png");
+  const [x, y, b, h] = l;
   return (<g className="cam-bild__apparat" data-cam-apparat={platz} data-art={art}>
-    {l.spiegel ? <image href={href} x={-(l.x + b)} y={l.y} width={b} height={h} transform="scale(-1,1)" />
-      : <image href={href} x={l.x} y={l.y} width={b} height={h} />}
+    <image href={base + `hilfe/sw20-front-${platz}-${art === "fest" ? "fest" : "an"}.png`} x={x} y={y} width={b} height={h} />
   </g>);
 }
 // Reihenfolge: oben zuerst, damit der untere Apparat den oberen überdeckt
 function apparateSortiert(l) {
-  const y = (a) => a.art === "schlitz" ? 0 : (SW20_APPARAT_LAGE[a.platz] || { y: 0 }).y;
+  const y = (a) => a.art === "schlitz" ? 0 : ((SW20_FRONT_BILD[a.platz] || {}).an || [0, 0])[1];
   return [...l].sort((a, b) => y(a) - y(b));
 }
 function GruppenBild({ gruppe, t34, ref_, mass }) {

@@ -1092,14 +1092,18 @@ export const SW20_KANAL_PLAETZE = {
   3: [1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900],
   2: [2100, 2200, 2300, 2400, 2500, 2600, 2700, 2800],
 };
-// Seit 1.679.0: Apparate im Bild je Platz. Der Apparat ist das Bild des
-// T1500-Apparats aus dem Original (public/hilfe/sw20-apparat.png, 84 × 68,
-// fest ohne den roten Drehpfeil sw20-apparat-fest.png); in Kanal 3 je Platz
-// 19 Punkte höher, in Kanal 1 gespiegelt an der Spitze des Werkzeugs
-export const SW20_APPARAT = { b: 84, h: 68 };
-export const SW20_APPARAT_LAGE = {
-  1300: { x: 334, y: 185 }, 1400: { x: 334, y: 204 }, 1500: { x: 334, y: 223 },
-  500: { x: 181, y: 282, spiegel: true }, 600: { x: 181, y: 261, spiegel: true },
+// Seit 1.680.0 (Patrick 21. November 2026: „an den Platz eines
+// querangetriebenen Werkzeugs kommt einfach das Frontwerkzeug anstelle des
+// querangetriebenen, wenn montiert … schau dir das Bild von 1500 genau an“):
+// je Platz ein Ausschnitt des Bilds, in dem der Querbohrer weg ist und ein
+// Halter wie T1600 in Z-Richtung genau an seiner Stelle sitzt, untereinander
+// wie die Querwerkzeuge. [x, y, b, h] im Bild, Datei hilfe/sw20-front-<platz>-<an|fest>.png
+export const SW20_FRONT_BILD = {
+  1300: { an: [340, 183, 34, 31], fest: [331, 183, 43, 34] },
+  1400: { an: [340, 203, 34, 31], fest: [332, 203, 42, 34] },
+  1500: { an: [340, 222, 34, 31], fest: [330, 222, 44, 33] },
+  500: { an: [211, 301, 52, 30], fest: [211, 296, 62, 35] },
+  600: { an: [211, 278, 52, 30], fest: [211, 273, 62, 35] },
 };
 // Schlitzapparat (1.679.0, Patrick 21. November 2026: „bei Bestückung
 // brauchen wir noch den Schlitzapparat auf T700“; Handbuch: T700 nur
