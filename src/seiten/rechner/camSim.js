@@ -440,6 +440,19 @@ function k3Schritt(s, b, zeilen, v, W, prog, wa) {
   let roh = m50Folgen(zeilen, v, prog, mitG50, !s.m133);
   s.zeilen = zeilen;
   const dreht = s.art === "k3f";
+  if (s.art === "k3s") {
+    // Querangetrieben Kanal 3 (1.678.0): wie Querangetrieben Kanal 1,
+    // Z = Lage im Teil, Träger 3 gespiegelt (−X, −Y)
+    s.achse = "quer";
+    s.punkte = roh.map((p) => {
+      const uM = -(p.x || 0) / 2, wM = -(p.y || 0);
+      const { t, dreh } = imTeil(p, 1, uM, wM, p.z, W);
+      return { z: t[0], r: Math.hypot(t[1], t[2]), phi: Math.atan2(t[2], t[1]), t, ax: [0, -dreh[0], -dreh[1]], vor: p.vor, nr: p.nr, mx: uM, my: wM, c: p.c || 0 };
+    });
+    s.modus = wa === "fraes" ? "c" : null;
+    if (wa === "dreh") s.status = "nurBahnA";
+    return;
+  }
   let zT;
   if (s.art === "k3dr") {
     // Drehwerkzeug Kanal 3 (1.677.0): Z wie beim Drehwerkzeug Kanal 1

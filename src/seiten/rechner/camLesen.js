@@ -284,7 +284,9 @@ export function bloeckeLesen(k1, k2, k3) {
   t1.ab.forEach((s, i) => {
     const platz = s[0].match(/^T(\d{3,4})/i)[1];
     const gr = gruppeVon(platz);
-    const arten = K1_ARTEN[gr];
+    // Seit 1.678.0 SW-20: T500 / T600 querangetrieben oder Frontbohrapparat,
+    // die besser passende Vorlage gilt
+    const arten = (typ().kanaele || 2) > 2 && gr === "front" && plaetzeVon("seite").includes(String(platz)) ? ["front", "seite"] : K1_ARTEN[gr];
     const best = arten && besteVorlage(arten, s, 1);
     if (zuSchlecht(best, s)) {
       if (istEnde1(s)) return;

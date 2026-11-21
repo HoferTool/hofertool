@@ -1039,7 +1039,11 @@ export default function HoferCam() {
             title={montiert("front", w).length ? "" : "Zuerst unter Bestückung T500 oder T600 mit Frontbohrapparat wählen"}
             {...swMaus("swfront", montiert("front", w).map(Number), "Frontbohrapparat Kanal 1")}
             onClick={() => { const nb = neuerBlock(bloecke, "front", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Frontbohrapparat {montiert("front", w).map((p) => "T" + p).join(", ") || "(Bestückung)"}</button>
-          <span className="klein">Weitere Bearbeitungen folgen nach deinen Beispielen.</span>
+          {/* Seit 1.678.0 Querangetrieben T500–T700 nach der Vorlage der SB-20RG (Patrick 21. November 2026) */}
+          <button className="knopf knopf--klein" id="cam-neu-seite" disabled={!montiert("seite", w).length}
+            title={montiert("seite", w).length ? "" : "Alle Plätze T500–T700 haben einen Frontbohrapparat"}
+            {...swMaus("swseite", montiert("seite", w).map(Number), "Querangetrieben Kanal 1")}
+            onClick={() => { const nb = neuerBlock(bloecke, "seite", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Querangetrieben {montiert("seite", w).map((p) => "T" + p).join(", ") || "(Bestückung)"}</button>
           </>}
           {sb && <>
           <button className="knopf knopf--klein" id="cam-neu-dreh" {...knopfMaus("dreh", "Drehwerkzeug")}
@@ -1060,6 +1064,10 @@ export default function HoferCam() {
           <b>Bearbeitungen Kanal 3</b>
           <button className="knopf knopf--klein" id="cam-neu-k3dr" {...swMaus("swk3dr", plaetzeVon("k3dr").map(Number), "Drehwerkzeug Kanal 3")}
             onClick={() => { const nb = neuerBlock(bloecke, "k3dr", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Drehwerkzeug {spanne("k3dr")}</button>
+          <button className="knopf knopf--klein" id="cam-neu-k3s" disabled={!montiert("k3s", w).length}
+            title={montiert("k3s", w).length ? "" : "Alle Plätze T1300–T1500 haben einen Frontbohrapparat"}
+            {...swMaus("swk3s", montiert("k3s", w).map(Number), "Querangetrieben Kanal 3")}
+            onClick={() => { const nb = neuerBlock(bloecke, "k3s", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Querangetrieben {montiert("k3s", w).map((p) => "T" + p).join(", ") || "(Bestückung)"}</button>
           <button className="knopf knopf--klein" id="cam-neu-k3f" disabled={!montiert("k3f", w).length}
             title={montiert("k3f", w).length ? "" : "Zuerst unter Bestückung T1300, T1400 oder T1500 mit Frontbohrapparat angetrieben wählen"}
             {...swMaus("swk3f", montiert("k3f", w).map(Number), "Frontbohrapparat Kanal 3")}
@@ -1105,7 +1113,7 @@ export default function HoferCam() {
           eintraege={bloecke.map((b, i) => {
           const bf = blockFehler(b, w);
           const front = b.art === "front";
-          const seite = b.art === "seite";
+          const seite = b.art === "seite" || b.art === "k3s";
           const quer = b.art === "quer" || seite;
           const k2a = b.art === "k2a";
           const k2b = b.art === "k2b";
@@ -1130,7 +1138,7 @@ export default function HoferCam() {
             </label>
           );
           return { key: b.id, inhalt: (
-            <div key={b.id} className={"cam-block" + (k2 ? " cam-block--k2" : "") + (k3 ? " cam-block--k3" : "") + (b.id === aktiv ? " cam-block--aktiv" : "")} data-block={i} data-blockid={b.id}
+            <div key={b.id} className={"cam-block" + (k2 ? " cam-block--k2" : "") + (k3 || b.art === "k3s" ? " cam-block--k3" : "") + (b.id === aktiv ? " cam-block--aktiv" : "")} data-block={i} data-blockid={b.id}
               onFocusCapture={() => setAktiv(b.id)} onPointerDown={() => setAktiv(b.id)}>
               <div className="cam-block__zeile">
                 {/* Seit 1.399.0 (Wunsch Patrick 5. November 2026): NC-Code mit
@@ -1154,8 +1162,8 @@ export default function HoferCam() {
                 <label className={"cam-feld" + (bf.platz ? " cam-feld--fehler" : "")} data-camblock-platzfeld={i}
                   onPointerEnter={(e) => { if (e.pointerType === "mouse") setUeber(b.id); }}
                   onPointerLeave={() => setUeber((x) => (x === b.id ? null : x))}
-                  title={b.art === "k3dr" ? "Drehwerkzeug Kanal 3" : k3f ? "Frontbohrapparat angetrieben Kanal 3" : k3ff ? "Frontbohrhalter fest Kanal 3" : k3d ? "Festes Werkzeug Kanal 3" : k2 ? "Werkzeugplatz Kanal 2" : quer ? "Werkzeugplatz (angetrieben, Weg mit der Gegenspindel)" : front ? "Werkzeugplatz (Frontwerkzeug fest)" : "Werkzeugplatz (Drehwerkzeug Kanal 1)"}><span>Platz</span>
-                  <PlatzWahl wert={b.platz} plaetze={montiert(k3 || b.art === "k3dr" ? b.art : k2 ? platzGruppe(b.art) : seite ? "seite" : quer ? "quer" : front ? "front" : "dreh", w)}
+                  title={b.art === "k3dr" ? "Drehwerkzeug Kanal 3" : b.art === "k3s" ? "Querangetriebenes Werkzeug Kanal 3" : k3f ? "Frontbohrapparat angetrieben Kanal 3" : k3ff ? "Frontbohrhalter fest Kanal 3" : k3d ? "Festes Werkzeug Kanal 3" : k2 ? "Werkzeugplatz Kanal 2" : quer ? "Werkzeugplatz (angetrieben, Weg mit der Gegenspindel)" : front ? "Werkzeugplatz (Frontwerkzeug fest)" : "Werkzeugplatz (Drehwerkzeug Kanal 1)"}><span>Platz</span>
+                  <PlatzWahl wert={b.platz} plaetze={montiert(k3 || b.art === "k3dr" ? b.art : k2 ? platzGruppe(b.art) : seite ? b.art : quer ? "quer" : front ? "front" : "dreh", w)}
                     waehlen={(p) => { blockAendern(b.id, "platz", p); setUeber(b.id); }}
                     vorschau={(p) => { setVorPlatz(p ? { id: b.id, platz: p } : null); if (p) setUeber(b.id); }} />
                   {bf.platz && <small className="cam-fehltext" data-camblock-nichtmontiert={i}>nicht montiert</small>}</label>

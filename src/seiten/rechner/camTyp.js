@@ -391,6 +391,54 @@ G0X[#531+1.]Z{ANZ}
 T0
 G28U0.
 M01`,
+  // Seit 1.678.0 (Patrick 21. November 2026: „bearbeitungen für
+  // querangetriebene werkzeuge t500-t700 und t1300-t1500, nimm die gleichen
+  // vorlagen wie bei der sb20-rg“): wie "seite.k1" der SB-20RG, nur die
+  // Korrektur zweistellig wie bei der SW-20 (G0T05, G0T13)
+  "seite.k1": `T{PLATZ}{BEZ_K}
+[hd] M1883D{HD}
+G0T{TK}
+{DREH}S{S}
+G0X[#531+1.]Z{ANZ}
+{VOR}
+M8
+M7
+G0
+G28H0.
+G1Y0.C0.F1.
+{CODE}
+G0X30.
+G0Y0.
+[hdaus] M1893
+T0
+[m38] M38
+M9
+G99
+T0
+M1`,
+  "seite.k3": `{PAARE3}`,
+  "k3s.k1": `{PAARE}`, "k3s.k2": `{PAARE2}`,
+  "k3s.k3": `T{PLATZ}{BEZ_K}
+[hd] M1883D{HD}
+G0T{TK}
+{DREH}S{S}
+G0X[#531+1.]Z{ANZ}
+{VOR}
+M8
+M7
+G0
+G28H0.
+G1Y0.C0.F1.
+{CODE}
+G0X30.
+G0Y0.
+[hdaus] M1893
+T0
+[m38] M38
+M9
+G99
+T0
+M1`,
   k1kopf: `%
 O{NR}{NAME}(N)
 ({DATUM_KUERZEL})
@@ -667,6 +715,7 @@ export const ARTEN = [
   { id: "k3d", text: "Kanal 3 feste Werkzeuge", plaetze: "k3d" },
   { id: "k3ff", text: "Kanal 3 Frontbohrhalter fest", plaetze: "k3ff" },
   { id: "k3dr", text: "Kanal 3 Drehwerkzeug", plaetze: "k3dr" },
+  { id: "k3s", text: "Kanal 3 Querangetrieben", plaetze: "k3s" },
 ];
 export const vorlageArt = (b) => ((b.art === "front" || b.art === "quer") && b.spindel === "gegen" ? b.art + "Gegen" : b.art || "dreh");
 
@@ -683,6 +732,7 @@ export const PLATZ_GRUPPEN = [
   { id: "k3d", text: "Kanal 3 feste Werkzeuge" },
   { id: "k3ff", text: "Kanal 3 Frontbohrhalter fest" },
   { id: "k3dr", text: "Kanal 3 Drehwerkzeuge" },
+  { id: "k3s", text: "Kanal 3 Querangetrieben" },
 ];
 const PLAETZE = {
   dreh: ["100", "200", "300", "400", "500", "600"],
@@ -699,9 +749,9 @@ const VORGABEN = { A: "17", W: "15.125", S: "3000", X: "-0.8", Z: "167.85", F: "
 // T100–T400 Drehwerkzeuge, T500 / T600 mit Frontbohrapparat, T700 quer;
 // Kanal 2 T2100–T2800. Nur die Frontbearbeitung hat schon eine Vorlage,
 // die übrigen werden beim Einlesen „wie eingelesen“.
-const PLAETZE_SW20 = { ...PLAETZE, dreh: ["100", "200", "300", "400"], front: ["500", "600"], seite: ["700"], quer: [],
+const PLAETZE_SW20 = { ...PLAETZE, dreh: ["100", "200", "300", "400"], front: ["500", "600"], seite: ["500", "600", "700"], quer: [],
   k2: ["2100", "2200", "2300", "2400"], k2a: ["2500", "2600"], k2b: ["2700", "2800"], k3f: ["1300", "1400", "1500"],
-  k3d: ["1600", "1700", "1800", "1900"], k3ff: ["1300", "1400", "1500"], k3dr: ["1100", "1200"] };
+  k3d: ["1600", "1700", "1800", "1900"], k3ff: ["1300", "1400", "1500"], k3dr: ["1100", "1200"], k3s: ["1300", "1400", "1500"] };
 const BLOECKE_SW20 = { dreh: { hd: "3", dreh: "3", S: "2500", sArt: "vc", vc: "350", g96: "1", g50: "5000", anZ: "-0.5" },
   // Kanal 3 Frontbohrapparat (1.666.0) nach Patricks T1300
   // Kanal 2 (1.667.0) nach Patricks T2100, T2600 und T2700
@@ -715,6 +765,9 @@ const BLOECKE_SW20 = { dreh: { hd: "3", dreh: "3", S: "2500", sArt: "vc", vc: "3
   k3ff: { hd: "5", hdN: "4", dreh: "3", S: "2000", vor: "99", vorX: "0.00", anZ: "5.00", nZ: "-0.50", Y: "0.0", wegZ: "2.00" },
   front: { hd: "3", dreh: "3", S: "3000", X: "0.0", Y: "0.0", anZ: "5.00", nZ: "-0.50" } };
 BLOECKE_SW20.k3dr = { ...BLOECKE_SW20.dreh };
+// Querangetrieben (1.678.0) wie bei der SB-20RG
+BLOECKE_SW20.seite = { hd: "3", dreh: "36", S: "6000", anZ: "0" };
+BLOECKE_SW20.k3s = { ...BLOECKE_SW20.seite };
 const BLOECKE = {
   dreh: { hd: "4", dreh: "3", S: "3000", anZ: "0", wegF: "0.05", wegA: "45" },
   front: { hd: "4", dreh: "3", S: "2500", anZ: "5.0", wegZ: "0" },
@@ -740,7 +793,7 @@ export function vorgabeTyp(id = TYP) {
     id: info.id, name: info.name, kanaele: info.kanaele, nummern: [...info.nummern],
     // Bearbeitungsarten dieses Typs (SW-20: noch keine, folgen nach Patrick)
     // Seit 1.665.0 beim SW-20 die Frontbearbeitung Kanal 1
-    arten: sw ? ["dreh", "front", "k2", "k2b", "k2a", "k3dr", "k3f", "k3ff", "k3d"] : ARTEN.map((a) => a.id).filter((a) => !a.startsWith("k3") && a !== "k2b"),
+    arten: sw ? ["dreh", "front", "seite", "k2", "k2b", "k2a", "k3dr", "k3s", "k3f", "k3ff", "k3d"] : ARTEN.map((a) => a.id).filter((a) => !a.startsWith("k3") && a !== "k2b"),
     vorlagen: sw ? { ...V, ...V_SW20 } : { ...V },
     plaetze: Object.fromEntries(Object.entries(sw ? PLAETZE_SW20 : PLAETZE).map(([k, l]) => [k, [...l]])),
     vorgaben: sw ? { ...VORGABEN_SW20 } : { ...VORGABEN },

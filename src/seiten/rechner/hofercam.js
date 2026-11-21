@@ -197,6 +197,8 @@ export function montiert(gruppe, w) {
   if (istSw()) {
     if (gruppe === "front" || gruppe === "k3ff") return l.filter((p) => swFrontVon(w).includes(Number(p)) && swFrontArt(w, p) === "fest");
     if (gruppe === "k3f") return l.filter((p) => swFrontVon(w).includes(Number(p)) && swFrontArt(w, p) === "an");
+    // Querangetrieben (1.678.0) nur auf Plätzen ohne Frontbohrapparat
+    if (gruppe === "seite" || gruppe === "k3s") return l.filter((p) => !swFrontVon(w).includes(Number(p)));
     return l;
   }
   const t = t34Von(w);
@@ -206,7 +208,7 @@ export function montiert(gruppe, w) {
 }
 export function nichtMontiert(b, w) {
   const p = String(b.platz ?? ""), t = t34Von(w);
-  if (istSw()) return ["front", "k3f", "k3ff"].includes(b.art) && !b.frei && !montiert(b.art, w).includes(p);
+  if (istSw()) return ["front", "k3f", "k3ff", "seite", "k3s"].includes(b.art) && !b.frei && !montiert(b.art, w).includes(p);
   return (p === "3400" && t !== "3400") || (/^342[1-3]$/.test(p) && t === "3400");
 }
 // Die SB-20RG hat nur vier Hochdruck-Stufen (Patrick 7. November 2026: „es gibt nur 4 nicht 6“).
@@ -301,7 +303,7 @@ export function blockFehler(b, w = {}) {
     for (const n of ["vorX", "vorZ", "nX", "nZ"]) if (zahl(b[n]) == null) f[n] = "Zahl fehlt";
     return f;
   }
-  if (b.art === "seite") {
+  if (b.art === "seite" || b.art === "k3s") {
     if (!/^\d+$/.test(String(b.S).trim()) || Number(b.S) <= 0) f.S = "ganze Zahl";
     if (zahl(b.anZ) == null) f.anZ = "Zahl fehlt";
     return f;
@@ -391,7 +393,7 @@ function blockWerte(b, w, marke) {
   // Drehrichtung je Art: stehend M3 / M4, angetrieben M36 / M37
   const dreh = art === "k2" ? (b.dreh === "3" ? 3 : 4)
     : art === "k2a" ? (istSw() ? (b.dreh === "57" ? 57 : 56) : b.dreh === "36" ? 36 : 37)
-    : art === "seite" || art === "quer" || art === "querGegen" || art === "k3f" ? (b.dreh === "37" ? 37 : 36)
+    : art === "seite" || art === "k3s" || art === "quer" || art === "querGegen" || art === "k3f" ? (b.dreh === "37" ? 37 : 36)
     : (b.dreh === "4" ? 4 : 3);
   const mk = marke || (anGegenspindel(b) ? STANDARD_MARKEN[b.art] : null) || {};
   const g = (n) => zahl(b[n]) ?? String(b[n] ?? "");
