@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.675.1 (21. November 2026)
+
+- Prüfstand `reihen` robuster: scheiterte seit Tagen auf allen Zweigen und nachts auf main („8 von 10 richtig“, Klick-Zeitüberschreitung). Er wartet jetzt auf die nächste Aufgabe statt fester Pausen, macht keine Bildschirmfotos mehr, während die 3 Sekunden laufen (mit WebGL dauerte eines oft länger), und merkt die grüne Rückmeldung mit einem Beobachter im Browser. Die App selbst ist unverändert.
+
 ## 1.672.0 (20. November 2026)
 
 - Neuer Menüpunkt **Test ERP** (nur mit Vermerk `erpSehen`, nie Externe): Stammdaten (Kunden, Lieferanten, Artikel mit Index, Bedingungen, Lager), Aufträge und Rahmenaufträge mit Lieferplan, Fertigungsaufträge mit Arbeitsplan, Material und Fertigmeldung, Bestellungen mit Wareneingang, Lieferscheine nur aus Bestand mit gleichem Index, Rechnungen aus Lieferscheinen (Sammel- oder Einzelrechnung), freie Rechnungen, Gutschriften, Proforma, Fibu-Export nur Debitoren (Rechnungen und Gutschriften), Rückverfolgung je Charge bis zum Rohmaterial (Pflichtenheft Patrick). Die bestehende Kalkulation steht jetzt als Reiter im Test ERP statt im Menü (Wunsch Patrick); daraus legt „Artikel und Arbeitsplan anlegen“ den Artikel mit Index und Arbeitsplan an. Prüfstand `erp_test.py`.
