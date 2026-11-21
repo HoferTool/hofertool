@@ -257,13 +257,15 @@ export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null
 // fährt in Y2, Werkzeuge zeigen zur Gegenspindel). Masse geschätzt.
 // Lage je Platz an der Maschine (X, Y bei Y2 = 0), Spitze bei z = spitze
 export const SW20_K2 = {
-  spitze: -40,
+  // seit 1.684.0 weiter weg von der Hauptspindel (100 mm in X, 60 vor der
+  // Drehebene), damit simultan nichts mit Kanal 1 zusammenfällt
+  spitze: -60,
   platz: {
-    2100: [20, -80], 2200: [45, -80], 2300: [70, -80], 2400: [95, -80],
-    2500: [20, -130], 2600: [45, -130], 2700: [70, -130], 2800: [95, -130],
+    2100: [120, -155], 2200: [145, -155], 2300: [170, -155], 2400: [195, -155],
+    2500: [120, -205], 2600: [145, -205], 2700: [170, -205], 2800: [195, -205],
   },
   // Gegenspindel in Grundstellung: Nase so weit vor der Drehebene
-  gegenHeim: -150,
+  gegenHeim: -170,
 };
 
 // o = {z: Spitze an der Maschine, y: Weg Y2}; aktiv: Platz, der arbeitet
@@ -271,7 +273,7 @@ export const SW20_K2 = {
 export function swK2Quader(o, aktiv, benutzt = null, m = SW20_K2) {
   const q = [];
   const box = (z0, z1, x0, x1, y0, y1, art) => q.push({ z0: o.z + z0, z1: o.z + z1, x0, x1, y0: o.y + y0, y1: o.y + y1, art });
-  box(25, 40, 5, 110, -230, -130, "block");
+  box(25, 40, 105, 210, -230, -130, "block");
   for (const [t, [x, y]] of Object.entries(m.platz)) {
     box(8, 25, x - 9, x + 9, y - 9, y + 9, "gold");
     const nr = Number(t);

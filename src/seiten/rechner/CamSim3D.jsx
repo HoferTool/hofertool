@@ -257,7 +257,7 @@ function strahlenMalen(g, W, H, { st, vox, kanal2, Wt, bereich, dreh, zoom, schn
   g.drawImage(bild, 0, 0, W, H);
 }
 
-function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, hinweis, roh, maschine, roll: rollT = 0, frame = null }) {
+function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, hinweis, roh, maschine, roll: rollT = 0, frame = null, zweit = null }) {
   g.clearRect(0, 0, W, H);
   const { zmin, zmax, rmax } = bereich;
   const zm = (zmin + zmax) / 2;
@@ -382,35 +382,23 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
     for (const f of koerper) flaeche(f.pts.map(pk), f.art, f.pts[0][0]);
     ziel = liste;
   }
-  if (strahl) {
-    // Strahlenbild deckt nur, wo Material ist: was hinter der Drehachse
-    // liegt, vorher zeichnen, den Rest danach
-    if (mListe.length) {
-      const hinten = mListe.filter((f) => f.tiefe < achseT(f.zc));
-      hinten.sort((x, y) => x.tiefe - y.tiefe);
-      zeichnen(hinten);
-    }
-    strahlenMalen(g, W, H, { ...strahl, bereich, dreh, zoom, schnitt, bu: ueber.buechse, roh, roll: rollT, frame });
-    if (mListe.length) {
-      const vorne = mListe.filter((f) => !(f.tiefe < achseT(f.zc)));
-      vorne.sort((x, y) => x.tiefe - y.tiefe);
-      zeichnen(vorne);
-    }
-  } else if (umriss) {
-    const { aussen, innen } = umriss;
+  // Drehteil aus seinem Umriss (Aussen- und Innenlinie), seit 1.684.0 auch
+  // ein zweites Teil in der Gegenspindel (simultan)
+  const teilMalen = (umr, ans, fr, rohI) => {
+    const { aussen, innen } = umr;
     const zug = [...aussen, ...innen.slice().reverse()];
     const lang = Math.max(0.8, (zmax - zmin) / 25);
     const N = 48;
     let von = (schnitt && hin ? Math.PI / 2 : 0) - vc, bis = (schnitt && !hin ? 1.5 * Math.PI : 2 * Math.PI) - vc;
-    if (frame && frame.s < 0) [von, bis] = [-bis, -von];
+    if (fr && fr.s < 0) [von, bis] = [-bis, -von];
     const schritte = schnitt ? Math.round(N * 0.75) : N;
     for (let i = 0; i < zug.length; i++) {
       const p = zug[i], q = zug[(i + 1) % zug.length];
       if (p.r < 1e-6 && q.r < 1e-6) continue;
       if (Math.hypot(p.z - q.z, p.r - q.r) < 1e-9) continue;
       // Rohmaterial: Aussen-Ø der Stange oder ihre Stirn vorne
-      const istRoh = roh && i < aussen.length - 1 && ((p.r >= roh.R - 0.02 && q.r >= roh.R - 0.02)
-        || (roh.vorne != null && Math.abs(p.z - roh.vorne) < 0.03 && Math.abs(q.z - roh.vorne) < 0.03));
+      const istRoh = rohI && i < aussen.length - 1 && ((p.r >= rohI.R - 0.02 && q.r >= rohI.R - 0.02)
+        || (rohI.vorne != null && Math.abs(p.z - rohI.vorne) < 0.03 && Math.abs(q.z - rohI.vorne) < 0.03));
       // lange Stücke (die Stange) unterteilen, sonst sortiert der Maler
       // sie falsch gegen die Führungsbüchse
       const teile = Math.max(1, Math.ceil(Math.abs(q.z - p.z) / lang));
@@ -419,7 +407,7 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
         const b = { z: p.z + ((q.z - p.z) * (t + 1)) / teile, r: p.r + ((q.r - p.r) * (t + 1)) / teile };
         for (let j = 0; j < schritte; j++) {
           const f0 = von + ((bis - von) * j) / schritte, f1 = von + ((bis - von) * (j + 1)) / schritte;
-          flaeche([ansicht(a.z, a.r, f0), ansicht(b.z, b.r, f0), ansicht(b.z, b.r, f1), ansicht(a.z, a.r, f1)], istRoh ? "roh" : "mantel");
+          flaeche([ans(a.z, a.r, f0), ans(b.z, b.r, f0), ans(b.z, b.r, f1), ans(a.z, a.r, f1)], istRoh ? "roh" : "mantel");
         }
       }
     }
@@ -437,9 +425,32 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
         const z1 = fein[i], z2 = fein[i + 1];
         const o1 = wertBei(aussen, z1, 1), o2 = wertBei(aussen, z2, -1), i1 = wertBei(innen, z1, 1), i2 = wertBei(innen, z2, -1);
         if (o1 - i1 < 1e-6 && o2 - i2 < 1e-6) continue;
-        for (const phi of [von, bis]) flaeche([ansicht(z1, i1, phi), ansicht(z2, i2, phi), ansicht(z2, o2, phi), ansicht(z1, o1, phi)], "schnitt");
+        for (const phi of [von, bis]) flaeche([ans(z1, i1, phi), ans(z2, i2, phi), ans(z2, o2, phi), ans(z1, o1, phi)], "schnitt");
       }
     }
+    };
+  // Simultan (seit 1.684.0): das Teil von Kanal 2 in der Gegenspindel
+  if (zweit && zweit.umriss) {
+    ziel = mListe;
+    teilMalen(zweit.umriss, ansichtF(zweit.frame), zweit.frame, null);
+    ziel = liste;
+  }
+  if (strahl) {
+    // Strahlenbild deckt nur, wo Material ist: was hinter der Drehachse
+    // liegt, vorher zeichnen, den Rest danach
+    if (mListe.length) {
+      const hinten = mListe.filter((f) => f.tiefe < achseT(f.zc));
+      hinten.sort((x, y) => x.tiefe - y.tiefe);
+      zeichnen(hinten);
+    }
+    strahlenMalen(g, W, H, { ...strahl, bereich, dreh, zoom, schnitt, bu: ueber.buechse, roh, roll: rollT, frame });
+    if (mListe.length) {
+      const vorne = mListe.filter((f) => !(f.tiefe < achseT(f.zc)));
+      vorne.sort((x, y) => x.tiefe - y.tiefe);
+      zeichnen(vorne);
+    }
+  } else if (umriss) {
+    teilMalen(umriss, ansicht, frame, roh);
   }
   // Seit 1.558.3 (Patrick 16. November 2026: „die Führungsbüchse soll als
   // 3D-Teil sichtbar sein, Aussendurchmesser 30 mm, das Loch entspricht
@@ -511,6 +522,18 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
     const q = ebene(ueber.spitze.z, ueber.spitze.r, ueber.spitze.phi);
     g.fillStyle = "#b3261e"; g.beginPath(); g.arc(q.x, q.y, 3, 0, 2 * Math.PI); g.fill();
   }
+  if (zweit) {
+    const an2 = ansichtF(zweit.frame), eb2 = (z, r, phi) => P(an2(z, r, (phi || 0) + (zweit.roll || 0)));
+    if (zweit.bahn && zweit.bahn.length > 1) {
+      g.strokeStyle = "#e67814"; g.lineWidth = 1.6; g.beginPath();
+      zweit.bahn.forEach((p, i) => { const q = eb2(p.z, p.r, p.phi); if (i) g.lineTo(q.x, q.y); else g.moveTo(q.x, q.y); });
+      g.stroke();
+    }
+    if (zweit.spitze) {
+      const q = eb2(zweit.spitze.z, zweit.spitze.r, zweit.spitze.phi);
+      g.fillStyle = "#b3261e"; g.beginPath(); g.arc(q.x, q.y, 3, 0, 2 * Math.PI); g.fill();
+    }
+  }
   if (hinweis) {
     g.fillStyle = "#425466"; g.font = "14px system-ui, sans-serif"; g.textAlign = "center";
     g.fillText(hinweis, W / 2, H / 2);
@@ -536,7 +559,14 @@ function Simulation({ w, zu }) {
   const cache = useRef(new Map());
   // Seit 1.598.0 beginnt die Simulation immer beim Rohteil wie der Knopf
   // „⏮ Rohteil“ (Patrick 17. November 2026: „öffne die Simulation immer am Anfang“)
-  const [n, setN] = useState(0);
+  // nT: Stand des Reglers; nacheinander gleich n, simultan die Zeit
+  const [nT, setN] = useState(0);
+  // Seit 1.684.0 (Wunsch Patrick 21. November 2026: „vorne und hinten
+  // arbeiten ja dann simultan … ich will nacheinander oder simultan wählen
+  // können“): simultan läuft Kanal 2 am vorigen Teil, während Kanal 1 und 3
+  // das nächste bearbeiten; je Gerät gemerkt
+  const [simultan, setSimultan] = useState(() => { try { return localStorage.getItem("hofer.camSim.simultan") === "1"; } catch { return false; } });
+  const cache2 = useRef(new Map());
   const [laeuft, setLaeuft] = useState(false);
   const [tempo, setTempo] = useState("3");
   // Seit 1.560.0 (Patrick 16. November 2026: „Option, um nur Bearbeitung
@@ -569,7 +599,26 @@ function Simulation({ w, zu }) {
   const [breite, setBreite] = useState(800);
   const rahmen = useRef(null), leinwand = useRef(null), ziehen = useRef(null), finger = useRef(new Map());
   const { gesamt, schritte } = sim;
-  const grenzen = [0, ...schritte.filter((s) => s.punkte.length).map((s) => s.bis), gesamt];
+  const abSchritt = schritte.find((s) => s.modus === "abstech");
+  const simMoeglich = !!(sim.sw && sim.hatK2 && abSchritt);
+  // Zeit simultan: bis Tm laufen Kanal 1/3 (bis vor dem Abstechen) und
+  // Kanal 2 gleichzeitig, wer früher fertig ist, wartet; danach Abstechen
+  // und Übergabe
+  const zeit = useMemo(() => {
+    if (!simultan || !simMoeglich) return null;
+    const L1 = abSchritt.von, k2 = abSchritt.bis, L2 = gesamt - k2, Tm = Math.max(L1, L2);
+    return {
+      L1, k2, L2, Tm, T: Tm + (abSchritt.bis - abSchritt.von),
+      a: (t) => (t <= Tm ? Math.min(t, L1) : abSchritt.von + (t - Tm)),
+      b: (t) => k2 + Math.min(t, L2),
+    };
+  }, [simultan, simMoeglich, abSchritt, gesamt]);
+  const n = zeit ? zeit.a(nT) : nT;
+  const nB = zeit && nT < zeit.Tm ? zeit.b(nT) : null;
+  const endeT = zeit ? zeit.T : gesamt;
+  // Regler-Stand am Ende eines Schritts
+  const tVon = (s) => (!zeit ? s.bis : s.kanal === 2 ? s.bis - zeit.k2 : s.modus === "abstech" ? zeit.T : s.bis);
+  const grenzen = [...new Set([0, ...schritte.filter((s) => s.punkte.length).map(tVon), ...(zeit ? [zeit.Tm] : []), endeT])].sort((x, y) => x - y);
 
   // aktueller Schritt: der, in dem der letzte gezeigte Punkt liegt
   const jetzt = Math.max(0, n - 1);
@@ -587,6 +636,8 @@ function Simulation({ w, zu }) {
   }, [stepUrl]);
   const kanal = n >= gesamt && sim.hatK2 ? 2 : akt ? akt.kanal : 1;
   const stand = useMemo(() => materialStand(sim, n, cache.current), [sim, n]);
+  const standB = useMemo(() => (nB != null ? materialStand(sim, nB, cache2.current) : null), [sim, nB]);
+  const aktB = nB != null ? schritte.find((s) => s.kanal === 2 && s.von < nB && nB <= s.bis) || null : null;
   // Spindelstock: fährt mit dem Material, steht also im Teil fest, hinter
   // der Führungsbüchse, auch wenn das Teil am weitesten draussen ist
   // Seit 1.587.0: beim versetzten Abstecher sitzt die Platte von T100 um
@@ -845,38 +896,49 @@ function Simulation({ w, zu }) {
     const swEnde = swMaschine && kanal === 2 ? swLageBei(abS ? abS.bis : gesamt) : null;
     const swEbene = swMaschine ? (kanal === 1 ? swLage.zE : swEnde.zE) : null;
     let frame = null, swK2 = null;
-    if (swMaschine && kanal === 2) {
-      let sAkt = null, pAkt = null;
+    // Lage von Teil und Block Kanal 2 an der Maschine bei Schritt nn
+    const k2Bei = (nn, ebene) => {
+      let sAkt = null, pAkt = null, r2 = null;
       for (const x of sim.schritte) {
-        if (x.kanal !== 2 || x.von >= n || !x.punkte.length) continue;
-        sAkt = x; pAkt = x.punkte[Math.min(n, x.bis) - x.von - 1];
+        if (x.kanal !== 2 || x.von >= nn || !x.punkte.length) continue;
+        sAkt = x; pAkt = x.punkte[Math.min(nn, x.bis) - x.von - 1];
       }
-      const spitzeW = swEbene + SW20_K2.spitze;
-      if (pAkt) {
-        const yM = pAkt.mx != null ? pAkt.mx : pAkt.r, wM = pAkt.my != null ? pAkt.my : 0;
-        if (pAkt.phi != null && Math.hypot(yM, wM) > 1e-6) roll = Math.atan2(wM, yM) - pAkt.phi;
-        const ph = (pAkt.phi || 0) + roll, r = pAkt.r || 0;
-        const pX = r * Math.cos(ph), pY = r * Math.sin(ph);
-        const [lx, ly] = SW20_K2.platz[sAkt.platz] || SW20_K2.platz[2100];
-        frame = { s: -1, z0: spitzeW + pAkt.z, xf: lx - pX, yf: 0 };
-        swK2 = { aktiv: sAkt.platz, y: -pY - ly };
-        // G28 U / G28 W am Ende: Gegenspindel fährt in X bzw. Z in die Grundstellung
-        if (n >= sAkt.bis) {
-          const zl = (sAkt.zeilen || []).map(String);
-          const u = zl.some((z) => /G28\s*U/i.test(z)), wz = zl.some((z) => /G28\s*W/i.test(z));
-          if (u) frame.xf = 0;
-          if (wz) frame.z0 = swEbene + SW20_K2.gegenHeim + W - sim.greif;
-          if (u || wz) { swK2 = { aktiv: 0, y: 0 }; ueber.koerper = []; ueber.werkzeuge = []; ueber.stangen = []; ueber.spitze = null; }
-        }
-      } else {
-        frame = { s: -1, z0: spitzeW - 25, xf: 0, yf: 0 };
-        swK2 = { aktiv: 0, y: 0 };
+      const spitzeW = ebene + SW20_K2.spitze;
+      if (!pAkt) return { frame: { s: -1, z0: spitzeW - 25, xf: 0, yf: 0 }, k2: { aktiv: 0, y: 0 }, roll: null, sAkt, pAkt, weg: false };
+      const yM = pAkt.mx != null ? pAkt.mx : pAkt.r, wM = pAkt.my != null ? pAkt.my : 0;
+      if (pAkt.phi != null && Math.hypot(yM, wM) > 1e-6) r2 = Math.atan2(wM, yM) - pAkt.phi;
+      const ph = (pAkt.phi || 0) + (r2 != null ? r2 : roll), r = pAkt.r || 0;
+      const pX = r * Math.cos(ph), pY = r * Math.sin(ph);
+      const [lx, ly] = SW20_K2.platz[sAkt.platz] || SW20_K2.platz[2100];
+      const fr = { s: -1, z0: spitzeW + pAkt.z, xf: lx - pX, yf: 0 };
+      let k2 = { aktiv: sAkt.platz, y: -pY - ly }, weg = false;
+      // G28 U / G28 W am Ende: Gegenspindel fährt in X bzw. Z in die Grundstellung
+      if (nn >= sAkt.bis) {
+        const zl = (sAkt.zeilen || []).map(String);
+        const u = zl.some((z) => /G28\s*U/i.test(z)), wz = zl.some((z) => /G28\s*W/i.test(z));
+        if (u) fr.xf = 0;
+        if (wz) fr.z0 = ebene + SW20_K2.gegenHeim + W - sim.greif;
+        if (u || wz) { k2 = { aktiv: 0, y: 0 }; weg = true; }
       }
+      return { frame: fr, k2, roll: r2, sAkt, pAkt, weg };
+    };
+    let zweit = null;
+    if (swMaschine && kanal === 2) {
+      const l = k2Bei(n, swEbene);
+      frame = l.frame; swK2 = l.k2;
+      if (l.roll != null) roll = l.roll;
+      if (l.weg) { ueber.koerper = []; ueber.werkzeuge = []; ueber.stangen = []; ueber.spitze = null; }
+    } else if (swMaschine && nB != null && standB && standB.k2) {
+      // simultan: Kanal 2 bearbeitet in der Gegenspindel das vorige Teil
+      const l = k2Bei(nB, swEbene);
+      swK2 = l.k2;
+      const bahn = l.sAkt && !l.weg && nB > l.sAkt.von ? l.sAkt.punkte.slice(0, Math.min(nB, l.sAkt.bis) - l.sAkt.von).filter((p) => p.vor) : [];
+      zweit = { umriss: umrissVon(standB.k2, W), frame: l.frame, roll: l.roll || 0, spitze: l.weg ? null : l.pAkt, bahn };
     }
     if (swMaschine) {
       // ganze Maschine im Bild: Mitte 45 mm vor der Drehebene
       const halb = (bereich0.zmax - bereich0.zmin) / 2, mitte = swEbene - 45;
-      bereich = { ...bereich0, zmin: mitte - halb, zmax: mitte + halb, px: schieb.x, py: schieb.y, diag: 470, mx: 20, my: -70 };
+      bereich = { ...bereich0, zmin: mitte - halb, zmax: mitte + halb, px: schieb.x, py: schieb.y, diag: 470, mx: 60, my: -70 };
     } else if (maschineAn) {
       const ebene = kanal === 1 ? (swLage ? swLage.zE : traeger ? traeger.z : vorne) : null;
       const dzM = ebene != null ? ebene - (bereich0.zmin + bereich0.zmax) / 2 + 10 : dz;
@@ -912,7 +974,8 @@ function Simulation({ w, zu }) {
         if (abS && n > abS.von) {
           const pa = abS.punkte[Math.min(n, abS.bis) - abS.von - 1];
           gegen = gGelb((pa && pa.g != null ? pa.g : sim.greif) - wegZ, 0);
-        } else gegen = gGelb(swEbene + SW20_K2.gegenHeim, 0);
+        } else if (zweit) gegen = gGelb(zweit.frame.z0 - (W - sim.greif), zweit.frame.xf);
+        else gegen = gGelb(swEbene + SW20_K2.gegenHeim, 0);
       } else {
         // Büchse und Rest der Stange bleiben an der Hauptspindel
         maschine.koepfe.push({ z: zb, ri: A / 2, nase: BUECHSE_R, naseL: BUECHSE_L, r: BUECHSE_R, L: 0, art: "buechse" });
@@ -975,9 +1038,9 @@ function Simulation({ w, zu }) {
     cv.__stand = stand; cv.__sim = sim; cv.__strahl = !!strahl; cv.__werkzeuge = ueber.werkzeuge; cv.__koerper = ueber.koerper.length; cv.__step = !!(stepUrl && stepFertig(stepUrl)); cv.__buechse = ueber.buechse; cv.__weg = wegZ; cv.__ansichtZ = dz; // für den Prüfstand
     // Rohmaterial: Stirn vorne nur vorne (Kanal 1), vor der Übergabe
     const roh = { R: A / 2, vorne: kanal === 1 && !wegZ ? vorne : null };
-    cv.__frame = frame; cv.__k2 = swK2;
-    malen(g, breite, HOCH, { umriss, strahl, bereich, dreh: sim && sim.sw ? { ...dreh, c: SW_BLICK } : dreh, zoom, schnitt, ueber, roh, maschine, roll, frame, hinweis: umriss ? "" : "Kein Material" });
-  }, [sim, stand, n, kanal, akt, dreh, zoom, schnitt, breite, laeuft, maschineAn, kopfZ, dreiD, stepStand, schieb, swSpitzen]);
+    cv.__frame = frame; cv.__k2 = swK2; cv.__zweit = zweit ? { frame: zweit.frame, nB } : null;
+    malen(g, breite, HOCH, { umriss, strahl, bereich, dreh: sim && sim.sw ? { ...dreh, c: SW_BLICK } : dreh, zoom, schnitt, ueber, roh, maschine, roll, frame, zweit, hinweis: umriss ? "" : "Kein Material" });
+  }, [sim, stand, standB, n, nB, kanal, akt, dreh, zoom, schnitt, breite, laeuft, maschineAn, kopfZ, dreiD, stepStand, schieb, swSpitzen]);
 
   useEffect(() => {
     if (!laeuft) return undefined;
@@ -987,7 +1050,7 @@ function Simulation({ w, zu }) {
     const win = (leinwand.current && leinwand.current.ownerDocument.defaultView) || window;
     const weiter = () => {
       setN((x) => {
-        const bis = (einzeln || satz) && ziel.current > 0 ? Math.min(gesamt, ziel.current) : gesamt;
+        const bis = (einzeln || satz) && ziel.current > 0 ? Math.min(endeT, ziel.current) : endeT;
         const neu = Math.min(bis, x + Math.max(1, Math.round(Number(tempo) * 6)));
         if (neu >= bis) setLaeuft(false);
         return neu;
@@ -996,7 +1059,7 @@ function Simulation({ w, zu }) {
     };
     id = win.requestAnimationFrame(weiter);
     return () => win.cancelAnimationFrame(id);
-  }, [laeuft, tempo, gesamt, einzeln, satz]);
+  }, [laeuft, tempo, endeT, einzeln, satz]);
 
   // Drehen und Zoomen wie in der 3D-Ansicht der Kontur
   const runter = (e) => {
@@ -1034,7 +1097,7 @@ function Simulation({ w, zu }) {
   const zeile = p && akt.zeilen ? String(akt.zeilen[p.nr] || "").trim() : "";
   // Im Einzelsatz auch die Zeile, die als Nächste kommt
   const naechst = (() => {
-    if (!satz || n >= gesamt) return "";
+    if (!satz || zeit || n >= gesamt) return "";
     const s = schritte.find((x) => x.von <= n && n < x.bis);
     const q = s && s.punkte[n - s.von];
     return q && s.zeilen ? String(s.zeilen[q.nr] || "").trim() : "";
@@ -1050,46 +1113,53 @@ function Simulation({ w, zu }) {
         <div className="cam-sim__bildteil" ref={rahmen}>
           <div className="cam-sim__titel" id="cam-sim-titel">
             {kanal === 2 ? "Kanal 2 · Rückseite in der Gegenspindel" : akt && akt.pfad === 3 ? "Kanal 3 · an der Hauptspindel" + (akt.zTraeger ? ", Träger 3 fährt in Z" : ", Material fährt (M133)") : "Kanal 1 · Vorderseite"}
-            {n >= gesamt && gesamt ? " · Fertigteil" : akt && n > akt.von && n <= akt.bis ? " · " + akt.titel : ""}
+            {n >= gesamt && gesamt ? " · Fertigteil" : akt && n > akt.von && n <= akt.bis ? " · " + akt.titel : zeit && nT < zeit.Tm && n >= zeit.L1 ? " · wartet auf Kanal 2" : ""}
+            {aktB && <span id="cam-sim-titel2">{" · gleichzeitig Kanal 2: " + aktB.titel}</span>}
+            {zeit && nB != null && !aktB && nT > 0 && <span id="cam-sim-titel2">{" · Kanal 2 wartet"}</span>}
           </div>
           <canvas ref={leinwand} className="cam-sim__bild" id="cam-sim-bild" data-cam-sim-n={n} style={{ height: HOCH + "px", width: "100%" }}
             onPointerDown={runter} onPointerMove={bewegen} onPointerUp={hoch} onPointerCancel={hoch} onContextMenu={(e) => e.preventDefault()} />
           <div className="cam-sim__knoepfe">
             <button className="knopf knopf--klein knopf--primaer" id="cam-sim-start" onClick={() => {
               if (laeuft) { setLaeuft(false); return; }
-              const ab = n >= gesamt ? 0 : n;
-              if (n >= gesamt) setN(0);
+              const ab = nT >= endeT ? 0 : nT;
+              if (nT >= endeT) setN(0);
               // Ende der Bearbeitung, in der es weitergeht
-              const s = schritte.find((x) => x.punkte.length && x.bis > ab);
-              ziel.current = s ? (satz ? satzEnde(s, ab) : s.bis) : gesamt;
+              if (zeit) ziel.current = Math.min(endeT, ...grenzen.filter((g) => g > ab));
+              else {
+                const s = schritte.find((x) => x.punkte.length && x.bis > ab);
+                ziel.current = s ? (satz ? satzEnde(s, ab) : s.bis) : gesamt;
+              }
               setLaeuft(true);
             }}>
               {laeuft ? "⏸ Pause" : "▶ Abspielen"}</button>
             <button className="knopf knopf--klein" id="cam-sim-anfang" onClick={() => { setLaeuft(false); setN(0); }}>⏮ Rohteil</button>
             {/* Eine Bearbeitung zurück / vor (Wunsch Patrick 18. November 2026): Grenzen
                 sind Rohteil und das Ende jeder Bearbeitung mit Weg */}
-            <button className="knopf knopf--klein" id="cam-sim-zurueck" title="Eine Bearbeitung zurück" disabled={n <= 0}
-              onClick={() => { setLaeuft(false); setN(Math.max(0, ...grenzen.filter((g) => g < n))); }}>◀ Bearbeitung</button>
-            <button className="knopf knopf--klein" id="cam-sim-vor" title="Eine Bearbeitung vor" disabled={n >= gesamt}
-              onClick={() => { setLaeuft(false); setN(Math.min(gesamt, ...grenzen.filter((g) => g > n))); }}>Bearbeitung ▶</button>
-            <button className="knopf knopf--klein" id="cam-sim-ende" onClick={() => { setLaeuft(false); setN(gesamt); }}>Fertigteil ⏭</button>
+            <button className="knopf knopf--klein" id="cam-sim-zurueck" title="Eine Bearbeitung zurück" disabled={nT <= 0}
+              onClick={() => { setLaeuft(false); setN(Math.max(0, ...grenzen.filter((g) => g < nT))); }}>◀ Bearbeitung</button>
+            <button className="knopf knopf--klein" id="cam-sim-vor" title="Eine Bearbeitung vor" disabled={nT >= endeT}
+              onClick={() => { setLaeuft(false); setN(Math.min(endeT, ...grenzen.filter((g) => g > nT))); }}>Bearbeitung ▶</button>
+            <button className="knopf knopf--klein" id="cam-sim-ende" onClick={() => { setLaeuft(false); setN(endeT); }}>Fertigteil ⏭</button>
             <label className="cam-feld">Tempo
               <select value={tempo} onChange={(e) => setTempo(e.target.value)}>
                 {TEMPI.map(([x, t]) => <option key={x} value={x}>{t}</option>)}
               </select></label>
-            <label className="schalter" title="Abspielen hält am Ende jeder Bearbeitung an, nochmals Abspielen fährt die nächste"><input type="checkbox" id="cam-sim-einzeln" checked={einzeln}
+            <label className="schalter" title="Abspielen hält am Ende jeder Bearbeitung an, nochmals Abspielen fährt die nächste"><input type="checkbox" id="cam-sim-einzeln" checked={einzeln} disabled={!!zeit}
               onChange={(e) => halten("einzeln", e.target.checked)} /><span>Einzeln</span></label>
-            <label className="schalter" title="Einzelsatz: Abspielen fährt nur die nächste NC-Zeile und hält dann an"><input type="checkbox" id="cam-sim-satz" checked={satz}
+            <label className="schalter" title="Einzelsatz: Abspielen fährt nur die nächste NC-Zeile und hält dann an"><input type="checkbox" id="cam-sim-satz" checked={satz} disabled={!!zeit}
               onChange={(e) => halten("satz", e.target.checked)} /><span>Einzelsatz</span></label>
             <label className="schalter" title="Werkzeugträger, Spindelstock und Gegenspindel zeigen"><input type="checkbox" id="cam-sim-maschine" checked={maschineAn}
               onChange={(e) => { setMaschineAn(e.target.checked); try { localStorage.setItem("hofer.camSim.maschine", e.target.checked ? "1" : "0"); } catch { /* egal */ } }} /><span>Maschine</span></label>
+            {simMoeglich && <label className="schalter" title="Ohne Häkchen nacheinander: Kanal 1 und 3, dann Kanal 2. Mit Häkchen simultan wie an der Maschine: Kanal 2 bearbeitet das vorige Teil, während Kanal 1 und 3 am nächsten arbeiten"><input type="checkbox" id="cam-sim-simultan" checked={simultan}
+              onChange={(e) => { setLaeuft(false); setN(0); setSimultan(e.target.checked); try { localStorage.setItem("hofer.camSim.simultan", e.target.checked ? "1" : "0"); } catch { /* egal */ } }} /><span>Simultan</span></label>}
             <label className="schalter" title="Werkzeug als 3D-Körper statt flach in der Ebene zeigen"><input type="checkbox" id="cam-sim-wz3d" checked={dreiD}
               onChange={(e) => { setDreiD(e.target.checked); try { localStorage.setItem("hofer.camSim.wz3d", e.target.checked ? "1" : "0"); } catch { /* egal */ } }} /><span>3D-Werkzeug</span></label>
             {stepUrl && !stepFertig(stepUrl) && <span className="klein" data-cam-sim-step>{stepStand.url === stepUrl && stepStand.fehler ? "STEP nicht lesbar: " + stepStand.fehler : "STEP wird gelesen …"}</span>}
             <label className="schalter"><input type="checkbox" id="cam-sim-schnitt" checked={schnitt} onChange={(e) => setSchnitt(e.target.checked)} /><span>Aufgeschnitten</span></label>
             <button className="knopf knopf--klein" onClick={() => { setDreh(SCHRAEG); setZoom(1); setSchieb({ x: 0, y: 0 }); }}>Schräg</button>
             <button className="knopf knopf--klein" onClick={() => setDreh(SEITE)}>Von der Seite</button>
-            <input type="range" min={0} max={gesamt} value={n} className="cam-sim__regler" id="cam-sim-regler"
+            <input type="range" min={0} max={endeT} value={nT} className="cam-sim__regler" id="cam-sim-regler"
               onChange={(e) => { setLaeuft(false); setN(Number(e.target.value)); }} />
           </div>
           <div className="cam-sim__zeile" id="cam-sim-zeile">{zeile ? "Zeile: " + zeile : " "}
@@ -1099,11 +1169,11 @@ function Simulation({ w, zu }) {
           <b className="klein">Bearbeitungen</b>
           {!schritte.length && <p className="klein">Noch keine Bearbeitungen.</p>}
           {schritte.map((s) => {
-            const aktiv = akt === s && n > s.von && n <= s.bis;
+            const aktiv = (akt === s && n > s.von && n <= s.bis) || aktB === s;
             return (
               <button key={s.id} data-cam-sim-schritt={s.i} className={"cam-sim__schritt" + (aktiv ? " aktiv" : "") + (s.status === "fehlt" ? " cam-sim__schritt--fehlt" : s.status ? " cam-sim__schritt--grau" : "")}
                 disabled={!s.punkte.length} title="Bis ans Ende dieser Bearbeitung springen"
-                onClick={() => { setLaeuft(false); setN(s.bis); }}>
+                onClick={() => { setLaeuft(false); setN(tVon(s)); }}>
                 <span className="cam-sim__k">K{s.pfad || s.kanal}</span>
                 <span className="cam-sim__name">{s.titel}</span>
                 {s.status && <small>{STATUS[s.status]}</small>}
