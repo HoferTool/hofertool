@@ -39,6 +39,17 @@ export function zahl(text) {
   return t.includes(".") ? t : t + ".";
 }
 
+// Seit 1.675.2 (Patrick 21. November 2026: „bei dieser Maschine ist die
+// höchste Position im Programmkopf 205 mm“): Z Start höchstens 205 bei der
+// SW-20, sonst 200
+export const zMax = (w) => (w && w.typ === "star-sw20" ? 205 : 200);
+// Seit 1.675.2: bei der SW-20 ist „plan“ die Schlichtzugabe für die
+// Gegenspindel (G1W…F0.10 im Ende von Kanal 1, Patrick 21. November 2026)
+export const feldFuerTyp = (d, w) => (!w || w.typ !== "star-sw20" ? d
+  : d.name === "plan" ? { ...d, text: "Schlichtzugabe Gegensp. W", lang: "Ende Kanal 1: G1W…F0.10 vor dem Abstechen (Schlichtzugabe für die Gegenspindel)" }
+  : d.name === "schlicht" ? { ...d, text: "Plandrehzugabe Hauptsp. Z", lang: "Kopf Kanal 1: G0Z…T0(PLANDREH-ZUGABE)" } : d);
+export const zLang = (w) => `Z = #525 Z-Achse Startposition, höchstens ${zMax(w)}: ${zMax(w)} mm minus Teilelänge minus inkl. evtl. vers. Abstecher minus Sicherheit`;
+
 export const FELDER = [
   { gruppe: "Programm", felder: [
     { name: "nr", text: "Nr. Kanal 1", einheit: "1–999", lang: "Programm-Nr. Kanal 1, 1 bis 999 (Kanal 2 = Nr. + 1000)", art: "nr" },
@@ -99,7 +110,7 @@ export function pruefen(w) {
     else if (zahl(w[d.name]) == null) f[d.name] = "Zahl fehlt";
     else if (d.ganz && !Number.isInteger(Number(String(w[d.name]).replace(",", ".")))) f[d.name] = "ganze Zahl";
   }
-  if (!f.Z && Number(String(w.Z).replace(",", ".")) > 200) f.Z = "höchstens 200";
+  if (!f.Z && Number(String(w.Z).replace(",", ".")) > zMax(w)) f.Z = "höchstens " + zMax(w);
   return f;
 }
 

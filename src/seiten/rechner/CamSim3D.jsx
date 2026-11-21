@@ -23,6 +23,9 @@ import { MASCHINE_SB20RG, GEGEN_SB20RG, platzLage, traegerQuader, gegenEinheit, 
 // Viertel, das zum Betrachter schaut.
 const SCHRAEG = { a: Math.PI - 0.55, b: 0.42 };
 const SEITE = { a: Math.PI, b: 0 };
+// Seit 1.675.1: bei der SW-20 stehen die Träger links und rechts der
+// Spindel (Bild star-sw20.png), X waagrecht, Y senkrecht
+const SW_BLICK = -Math.PI / 2;
 const TEMPI = [["0.3", "⅓×"], ["1", "1×"], ["3", "3×"], ["10", "10×"], ["40", "40×"]];
 const HOCH = 420;
 // Führungsbüchse: aussen Ø30 (Patrick 16. November 2026), Loch = Material-Ø
@@ -58,6 +61,13 @@ function abbildung(W, H, { bereich, dreh, zoom }) {
   const ca = Math.cos(dreh.a), sa = Math.sin(dreh.a), cb = Math.cos(dreh.b), sb = Math.sin(dreh.b);
   // Zeilen der Drehung (Welt x = z − zm, y = +X, w = +Y)
   const r1 = [ca, 0, sa], r2 = [sa * sb, cb, -ca * sb], r3 = [-sa * cb, sb, ca * cb];
+  // Seit 1.675.1: dreh.c dreht das Bild um die Drehachse (SW-20 um 90°,
+  // Patrick 21. November 2026: „bei dieser Maschine 90 Grad verdreht“)
+  const c = dreh.c || 0;
+  if (c) {
+    const cc = Math.cos(c), sc = Math.sin(c);
+    for (const r of [r1, r2, r3]) { const a = r[1], b = r[2]; r[1] = a * cc + b * sc; r[2] = -a * sc + b * cc; }
+  }
   return { zm, s, ox: W / 2, oy: H / 2 + 10, r1, r2, r3 };
 }
 const LICHT = [-0.45, 0.65, 0.62].map((c, _, v) => c / Math.hypot(...v));
@@ -93,6 +103,8 @@ function strahlenMalen(g, W, H, { st, vox, kanal2, Wt, bereich, dreh, zoom, schn
   Rb += 0.01;
   const vh = vox ? vox.h : 0;
   const hin = Math.cos(dreh.a) >= 0 ? 1 : -1; // +w zum Betrachter?
+  const vc = Math.cos(dreh.c || 0), vs = Math.sin(dreh.c || 0);
+  const offen = (y, w) => schnitt && y * vc - w * vs > 0 && (y * vs + w * vc) * hin > 0;
   const dt = Math.max(0.015, Math.min(vox ? vh * 0.7 : Infinity, Rb / 140, (xb - xa) / 140));
   // Führungsbüchse: Rohr ri … ra von bu.z bis bu.z + L
   const inBu = (x, y, w) => {
@@ -101,7 +113,7 @@ function strahlenMalen(g, W, H, { st, vox, kanal2, Wt, bereich, dreh, zoom, schn
     if (z < bu.z || z > bu.z + bu.L) return false;
     const r2v = y * y + w * w;
     if (r2v < bu.ri * bu.ri || r2v > bu.ra * bu.ra) return false;
-    return !(schnitt && y > 0 && w * hin > 0);
+    return !offen(y, w);
   };
   let RR = Rb, XA = xa, XB = xb;
   if (bu) { RR = Math.max(Rb, bu.ra + 0.01); XA = Math.min(xa, bu.z - zm - 0.1); XB = Math.max(xb, bu.z + bu.L - zm + 0.1); }
@@ -116,7 +128,7 @@ function strahlenMalen(g, W, H, { st, vox, kanal2, Wt, bereich, dreh, zoom, schn
     if (r2v > ra * ra) return 1;
     const ri = innen[k];
     if (ri > 0 && r2v <= ri * ri) return 2;
-    if (schnitt && y > 0 && w * hin > 0) return 3;
+    if (offen(y, w)) return 3;
     if (vf) {
       const yp = y * rc + w * rs, wp = -y * rs + w * rc;
       const z1 = kanal2 ? Wt - z : z, w1 = kanal2 ? -wp : wp;
@@ -225,8 +237,9 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
   const s = Math.min(W, H) / (diag * 1.1) * zoom;
   const ca = Math.cos(dreh.a), sa = Math.sin(dreh.a), cb = Math.cos(dreh.b), sb = Math.sin(dreh.b);
   const hin = ca >= 0; // +w zum Betrachter: dann ist das Viertel 0 … 90° offen, sonst −90 … 0°
+  const vc = dreh.c || 0, vcc = Math.cos(vc), vss = Math.sin(vc);
   const ansicht = (z, r, phi) => {
-    const x = z - zm, y = r * Math.cos(phi), w = r * Math.sin(phi);
+    const x = z - zm, y = r * Math.cos(phi + vc), w = r * Math.sin(phi + vc);
     const x1 = x * ca + w * sa, w1 = -x * sa + w * ca;
     return { x: x1, y: y * cb - w1 * sb, t: y * sb + w1 * cb };
   };
@@ -270,7 +283,8 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
   const mListe = [];
   if (maschine) {
     ziel = mListe;
-    const am = (z, x, y) => {
+    const am = (z, xm, ym) => {
+      const x = xm * vcc - ym * vss, y = xm * vss + ym * vcc;
       const x0 = z - zm, x1 = x0 * ca + y * sa, w1 = -x0 * sa + y * ca;
       return { x: x1, y: x * cb - w1 * sb, t: x * sb + w1 * cb };
     };
@@ -347,7 +361,7 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
     const zug = [...aussen, ...innen.slice().reverse()];
     const lang = Math.max(0.8, (zmax - zmin) / 25);
     const N = 48;
-    const von = schnitt && hin ? Math.PI / 2 : 0, bis = schnitt && !hin ? 1.5 * Math.PI : 2 * Math.PI;
+    const von = (schnitt && hin ? Math.PI / 2 : 0) - vc, bis = (schnitt && !hin ? 1.5 * Math.PI : 2 * Math.PI) - vc;
     const schritte = schnitt ? Math.round(N * 0.75) : N;
     for (let i = 0; i < zug.length; i++) {
       const p = zug[i], q = zug[(i + 1) % zug.length];
@@ -392,7 +406,7 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
   // wie das Material ein Viertel offen
   const bu = ueber.buechse;
   if (bu && !strahl) {
-    const N = 48, von = schnitt && hin ? Math.PI / 2 : 0, bis = schnitt && !hin ? 1.5 * Math.PI : 2 * Math.PI;
+    const N = 48, von = (schnitt && hin ? Math.PI / 2 : 0) - vc, bis = (schnitt && !hin ? 1.5 * Math.PI : 2 * Math.PI) - vc;
     const sch = schnitt ? Math.round(N * 0.75) : N;
     const teile = 12, dz = bu.L / teile;
     for (let k = 0; k < teile; k++) {
@@ -801,7 +815,7 @@ function Simulation({ w, zu }) {
     cv.__stand = stand; cv.__sim = sim; cv.__strahl = !!strahl; cv.__werkzeuge = ueber.werkzeuge; cv.__koerper = ueber.koerper.length; cv.__step = !!(stepUrl && stepFertig(stepUrl)); cv.__buechse = ueber.buechse; cv.__weg = wegZ; cv.__ansichtZ = dz; // für den Prüfstand
     // Rohmaterial: Stirn vorne nur vorne (Kanal 1), vor der Übergabe
     const roh = { R: A / 2, vorne: kanal === 1 && !wegZ ? vorne : null };
-    malen(g, breite, HOCH, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, roh, maschine, roll, hinweis: umriss ? "" : "Kein Material" });
+    malen(g, breite, HOCH, { umriss, strahl, bereich, dreh: sim && sim.sw ? { ...dreh, c: SW_BLICK } : dreh, zoom, schnitt, ueber, roh, maschine, roll, hinweis: umriss ? "" : "Kein Material" });
   }, [sim, stand, n, kanal, akt, dreh, zoom, schnitt, breite, laeuft, maschineAn, kopfZ, dreiD, stepStand]);
 
   useEffect(() => {

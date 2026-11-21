@@ -28,7 +28,7 @@ import AbstecherBild from "./AbstecherBild.jsx";
 import SchnabelBild from "./SchnabelBild.jsx";
 import { hofercamTutorialOeffnen } from "../start/NeuesTutorial.jsx";
 import { EinstichBild, EinstichSteuerung } from "./CamEinstichBild.jsx";
-import { SW20_BILD, SW20_FRONT_BILD, SW20_FRONT_RICHTUNG, SW20_FRONT_PLAETZE, SW20_KANAL_PLAETZE, sw20Bereich, swFrontVon, nrKanal, FELDER, HD_STUFEN, abVersatz, AB_VERSATZ_VORGABE, plaetzeVon, platzGruppe, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, handZurueck, markenPaare, eigenerKanal, kanalZahl, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
+import { bereichLage, zLang, feldFuerTyp, SW20_BILD, SW20_FRONT_BILD, SW20_FRONT_RICHTUNG, SW20_FRONT_PLAETZE, SW20_KANAL_PLAETZE, sw20Bereich, swFrontVon, nrKanal, FELDER, HD_STUFEN, abVersatz, AB_VERSATZ_VORGABE, plaetzeVon, platzGruppe, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, handZurueck, markenPaare, eigenerKanal, kanalZahl, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Seit 1.427.0 (Wunsch Patrick 5. November 2026: „vordefinierte
 // Bearbeitungen aus einer Liste einfügen … in eine bestehende
@@ -217,7 +217,7 @@ function ImFenster() {
   const einlesen = (dateien, k) => einlesenJetzt && einlesenJetzt(dateien, k);
   return (<>
     <FensterKnoepfe w={w} einlesen={einlesen} />
-    <Kanaele prog={prog} sync={synchronisieren(prog.k1, prog.k2, prog.k3 && prog.k3.length ? prog.k3 : undefined)} fehler={pruefen(w)} bereich={bereich} bereich2={prog.bereiche2[aktivId]}
+    <Kanaele prog={prog} sync={synchronisieren(prog.k1, prog.k2, prog.k3 && prog.k3.length ? prog.k3 : undefined)} fehler={pruefen(w)} bereich={bereich} bereich2={prog.bereiche2[aktivId]} bereich3={prog.bereiche3 && prog.bereiche3[aktivId]}
       w={w} handSetzen={handSetzen} einlesen={einlesen} />
   </>);
 }
@@ -493,13 +493,22 @@ function herunterladen(e, zeilen, nr) {
 const BLOCK_EINHEIT = { S: "U/min", g50: "U/min", vc: "m/min", vcD: "mm", X: "mm", Y: "mm", anZ: "mm", wegZ: "mm", wegA: "Grad",
   vorX: "mm", vorZ: "mm", nX: "mm", nZ: "mm", C: "Grad", zuZ: "mm" };
 let fokusNach = null;
-function Kanaele({ prog, sync, fehler, bereich, bereich2, w, handSetzen, einlesen }) {
+function Kanaele({ prog, sync, fehler, bereich, bereich2, bereich3, w, handSetzen, einlesen }) {
   const kasten = useRef(null);
   // Seit 1.663.0 zwei oder drei Kanäle (SW-20)
   // Seit 1.670.0 Kanal 3 gleich nach Kanal 1 (Wunsch Patrick 20. November 2026)
   const kn = prog.k3 && prog.k3.length ? [1, 3, 2] : [1, 2];
+  // Seit 1.675.1 (Patrick 21. November 2026: „warum zeigst du nicht den
+  // richtigen bereich im nc code an?“): die Bereiche gelten im erzeugten
+  // Programm; mit Handänderungen oder eingelesenem Programm stehen die
+  // Zeilen woanders, darum über bereichLage auf die gezeigten Zeilen legen.
+  const lage = (b, k) => {
+    const l = b && bereichLage(prog["auto" + k] || prog["k" + k] || [], prog["k" + k] || [], b);
+    return l ? [l[0] + 1, l[1] + 1] : null;
+  };
+  const b1 = lage(bereich, 1), b2 = lage(bereich2, 2), b3 = lage(bereich3, 3);
   const imBereich = (z, k) => {
-    const b = k === 1 ? bereich : k === 2 ? bereich2 : null;
+    const b = k === 1 ? b1 : k === 2 ? b2 : k === 3 ? b3 : null;
     return z && b && z.nr >= b[0] && z.nr <= b[1];
   };
   const zeilenVon = (k) => prog["k" + k];
@@ -794,7 +803,9 @@ export default function HoferCam() {
     // Seit 1.663.0: die Felder oben liest die App vorerst nur bei der
     // SB-20RG; seit 1.665.0 bei der SW-20 auch die Bearbeitungen Kanal 1
     // (Drehen und Front, die übrigen „wie eingelesen“)
-    const kopf = sb ? kopfLesen(nur(1), nur(2)) : {};
+    // Seit 1.675.2 die Felder oben auch bei der SW-20 (Plandrehzugabe Kopf,
+    // Schlichtzugabe Gegenspindel im Ende; Patrick 21. November 2026)
+    const kopf = kopfLesen(nur(1), nur(2));
     const { bloecke, unklar } = bloeckeLesen(zeilen[1], zeilen[2], sb ? null : zeilen[3]);
     // SW-20: Frontbohrapparat dort, wo eine Frontbearbeitung eingelesen wurde
     const swF = sb ? [] : bloecke.filter((b) => b.art === "front" || b.art === "k3f").map((b) => Number(b.platz));
@@ -897,11 +908,11 @@ export default function HoferCam() {
             .concat(!sb ? [] : w.abArt === "versetzt" ? "Abstecher versetzt " + (String(w.abVersatz ?? "").trim() || AB_VERSATZ_VORGABE) : "Abstecher normal").join(" · ")}</span>}
       </div>
       {!kopfZu && <div className="cam-gruppen">
-        {FELDER.map((g) => ({ ...g, felder: g.felder.filter((d) => !feldAus("kopf", d.name)) })).filter((g) => g.felder.length).map((g) => (
+        {FELDER.map((g) => ({ ...g, felder: g.felder.filter((d) => !feldAus("kopf", d.name)).map((d) => feldFuerTyp(d, w)) })).filter((g) => g.felder.length).map((g) => (
           <fieldset key={g.gruppe} className="cam-gruppe">
             <legend>{g.gruppe}</legend>
             {g.felder.map((d) => (
-              <label key={d.name} title={(d.lang || d.text) + (fehler[d.name] ? " – " + fehler[d.name] : "")}
+              <label key={d.name} title={(d.name === "Z" ? zLang(w) : d.lang || d.text) + (fehler[d.name] ? " – " + fehler[d.name] : "")}
                 className={"cam-feld" + (fehler[d.name] && fehler[d.name] !== "leer" ? " cam-feld--fehler" : "") + (d.art === "text" ? " cam-feld--text" : "") + (d.name === "schnabel" ? " cam-mitbild" : "")}
                 {...(d.name === "schnabel" ? {
                   onMouseEnter: () => setSchnabelBild((a) => ({ ...a, maus: true })), onMouseLeave: () => setSchnabelBild((a) => ({ ...a, maus: false })),
@@ -1352,7 +1363,7 @@ export default function HoferCam() {
             <button className="knopf knopf--klein" id="cam-fenster" title="Kanäle in einem eigenen Browserfenster, auch auf einem anderen Bildschirm"
               onClick={programmFensterAuf}>⧉ Eigenes Fenster</button>
             <FensterKnoepfe w={w} einlesen={einlesen} eigen /></div>
-          <Kanaele prog={prog} sync={sync} fehler={fehler} bereich={prog.bereiche[aktiv]} bereich2={prog.bereiche2[aktiv]}
+          <Kanaele prog={prog} sync={sync} fehler={fehler} bereich={prog.bereiche[aktiv]} bereich2={prog.bereiche2[aktiv]} bereich3={prog.bereiche3 && prog.bereiche3[aktiv]}
             w={w} handSetzen={(h, bl) => { const neu = { ...w, hand: h, ...(bl ? { bloecke: bl } : {}) }; Object.assign(gemerkt, neu); setW(neu); melden(); }} einlesen={einlesen} />
         </>}
     </div>

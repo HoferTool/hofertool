@@ -416,7 +416,7 @@ M3S{S}T01
 M25
 G0X[#531+1]Z[#530+#528]
 G4U0.20
-G1W0.10F0.10
+G1W{PLAN}F0.10
 M1881D2(HD EIN)
 M82
 M40
@@ -703,9 +703,10 @@ export function vorgabeTyp(id = TYP) {
     vorgaben: sw ? { ...VORGABEN_SW20 } : { ...VORGABEN },
     bloecke: Object.fromEntries(Object.entries(sw ? { ...BLOECKE, ...BLOECKE_SW20 } : BLOECKE).map(([k, o]) => [k, { ...o }])),
     marken: { ...MARKEN },
-    // SW-20: Kopf und Ende haben kein {PLAN}, das Feld oben bleibt dort weg
+    // SW-20: seit 1.675.2 steht {PLAN} im Ende von Kanal 1 als Schlichtzugabe
+    // für die Gegenspindel (G1W…F0.10 vor dem Abstechen, Patrick 21. November 2026)
     // Frontbearbeitung SW-20: ohne G99/G98 und ohne „Zurück Z“ (Patricks T600)
-    felder: { aus: sw ? { kopf: ["plan"], dreh: ["vor", "wegA", "wegF"], front: ["vor"], k2: ["vor"], k2a: ["vor", "hd"], k2b: ["vor", "hd"], k3f: ["vor"] } : {}, eigene: [] },
+    felder: { aus: sw ? { dreh: ["vor", "wegA", "wegF"], front: ["vor"], k2: ["vor"], k2a: ["vor", "hd"], k2b: ["vor", "hd"], k3f: ["vor"] } : {}, eigene: [] },
   };
 }
 
