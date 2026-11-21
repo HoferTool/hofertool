@@ -528,6 +528,34 @@ function Kanaele({ prog, sync, fehler, bereich, bereich2, bereich3, w, handSetze
     const b = k === 1 ? b1 : k === 2 ? b2 : k === 3 ? b3 : null;
     return z && b && z.nr >= b[0] && z.nr <= b[1];
   };
+  // Seit 1.687.0 (Patrick 21. November 2026: „wenn ich in die Bearbeitungen
+  // springe, soll im NC-Code der Scrollbalken dorthin springen“): wechselt
+  // die angewählte Bearbeitung, rollt das Programmfenster (nur dieses, nicht
+  // die Seite) so, dass ihre erste Zeile oben sichtbar ist. Nicht während
+  // man im Programmfenster selbst schreibt.
+  const aktivSchluessel = [b1, b2, b3].map((b) => (b ? b[0] : "")).join("|");
+  useEffect(() => {
+    const ka = kasten.current;
+    if (!ka || aktivSchluessel === "||") return;
+    const d = ka.ownerDocument;
+    if (d.activeElement && ka.contains(d.activeElement)) return;
+    const el = ka.querySelector(".cam-zeile--aktiv");
+    if (!el) return;
+    const win = d.defaultView;
+    let box = el.parentElement;
+    while (box && box !== d.body) {
+      const oy = win.getComputedStyle(box).overflowY;
+      if ((oy === "auto" || oy === "scroll") && box.scrollHeight > box.clientHeight + 2) break;
+      box = box.parentElement;
+    }
+    if (!box || box === d.body) return;
+    const ra = el.getBoundingClientRect(), rb = box.getBoundingClientRect();
+    // Kopfzeile der Kanäle bleibt oben stehen, darum etwas Luft lassen
+    const kopf = box.querySelector(".cam-spalte--kopf");
+    const luft = (kopf ? kopf.getBoundingClientRect().height : 0) + 8;
+    if (ra.top >= rb.top + luft && ra.bottom <= rb.bottom) return;
+    box.scrollTop += ra.top - rb.top - luft;
+  }, [aktivSchluessel]);
   const zeilenVon = (k) => prog["k" + k];
   // Seit 1.619.0: Änderungen im NC-Code einer Bearbeitung gehen zurück in die Bearbeitung
   const setzen = (k, zeilen) => { const r = handZurueck(w, k, zeilen); handSetzen(r.hand, r.bloecke); };

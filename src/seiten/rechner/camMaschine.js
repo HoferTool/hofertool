@@ -224,15 +224,28 @@ export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null
   // Grundkörper des Schlittens (seit 1.686.0): Platte aussen, an der die
   // Kammplatten und die angetriebenen Einheiten sitzen, darunter der Schlitten
   const yOben = traeger === 3 ? m.y[1900] + 22 : m.y[700] + 22;
-  box(-22, 6, 80, 94, yd[0] - 22, yOben, "schlitten");
-  box(6, 34, 84, 112, yd[0] - 16, yOben - 6, "schlitten2");
+  // Seit 1.687.0 (Patrick 21. November 2026: „die roten und blauen Blöcke
+  // sehen komisch aus, viel zu schwach“): massiv wie im Bild star-sw20.png
+  // und nach der Anleitung (Linearschlitten mit 4-fach bzw. 2-fach
+  // Stahlhalter, Bohreinheit 4 Spindeln): grosse Wand des Schlittens, daran
+  // ein voller Grundkörper des Stahlhalters, aus dem nur die Kammfinger
+  // zum Teil hin ragen; vorher nur einzelne dünne Platten mit Lücken
+  const yUnten = yd[0] - 30;
+  // Wand des Schlittens auf der Seite des Spindelstocks, der Stahlhalter
+  // sitzt an ihrer Fläche zur Gegenspindel hin, wie im Bild
+  box(2, 34, 46, 150, yUnten, yOben + 8, "schlitten");
+  box(34, 64, 70, 150, yUnten + 10, yOben - 2, "schlitten2");
+  const yH0 = yd[0] - 0.5 * m.dreh.teilung - 6.4, yH1 = yd[yd.length - 1] + 0.5 * m.dreh.teilung + 6.4;
+  // Grundkörper des Stahlhalters, voll, mit Fase zum Teil hin
+  box(-16, 2, 46, 80, yH0, yH1, art3);
+  box(-16, -12, 40, 46, yH0, yH1, art3);
+  for (const yy of [yH0 + 8, yH1 - 8]) for (const xs of [56, 72]) walze("z", -16, xs, yy, -1.6, 3, "schraube");
   for (let k = 0; k <= dreh.length; k++) {
     const y = yd[0] + (k - 0.5) * m.dreh.teilung;
-    // seit 1.683.0 Farben wie im Bild: Träger 3 rotbraun; seit 1.686.0 mit
-    // abgeschrägter Kante zum Teil hin und Klemmschrauben vorne
-    box(-12, 0, 16, 80, y - 6.4, y + 6.4, art3);
+    // Kammfinger zwischen den Schäften mit Klemmschrauben vorne
+    box(-12, 0, 16, 48, y - 6.4, y + 6.4, art3);
     box(-10, -2, 12, 16, y - 5, y + 5, art3);
-    for (const xs of [30, 52, 70]) walze("z", -12, xs, y, -1.6, 2.6, "schraube");
+    for (const xs of [26, 40]) walze("z", -12, xs, y, -1.6, 2.6, "schraube");
   }
   dreh.forEach((t, k) => {
     const y = yd[k];
@@ -247,6 +260,11 @@ export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null
   });
   // angetriebene Plätze: Gehäuse quer oder Frontbohrapparat
   const quer = traeger === 3 ? [1300, 1400, 1500] : [500, 600, 700];
+  // gemeinsamer Sockel der angetriebenen Einheiten am Schlitten (seit 1.687.0)
+  {
+    const ys = quer.map((t) => m.y[t]);
+    box(-30, 12, 62, 80, Math.min(...ys) - 16, Math.max(...ys) + 16, "schlitten2");
+  }
   for (const t of quer) {
     const l = platzLageSw(t, frontAuf, m);
     // angetriebene Einheiten weiss wie im Bild, feste Halter golden
@@ -255,9 +273,12 @@ export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null
       // Frontbohrapparat: Gehäuse, runde Nase und Spannmutter zum Teil hin
       const zv = l.dz - m.front.schaft;
       box(zv - m.front.block, zv - 6, -14, 16, l.y - 10, l.y + 10, artA);
-      // Arm vom Schlitten zum Apparat
-      box(zv - m.front.block, zv - m.front.block + 14, 16, 80, l.y - 8, l.y + 8, art3);
-      box(zv - m.front.block, -22, 68, 80, l.y - 8, l.y + 8, art3);
+      // Konsole vom Schlitten zum Apparat (seit 1.687.0 ein voller Block
+      // statt zwei dünner Arme, die wie ein U aussahen)
+      // (nur hinter dem Apparat und aussen am Schlitten, damit sie das Teil
+      // an der Spitze nicht verdeckt)
+      box(zv - m.front.block, zv - 6, 16, 80, l.y - 12, l.y + 12, "schlitten2");
+      box(zv - 6, -30, 60, 80, l.y - 12, l.y + 12, "schlitten2");
       walze("z", zv - 6, 0, l.y, 6, 9, artA);
       walze("z", zv, 0, l.y, 4, 7, "mutter", 6.2);
       if (artA === "antrieb") walze("z", zv - m.front.block, 0, l.y, -10, 7, "motor");
@@ -284,6 +305,9 @@ export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null
   if (traeger === 3) {
     const f = m.fest;
     box(f.dz - 30 - 40, f.dz - 36, -14, 16, m.y[1600] - 12, m.y[1900] + 12, "fest");
+    // Bohreinheit als voller Block bis an den Schlitten (seit 1.687.0)
+    box(f.dz - 30 - 40, f.dz - 36, 16, 80, m.y[1600] - 14, m.y[1900] + 14, "schlitten2");
+    box(f.dz - 30 - 40, -30, 60, 80, m.y[1600] - 14, m.y[1900] + 14, "schlitten2");
     // je Platz eine Hülse mit Spannmutter (seit 1.686.0)
     for (const t of [1600, 1700, 1800, 1900]) {
       walze("z", f.dz - 36, 0, m.y[t], 6, 9, "fest");

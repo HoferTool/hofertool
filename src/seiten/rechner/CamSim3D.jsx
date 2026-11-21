@@ -95,9 +95,9 @@ const GLANZ = (() => { const v = [LICHT[0], LICHT[1], LICHT[2] + 1]; const l = M
 // hell metallisch
 const FARBE_ROH = [160, 146, 120], FARBE_BEARB = [176, 190, 206];
 // Maschine (seit 1.580.0): Farben wie im Bild der SB-20RG
-const FARBE_MASCHINE = { platte: [92, 108, 168], halter: [74, 82, 96], schneide: [224, 161, 42], gehaeuse: [196, 202, 210], werkzeug: [150, 158, 170], kopf: [204, 209, 216],
+const FARBE_MASCHINE = { platte: [46, 82, 178], halter: [74, 82, 96], schneide: [224, 161, 42], gehaeuse: [196, 202, 210], werkzeug: [150, 158, 170], kopf: [204, 209, 216],
   // seit 1.683.0 SW-20 wie im Bild star-sw20.png
-  platte3: [168, 92, 66], antrieb: [232, 235, 239], fest: [222, 190, 84], gelb: [236, 204, 92], block: [218, 222, 228], gold: [214, 172, 62], buechse: [112, 124, 140], roh: FARBE_ROH,
+  platte3: [184, 78, 44], antrieb: [232, 235, 239], fest: [222, 190, 84], gelb: [236, 204, 92], block: [218, 222, 228], gold: [214, 172, 62], buechse: [112, 124, 140], roh: FARBE_ROH,
   // seit 1.686.0: Schlitten grau wie Guss, Schrauben brüniert, Spannmuttern
   // Stahl, Antriebe dunkel, Gehäuse der Spindeln
   schlitten: [178, 184, 192], schlitten2: [146, 152, 162], schraube: [52, 56, 62], mutter: [128, 134, 142], motor: [64, 70, 80],
@@ -418,7 +418,38 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
   if (koerper.length) {
     ziel = strahl ? mListe : liste;
     const pk = (q) => ansicht(q[0], Math.hypot(q[1], q[2]), Math.atan2(q[2], q[1]) + (rollT || 0));
-    for (const f of koerper) flaeche(f.pts.map(pk), f.art, f.pts[0][0]);
+    // Seit 1.686.1 (Patrick 21. November 2026: „warum steht der Bohrer
+    // optisch neben dem Teil?“): beim Strahlenbild galt jede Fläche hinter
+    // der Drehachse als „hinten“ und wurde vom Teil und der Büchse
+    // übermalt, auch wenn sie ganz ausserhalb des Materials vor der Stirn
+    // lag; so blieb vom Bohrer nur das Ende sichtbar. Flächen ganz
+    // ausserhalb des Materials (vor der Stirn oder über dem Aussen-Ø,
+    // nicht in einer Bohrung) kommen jetzt immer nach vorne.
+    const st = strahl && strahl.st;
+    let draussen = null;
+    if (st && st.aussen) {
+      const nk = st.aussen.length;
+      let ka = nk;
+      for (let k = 0; k < nk; k++) if (st.aussen[k] > st.innen[k] + 1e-6) { ka = k; break; }
+      const zv = st.z0 + ka * RASTER;
+      draussen = (q) => {
+        if (q[0] < zv - 1e-6) return true;
+        const k = Math.floor((q[0] - st.z0) / RASTER);
+        if (k < 0 || k >= nk) return true;
+        const r = Math.hypot(q[1], q[2]);
+        if (r > st.aussen[k] - 0.05) return true;
+        // seit 1.687.0 (Patrick: „die Stechplatte steht neben dem Teil“):
+        // aufgeschnitten liegt ein Werkzeug in der leeren Bohrung (nicht im
+        // Kern) vor dem Teil, sonst verdeckte es die Wand dahinter
+        if (!schnitt || r > st.innen[k] + 0.05) return false;
+        return !(st.kernA && st.kernA[k] > 0 && r < st.kernA[k] - 0.05);
+      };
+    }
+    for (const f of koerper) {
+      const n0 = ziel.length;
+      flaeche(f.pts.map(pk), f.art, f.pts[0][0]);
+      if (draussen && ziel.length > n0 && f.pts.every(draussen)) ziel[ziel.length - 1].vorn = true;
+    }
     ziel = liste;
   }
   // Drehteil aus seinem Umriss (Aussen- und Innenlinie), seit 1.684.0 auch
@@ -478,13 +509,13 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
     // Strahlenbild deckt nur, wo Material ist: was hinter der Drehachse
     // liegt, vorher zeichnen, den Rest danach
     if (mListe.length) {
-      const hinten = mListe.filter((f) => f.tiefe < achseT(f.zc));
+      const hinten = mListe.filter((f) => !f.vorn && f.tiefe < achseT(f.zc));
       hinten.sort((x, y) => x.tiefe - y.tiefe);
       zeichnen(hinten);
     }
     strahlenMalen(g, W, H, { ...strahl, bereich, dreh, zoom, schnitt, bu: ueber.buechse, roh, roll: rollT, frame });
     if (mListe.length) {
-      const vorne = mListe.filter((f) => !(f.tiefe < achseT(f.zc)));
+      const vorne = mListe.filter((f) => f.vorn || !(f.tiefe < achseT(f.zc)));
       vorne.sort((x, y) => x.tiefe - y.tiefe);
       zeichnen(vorne);
     }
