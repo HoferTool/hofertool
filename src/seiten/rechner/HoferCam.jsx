@@ -1058,6 +1058,8 @@ export default function HoferCam() {
             und T1600 aus O3272 (20. November 2026) */}
         {!sb && <div className="cam-bearb__kopf">
           <b>Bearbeitungen Kanal 3</b>
+          <button className="knopf knopf--klein" id="cam-neu-k3dr" {...swMaus("swk3dr", plaetzeVon("k3dr").map(Number), "Drehwerkzeug Kanal 3")}
+            onClick={() => { const nb = neuerBlock(bloecke, "k3dr", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Drehwerkzeug {spanne("k3dr")}</button>
           <button className="knopf knopf--klein" id="cam-neu-k3f" disabled={!montiert("k3f", w).length}
             title={montiert("k3f", w).length ? "" : "Zuerst unter Bestückung T1300, T1400 oder T1500 mit Frontbohrapparat angetrieben wählen"}
             {...swMaus("swk3f", montiert("k3f", w).map(Number), "Frontbohrapparat Kanal 3")}
@@ -1152,8 +1154,8 @@ export default function HoferCam() {
                 <label className={"cam-feld" + (bf.platz ? " cam-feld--fehler" : "")} data-camblock-platzfeld={i}
                   onPointerEnter={(e) => { if (e.pointerType === "mouse") setUeber(b.id); }}
                   onPointerLeave={() => setUeber((x) => (x === b.id ? null : x))}
-                  title={k3f ? "Frontbohrapparat angetrieben Kanal 3" : k3ff ? "Frontbohrhalter fest Kanal 3" : k3d ? "Festes Werkzeug Kanal 3" : k2 ? "Werkzeugplatz Kanal 2" : quer ? "Werkzeugplatz (angetrieben, Weg mit der Gegenspindel)" : front ? "Werkzeugplatz (Frontwerkzeug fest)" : "Werkzeugplatz (Drehwerkzeug Kanal 1)"}><span>Platz</span>
-                  <PlatzWahl wert={b.platz} plaetze={montiert(k3 ? b.art : k2 ? platzGruppe(b.art) : seite ? "seite" : quer ? "quer" : front ? "front" : "dreh", w)}
+                  title={b.art === "k3dr" ? "Drehwerkzeug Kanal 3" : k3f ? "Frontbohrapparat angetrieben Kanal 3" : k3ff ? "Frontbohrhalter fest Kanal 3" : k3d ? "Festes Werkzeug Kanal 3" : k2 ? "Werkzeugplatz Kanal 2" : quer ? "Werkzeugplatz (angetrieben, Weg mit der Gegenspindel)" : front ? "Werkzeugplatz (Frontwerkzeug fest)" : "Werkzeugplatz (Drehwerkzeug Kanal 1)"}><span>Platz</span>
+                  <PlatzWahl wert={b.platz} plaetze={montiert(k3 || b.art === "k3dr" ? b.art : k2 ? platzGruppe(b.art) : seite ? "seite" : quer ? "quer" : front ? "front" : "dreh", w)}
                     waehlen={(p) => { blockAendern(b.id, "platz", p); setUeber(b.id); }}
                     vorschau={(p) => { setVorPlatz(p ? { id: b.id, platz: p } : null); if (p) setUeber(b.id); }} />
                   {bf.platz && <small className="cam-fehltext" data-camblock-nichtmontiert={i}>nicht montiert</small>}</label>

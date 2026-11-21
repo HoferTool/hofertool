@@ -80,7 +80,7 @@ export const fraeserForm = (id) => FRAESER.find((p) => p.id === id) || null;
 // nur Drehen, angetriebene nur Bohren / Fräsen, feste Front- und stehende
 // Kanal-2-Werkzeuge beides
 export function wzArten(blockArt) {
-  if (blockArt === "dreh") return ["dreh"];
+  if (blockArt === "dreh" || blockArt === "k3dr") return ["dreh"];
   if (blockArt === "front") return ["fraes", "dreh"];
   if (blockArt === "k2") return ["dreh", "fraes"];
   return ["fraes"];

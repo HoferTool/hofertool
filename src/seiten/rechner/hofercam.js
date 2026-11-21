@@ -386,7 +386,7 @@ function blockWerte(b, w, marke) {
   // Seit 1.662.0: Drehzahlbegrenzung G50S… vor G96, nur mit G96 und Wert
   const g50 = g96 && zahl(b.g50) != null && Number(zahl(b.g50)) > 0 ? String(Math.round(Number(zahl(b.g50)))) : "";
   const roh = String(b.S ?? "").trim();
-  const mitVc = art === "dreh" || art === "front" || art === "frontGegen" || art === "k2";
+  const mitVc = art === "dreh" || art === "k3dr" || art === "front" || art === "frontGegen" || art === "k2";
   const S = mitVc ? drehzahl(b, w) ?? roh : roh;
   // Drehrichtung je Art: stehend M3 / M4, angetrieben M36 / M37
   const dreh = art === "k2" ? (b.dreh === "3" ? 3 : 4)

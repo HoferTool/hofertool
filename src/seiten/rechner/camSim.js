@@ -441,7 +441,10 @@ function k3Schritt(s, b, zeilen, v, W, prog, wa) {
   s.zeilen = zeilen;
   const dreht = s.art === "k3f";
   let zT;
-  if (mitG50) {
+  if (s.art === "k3dr") {
+    // Drehwerkzeug Kanal 3 (1.677.0): Z wie beim Drehwerkzeug Kanal 1
+    zT = (p) => p.z;
+  } else if (mitG50) {
     zT = (p) => p.z;
     const dz = vorG50(zeilen);
     s.dzVorne = dz == null ? -0.5 : -dz;
