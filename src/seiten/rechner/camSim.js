@@ -19,7 +19,7 @@
 //  Programm je Bearbeitung (ohne Handänderungen im Programmfenster).
 // =================================================================
 
-import { blockZeilen, blockZeilen2, blockZeilen3, kanalZahl, swFrontVon, bereichMitHand, bereichLage, k1Zeilen, markenPaare, markenVergeben, programme, programmeMitHand, zahl, abVersatz, t34Von } from "./hofercam.js";
+import { blockZeilen, blockZeilen2, blockZeilen3, kanalZahl, swFrontVon, swFrontArt, bereichMitHand, bereichLage, k1Zeilen, markenPaare, markenVergeben, programme, programmeMitHand, zahl, abVersatz, t34Von } from "./hofercam.js";
 import { wirksamB, wirksamW } from "./camTyp.js";
 import { fraeserUmriss, plattenForm, plattenUmriss, wzArt, wzVollstaendig } from "./camWerkzeug.js";
 import { SPITZEN } from "./kontur.js";
@@ -692,7 +692,7 @@ export function simAufbauen(wRoh) {
   // der Führungsbüchse aus dem Bild läuft
   const zStange = zMax + Math.max(80, 4 * (zMax - vorne + A));
   return {
-    sw, swFront: sw ? swFrontVon(wRoh) : [], swSchlitz: sw && !!(wRoh && wRoh.swSchlitz),
+    sw, swFront: sw ? swFrontVon(wRoh) : [], swFest: sw ? swFrontVon(wRoh).filter((p) => swFrontArt(wRoh, p) === "fest") : [], swSchlitz: sw && !!(wRoh && wRoh.swSchlitz),
     roh: { A, W, B, vorne }, schritte: sortiert, gesamt: ab, zMax, zStange, hatK2: sortiert.some((s) => s.kanal === 2),
     // Platz 34: T3400 oder T3421–T3423 montiert, die Simulation zeigt nur das Montierte
     t34: t34Von(wRoh),

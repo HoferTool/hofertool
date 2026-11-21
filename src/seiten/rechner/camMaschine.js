@@ -193,7 +193,7 @@ export function swGehaeuseVorne(l, m = MASCHINE_SW20) {
 // aus dem Programm vor der Null seines Trägers steht; der Träger ist ein
 // starrer Block, jedes benutzte Frontwerkzeug steckt mit einem Schaft in
 // seinem Gehäuse und fährt mit, auch wenn es gerade nicht arbeitet
-export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null, m = MASCHINE_SW20, schlitz = false, spitzen = null) {
+export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null, m = MASCHINE_SW20, schlitz = false, spitzen = null, fest = []) {
   const q = [], sg = traeger === 3 ? -1 : 1;
   const box = (z0, z1, x0, x1, y0, y1, art) => {
     const xa = o.x + sg * x0, xb = o.x + sg * x1;
@@ -203,7 +203,8 @@ export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null
   const yd = dreh.map((t) => m.y[t]);
   for (let k = 0; k <= dreh.length; k++) {
     const y = yd[0] + (k - 0.5) * m.dreh.teilung;
-    box(-12, 0, 12, 80, y - 6.4, y + 6.4, "platte");
+    // seit 1.683.0 Farben wie im Bild: Träger 3 rotbraun
+    box(-12, 0, 12, 80, y - 6.4, y + 6.4, traeger === 3 ? "platte3" : "platte");
   }
   dreh.forEach((t, k) => {
     const y = yd[k];
@@ -215,8 +216,10 @@ export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null
   const quer = traeger === 3 ? [1300, 1400, 1500] : [500, 600, 700];
   for (const t of quer) {
     const l = platzLageSw(t, frontAuf, m);
-    if (l.art === "front") box(l.dz - m.front.schaft - m.front.block, l.dz - m.front.schaft, -14, 16, l.y - 10, l.y + 10, "gehaeuse");
-    else box(l.dz - 8, l.dz + 8, 24, 70, l.y - 9, l.y + 9, "gehaeuse");
+    // angetriebene Einheiten weiss wie im Bild, feste Halter golden
+    const artA = l.art === "front" && fest.map(Number).includes(t) ? "fest" : "antrieb";
+    if (l.art === "front") box(l.dz - m.front.schaft - m.front.block, l.dz - m.front.schaft, -14, 16, l.y - 10, l.y + 10, artA);
+    else box(l.dz - 8, l.dz + 8, 24, 70, l.y - 9, l.y + 9, "antrieb");
     if (schlitz && traeger === 1 && t === 700) {
       const R = 20;
       box(l.dz - 3, l.dz + 3, 20, 24, l.y - 3, l.y + 3, "halter");
@@ -231,7 +234,7 @@ export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null
   // feste Frontwerkzeuge T1600–T1900 auf Träger 3
   if (traeger === 3) {
     const f = m.fest;
-    box(f.dz - 30 - 40, f.dz - 30, -14, 16, m.y[1600] - 12, m.y[1900] + 12, "gehaeuse");
+    box(f.dz - 30 - 40, f.dz - 30, -14, 16, m.y[1600] - 12, m.y[1900] + 12, "fest");
   }
   // Schaft und Schneide der benutzten Frontwerkzeuge dieses Trägers
   const front = traeger === 3 ? [1300, 1400, 1500, 1600, 1700, 1800, 1900] : [500, 600, 700];
@@ -245,6 +248,36 @@ export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null
     const vorne = t === aktiv ? tip - 10 : tip - 2;
     if (vorne > hinten) box(hinten, vorne, -3, 3, l.y - 3, l.y + 3, "halter");
     if (t !== aktiv) box(tip - 2, tip, -1.5, 1.5, l.y - 1.5, l.y + 1.5, "schneide");
+  }
+  return q;
+}
+
+// Rückseitenblock Kanal 2 der SW-20 (seit 1.683.0, nach dem Bild
+// star-sw20.png: unten links, zwei Reihen zu vier goldenen Werkzeugen,
+// fährt in Y2, Werkzeuge zeigen zur Gegenspindel). Masse geschätzt.
+// Lage je Platz an der Maschine (X, Y bei Y2 = 0), Spitze bei z = spitze
+export const SW20_K2 = {
+  spitze: -40,
+  platz: {
+    2100: [20, -80], 2200: [45, -80], 2300: [70, -80], 2400: [95, -80],
+    2500: [20, -130], 2600: [45, -130], 2700: [70, -130], 2800: [95, -130],
+  },
+  // Gegenspindel in Grundstellung: Nase so weit vor der Drehebene
+  gegenHeim: -150,
+};
+
+// o = {z: Spitze an der Maschine, y: Weg Y2}; aktiv: Platz, der arbeitet
+// (zeichnet seinen Körper selbst); benutzt: Plätze im Programm
+export function swK2Quader(o, aktiv, benutzt = null, m = SW20_K2) {
+  const q = [];
+  const box = (z0, z1, x0, x1, y0, y1, art) => q.push({ z0: o.z + z0, z1: o.z + z1, x0, x1, y0: o.y + y0, y1: o.y + y1, art });
+  box(25, 40, 5, 110, -230, -130, "block");
+  for (const [t, [x, y]] of Object.entries(m.platz)) {
+    box(8, 25, x - 9, x + 9, y - 9, y + 9, "gold");
+    const nr = Number(t);
+    if (benutzt && !benutzt.has(nr) && nr !== aktiv) continue;
+    if (nr === aktiv) box(8, 10, x - 3, x + 3, y - 3, y + 3, "werkzeug");
+    else { box(1.5, 8, x - 2.5, x + 2.5, y - 2.5, y + 2.5, "werkzeug"); box(0, 1.5, x - 1.5, x + 1.5, y - 1.5, y + 1.5, "schneide"); }
   }
   return q;
 }

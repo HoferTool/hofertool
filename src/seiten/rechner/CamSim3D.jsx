@@ -15,7 +15,7 @@ import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { RASTER, materialStand, simAufbauen, umrissVon, plattenHuelle, bohrerHuelle, innenTiefe, huelleFuer } from "./camSim.js";
 import { drehKoerper, abstechKoerper, fraeserKoerper } from "./camKoerper.js";
 import { stepFertig, stepHolen, stepLokal, stepDrehKoerper, stepRundKoerper } from "./camStep.js";
-import { MASCHINE_SB20RG, GEGEN_SB20RG, platzLage, traegerQuader, gegenEinheit, gegenQuader, platzLageSw, traegerSwQuader, swGehaeuseVorne, MASCHINE_SW20 } from "./camMaschine.js";
+import { MASCHINE_SB20RG, GEGEN_SB20RG, platzLage, traegerQuader, gegenEinheit, gegenQuader, platzLageSw, traegerSwQuader, swGehaeuseVorne, MASCHINE_SW20, SW20_K2, swK2Quader } from "./camMaschine.js";
 
 // Seit 1.558.3 wie an der Maschine: Führungsbüchse links, das Teil schaut
 // nach rechts, schräg von vorne auf die Stirn (Patrick 16. November 2026:
@@ -53,9 +53,12 @@ function wertBei(l, z, seite) {
 }
 
 // Ansicht aus Lage und Drehung: dieselbe Abbildung wie im Maler
-function abbildung(W, H, { bereich, dreh, zoom }) {
+// frame (seit 1.683.0): das Teil steht anders als die Maschine, Welt-z =
+// z0 + s·z, Welt-X = X + xf, Welt-Y = s·Y + yf (s = −1: um X gedreht, so
+// steht das Teil in der Gegenspindel wie im Bild)
+function abbildung(W, H, { bereich, dreh, zoom, frame }) {
   const { zmin, zmax, rmax } = bereich;
-  const zm = (zmin + zmax) / 2;
+  let zm = (zmin + zmax) / 2;
   const diag = bereich.diag || Math.hypot(zmax - zmin, 2 * rmax) || 1;
   const s = Math.min(W, H) / (diag * 1.1) * zoom;
   const ca = Math.cos(dreh.a), sa = Math.sin(dreh.a), cb = Math.cos(dreh.b), sb = Math.sin(dreh.b);
@@ -68,7 +71,17 @@ function abbildung(W, H, { bereich, dreh, zoom }) {
     const cc = Math.cos(c), sc = Math.sin(c);
     for (const r of [r1, r2, r3]) { const a = r[1], b = r[2]; r[1] = a * cc + b * sc; r[2] = -a * sc + b * cc; }
   }
-  return { zm, s, ox: W / 2 + (bereich.px || 0), oy: H / 2 + 10 + (bereich.py || 0), r1, r2, r3 };
+  let ox = W / 2 + (bereich.px || 0), oy = H / 2 + 10 + (bereich.py || 0);
+  // Mitte der Ansicht neben der Drehachse (Maschine SW-20)
+  const mx = bereich.mx || 0, my = bereich.my || 0;
+  ox -= s * (r1[1] * mx + r1[2] * my); oy += s * (r2[1] * mx + r2[2] * my);
+  if (frame) {
+    ox += s * (r1[1] * frame.xf + r1[2] * frame.yf);
+    oy -= s * (r2[1] * frame.xf + r2[2] * frame.yf);
+    for (const r of [r1, r2, r3]) { r[0] *= frame.s; r[2] *= frame.s; }
+    zm = frame.s * (zm - frame.z0);
+  }
+  return { zm, s, ox, oy, r1, r2, r3 };
 }
 const LICHT = [-0.45, 0.65, 0.62].map((c, _, v) => c / Math.hypot(...v));
 const GLANZ = (() => { const v = [LICHT[0], LICHT[1], LICHT[2] + 1]; const l = Math.hypot(...v); return v.map((c) => c / l); })();
@@ -82,11 +95,13 @@ const GLANZ = (() => { const v = [LICHT[0], LICHT[1], LICHT[2] + 1]; const l = M
 // hell metallisch
 const FARBE_ROH = [160, 146, 120], FARBE_BEARB = [176, 190, 206];
 // Maschine (seit 1.580.0): Farben wie im Bild der SB-20RG
-const FARBE_MASCHINE = { platte: [92, 108, 168], halter: [74, 82, 96], schneide: [224, 161, 42], gehaeuse: [196, 202, 210], werkzeug: [150, 158, 170], kopf: [204, 209, 216] };
-function strahlenMalen(g, W, H, { st, vox, kanal2, Wt, bereich, dreh, zoom, schnitt, q, bu, roh, roll = 0 }) {
+const FARBE_MASCHINE = { platte: [92, 108, 168], halter: [74, 82, 96], schneide: [224, 161, 42], gehaeuse: [196, 202, 210], werkzeug: [150, 158, 170], kopf: [204, 209, 216],
+  // seit 1.683.0 SW-20 wie im Bild star-sw20.png
+  platte3: [168, 92, 66], antrieb: [232, 235, 239], fest: [222, 190, 84], gelb: [236, 204, 92], block: [218, 222, 228], gold: [214, 172, 62], buechse: [112, 124, 140], roh: FARBE_ROH };
+function strahlenMalen(g, W, H, { st, vox, kanal2, Wt, bereich, dreh, zoom, schnitt, q, bu, roh, roll = 0, frame = null }) {
   // roll: das Teil steht um C gedreht (Maschine fest), y/w der Maschine → im Teil
   const rc = Math.cos(roll), rs = Math.sin(roll);
-  const ab = abbildung(W, H, { bereich, dreh, zoom });
+  const ab = abbildung(W, H, { bereich, dreh, zoom, frame });
   const { zm, s, ox, oy, r1, r2, r3 } = ab;
   const iw = Math.max(40, Math.round(W * q)), ih = Math.max(30, Math.round(H * q));
   const doc = g.canvas.ownerDocument;
@@ -105,7 +120,8 @@ function strahlenMalen(g, W, H, { st, vox, kanal2, Wt, bereich, dreh, zoom, schn
   const vh = vox ? vox.h : 0;
   const hin = Math.cos(dreh.a) >= 0 ? 1 : -1; // +w zum Betrachter?
   const vc = Math.cos(dreh.c || 0), vs = Math.sin(dreh.c || 0);
-  const offen = (y, w) => schnitt && y * vc - w * vs > 0 && (y * vs + w * vc) * hin > 0;
+  const fs = frame ? frame.s : 1;
+  const offen = (y, w0) => { const w = fs * w0; return schnitt && y * vc - w * vs > 0 && (y * vs + w * vc) * hin > 0; };
   const dt = Math.max(0.015, Math.min(vox ? vh * 0.7 : Infinity, Rb / 140, (xb - xa) / 140));
   // Führungsbüchse: Rohr ri … ra von bu.z bis bu.z + L
   const inBu = (x, y, w) => {
@@ -241,7 +257,7 @@ function strahlenMalen(g, W, H, { st, vox, kanal2, Wt, bereich, dreh, zoom, schn
   g.drawImage(bild, 0, 0, W, H);
 }
 
-function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, hinweis, roh, maschine, roll: rollT = 0 }) {
+function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, hinweis, roh, maschine, roll: rollT = 0, frame = null }) {
   g.clearRect(0, 0, W, H);
   const { zmin, zmax, rmax } = bereich;
   const zm = (zmin + zmax) / 2;
@@ -250,18 +266,26 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
   const ca = Math.cos(dreh.a), sa = Math.sin(dreh.a), cb = Math.cos(dreh.b), sb = Math.sin(dreh.b);
   const hin = ca >= 0; // +w zum Betrachter: dann ist das Viertel 0 … 90° offen, sonst −90 … 0°
   const vc = dreh.c || 0, vcc = Math.cos(vc), vss = Math.sin(vc);
-  const ansicht = (z, r, phi) => {
-    const x = z - zm, y = r * Math.cos(phi + vc), w = r * Math.sin(phi + vc);
+  // f: Lage eines Teils an der Maschine (siehe abbildung), ohne f wie die Maschine
+  const ansichtF = (f) => (z, r, phi) => {
+    let x = z - zm, X = r * Math.cos(phi), Y = r * Math.sin(phi);
+    if (f) { x = f.s * z + f.z0 - zm; X += f.xf; Y = f.s * Y + f.yf; }
+    const y = X * vcc - Y * vss, w = X * vss + Y * vcc;
     const x1 = x * ca + w * sa, w1 = -x * sa + w * ca;
     return { x: x1, y: y * cb - w1 * sb, t: y * sb + w1 * cb };
   };
+  const ansicht = ansichtF(frame);
   const L = [-0.45, 0.65, 0.62].map((c, _, v) => c / Math.hypot(...v));
   const Hh = (() => { const v = [L[0], L[1], L[2] + 1]; const l = Math.hypot(...v); return v.map((c) => c / l); })();
   const liste = [];
   let ziel = liste;
-  const ox = W / 2 + (bereich.px || 0), oy = H / 2 + 10 + (bereich.py || 0);
+  let ox = W / 2 + (bereich.px || 0), oy = H / 2 + 10 + (bereich.py || 0);
+  if (bereich.mx || bereich.my) {
+    const c0 = ansichtF({ s: 1, z0: 0, xf: bereich.mx || 0, yf: bereich.my || 0 })(zm, 0, 0);
+    ox -= c0.x * s; oy += c0.y * s;
+  }
   const P = (p) => ({ x: ox + p.x * s, y: oy - p.y * s });
-  const achseT = (z) => ansicht(z, 0, 0).t;
+  const achseT = (z) => ansichtF(frame ? { s: 1, z0: 0, xf: frame.xf, yf: frame.yf } : null)(z, 0, 0).t;
   const flaeche = (pts, art, zc) => {
     const a = pts[0], b = pts[1], c = pts[2], d = pts[3] || pts[2];
     const u1 = [c.x - a.x, c.y - a.y, c.t - a.t], u2 = pts.length === 3 ? [b.x - a.x, b.y - a.y, b.t - a.t] : [d.x - b.x, d.y - b.y, d.t - b.t];
@@ -319,6 +343,9 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
     // Spindelstock und Gegenspindel (seit 1.583.0), dir −1 = Körper nach −z
     for (const k of maschine.koepfe || (maschine.kopf ? [maschine.kopf] : [])) {
       const d = k.dir || 1;
+      // Köpfe stehen an der Maschine (seit 1.683.0 mit Versatz x/y und Farbe)
+      const ansicht = ansichtF(k.x || k.y || frame ? { s: 1, z0: 0, xf: k.x || 0, yf: k.y || 0 } : null);
+      const kart = k.art || "kopf";
       const N = maschine.grob ? 24 : 40;
       const rohr = (z1, z2, r) => {
         const st = teile(z2 - z1);
@@ -326,20 +353,21 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
           const a1 = z1 + ((z2 - z1) * i) / st, a2 = z1 + ((z2 - z1) * (i + 1)) / st;
           for (let j = 0; j < N; j++) {
             const f0 = (2 * Math.PI * j) / N, f1 = (2 * Math.PI * (j + 1)) / N;
-            flaeche([ansicht(a1, r, f0), ansicht(a2, r, f0), ansicht(a2, r, f1), ansicht(a1, r, f1)], "kopf", (a1 + a2) / 2);
+            flaeche([ansicht(a1, r, f0), ansicht(a2, r, f0), ansicht(a2, r, f1), ansicht(a1, r, f1)], kart, (a1 + a2) / 2);
           }
         }
       };
       const ring = (z, r1, r2) => {
         for (let j = 0; j < N; j++) {
           const f0 = (2 * Math.PI * j) / N, f1 = (2 * Math.PI * (j + 1)) / N;
-          flaeche([ansicht(z, r1, f0), ansicht(z, r2, f0), ansicht(z, r2, f1), ansicht(z, r1, f1)], "kopf", z);
+          if (r2 - r1 > 1e-6) flaeche([ansicht(z, r1, f0), ansicht(z, r2, f0), ansicht(z, r2, f1), ansicht(z, r1, f1)], kart, z);
         }
       };
       ring(k.z, k.ri, k.nase);
       rohr(k.z, k.z + d * k.naseL, k.nase);
+      if (k.ri > 0) rohr(k.z, k.z + d * k.naseL, k.ri);
       ring(k.z + d * k.naseL, k.nase, k.r);
-      rohr(k.z + d * k.naseL, k.z + d * (k.naseL + k.L), k.r);
+      if (k.L > 0) rohr(k.z + d * k.naseL, k.z + d * (k.naseL + k.L), k.r);
       ring(k.z + d * (k.naseL + k.L), k.ri, k.r);
     }
     ziel = liste;
@@ -362,7 +390,7 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
       hinten.sort((x, y) => x.tiefe - y.tiefe);
       zeichnen(hinten);
     }
-    strahlenMalen(g, W, H, { ...strahl, bereich, dreh, zoom, schnitt, bu: ueber.buechse, roh, roll: rollT });
+    strahlenMalen(g, W, H, { ...strahl, bereich, dreh, zoom, schnitt, bu: ueber.buechse, roh, roll: rollT, frame });
     if (mListe.length) {
       const vorne = mListe.filter((f) => !(f.tiefe < achseT(f.zc)));
       vorne.sort((x, y) => x.tiefe - y.tiefe);
@@ -373,7 +401,8 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
     const zug = [...aussen, ...innen.slice().reverse()];
     const lang = Math.max(0.8, (zmax - zmin) / 25);
     const N = 48;
-    const von = (schnitt && hin ? Math.PI / 2 : 0) - vc, bis = (schnitt && !hin ? 1.5 * Math.PI : 2 * Math.PI) - vc;
+    let von = (schnitt && hin ? Math.PI / 2 : 0) - vc, bis = (schnitt && !hin ? 1.5 * Math.PI : 2 * Math.PI) - vc;
+    if (frame && frame.s < 0) [von, bis] = [-bis, -von];
     const schritte = schnitt ? Math.round(N * 0.75) : N;
     for (let i = 0; i < zug.length; i++) {
       const p = zug[i], q = zug[(i + 1) % zug.length];
@@ -443,7 +472,8 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
   zeichnen(liste);
   // Mittellinie
   g.setLineDash([10, 4, 2, 4]); g.strokeStyle = "rgba(220,60,60,.7)"; g.lineWidth = 1;
-  const m1 = P(ansicht(zmin - 2, 0, 0)), m2 = P(ansicht(zmax + 2, 0, 0));
+  const welt = ansichtF(null);
+  const m1 = P(frame ? welt(zmin - 2, 0, 0) : ansicht(zmin - 2, 0, 0)), m2 = P(frame ? welt(zmax + 2, 0, 0) : ansicht(zmax + 2, 0, 0));
   g.beginPath(); g.moveTo(m1.x, m1.y); g.lineTo(m2.x, m2.y); g.stroke(); g.setLineDash([]);
   // Bahn und Werkzeug in der Ebene oben (+X), vor dem Körper
   // Seit 1.580.0 mit Maschine: das Teil dreht in C, Bahn und Werkzeug
@@ -712,12 +742,13 @@ function Simulation({ w, zu }) {
     // das Material in Z (die Drehebene wandert im Teil), Träger 1 und 3 in
     // X und Y; Kanal 3 fährt mit M131 seinen Träger in Z3 (das Material
     // steht), mit M133 steuert Kanal 3 Z1 und das Material fährt
-    if (sim.sw && kanal === 1) {
+    // Lage der Träger bei Punkt nn (Kanal 1 und 3)
+    const swLageBei = (nn) => {
       const A2 = A / 2;
-      let zE = vorne, t1 = { z: vorne, x: A2 + 3, y: 0 }, t3 = { x: -(A2 + 25), y: 0 }, rel3 = swSpitzen.rel3, sAkt = null, pAkt = null;
+      let zE = vorne, t1 = { z: vorne, x: A2 + 3, y: 0 }, t3 = { x: -(A2 + 25), y: 0 }, rel3 = swSpitzen.rel3, sAkt = null, pAkt = null, zurueck = false;
       for (const x of sim.schritte) {
-        if (x.kanal !== 1 || x.von >= n || !x.punkte.length) continue;
-        const q = x.punkte[Math.min(n, x.bis) - x.von - 1];
+        if (x.kanal !== 1 || x.von >= nn || !x.punkte.length) continue;
+        const q = x.punkte[Math.min(nn, x.bis) - x.von - 1];
         const l = lageVon(x.platz);
         sAkt = x; pAkt = q;
         if (!l) continue;
@@ -733,10 +764,21 @@ function Simulation({ w, zu }) {
           zE = q.z - (x.dzVorne ?? l.dz);
           t1 = { z: zE, x: X - l.x, y: Y - l.y };
         }
+        // seit 1.683.0: G28 U0. am Ende der Bearbeitung fährt den Träger in X
+        // zurück in die Grundstellung
+        if (nn >= x.bis && (x.zeilen || []).some((z) => /G28\s*U/i.test(String(z)))) {
+          if (x.pfad === 3) t3 = { ...t3, x: -(A2 + 40) }; else t1 = { ...t1, x: A2 + 40 };
+          zurueck = x === sAkt;
+        } else zurueck = false;
       }
       if (t1.z !== zE) t1 = { ...t1, z: zE };
-      swLage = { zE, t1, t3: { ...t3, z: zE + rel3 }, aktiv: sAkt ? sAkt.platz : 0, pfad: sAkt ? sAkt.pfad : 1 };
-      if (pAkt) roll = ((pAkt.c || 0) * Math.PI) / 180;
+      return { zE, t1, t3: { ...t3, z: zE + rel3 }, aktiv: sAkt && !zurueck ? sAkt.platz : 0, zurueck, pfad: sAkt ? sAkt.pfad : 1, roll: pAkt ? ((pAkt.c || 0) * Math.PI) / 180 : 0 };
+    };
+    if (sim.sw && kanal === 1) {
+      swLage = swLageBei(n);
+      roll = swLage.roll;
+      // zurückgefahren: das Werkzeug steckt wieder im Träger
+      if (swLage.zurueck && maschineAn) { ueber.koerper = []; ueber.werkzeuge = []; ueber.stangen = []; ueber.spitze = null; }
       if (maschineAn) traeger = { ...(swLage.pfad === 3 ? swLage.t3 : swLage.t1), aktiv: swLage.aktiv, pfad: swLage.pfad };
     } else if (maschineAn && kanal === 1) {
       let sAkt = null, pAkt = null;
@@ -793,7 +835,49 @@ function Simulation({ w, zu }) {
     // verschieben und drehen“): mit Maschine steht die Ansicht fest an der
     // Maschine (vorne an der Drehebene, die das Material durchfährt), der
     // Massstab ist für beide Kanäle derselbe
-    if (maschineAn) {
+    // SW-20 (seit 1.683.0, Patrick 21. November 2026: „die Simulation
+    // möglichst genau dem Maschinenbild nach … Gegenspindel und Werkzeugträger
+    // immer sichtbar … wenn die Gegenspindel übernommen hat, ansichtsgetreu
+    // auf dem Werkzeugträger von Kanal 2“): alles an der Maschine, gezählt
+    // ab der Drehebene am Ende von Kanal 1; in Kanal 2 steht das Teil in der
+    // Gegenspindel um X gedreht (frame), die Ansicht bleibt dieselbe
+    const swMaschine = sim.sw && maschineAn;
+    const swEnde = swMaschine && kanal === 2 ? swLageBei(abS ? abS.bis : gesamt) : null;
+    const swEbene = swMaschine ? (kanal === 1 ? swLage.zE : swEnde.zE) : null;
+    let frame = null, swK2 = null;
+    if (swMaschine && kanal === 2) {
+      let sAkt = null, pAkt = null;
+      for (const x of sim.schritte) {
+        if (x.kanal !== 2 || x.von >= n || !x.punkte.length) continue;
+        sAkt = x; pAkt = x.punkte[Math.min(n, x.bis) - x.von - 1];
+      }
+      const spitzeW = swEbene + SW20_K2.spitze;
+      if (pAkt) {
+        const yM = pAkt.mx != null ? pAkt.mx : pAkt.r, wM = pAkt.my != null ? pAkt.my : 0;
+        if (pAkt.phi != null && Math.hypot(yM, wM) > 1e-6) roll = Math.atan2(wM, yM) - pAkt.phi;
+        const ph = (pAkt.phi || 0) + roll, r = pAkt.r || 0;
+        const pX = r * Math.cos(ph), pY = r * Math.sin(ph);
+        const [lx, ly] = SW20_K2.platz[sAkt.platz] || SW20_K2.platz[2100];
+        frame = { s: -1, z0: spitzeW + pAkt.z, xf: lx - pX, yf: 0 };
+        swK2 = { aktiv: sAkt.platz, y: -pY - ly };
+        // G28 U / G28 W am Ende: Gegenspindel fährt in X bzw. Z in die Grundstellung
+        if (n >= sAkt.bis) {
+          const zl = (sAkt.zeilen || []).map(String);
+          const u = zl.some((z) => /G28\s*U/i.test(z)), wz = zl.some((z) => /G28\s*W/i.test(z));
+          if (u) frame.xf = 0;
+          if (wz) frame.z0 = swEbene + SW20_K2.gegenHeim + W - sim.greif;
+          if (u || wz) { swK2 = { aktiv: 0, y: 0 }; ueber.koerper = []; ueber.werkzeuge = []; ueber.stangen = []; ueber.spitze = null; }
+        }
+      } else {
+        frame = { s: -1, z0: spitzeW - 25, xf: 0, yf: 0 };
+        swK2 = { aktiv: 0, y: 0 };
+      }
+    }
+    if (swMaschine) {
+      // ganze Maschine im Bild: Mitte 45 mm vor der Drehebene
+      const halb = (bereich0.zmax - bereich0.zmin) / 2, mitte = swEbene - 45;
+      bereich = { ...bereich0, zmin: mitte - halb, zmax: mitte + halb, px: schieb.x, py: schieb.y, diag: 470, mx: 20, my: -70 };
+    } else if (maschineAn) {
       const ebene = kanal === 1 ? (swLage ? swLage.zE : traeger ? traeger.z : vorne) : null;
       const dzM = ebene != null ? ebene - (bereich0.zmin + bereich0.zmax) / 2 + 10 : dz;
       const diag = Math.hypot(sim.zMax - vorne + 8, 2 * Math.max(A / 2 + 2, BUECHSE_R + 1));
@@ -804,17 +888,37 @@ function Simulation({ w, zu }) {
     const strahl = (vx || (st && st.kernA)) && umriss ? { st, vox: vx, kanal2: kanal === 2, Wt: W, q: laeuft ? 0.45 : 1 } : null;
     const k = MASCHINE_SB20RG.kopf, gs = GEGEN_SB20RG.spindel;
     let maschine = null, gegen = null;
-    if (kanal === 1 && maschineAn && swLage) {
-      const benutzt = new Set(sim.schritte.filter((x) => x.kanal === 1).map((x) => x.platz));
+    if (swMaschine) {
+      const lg = kanal === 1 ? swLage : { ...swEnde, aktiv: 0 };
+      const benutzt = new Set(sim.schritte.map((x) => x.platz));
+      const zb = swEbene + 2;
       maschine = {
-        quader: [...traegerSwQuader(swLage.t1, 1, swLage.aktiv, sim.swFront, benutzt, MASCHINE_SW20, sim.swSchlitz, swSpitzen.dz), ...traegerSwQuader(swLage.t3, 3, swLage.aktiv, sim.swFront, benutzt, MASCHINE_SW20, false, swSpitzen.dz)],
+        quader: [...traegerSwQuader(lg.t1, 1, lg.aktiv, sim.swFront, benutzt, MASCHINE_SW20, sim.swSchlitz, swSpitzen.dz, sim.swFest),
+          ...traegerSwQuader(lg.t3, 3, lg.aktiv, sim.swFront, benutzt, MASCHINE_SW20, false, swSpitzen.dz, sim.swFest),
+          ...swK2Quader({ z: swEbene + SW20_K2.spitze, y: swK2 ? swK2.y : 0 }, swK2 ? swK2.aktiv : 0, benutzt)],
         roll, grob: laeuft, kopf: { z: kopfZ, ri: A / 2, nase: k.nase, naseL: k.naseL, r: k.r, L: k.L },
       };
-      maschine.koepfe = [maschine.kopf];
-      if (abS && n > abS.von) {
-        const pa = abS.punkte[Math.min(n, abS.bis) - abS.von - 1];
-        gegen = { z: (pa && pa.g != null ? pa.g : sim.greif) - wegZ, ri: A / 2, nase: Math.max(gs.nase, A / 2 + 4), naseL: gs.naseL, r: gs.r, L: gs.L, dir: -1 };
-        maschine.koepfe.push(gegen);
+      // Flansch der Führungsbüchse (C1 im Bild)
+      maschine.koepfe = [maschine.kopf, { z: zb + 6, ri: BUECHSE_R, nase: 32, naseL: 6, r: 32, L: 0, art: "buechse" }];
+      // Gegenspindel gelb: in Grundstellung, bei der Übergabe am Teil, in Kanal 2 mit dem Teil
+      const gGelb = (z, x) => {
+        const gk = { z, x, ri: A / 2, nase: Math.max(gs.nase, A / 2 + 4), naseL: gs.naseL, r: gs.r - 8, L: 40, dir: -1, art: "gelb" };
+        maschine.koepfe.push(gk);
+        const hz = z - gs.naseL - 40;
+        maschine.quader.push({ z0: hz - 50, z1: hz, x0: x - 38, x1: x + 38, y0: -38, y1: 38, art: "gelb" });
+        return gk;
+      };
+      if (kanal === 1) {
+        if (abS && n > abS.von) {
+          const pa = abS.punkte[Math.min(n, abS.bis) - abS.von - 1];
+          gegen = gGelb((pa && pa.g != null ? pa.g : sim.greif) - wegZ, 0);
+        } else gegen = gGelb(swEbene + SW20_K2.gegenHeim, 0);
+      } else {
+        // Büchse und Rest der Stange bleiben an der Hauptspindel
+        maschine.koepfe.push({ z: zb, ri: A / 2, nase: BUECHSE_R, naseL: BUECHSE_L, r: BUECHSE_R, L: 0, art: "buechse" });
+        const rest = W + (abS ? abS.breite : 0);
+        if (kopfZ > rest) maschine.koepfe.push({ z: rest, ri: 0, nase: A / 2, naseL: kopfZ - rest, r: A / 2, L: 0, art: "roh" });
+        gegen = gGelb(frame.z0 - (W - sim.greif), frame.xf);
       }
     } else if (kanal === 1 && maschineAn) {
       maschine = {
@@ -828,7 +932,7 @@ function Simulation({ w, zu }) {
         gegen = { z: (pa && pa.g != null ? pa.g : sim.greif) - wegZ, ri: A / 2, nase: Math.max(gs.nase, A / 2 + 4), naseL: gs.naseL, r: gs.r, L: gs.L, dir: -1 };
         maschine.koepfe.push(gegen);
       }
-    } else if (kanal === 2 && maschineAn) {
+    } else if (kanal === 2 && maschineAn && !sim.sw) {
       // Seit 1.583.0: Gegenspindel fährt mit dem Teil (steht im Teil fest),
       // die Werkzeuge stehen; die Einheit des Werkzeugs, das gerade arbeitet
       gegen = { z: W - sim.greif, ri: A / 2, nase: Math.max(gs.nase, A / 2 + 4), naseL: gs.naseL, r: gs.r, L: gs.L, dir: 1 };
@@ -871,7 +975,8 @@ function Simulation({ w, zu }) {
     cv.__stand = stand; cv.__sim = sim; cv.__strahl = !!strahl; cv.__werkzeuge = ueber.werkzeuge; cv.__koerper = ueber.koerper.length; cv.__step = !!(stepUrl && stepFertig(stepUrl)); cv.__buechse = ueber.buechse; cv.__weg = wegZ; cv.__ansichtZ = dz; // für den Prüfstand
     // Rohmaterial: Stirn vorne nur vorne (Kanal 1), vor der Übergabe
     const roh = { R: A / 2, vorne: kanal === 1 && !wegZ ? vorne : null };
-    malen(g, breite, HOCH, { umriss, strahl, bereich, dreh: sim && sim.sw ? { ...dreh, c: SW_BLICK } : dreh, zoom, schnitt, ueber, roh, maschine, roll, hinweis: umriss ? "" : "Kein Material" });
+    cv.__frame = frame; cv.__k2 = swK2;
+    malen(g, breite, HOCH, { umriss, strahl, bereich, dreh: sim && sim.sw ? { ...dreh, c: SW_BLICK } : dreh, zoom, schnitt, ueber, roh, maschine, roll, frame, hinweis: umriss ? "" : "Kein Material" });
   }, [sim, stand, n, kanal, akt, dreh, zoom, schnitt, breite, laeuft, maschineAn, kopfZ, dreiD, stepStand, schieb, swSpitzen]);
 
   useEffect(() => {
