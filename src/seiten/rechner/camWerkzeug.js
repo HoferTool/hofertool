@@ -203,7 +203,12 @@ export const LAGEN_MASCHINE = ["or", "o", "ol", "r", "m", "l", "ur", "u", "ul"];
 // Simulation. Rückgabe: Liste von Punkten {z, x} (geschlossen).
 // Halter 93°: Hauptschneide 3° über die Senkrechte zur Achse hinaus
 export const HALTER_NEIGUNG = 3;
-export function plattenUmriss(wz, gross = 8) {
+// axial (seit 1.681.0): Einstechplatte für Planeinstiche, die Schneide
+// zeigt in Z und die Breite liegt radial ab der Ecke der Lage (Patrick
+// 21. November 2026, 10844-0049: Ringnut mit Zapfen in der Mitte, die
+// Platte stach in der Simulation quer durch den Zapfen). hoch: Länge der
+// Einstechplatte von der Schneide weg, ohne die Breite zu ändern.
+export function plattenUmriss(wz, gross = 8, axial = false, hoch = 0) {
   const f = plattenForm(wz.form);
   if (!f) return [];
   let s = SPITZEN.find((x) => x.id === wz.sl) || { z: 1, r: -1 };
@@ -223,10 +228,10 @@ export function plattenUmriss(wz, gross = 8) {
   }
   if (f.art === "einstech") {
     const B = zahlOk(wz.breite) && zahlV(wz.breite) > 0 ? zahlV(wz.breite) : 2;
-    const H = Math.max(gross, B * 2.5);
+    const H = hoch > 0 ? hoch : Math.max(gross, B * 2.5);
     // Schneide zeigt in X (oben / unten) oder in Z (links / rechts);
     // Ecken der Schneide: diagonale Lage = diese Ecke, sonst Mitte
-    const inX = s.r !== 0 || s.z === 0;
+    const inX = axial && s.z !== 0 ? false : s.r !== 0 || s.z === 0;
     const sx = s.r === 0 && s.z === 0 ? -1 : s.r;
     let p;
     if (inX) {
@@ -234,7 +239,7 @@ export function plattenUmriss(wz, gross = 8) {
       const zu = sx < 0 ? 1 : -1; // Platte liegt auf der Gegenseite der Schneide
       p = [{ z: z0, x: 0 }, { z: z0 + B, x: 0 }, { z: z0 + B, x: zu * H }, { z: z0, x: zu * H }];
     } else {
-      const x0 = -B / 2;
+      const x0 = s.r > 0 ? -B : s.r < 0 ? 0 : -B / 2;
       const zu = s.z < 0 ? 1 : -1;
       p = [{ z: 0, x: x0 }, { z: 0, x: x0 + B }, { z: zu * H, x: x0 + B }, { z: zu * H, x: x0 }];
     }

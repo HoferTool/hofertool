@@ -21,7 +21,7 @@
 
 import { blockZeilen, blockZeilen2, blockZeilen3, kanalZahl, swFrontVon, bereichMitHand, bereichLage, k1Zeilen, markenPaare, markenVergeben, programme, programmeMitHand, zahl, abVersatz, t34Von } from "./hofercam.js";
 import { wirksamB, wirksamW } from "./camTyp.js";
-import { fraeserUmriss, plattenUmriss, wzArt, wzVollstaendig } from "./camWerkzeug.js";
+import { fraeserUmriss, plattenForm, plattenUmriss, wzArt, wzVollstaendig } from "./camWerkzeug.js";
 import { SPITZEN } from "./kontur.js";
 
 export const RASTER = 0.02; // mm je Zelle des Materials
@@ -30,8 +30,12 @@ const ANGETRIEBEN = new Set(["seite", "quer", "k2a"]); // Schritt 3: mit C und Y
 
 const num = (t) => { const z = zahl(t); return z == null ? null : Number(z); };
 
+// Seit 1.681.0: eine nicht gesetzte Variable #1–#999 ist wie an der
+// Fanuc leer und zählt in Rechnungen als 0 (10844-0049: G1X[12.40+#606]
+// mit einer Korrektur, die nur an der Maschine steht; vorher fiel die
+// ganze Zeile weg und der Zapfen blieb zu dick)
 function rechne(ausdruck, v) {
-  const t = String(ausdruck).replace(/#(\d+)/g, (a, n) => (n in v ? "(" + v[n] + ")" : "NaN")).replace(/\[/g, "(").replace(/\]/g, ")");
+  const t = String(ausdruck).replace(/#(\d+)/g, (a, n) => (n in v ? "(" + v[n] + ")" : Number(n) < 1000 ? "0" : "NaN")).replace(/\[/g, "(").replace(/\]/g, ")");
   if (!/^[-+*/().\d\sNa]+$/.test(t)) return NaN;
   try { return Number(Function("return (" + t + ")")()); } catch (e) { return NaN; }
 }
@@ -308,11 +312,17 @@ export function bahnLesen(zeilen, v, { mitG50 = false, start = null } = {}) {
 // mit tief > 0 reicht die Platte von der Spitze höchstens so weit zur
 // Drehmitte hin. Zuerst kleiner gezeichnet (Schneidenradius bleibt), sonst
 // um die Spitze verkleinert.
-export function plattenHuelle(wz, tief) {
-  let p = plattenUmriss(wz);
+// Seit 1.681.0: Einstechplatten werden nie gestaucht, sonst änderte sich
+// die Breite und damit der Einstich. Radial wird nur die Platte kürzer,
+// axial (Planeinstich) liegt die Breite radial und bleibt, wie sie ist.
+export function plattenHuelle(wz, tief, axial = false) {
+  const einstech = plattenForm(wz.form)?.art === "einstech";
+  let p = plattenUmriss(wz, 8, einstech && axial);
   if (!p.length) return null;
   const tiefe = (q) => Math.max(0, ...q.map((x) => -x.x));
-  if (tief > 0 && tiefe(p) > tief) {
+  if (einstech) {
+    if (!axial && tief > 0 && tiefe(p) > tief) p = plattenUmriss(wz, 8, false, tief);
+  } else if (tief > 0 && tiefe(p) > tief) {
     const q = plattenUmriss(wz, Math.max(0.3, 8 * tief / tiefe(p)));
     if (q.length) p = q;
     const t = tiefe(p);
@@ -639,6 +649,12 @@ export function simAufbauen(wRoh) {
         // Innendrehen nur die Werkzeugbahn“): eine Drehplatte am festen
         // Frontwerkzeug dreht wie ein Drehwerkzeug, X aus dem Programm
         s.modus = wa === "fraes" ? "bohr" : wa === "dreh" ? "dreh" : null;
+      } else if (sw && art === "k2b") {
+        // Seit 1.681.0: Bohren stehend Kanal 2 der SW-20 ohne G50 (Patricks
+        // T2700 / T2800 aus 10844-0049): Z wie programmiert ab der Rückseite,
+        // vorher übersprang die Simulation diese Bohrungen
+        s.punkte = roh.map((p) => ({ z: p.z, r: Math.abs(p.x || 0) / 2, vor: p.vor, nr: p.nr }));
+        s.modus = wa === "fraes" ? "bohr" : wa === "dreh" ? "dreh" : null;
       } else if (art === "k2") {
         s.punkte = roh.map((p) => ({ z: p.z, r: Math.abs(p.x) / 2, vor: p.vor, nr: p.nr }));
         s.modus = wa === "fraes" ? "bohr" : wa === "dreh" ? "dreh" : null;
@@ -719,7 +735,35 @@ function abstechen(st, s, p) {
   const { aussen, innen, z0 } = st;
   const ka = Math.max(0, Math.round((p.z - s.breite - z0) / RASTER)), kb = Math.min(aussen.length - 1, Math.round((p.z - z0) / RASTER));
   const r = Math.max(0, p.r);
-  for (let k = ka; k <= kb; k++) if (aussen[k] > r) aussen[k] = Math.max(r, innen[k]);
+  for (let k = ka; k <= kb; k++) ringeSchneiden(st, k, r, Infinity);
+}
+
+// Seit 1.681.0 (Patrick 21. November 2026, 10844-0049: Ringnut in der
+// Stirn mit Nabe in der Mitte): je Zelle bis zwei Ringe Material, aussen
+// innen … aussen und darin der Kern kernI … kernA (kernA 0 = kein Kern).
+// Vorher konnte ein Schnitt mitten im Material (Ringnut, Plattenkörper)
+// nichts wegnehmen, und eine Nabe ging mit der Bohrung verloren.
+export function kernVon(st) {
+  if (!st.kernA) { st.kernA = new Float32Array(st.aussen.length); st.kernI = new Float32Array(st.aussen.length); }
+  return st;
+}
+export function ringeSchneiden(st, k, lo, hi) {
+  const { aussen, innen } = st;
+  const ringe = [];
+  if (aussen[k] > innen[k] + 1e-6) ringe.push([innen[k], aussen[k]]);
+  if (st.kernA && st.kernA[k] > st.kernI[k] + 1e-6) ringe.push([st.kernI[k], st.kernA[k]]);
+  if (!ringe.length || hi <= lo) return;
+  const neu = [];
+  for (const [a, b] of ringe) {
+    if (hi <= a || lo >= b) { neu.push([a, b]); continue; }
+    if (lo > a + 1e-6) neu.push([a, lo]);
+    if (hi < b - 1e-6) neu.push([hi, b]);
+  }
+  neu.sort((x, y) => y[1] - x[1]);
+  if (neu.length > 1 && !st.kernA) kernVon(st);
+  const r0 = neu[0] || [0, 0];
+  aussen[k] = Math.max(0, r0[1]); innen[k] = Math.max(0, r0[1] > 0 ? r0[0] : 0);
+  if (st.kernA) { const r1 = neu[1] || [0, 0]; st.kernA[k] = r1[1]; st.kernI[k] = r1[0]; }
 }
 
 // Werkzeughüllen einmal je Simulation
@@ -742,10 +786,27 @@ export function innenTiefe(s) {
   return r === Infinity ? 0 : Math.max(0.2, r * 0.8);
 }
 
+// Einstechplatte axial (Planeinstich)? Laut Bahn: fährt das Werkzeug im
+// Vorschub weiter in Z als in X, sticht es in Z ein (10844-0049, T1900
+// und T1600 in der Ringnut). Ein Feld am Werkzeug gibt es dafür nicht.
+export function einstechAxial(s) {
+  if (!s || s.modus !== "dreh" || !s.wz || plattenForm(s.wz.form)?.art !== "einstech") return false;
+  let dz = 0, dr = 0;
+  const pk = s.punkte || [];
+  for (let i = 1; i < pk.length; i++) {
+    if (!pk[i].vor) continue;
+    dz += Math.abs(pk[i].z - pk[i - 1].z); dr += Math.abs(pk[i].r - pk[i - 1].r);
+  }
+  return dz > dr * 1.5;
+}
+export function huelleFuer(s) {
+  return s.modus === "dreh" ? plattenHuelle(s.wz, innenTiefe(s), einstechAxial(s)) : bohrerHuelle(s.wz);
+}
+
 function huelleVon(s, cache) {
   if (!s.wz || !s.modus) return null;
   if (!cache.has(s.id)) {
-    const h = s.modus === "dreh" ? plattenHuelle(s.wz, innenTiefe(s)) : bohrerHuelle(s.wz);
+    const h = huelleFuer(s);
     if (h && h.rad) {
       // Länge der Spitze: bis der volle Radius erreicht ist
       let k = 0; while (k < h.rad.length - 1 && h.rad[k] < h.R - 1e-6) k++;
@@ -766,9 +827,7 @@ function abtragen(st, s, p, h) {
     for (let j = 0; j < h.lo.length; j++) {
       const k = k0 + h.j0 + j;
       if (k < 0 || k >= n || h.lo[j] === Infinity) continue;
-      const lo = p.r + h.lo[j], hi = p.r + h.hi[j];
-      if (hi >= aussen[k] - 1e-6) { if (lo < aussen[k]) aussen[k] = Math.max(lo, innen[k], 0); }
-      else if (lo <= innen[k] + 1e-6) { if (hi > innen[k]) innen[k] = hi; }
+      ringeSchneiden(st, k, p.r + h.lo[j], p.r + h.hi[j]);
     }
   } else if (s.modus === "bohr") {
     if (p.r > 0.05) return; // feste Werkzeuge nur auf der Drehmitte
@@ -776,8 +835,7 @@ function abtragen(st, s, p, h) {
     for (let k = Math.max(0, kStirn); k <= Math.min(n - 1, k0); k++) {
       const a = k0 - k;
       if (a >= h.rad.length) continue;
-      const r = Math.min(h.rad[a], aussen[k]);
-      if (r > innen[k]) innen[k] = r;
+      ringeSchneiden(st, k, -1, h.rad[a]);
     }
   }
 }
@@ -928,6 +986,7 @@ function rueckseite(k1, W) {
     const kk = Math.round((W - z2 - k1.z0) / RASTER);
     if (kk < 0 || kk >= k1.aussen.length) continue;
     st.aussen[k] = k1.aussen[kk]; st.innen[k] = k1.innen[kk];
+    if (k1.kernA) { kernVon(st); st.kernA[k] = k1.kernA[kk]; st.kernI[k] = k1.kernI[kk]; }
   }
   return st;
 }

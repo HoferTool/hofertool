@@ -12,7 +12,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
-import { RASTER, materialStand, simAufbauen, umrissVon, plattenHuelle, bohrerHuelle, innenTiefe } from "./camSim.js";
+import { RASTER, materialStand, simAufbauen, umrissVon, plattenHuelle, bohrerHuelle, innenTiefe, huelleFuer } from "./camSim.js";
 import { drehKoerper, abstechKoerper, fraeserKoerper } from "./camKoerper.js";
 import { stepFertig, stepHolen, stepLokal, stepDrehKoerper, stepRundKoerper } from "./camStep.js";
 import { MASCHINE_SB20RG, GEGEN_SB20RG, platzLage, traegerQuader, gegenEinheit, gegenQuader, platzLageSw, traegerSwQuader, MASCHINE_SW20 } from "./camMaschine.js";
@@ -95,6 +95,7 @@ function strahlenMalen(g, W, H, { st, vox, kanal2, Wt, bereich, dreh, zoom, schn
   if (!bg) return;
   const img = bg.createImageData(iw, ih), px = img.data;
   const { aussen, innen, z0 } = st;
+  const kA = st.kernA, kI = st.kernI; // seit 1.681.0: Kern (Nabe) in der Bohrung
   const nk = aussen.length;
   let Rb = 0, ka = nk, kb = -1;
   for (let k = 0; k < nk; k++) if (aussen[k] > innen[k] + 1e-6) { if (aussen[k] > Rb) Rb = aussen[k]; if (k < ka) ka = k; kb = k; }
@@ -127,7 +128,10 @@ function strahlenMalen(g, W, H, { st, vox, kanal2, Wt, bereich, dreh, zoom, schn
     const r2v = y * y + w * w, ra = aussen[k];
     if (r2v > ra * ra) return 1;
     const ri = innen[k];
-    if (ri > 0 && r2v <= ri * ri) return 2;
+    if (ri > 0 && r2v <= ri * ri) {
+      if (!kA || !(kA[k] > 0) || r2v > kA[k] * kA[k]) return 2;
+      if (kI[k] > 0 && r2v < kI[k] * kI[k]) return 2;
+    }
     if (offen(y, w)) return 3;
     if (vf) {
       const yp = y * rc + w * rs, wp = -y * rs + w * rc;
@@ -139,6 +143,7 @@ function strahlenMalen(g, W, H, { st, vox, kanal2, Wt, bereich, dreh, zoom, schn
   };
   const aw = (z) => { const k = Math.max(0, Math.min(nk - 1, Math.round((z - z0) / RASTER))); return aussen[k]; };
   const iwv = (z) => { const k = Math.max(0, Math.min(nk - 1, Math.round((z - z0) / RASTER))); return innen[k]; };
+  const kwv = (f, z) => { const k = Math.max(0, Math.min(nk - 1, Math.round((z - z0) / RASTER))); return f[k]; };
   const belegt = (z1, u, w1) => {
     const iz = Math.floor((z1 - vz0) / vh), iu = Math.floor((u + vR) / vh), iv = Math.floor((w1 + vR) / vh);
     return iz >= 0 && iz < vnz && iu >= 0 && iu < vnu && iv >= 0 && iv < vnu ? vf[(iz * vnu + iu) * vnu + iv] : 0;
@@ -192,6 +197,13 @@ function strahlenMalen(g, W, H, { st, vox, kanal2, Wt, bereich, dreh, zoom, schn
         if (schnitt) ab.push([Math.abs(y), [0, 1, 0]], [Math.abs(w), [0, 0, 1]]);
         n = ab.sort((u, v) => u[0] - v[0])[0][1];
       } else if (warum === 1 || warum === 5) n = [-(aw(z + e) - aw(z - e)) / (2 * e), y / r, w / r];
+      else if (warum === 2 && kA) {
+        // die nächste der drei Innenflächen: Bohrung aussen, Kern aussen, Bohrung im Kern
+        const fl = [[Math.abs(r - iwv(z)), 0], [Math.abs(r - kwv(kA, z)), 1], [Math.abs(r - kwv(kI, z)), 2]].sort((u, v) => u[0] - v[0])[0][1];
+        n = fl === 1 ? [-(kwv(kA, z + e) - kwv(kA, z - e)) / (2 * e), y / r, w / r]
+          : fl === 2 ? [(kwv(kI, z + e) - kwv(kI, z - e)) / (2 * e), -y / r, -w / r]
+          : [(iwv(z + e) - iwv(z - e)) / (2 * e), -y / r, -w / r];
+      }
       else if (warum === 2) n = [(iwv(z + e) - iwv(z - e)) / (2 * e), -y / r, -w / r];
       else if (warum === 3) n = Math.abs(y) < Math.abs(w) ? [0, 1, 0] : [0, 0, 1];
       else {
@@ -626,7 +638,7 @@ function Simulation({ w, zu }) {
       const p = pts[pts.length - 1];
       ueber.spitze = p;
       if (akt.wz && akt.modus === "dreh") {
-        const h = plattenHuelle(akt.wz, innenTiefe(akt));
+        const h = huelleFuer(akt);
         if (h) ueber.werkzeuge.push({ pts: h.umriss.map((q) => ({ z: p.z + q.z, r: p.r + q.x, phi: p.phi })), farbe: "rgba(224,161,42,.92)", rand: "#7a5410" });
         // seit 1.621.0 als 3D-Körper, mit Maschine zeichnet der Träger den Schaft
         const netz = dreiD && akt.wz.step && stepFertig(akt.wz.step.url);
@@ -745,7 +757,7 @@ function Simulation({ w, zu }) {
     }
     // Mit Bohrungen und Fräsungen aus C und Y: Strahlen statt Maler
     const vx = stand.vox && stand.vox.weg > 0 ? stand.vox : null;
-    const strahl = vx && umriss ? { st, vox: vx, kanal2: kanal === 2, Wt: W, q: laeuft ? 0.45 : 1 } : null;
+    const strahl = (vx || (st && st.kernA)) && umriss ? { st, vox: vx, kanal2: kanal === 2, Wt: W, q: laeuft ? 0.45 : 1 } : null;
     const k = MASCHINE_SB20RG.kopf, gs = GEGEN_SB20RG.spindel;
     let maschine = null, gegen = null;
     if (kanal === 1 && maschineAn && swLage) {
