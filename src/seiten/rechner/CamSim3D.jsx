@@ -657,8 +657,14 @@ function Simulation({ w, zu }) {
     }
   };
   const ziel = useRef(0);
+  const setNT = (x) => { setTeilAnsicht(false); setN(x); };
   // Seit 1.580.0: Maschine (Werkzeugträger Kanal 1, Spindelstock) zeigen, je Gerät gemerkt
-  const [maschineAn, setMaschineAn] = useState(() => { try { return localStorage.getItem("hofer.camSim.maschine") !== "0"; } catch { return true; } });
+  const [maschineWahl, setMaschineAn] = useState(() => { try { return localStorage.getItem("hofer.camSim.maschine") !== "0"; } catch { return true; } });
+  // Seit 1.689.0 (Patrick 21. November 2026: „ich will es dann als 3D-Modell
+  // betrachten können und drehen und schwenken“): „Fertigteil ansehen“ zeigt
+  // nur das fertige Teil ohne Maschine, frei drehbar und zoombar
+  const [teilAnsicht, setTeilAnsicht] = useState(false);
+  const maschineAn = maschineWahl && !teilAnsicht;
   const [dreh, setDreh] = useState(SCHRAEG);
   const [zoom, setZoom] = useState(1);
   // Ansicht verschieben (seit 1.682.0): Shift, rechte oder mittlere Maustaste ziehen, zwei Finger
@@ -683,8 +689,11 @@ function Simulation({ w, zu }) {
       b: (t) => k2 + Math.min(t, L2),
     };
   }, [simultan, simMoeglich, abSchritt, gesamt]);
-  const n = zeit ? zeit.a(nT) : nT;
-  const nB = zeit && nT < zeit.Tm ? zeit.b(nT) : null;
+  const n = teilAnsicht ? gesamt : zeit ? zeit.a(nT) : nT;
+  const nB = !teilAnsicht && zeit && nT < zeit.Tm ? zeit.b(nT) : null;
+  // Stand des Teils in der Gegenspindel (simultan); nach Kanal 2 bleibt es
+  // fertig, auch wenn nB danach nicht mehr läuft (Ablage)
+  const nBS = !teilAnsicht && zeit ? (nT < zeit.Tm ? zeit.b(nT) : gesamt) : null;
   const endeT = zeit ? zeit.T : gesamt;
   // Regler-Stand am Ende eines Schritts
   const tVon = (s) => (!zeit ? s.bis : s.kanal === 2 ? s.bis - zeit.k2 : s.modus === "abstech" ? zeit.T : s.bis);
@@ -706,7 +715,7 @@ function Simulation({ w, zu }) {
   }, [stepUrl]);
   const kanal = n >= gesamt && sim.hatK2 ? 2 : akt ? akt.kanal : 1;
   const stand = useMemo(() => materialStand(sim, n, cache.current), [sim, n]);
-  const standB = useMemo(() => (nB != null ? materialStand(sim, nB, cache2.current) : null), [sim, nB]);
+  const standB = useMemo(() => (nBS != null ? materialStand(sim, nBS, cache2.current) : null), [sim, nBS]);
   const aktB = nB != null ? schritte.find((s) => s.kanal === 2 && s.von < nB && nB <= s.bis) || null : null;
   // Spindelstock: fährt mit dem Material, steht also im Teil fest, hinter
   // der Führungsbüchse, auch wenn das Teil am weitesten draussen ist
@@ -993,7 +1002,25 @@ function Simulation({ w, zu }) {
       return { frame: fr, k2, roll: r2, sAkt, pAkt, weg };
     };
     let zweit = null;
-    if (swMaschine && kanal === 2) {
+    // Seit 1.689.0 (Patrick 21. November 2026: „Fertigteil soll heissen, die
+    // Gegenspindel hat übernommen und steht zurück auf Grundposition. Wenn
+    // Kanal 2 fertig ist, muss die Spindel das Teil auswerfen, es soll links
+    // neben dem Werkzeugkopf von Kanal 2 deponiert werden“): nach Kanal 2
+    // steht die Gegenspindel leer in der Grundstellung, das Teil liegt in
+    // einer Schale neben dem Block Kanal 2 (grösseres X, im Bild links)
+    const ablage = swMaschine && sim.hatK2 ? {
+      frame: { s: -1, z0: swEbene + SW20_K2.spitze + W, xf: SW20_K2.versatz.x + 275, yf: 30 },
+      schale: true,
+    } : null;
+    const abgelegt = !!ablage && !zeit && n >= gesamt;
+    const abgelegtB = !!ablage && !!zeit && nT >= zeit.L2;
+    if (abgelegt) {
+      frame = ablage.frame; swK2 = { aktiv: 0, y: 0 }; roll = 0;
+      ueber.bahnen = []; ueber.koerper = []; ueber.werkzeuge = []; ueber.stangen = []; ueber.spitze = null;
+    } else if (abgelegtB && standB && standB.k2) {
+      swK2 = { aktiv: 0, y: 0 };
+      zweit = { umriss: umrissVon(standB.k2, W), frame: ablage.frame, roll: 0, spitze: null, bahn: [], abgelegt: true };
+    } else if (swMaschine && kanal === 2) {
       const l = k2Bei(n, swEbene);
       frame = l.frame; swK2 = l.k2;
       if (l.roll != null) roll = l.roll;
@@ -1063,14 +1090,21 @@ function Simulation({ w, zu }) {
         if (abS && n > abS.von) {
           const pa = abS.punkte[Math.min(n, abS.bis) - abS.von - 1];
           gegen = gGelb((pa && pa.g != null ? pa.g : sim.greif) - wegZ, 0);
-        } else if (zweit) gegen = gGelb(zweit.frame.z0 - (W - sim.greif), zweit.frame.xf);
+        } else if (zweit && !zweit.abgelegt) gegen = gGelb(zweit.frame.z0 - (W - sim.greif), zweit.frame.xf);
         else gegen = gGelb(swEbene + SW20_K2.gegenHeim, 0);
       } else {
         // Büchse und Rest der Stange bleiben an der Hauptspindel
         maschine.koepfe.push({ z: zb, ri: A / 2, nase: BUECHSE_R, naseL: BUECHSE_L, r: BUECHSE_R, L: 0, art: "buechse" });
         const rest = W + (abS ? abS.breite : 0);
         if (kopfZ > rest) maschine.koepfe.push({ z: rest, ri: 0, nase: A / 2, naseL: kopfZ - rest, r: A / 2, L: 0, art: "roh" });
-        gegen = gGelb(frame.z0 - (W - sim.greif), frame.xf);
+        gegen = abgelegt ? gGelb(swEbene + SW20_K2.gegenHeim, 0) : gGelb(frame.z0 - (W - sim.greif), frame.xf);
+      }
+      // Schale für das ausgeworfene Teil neben dem Block Kanal 2
+      if (ablage && (abgelegt || abgelegtB)) {
+        const f = ablage.frame, zA = f.z0 - W - 6, zB = f.z0 + 6, y0 = f.yf - A / 2 - 4;
+        maschine.quader.push({ z0: zA, z1: zB, x0: f.xf - A / 2 - 8, x1: f.xf + A / 2 + 8, y0, y1: y0 + 3, art: "schlitten" });
+        maschine.quader.push({ z0: zA, z1: zB, x0: f.xf - A / 2 - 8, x1: f.xf - A / 2 - 5, y0, y1: y0 + 10, art: "schlitten" });
+        maschine.quader.push({ z0: zA, z1: zB, x0: f.xf + A / 2 + 5, x1: f.xf + A / 2 + 8, y0, y1: y0 + 10, art: "schlitten" });
       }
     } else if (kanal === 1 && maschineAn) {
       maschine = {
@@ -1122,6 +1156,8 @@ function Simulation({ w, zu }) {
         if (pAkt.phi != null && Math.hypot(yM, wM) > 1e-6) roll = Math.atan2(wM, yM) - pAkt.phi;
       }
     }
+    if (teilAnsicht) { ueber.bahnen = []; ueber.koerper = []; ueber.werkzeuge = []; ueber.stangen = []; ueber.spitze = null; ueber.buechse = null; }
+    cv.__ablage = abgelegt ? "teil" : abgelegtB ? "zweit" : null; cv.__teilAnsicht = teilAnsicht;
     cv.__sw = swLage;
     cv.__traeger = traeger; cv.__kopf = maschine ? maschine.kopf || null : null; cv.__roll = roll; cv.__gegen = gegen; cv.__quader = maschine ? maschine.quader : null;
     cv.__stand = stand; cv.__sim = sim; cv.__strahl = !!strahl; cv.__werkzeuge = ueber.werkzeuge; cv.__koerper = ueber.koerper.length; cv.__step = !!(stepUrl && stepFertig(stepUrl)); cv.__buechse = ueber.buechse; cv.__weg = wegZ; cv.__ansichtZ = dz; // für den Prüfstand
@@ -1129,7 +1165,7 @@ function Simulation({ w, zu }) {
     const roh = { R: A / 2, vorne: kanal === 1 && !wegZ ? vorne : null };
     cv.__frame = frame; cv.__k2 = swK2; cv.__zweit = zweit ? { frame: zweit.frame, nB } : null;
     malen(g, breite, HOCH, { umriss, strahl, bereich, dreh: sim && sim.sw ? { ...dreh, c: SW_BLICK } : dreh, zoom, schnitt, ueber, roh, maschine, roll, frame, zweit, hinweis: umriss ? "" : "Kein Material" });
-  }, [sim, stand, standB, n, nB, kanal, akt, dreh, zoom, schnitt, breite, laeuft, maschineAn, kopfZ, dreiD, stepStand, schieb, swSpitzen]);
+  }, [sim, stand, standB, n, nB, nT, zeit, teilAnsicht, kanal, akt, dreh, zoom, schnitt, breite, laeuft, maschineAn, kopfZ, dreiD, stepStand, schieb, swSpitzen]);
 
   useEffect(() => {
     if (!laeuft) return undefined;
@@ -1205,7 +1241,7 @@ function Simulation({ w, zu }) {
         <div className="cam-sim__bildteil" ref={rahmen}>
           <div className="cam-sim__titel" id="cam-sim-titel">
             {kanal === 2 ? "Kanal 2 · Rückseite in der Gegenspindel" : akt && akt.pfad === 3 ? "Kanal 3 · an der Hauptspindel" + (akt.zTraeger ? ", Träger 3 fährt in Z" : ", Material fährt (M133)") : "Kanal 1 · Vorderseite"}
-            {n >= gesamt && gesamt ? " · Fertigteil" : akt && n > akt.von && n <= akt.bis ? " · " + akt.titel : zeit && nT < zeit.Tm && n >= zeit.L1 ? " · wartet auf Kanal 2" : ""}
+            {teilAnsicht ? " · Fertigteil als 3D-Modell (ziehen dreht und schwenkt, Mausrad zoomt)" : n >= gesamt && gesamt ? (sim.sw && maschineAn && sim.hatK2 ? " · Fertigteil ausgeworfen, liegt neben Kanal 2" : " · Fertigteil") : akt && n > akt.von && n <= akt.bis ? " · " + akt.titel : zeit && nT < zeit.Tm && n >= zeit.L1 ? " · wartet auf Kanal 2" : ""}
             {aktB && <span id="cam-sim-titel2">{" · gleichzeitig Kanal 2: " + aktB.titel}</span>}
             {zeit && nB != null && !aktB && nT > 0 && <span id="cam-sim-titel2">{" · Kanal 2 wartet"}</span>}
           </div>
@@ -1215,7 +1251,7 @@ function Simulation({ w, zu }) {
             <button className="knopf knopf--klein knopf--primaer" id="cam-sim-start" onClick={() => {
               if (laeuft) { setLaeuft(false); return; }
               const ab = nT >= endeT ? 0 : nT;
-              if (nT >= endeT) setN(0);
+              if (nT >= endeT) setNT(0);
               // Ende der Bearbeitung, in der es weitergeht
               if (zeit) ziel.current = Math.min(endeT, ...grenzen.filter((g) => g > ab));
               else {
@@ -1225,14 +1261,17 @@ function Simulation({ w, zu }) {
               setLaeuft(true);
             }}>
               {laeuft ? "⏸ Pause" : "▶ Abspielen"}</button>
-            <button className="knopf knopf--klein" id="cam-sim-anfang" onClick={() => { setLaeuft(false); setN(0); }}>⏮ Rohteil</button>
+            <button className="knopf knopf--klein" id="cam-sim-anfang" onClick={() => { setLaeuft(false); setNT(0); }}>⏮ Rohteil</button>
             {/* Eine Bearbeitung zurück / vor (Wunsch Patrick 18. November 2026): Grenzen
                 sind Rohteil und das Ende jeder Bearbeitung mit Weg */}
             <button className="knopf knopf--klein" id="cam-sim-zurueck" title="Eine Bearbeitung zurück" disabled={nT <= 0}
-              onClick={() => { setLaeuft(false); setN(Math.max(0, ...grenzen.filter((g) => g < nT))); }}>◀ Bearbeitung</button>
+              onClick={() => { setLaeuft(false); setNT(Math.max(0, ...grenzen.filter((g) => g < nT))); }}>◀ Bearbeitung</button>
             <button className="knopf knopf--klein" id="cam-sim-vor" title="Eine Bearbeitung vor" disabled={nT >= endeT}
-              onClick={() => { setLaeuft(false); setN(Math.min(endeT, ...grenzen.filter((g) => g > nT))); }}>Bearbeitung ▶</button>
-            <button className="knopf knopf--klein" id="cam-sim-ende" onClick={() => { setLaeuft(false); setN(endeT); }}>Fertigteil ⏭</button>
+              onClick={() => { setLaeuft(false); setNT(Math.min(endeT, ...grenzen.filter((g) => g > nT))); }}>Bearbeitung ▶</button>
+            <button className="knopf knopf--klein" id="cam-sim-ende" onClick={() => { setLaeuft(false); setNT(endeT); }}>Fertigteil ⏭</button>
+            {gesamt > 0 && <button className={"knopf knopf--klein" + (teilAnsicht ? " knopf--primaer" : "")} id="cam-sim-teil" title="Nur das fertige Teil als 3D-Modell: ziehen dreht und schwenkt, Mausrad zoomt"
+              onClick={() => { setLaeuft(false); if (teilAnsicht) { setTeilAnsicht(false); } else { setTeilAnsicht(true); setDreh(SCHRAEG); setZoom(1); setSchieb({ x: 0, y: 0 }); } }}>
+              {teilAnsicht ? "Zurück zur Maschine" : "🔍 Fertigteil ansehen"}</button>}
             <label className="cam-feld">Tempo
               <select value={tempo} onChange={(e) => setTempo(e.target.value)}>
                 {TEMPI.map(([x, t]) => <option key={x} value={x}>{t}</option>)}
@@ -1241,10 +1280,10 @@ function Simulation({ w, zu }) {
               onChange={(e) => halten("einzeln", e.target.checked)} /><span>Einzeln</span></label>
             <label className="schalter" title="Einzelsatz: Abspielen fährt nur die nächste NC-Zeile und hält dann an"><input type="checkbox" id="cam-sim-satz" checked={satz && !zeit} disabled={!!zeit}
               onChange={(e) => halten("satz", e.target.checked)} /><span>Einzelsatz</span></label>
-            <label className="schalter" title="Werkzeugträger, Spindelstock und Gegenspindel zeigen"><input type="checkbox" id="cam-sim-maschine" checked={maschineAn}
-              onChange={(e) => { setMaschineAn(e.target.checked); try { localStorage.setItem("hofer.camSim.maschine", e.target.checked ? "1" : "0"); } catch { /* egal */ } }} /><span>Maschine</span></label>
+            <label className="schalter" title="Werkzeugträger, Spindelstock und Gegenspindel zeigen"><input type="checkbox" id="cam-sim-maschine" checked={maschineWahl}
+              onChange={(e) => { setTeilAnsicht(false); setMaschineAn(e.target.checked); try { localStorage.setItem("hofer.camSim.maschine", e.target.checked ? "1" : "0"); } catch { /* egal */ } }} /><span>Maschine</span></label>
             {simMoeglich && <label className="schalter" title="Ohne Häkchen nacheinander: Kanal 1 und 3, dann Kanal 2. Mit Häkchen simultan wie an der Maschine: Kanal 2 bearbeitet das vorige Teil, während Kanal 1 und 3 am nächsten arbeiten"><input type="checkbox" id="cam-sim-simultan" checked={simultan}
-              onChange={(e) => { setLaeuft(false); setN(0); setSimultan(e.target.checked); try { localStorage.setItem("hofer.camSim.simultan", e.target.checked ? "1" : "0"); } catch { /* egal */ } }} /><span>Simultan</span></label>}
+              onChange={(e) => { setLaeuft(false); setNT(0); setSimultan(e.target.checked); try { localStorage.setItem("hofer.camSim.simultan", e.target.checked ? "1" : "0"); } catch { /* egal */ } }} /><span>Simultan</span></label>}
             <label className="schalter" title="Werkzeug als 3D-Körper statt flach in der Ebene zeigen"><input type="checkbox" id="cam-sim-wz3d" checked={dreiD}
               onChange={(e) => { setDreiD(e.target.checked); try { localStorage.setItem("hofer.camSim.wz3d", e.target.checked ? "1" : "0"); } catch { /* egal */ } }} /><span>3D-Werkzeug</span></label>
             {stepUrl && !stepFertig(stepUrl) && <span className="klein" data-cam-sim-step>{stepStand.url === stepUrl && stepStand.fehler ? "STEP nicht lesbar: " + stepStand.fehler : "STEP wird gelesen …"}</span>}
@@ -1252,7 +1291,7 @@ function Simulation({ w, zu }) {
             <button className="knopf knopf--klein" onClick={() => { setDreh(SCHRAEG); setZoom(1); setSchieb({ x: 0, y: 0 }); }}>Schräg</button>
             <button className="knopf knopf--klein" onClick={() => setDreh(SEITE)}>Von der Seite</button>
             <input type="range" min={0} max={endeT} value={nT} className="cam-sim__regler" id="cam-sim-regler"
-              onChange={(e) => { setLaeuft(false); setN(Number(e.target.value)); }} />
+              onChange={(e) => { setLaeuft(false); setNT(Number(e.target.value)); }} />
           </div>
           <div className="cam-sim__zeile" id="cam-sim-zeile">{zeile ? "Zeile: " + zeile : " "}
             {naechst && <span className="cam-sim__naechst" id="cam-sim-naechst"> · als Nächstes: {naechst}</span>}</div>
@@ -1265,7 +1304,7 @@ function Simulation({ w, zu }) {
             return (
               <button key={s.id} data-cam-sim-schritt={s.i} className={"cam-sim__schritt" + (aktiv ? " aktiv" : "") + (s.status === "fehlt" ? " cam-sim__schritt--fehlt" : s.status ? " cam-sim__schritt--grau" : "")}
                 disabled={!s.punkte.length} title="Bis ans Ende dieser Bearbeitung springen"
-                onClick={() => { setLaeuft(false); setN(tVon(s)); }}>
+                onClick={() => { setLaeuft(false); setNT(tVon(s)); }}>
                 <span className="cam-sim__k">K{s.pfad || s.kanal}</span>
                 <span className="cam-sim__name">{s.titel}</span>
                 {s.status && <small>{STATUS[s.status]}</small>}
