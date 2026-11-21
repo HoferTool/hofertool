@@ -110,6 +110,18 @@ export function datumText(iso) {
   const [j, m, t] = String(iso).slice(0, 10).split("-");
   return t + "." + m + "." + j;
 }
+// Kalenderwoche nach ISO wie im Gewatec: „25/26“
+export function kwText(iso) {
+  if (!iso) return "";
+  const t = new Date(String(iso).slice(0, 10) + "T12:00:00");
+  if (isNaN(t)) return "";
+  const tag = (t.getDay() + 6) % 7;
+  t.setDate(t.getDate() - tag + 3);
+  const jahr = t.getFullYear();
+  const erster = new Date(jahr, 0, 4, 12);
+  const kw = 1 + Math.round(((t - erster) / 86400000 - 3 + ((erster.getDay() + 6) % 7)) / 7);
+  return String(kw).padStart(2, "0") + "/" + String(jahr).slice(2);
+}
 export function terminText(p) {
   if (p.termin_kw) return "KW " + p.termin_kw;
   return p.termin ? datumText(p.termin) : "";
@@ -169,7 +181,14 @@ export function peKurz(pe) {
   return n === 1 ? "/Stk" : n === 100 ? "/100" : "/1'000";
 }
 export function posPe(p) { return peZahl(p && p.daten && p.daten.pe); }
-export function posBetrag(p) { return zahl(p.menge) * zahl(p.preis) / posPe(p); }
+// Betrag einer Position: Menge × Preis / Preiseinheit, oder pauschal der
+// Preis; dazu Teuerungszuschlag TZ %, Rabatt % und Porto wie in der
+// Gewatec-Auftragsposition (seit 1.686.0). Fehlt etwas, zählt es nicht.
+export function posBetrag(p) {
+  const pd = (p && p.daten) || {};
+  const grund = pd.pauschal ? zahl(p.preis) : zahl(p.menge) * zahl(p.preis) / posPe(p);
+  return grund * (1 + zahl(pd.tz) / 100) * (1 - zahl(pd.rabatt) / 100) + zahl(pd.porto);
+}
 export function preisliste(a) {
   const pl = a && a.daten && a.daten.preisliste;
   const staffeln = ((pl && pl.staffeln) || []).filter((x) => x && String(x.preis ?? "").trim() !== "")

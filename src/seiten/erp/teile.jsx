@@ -4,6 +4,13 @@ import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { adresseText, chf, datumText, mengeText, terminText, belegSumme, BELEGTYP, artikelText, posPe, posBetrag, peKurz } from "../../daten/erp.js";
 
+// Felder eines Arbeitsgangs (Arbeitsplan beim Artikel und Fenster Arbeitsplan)
+export const AG_FELDER = [
+  { name: "bez", label: "Arbeitsgang" }, { name: "maschine", label: "Betriebsmittel / Lieferant" },
+  { name: "te", label: "te s/Stk" }, { name: "ruest", label: "Rüsten h" },
+  { name: "extern", label: "extern", typ: "haken" }, { name: "pruef", label: "Prüfung / Hinweis" },
+];
+
 // Ein Feld nach Beschreibung: { name, label, typ (text|zahl|datum|textarea|haken|liste),
 //   auswahl: [[wert, text]], felder (bei liste), breit, hinweis }
 export function Feld({ f, wert, setzen }) {

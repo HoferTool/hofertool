@@ -2,7 +2,7 @@
 // Prüfmittel, Liefer- und Zahlungsbedingungen, Lager, Arbeitspläne)
 import { useState } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
-import { formular, Tabelle, Suche, passt, tun, Feld } from "./teile.jsx";
+import { formular, Tabelle, Suche, passt, tun, Feld, AG_FELDER } from "./teile.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import {
   einfuegen, aendern, loeschen, naechstePartnerNr, ARTIKELART, HOFER_NR, bestand, mengeText, chf,
@@ -10,6 +10,7 @@ import {
 } from "../../daten/erp.js";
 import { stundensatz } from "../../daten/kalkulation.js";
 import { artikelFensterOeffnen } from "./ArtikelFenster.jsx";
+import { partnerFensterOeffnen } from "./PartnerFenster.jsx";
 
 export const STAMM_REITER = [
   ["lieferant", "Lieferanten"], ["kunde", "Kunden"], ["artikel", "Artikel"], ["betriebsmittel", "Betriebsmittel"],
@@ -111,7 +112,7 @@ function Partner({ d, neu, art }) {
   return (
     <>
       <div className="mat-kopf">
-        <button className="knopf knopf--haupt" data-erp-neu={art} onClick={() => partnerBearbeiten(d, neu, art)}>
+        <button className="knopf knopf--haupt" data-erp-neu={art} onClick={() => partnerFensterOeffnen(d, neu, null, art)}>
           + {art === "kunde" ? "Kunde" : "Lieferant"}</button>
         <Suche wert={suche} setzen={setSuche} platzhalter="Nr., Name, Ort, Ansprechpartner …" />
       </div>
@@ -120,7 +121,7 @@ function Partner({ d, neu, art }) {
         zeilen={liste.map((p) => {
           const pd = p.daten || {}, ad = pd.adresse || {};
           const karte = mapsLink(ad);
-          return { key: p.id, klasse: p.aktiv ? "" : "erp-blass", klick: () => partnerBearbeiten(d, neu, art, p),
+          return { key: p.id, klasse: p.aktiv ? "" : "erp-blass", klick: () => partnerFensterOeffnen(d, neu, p),
             zellen: [<b>{p.nr}</b>, p.name, p.gruppe || "", [ad.plz, ad.ort].filter(Boolean).join(" "), pd.telefon || "", pd.mail || "",
               <span className="erp-links" onClick={(e) => e.stopPropagation()}>
                 {pd.webseite && <a href={/^https?:/.test(pd.webseite) ? pd.webseite : "https://" + pd.webseite} target="_blank" rel="noreferrer">Web</a>}
@@ -229,7 +230,7 @@ function Artikel({ d, neu }) {
           data-erp-artart={w} onClick={() => setArt(w)}>{t}</button>)}
       </div>
       <div className="mat-kopf">
-        <button className="knopf knopf--haupt" data-erp-neu="artikel" onClick={() => artikelBearbeiten(d, neu, art)}>+ Artikel</button>
+        <button className="knopf knopf--haupt" data-erp-neu="artikel" onClick={() => artikelFensterOeffnen(d, neu, null, { art })}>+ Artikel</button>
         <button className="knopf" onClick={() => tun(() => ausHoferTool(art, d, neu))}>Aus HoferTool übernehmen</button>
         <Suche wert={suche} setzen={setSuche} platzhalter="Nr., Bezeichnung, Zeichnung, Kunde …" />
       </div>
@@ -237,15 +238,13 @@ function Artikel({ d, neu }) {
       <Tabelle kopf={art === "hofer" ? ["Artikel-Nr.", "Index", "Bezeichnung", "Zeichnung", "Kunde", "Preis", "Bestand", "AP", ""]
         : ["Artikel-Nr.", "Bezeichnung", "Einheit", "Preis", "Bestand"]}
         zeilen={liste.slice(0, anzahl).map((a) => ({ key: a.id, klasse: a.aktiv ? "" : "erp-blass",
-          klick: () => (art === "hofer" ? artikelFensterOeffnen(d, neu, a, {
-            bearbeiten: (x) => artikelBearbeiten(d, neu, art, x), index: (x) => artikelBearbeiten(d, neu, art, x, true),
-            arbeitsplan: (x) => arbeitsplanBearbeiten(x, neu) }) : artikelBearbeiten(d, neu, art, a)),
+          klick: () => artikelFensterOeffnen(d, neu, a),
           zellen: art === "hofer"
             ? [<b>{a.nr}</b>, a.idx || "–", a.bezeichnung || "", a.zeichnung || "", (d.partnerMap.get(a.kunde_id) || {}).name || "",
               a.preis != null ? <>{chf(a.preis)} <small>{peKurz((a.daten || {}).pe)}</small>{((a.daten || {}).preisliste || {}).kalkulation_nr ? <small> · {a.daten.preisliste.kalkulation_nr}</small> : null}</> : "",
               mengeText(best.get(a.id) || 0), (a.arbeitsplan || []).length || "",
               <button className="knopf knopf--klein" title="Neuen Index anlegen"
-                onClick={(e) => { e.stopPropagation(); artikelBearbeiten(d, neu, art, a, true); }}>+ Index</button>]
+                onClick={(e) => { e.stopPropagation(); artikelFensterOeffnen(d, neu, a, { index: true }); }}>+ Index</button>]
             : [<b>{a.nr}</b>, a.bezeichnung || "", a.einheit, a.preis != null ? chf(a.preis) : "", mengeText(best.get(a.id) || 0)] }))} />
       {liste.length > anzahl && <button className="knopf" onClick={() => setAnzahl(anzahl + 200)}>Mehr zeigen</button>}
     </>
@@ -381,11 +380,7 @@ function Lager({ d, neu }) {
 }
 
 // ---------- Arbeitspläne ----------
-export const AG_FELDER = [
-  { name: "bez", label: "Arbeitsgang" }, { name: "maschine", label: "Betriebsmittel / Lieferant" },
-  { name: "te", label: "te s/Stk" }, { name: "ruest", label: "Rüsten h" },
-  { name: "extern", label: "extern", typ: "haken" }, { name: "pruef", label: "Prüfung / Hinweis" },
-];
+export { AG_FELDER };
 
 export function arbeitsplanBearbeiten(a, neu) {
   fensterOeffnen((zu) => <ApFenster a={a} neu={neu} zu={zu} />);
@@ -419,7 +414,7 @@ function Arbeitsplaene({ d, neu }) {
       <div className="mat-kopf"><Suche wert={suche} setzen={setSuche} platzhalter="Artikel suchen, um einen Arbeitsplan anzulegen …" /></div>
       <Tabelle kopf={["Artikel", "Index", "Bezeichnung", "Arbeitsgänge", "Aus Kalkulation"]}
         leer="Noch keine Arbeitspläne. In der Kalkulation „Artikel und Arbeitsplan anlegen“ oder hier einen Artikel suchen."
-        zeilen={liste.map((a) => ({ key: a.id, klick: () => arbeitsplanBearbeiten(a, neu),
+        zeilen={liste.map((a) => ({ key: a.id, klick: () => artikelFensterOeffnen(d, neu, a, { reiter: "arbeitsplan" }),
           zellen: [<b>{a.nr}</b>, a.idx || "–", a.bezeichnung || "", (a.arbeitsplan || []).map((x) => x.bez).join(" → "), a.kalkulation_id ? "ja" : ""] }))} />
     </>
   );
