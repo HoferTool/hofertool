@@ -348,11 +348,13 @@ export function bloeckeLesen(k1, k2, k3) {
     t3 = abschnitteVon(mitte(k3, 3), (z) => /^T\d{3,4}(\(|$)/i.test(z) && !/^T0+(\(|$)/.test(z));
     t3.ab.forEach((s, pos) => {
       const platz = s[0].match(/^T(\d{3,4})/i)[1];
-      const art = arten3.find((a) => plaetzeVon(a).includes(platz));
-      if (!art) return;
-      const best = besteVorlage([art], s, 3);
-      if (zuSchlecht(best, s)) { liste.push({ b: freiBlock(art, s, platz), p1: Infinity, p3: pos }); return; }
-      const b = blockAus(art, null, best.r);
+      // Seit 1.676.0 teilen sich Frontbohrapparat angetrieben (k3f) und
+      // fest (k3ff) die Plätze T1300–T1500: die besser passende Vorlage gilt
+      const arten = arten3.filter((a) => plaetzeVon(a).includes(platz));
+      if (!arten.length) return;
+      const best = besteVorlage(arten, s, 3);
+      if (zuSchlecht(best, s)) { liste.push({ b: freiBlock(arten[0], s, platz), p1: Infinity, p3: pos }); return; }
+      const b = blockAus(best.art, null, best.r);
       b.code = (best.r.liste || []).join("\n");
       liste.push({ b, p1: Infinity, p3: pos });
     });

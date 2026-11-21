@@ -189,7 +189,13 @@ export const t34Von = (w) => (w && String(w.t34) === "3421" ? "3421" : "3400");
 const istSw = () => (typ().kanaele || 2) > 2;
 export function montiert(gruppe, w) {
   const l = plaetzeVon(gruppe);
-  if (istSw()) return gruppe === "front" || gruppe === "k3f" ? l.filter((p) => swFrontVon(w).includes(Number(p))) : l;
+  // Seit 1.676.0 (Patrick 21. November 2026: „frontbohrapparate können für
+  // feste werkzeuge oder angetrieben sein“): je Platz fest oder angetrieben
+  if (istSw()) {
+    if (gruppe === "front" || gruppe === "k3ff") return l.filter((p) => swFrontVon(w).includes(Number(p)) && swFrontArt(w, p) === "fest");
+    if (gruppe === "k3f") return l.filter((p) => swFrontVon(w).includes(Number(p)) && swFrontArt(w, p) === "an");
+    return l;
+  }
   const t = t34Von(w);
   if (gruppe === "seite" && t !== "3400") return l.filter((p) => String(p) !== "3400");
   if (gruppe === "quer" && t === "3400") return [];
@@ -197,7 +203,7 @@ export function montiert(gruppe, w) {
 }
 export function nichtMontiert(b, w) {
   const p = String(b.platz ?? ""), t = t34Von(w);
-  if (istSw()) return (b.art === "front" || b.art === "k3f") && !b.frei && !swFrontVon(w).includes(Number(p));
+  if (istSw()) return ["front", "k3f", "k3ff"].includes(b.art) && !b.frei && !montiert(b.art, w).includes(p);
   return (p === "3400" && t !== "3400") || (/^342[1-3]$/.test(p) && t === "3400");
 }
 // Die SB-20RG hat nur vier Hochdruck-Stufen (Patrick 7. November 2026: „es gibt nur 4 nicht 6“).
@@ -256,13 +262,15 @@ export function drehzahl(b, w = {}) {
 
 export function blockFehler(b, w = {}) {
   const f = {};
-  if (nichtMontiert(b, w)) f.platz = "T" + b.platz + (istSw() ? " hat keinen Frontbohrapparat (Bestückung)" : " ist nicht montiert (Kopfdaten: Platz 34)");
+  if (nichtMontiert(b, w)) f.platz = "T" + b.platz + (!istSw() ? " ist nicht montiert (Kopfdaten: Platz 34)"
+    : !swFrontVon(w).includes(Number(b.platz)) ? " hat keinen Frontbohrapparat (Bestückung)"
+    : " hat einen Frontbohrapparat " + (swFrontArt(w, b.platz) === "an" ? "angetrieben" : "fest") + " (Bestückung)");
   if (b.frei) return f;
   b = wirksamB(b); w = wirksamW(w);
   // Kanal 3 SW-20 (1.666.0)
-  if (b.art === "k3f" || b.art === "k3d") {
+  if (b.art === "k3f" || b.art === "k3d" || b.art === "k3ff") {
     if (!/^\d+$/.test(String(b.S).trim()) || Number(b.S) <= 0) f.S = "ganze Zahl";
-    const pflicht = b.art === "k3f" ? ["X", "anZ", "zuZ", "wegZ"] : ["vorX", "anZ", "nZ"];
+    const pflicht = b.art === "k3f" ? ["X", "anZ", "zuZ", "wegZ"] : b.art === "k3ff" ? ["vorX", "anZ", "nZ", "wegZ"] : ["vorX", "anZ", "nZ"];
     for (const n of pflicht) if (zahl(b[n]) == null) f[n] = "Zahl fehlt";
     for (const n of ["Y", "C"]) if (String(b[n] ?? "").trim() !== "" && zahl(b[n]) == null) f[n] = "Zahl oder leer";
     return f;
@@ -1091,15 +1099,21 @@ export function swFrontVon(w) {
   const l = Array.isArray(w && w.swFront) ? w.swFront.map(Number) : [];
   return SW20_FRONT_PLAETZE.filter((p) => l.includes(p));
 }
+// Art des Frontbohrapparats je Platz (1.676.0): w.swFrontArt {platz: "fest" | "an"};
+// ohne Wahl Kanal 1 fest (Patricks T600), Kanal 3 angetrieben (Patricks T1300)
+export function swFrontArt(w, platz) {
+  const a = w && w.swFrontArt && w.swFrontArt[String(Number(platz))];
+  return a === "fest" || a === "an" ? a : Number(platz) <= 700 ? "fest" : "an";
+}
 export function sw20Bereich(platz, w) {
   const p = Number(platz);
   const a = SW20_FLAECHEN[p];
   if (!a) return null;
   let text;
   if (p <= 400) text = p === 100 ? "Kanal 1 · Abstechen" : "Kanal 1 · Drehwerkzeug";
-  else if (p <= 700) text = "Kanal 1 · " + (swFrontVon(w).includes(p) ? "Frontbohrapparat" : "angetrieben quer");
+  else if (p <= 700) text = "Kanal 1 · " + (swFrontVon(w).includes(p) ? "Frontbohrapparat " + (swFrontArt(w, p) === "an" ? "angetrieben" : "fest") : "angetrieben quer");
   else if (p <= 1200) text = "Kanal 3 · Drehwerkzeug";
-  else if (p <= 1500) text = "Kanal 3 · " + (swFrontVon(w).includes(p) ? "Frontbohrapparat" : "angetrieben quer");
+  else if (p <= 1500) text = "Kanal 3 · " + (swFrontVon(w).includes(p) ? "Frontbohrapparat " + (swFrontArt(w, p) === "an" ? "angetrieben" : "fest") : "angetrieben quer");
   else if (p <= 1900) text = "Kanal 3 · Frontbohrapparat fest";
   else text = "Kanal 2 · Rückseite " + (p === 2400 || p === 2800 ? "fest" : "fest oder angetrieben");
   return r4(a, text);
