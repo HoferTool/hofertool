@@ -47,7 +47,7 @@ export const zMax = (w) => (w && w.typ === "star-sw20" ? 205 : 200);
 // Gegenspindel (G1W…F0.10 im Ende von Kanal 1, Patrick 21. November 2026)
 export const feldFuerTyp = (d, w) => (!w || w.typ !== "star-sw20" ? d
   : d.name === "plan" ? { ...d, text: "Schlichtzugabe Gegensp. W", lang: "Ende Kanal 1: G1W…F0.10 vor dem Abstechen (Schlichtzugabe für die Gegenspindel)" }
-  : d.name === "schlicht" ? { ...d, text: "Plandrehzugabe Hauptsp. Z", lang: "Kopf Kanal 1: G0Z…T0(PLANDREH-ZUGABE)" } : d);
+  : d.name === "schlicht" ? { ...d, text: "Plandrehzugabe Hauptsp. Z", lang: "Kopf Kanal 1: G0Z…T0(PLANDREH-ZUGABE), ohne Minus eingeben, das Programm schreibt G0Z-…", ohneMinus: true } : d);
 export const zLang = (w) => `Z = #525 Z-Achse Startposition, höchstens ${zMax(w)}: ${zMax(w)} mm minus Teilelänge minus inkl. evtl. vers. Abstecher minus Sicherheit`;
 
 export const FELDER = [
@@ -111,6 +111,9 @@ export function pruefen(w) {
     else if (d.ganz && !Number.isInteger(Number(String(w[d.name]).replace(",", ".")))) f[d.name] = "ganze Zahl";
   }
   if (!f.Z && Number(String(w.Z).replace(",", ".")) > zMax(w)) f.Z = "höchstens " + zMax(w);
+  // Seit 1.676.1 (Patrick 21. November 2026: „die plandrehzugabe für
+  // hauptspindel soll nicht mit negativem vorzeichen eingetragen werden können“)
+  if (w.typ === "star-sw20" && !f.schlicht && /^\s*-/.test(String(w.schlicht ?? ""))) f.schlicht = "ohne Minus";
   return f;
 }
 

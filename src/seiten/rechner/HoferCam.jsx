@@ -717,6 +717,8 @@ export default function HoferCam() {
     // Seit 1.676.0 (Wunsch Patrick 21. November 2026: „öffne programme immer
     // mit eingeklappten bearbeitungen“)
     neu.bloecke = neu.bloecke.map((b) => ({ ...b, zu: true }));
+    // Seit 1.676.1: Plandrehzugabe der SW-20 ohne Minus, das Minus setzt die Vorlage
+    if (neu.typ === "star-sw20" && /^\s*-/.test(String(neu.schlicht ?? ""))) neu.schlicht = String(neu.schlicht).replace(/-/g, "").trim();
     Object.keys(gemerkt).forEach((k) => delete gemerkt[k]);
     Object.assign(gemerkt, neu);
     setW({ ...neu });
@@ -934,7 +936,7 @@ export default function HoferCam() {
                 <span>{d.text}{d.einheit && /^[a-zA-Z/]+$/.test(d.einheit) && <small className="cam-einheit"> [{d.einheit}]</small>}</span>
                 {d.name === "datum" ? <DatumFeld wert={w.datum ?? ""} setze={(x) => setze("datum", x)} />
                   : <input data-cam={d.name} value={w[d.name] ?? ""} placeholder={d.einheit || ""} inputMode={d.art === "text" ? "text" : "decimal"}
-                  onChange={(e) => setze(d.name, e.target.value)} />}
+                  onChange={(e) => setze(d.name, d.ohneMinus ? e.target.value.replace(/-/g, "") : e.target.value)} />}
                 {/* Seit 1.640.0: Erklärungsbild wie beim Abstecher */}
                 {d.name === "schnabel" && (schnabelBild.maus || schnabelBild.fokus) && <div className="cam-ab__bild" data-cam-schnabelbild-feld>
                   <SchnabelBild b={w.schnabel} /></div>}
