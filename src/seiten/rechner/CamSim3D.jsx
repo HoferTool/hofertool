@@ -15,7 +15,7 @@ import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { RASTER, materialStand, simAufbauen, umrissVon, plattenHuelle, bohrerHuelle, innenTiefe, huelleFuer } from "./camSim.js";
 import { drehKoerper, abstechKoerper, fraeserKoerper } from "./camKoerper.js";
 import { stepFertig, stepHolen, stepLokal, stepDrehKoerper, stepRundKoerper } from "./camStep.js";
-import { MASCHINE_SB20RG, GEGEN_SB20RG, platzLage, traegerQuader, gegenEinheit, gegenQuader, platzLageSw, traegerSwQuader, swGehaeuseVorne, MASCHINE_SW20, SW20_K2, swK2Quader } from "./camMaschine.js";
+import { MASCHINE_SB20RG, GEGEN_SB20RG, platzLage, traegerQuader, gegenEinheit, gegenQuader, platzLageSw, traegerSwQuader, swGehaeuseVorne, MASCHINE_SW20, SW20_K2, swK2Quader, walzeTeil } from "./camMaschine.js";
 
 // Seit 1.558.3 wie an der Maschine: Führungsbüchse links, das Teil schaut
 // nach rechts, schräg von vorne auf die Stirn (Patrick 16. November 2026:
@@ -97,7 +97,12 @@ const FARBE_ROH = [160, 146, 120], FARBE_BEARB = [176, 190, 206];
 // Maschine (seit 1.580.0): Farben wie im Bild der SB-20RG
 const FARBE_MASCHINE = { platte: [92, 108, 168], halter: [74, 82, 96], schneide: [224, 161, 42], gehaeuse: [196, 202, 210], werkzeug: [150, 158, 170], kopf: [204, 209, 216],
   // seit 1.683.0 SW-20 wie im Bild star-sw20.png
-  platte3: [168, 92, 66], antrieb: [232, 235, 239], fest: [222, 190, 84], gelb: [236, 204, 92], block: [218, 222, 228], gold: [214, 172, 62], buechse: [112, 124, 140], roh: FARBE_ROH };
+  platte3: [168, 92, 66], antrieb: [232, 235, 239], fest: [222, 190, 84], gelb: [236, 204, 92], block: [218, 222, 228], gold: [214, 172, 62], buechse: [112, 124, 140], roh: FARBE_ROH,
+  // seit 1.686.0: Schlitten grau wie Guss, Schrauben brüniert, Spannmuttern
+  // Stahl, Antriebe dunkel, Gehäuse der Spindeln
+  schlitten: [178, 184, 192], schlitten2: [146, 152, 162], schraube: [52, 56, 62], mutter: [128, 134, 142], motor: [64, 70, 80],
+  wand: [198, 203, 210], dunkel: [44, 48, 54] };
+const METALL = new Set(["mutter", "schraube", "werkzeug", "schneide", "halter", "buechse", "kopf", "wand"]);
 function strahlenMalen(g, W, H, { st, vox, kanal2, Wt, bereich, dreh, zoom, schnitt, q, bu, roh, roll = 0, frame = null }) {
   // roll: das Teil steht um C gedreht (Maschine fest), y/w der Maschine → im Teil
   const rc = Math.cos(roll), rs = Math.sin(roll);
@@ -276,6 +281,7 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
   };
   const ansicht = ansichtF(frame);
   const L = [-0.45, 0.65, 0.62].map((c, _, v) => c / Math.hypot(...v));
+  const L2 = [0.55, -0.6, 0.3].map((c, _, v) => c / Math.hypot(...v));
   const Hh = (() => { const v = [L[0], L[1], L[2] + 1]; const l = Math.hypot(...v); return v.map((c) => c / l); })();
   const liste = [];
   let ziel = liste;
@@ -302,13 +308,18 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
       for (const p of pts) { const q = P(p); x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y); }
       if (x1 < -5 || x0 > W + 5 || y1 < -5 || y0 > H + 5) return;
     }
-    ziel.push({ pts, art, zc, hell: 0.5 + 0.6 * diff, glanz, tiefe: pts.reduce((m, p) => m + p.t, 0) / pts.length });
+    // seit 1.686.0 an der Maschine ein zweites, schwaches Licht von hinten
+    // unten, damit Schattenseiten nicht flach wirken
+    const hell = ziel !== liste ? 0.4 + 0.62 * diff + 0.2 * Math.max(0, n[0] * L2[0] + n[1] * L2[1] + n[2] * L2[2]) : 0.5 + 0.6 * diff;
+    ziel.push({ pts, art, zc, hell, glanz, tiefe: pts.reduce((m, p) => m + p.t, 0) / pts.length });
   };
   const zeichnen = (l) => {
     g.lineJoin = "round"; g.lineWidth = 0.7;
     for (const f of l) {
       const basis = Array.isArray(f.art) ? f.art : f.art === "schnitt" ? [226, 176, 120] : f.art === "buechse" ? [112, 124, 140] : f.art === "roh" ? FARBE_ROH : FARBE_MASCHINE[f.art] || FARBE_BEARB;
-      const c = `rgb(${basis.map((q) => Math.min(255, Math.round(q * f.hell + 255 * f.glanz * 0.55))).join(",")})`;
+      // Metall glänzt stärker als lackierte Flächen (seit 1.686.0)
+      const gl = METALL.has(f.art) ? 0.85 : 0.55;
+      const c = `rgb(${basis.map((q) => Math.min(255, Math.round(q * f.hell + 255 * f.glanz * gl))).join(",")})`;
       g.beginPath();
       f.pts.forEach((p, i) => { const q = P(p); if (i) g.lineTo(q.x, q.y); else g.moveTo(q.x, q.y); });
       g.closePath(); g.fillStyle = c; g.strokeStyle = c; g.fill(); g.stroke();
@@ -990,12 +1001,31 @@ function Simulation({ w, zu }) {
       };
       // Flansch der Führungsbüchse (C1 im Bild)
       maschine.koepfe = [maschine.kopf, { z: zb + 6, ri: BUECHSE_R, nase: 32, naseL: 6, r: 32, L: 0, art: "buechse" }];
+      // seit 1.686.0: Gehäuse der Büchse hinter dem Flansch und sechs
+      // Schrauben im Flansch wie im Bild (C1)
+      maschine.koepfe.push({ z: zb + 12, ri: BUECHSE_R, nase: 26, naseL: 24, r: 26, L: 0, art: "wand" });
+      // Spindelstock mit dunklem Band (Motor) und Spannmutter vorne
+      maschine.koepfe.push({ z: kopfZ + k.naseL + 34, ri: k.r, nase: k.r + 2.5, naseL: 26, r: k.r + 2.5, L: 0, art: "motor" });
+      maschine.quader.push(walzeTeil("z", kopfZ, 0, 0, 7, k.nase + 2.5, "mutter", k.nase + 1.5));
+      for (let i = 0; i < 6; i++) {
+        const f = (i * Math.PI) / 3;
+        maschine.quader.push(walzeTeil("z", zb + 6, 25 * Math.cos(f), 25 * Math.sin(f), -1.6, 2.6, "schraube"));
+      }
       // Gegenspindel gelb: in Grundstellung, bei der Übergabe am Teil, in Kanal 2 mit dem Teil
       const gGelb = (z, x) => {
         const gk = { z, x, ri: A / 2, nase: Math.max(gs.nase, A / 2 + 4), naseL: gs.naseL, r: gs.r - 8, L: 40, dir: -1, art: "gelb" };
         maschine.koepfe.push(gk);
         const hz = z - gs.naseL - 40;
         maschine.quader.push({ z0: hz - 50, z1: hz, x0: x - 38, x1: x + 38, y0: -38, y1: 38, art: "gelb" });
+        // seit 1.686.0: Spannmutter vorne, Schrauben an der Stirn des
+        // Gehäuses, darunter der Schlitten X2/Z2
+        maschine.quader.push(walzeTeil("z", z, x, 0, -7, gk.nase + 3, "mutter", gk.nase + 2));
+        for (let i = 0; i < 6; i++) {
+          const f = (i * Math.PI) / 3 + Math.PI / 6;
+          maschine.quader.push(walzeTeil("z", z - gs.naseL, x + (gk.r - 6) * Math.cos(f), (gk.r - 6) * Math.sin(f), 1.6, 2.4, "schraube"));
+        }
+        maschine.quader.push({ z0: hz - 62, z1: hz + 6, x0: x - 50, x1: x + 50, y0: -56, y1: -38, art: "schlitten" });
+        maschine.quader.push({ z0: hz - 70, z1: hz + 14, x0: x - 40, x1: x + 40, y0: -66, y1: -56, art: "schlitten2" });
         return gk;
       };
       if (kanal === 1) {

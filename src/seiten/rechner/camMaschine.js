@@ -189,6 +189,22 @@ export function swGehaeuseVorne(l, m = MASCHINE_SW20) {
   return Number(l.y) >= m.y[1600] && l.traeger === 3 && l.dz === m.fest.dz ? m.fest.dz - 30 : l.dz - m.front.schaft;
 }
 
+// Walze (seit 1.686.0, Patrick 21. November 2026: „kannst du die Maschine
+// nicht realistischer nachbauen … auch optisch“): Zylinder für Spindeln,
+// Spannmuttern, Hülsen und Schrauben. achse "z", "x" oder "y", (z, x, y) =
+// Mitte des Anfangs, L = Länge in Richtung der Achse (auch negativ), r2 =
+// Radius am Ende. Dazu die Hüllbox z0 … y1 wie bei den Quadern.
+export function walzeTeil(achse, z, x, y, L, r, art, r2 = r) {
+  const R = Math.max(r, r2);
+  const ez = achse === "z" ? L : 0, ex = achse === "x" ? L : 0, ey = achse === "y" ? L : 0;
+  return {
+    achse, z, x, y, L, r, r2, art,
+    z0: Math.min(z, z + ez) - (achse === "z" ? 0 : R), z1: Math.max(z, z + ez) + (achse === "z" ? 0 : R),
+    x0: Math.min(x, x + ex) - (achse === "x" ? 0 : R), x1: Math.max(x, x + ex) + (achse === "x" ? 0 : R),
+    y0: Math.min(y, y + ey) - (achse === "y" ? 0 : R), y1: Math.max(y, y + ey) + (achse === "y" ? 0 : R),
+  };
+}
+
 // spitzen (seit 1.682.0): {platz: dz} wie weit die Spitze eines Werkzeugs
 // aus dem Programm vor der Null seines Trägers steht; der Träger ist ein
 // starrer Block, jedes benutzte Frontwerkzeug steckt mit einem Schaft in
@@ -199,18 +215,35 @@ export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null
     const xa = o.x + sg * x0, xb = o.x + sg * x1;
     q.push({ z0: o.z + z0, z1: o.z + z1, x0: Math.min(xa, xb), x1: Math.max(xa, xb), y0: o.y + y0, y1: o.y + y1, art });
   };
+  // Walze im Träger: x lokal (beim Träger 3 gespiegelt)
+  const walze = (achse, z, x, y, L, r, art, r2 = r) =>
+    q.push(walzeTeil(achse, o.z + z, o.x + sg * x, o.y + y, achse === "x" ? sg * L : L, r, art, r2));
   const dreh = traeger === 3 ? [1100, 1200] : [100, 200, 300, 400];
   const yd = dreh.map((t) => m.y[t]);
+  const art3 = traeger === 3 ? "platte3" : "platte";
+  // Grundkörper des Schlittens (seit 1.686.0): Platte aussen, an der die
+  // Kammplatten und die angetriebenen Einheiten sitzen, darunter der Schlitten
+  const yOben = traeger === 3 ? m.y[1900] + 22 : m.y[700] + 22;
+  box(-22, 6, 80, 94, yd[0] - 22, yOben, "schlitten");
+  box(6, 34, 84, 112, yd[0] - 16, yOben - 6, "schlitten2");
   for (let k = 0; k <= dreh.length; k++) {
     const y = yd[0] + (k - 0.5) * m.dreh.teilung;
-    // seit 1.683.0 Farben wie im Bild: Träger 3 rotbraun
-    box(-12, 0, 12, 80, y - 6.4, y + 6.4, traeger === 3 ? "platte3" : "platte");
+    // seit 1.683.0 Farben wie im Bild: Träger 3 rotbraun; seit 1.686.0 mit
+    // abgeschrägter Kante zum Teil hin und Klemmschrauben vorne
+    box(-12, 0, 16, 80, y - 6.4, y + 6.4, art3);
+    box(-10, -2, 12, 16, y - 5, y + 5, art3);
+    for (const xs of [30, 52, 70]) walze("z", -12, xs, y, -1.6, 2.6, "schraube");
   }
   dreh.forEach((t, k) => {
     const y = yd[k];
     if (benutzt && !benutzt.has(t) && t !== aktiv) return;
-    box(-12, 0, 3, 40, y - 6, y + 6, "halter");
-    if (t !== aktiv) box(-5, 0, 0, 6, y - 3, y + 3, "schneide");
+    // Schaft 12 × 12 mit Kopf, der zur Spitze schmaler wird
+    box(-12, 0, 14, 40, y - 6, y + 6, "halter");
+    box(-12, 0, 5, 14, y - 6, y + 4, "halter");
+    if (t !== aktiv) {
+      box(-4, 0, 0, 6, y - 2.6, y + 2.6, "schneide");
+      walze("x", -2, 3, y + 2.8, 0, 1.1, "schraube");
+    }
   });
   // angetriebene Plätze: Gehäuse quer oder Frontbohrapparat
   const quer = traeger === 3 ? [1300, 1400, 1500] : [500, 600, 700];
@@ -218,8 +251,24 @@ export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null
     const l = platzLageSw(t, frontAuf, m);
     // angetriebene Einheiten weiss wie im Bild, feste Halter golden
     const artA = l.art === "front" && fest.map(Number).includes(t) ? "fest" : "antrieb";
-    if (l.art === "front") box(l.dz - m.front.schaft - m.front.block, l.dz - m.front.schaft, -14, 16, l.y - 10, l.y + 10, artA);
-    else box(l.dz - 8, l.dz + 8, 24, 70, l.y - 9, l.y + 9, "antrieb");
+    if (l.art === "front") {
+      // Frontbohrapparat: Gehäuse, runde Nase und Spannmutter zum Teil hin
+      const zv = l.dz - m.front.schaft;
+      box(zv - m.front.block, zv - 6, -14, 16, l.y - 10, l.y + 10, artA);
+      // Arm vom Schlitten zum Apparat
+      box(zv - m.front.block, zv - m.front.block + 14, 16, 80, l.y - 8, l.y + 8, art3);
+      box(zv - m.front.block, -22, 68, 80, l.y - 8, l.y + 8, art3);
+      walze("z", zv - 6, 0, l.y, 6, 9, artA);
+      walze("z", zv, 0, l.y, 4, 7, "mutter", 6.2);
+      if (artA === "antrieb") walze("z", zv - m.front.block, 0, l.y, -10, 7, "motor");
+    } else {
+      // Querangetrieben: Gehäuse am Schlitten, Spindel quer zum Teil mit
+      // Spannmutter, hinten der Antrieb
+      box(l.dz - 10, l.dz + 10, 42, 80, l.y - 10, l.y + 10, "antrieb");
+      walze("x", l.dz, 42, l.y, -14, 9, "antrieb");
+      walze("x", l.dz, 28, l.y, -6, 7, "mutter", 6);
+      walze("x", l.dz, 110, l.y, 16, 6.5, "motor");
+    }
     if (schlitz && traeger === 1 && t === 700) {
       const R = 20;
       box(l.dz - 3, l.dz + 3, 20, 24, l.y - 3, l.y + 3, "halter");
@@ -234,7 +283,12 @@ export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null
   // feste Frontwerkzeuge T1600–T1900 auf Träger 3
   if (traeger === 3) {
     const f = m.fest;
-    box(f.dz - 30 - 40, f.dz - 30, -14, 16, m.y[1600] - 12, m.y[1900] + 12, "fest");
+    box(f.dz - 30 - 40, f.dz - 36, -14, 16, m.y[1600] - 12, m.y[1900] + 12, "fest");
+    // je Platz eine Hülse mit Spannmutter (seit 1.686.0)
+    for (const t of [1600, 1700, 1800, 1900]) {
+      walze("z", f.dz - 36, 0, m.y[t], 6, 9, "fest");
+      walze("z", f.dz - 30, 0, m.y[t], 3, 6.5, "mutter", 5.5);
+    }
   }
   // Schaft und Schneide der benutzten Frontwerkzeuge dieses Trägers
   const front = traeger === 3 ? [1300, 1400, 1500, 1600, 1700, 1800, 1900] : [500, 600, 700];
@@ -246,8 +300,8 @@ export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null
     const hinten = swGehaeuseVorne(l, m);
     // das arbeitende Werkzeug zeichnet seinen Körper selbst ab der Spitze
     const vorne = t === aktiv ? tip - 10 : tip - 2;
-    if (vorne > hinten) box(hinten, vorne, -3, 3, l.y - 3, l.y + 3, "halter");
-    if (t !== aktiv) box(tip - 2, tip, -1.5, 1.5, l.y - 1.5, l.y + 1.5, "schneide");
+    if (vorne > hinten) walze("z", hinten, 0, l.y, vorne - hinten, 3, "werkzeug");
+    if (t !== aktiv) walze("z", tip - 2, 0, l.y, 2, 1.5, "schneide", 0.3);
   }
   return q;
 }
@@ -273,13 +327,23 @@ export const SW20_K2 = {
 export function swK2Quader(o, aktiv, benutzt = null, m = SW20_K2) {
   const q = [];
   const box = (z0, z1, x0, x1, y0, y1, art) => q.push({ z0: o.z + z0, z1: o.z + z1, x0, x1, y0: o.y + y0, y1: o.y + y1, art });
+  const walze = (achse, z, x, y, L, r, art, r2 = r) => q.push(walzeTeil(achse, o.z + z, x, o.y + y, L, r, art, r2));
+  // seit 1.686.0: Grundplatte mit Schlitten Y2, goldene Hülsen rund mit
+  // Spannmutter, die angetriebenen T2500–T2600 mit Antrieb hinten
   box(25, 40, 105, 210, -230, -130, "block");
+  box(40, 62, 112, 203, -238, -122, "schlitten");
+  for (const yy of [-226, -134]) walze("z", 25, 108, yy, -1.6, 2.4, "schraube");
+  for (const yy of [-226, -134]) walze("z", 25, 207, yy, -1.6, 2.4, "schraube");
   for (const [t, [x, y]] of Object.entries(m.platz)) {
-    box(8, 25, x - 9, x + 9, y - 9, y + 9, "gold");
     const nr = Number(t);
+    box(18, 25, x - 11, x + 11, y - 11, y + 11, "gold");
+    walze("z", 18, x, y, -8, 9, "gold");
+    walze("z", 10, x, y, -2.5, 7.5, "mutter", 6.4);
+    if (nr === 2500 || nr === 2600) walze("z", 40, x, y, 26, 8, "motor");
     if (benutzt && !benutzt.has(nr) && nr !== aktiv) continue;
-    if (nr === aktiv) box(8, 10, x - 3, x + 3, y - 3, y + 3, "werkzeug");
-    else { box(1.5, 8, x - 2.5, x + 2.5, y - 2.5, y + 2.5, "werkzeug"); box(0, 1.5, x - 1.5, x + 1.5, y - 1.5, y + 1.5, "schneide"); }
+    if (nr === aktiv) continue;
+    walze("z", 7.5, x, y, -5.5, 2.5, "werkzeug");
+    walze("z", 2, x, y, -2, 1.6, "schneide", 0.3);
   }
   return q;
 }
