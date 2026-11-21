@@ -28,7 +28,7 @@ import AbstecherBild from "./AbstecherBild.jsx";
 import SchnabelBild from "./SchnabelBild.jsx";
 import { hofercamTutorialOeffnen } from "../start/NeuesTutorial.jsx";
 import { EinstichBild, EinstichSteuerung } from "./CamEinstichBild.jsx";
-import { bereichLage, zLang, feldFuerTyp, SW20_BILD, SW20_FRONT_BILD, SW20_FRONT_RICHTUNG, SW20_FRONT_PLAETZE, SW20_KANAL_PLAETZE, sw20Bereich, swFrontVon, swFrontArt, nrKanal, FELDER, HD_STUFEN, abVersatz, AB_VERSATZ_VORGABE, plaetzeVon, platzGruppe, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, handZurueck, markenPaare, eigenerKanal, kanalZahl, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
+import { bereichLage, zLang, feldFuerTyp, SW20_BILD, SW20_APPARAT, SW20_APPARAT_LAGE, SW20_SCHLITZ_BILD, swApparate, swSchlitzVon, SW20_FRONT_PLAETZE, SW20_KANAL_PLAETZE, sw20Bereich, swFrontVon, swFrontArt, nrKanal, FELDER, HD_STUFEN, abVersatz, AB_VERSATZ_VORGABE, plaetzeVon, platzGruppe, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, handZurueck, markenPaare, eigenerKanal, kanalZahl, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Seit 1.427.0 (Wunsch Patrick 5. November 2026: „vordefinierte
 // Bearbeitungen aus einer Liste einfügen … in eine bestehende
@@ -403,20 +403,39 @@ function MaschinenBild({ block, t34, gruppe }) {
 // so gross wie ein Kärtchen, nicht wie beim Platz einer Bearbeitung
 const K2_ARTEN = ["k2", "k2a", "k2b"];
 const GRUPPE_BILD = 300;
-// Seit 1.670.0: Frontbohrapparat auf einem Platz der SW-20 ins Bild
-// zeichnen, das querangetriebene Werkzeug dort aufgehellt
-function FrontBohrer({ platz }) {
-  const f = SW20_FRONT_BILD[platz];
-  if (!f) return null;
-  const [bx, by] = f.bei, [dx, dy] = SW20_FRONT_RICHTUNG, nx = -dy, ny = dx;
-  const p = (t, o) => (bx + dx * t + nx * o).toFixed(1) + "," + (by + dy * t + ny * o).toFixed(1);
-  const L1 = 13, L2 = 4, L3 = 9, w1 = 4.6, w2 = 1.6;
-  return (<g className="cam-bild__front" data-cam-front={platz}>
-    <polygon points={[p(0, w1), p(L1, w1), p(L1, -w1), p(0, -w1)].join(" ")} fill="url(#cam-bild-gelb)" stroke="#7a6526" strokeWidth=".8" />
-    <polygon points={[p(L1, w1 * .75), p(L1 + L2, w1 * .55), p(L1 + L2, -w1 * .55), p(L1, -w1 * .75)].join(" ")} fill="#e9c35a" stroke="#7a6526" strokeWidth=".7" />
-    <polygon points={[p(L1 + L2, w2), p(L1 + L2 + L3, w2), p(L1 + L2 + L3 + 2.5, 0), p(L1 + L2 + L3, -w2), p(L1 + L2, -w2)].join(" ")} fill="#c9a640" stroke="#6b5520" strokeWidth=".6" />
-    <ellipse cx={bx} cy={by} rx={w1 * .55} ry={w1} transform={`rotate(${(Math.atan2(dy, dx) * 180 / Math.PI).toFixed(1)} ${bx} ${by})`} fill="#f7e3a0" stroke="#7a6526" strokeWidth=".8" />
+// Seit 1.679.0 (Patrick 21. November 2026: „die Apparate sollen dann auf
+// dem Bild montiert sein, du hast für T1500 ein Beispiel im aktuellen
+// Bild“): Frontbohrapparat (angetrieben mit, fest ohne roten Drehpfeil)
+// als Bild des Originals, in Kanal 1 gespiegelt; vorher (1.670.0) ein
+// gezeichneter gelber Bohrer
+function SwApparat({ platz, art }) {
+  const base = import.meta.env.BASE_URL;
+  if (art === "schlitz") {
+    // Schlitzapparat: Bohrer weiss abdecken, Sägescheibe quer zur Achse
+    const [tx, ty] = SW20_SCHLITZ_BILD.spitze, [ax, ay] = SW20_SCHLITZ_BILD.achse;
+    const wink = (Math.atan2(ay, ax) * 180 / Math.PI).toFixed(1);
+    return (<g className="cam-bild__apparat" data-cam-apparat="700" data-art="schlitz">
+      <g transform={`rotate(${wink} ${tx} ${ty})`}>
+        <rect x={tx - 15} y={ty - 4.5} width="17" height="9" rx="3" fill="#fff" filter="url(#cam-bild-weich)" />
+        <rect x={tx - 16} y={ty - 1.6} width="11" height="3.2" fill="#9aa7b4" stroke="#33475b" strokeWidth=".6" />
+        <ellipse cx={tx - 5} cy={ty} rx="2.6" ry="13" fill="#d7dee6" stroke="#22364b" strokeWidth=".8" />
+        <ellipse cx={tx - 5} cy={ty} rx="2.6" ry="13" fill="none" stroke="#22364b" strokeWidth="1.6" strokeDasharray="1 1.4" />
+        <ellipse cx={tx - 5} cy={ty} rx="1" ry="4" fill="#5b6d80" />
+      </g>
+    </g>);
+  }
+  const l = SW20_APPARAT_LAGE[platz];
+  if (!l) return null;
+  const { b, h } = SW20_APPARAT, href = base + (art === "fest" ? "hilfe/sw20-apparat-fest.png" : "hilfe/sw20-apparat.png");
+  return (<g className="cam-bild__apparat" data-cam-apparat={platz} data-art={art}>
+    {l.spiegel ? <image href={href} x={-(l.x + b)} y={l.y} width={b} height={h} transform="scale(-1,1)" />
+      : <image href={href} x={l.x} y={l.y} width={b} height={h} />}
   </g>);
+}
+// Reihenfolge: oben zuerst, damit der untere Apparat den oberen überdeckt
+function apparateSortiert(l) {
+  const y = (a) => a.art === "schlitz" ? 0 : (SW20_APPARAT_LAGE[a.platz] || { y: 0 }).y;
+  return [...l].sort((a, b) => y(a) - y(b));
 }
 function GruppenBild({ gruppe, t34, ref_, mass }) {
   // Seit 1.664.0 bringt die SW-20 ihre Bereiche und ihr Bild selbst mit
@@ -434,9 +453,7 @@ function GruppenBild({ gruppe, t34, ref_, mass }) {
         <linearGradient id="cam-bild-gelb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fff2bf" /><stop offset=".5" stopColor="#f3d27a" /><stop offset="1" stopColor="#d9ad45" /></linearGradient>
         <filter id="cam-bild-weich" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.5" /></filter></defs>
         <image href={import.meta.env.BASE_URL + bild.datei} x="0" y="0" width={bild.b} height={bild.h} />
-        {(gruppe.front || []).map((pl) => SW20_FRONT_BILD[pl] && <rect key={"d" + pl} x={SW20_FRONT_BILD[pl].deck[0]} y={SW20_FRONT_BILD[pl].deck[1]}
-          width={SW20_FRONT_BILD[pl].deck[2]} height={SW20_FRONT_BILD[pl].deck[3]} rx="5" fill="#fff" opacity=".9" filter="url(#cam-bild-weich)" />)}
-        {(gruppe.front || []).map((pl) => <FrontBohrer key={"f" + pl} platz={pl} />)}
+        {apparateSortiert(gruppe.apparate || []).map((a) => <SwApparat key={a.platz} platz={a.platz} art={a.art} />)}
         <rect x="0" y="0" width={bild.b} height={bild.h} fill="rgba(20,30,45,.45)" mask="url(#cam-bild-maske)" />
         {rs.map((r, i) => <rect key={i} className={"cam-bild__rahmen cam-bild__rahmen--blink" + (r.verdeckt ? " cam-bild__rahmen--verdeckt" : "")}
           x={r.x} y={r.y} width={r.w} height={r.h} rx="5" />)}
@@ -995,6 +1012,9 @@ export default function HoferCam() {
                   <option value="fest">fest</option><option value="an">angetrieben</option>
                 </select>}</label>;
             })}
+            {/* Seit 1.679.0 (Patrick 21. November 2026): Schlitzapparat auf T700 */}
+            <label data-cam-swschlitz {...swMaus("p700s", [700], "T700")} title="Schlitzapparat auf T700 statt des querangetriebenen Werkzeugs">
+              <input type="checkbox" checked={swSchlitzVon(w)} onChange={(e) => setze("swSchlitz", e.target.checked)} /> Schlitzapparat T700</label>
             <span className="cam-sw-kanaele">
               {[[1, "Kanal 1"], [3, "Kanal 3"], [2, "Kanal 2"]].map(([k, t]) => <span key={k} className="knopf knopf--klein" tabIndex={0} data-cam-swkanal={k}
                 {...swMaus("k" + k, SW20_KANAL_PLAETZE[k], t + ": Werkzeuge")}>{t} im Bild</span>)}
@@ -1010,7 +1030,7 @@ export default function HoferCam() {
 
       {!sb && knopfUeber && knopfUeber.sw && (() => {
         const rs = knopfUeber.sw.map((p) => sw20Bereich(p, w)).filter(Boolean);
-        return <MaschinenBild gruppe={{ art: knopfUeber.art, text: knopfUeber.art[0] === "p" && rs[0] ? "T" + knopfUeber.sw[0] + " · " + rs[0].text : knopfUeber.text, bereiche: rs, nummern: knopfUeber.sw, bild: SW20_BILD, gross: 420, front: swFrontVon(w) }} />;
+        return <MaschinenBild gruppe={{ art: knopfUeber.art, text: knopfUeber.art[0] === "p" && rs[0] ? "T" + knopfUeber.sw[0] + " · " + rs[0].text : knopfUeber.text, bereiche: rs, nummern: knopfUeber.sw, bild: SW20_BILD, gross: 420, apparate: swApparate(w) }} />;
       })()}
       {<>
       {(() => {
@@ -1022,7 +1042,7 @@ export default function HoferCam() {
           if (!bb) return null;
           const p = Number(vorPlatz && vorPlatz.id === bb.id ? vorPlatz.platz : bb.platz);
           const r = sw20Bereich(p, w);
-          return r ? <MaschinenBild gruppe={{ art: "swblock", text: "T" + p + " · " + r.text, bereiche: [r], nummern: [p], bild: SW20_BILD, gross: 420, front: swFrontVon(w) }} /> : null;
+          return r ? <MaschinenBild gruppe={{ art: "swblock", text: "T" + p + " · " + r.text, bereiche: [r], nummern: [p], bild: SW20_BILD, gross: 420, apparate: swApparate(w) }} /> : null;
         }
         const kg = !bb && knopfUeber ? knopfGruppe(knopfUeber.art, w, knopfUeber.text) : null;
         return <MaschinenBild t34={t34Von(w)} gruppe={kg} block={bb && vorPlatz && vorPlatz.id === bb.id ? { ...bb, platz: vorPlatz.platz } : bb} />;

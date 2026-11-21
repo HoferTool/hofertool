@@ -676,7 +676,7 @@ export function simAufbauen(wRoh) {
   // der Führungsbüchse aus dem Bild läuft
   const zStange = zMax + Math.max(80, 4 * (zMax - vorne + A));
   return {
-    sw, swFront: sw ? swFrontVon(wRoh) : [],
+    sw, swFront: sw ? swFrontVon(wRoh) : [], swSchlitz: sw && !!(wRoh && wRoh.swSchlitz),
     roh: { A, W, B, vorne }, schritte: sortiert, gesamt: ab, zMax, zStange, hatK2: sortiert.some((s) => s.kanal === 2),
     // Platz 34: T3400 oder T3421–T3423 montiert, die Simulation zeigt nur das Montierte
     t34: t34Von(wRoh),

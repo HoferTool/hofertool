@@ -198,7 +198,8 @@ export function montiert(gruppe, w) {
     if (gruppe === "front" || gruppe === "k3ff") return l.filter((p) => swFrontVon(w).includes(Number(p)) && swFrontArt(w, p) === "fest");
     if (gruppe === "k3f") return l.filter((p) => swFrontVon(w).includes(Number(p)) && swFrontArt(w, p) === "an");
     // Querangetrieben (1.678.0) nur auf Plätzen ohne Frontbohrapparat
-    if (gruppe === "seite" || gruppe === "k3s") return l.filter((p) => !swFrontVon(w).includes(Number(p)));
+    // T700 mit Schlitzapparat (1.679.0) ebenso nicht
+    if (gruppe === "seite" || gruppe === "k3s") return l.filter((p) => !swFrontVon(w).includes(Number(p)) && !(Number(p) === 700 && swSchlitzVon(w)));
     return l;
   }
   const t = t34Von(w);
@@ -1067,12 +1068,17 @@ const r4 = (a, text, verdeckt) => ({ x: a[0], y: a[1], w: a[2], h: a[3], text, v
 // Kanal 2 Rückseiteneinheit oben T2400–T2100, unten T2800–T2500 (von
 // links). Lage von Claude geschätzt, Patrick: „wir können immer noch
 // korrigieren“
-export const SW20_BILD = { datei: "hilfe/star-sw20.png", b: 603, h: 637 };
+// Seit 1.679.0 (Patrick 21. November 2026: „wenn die Bohrapparate,
+// feststehenden Halter und der Schlitzapparat montiert sind, im
+// Werkzeugauswahlbild anzeigen … für T1500 ein Beispiel im aktuellen Bild“):
+// Grundbild ohne den Apparat auf T1500 (dort ein querangetriebenes
+// Werkzeug wie T1400), die Apparate legt HoferCam.jsx je Bestückung darüber
+export const SW20_BILD = { datei: "hilfe/star-sw20-grund.png", b: 603, h: 637 };
 const SW20_FLAECHEN = {
   100: [228, 393, 34, 15], 200: [228, 377, 34, 15], 300: [228, 361, 34, 15], 400: [228, 345, 34, 15],
   500: [233, 296, 28, 21], 600: [233, 275, 28, 20], 700: [233, 255, 28, 20],
   1100: [325, 299, 38, 16], 1200: [325, 277, 38, 16],
-  1300: [335, 238, 30, 17], 1400: [333, 206, 45, 18], 1500: [333, 190, 45, 15],
+  1300: [333, 187, 45, 18], 1400: [333, 206, 45, 18], 1500: [333, 225, 45, 18],
   1600: [340, 131, 40, 19], 1700: [340, 111, 40, 19], 1800: [340, 91, 40, 19], 1900: [340, 71, 40, 19],
 };
 [2400, 2300, 2200, 2100].forEach((p, i) => { SW20_FLAECHEN[p] = [160 + 25 * i, 485, 26, 50]; });
@@ -1086,19 +1092,26 @@ export const SW20_KANAL_PLAETZE = {
   3: [1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900],
   2: [2100, 2200, 2300, 2400, 2500, 2600, 2700, 2800],
 };
-// Seit 1.670.0 (Wunsch Patrick 20. November 2026: „wenn Frontbohrapparate
-// montiert sind, sollst du sie im Bild auch so anzeigen“): je Platz die
-// Fläche, die das querangetriebene Werkzeug im Bild überdeckt (deck), und
-// wo der Frontbohrapparat sitzt (bei); er zeigt wie die festen
-// Frontwerkzeuge T1600–T1900 in Richtung Z (SW20_FRONT_RICHTUNG)
-export const SW20_FRONT_BILD = {
-  500: { deck: [243, 293, 40, 22], bei: [240, 303] },
-  600: { deck: [243, 272, 32, 20], bei: [240, 283] },
-  1300: { deck: [326, 240, 27, 18], bei: [350, 250] },
-  1400: { deck: [326, 206, 35, 21], bei: [356, 216] },
-  1500: { deck: [326, 189, 35, 18], bei: [356, 198] },
+// Seit 1.679.0: Apparate im Bild je Platz. Der Apparat ist das Bild des
+// T1500-Apparats aus dem Original (public/hilfe/sw20-apparat.png, 84 × 68,
+// fest ohne den roten Drehpfeil sw20-apparat-fest.png); in Kanal 3 je Platz
+// 19 Punkte höher, in Kanal 1 gespiegelt an der Spitze des Werkzeugs
+export const SW20_APPARAT = { b: 84, h: 68 };
+export const SW20_APPARAT_LAGE = {
+  1300: { x: 334, y: 185 }, 1400: { x: 334, y: 204 }, 1500: { x: 334, y: 223 },
+  500: { x: 181, y: 282, spiegel: true }, 600: { x: 181, y: 261, spiegel: true },
 };
-export const SW20_FRONT_RICHTUNG = [0.78, 0.62];
+// Schlitzapparat (1.679.0, Patrick 21. November 2026: „bei Bestückung
+// brauchen wir noch den Schlitzapparat auf T700“; Handbuch: T700 nur
+// Schlitzapparat): Spitze und Richtung des Werkzeugs T700 im Bild
+export const SW20_SCHLITZ_BILD = { spitze: [256, 263], achse: [0.86, -0.5] };
+export function swSchlitzVon(w) { return !!(w && w.swSchlitz); }
+// Alle Apparate der Bestückung fürs Bild: [{platz, art: "fest"|"an"|"schlitz"}]
+export function swApparate(w) {
+  const l = swFrontVon(w).map((p) => ({ platz: p, art: swFrontArt(w, p) }));
+  if (swSchlitzVon(w)) l.push({ platz: 700, art: "schlitz" });
+  return l;
+}
 // Bestückung: Liste der Plätze mit Frontbohrapparat in w.swFront
 export function swFrontVon(w) {
   const l = Array.isArray(w && w.swFront) ? w.swFront.map(Number) : [];
@@ -1116,6 +1129,7 @@ export function sw20Bereich(platz, w) {
   if (!a) return null;
   let text;
   if (p <= 400) text = p === 100 ? "Kanal 1 · Abstechen" : "Kanal 1 · Drehwerkzeug";
+  else if (p === 700 && swSchlitzVon(w)) text = "Kanal 1 · Schlitzapparat";
   else if (p <= 700) text = "Kanal 1 · " + (swFrontVon(w).includes(p) ? "Frontbohrapparat " + (swFrontArt(w, p) === "an" ? "angetrieben" : "fest") : "angetrieben quer");
   else if (p <= 1200) text = "Kanal 3 · Drehwerkzeug";
   else if (p <= 1500) text = "Kanal 3 · " + (swFrontVon(w).includes(p) ? "Frontbohrapparat " + (swFrontArt(w, p) === "an" ? "angetrieben" : "fest") : "angetrieben quer");

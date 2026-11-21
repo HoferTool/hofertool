@@ -15,7 +15,7 @@ import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { RASTER, materialStand, simAufbauen, umrissVon, plattenHuelle, bohrerHuelle, innenTiefe } from "./camSim.js";
 import { drehKoerper, abstechKoerper, fraeserKoerper } from "./camKoerper.js";
 import { stepFertig, stepHolen, stepLokal, stepDrehKoerper, stepRundKoerper } from "./camStep.js";
-import { MASCHINE_SB20RG, GEGEN_SB20RG, platzLage, traegerQuader, gegenEinheit, gegenQuader, platzLageSw, traegerSwQuader } from "./camMaschine.js";
+import { MASCHINE_SB20RG, GEGEN_SB20RG, platzLage, traegerQuader, gegenEinheit, gegenQuader, platzLageSw, traegerSwQuader, MASCHINE_SW20 } from "./camMaschine.js";
 
 // Seit 1.558.3 wie an der Maschine: Führungsbüchse links, das Teil schaut
 // nach rechts, schräg von vorne auf die Stirn (Patrick 16. November 2026:
@@ -751,7 +751,7 @@ function Simulation({ w, zu }) {
     if (kanal === 1 && maschineAn && swLage) {
       const benutzt = new Set(sim.schritte.filter((x) => x.kanal === 1).map((x) => x.platz));
       maschine = {
-        quader: [...traegerSwQuader(swLage.t1, 1, swLage.aktiv, sim.swFront, benutzt), ...traegerSwQuader(swLage.t3, 3, swLage.aktiv, sim.swFront, benutzt)],
+        quader: [...traegerSwQuader(swLage.t1, 1, swLage.aktiv, sim.swFront, benutzt, MASCHINE_SW20, sim.swSchlitz), ...traegerSwQuader(swLage.t3, 3, swLage.aktiv, sim.swFront, benutzt)],
         roll, grob: laeuft, kopf: { z: kopfZ, ri: A / 2, nase: k.nase, naseL: k.naseL, r: k.r, L: k.L },
       };
       maschine.koepfe = [maschine.kopf];

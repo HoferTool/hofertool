@@ -170,7 +170,10 @@ export function platzLageSw(platz, frontAuf = [], m = MASCHINE_SW20) {
 
 // Quader eines Trägers der SW-20. o = Null des Trägers an der Maschine
 // {z, x, y}; spiegel: Träger 3 (lokales x und y zeigen nach −X / −Y)
-export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null, m = MASCHINE_SW20) {
+// schlitz (1.679.0): Schlitzapparat auf T700. Angenommen (Patrick kann
+// korrigieren): Gehäuse wie quer, Sägescheibe Ø40, 1 mm dick, in der
+// Ebene X–Z (Achse in Y), Scheibe reicht von der Spitze 40 mm in +X
+export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null, m = MASCHINE_SW20, schlitz = false) {
   const q = [], sg = traeger === 3 ? -1 : 1;
   const box = (z0, z1, x0, x1, y0, y1, art) => {
     const xa = o.x + sg * x0, xb = o.x + sg * x1, ya = o.y + sg * y0, yb = o.y + sg * y1;
@@ -193,6 +196,16 @@ export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null
     const l = platzLageSw(q0 + k * 100, frontAuf, m);
     if (l.art === "front") box(l.dz - m.front.schaft - m.front.block, l.dz - m.front.schaft, -14, 16, l.y - 12, l.y + 12, "gehaeuse");
     else box(l.dz - 8, l.dz + 8, 24, 70, l.y - 9, l.y + 9, "gehaeuse");
+    if (schlitz && traeger === 1 && q0 + k * 100 === 700) {
+      const R = 20;
+      box(l.dz - 3, l.dz + 3, 20, 24, l.y - 3, l.y + 3, "halter");
+      // Scheibe in Streifen angenähert
+      for (let i = -4; i <= 4; i++) {
+        const z0 = (i - 0.5) * R / 4.5, z1 = (i + 0.5) * R / 4.5, zm = Math.max(Math.abs(z0), Math.abs(z1));
+        const hb = Math.sqrt(Math.max(0, R * R - zm * zm));
+        if (hb > 0.5) box(l.dz + z0, l.dz + z1, R - hb, R + hb, l.y - 0.5, l.y + 0.5, "schneide");
+      }
+    }
   }
   // feste Frontwerkzeuge T1600–T1900 auf Träger 3
   if (traeger === 3) {
