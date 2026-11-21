@@ -6,9 +6,10 @@ import { formular, Tabelle, Suche, passt, tun, Feld } from "./teile.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import {
   einfuegen, aendern, loeschen, naechstePartnerNr, ARTIKELART, HOFER_NR, bestand, mengeText, chf,
-  mapsLink, artikelText, zahl, buchen,
+  mapsLink, artikelText, zahl, buchen, peKurz,
 } from "../../daten/erp.js";
 import { stundensatz } from "../../daten/kalkulation.js";
+import { artikelFensterOeffnen } from "./ArtikelFenster.jsx";
 
 export const STAMM_REITER = [
   ["lieferant", "Lieferanten"], ["kunde", "Kunden"], ["artikel", "Artikel"], ["betriebsmittel", "Betriebsmittel"],
@@ -57,7 +58,7 @@ export function partnerBearbeiten(d, neu, art, p) {
   const ad = pd.adresse || {};
   formular({
     titel: (kunde ? "Kunde" : "Lieferant") + (p ? " " + p.nr : " neu"),
-    breit: true,
+    gross: true,
     wert: { nr: p ? p.nr : naechstePartnerNr(d, art), name: p ? p.name : "", gruppe: p ? p.gruppe || "" : "",
       strasse: ad.strasse || "", plz: ad.plz || "", ort: ad.ort || "", land: ad.land || "CH",
       telefon: pd.telefon || "", mail: pd.mail || "", webseite: pd.webseite || "",
@@ -133,11 +134,16 @@ function Partner({ d, neu, art }) {
 export function artikelBearbeiten(d, neu, art, a, neuerIndex) {
   const kunden = [["", "—"]].concat(d.partner.filter((p) => p.art === "kunde").map((p) => [p.id, p.nr + " " + p.name]));
   const hofer = art === "hofer";
+  // Jedem Hofer-Artikel ist ein Rohmaterial-Artikel zugewiesen, meist aus der
+  // Kalkulation (Wunsch Patrick 21. November 2026)
+  const rohe = [["", "—"]].concat(d.artikel.filter((x) => x.art === "rohmaterial")
+    .sort((x, y) => x.nr.localeCompare(y.nr)).map((x) => [x.id, x.nr + (x.bezeichnung && x.bezeichnung !== x.nr ? " · " + x.bezeichnung : "")]));
   formular({
     titel: neuerIndex ? "Neuer Index für " + a.nr : (ARTIKELART[art] + (a ? " " + a.nr : " neu")),
+    gross: true,
     wert: a ? { nr: a.nr, idx: neuerIndex ? "" : a.idx, bezeichnung: a.bezeichnung || "", zeichnung: a.zeichnung || "",
       kunde_id: a.kunde_id || "", einheit: a.einheit, preis: a.preis ?? "", aktiv: a.aktiv, notiz: (a.daten || {}).notiz || "",
-      kunden_nr: (a.daten || {}).kunden_nr || "" }
+      kunden_nr: (a.daten || {}).kunden_nr || "", rohmaterial_id: (a.daten || {}).rohmaterial_id || "" }
       : { nr: "", idx: "", bezeichnung: "", zeichnung: "", kunde_id: "", einheit: art === "rohmaterial" ? "kg" : "Stk", preis: "", aktiv: true },
     felder: [
       { name: "nr", label: hofer ? "Artikel-Nr. (xxxxx-xxxx)" : art === "rohmaterial" ? "Artikel-Nr. = Bezeichnung wie im HoferTool" : "Artikel-Nr. wie im HoferTool" },
@@ -146,8 +152,10 @@ export function artikelBearbeiten(d, neu, art, a, neuerIndex) {
       hofer && { name: "zeichnung", label: "Zeichnungsnummer" },
       hofer && { name: "kunde_id", label: "Kunde", auswahl: kunden },
       hofer && { name: "kunden_nr", label: "Artikel-Nr. des Kunden" },
+      hofer && { name: "rohmaterial_id", label: "Rohmaterial", auswahl: rohe, hinweis: "Kommt beim Anlegen über die Kalkulation mit." },
       { name: "einheit", label: "Einheit", auswahl: [["Stk", "Stk"], ["kg", "kg"], ["m", "m"], ["Stg", "Stangen"]] },
-      { name: "preis", label: hofer ? "Verkaufspreis CHF" : "Einstandspreis CHF" },
+      // Bei Hofer-Artikeln gilt die Preisliste im Artikelfenster
+      !hofer && { name: "preis", label: "Einstandspreis CHF" },
       { name: "aktiv", label: "Aktiv", typ: "haken" },
       { name: "notiz", label: "Notiz", typ: "textarea", breit: true },
     ],
@@ -157,8 +165,9 @@ export function artikelBearbeiten(d, neu, art, a, neuerIndex) {
       if (hofer && !HOFER_NR.test(nr)) throw new Error("Hofer + Co Artikel haben die Form xxxxx-xxxx.");
       const zeile = { art, nr, idx: hofer ? w.idx.trim() : "", bezeichnung: w.bezeichnung.trim() || null,
         zeichnung: w.zeichnung ? w.zeichnung.trim() || null : null, kunde_id: w.kunde_id || null, einheit: w.einheit,
-        preis: w.preis === "" ? null : zahl(w.preis), aktiv: !!w.aktiv, geaendert_am: new Date().toISOString(),
-        daten: { ...((a && a.daten) || {}), notiz: w.notiz || "", kunden_nr: w.kunden_nr || "" } };
+        preis: hofer ? (a ? a.preis : null) : w.preis === "" ? null : zahl(w.preis), aktiv: !!w.aktiv, geaendert_am: new Date().toISOString(),
+        daten: { ...((a && a.daten) || {}), notiz: w.notiz || "", kunden_nr: w.kunden_nr || "",
+          ...(hofer ? { rohmaterial_id: w.rohmaterial_id || null } : {}) } };
       if (a && !neuerIndex) await aendern("erp_artikel", a.id, zeile);
       else await einfuegen("erp_artikel", { ...zeile, arbeitsplan: neuerIndex ? a.arbeitsplan : [],
         kalkulation_id: neuerIndex ? a.kalkulation_id : null });
@@ -227,10 +236,14 @@ function Artikel({ d, neu }) {
       <p className="klein">{alt.zahlText(liste.length)} Artikel</p>
       <Tabelle kopf={art === "hofer" ? ["Artikel-Nr.", "Index", "Bezeichnung", "Zeichnung", "Kunde", "Preis", "Bestand", "AP", ""]
         : ["Artikel-Nr.", "Bezeichnung", "Einheit", "Preis", "Bestand"]}
-        zeilen={liste.slice(0, anzahl).map((a) => ({ key: a.id, klasse: a.aktiv ? "" : "erp-blass", klick: () => artikelBearbeiten(d, neu, art, a),
+        zeilen={liste.slice(0, anzahl).map((a) => ({ key: a.id, klasse: a.aktiv ? "" : "erp-blass",
+          klick: () => (art === "hofer" ? artikelFensterOeffnen(d, neu, a, {
+            bearbeiten: (x) => artikelBearbeiten(d, neu, art, x), index: (x) => artikelBearbeiten(d, neu, art, x, true),
+            arbeitsplan: (x) => arbeitsplanBearbeiten(x, neu) }) : artikelBearbeiten(d, neu, art, a)),
           zellen: art === "hofer"
             ? [<b>{a.nr}</b>, a.idx || "–", a.bezeichnung || "", a.zeichnung || "", (d.partnerMap.get(a.kunde_id) || {}).name || "",
-              a.preis != null ? chf(a.preis) : "", mengeText(best.get(a.id) || 0), (a.arbeitsplan || []).length || "",
+              a.preis != null ? <>{chf(a.preis)} <small>{peKurz((a.daten || {}).pe)}</small>{((a.daten || {}).preisliste || {}).kalkulation_nr ? <small> · {a.daten.preisliste.kalkulation_nr}</small> : null}</> : "",
+              mengeText(best.get(a.id) || 0), (a.arbeitsplan || []).length || "",
               <button className="knopf knopf--klein" title="Neuen Index anlegen"
                 onClick={(e) => { e.stopPropagation(); artikelBearbeiten(d, neu, art, a, true); }}>+ Index</button>]
             : [<b>{a.nr}</b>, a.bezeichnung || "", a.einheit, a.preis != null ? chf(a.preis) : "", mengeText(best.get(a.id) || 0)] }))} />
@@ -381,7 +394,7 @@ export function arbeitsplanBearbeiten(a, neu) {
 function ApFenster({ a, neu, zu }) {
   const [ap, setAp] = useState((a.arbeitsplan || []).map((x) => ({ ...x })));
   return (
-    <div className="dialog erp-fenster erp-fenster--breit" role="dialog">
+    <div className="dialog erp-fenster erp-fenster--gross" role="dialog">
       <h2>Arbeitsplan {artikelText(a)}</h2>
       <p className="klein">Die Fertigungsaufträge übernehmen diesen Arbeitsplan. Angelegt meist aus der Kalkulation.</p>
       <Feld f={{ name: "ap", label: "Arbeitsgänge", typ: "liste", felder: AG_FELDER, neu: "Arbeitsgang" }} wert={ap} setzen={setAp} />

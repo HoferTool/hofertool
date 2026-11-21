@@ -8,11 +8,14 @@ import KalkTab from "./KalkTab.jsx";
 import Kalkulation from "../Kalkulation.jsx";
 import { BelegListe, Rechnungen, Fibu, Rueckverfolgung } from "./Belege.jsx";
 
+// Reihenfolge: zuerst Kalkulation, dann Stammdaten, dann der Rest
+// (Wunsch Patrick 21. November 2026)
 const REITER = [
+  ["kalk", "Kalkulation"], ["stamm", "Stammdaten"],
   ["auftrag", "Aufträge"], ["fertigung", "Fertigung"], ["bestellung", "Bestellungen"], ["lieferschein", "Lieferscheine"],
-  ["rechnung", "Rechnungen"], ["fibu", "Fibu"], ["rueck", "Rückverfolgung"], ["kalk", "Kalkulation"], ["stamm", "Stammdaten"],
+  ["rechnung", "Rechnungen"], ["fibu", "Fibu"], ["rueck", "Rückverfolgung"],
 ];
-const gemerkt = { reiter: "auftrag", kalk: "modul" };
+const gemerkt = { reiter: "kalk", kalk: "modul" };
 
 export default function ErpInhalt({ auffrischen }) {
   const [reiter, setReiter] = useState(gemerkt.reiter);

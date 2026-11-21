@@ -12,6 +12,7 @@ import { Feld, Tabelle, Suche, passt, tun, belegDrucken } from "./teile.jsx";
 import {
   allesLaden, einfuegen, aendern, loeschen, naechsteBelegNr, BELEGTYP, MWST, zahl, chf, mengeText, artikelText,
   partnerText, datumText, terminText, bestand, buchen, gebucht, folgePositionen, belegSumme, chargeVerfolgen, fibuText,
+  posPe, posBetrag, peKurz, peZahl, preisFuerMenge, PE_AUSWAHL,
 } from "../../daten/erp.js";
 
 const heute = () => new Date().toISOString().slice(0, 10);
@@ -325,7 +326,20 @@ function Positionen({ d, kopf, pos, setPos, bearbeiten, b }) {
     const n = { ...p, [name]: w };
     if (name === "artikel_id") {
       const a = d.artikelMap.get(w);
-      if (a) { n.einheit = a.einheit || n.einheit; if ((n.preis === "" || n.preis == null) && a.preis != null && preis) n.preis = a.preis; }
+      if (a) n.einheit = a.einheit || n.einheit;
+    }
+    // Preis aus der Preisliste des Artikels nach Menge, solange er nicht
+    // von Hand geändert wurde (daten.preisAuto); mit der Preiseinheit
+    if (name === "preis" || name === "pe") n.daten = { ...n.daten, preisAuto: false };
+    if (name === "pe") n.daten = { ...n.daten, pe: peZahl(w) };
+    if ((name === "artikel_id" || name === "menge") && preis) {
+      const a = d.artikelMap.get(n.artikel_id);
+      const leer = n.preis === "" || n.preis == null;
+      const vp = a ? preisFuerMenge(a, n.menge) : null;
+      if (vp && (leer || (n.daten && n.daten.preisAuto))) {
+        n.preis = vp.preis;
+        n.daten = { ...n.daten, pe: vp.pe, preisAuto: true };
+      }
     }
     return n;
   }));
@@ -342,7 +356,7 @@ function Positionen({ d, kopf, pos, setPos, bearbeiten, b }) {
                 {a && p.text && <><br /><small>{p.text}</small></>}{p.daten && p.daten.charge && <><br /><small>Charge {p.daten.charge}</small></>}
                 {(p.daten.abrufe || []).length > 0 && <Lieferplan d={d} p={p} />}</>,
               mengeText(p.menge) + " " + (p.einheit || ""), terminText(p)]
-                .concat(preis ? [p.preis != null ? chf(p.preis) : "", chf(zahl(p.menge) * zahl(p.preis))] : [])
+                .concat(preis ? [p.preis != null ? chf(p.preis) + (posPe(p) > 1 ? " " + peKurz(posPe(p)) : "") : "", chf(posBetrag(p))] : [])
                 .concat([posStand(d, b, p)]),
             };
           })} />
@@ -361,6 +375,7 @@ function Positionen({ d, kopf, pos, setPos, bearbeiten, b }) {
               <Feld f={{ name: "menge", label: rahmen ? "Rahmenmenge" : "Menge", typ: "zahl" }} wert={p.menge} setzen={(w) => setzen(i, "menge", w)} />
               <Feld f={{ name: "einheit", label: "Einheit" }} wert={p.einheit} setzen={(w) => setzen(i, "einheit", w)} />
               {preis && <Feld f={{ name: "preis", label: "Preis CHF", typ: "zahl" }} wert={p.preis} setzen={(w) => setzen(i, "preis", w)} />}
+              {preis && <Feld f={{ name: "pe", label: "pro", auswahl: PE_AUSWAHL }} wert={String(posPe(p))} setzen={(w) => setzen(i, "pe", w)} />}
               {!rahmen && (kw
                 ? <Feld f={{ name: "termin_kw", label: "Termin KW", platzhalter: "48/2026" }} wert={p.termin_kw} setzen={(w) => setzen(i, "termin_kw", w)} />
                 : <Feld f={{ name: "termin", label: "Termin", typ: "datum" }} wert={p.termin} setzen={(w) => setzen(i, "termin", w)} />)}
@@ -767,7 +782,10 @@ function AusLsFenster({ d, zu, neu }) {
           const auf = d.posMap.get(lp.bezug_id);
           const a = d.artikelMap.get(lp.artikel_id);
           await einfuegen("erp_positionen", { beleg_id: re.id, pos: i, artikel_id: lp.artikel_id, text: lp.text, menge: lp.menge, einheit: lp.einheit,
-            preis: auf && auf.preis != null ? auf.preis : a && a.preis != null ? a.preis : null, bezug_id: lp.id, daten: { charge: lp.daten.charge, ls: ls.nr } });
+            // Preis samt Preiseinheit aus dem Auftrag, sonst aus der Preisliste nach Menge
+            ...(auf && auf.preis != null ? { preis: auf.preis, daten: { charge: lp.daten.charge, ls: ls.nr, pe: posPe(auf) } }
+              : (() => { const vp = preisFuerMenge(a, lp.menge); return { preis: vp ? vp.preis : null, daten: { charge: lp.daten.charge, ls: ls.nr, pe: vp ? vp.pe : 1 } }; })()),
+            bezug_id: lp.id });
           i += 10;
         }
       }

@@ -266,13 +266,19 @@ export function staffelRechnen(k, staffel, maschinen) {
   // (Wunsch Patrick 27. Oktober 2026, „Währung (Ausgabe)“ im Gewatec)
   const waehrung = WAEHRUNGEN.includes(p.waehrung) ? p.waehrung : "CHF";
   const faktor = waehrung === "CHF" ? 1 : (z(p.kurs) || 1);
+  // Preiseinheit: Preis pro 1, 100 oder 1000 Stk (Wunsch Patrick
+  // 21. November 2026). Angebotspreis, Zielpreis und Rundung gelten für
+  // die Preiseinheit, gerechnet wird weiter je Stück (angebotAus, angebot).
+  const pe = peWert(p.pe);
   const angebotHand = z(staffel.angebot) > 0;
-  const angebotAus = angebotHand ? z(staffel.angebot) : Math.round(vk * faktor / schritt) * schritt;
+  const angebotPe = angebotHand ? z(staffel.angebot) : Math.round(vk * faktor * pe / schritt) * schritt;
+  const angebotAus = angebotPe / pe;
   const angebot = angebotAus / faktor;
   const umsatz = angebot * menge;
-  const ziel = z(staffel.ziel);
+  const zielPe = z(staffel.ziel);
+  const ziel = zielPe / pe;
   return {
-    menge, lose, lieferlose, mat, ags, waehrung, faktor, angebotAus, umsatzAus: angebotAus * menge,
+    menge, lose, lieferlose, mat, ags, waehrung, faktor, angebotAus, umsatzAus: angebotAus * menge, pe, angebotPe, zielPe,
     matStk: mat.jeStk, internStk: proStk(intern), externStk: proStk(extern), ruestStk: proStk(ruest),
     herstell, selbst, zins, selbstVerz, transport, verpackung, fracht, vk, angebot, angebotHand, umsatz, ziel,
     margeVk: (vk - selbstVerz - fracht) * menge,
@@ -281,6 +287,17 @@ export function staffelRechnen(k, staffel, maschinen) {
     gewinnAuftrag: umsatz - (selbstVerz + fracht) * menge,
     laufH: ags.reduce((s, a) => s + (a.laufH || 0), 0),
   };
+}
+
+// Preiseinheit 1, 100 oder 1000 Stk, alles andere zählt als 1
+export const PREISEINHEITEN = [1, 100, 1000];
+export function peWert(x) {
+  const n = Math.round(Number(x) || 1);
+  return PREISEINHEITEN.includes(n) ? n : 1;
+}
+export function peText(pe) {
+  const n = peWert(pe);
+  return n === 1000 ? "1'000 Stk" : n === 100 ? "100 Stk" : "Stk";
 }
 
 // ---------- Neue Kalkulation ----------

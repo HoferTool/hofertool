@@ -154,9 +154,45 @@ export function folgePositionen(d, positionId, typ) {
   return d.positionen.filter((p) => p.bezug_id === positionId && (!typ || (d.belegMap.get(p.beleg_id) || {}).typ === typ));
 }
 
+// ---------- Preise mit Preiseinheit und Preisliste ----------
+// Ein Preis gilt pro 1, 100 oder 1000 Stk (Wunsch Patrick 21. November 2026).
+// Am Artikel steht die Preisliste in daten.preisliste = { pe, waehrung,
+// kalkulation_id, kalkulation_nr, uebernommen_am, von_hand, staffeln: [{ab, preis}] },
+// an der Position die Preiseinheit in daten.pe (fehlt = 1, wie bisher).
+export const PE_AUSWAHL = [["1", "pro Stk"], ["100", "pro 100 Stk"], ["1000", "pro 1'000 Stk"]];
+export function peZahl(x) {
+  const n = Math.round(Number(x) || 1);
+  return n === 100 || n === 1000 ? n : 1;
+}
+export function peKurz(pe) {
+  const n = peZahl(pe);
+  return n === 1 ? "/Stk" : n === 100 ? "/100" : "/1'000";
+}
+export function posPe(p) { return peZahl(p && p.daten && p.daten.pe); }
+export function posBetrag(p) { return zahl(p.menge) * zahl(p.preis) / posPe(p); }
+export function preisliste(a) {
+  const pl = a && a.daten && a.daten.preisliste;
+  const staffeln = ((pl && pl.staffeln) || []).filter((x) => x && String(x.preis ?? "").trim() !== "")
+    .map((x) => ({ ab: zahl(x.ab), preis: zahl(x.preis) })).sort((x, y) => x.ab - y.ab);
+  return { ...(pl || {}), pe: peZahl(pl ? pl.pe : 1), staffeln };
+}
+// Preis für eine Menge: grösste Staffel „ab“ bis zur Menge, darunter die
+// kleinste. Ohne Preisliste der Preis am Artikel (pro Stk).
+export function preisFuerMenge(a, menge) {
+  if (!a) return null;
+  const pl = preisliste(a);
+  if (pl.staffeln.length) {
+    const m = zahl(menge);
+    let st = pl.staffeln[0];
+    for (const x of pl.staffeln) if (x.ab <= m) st = x;
+    return { preis: st.preis, pe: pl.pe, ab: st.ab };
+  }
+  return a.preis != null ? { preis: Number(a.preis), pe: 1, ab: 0 } : null;
+}
+
 export function belegSumme(d, beleg) {
   const pos = d.posJe.get(beleg.id) || [];
-  const netto = pos.reduce((s, p) => s + zahl(p.menge) * zahl(p.preis), 0);
+  const netto = pos.reduce((s, p) => s + posBetrag(p), 0);
   const satz = beleg.daten && beleg.daten.mwst != null && beleg.daten.mwst !== "" ? zahl(beleg.daten.mwst) : MWST;
   const steuer = Math.round(netto * satz) / 100;
   return { netto, satz, steuer, brutto: netto + steuer };

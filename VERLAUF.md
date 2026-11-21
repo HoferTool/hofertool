@@ -3,7 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
-## 1.675.1 (21. November 2026)
+## 1.685.0 (21. November 2026)
+
+- Test ERP: Reiter Kalkulation zuerst, dann Stammdaten. Kalkulation wahlweise pro 1, 100 oder 1'000 Stk. Aus der Kalkulation kommen alle Staffelpreise als Preisliste in den Artikel, mit Vermerk, aus welcher Kalkulation, und das Rohmaterial, wenn der Rohmaterial-Artikel schon besteht (sonst nur als Text). Neues grosses Artikelfenster mit Preisliste (ändern, drucken) und Platz für Zeichnung und 3D-Modell (kommen mit dem Dokumentenmanagement). Positionen mit Preiseinheit und Staffelpreis nach Menge. Alle ERP-Fenster waren auf 400 Punkte begrenzt, jetzt breit, Stammdaten gross (Wunsch Patrick).
+
 
 - Prüfstand `reihen` robuster: scheiterte seit Tagen auf allen Zweigen und nachts auf main („8 von 10 richtig“, Klick-Zeitüberschreitung). Er wartet jetzt auf die nächste Aufgabe statt fester Pausen, macht keine Bildschirmfotos mehr, während die 3 Sekunden laufen (mit WebGL dauerte eines oft länger), und merkt die grüne Rückmeldung mit einem Beobachter im Browser. Die App selbst ist unverändert.
 

@@ -27,7 +27,12 @@ TEST.daten.erp_artikel = [
 TEST.daten.erp_belege = []; TEST.daten.erp_positionen = [];
 TEST.daten.erp_bewegungen = [{ id: 'bw0', artikel_id: 'a0', charge: 'ALT-A', lager_id: 'lg1', menge: 500, art: 'korrektur', am: '2026-11-01T08:00:00Z' }];
 TEST.daten.kalkulationen = [{ id: 'kk1', nr: 'K-1', kunde: 'Muster AG', artikel: '10007-0590',
-  daten: { kopf: { artikel: '10007-0590', index: 'C', bezeichnung: 'Hülse', kunde: 'Muster AG' }, ags: [], staffeln: [] } }];
+  daten: { kopf: { artikel: '10007-0590', index: 'C', bezeichnung: 'Hülse', kunde: 'Muster AG' }, ags: [],
+    material: { bez: 'X8CrNiS18-9 rd 12' }, preis: { pe: '1000', waehrung: 'CHF', rundung: '0.01' },
+    staffeln: [{ menge: '5000', lose: '1', angebot: '200' }, { menge: '1000', lose: '1', angebot: '250' }] } },
+  { id: 'kk2', nr: 'K-2', kunde: 'Muster AG', artikel: '10007-0591',
+    daten: { kopf: { artikel: '10007-0591', index: '', bezeichnung: 'Stift', kunde: 'Muster AG' }, ags: [],
+      material: { bez: 'CuZn39Pb3 rd 8' }, staffeln: [{ menge: '100', lose: '1', angebot: '3.5' }] } }];
 TEST.daten.kalk_maschinen = [];
 """
 
@@ -163,6 +168,40 @@ with sync_playwright() as p:
     neu = [a for a in tabelle(pg, "erp_artikel") if a["nr"] == "10007-0590"]
     pruefe(len(neu) == 1 and neu[0]["idx"] == "C" and neu[0]["kunde_id"] == "k1", "Artikel aus Kalkulation angelegt: %s" % neu)
     pg.screenshot(path=BILD + "/erp-kalk.png")
+    a = neu[0] if neu else {}
+    pl = (a.get("daten") or {}).get("preisliste") or {}
+    pruefe(pl.get("pe") == 1000 and pl.get("kalkulation_nr") == "K-1"
+           and [(x["ab"], x["preis"]) for x in pl.get("staffeln", [])] == [(1000, 250), (5000, 200)] and a.get("preis") == 250,
+           "Preisliste aus Kalkulation: %s" % pl)
+    pruefe((a.get("daten") or {}).get("rohmaterial_id") == "r1", "Rohmaterial zugewiesen: %s" % a.get("daten"))
+    pg.click("[data-erp-kalk='K-2']"); pg.wait_for_timeout(800)
+    a2 = [x for x in tabelle(pg, "erp_artikel") if x["nr"] == "10007-0591"]
+    pruefe(len(a2) == 1 and not (a2[0]["daten"] or {}).get("rohmaterial_id") and a2[0]["daten"]["material"] == "CuZn39Pb3 rd 8"
+           and not [x for x in tabelle(pg, "erp_artikel") if x["art"] == "rohmaterial" and "CuZn" in x["nr"]],
+           "Fehlendes Rohmaterial nur als Text, nicht angelegt")
+    # Reihenfolge der Reiter: Kalkulation, Stammdaten, Rest
+    pruefe(pg.locator("[data-erp-reiter]").first.get_attribute("data-erp-reiter") == "kalk"
+           and pg.locator("[data-erp-reiter]").nth(1).get_attribute("data-erp-reiter") == "stamm", "Reiter: Kalkulation zuerst")
+    # Artikelfenster mit Preisliste, Herkunft, Rohmaterial, Platz für Zeichnung und 3D
+    pg.click("[data-erp-reiter='stamm']"); pg.wait_for_timeout(300)
+    pg.click("[data-erp-stamm='artikel']"); pg.wait_for_timeout(300)
+    pg.locator("[data-erp-zeile='%s']" % a["id"]).click(); pg.wait_for_selector("[data-erp-artfenster]")
+    pruefe("K-1" in pg.inner_text("[data-erp-pl-herkunft]") and pg.locator("[data-erp-pl-zeile]").count() == 2
+           and "X8CrNiS18-9" in pg.inner_text("[data-erp-art-roh]") and pg.locator("[data-erp-art-modell]").count() == 1,
+           "Artikelfenster zeigt Preisliste, Herkunft und Rohmaterial")
+    breite = pg.evaluate("() => document.querySelector('[data-erp-artfenster]').getBoundingClientRect().width")
+    pruefe(breite > 1200, "Artikelfenster gross: %s" % breite)
+    pg.wait_for_timeout(800); pg.screenshot(path=BILD + "/erp-artikelfenster.png")
+    pg.click("[data-erp-pl-bearbeiten]"); pg.wait_for_timeout(200)
+    pg.locator("[data-erp-artfenster] input").nth(1).fill("240"); pg.click("[data-erp-pl-speichern]"); pg.wait_for_timeout(700)
+    a = [x for x in tabelle(pg, "erp_artikel") if x["id"] == a["id"]][0]
+    pl = a["daten"]["preisliste"]
+    pruefe(pl.get("von_hand") and "von Hand" in pg.inner_text("[data-erp-pl-herkunft]"), "Von Hand geändert vermerkt: %s" % pl)
+    pg.locator("[data-erp-artfenster] [aria-label='Schliessen']").click(); pg.wait_for_timeout(200)
+    # Auftrag mit 6'000 Stk nimmt Staffel ab 5'000 und Preis pro 1'000
+    neuer_beleg(pg, "auftrag", "k1", "10007-0590 Ind. C · Hülse", "6000")
+    ap = [x for x in tabelle(pg, "erp_positionen") if x["artikel_id"] == a["id"]]
+    pruefe(ap and ap[-1]["preis"] == 200 and (ap[-1].get("daten") or {}).get("pe") == 1000, "Auftrag nimmt Staffelpreis: %s" % ap)
 
     pruefe(not pf, "keine Seitenfehler: %s" % pf)
     br.close()

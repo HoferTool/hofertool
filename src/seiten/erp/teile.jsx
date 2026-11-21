@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
-import { adresseText, chf, datumText, mengeText, terminText, belegSumme, BELEGTYP, artikelText } from "../../daten/erp.js";
+import { adresseText, chf, datumText, mengeText, terminText, belegSumme, BELEGTYP, artikelText, posPe, posBetrag, peKurz } from "../../daten/erp.js";
 
 // Ein Feld nach Beschreibung: { name, label, typ (text|zahl|datum|textarea|haken|liste),
 //   auswahl: [[wert, text]], felder (bei liste), breit, hinweis }
@@ -45,12 +45,14 @@ function Liste({ f, wert, setzen }) {
 }
 
 // Fenster mit Formular. speichern(werte) wirft bei Fehler, sonst schliesst es.
-export function formular({ titel, felder, wert, speichern, loeschen, breit }) {
+// gross: Stammdaten-Fenster mit viel Platz für die Übersicht (Wunsch Patrick
+// 21. November 2026: „gross mit viel Platz für die Übersicht“)
+export function formular({ titel, felder, wert, speichern, loeschen, breit, gross }) {
   fensterOeffnen((zu) => <Formular titel={titel} felder={felder} wert={wert || {}} speichern={speichern}
-    loeschen={loeschen} zu={zu} breit={breit} />);
+    loeschen={loeschen} zu={zu} breit={breit} gross={gross} />);
 }
 
-function Formular({ titel, felder, wert, speichern, loeschen, zu, breit }) {
+function Formular({ titel, felder, wert, speichern, loeschen, zu, breit, gross }) {
   const [w, setW] = useState(wert);
   const [laeuft, setLaeuft] = useState(false);
   const los = async () => {
@@ -58,7 +60,7 @@ function Formular({ titel, felder, wert, speichern, loeschen, zu, breit }) {
     try { await speichern(w); zu(); } catch (e) { alt.meldung(alt.fehlertext(e), "fehler"); setLaeuft(false); }
   };
   return (
-    <div className={"dialog erp-fenster" + (breit ? " erp-fenster--breit" : "")} role="dialog">
+    <div className={"dialog erp-fenster" + (gross ? " erp-fenster--gross" : breit ? " erp-fenster--breit" : "")} role="dialog">
       <h2>{titel}</h2>
       <div className="erp-formular">
         {felder.filter(Boolean).map((f) => f.titel
@@ -127,7 +129,7 @@ export function belegDrucken(d, b) {
       + (x.daten && x.daten.charge ? "<br><small>Charge " + esc(x.daten.charge) + "</small>" : "")
       + (x.text && a ? "<br><small>" + esc(x.text) + "</small>" : "") + "</td><td class='r'>" + mengeText(x.menge) + " " + esc(x.einheit || "")
       + "</td><td>" + esc(terminText(x)) + "</td>"
-      + (mitPreis ? "<td class='r'>" + chf(x.preis) + "</td><td class='r'>" + chf((Number(x.menge) || 0) * (Number(x.preis) || 0)) + "</td>" : "") + "</tr>";
+      + (mitPreis ? "<td class='r'>" + chf(x.preis) + (posPe(x) > 1 ? " " + peKurz(posPe(x)) : "") + "</td><td class='r'>" + chf(posBetrag(x)) + "</td>" : "") + "</tr>";
   }).join("");
   const html = "<!doctype html><html><head><meta charset='utf-8'><title>" + esc(t.name + " " + b.nr) + "</title><style>"
     + "body{font:11pt Arial,sans-serif;margin:18mm 16mm;color:#111}h1{font-size:16pt;margin:30px 0 4px}table{width:100%;border-collapse:collapse;margin-top:16px}"
