@@ -334,14 +334,26 @@ export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null
 // star-sw20.png: unten links, zwei Reihen zu vier goldenen Werkzeugen,
 // fährt in Y2, Werkzeuge zeigen zur Gegenspindel). Masse geschätzt.
 // Lage je Platz an der Maschine (X, Y bei Y2 = 0), Spitze bei z = spitze
+// Grundlage (Lage bis 1.688.0), dazu der Versatz des ganzen Blocks
+const K2_PLATZ = {
+  2100: [120, -155], 2200: [145, -155], 2300: [170, -155], 2400: [195, -155],
+  2500: [120, -205], 2600: [145, -205], 2700: [170, -205], 2800: [195, -205],
+};
+// Seit 1.688.1 (Patrick 21. November 2026: „der Werkzeugträger von Kanal 2
+// kollidiert mit dem von Kanal 1, wenn Kanal 1 auf G28 U0 steht“, „muss
+// weiter nach links“, „steht in der Ausgangsposition extrem weit unten …
+// auf Höhe Gegenspindel fluchtend mit den unteren Werkzeugen“, „kann am
+// Träger stehen, aber nicht mit den Werkzeugblöcken kollidieren“): der
+// Block steht neben Träger 1 (in X ausserhalb seiner Grundstellung bei
+// G28 U0, bei Ø20 bis X 200) und bei Y2 = 0 fluchten die unteren Werkzeuge
+// T2500–T2800 mit der Achse der Gegenspindel
+const K2_VERSATZ = { x: 105, y: 205 };
 export const SW20_K2 = {
-  // seit 1.684.0 weiter weg von der Hauptspindel (100 mm in X, 60 vor der
-  // Drehebene), damit simultan nichts mit Kanal 1 zusammenfällt
+  // seit 1.684.0 60 mm vor der Drehebene, damit simultan nichts mit
+  // Kanal 1 zusammenfällt
   spitze: -60,
-  platz: {
-    2100: [120, -155], 2200: [145, -155], 2300: [170, -155], 2400: [195, -155],
-    2500: [120, -205], 2600: [145, -205], 2700: [170, -205], 2800: [195, -205],
-  },
+  versatz: K2_VERSATZ,
+  platz: Object.fromEntries(Object.entries(K2_PLATZ).map(([t, [x, y]]) => [t, [x + K2_VERSATZ.x, y + K2_VERSATZ.y]])),
   // Gegenspindel in Grundstellung: Nase so weit vor der Drehebene
   gegenHeim: -170,
 };
@@ -350,16 +362,18 @@ export const SW20_K2 = {
 // (zeichnet seinen Körper selbst); benutzt: Plätze im Programm
 export function swK2Quader(o, aktiv, benutzt = null, m = SW20_K2) {
   const q = [];
-  const box = (z0, z1, x0, x1, y0, y1, art) => q.push({ z0: o.z + z0, z1: o.z + z1, x0, x1, y0: o.y + y0, y1: o.y + y1, art });
-  const walze = (achse, z, x, y, L, r, art, r2 = r) => q.push(walzeTeil(achse, o.z + z, x, o.y + y, L, r, art, r2));
+  // Masse der Grundplatte wie bis 1.688.0, verschoben um den Versatz
+  const vx = (m.versatz && m.versatz.x) || 0, vy = (m.versatz && m.versatz.y) || 0;
+  const box = (z0, z1, x0, x1, y0, y1, art) => q.push({ z0: o.z + z0, z1: o.z + z1, x0: x0 + vx, x1: x1 + vx, y0: o.y + y0 + vy, y1: o.y + y1 + vy, art });
+  const walze = (achse, z, x, y, L, r, art, r2 = r) => q.push(walzeTeil(achse, o.z + z, x + vx, o.y + y + vy, L, r, art, r2));
   // seit 1.686.0: Grundplatte mit Schlitten Y2, goldene Hülsen rund mit
   // Spannmutter, die angetriebenen T2500–T2600 mit Antrieb hinten
   box(25, 40, 105, 210, -230, -130, "block");
   box(40, 62, 112, 203, -238, -122, "schlitten");
   for (const yy of [-226, -134]) walze("z", 25, 108, yy, -1.6, 2.4, "schraube");
   for (const yy of [-226, -134]) walze("z", 25, 207, yy, -1.6, 2.4, "schraube");
-  for (const [t, [x, y]] of Object.entries(m.platz)) {
-    const nr = Number(t);
+  for (const [t, [px, py]] of Object.entries(m.platz)) {
+    const nr = Number(t), x = px - vx, y = py - vy;
     box(18, 25, x - 11, x + 11, y - 11, y + 11, "gold");
     walze("z", 18, x, y, -8, 9, "gold");
     walze("z", 10, x, y, -2.5, 7.5, "mutter", 6.4);
