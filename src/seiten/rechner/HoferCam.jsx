@@ -22,6 +22,7 @@ import { camTypFensterOeffnen, camTypLaden } from "./CamTypFenster.jsx";
 import { bloeckeLesen, kopfLesen } from "./camLesen.js";
 import { wzFehler, wzText } from "./camWerkzeug.js";
 import { WerkzeugFeld } from "./CamWerkzeugBild.jsx";
+import { protokollAusApp, protokollText, protokollZuordnen } from "./camProtokoll.js";
 import { simulationOeffnen } from "./CamSim3D.jsx";
 import { VORLAGEN, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen } from "./camVorlagen.js";
 import AbstecherBild from "./AbstecherBild.jsx";
@@ -241,6 +242,87 @@ function EinlesenKnopf({ id, kanal, merkmal, einlesen, title, children }) {
     </label>
   );
 }
+// Seit 1.688.0 (Wunsch Patrick 21. November 2026: „eine Option, um
+// Werkzeugprotokolle einzulesen, um die Werkzeuge für die Simulation zu
+// erzeugen“): Excel-Werkzeugprotokoll oder Einrichtblatt der App lesen,
+// je Bearbeitung mit gleicher T-Nr. ein Werkzeug vorschlagen, ansehen,
+// Häkchen setzen und übernehmen (camProtokoll.js)
+function ProtokollFeld({ w, bloecke, setzeBloecke }) {
+  const [auf, setAuf] = useState(false);
+  const [liste, setListe] = useState(null);   // [{b, tnr, p, wz}]
+  const [an, setAn] = useState({});
+  const [quelle, setQuelle] = useState("");
+  const [laeuft, setLaeuft] = useState(false);
+  const zeigen = (plaetze, name) => {
+    const l = protokollZuordnen(bloecke, plaetze);
+    if (!l.some((z) => z.p)) { alt.meldung("Im Protokoll steht keine T-Nr. der Bearbeitungen.", "warn"); return; }
+    const a = {};
+    l.forEach((z) => { if (z.wz) a[z.b.id] = !(z.b.wz && z.b.wz.form); });
+    setListe(l); setAn(a); setQuelle(name);
+  };
+  const ausDatei = async (datei) => {
+    if (!datei) return;
+    setLaeuft(true);
+    try {
+      const { excelRoh, blattAusExcel } = await import("../../einrichtblatt/excelEinlesen.js");
+      const blatt = blattAusExcel(await excelRoh(new Uint8Array(await datei.arrayBuffer())));
+      zeigen(blatt.plaetze, datei.name);
+    } catch (x) { alt.meldung("Werkzeugprotokoll lesen ging nicht: " + (x && x.message ? x.message : x), "fehler"); }
+    setLaeuft(false);
+  };
+  const ausApp = async () => {
+    setLaeuft(true);
+    try {
+      const r = await protokollAusApp(alt.db, String(w.hoco).trim(), w.typ || "star-sb20rg");
+      if (!r) alt.meldung("Zu " + w.hoco + " gibt es kein Einrichtblatt in der App mit Werkzeugen.", "warn");
+      else zeigen(r.plaetze, "Einrichtblatt " + w.hoco + (r.typName ? " " + r.typName : ""));
+    } catch (x) { alt.meldung("Einrichtblatt laden ging nicht: " + (x && x.message ? x.message : x), "fehler"); }
+    setLaeuft(false);
+  };
+  const uebernehmen = () => {
+    const neu = Object.fromEntries((liste || []).filter((z) => z.wz && an[z.b.id]).map((z) => [z.b.id, z.wz]));
+    const n = Object.keys(neu).length;
+    if (!n) return;
+    setzeBloecke(bloecke.map((b) => (neu[b.id] ? { ...b, wz: { ...(b.wz && b.wz.step ? { step: b.wz.step } : {}), ...neu[b.id] } } : b)));
+    alt.meldung(n === 1 ? "1 Werkzeug übernommen." : n + " Werkzeuge übernommen.", "gut");
+    setListe(null); setAuf(false);
+  };
+  const zu = () => { setAuf(false); setListe(null); };
+  if (!auf) return (<button className="knopf knopf--klein" id="cam-protokoll-auf"
+    title="Werkzeuge der Bearbeitungen aus dem Werkzeugprotokoll (Excel-Einrichtblatt) oder dem Einrichtblatt in der App erzeugen, für die 3D-Simulation"
+    onClick={() => setAuf(true)}>📥 Werkzeugprotokoll einlesen</button>);
+  const zahl = (liste || []).filter((z) => z.wz && an[z.b.id]).length;
+  return (<div className="cam-protokoll" id="cam-protokoll">
+    <div className="cam-protokoll__kopf"><b>Werkzeuge aus dem Werkzeugprotokoll</b>
+      <button className="linkknopf" id="cam-protokoll-zu" onClick={zu}>✕</button></div>
+    {!liste && <div className="cam-protokoll__wahl">
+      <label className="knopf knopf--klein" id="cam-protokoll-datei">📂 Excel-Datei wählen
+        <input type="file" hidden accept=".xlsx,.xlsm,.xls" data-ablegen="direkt" onChange={(e) => { ausDatei(e.target.files[0]); e.target.value = ""; }} /></label>
+      {String(w.hoco || "").trim() && <button className="knopf knopf--klein" id="cam-protokoll-app" disabled={laeuft} onClick={ausApp}>
+        Einrichtblatt in der App zu {w.hoco}</button>}
+      <span className="klein">{laeuft ? "Wird gelesen …" : "Die Werkzeuge kommen in die Bearbeitungen mit derselben T-Nr. Vorher siehst du alles und wählst aus."}</span>
+    </div>}
+    {liste && <>
+      <p className="klein">Aus {quelle}. Vorschlag aus Platte, Ø und Aufgabe, bitte prüfen. Bearbeitungen mit Werkzeug sind nicht angehakt.</p>
+      <table className="cam-protokoll__tab"><thead><tr><th></th><th>T-Nr.</th><th>Bearbeitung</th><th>Im Protokoll</th><th>Werkzeug</th></tr></thead>
+        <tbody>{liste.map((z, i) => (
+          <tr key={z.b.id} data-camproto-zeile={i} className={z.wz ? "" : "cam-protokoll--leer"}>
+            <td>{z.wz && <input type="checkbox" data-camproto-haken={i} checked={!!an[z.b.id]} onChange={() => setAn({ ...an, [z.b.id]: !an[z.b.id] })} />}</td>
+            <td>{z.tnr || "–"}</td>
+            <td>{z.b.bez || "(ohne Bezeichnung)"}</td>
+            <td className="klein">{z.p ? protokollText(z.p) : "nicht im Protokoll"}</td>
+            <td data-camproto-wz={i}>{z.wz ? wzText({ ...z.b, wz: z.wz }) : z.p ? "kein Vorschlag" : ""}
+              {z.wz && z.b.wz && z.b.wz.form && <div className="klein">bisher: {wzText(z.b)}</div>}</td>
+          </tr>))}</tbody></table>
+      <div className="cam-protokoll__knoepfe">
+        <button className="knopf" id="cam-protokoll-ok" disabled={!zahl} onClick={uebernehmen}>{zahl === 1 ? "1 Werkzeug übernehmen" : zahl + " Werkzeuge übernehmen"}</button>
+        <button className="knopf knopf--klein" onClick={() => setListe(null)}>Andere Datei</button>
+        <button className="knopf knopf--klein" onClick={zu}>Abbrechen</button>
+      </div>
+    </>}
+  </div>);
+}
+
 // Welche Datei „Speichern“ für diesen Kanal aktualisiert
 function DateiSchild({ k }) {
   const [, neu] = useState(0);
@@ -1153,6 +1235,7 @@ export default function HoferCam() {
           <button className="knopf knopf--klein" id="cam-alle-auf" onClick={() => setzeBloecke(bloecke.map((b) => ({ ...b, zu: false })))}
             disabled={bloecke.every((b) => !b.zu)}>▾ Alle aufklappen</button>
         </div>}
+        {bloecke.length > 0 && <div className="cam-protokoll-zeile"><ProtokollFeld w={w} bloecke={bloecke} setzeBloecke={setzeBloecke} /></div>}
         {bloecke.length === 0 && <p className="klein">Noch keine Bearbeitung. Sie kommt zwischen „(Ende Kopf)“ und „(Start Ende)“.</p>}
         {/* Seit 1.405.0 (Wunsch Patrick 5. November 2026): Bearbeitungen am
             Griff ⠿ untereinander verschieben, statt Pfeilen */}
