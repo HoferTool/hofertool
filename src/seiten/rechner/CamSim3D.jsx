@@ -334,7 +334,35 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
           a[0] + u[0] * (i + 0.5) / nu + v[0] * (j + 0.5) / nv);
       }
     };
+    // Walzen (seit 1.686.0): Zylinder in Z, X oder Y für Spindeln,
+    // Spannmuttern, Hülsen und Schrauben; r2 = Radius am Ende (Kegel)
+    const walzeMalen = (b) => {
+      const e = b.achse === "x" ? [0, 1, 0] : b.achse === "y" ? [0, 0, 1] : [1, 0, 0];
+      const u = b.achse === "z" ? [0, 1, 0] : [1, 0, 0];
+      const v = [e[1] * u[2] - e[2] * u[1], e[2] * u[0] - e[0] * u[2], e[0] * u[1] - e[1] * u[0]];
+      const r1 = b.r, r2 = b.r2 != null ? b.r2 : b.r;
+      const N = b.n || (maschine.grob ? 10 : Math.max(10, Math.min(28, Math.round(b.r * 1.6))));
+      const st = teile(Math.abs(b.L));
+      const pt = (t, r, f) => am(b.z + e[0] * t + r * (u[0] * Math.cos(f) + v[0] * Math.sin(f)),
+        b.x + e[1] * t + r * (u[1] * Math.cos(f) + v[1] * Math.sin(f)),
+        b.y + e[2] * t + r * (u[2] * Math.cos(f) + v[2] * Math.sin(f)));
+      const zc = (t) => b.z + e[0] * t;
+      for (let j = 0; j < N; j++) {
+        const f0 = (2 * Math.PI * j) / N, f1 = (2 * Math.PI * (j + 1)) / N;
+        for (let i = 0; i < st; i++) {
+          const t0 = (b.L * i) / st, t1 = (b.L * (i + 1)) / st;
+          const ra = r1 + ((r2 - r1) * i) / st, rb = r1 + ((r2 - r1) * (i + 1)) / st;
+          flaeche([pt(t0, ra, f0), pt(t1, rb, f0), pt(t1, rb, f1), pt(t0, ra, f1)], b.art, zc((t0 + t1) / 2));
+        }
+        // Deckel als Tortenstücke, sonst sortiert der Maler grosse Scheiben falsch
+        if (!b.offen) {
+          if (r1 > 0.05) flaeche([pt(0, 0, 0), pt(0, r1, f0), pt(0, r1, f1)], b.deckel || b.art, zc(0));
+          if (r2 > 0.05) flaeche([pt(b.L, 0, 0), pt(b.L, r2, f0), pt(b.L, r2, f1)], b.deckel || b.art, zc(b.L));
+        }
+      }
+    };
     for (const b of maschine.quader) {
+      if (b.achse) { walzeMalen(b); continue; }
       const dz = b.z1 - b.z0, dx = b.x1 - b.x0, dy = b.y1 - b.y0;
       for (const z of [b.z0, b.z1]) rechteck([z, b.x0, b.y0], [0, dx, 0], [0, 0, dy], b.art);
       for (const x of [b.x0, b.x1]) rechteck([b.z0, x, b.y0], [dz, 0, 0], [0, 0, dy], b.art);
@@ -1050,7 +1078,10 @@ function Simulation({ w, zu }) {
     const win = (leinwand.current && leinwand.current.ownerDocument.defaultView) || window;
     const weiter = () => {
       setN((x) => {
-        const bis = (einzeln || satz) && ziel.current > 0 ? Math.min(endeT, ziel.current) : endeT;
+        // simultan sind Einzeln und Einzelsatz aus, auch wenn sie noch
+        // angehakt gespeichert sind (seit 1.686.0, Patrick: „warum kann ich
+        // mit Simultan nur einzeln fahren?“)
+        const bis = (einzeln || satz) && !zeit && ziel.current > 0 ? Math.min(endeT, ziel.current) : endeT;
         const neu = Math.min(bis, x + Math.max(1, Math.round(Number(tempo) * 6)));
         if (neu >= bis) setLaeuft(false);
         return neu;
@@ -1059,7 +1090,7 @@ function Simulation({ w, zu }) {
     };
     id = win.requestAnimationFrame(weiter);
     return () => win.cancelAnimationFrame(id);
-  }, [laeuft, tempo, endeT, einzeln, satz]);
+  }, [laeuft, tempo, endeT, einzeln, satz, zeit]);
 
   // Drehen und Zoomen wie in der 3D-Ansicht der Kontur
   const runter = (e) => {
@@ -1145,9 +1176,9 @@ function Simulation({ w, zu }) {
               <select value={tempo} onChange={(e) => setTempo(e.target.value)}>
                 {TEMPI.map(([x, t]) => <option key={x} value={x}>{t}</option>)}
               </select></label>
-            <label className="schalter" title="Abspielen hält am Ende jeder Bearbeitung an, nochmals Abspielen fährt die nächste"><input type="checkbox" id="cam-sim-einzeln" checked={einzeln} disabled={!!zeit}
+            <label className="schalter" title="Abspielen hält am Ende jeder Bearbeitung an, nochmals Abspielen fährt die nächste"><input type="checkbox" id="cam-sim-einzeln" checked={einzeln && !zeit} disabled={!!zeit}
               onChange={(e) => halten("einzeln", e.target.checked)} /><span>Einzeln</span></label>
-            <label className="schalter" title="Einzelsatz: Abspielen fährt nur die nächste NC-Zeile und hält dann an"><input type="checkbox" id="cam-sim-satz" checked={satz} disabled={!!zeit}
+            <label className="schalter" title="Einzelsatz: Abspielen fährt nur die nächste NC-Zeile und hält dann an"><input type="checkbox" id="cam-sim-satz" checked={satz && !zeit} disabled={!!zeit}
               onChange={(e) => halten("satz", e.target.checked)} /><span>Einzelsatz</span></label>
             <label className="schalter" title="Werkzeugträger, Spindelstock und Gegenspindel zeigen"><input type="checkbox" id="cam-sim-maschine" checked={maschineAn}
               onChange={(e) => { setMaschineAn(e.target.checked); try { localStorage.setItem("hofer.camSim.maschine", e.target.checked ? "1" : "0"); } catch { /* egal */ } }} /><span>Maschine</span></label>
