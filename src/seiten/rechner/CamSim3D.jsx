@@ -500,7 +500,12 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
     }
     };
   // Simultan (seit 1.684.0): das Teil von Kanal 2 in der Gegenspindel
-  if (zweit && zweit.umriss) {
+  // Seit 1.689.1 (Patrick 21. November 2026: „das Fertigteil hat keine
+  // Löcher“): mit Bohrungen aus C/Y als Strahlenbild, sonst als Umriss
+  const zweitStrahl = zweit && zweit.strahl;
+  const achse2 = (z) => ansichtF({ s: 1, z0: 0, xf: zweit.frame.xf, yf: zweit.frame.yf })(z, 0, 0).t;
+  const zweitMalen = () => strahlenMalen(g, W, H, { ...zweit.strahl, bereich, dreh, zoom, schnitt, bu: null, roh: null, roll: zweit.roll || 0, frame: zweit.frame });
+  if (zweit && zweit.umriss && !zweitStrahl) {
     ziel = mListe;
     teilMalen(zweit.umriss, ansichtF(zweit.frame), zweit.frame, null);
     ziel = liste;
@@ -514,11 +519,15 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
       zeichnen(hinten);
     }
     strahlenMalen(g, W, H, { ...strahl, bereich, dreh, zoom, schnitt, bu: ueber.buechse, roh, roll: rollT, frame });
-    if (mListe.length) {
-      const vorne = mListe.filter((f) => f.vorn || !(f.tiefe < achseT(f.zc)));
-      vorne.sort((x, y) => x.tiefe - y.tiefe);
-      zeichnen(vorne);
-    }
+    const vorne = mListe.filter((f) => f.vorn || !(f.tiefe < achseT(f.zc)));
+    vorne.sort((x, y) => x.tiefe - y.tiefe);
+    if (zweitStrahl) {
+      const hinten2 = vorne.filter((f) => !f.vorn && f.tiefe < achse2(f.zc));
+      zeichnen(hinten2);
+      zweitMalen();
+      const h2 = new Set(hinten2);
+      zeichnen(vorne.filter((f) => !h2.has(f)));
+    } else zeichnen(vorne);
   } else if (umriss) {
     teilMalen(umriss, ansicht, frame, roh);
   }
@@ -550,7 +559,14 @@ function malen(g, W, H, { umriss, strahl, bereich, dreh, zoom, schnitt, ueber, h
   }
   if (!strahl) liste.push(...mListe);
   liste.sort((x, y) => x.tiefe - y.tiefe);
-  zeichnen(liste);
+  if (zweitStrahl && !strahl) {
+    // das zweite Teil liegt als Bild zwischen dem, was hinter und vor seiner Achse liegt
+    const hinten = liste.filter((f) => !f.vorn && f.tiefe < achse2(f.zc));
+    zeichnen(hinten);
+    zweitMalen();
+    const h2 = new Set(hinten);
+    zeichnen(liste.filter((f) => !h2.has(f)));
+  } else zeichnen(liste);
   // Mittellinie
   g.setLineDash([10, 4, 2, 4]); g.strokeStyle = "rgba(220,60,60,.7)"; g.lineWidth = 1;
   const welt = ansichtF(null);
@@ -673,6 +689,8 @@ function Simulation({ w, zu }) {
   // seit 1.621.0 Werkzeug als 3D-Körper (Patrick 18. November 2026), je Gerät gemerkt
   const [dreiD, setDreiD] = useState(() => { try { return localStorage.getItem("hofer.camSim.wz3d") !== "0"; } catch { return true; } });
   const [breite, setBreite] = useState(800);
+  // fürs Zoomen mit dem Mausrad (Handler ohne neue Bindung je Bild)
+  const zoomRef = useRef(1), schiebRef = useRef({ x: 0, y: 0 }), breiteRef = useRef(800);
   const rahmen = useRef(null), leinwand = useRef(null), ziehen = useRef(null), finger = useRef(new Map());
   const { gesamt, schritte } = sim;
   const abSchritt = schritte.find((s) => s.modus === "abstech");
@@ -1002,6 +1020,10 @@ function Simulation({ w, zu }) {
       return { frame: fr, k2, roll: r2, sAkt, pAkt, weg };
     };
     let zweit = null;
+    const zweitStrahlVon = (sb) => {
+      const v = sb.vox && sb.vox.weg > 0 ? sb.vox : null;
+      return v || (sb.k2 && sb.k2.kernA) ? { st: sb.k2, vox: v, kanal2: true, Wt: W, q: laeuft ? 0.45 : 1 } : null;
+    };
     // Seit 1.689.0 (Patrick 21. November 2026: „Fertigteil soll heissen, die
     // Gegenspindel hat übernommen und steht zurück auf Grundposition. Wenn
     // Kanal 2 fertig ist, muss die Spindel das Teil auswerfen, es soll links
@@ -1019,7 +1041,7 @@ function Simulation({ w, zu }) {
       ueber.bahnen = []; ueber.koerper = []; ueber.werkzeuge = []; ueber.stangen = []; ueber.spitze = null;
     } else if (abgelegtB && standB && standB.k2) {
       swK2 = { aktiv: 0, y: 0 };
-      zweit = { umriss: umrissVon(standB.k2, W), frame: ablage.frame, roll: 0, spitze: null, bahn: [], abgelegt: true };
+      zweit = { umriss: umrissVon(standB.k2, W), strahl: zweitStrahlVon(standB), frame: ablage.frame, roll: 0, spitze: null, bahn: [], abgelegt: true };
     } else if (swMaschine && kanal === 2) {
       const l = k2Bei(n, swEbene);
       frame = l.frame; swK2 = l.k2;
@@ -1030,7 +1052,7 @@ function Simulation({ w, zu }) {
       const l = k2Bei(nB, swEbene);
       swK2 = l.k2;
       const bahn = l.sAkt && !l.weg && nB > l.sAkt.von ? l.sAkt.punkte.slice(0, Math.min(nB, l.sAkt.bis) - l.sAkt.von).filter((p) => p.vor) : [];
-      zweit = { umriss: umrissVon(standB.k2, W), frame: l.frame, roll: l.roll || 0, spitze: l.weg ? null : l.pAkt, bahn };
+      zweit = { umriss: umrissVon(standB.k2, W), strahl: zweitStrahlVon(standB), frame: l.frame, roll: l.roll || 0, spitze: l.weg ? null : l.pAkt, bahn };
     }
     if (swMaschine) {
       // ganze Maschine im Bild: Mitte 45 mm vor der Drehebene
@@ -1216,11 +1238,26 @@ function Simulation({ w, zu }) {
   const hoch = (e) => { finger.current.delete(e.pointerId); if (!finger.current.size) ziehen.current = null; };
   useEffect(() => {
     const cv = leinwand.current; if (!cv) return undefined;
-    const rad = (e) => { e.preventDefault(); setZoom((z) => Math.max(0.3, Math.min(20, z * (e.deltaY < 0 ? 1.15 : 1 / 1.15)))); };
+    // Seit 1.689.1 (Patrick 21. November 2026: „auf Kanal 2 sieht man keine
+    // Werkzeuge, die das Teil bearbeiten“): das Mausrad zoomt dorthin, wo
+    // die Maus steht, nicht mehr in die Mitte der Maschine
+    const rad = (e) => {
+      e.preventDefault();
+      const r = cv.getBoundingClientRect();
+      const z = zoomRef.current, nz = Math.max(0.3, Math.min(20, z * (e.deltaY < 0 ? 1.15 : 1 / 1.15))), k = nz / z;
+      if (r.width > 0 && r.height > 0) {
+        const Wl = breiteRef.current, cx = ((e.clientX - r.left) * Wl) / r.width, cy = ((e.clientY - r.top) * HOCH) / r.height;
+        const s0 = schiebRef.current;
+        const ns = { x: cx - (cx - (Wl / 2 + s0.x)) * k - Wl / 2, y: cy - (cy - (HOCH / 2 + 10 + s0.y)) * k - HOCH / 2 - 10 };
+        schiebRef.current = ns; setSchieb(ns);
+      }
+      zoomRef.current = nz; setZoom(nz);
+    };
     cv.addEventListener("wheel", rad, { passive: false });
     return () => cv.removeEventListener("wheel", rad);
   }, []);
 
+  zoomRef.current = zoom; schiebRef.current = schieb; breiteRef.current = breite;
   const p = akt && n > akt.von ? akt.punkte[Math.min(n, akt.bis) - akt.von - 1] : null;
   const zeile = p && akt.zeilen ? String(akt.zeilen[p.nr] || "").trim() : "";
   // Im Einzelsatz auch die Zeile, die als Nächste kommt
