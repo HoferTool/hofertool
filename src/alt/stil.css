@@ -15245,3 +15245,13 @@ body.dunkel .gf-geaendert, body.dunkel .gf-warn { color: #ffc46b !important; }
 .gf-tab tr.erp-gut td { background: #eaf6ec; }
 body.dunkel .gf-tab tr.erp-minus td { background: #3a2224; }
 body.dunkel .gf-tab tr.erp-gut td { background: #1f3326; }
+/* HOFERCAM: Werkzeugprotokoll einlesen (seit 1.688.0) */
+.cam-protokoll-zeile { margin: 4px 0 8px; }
+.cam-protokoll { border: 1px solid #7aa7d6; background: #f3f8fd; border-radius: 8px; padding: 8px 10px; }
+body.dunkel .cam-protokoll { background: #18222e; border-color: #3d6a96; }
+.cam-protokoll__kopf { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.cam-protokoll__wahl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cam-protokoll__tab { width: 100%; border-collapse: collapse; font-size: 13px; margin: 6px 0; }
+.cam-protokoll__tab th, .cam-protokoll__tab td { text-align: left; padding: 4px 6px; border-bottom: 1px solid rgba(120, 140, 170, .3); vertical-align: top; overflow-wrap: anywhere; }
+.cam-protokoll--leer td { opacity: .55; }
+.cam-protokoll__knoepfe { display: flex; flex-wrap: wrap; gap: 8px; }

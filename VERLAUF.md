@@ -3,7 +3,7 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
-## 1.686.0 (21. November 2026)
+## 1.690.0 (21. November 2026)
 
 - Test ERP: Fenster im Aufbau wie im Gewatec, im Stil des HoferTools: oben die wichtigsten Felder, rechts das Bild, darunter Reiter, unten die Knöpfe. Blau unterstrichene Beschriftungen öffnen mit Rechtsklick (am iPad antippen) die passenden Sprünge. Neu: Kunde/Lieferant mit Reitern, Artikel mit Reitern Verkauf, Arbeitsplan (Arbeitsgang je Fenster), Lager, Belege, Dokumente, Artikel-Cockpit, Positionsfenster und Lieferplan beim Auftrag. Bewusst schlank, nur die Grundfunktionen (Wunsch Patrick). Behoben: nach dem ersten Speichern hiess der Artikel wieder „neu“, wenn die Datenbank die Zeile nicht zurückgab.
 

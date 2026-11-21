@@ -29,7 +29,7 @@ function quader(z0, z1, u0, u1, w0, w1, art, aus) {
   prisma([{ z: z0, u: u0 }, { z: z1, u: u0 }, { z: z1, u: u1 }, { z: z0, u: u1 }], w0, w1, art, aus);
 }
 
-// Dicke der Platte: kleine Platten 3.18, sonst 4.76 (ISO 06 / 11 / 16)
+// Übliche Dicke der Platte (ISO), drehKoerper nimmt höchstens diese
 function plattenDicke(f) {
   if (!f) return 3;
   if (f.art === "einstech") return 3;
@@ -44,7 +44,16 @@ export function drehKoerper(wz, p, umriss, mitHalter) {
   const aus = [];
   if (!umriss || umriss.length < 3) return aus;
   const f = plattenForm(wz && wz.form);
-  const d = plattenDicke(f);
+  // Seit 1.686.1 (Patrick 21. November 2026: „verändere auch die Dicke
+  // der Drehplatten im Verhältnis zu der Grösse, bei Innenbearbeitungen
+  // z.B. Ø5 ist sie viel zu dick“): die Dicke folgt der Grösse des Umrisses
+  // (bei Innenplatten schon verkleinert, innenTiefe), etwa 0.4 × der
+  // kleineren Seite, höchstens die übliche Dicke, mindestens 0.5 mm
+  const us = umriss.map((q) => q.x), zs0 = umriss.map((q) => q.z);
+  const bx = Math.max(...us) - Math.min(...us), bz = Math.max(...zs0) - Math.min(...zs0);
+  // Einstechplatten sind schmal, dort zählt die Länge
+  const klein = f && f.art === "einstech" ? 0.6 * Math.max(bx, bz) : Math.min(bx, bz);
+  const d = Math.max(0.5, Math.min(plattenDicke(f), 0.4 * klein));
   const pts = umriss.map((q) => ({ z: p.z + q.z, u: p.r + q.x }));
   prisma(pts, -d, 0, "schneide", aus);
   const s = SPITZEN.find((x) => x.id === (wz && wz.sl)) || { z: 1, r: -1 };
