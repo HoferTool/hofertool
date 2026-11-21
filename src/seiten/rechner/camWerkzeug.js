@@ -81,7 +81,10 @@ export const fraeserForm = (id) => FRAESER.find((p) => p.id === id) || null;
 // Kanal-2-Werkzeuge beides
 export function wzArten(blockArt) {
   if (blockArt === "dreh" || blockArt === "k3dr") return ["dreh"];
-  if (blockArt === "front") return ["fraes", "dreh"];
+  // Seit 1.679.1 auch die festen Frontwerkzeuge der SW-20 (Kanal 3 T1600–T1900,
+  // Frontbohrhalter fest T1300–T1500, Kanal 2 Bohren stehend): dort stecken
+  // oft Bohrstangen mit Drehplatte (Werkzeugprotokoll 10844-0049)
+  if (blockArt === "front" || blockArt === "k3d" || blockArt === "k3ff" || blockArt === "k2b") return ["fraes", "dreh"];
   if (blockArt === "k2") return ["dreh", "fraes"];
   return ["fraes"];
 }
