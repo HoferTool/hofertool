@@ -353,6 +353,9 @@ export function bloeckeLesen(k1, k2, k3) {
       const arten = arten3.filter((a) => plaetzeVon(a).includes(platz));
       if (!arten.length) return;
       const best = besteVorlage(arten, s, 3);
+      // Seit 1.677.0: ein blosser Werkzeugaufruf ohne Spindel (T1100 in
+      // Kopf und Ende von O3272, Platten T1100 / T1200) ist keine Bearbeitung
+      if (zuSchlecht(best, s) && !s.some((z) => /M\d+S\d/i.test(String(z).replace(/\s/g, "")))) return;
       if (zuSchlecht(best, s)) { liste.push({ b: freiBlock(arten[0], s, platz), p1: Infinity, p3: pos }); return; }
       const b = blockAus(best.art, null, best.r);
       b.code = (best.r.liste || []).join("\n");
