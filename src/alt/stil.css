@@ -14070,107 +14070,6 @@ body.dunkel .cam-sim__schritt { background: #101820; }
   @keyframes nav-todo-zu { to { opacity: 0; transform: translateY(6px); } }
 }
 
-/* ---------- Lager für eigene Teile (seit 1.557.0) ---------- */
-.lager-liste { padding: 0; overflow: hidden; }
-.lager-zeile { display: grid; grid-template-columns: 9rem minmax(8rem, 1.4fr) 7rem minmax(8rem, 1fr) 8rem;
-  gap: 10px; align-items: baseline; width: 100%; padding: 9px 14px; background: none; border: none;
-  border-bottom: 1px solid var(--linie); font: inherit; color: inherit; text-align: left; cursor: pointer; }
-button.lager-zeile:hover { background: var(--flaeche-hover, rgba(0, 56, 132, .05)); }
-.lager-zeile--kopf { cursor: default; color: var(--gedaempft); font-weight: 600; }
-.lager-zeile--leer { opacity: .55; }
-.lager-zeile--minus .lager-zahl { color: #c0392b; }
-.lager-zahl { text-align: right; font-variant-numeric: tabular-nums; }
-.lager-offen { padding: 8px 14px 14px 30px; border-bottom: 1px solid var(--linie); background: rgba(0, 56, 132, .03); }
-.lager-buchungen { display: flex; flex-direction: column; }
-.lager-buchung { display: grid; grid-template-columns: 8rem 6rem 1fr auto; gap: 10px; align-items: center;
-  padding: 6px 0; border-bottom: 1px solid var(--linie); }
-.lager-buchung:last-child { border-bottom: none; }
-.karte.lager-buchungen { padding: 6px 14px; }
-.lager-ein { color: #1e8449; }
-.lager-aus { color: #c0392b; }
-body.dunkel .lager-ein { color: #6fdc8c !important; }
-body.dunkel .lager-aus, body.dunkel .lager-zeile--minus .lager-zahl { color: #ff8a80 !important; }
-@media (max-width: 700px) {
-  .lager-zeile { grid-template-columns: 1fr auto; }
-  .lager-zeile > :nth-child(2), .lager-zeile > :nth-child(4) { grid-column: 1 / -1; }
-  .lager-zeile > :nth-child(5), .lager-zeile--kopf { display: none; }
-  .lager-buchung { grid-template-columns: auto auto; }
-  .lager-buchung > :nth-child(3) { grid-column: 1 / -1; }
-  .lager-offen { padding-left: 14px; }
-}
-/* ---------- Prüfmittel (provisorisch, seit 1.557.0) ---------- */
-.pm-erklaerung { margin: -4px 0 12px; color: var(--gedaempft); max-width: 900px; }
-.pm-kacheln { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; }
-.pm-kachel { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 14px;
-  border: 1px solid var(--linie); border-radius: var(--radius); background: var(--flaeche); color: var(--tinte);
-  font: inherit; cursor: pointer; text-align: left; transition: border-color .15s, box-shadow .15s; }
-.pm-kachel b { font-size: 1.6rem; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--marke); }
-.pm-kachel span { font-size: .85rem; color: var(--gedaempft); }
-.pm-kachel:hover { border-color: var(--marke); }
-.pm-kachel.aktiv { border-color: var(--marke); box-shadow: inset 0 0 0 2px var(--marke); }
-.pm-kachel--warn b { color: var(--warnung); }
-.pm-wo .karte__kopf h2 { font-size: 1.05rem; }
-.pm-park + .pm-park { margin-top: 12px; }
-.pm-park__titel { margin: 6px 0 8px; font-size: .85rem; font-weight: 650; color: var(--gedaempft);
-  text-transform: uppercase; letter-spacing: .04em; }
-.pm-maschinen { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
-.pm-maschine { border: 1px solid var(--linie); border-radius: var(--radius); background: var(--grund); padding: 8px; min-width: 0; }
-.pm-maschine__kopf { font-weight: 700; margin: 0 0 6px 4px; overflow-wrap: anywhere; }
-.pm-zeile { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; margin: 0 0 6px;
-  border: 1px solid var(--linie); border-radius: var(--radius); background: var(--flaeche); color: var(--tinte);
-  font: inherit; text-align: left; cursor: pointer; }
-.pm-zeile:last-child { margin-bottom: 0; }
-.pm-zeile:hover { border-color: var(--marke); }
-.pm-zeile--aus { opacity: .6; }
-.pm-zeile__nr { flex: none; min-width: 64px; font-weight: 700; color: var(--marke); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.pm-zeile__was { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.pm-zeile__was .klein { display: block; color: var(--gedaempft); }
-.pm-schild { flex: none; padding: 2px 8px; border-radius: 999px; font-size: .75rem; font-weight: 650;
-  background: var(--marke-hell); color: var(--gedaempft); }
-.pm-schild--warn { background: #fdf1dc; color: #8a5a10; }
-.pm-schild--rot { background: #fbe3e1; color: var(--gefahr); }
-body.dunkel .pm-schild--warn { background: #4a3714; }
-body.dunkel .pm-schild--rot { background: #4a1f1c; }
-.pm-rot { color: var(--gefahr); font-weight: 650; }
-.pm-tabelle-karte { padding: 0; overflow: hidden; }
-.pm-tabelle { width: 100%; border-collapse: collapse; font-size: .9rem; }
-.pm-tabelle th { text-align: left; padding: 8px 10px; background: var(--grund); border-bottom: 1px solid var(--linie);
-  font-size: .8rem; color: var(--gedaempft); }
-.pm-tabelle td { padding: 8px 10px; border-bottom: 1px solid var(--linie); vertical-align: top; overflow-wrap: anywhere; }
-.pm-tabelle tbody tr { cursor: pointer; }
-.pm-tabelle tbody tr:hover { background: var(--marke-hell); }
-@media (max-width: 700px) {
-  .pm-tabelle thead { display: none; }
-  .pm-tabelle tr { display: grid; grid-template-columns: auto 1fr; gap: 0 10px; padding: 8px 10px; border-bottom: 1px solid var(--linie); }
-  .pm-tabelle td { border: 0; padding: 1px 0; }
-  .pm-tabelle td:nth-child(n+3) { grid-column: 2; font-size: .85rem; }
-}
-.pm-fenster { width: min(760px, calc(100vw - 24px)); max-height: calc(100vh - 40px); overflow-y: auto; }
-.pm-fenster h2 { overflow-wrap: anywhere; }
-.pm-wo-jetzt { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 12px 14px; margin: 8px 0 12px;
-  border-radius: var(--radius); background: var(--marke-hell); border-left: 4px solid var(--marke); }
-.pm-wo-jetzt b { font-size: 1.15rem; overflow-wrap: anywhere; }
-.pm-knoepfe { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
-.pm-angaben { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0 0 14px; }
-.pm-angaben dt { color: var(--gedaempft); }
-.pm-angaben dd { margin: 0; overflow-wrap: anywhere; }
-.pm-verlauf { list-style: none; margin: 0; padding: 0; }
-.pm-verlauf li { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--linie); }
-.pm-verlauf li span:not(.klein) { flex: 1; min-width: 140px; overflow-wrap: anywhere; }
-.pm-ortwahl { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin: 10px 0 14px; }
-.pm-ortknopf { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 8px; font: inherit; font-size: 1.5rem;
-  border: 1px solid var(--linie-stark); border-radius: var(--radius); background: var(--flaeche); color: var(--tinte); cursor: pointer; }
-.pm-ortknopf span { font-size: .85rem; font-weight: 650; }
-.pm-ortknopf:hover { border-color: var(--marke); }
-.pm-ortknopf.aktiv { border-color: var(--marke); box-shadow: inset 0 0 0 2px var(--marke); background: var(--marke-hell); }
-.pm-maschinenwahl { margin-bottom: 12px; }
-.pm-maschinenwahl .typwahl__knopf { padding-right: 14px; }
-.pm-maschinenwahl .typwahl__knopf.aktiv { background: var(--marke); border-color: var(--marke); color: #fff; }
-body.dunkel .pm-maschinenwahl .typwahl__knopf.aktiv { background: var(--marke-hell); box-shadow: inset 0 0 0 2px var(--marke); }
-.pm-maschine .pm-zeile { flex-wrap: wrap; }
-.pm-maschine .pm-zeile__nr { min-width: 0; }
-.pm-zeile__was { min-width: 140px; }
-.pm-zeile .pm-schild { margin-left: auto; }
 
 /* HOFERCAM: Lage der Platte am Rohteil (seit 1.558.3) */
 .cam-lagebild { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
@@ -14999,76 +14898,87 @@ body:not(.dunkel) .cam .cam-spalte--kopf.cam-spalte--k3 { background: #e7e0f3; b
 .cam-marken-kanaele label { display: inline-flex; align-items: center; gap: 2px; cursor: pointer; }
 .cam-marken-kanal--eigen { opacity: .6; cursor: default; }
 
-/* ---------- Neue Startseite „Was willst du machen?“, Testseite #/startneu ----------
-   1.670.0 Module, seit 1.671.0 Aufgaben ohne Menü (Wunsch Patrick 20. November 2026).
-   body.aufgabe-modus: Menü links und Handy-Menü weg. body.mit-aufgabenleiste: die
-   Leiste der Aufgabe steht am PC oben im Inhalt, am Handy unten wie eine App. */
-.sm-vorschau { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
-  background: var(--marke-hell); border: 1px dashed var(--marke); border-radius: 8px;
-  padding: 8px 12px; margin-bottom: 12px; font-size: 14px; }
-.sm-vorschau > span { flex: 1 1 260px; }
-body.dunkel .sm-vorschau { background: #1d2a3d; }
-.sm-wahl { margin: 6px 0 22px; }
-.sm-wahl__frage { font-size: 22px; margin: 0 0 12px; }
-.sm-wahl__raster { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
-.sm-aufgabe { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left;
-  background: var(--flaeche); border: 1px solid var(--linie); border-radius: 16px; padding: 16px;
-  cursor: pointer; color: inherit; font: inherit; min-height: 132px;
-  box-shadow: 0 1px 3px rgba(20, 30, 50, .08); transition: transform .15s, box-shadow .15s, border-color .15s; }
-.sm-aufgabe:hover, .sm-aufgabe:focus-visible { transform: translateY(-2px); border-color: var(--sm-farbe);
-  box-shadow: 0 6px 18px rgba(20, 30, 50, .14); }
-.sm-aufgabe:active { transform: scale(.98); }
-.sm-aufgabe__zeichen { width: 48px; height: 48px; border-radius: 13px; display: grid; place-items: center;
-  background: var(--sm-farbe); color: #fff; margin-bottom: 4px; }
-.sm-aufgabe__zeichen svg { width: 26px; height: 26px; }
-body.dunkel .sm-aufgabe__zeichen, body.dunkel .sm-aufgabe__zeichen * { color: #fff !important; }
-.sm-aufgabe__titel { font-size: 18px; font-weight: 700; line-height: 1.2; }
-.sm-aufgabe__frage { font-size: 13px; color: var(--gedaempft); line-height: 1.3; }
-.sm-heute { font-size: 20px; margin: 8px 0 10px; }
-body .kopfkarte + .gruss { margin-top: 14px; }
+/* ---------- Neues Dashboard mit Fenstern, Testseite #/startneu (seit 1.672.0) ----------
+   Wunsch Patrick 22. November 2026: Dashboard statt Menü und Reiter, ein Tipp auf
+   eine Kachel öffnet den Bereich als Fenster, neuer Look. body.db2-modus blendet
+   das Menü aus. Eigene Farben nur hier (--db2-*), hell und dunkel. */
+body.db2-modus .nav, body.db2-modus .handymenue { display: none !important; }
+body.db2-modus .rahmen { grid-template-columns: none !important; display: block !important; }
+body.db2-modus .inhalt { max-width: 1280px; margin: 0 auto; }
+body.db2-modus { --db2-grund: #eef1f6; --db2-karte: #ffffff; --db2-rand: rgba(15, 23, 42, .07);
+  --db2-text: #0f172a; --db2-leise: #64748b; background: var(--db2-grund); }
+body.db2-modus.dunkel { --db2-grund: #0b1220; --db2-karte: #141d2e; --db2-rand: rgba(255, 255, 255, .08);
+  --db2-text: #e2e8f0; --db2-leise: #94a3b8; }
+.db2 { color: var(--db2-text); padding-bottom: 30px; }
+.db2-vorschau { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 13px;
+  color: var(--db2-leise); margin: 2px 0 10px; }
+.db2-vorschau a { color: #2563eb; font-weight: 600; }
+.db2-kopf { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap;
+  margin: 6px 0 22px; }
+.db2-kopf__datum { font-size: 14px; font-weight: 600; color: var(--db2-leise); text-transform: capitalize; }
+.db2-kopf__gruss { font-size: clamp(26px, 4vw, 38px); font-weight: 800; letter-spacing: -.02em; margin: 2px 0 0;
+  line-height: 1.1; }
+.db2-kopf__rechts { display: flex; align-items: center; gap: 18px; }
+.db2-kopf__wetter { display: flex; flex-direction: column; align-items: flex-end; font-size: 13px;
+  color: var(--db2-leise); }
+.db2-kopf__wetter b { font-size: 22px; color: var(--db2-text); font-weight: 700; }
+.db2-kopf__uhr { font-size: clamp(30px, 4.5vw, 44px); font-weight: 300; font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em; }
+.db2-raster { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.db2-kachel { position: relative; display: flex; flex-direction: column; gap: 14px; text-align: left; min-height: 168px;
+  padding: 18px 18px 16px; border-radius: 22px; border: 1px solid var(--db2-rand); background: var(--db2-karte);
+  color: inherit; font: inherit; cursor: pointer; overflow: hidden;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 8px 24px rgba(15, 23, 42, .05);
+  transition: transform .18s ease, box-shadow .18s ease; }
+.db2-kachel::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 4px; background: var(--db2-farbe); opacity: .85; }
+.db2-kachel:hover, .db2-kachel:focus-visible { transform: translateY(-3px);
+  box-shadow: 0 2px 4px rgba(15, 23, 42, .05), 0 16px 36px rgba(15, 23, 42, .10); }
+.db2-kachel:active { transform: scale(.985); }
+.db2-kachel--warn { background: linear-gradient(160deg, color-mix(in srgb, var(--db2-farbe) 10%, var(--db2-karte)), var(--db2-karte) 60%); }
+.db2-kachel__kopf { display: flex; align-items: center; gap: 10px; }
+.db2-kachel__titel { font-size: 16px; font-weight: 700; flex: 1; }
+.db2-kachel__pfeil { color: var(--db2-leise); font-size: 16px; opacity: .6; transition: opacity .18s, transform .18s; }
+.db2-kachel:hover .db2-kachel__pfeil { opacity: 1; transform: translate(2px, -2px); }
+.db2-chip { width: 38px; height: 38px; flex: none; border-radius: 12px; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--db2-farbe) 14%, transparent); color: var(--db2-farbe); }
+.db2-chip svg { width: 21px; height: 21px; }
+body.dunkel .db2-chip, body.dunkel .db2-chip * { color: color-mix(in srgb, var(--db2-farbe) 70%, #fff) !important; }
+.db2-kachel__inhalt { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.db2-kachel__inhalt p { margin: 0; font-size: 14px; color: var(--db2-leise); }
+.db2-gross { font-size: 40px; font-weight: 800; line-height: 1; letter-spacing: -.03em; color: var(--db2-farbe);
+  font-variant-numeric: tabular-nums; }
+.db2-gross small { font-size: 15px; font-weight: 600; letter-spacing: 0; color: var(--db2-leise); margin-left: 4px; }
+.db2-gut { color: #16a34a; }
+.db2-eine { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.db2-eine b { color: var(--db2-text); margin-right: 4px; }
+.db2-laedt { display: block; height: 40px; width: 60%; border-radius: 10px;
+  background: linear-gradient(90deg, var(--db2-rand), transparent, var(--db2-rand)); background-size: 200% 100%;
+  animation: db2-laedt 1.2s linear infinite; }
+@keyframes db2-laedt { to { background-position: -200% 0; } }
+.db2-titel { font-size: 15px; font-weight: 700; color: var(--db2-leise); margin: 28px 0 10px; letter-spacing: .02em; }
+.db2-weitere { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.db2-klein { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 16px;
+  border: 1px solid var(--db2-rand); background: var(--db2-karte); color: inherit; font: inherit; font-size: 14px;
+  font-weight: 600; cursor: pointer; text-align: left; transition: transform .15s ease, box-shadow .15s ease; }
+.db2-klein:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(15, 23, 42, .08); }
+.db2-klein .db2-chip { width: 32px; height: 32px; border-radius: 10px; }
+.db2-klein .db2-chip svg { width: 18px; height: 18px; }
+.db2-solar { margin-top: 26px; }
 @media (max-width: 640px) {
-  .sm-wahl__raster { grid-template-columns: 1fr 1fr; gap: 10px; }
-  .sm-aufgabe { min-height: 118px; padding: 13px; border-radius: 14px; }
-  .sm-aufgabe__titel { font-size: 16px; }
-  .sm-aufgabe__frage { font-size: 12px; }
+  .db2-kopf { margin-bottom: 16px; }
+  .db2-kopf__wetter { display: none; }
+  .db2-raster { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .db2-kachel { min-height: 138px; padding: 14px 13px 12px; border-radius: 18px; gap: 10px; }
+  .db2-kachel__titel { font-size: 14px; }
+  .db2-kachel__pfeil { display: none; }
+  .db2-chip { width: 32px; height: 32px; border-radius: 10px; }
+  .db2-chip svg { width: 18px; height: 18px; }
+  .db2-gross { font-size: 30px; }
+  .db2-gross small { display: block; margin: 4px 0 0; font-size: 12px; }
+  .db2-kachel__inhalt p { font-size: 12px; }
+  .db2-weitere { grid-template-columns: 1fr 1fr; }
 }
-body.aufgabe-modus .nav, body.aufgabe-modus .handymenue { display: none !important; }
-body.aufgabe-modus .rahmen { grid-template-columns: none !important; display: block !important; }
-body.aufgabe-modus .inhalt { max-width: 1240px; margin: 0 auto; }
-.aufgabe-leiste { position: sticky; top: var(--kopfhoehe); z-index: 40; display: flex; align-items: center;
-  gap: 10px; width: 100%; box-sizing: border-box; max-width: 1240px; margin: 0 auto; padding: 8px 14px; background: var(--flaeche);
-  border-bottom: 3px solid var(--auf-farbe); box-shadow: 0 2px 8px rgba(20, 30, 50, .06); }
-.aufgabe-leiste__start, .aufgabe-leiste__punkt { display: inline-flex; align-items: center; gap: 7px;
-  border: 1px solid var(--linie); background: var(--flaeche); color: inherit; font: inherit; font-size: 14px;
-  border-radius: 999px; padding: 6px 13px; cursor: pointer; text-decoration: none; white-space: nowrap; }
-.aufgabe-leiste__punkt.aktiv { background: var(--auf-farbe); border-color: var(--auf-farbe); color: #fff; }
-body.dunkel .aufgabe-leiste__punkt.aktiv, body.dunkel .aufgabe-leiste__punkt.aktiv * { color: #fff !important; }
-.aufgabe-leiste__zeichen { width: 18px; height: 18px; display: inline-grid; }
-.aufgabe-leiste__zeichen svg { width: 18px; height: 18px; }
-.aufgabe-leiste__titel { font-weight: 700; color: var(--auf-farbe); margin-right: 4px; white-space: nowrap; }
-.aufgabe-leiste__punkte { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
-@media (max-width: 640px) {
-  .aufgabe-leiste { position: fixed; top: auto; bottom: 0; left: 0; right: 0; max-width: none; z-index: 60;
-    padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); gap: 0; border-bottom: 0;
-    border-top: 3px solid var(--auf-farbe); box-shadow: 0 -2px 10px rgba(20, 30, 50, .12); }
-  .aufgabe-leiste__titel { display: none; }
-  .aufgabe-leiste__punkte { flex: 1; gap: 0; }
-  .aufgabe-leiste__start, .aufgabe-leiste__punkt { flex: 1 1 0; min-width: 54px; flex-direction: column; gap: 2px;
-    border: 0; border-radius: 10px; padding: 6px 2px; font-size: 11px; background: none; }
-  .aufgabe-leiste__zeichen, .aufgabe-leiste__zeichen svg { width: 22px; height: 22px; }
-  .aufgabe-leiste__punkt.aktiv { background: none; color: var(--auf-farbe); }
-  .aufgabe-leiste__punkt.aktiv .aufgabe-leiste__zeichen { color: var(--auf-farbe); }
-  body.dunkel .aufgabe-leiste__punkt.aktiv, body.dunkel .aufgabe-leiste__punkt.aktiv * { color: #8fb6ff !important; }
-  body.mit-aufgabenleiste .inhalt { padding-bottom: 90px; }
-}
-/* Aufgaben (1.671.1): Reiter, die schon in der Aufgabenleiste stehen,
-   nicht nochmals oben auf der Seite; auf dem Handy alle Knöpfe gleich breit */
-body.aufgabe-ohne-seitenreiter .reiter--seite { display: none !important; }
-@media (max-width: 640px) {
-  /* Start und Punkte gleich breit nebeneinander wie in einer App */
-  .aufgabe-leiste__punkte { display: contents; }
-  .aufgabe-leiste__start, .aufgabe-leiste__punkt { min-width: 0; font-size: 11px; }
-}
+/* Das Fenster eines Bereichs */
 
 /* ===== Test ERP (seit 1.672.0) ===== */
 .erp-schild { display: inline-block; margin-left: 10px; padding: 2px 10px; border-radius: 999px; font-size: 13px;
@@ -15363,6 +15273,340 @@ body.dunkel .cam-wz__artikel { background: #22344d; }
 .cam-feld--wahl { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; flex-basis: 100%; }
 .cam-feld--wahl > span { margin-right: 4px; }
 
-/* Seit 1.698.0: Wahl SB-20RG / SW-20 im Tutorial-Fenster von HOFERCAM */
+/* ---------- Neues Dashboard mit eigenen Ansichten (seit 1.699.0) ----------
+   Wunsch Patrick 22. November 2026: „ganz ein neues Dashboard … paar Aufträge,
+   paar Bestellungen, mit Diagramm“. Karten mit Daten, Fenster mit eigenen
+   Ansichten, keine alten Seiten mehr darin. */
+.db2-zahlen { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+.db2-zahl { background: var(--db2-karte); border: 1px solid var(--db2-rand); border-radius: 18px; padding: 14px 18px;
+  display: flex; flex-direction: column; gap: 2px; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
+.db2-zahl b { font-size: 34px; font-weight: 800; letter-spacing: -.03em; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.db2-zahl span { font-size: 13px; color: var(--db2-leise); font-weight: 600; }
+.db2-zahl--warn { background: linear-gradient(160deg, rgba(220, 38, 38, .12), var(--db2-karte) 70%); }
+.db2-zahl--warn b { color: #dc2626; }
+.db2-raster { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 16px !important; align-items: start; }
+.db2-karte { background: var(--db2-karte); border: 1px solid var(--db2-rand); border-radius: 22px; padding: 16px 16px 14px;
+  min-width: 0; box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 8px 24px rgba(15, 23, 42, .05); }
+.db2-karte--breit { grid-column: span 2; }
+.db2-karte__kopf { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; flex-wrap: wrap; }
+.db2-karte__kopf h2 { margin: 0; font-size: 16px; font-weight: 750; }
+.db2-karte__unter { font-size: 13px; color: var(--db2-leise); flex: 1; }
+.db2-punkt { width: 10px; height: 10px; border-radius: 50%; background: var(--db2-farbe);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--db2-farbe) 18%, transparent); flex: none; }
+.db2-mehr { margin-left: auto; border: 0; background: color-mix(in srgb, var(--db2-farbe) 12%, transparent);
+  color: var(--db2-farbe); font: inherit; font-size: 13px; font-weight: 700; padding: 5px 11px; border-radius: 999px; cursor: pointer; }
+.db2-mehr:hover { background: color-mix(in srgb, var(--db2-farbe) 22%, transparent); }
+body.dunkel .db2-mehr { color: color-mix(in srgb, var(--db2-farbe) 65%, #fff) !important; }
+.db2-liste { display: flex; flex-direction: column; gap: 6px; }
+.db2-liste--spalten { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; }
+.db2-zeile { display: flex; align-items: center; gap: 12px; padding: 9px 11px; border-radius: 13px; text-align: left;
+  background: color-mix(in srgb, var(--db2-text) 3.5%, transparent); border: 1px solid transparent;
+  color: inherit; font: inherit; min-width: 0; width: 100%; }
+button.db2-zeile { cursor: pointer; transition: background .15s, border-color .15s; }
+button.db2-zeile:hover { border-color: color-mix(in srgb, var(--db2-farbe, #2563eb) 40%, transparent);
+  background: color-mix(in srgb, var(--db2-farbe, #2563eb) 7%, transparent); }
+.db2-zeile--rot { box-shadow: inset 3px 0 0 #dc2626; }
+.db2-zeile__mitte { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.db2-zeile__mitte b { font-size: 14.5px; font-weight: 700; }
+.db2-zeile__mitte small, .db2-rechts small { font-size: 12.5px; color: var(--db2-leise); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px; }
+.db2-knopflos { background: none; border: 0; padding: 0; text-align: left; color: inherit; font: inherit; cursor: pointer; }
+.db2-umbruch { white-space: normal !important; overflow-wrap: anywhere; }
+.db2-schwarz { color: var(--db2-text) !important; font-size: 13.5px !important; }
+.db2-grau { color: var(--db2-leise); font-weight: 500; }
+.db2-rot { color: #dc2626; }
+.db2-warn { color: #d97706; }
+.db2-rechts { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 2px; flex: none; max-width: 45%; }
+.db2-rechts b { font-size: 14px; white-space: nowrap; }
+.db2-masch { flex: none; min-width: 44px; height: 36px; padding: 0 6px; border-radius: 10px; display: grid; place-items: center;
+  font-weight: 800; font-size: 15px; font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, #2563eb 12%, transparent); color: #2563eb; }
+.db2-masch--klein { min-width: 38px; height: 28px; font-size: 13px; }
+body.dunkel .db2-masch { color: #93b4ff !important; }
+.db2-datum { flex: none; min-width: 64px; font-size: 12.5px; font-weight: 700; color: var(--db2-leise); }
+.db2-werkstoff { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex: none;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, .25); }
+.db2-fort { flex: none; display: flex; align-items: center; gap: 8px; width: 120px; }
+.db2-fort__bahn { flex: 1; height: 8px; border-radius: 99px; background: color-mix(in srgb, var(--db2-text) 10%, transparent); overflow: hidden; }
+.db2-fort__bahn i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #22c55e, #16a34a); }
+.db2-fort__text { font-size: 12.5px; font-weight: 700; min-width: 36px; text-align: right; font-variant-numeric: tabular-nums; }
+.db2-zustand { flex: none; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 99px;
+  background: rgba(100, 116, 139, .15); color: var(--db2-leise); }
+.db2-zustand--laeuft { background: rgba(22, 163, 74, .15); color: #15803d; }
+.db2-zustand--ruesten { background: rgba(234, 88, 12, .15); color: #c2410c; }
+body.dunkel .db2-zustand--laeuft { color: #6ee7a0 !important; }
+body.dunkel .db2-zustand--ruesten { color: #fdba74 !important; }
+.db2-zeilezahlen { display: flex; gap: 18px; margin-bottom: 10px; flex-wrap: wrap; }
+.db2-zeilezahlen div { display: flex; flex-direction: column; }
+.db2-zeilezahlen b { font-size: 22px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.db2-zeilezahlen span { font-size: 12px; color: var(--db2-leise); }
+.db2-karte .dg-saeule { background: linear-gradient(180deg, #4ade80, #16a34a) !important; border-radius: 6px 6px 2px 2px; }
+.db2-balken { display: flex; flex-direction: column; gap: 6px; }
+.db2-balken__zeile { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 30px; align-items: center; gap: 10px;
+  background: none; border: 0; padding: 5px 2px; color: inherit; font: inherit; cursor: pointer; text-align: left; border-radius: 8px; }
+.db2-balken__zeile:hover { background: color-mix(in srgb, #db2777 7%, transparent); }
+.db2-balken__name { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.db2-balken__bahn { height: 12px; border-radius: 99px; background: color-mix(in srgb, var(--db2-text) 7%, transparent); overflow: hidden; }
+.db2-balken__bahn i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #f472b6, #db2777); }
+.db2-balken__zeile b { text-align: right; font-variant-numeric: tabular-nums; }
+.db2-klein-text { font-size: 12.5px; color: var(--db2-leise); margin: 4px 0 0; }
+.db2-leer { font-size: 14px; color: var(--db2-leise); margin: 6px 0; font-weight: 600; }
+.db2-leer.db2-gut { color: #16a34a; }
+.db2-laedt-block { display: flex; flex-direction: column; gap: 8px; }
+.db2-laedt-block .db2-laedt { width: 100%; height: 34px; }
+.db2-planwand { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 14px; border: 0;
+  background: #2563eb; color: #fff; font: inherit; font-weight: 700; font-size: 15px; cursor: pointer;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, .3); }
+.db2-planwand svg { width: 19px; height: 19px; }
+.db2-planwand:hover { background: #1d4ed8; }
+.db2-titel small { font-weight: 500; font-size: 12.5px; margin-left: 6px; }
+.db2-klein i { margin-left: auto; font-style: normal; color: var(--db2-leise); font-size: 13px; }
+.db2-klein .db2-chip { --db2-farbe: #475569; }
+/* Fenster mit eigener Ansicht */
+.db2-huelle { padding: 3vh 3vw !important; }
+.db2-fenster { --db2-karte: var(--flaeche, #fff); width: min(860px, 96vw); max-width: none !important; max-height: 92vh !important;
+  display: flex; flex-direction: column; padding: 0 !important; border-radius: 22px; overflow: hidden; margin: auto;
+  background: var(--flaeche, #fff); color: var(--db2-text, inherit); animation: db2-auf .22s cubic-bezier(.2, .8, .2, 1); }
+@keyframes db2-auf { from { opacity: 0; transform: translateY(14px) scale(.98); } }
+.db2-fenster__kopf { display: flex; align-items: center; gap: 10px; padding: 14px 16px 12px 20px; flex: none;
+  border-bottom: 1px solid var(--linie); box-shadow: inset 0 4px 0 var(--db2-farbe); }
+.db2-fenster__titel { flex: 1; min-width: 0; }
+.db2-fenster__titel h2 { margin: 0; font-size: 20px; font-weight: 800; }
+.db2-fenster__titel span { font-size: 13px; color: var(--gedaempft, #64748b); }
+.db2-fenster__zu { width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--linie); flex: none;
+  background: transparent; color: inherit; font-size: 17px; cursor: pointer; }
+.db2-fenster__zu:hover { background: rgba(127, 127, 127, .12); }
+.db2-fenster__inhalt { flex: 1; overflow: auto; padding: 16px 20px 24px; }
+.db2-knopf { border: 1px solid var(--linie); background: transparent; color: inherit; font: inherit; font-size: 14px; font-weight: 700;
+  padding: 8px 14px; border-radius: 12px; cursor: pointer; flex: none; }
+.db2-knopf:hover { background: rgba(127, 127, 127, .1); }
+.db2-knopf--voll { background: #2563eb; border-color: #2563eb; color: #fff; }
+.db2-knopf--voll:hover { background: #1d4ed8; }
+.db2-gruppe + .db2-gruppe { margin-top: 18px; }
+.db2-gruppe h3 { margin: 0 0 8px; font-size: 15px; }
+.db2-gruppe h3 small { color: var(--gedaempft, #64748b); font-weight: 600; margin-left: 4px; }
+.db2-auftrag__zahlen { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.db2-auftrag__zahlen div { display: flex; flex-direction: column; gap: 3px; padding: 12px; border-radius: 14px;
+  background: rgba(127, 127, 127, .08); }
+.db2-auftrag__zahlen span { font-size: 12px; color: var(--gedaempft, #64748b); font-weight: 600; }
+.db2-auftrag__zahlen b { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.db2-auftrag__zahlen b.db2-zustand { font-size: 14px; align-self: flex-start; margin-top: 4px; }
+.db2-auftrag__fort { margin: 14px 0 4px; }
+.db2-auftrag__fort .db2-fort { width: 100%; }
+.db2-auftrag__fort .db2-fort__bahn { height: 12px; }
+.db2-angaben { display: grid; grid-template-columns: 120px 1fr; gap: 8px 14px; margin: 16px 0; font-size: 15px; }
+.db2-angaben dt { color: var(--gedaempft, #64748b); font-weight: 600; }
+.db2-angaben dd { margin: 0; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.db2-knoepfe { display: flex; gap: 10px; flex-wrap: wrap; }
+.db2-fenster .db2-zeile { background: rgba(127, 127, 127, .07); }
+@media (max-width: 1100px) {
+  .db2-raster { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .db2-zahlen { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 700px) {
+  .db2-raster { grid-template-columns: minmax(0, 1fr) !important; gap: 12px !important; }
+  .db2-karte--breit { grid-column: auto; }
+  .db2-liste--spalten { grid-template-columns: minmax(0, 1fr); }
+  .db2-zahlen { gap: 10px; }
+  .db2-zahl { padding: 11px 13px; }
+  .db2-zahl b { font-size: 26px; }
+  .db2-planwand { padding: 8px 12px; font-size: 14px; }
+  .db2-kopf__uhr { display: none; }
+  .db2-fort { width: 90px; }
+  .db2-huelle { padding: 0 !important; }
+  .db2-fenster { width: 100vw; max-height: none !important; height: 100dvh; border-radius: 0; }
+  .db2-fenster__inhalt { padding: 12px 12px 30px; }
+  .db2-auftrag__zahlen { grid-template-columns: 1fr 1fr; }
+  .db2-angaben { grid-template-columns: 96px 1fr; font-size: 14px; }
+}
+.db2-solar--oben { margin: 0 0 16px; }
+
+/* Hinweis Testseite ganz unten und unauffällig (seit 1.699.0) */
+.db2 .db2-vorschau { justify-content: center; gap: 4px; margin: 28px 0 0; font-size: 11px; opacity: .45; }
+.db2 .db2-vorschau a { color: inherit; font-weight: 400; text-decoration: underline; }
+.db2 .db2-vorschau:hover { opacity: .9; }
+
+/* =================================================================
+   STARTSEITE NEU (seit 1.700.0, Wunsch Patrick 22. November 2026)
+   Ohne Kopfzeile der App: eigener Kopf mit Menüfeld (vier Vierecke),
+   grossem Logo, Pad Mode, Einstellungen, Wetter, Planwand, Uhr ganz
+   rechts. Solar nur als ruhige Zeile beim Gruss.
+   ================================================================= */
+body.db2-modus { --kopfhoehe: 0px; -webkit-font-smoothing: antialiased; }
+body.db2-modus > .kopf, body.db2-modus .kopf:not(.db2-kopf), body.db2-modus #werkzeugleiste { display: none !important; }
+body.db2-modus .rahmen { padding-top: 0 !important; }
+body.db2-modus .inhalt { padding-top: 14px; }
+.db2-kopf { display: flex !important; align-items: center !important; justify-content: flex-start !important; gap: 10px !important;
+  flex-wrap: nowrap !important; margin: 0 0 22px !important; padding: 8px 0; }
+.db2-kopf__luecke { flex: 1; min-width: 8px; }
+.db2-menueknopf { width: 46px; height: 46px; flex: none; border-radius: 14px; border: 0; cursor: pointer;
+  display: grid; place-items: center; background: var(--db2-karte); color: var(--db2-text);
+  box-shadow: 0 0 0 1px var(--db2-rand), 0 2px 6px rgba(15, 23, 42, .06);
+  transition-property: transform, box-shadow, background-color; transition-duration: .15s; transition-timing-function: ease-out; }
+.db2-menueknopf svg { width: 22px; height: 22px; fill: currentColor; }
+.db2-menueknopf svg rect:nth-child(1) { fill: #2563eb; }
+.db2-menueknopf:hover { box-shadow: 0 0 0 1px var(--db2-rand), 0 6px 16px rgba(15, 23, 42, .1); }
+.db2-menueknopf:active, .db2-kopfknopf:active, .db2-planwand:active, .db2-menue__punkt:active,
+.db2-solar-klein:active, .db2-notiz:active, .db2-lief__zeile:active { transform: scale(.96); }
+.db2-logo { display: block; height: 64px; margin-left: 10px; flex: none; }
+.db2-logo img { height: 100%; width: auto; display: block; }
+.db2-logo--dunkel { display: none !important; }
+body.dunkel .db2-logo--hell { display: none !important; }
+body.dunkel .db2-logo--dunkel { display: block !important; }
+.db2-kopfknopf { display: inline-flex; align-items: center; gap: 7px; height: 42px; padding: 0 13px; border-radius: 13px;
+  border: 0; background: var(--db2-karte); color: var(--db2-text); font: inherit; font-size: 14px; font-weight: 650; cursor: pointer;
+  box-shadow: 0 0 0 1px var(--db2-rand); flex: none;
+  transition-property: transform, background-color; transition-duration: .15s; transition-timing-function: ease-out; }
+.db2-kopfknopf:hover { background: color-mix(in srgb, var(--db2-text) 5%, var(--db2-karte)); }
+.db2-kopfknopf > span:first-child { display: grid; }
+.db2-kopfknopf svg { width: 19px; height: 19px; }
+.db2-kopf .db2-kopf__wetter { flex-direction: row !important; align-items: baseline !important; gap: 6px; margin: 0 6px; flex: none; }
+.db2-kopf .db2-kopf__wetter b { font-size: 18px; font-variant-numeric: tabular-nums; }
+.db2-planwand { height: 42px; padding: 0 16px; flex: none; transition-property: transform, background-color; transition-duration: .15s; }
+.db2-planwand > span { display: grid; }
+.db2-kopf .db2-kopf__uhr { font-size: 34px; font-weight: 300; letter-spacing: -.02em; line-height: 1; min-width: 92px;
+  text-align: right; flex: none; margin-left: 6px; font-variant-numeric: tabular-nums; }
+
+.db2-gruss { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap; margin: 0 0 18px; }
+.db2-gruss h1 { text-wrap: balance; }
+.db2-solar-klein { display: inline-flex; align-items: center; gap: 14px; padding: 7px 12px; border-radius: 12px; border: 0;
+  background: transparent; color: var(--db2-leise); font: inherit; font-size: 12.5px; cursor: pointer; flex-wrap: wrap;
+  transition-property: transform, background-color; transition-duration: .15s; }
+.db2-solar-klein:hover { background: color-mix(in srgb, var(--db2-text) 5%, transparent); }
+.db2-solar-klein svg { width: 16px; height: 16px; fill: none; stroke: #a3a3a3; stroke-width: 1.8; stroke-linecap: round; }
+.db2-solar-klein b { color: var(--db2-text); font-weight: 650; font-variant-numeric: tabular-nums; margin-right: 2px; }
+
+/* Raster: Bestellungen + Probleme, Material + Notizen, Kalender über alles */
+.db2-karte--voll { grid-column: 1 / -1; }
+button.db2-zahl { font: inherit; color: inherit; text-align: left; cursor: pointer;
+  transition-property: transform, box-shadow; transition-duration: .15s; transition-timing-function: ease-out; }
+button.db2-zahl:hover { box-shadow: 0 6px 18px rgba(15, 23, 42, .08); }
+button.db2-zahl:active { transform: scale(.96); }
+.db2-mehr--plus { margin-left: auto; width: 30px; height: 28px; padding: 0; font-size: 18px; line-height: 1; }
+.db2-mehr--plus + .db2-mehr { margin-left: 0; }
+.db2-zeile--still { cursor: default; }
+
+/* Bestellungen je Lieferant */
+.db2-lief { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; }
+.db2-lief__zeile { display: flex; flex-direction: column; gap: 3px; padding: 9px 11px; border-radius: 13px; border: 1px solid transparent;
+  background: color-mix(in srgb, var(--db2-text) 3.5%, transparent); color: inherit; font: inherit; text-align: left; cursor: pointer;
+  min-width: 0; transition-property: transform, background-color, border-color; transition-duration: .15s; }
+.db2-lief__zeile:hover { border-color: color-mix(in srgb, #db2777 40%, transparent); background: color-mix(in srgb, #db2777 7%, transparent); }
+.db2-lief__kopf { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.db2-lief__kopf b { font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }
+.db2-lief__bahn { flex: 1; min-width: 30px; height: 7px; border-radius: 99px; background: color-mix(in srgb, var(--db2-text) 8%, transparent); overflow: hidden; }
+.db2-lief__bahn i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #f472b6, #db2777); }
+.db2-lief__zahl { font-weight: 800; font-variant-numeric: tabular-nums; min-width: 20px; text-align: right; }
+.db2-lief__artikel { font-size: 12.5px; color: var(--db2-leise); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.db2-lief .db2-klein-text { grid-column: 1 / -1; }
+.db2-fuss { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--db2-rand); }
+.db2-fuss .db2-knopf { border-color: var(--db2-rand); font-size: 13px; padding: 7px 12px; }
+
+/* Kalender: zwei Wochen */
+.db2-kal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.db2-kal__tag { min-height: 92px; padding: 8px 8px 7px; border-radius: 13px; display: flex; flex-direction: column; gap: 4px; min-width: 0;
+  background: color-mix(in srgb, var(--db2-text) 3%, transparent); }
+.db2-kal__kopf { display: flex; align-items: baseline; gap: 6px; }
+.db2-kal__kopf span { font-size: 12px; font-weight: 700; color: var(--db2-leise); text-transform: uppercase; letter-spacing: .04em; }
+.db2-kal__kopf b { font-size: 17px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.db2-kal__tag--we { background: transparent; box-shadow: inset 0 0 0 1px var(--db2-rand); }
+.db2-kal__tag--vorbei { opacity: .45; }
+.db2-kal__tag--heute { background: color-mix(in srgb, #0891b2 12%, transparent); box-shadow: inset 0 0 0 2px #0891b2; }
+.db2-kal__tag--heute .db2-kal__kopf span, .db2-kal__tag--heute .db2-kal__kopf b { color: #0891b2; }
+body.dunkel .db2-kal__tag--heute .db2-kal__kopf * { color: #67d8ee !important; }
+.db2-kal__eintrag { font-size: 12px; font-weight: 600; line-height: 1.25; padding: 3px 6px; border-radius: 7px;
+  background: color-mix(in srgb, #0891b2 14%, var(--db2-karte)); color: var(--db2-text);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.db2-kal__mehr { font-size: 11.5px; color: var(--db2-leise); font-weight: 700; }
+.db2-kal__countdown { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 12px; font-size: 13px; color: var(--db2-leise); }
+.db2-kal__countdown b { color: var(--db2-text); }
+
+/* Notizen als Zettel */
+.db2-notizen { display: flex; flex-direction: column; gap: 8px; }
+.db2-notiz { display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 10px 12px; border-radius: 12px; cursor: pointer;
+  border: 0; font: inherit; font-size: 14px; color: #422006; background: #fef3c7; box-shadow: 0 1px 2px rgba(120, 80, 0, .12);
+  transition-property: transform, box-shadow; transition-duration: .15s; transition-timing-function: ease-out; }
+.db2-notiz:hover { box-shadow: 0 6px 14px rgba(120, 80, 0, .16); }
+.db2-notiz small { font-size: 12px; color: #92400e; font-weight: 700; }
+.db2-notiz span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+body.dunkel .db2-notiz { background: #3b2f0e; }
+body.dunkel .db2-notiz, body.dunkel .db2-notiz * { color: #fde68a !important; }
+body.dunkel .db2-notiz small.db2-rot { color: #fca5a5 !important; }
+
+/* Menüfeld: wächst aus dem Knopf oben links */
+.db2-menue { position: fixed; inset: 0; z-index: 900; }
+.db2-menue__schleier { position: absolute; inset: 0; background: rgba(15, 23, 42, .28); backdrop-filter: blur(3px);
+  animation: db2-schleier .18s ease-out; }
+@keyframes db2-schleier { from { opacity: 0; } }
+.db2-menue__feld { position: absolute; top: 14px; left: max(14px, calc((100vw - 1280px) / 2 + 14px)); width: min(640px, calc(100vw - 28px));
+  max-height: calc(100dvh - 28px); overflow: auto; padding: 14px 14px 16px; border-radius: 24px; background: var(--db2-karte);
+  color: var(--db2-text); box-shadow: 0 0 0 1px var(--db2-rand), 0 24px 60px rgba(15, 23, 42, .25);
+  transform-origin: 23px 23px; animation: db2-menue-auf .22s cubic-bezier(.2, .8, .2, 1); }
+@keyframes db2-menue-auf { from { opacity: 0; transform: scale(.6); } }
+.db2-menue--weg .db2-menue__feld { opacity: 0; transform: scale(.92); transition: opacity .15s ease-out, transform .15s ease-out; }
+.db2-menue--weg .db2-menue__schleier { opacity: 0; transition: opacity .15s ease-out; }
+.db2-menue__kopf { display: flex; align-items: center; justify-content: space-between; padding: 0 2px 10px 6px; }
+.db2-menue__kopf b { font-size: 17px; }
+.db2-menue__raster { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.db2-menue__punkt { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  min-height: 96px; padding: 12px 6px; border-radius: 16px; border: 0; cursor: pointer; font: inherit; color: inherit;
+  background: color-mix(in srgb, var(--db2-text) 4%, transparent);
+  animation: db2-punkt-auf .24s cubic-bezier(.2, .8, .2, 1) backwards; animation-delay: calc(var(--nr) * 14ms + 40ms);
+  transition-property: transform, background-color; transition-duration: .15s; }
+@keyframes db2-punkt-auf { from { opacity: 0; transform: translateY(6px); } }
+.db2-menue__punkt:hover { background: color-mix(in srgb, #2563eb 10%, transparent); }
+.db2-menue__zeichen { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center;
+  background: color-mix(in srgb, #2563eb 12%, transparent); color: #2563eb; }
+body.dunkel .db2-menue__zeichen, body.dunkel .db2-menue__zeichen * { color: #93b4ff !important; }
+.db2-menue__zeichen svg { width: 22px; height: 22px; }
+.db2-menue__text { font-size: 13px; font-weight: 650; text-align: center; line-height: 1.2; text-wrap: balance; overflow-wrap: anywhere; }
+.db2-menue__tab { position: absolute; top: 7px; right: 9px; font-style: normal; font-size: 12px; color: var(--db2-leise); opacity: .7; }
+@media (prefers-reduced-motion: reduce) {
+  .db2-menue__feld, .db2-menue__punkt, .db2-menue__schleier { animation: none; }
+}
+
+/* Umschalter Planwand / Planer im gemeinsamen Tab der Admins */
+.kombi-leiste { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 2147483000; display: flex; gap: 2px;
+  padding: 3px; border-radius: 999px; background: rgba(15, 23, 42, .82); backdrop-filter: blur(8px);
+  box-shadow: 0 6px 20px rgba(15, 23, 42, .25); }
+.kombi-leiste button { border: 0; background: transparent; color: #cbd5e1; font: inherit; font-size: 13.5px; font-weight: 700;
+  padding: 6px 16px; border-radius: 999px; cursor: pointer; transition-property: background-color, color, transform; transition-duration: .15s; }
+.kombi-leiste button:hover { color: #fff; }
+.kombi-leiste button:active { transform: scale(.96); }
+.kombi-leiste button.aktiv { background: #fff; color: #0f172a; }
+body.dunkel .kombi-leiste button { color: #cbd5e1 !important; }
+body.dunkel .kombi-leiste button.aktiv { color: #0f172a !important; }
+
+@media (max-width: 1100px) {
+  .db2-kopfknopf__text { display: none; }
+  .db2-kopfknopf { width: 42px; padding: 0; justify-content: center; }
+  .db2-kal { grid-template-columns: repeat(7, minmax(84px, 1fr)); overflow-x: auto; }
+}
+@media (max-width: 700px) {
+  body.db2-modus .inhalt { padding-top: 8px; }
+  .db2-kopf { gap: 7px !important; margin-bottom: 14px !important; flex-wrap: wrap !important; }
+  .db2-menueknopf { width: 42px; height: 42px; }
+  .db2-logo { height: 42px; margin-left: 4px; }
+  .db2-kopf .db2-kopf__wetter { display: none !important; }
+  .db2-kopf .db2-kopf__uhr { display: none; }
+  .db2-planwand { order: 9; width: 100%; justify-content: center; height: 44px; }
+  .db2-kopfknopf { width: 42px; }
+  .db2-lief { grid-template-columns: minmax(0, 1fr); }
+  .db2-solar-klein { gap: 10px; padding: 4px 0; }
+  .db2-kal { display: flex; flex-direction: column; overflow: visible; }
+  .db2-kal__tag { min-height: 0; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 7px 10px; }
+  .db2-kal__tag:not(.db2-kal__tag--heute):not(:has(.db2-kal__eintrag)) { display: none; }
+  .db2-kal__kopf { width: 62px; flex: none; }
+  .db2-menue__raster { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .db2-menue__feld { top: 8px; left: 8px; width: calc(100vw - 16px); max-height: calc(100dvh - 16px); }
+  .db2-menue__punkt { min-height: 88px; }
+}
+
+/* Infos zum Teil unter „Infos zum Richten“ (seit 1.701.0) */
+.ri-info { margin: 6px 0 8px; }
+.ri-info .hocoteil__angaben { margin-bottom: 6px; }
+.ri-info__knoepfe { gap: 6px; flex-wrap: wrap; }
+.ri-maschine small[data-richten-stueckzeit] { display: block; }
+/* Seit 1.703.0: Wahl SB-20RG / SW-20 im Tutorial-Fenster von HOFERCAM */
 .hc-tutorial-wahl { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
 .kt-tutorial__kopf { flex-wrap: wrap; }

@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.702.0 (22. November 2026)
+
+- Prüfmittel entfernt (Wunsch Patrick 22. November 2026: „mach das raus aus der app“): kein Reiter Prüfmittel mehr in der Qualitätssicherung und in den Stammdaten des Test ERP, Seite, Daten und Prüfstand weg. Die Tabellen bleiben in der Datenbank, `#/pruefmittel` führt zur Qualitätssicherung.
+
 ## 1.691.1 (22. November 2026)
 
 - Prüfstand `reihen.py` robuster: scheiterte auf GitHub ab und zu, weil das Spiel im langsamen Runner länger zum Starten und Beenden brauchte als die festen 6 Sekunden. Jetzt wartet er bis 20 Sekunden auf Start und Ende, Klicks bis 60 Sekunden, und misst „Menü ohne Rollen“ erst, wenn das Menü ruhig steht. Die App selbst ist unverändert.

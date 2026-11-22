@@ -1,5 +1,5 @@
-# Vorschau Startseite mit Modulen (seit 1.670.0): #/startneu zeigt Module,
-# Punkte führen zu Seiten und Reitern, "Ohne Menü" blendet die Leiste aus
+# Vorschau neues Dashboard (seit 1.672.0): #/startneu zeigt Kacheln ohne Menü,
+# ein Tipp öffnet den Bereich als Fenster, Escape schliesst es
 import time, os
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -18,24 +18,41 @@ with sync_playwright() as p:
         for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
             pg.route(u, lambda r: r.abort())
         pg.goto(f"http://127.0.0.1:{PORT}/index.html#/startneu", wait_until="domcontentloaded")
-        pg.wait_for_selector("#sm-module", timeout=15000); pg.wait_for_timeout(800)
-        n = pg.locator(".sm-aufgabe").count()
-        pruefe(name + ": Aufgaben da (" + str(n) + ")", n >= 6)
-        pruefe(name + ": Startseite darunter", pg.locator(".kopfkarte").count() == 1)
+        pg.wait_for_selector("#db2-raster", timeout=15000); pg.wait_for_timeout(2500)
+        n = pg.locator(".db2-karte").count()
+        pruefe(name + ": Karten da (" + str(n) + ")", n == 5)
+        pg.wait_for_timeout(2500)
+        leer = pg.locator(".db2-karte .db2-laedt").count()
+        pruefe(name + ": Karten geladen (noch " + str(leer) + " leer)", leer == 0)
+        pruefe(name + ": keine Fehlermeldung", pg.locator(".db2-karte:has-text('Gerade nicht verfügbar')").count() == 0)
+        pruefe(name + ": Kalender mit 14 Tagen", pg.locator(".db2-kal__tag").count() == 14)
+        pruefe(name + ": keine Kopfzeile der App", not pg.locator("header.kopf").is_visible())
+        pruefe(name + ": Planwand-Knopf da", pg.locator("[data-db2-planwand]").count() == 1)
+        pruefe(name + ": Solar beim Gruss", pg.locator(".db2-gruss #db2-solar").count() <= 1)
+        pruefe(name + ": kein Rückgängig-Knopf", not pg.locator("#werkzeugleiste").is_visible() if pg.locator("#werkzeugleiste").count() else True)
         pruefe(name + ": kein seitliches Rollen", pg.evaluate("document.documentElement.scrollWidth <= innerWidth + 1"))
-        pg.screenshot(path=BILD + "/startneu-" + name + ".png", full_page=False)
         pruefe(name + ": Menü weg", not pg.locator(".nav").is_visible() and not pg.locator(".handymenue").is_visible())
-        pg.click("[data-modul=bestellen]"); pg.wait_for_timeout(3000)
-        pruefe(name + ": Bestellen offen", "bestellungen" in pg.evaluate("location.hash"))
-        pruefe(name + ": Leiste da", pg.locator("#aufgabe-leiste").is_visible())
-        pruefe(name + ": Menü bleibt weg", not pg.locator(".nav").is_visible())
-        pg.screenshot(path=BILD + "/aufgabe-" + name + ".png")
-        pg.click("[data-aufgabe-punkt=Artikel]"); pg.wait_for_timeout(800)
-        akt = pg.locator(".aufgabe-leiste__punkt.aktiv").all_inner_texts(); pruefe(name + ": Artikel aktiv " + str(akt), [t.strip() for t in akt] == ["Artikel"])
-        sr = pg.locator(".reiter--seite:visible").count(); pruefe(name + ": keine doppelten Reiter oben (" + str(sr) + ")", sr == 0)
-        pg.click(".aufgabe-leiste__start"); pg.wait_for_timeout(800)
-        pruefe(name + ": zurück zur Wahl", pg.locator("#sm-module").count() == 1 and pg.locator("#aufgabe-leiste").count() == 0)
+        pruefe(name + ": keine alte Seite im Dashboard", pg.locator("#db2 .db2-fenster__seite, #db2 #pw-inhalt").count() == 0)
+        pg.screenshot(path=BILD + "/db2-" + name + ".png", full_page=True)
+        pg.click("#db2-menueknopf"); pg.wait_for_timeout(700)
+        m = pg.locator("[data-db2-menuepunkt]").count()
+        pruefe(name + ": Menü mit Punkten (" + str(m) + ")", m >= 8)
+        pruefe(name + ": Menü mit Pad und Einstellungen", pg.locator("[data-db2-menuepunkt=pad]").count() == 1 and pg.locator("[data-db2-menuepunkt=einstellungen]").count() == 1)
+        pg.screenshot(path=BILD + "/db2-menue-" + name + ".png")
+        pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
+        pruefe(name + ": Menü zu mit Escape", pg.locator("#db2-menue").count() == 0)
+        for sel, bild in [("[data-db2-lieferant]", "lieferant"), ("[data-db2-mehr=bestellungen]", "bestellungen"), ("[data-db2-material]", "material")]:
+            if not pg.locator(sel).count():
+                print("hinweis " + sel + " keine Daten im Prüfstand"); continue
+            pg.locator(sel).first.click(); pg.wait_for_timeout(1200)
+            pruefe(name + ": Fenster " + sel, pg.locator(".db2-fenster").count() == 1)
+            pruefe(name + ": darin keine alte Seite", pg.locator(".db2-fenster .db2-fenster__seite, .db2-fenster #pw-inhalt").count() == 0)
+            pruefe(name + ": Fenster ohne seitliches Rollen", pg.evaluate("(() => { const f = document.querySelector('.db2-fenster__inhalt'); return !f || f.scrollWidth <= f.clientWidth + 1; })()"))
+            if bild: pg.screenshot(path=BILD + "/db2-fenster-" + bild + "-" + name + ".png")
+            pg.keyboard.press("Escape"); pg.wait_for_timeout(600)
+            pruefe(name + ": Fenster zu", pg.locator(".db2-fenster").count() == 0)
+            pruefe(name + ": bleibt auf Dashboard", pg.evaluate("location.hash") == "#/startneu")
         pg.click("#sm-vorschau a"); pg.wait_for_timeout(800)
-        pruefe(name + ": alte Startseite mit Menü", pg.evaluate("!document.body.classList.contains('aufgabe-modus')") and pg.locator(".sm-vorschau").count() == 0)
+        pruefe(name + ": alte Startseite mit Menü", pg.evaluate("!document.body.classList.contains('db2-modus')") and pg.locator("#db2").count() == 0)
     br.close()
 print("Fehler:", ", ".join(fehler) if fehler else "keine")

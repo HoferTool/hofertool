@@ -29,7 +29,7 @@ with sync_playwright() as p:
     pg.evaluate("location.hash = '#/nc'"); pg.wait_for_selector("#cam-tutorial", timeout=15000)
     pg.click("#cam-tutorial"); pg.wait_for_timeout(500)
     pruefe("HOFERCAM-Knopf öffnet Video", pg.locator("#hc-tutorial video[src*='hofercam-tutorial.mp4']").count() == 1)
-    # Seit 1.698.0: Wahl SB-20RG / SW-20 im Fenster
+    # Seit 1.703.0: Wahl SB-20RG / SW-20 im Fenster
     pg.click("[data-hc-tutorial='sw']"); pg.wait_for_timeout(300)
     pruefe("SW-20-Video", pg.locator("#hc-tutorial video[src*='hofercam-sw20-tutorial.mp4']").count() == 1)
     pg.click("#hc-tutorial-zu"); pg.wait_for_timeout(200)

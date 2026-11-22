@@ -11,6 +11,7 @@
 //  Todos stehen im Fenster „Abgeschlossen“ neben dem Todo-Titel. Rechts das Material der nächsten Aufträge,
 //  nach Lieferant gebündelt (Rechnung in src/daten/planer.js).
 // =================================================================
+import { istKombi, kombiPlanwand } from "../planwand/kombiTab.js";
 import { useEffect, useRef, useState } from "react";
 import { passtWoerter } from "../teile/Suchfeld.jsx";
 import { alt } from "../bruecke.jsx";
@@ -404,6 +405,8 @@ async function todoBearbeiten(t, neu) {
 // 2026: „soll nicht Planwand nochmal aufmachen, sondern die normale“).
 // Fehlt dieser Tab, geht ein Tab mit der Planwand auf.
 function planwandZeigen(j) {
+  // Im gemeinsamen Tab der Admins (seit 1.700.0) zur Planwand im selben Tab
+  if (istKombi()) { kombiPlanwand(j.id); return; }
   if (!istPlanerTab()) { planwandFensterOeffnen(j); return; }
   let w = null;
   try {

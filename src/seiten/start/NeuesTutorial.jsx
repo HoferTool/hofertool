@@ -18,7 +18,7 @@ import { mahnBilder } from "../../daten/mahnbilder.js";
 const GESEHEN = "hofercam_tutorial_gesehen";
 const VIDEO = "hilfe/hofercam-tutorial.mp4";
 
-// Seit 1.698.0 (Patrick 22. November 2026: SW-20-Tutorial „passt“): zwei
+// Seit 1.703.0 (Patrick 22. November 2026: SW-20-Tutorial „passt“): zwei
 // Videos, SB-20RG und SW-20; der Knopf in HOFERCAM öffnet das Video zum
 // gewählten Maschinentyp, oben lässt sich umschalten
 const VIDEOS = [

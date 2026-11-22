@@ -22,6 +22,9 @@
 import { useEffect, useRef, useState } from "react";
 import { alt, useDaten, useVerzoegert } from "../../bruecke.jsx";
 import { einrichtblattAppOeffnen } from "../../einrichtblatt/Blatt.jsx";
+import { dokZeigen } from "../../teile/DokAbruf.jsx";
+import { protokollWwZeigen } from "../../pad/Werkzeugwechsel.jsx";
+import { stueckzeitText, laengeText } from "../../daten/stueckzahl.js";
 
 const gemerkt = { suche: "", typ: null };
 
@@ -49,6 +52,67 @@ function muster(q) {
 }
 
 const JE_TYP = 6;
+
+// Was beim Rüsten hilft, je HOCO Nr. (seit 1.701.0, Wunsch Patrick
+// 22. November 2026: „ähnliche Infos, welche helfen könnten, wie Länge
+// und so, soll man auch bei Infos fürs Rüsten sehen“): Länge, Material,
+// Stückzeit je Typ, wann und wo zuletzt gelaufen, Zeichnung, WBG und
+// Protokoll WW des jüngsten Auftrags mit Werkzeugwechseln.
+async function rustInfoLaden(hoco) {
+  const db = alt.db;
+  const [teil, jobs, typ] = await Promise.all([
+    db.from("hoco_parts").select("teil_laenge_mm,teil_mass_bestaetigt,zeichnung_url").eq("hoco_nr", hoco).maybeSingle(),
+    db.from("jobs").select("id,fa_nr,planned_from,plan_status,material_bez,wbg_url,machine_id,wz_historie_url")
+      .eq("job_number", hoco).order("planned_from", { ascending: false }).limit(30),
+    db.from("hoco_type_data").select("type_id,stueckzeit_s").eq("hoco_nr", hoco),
+  ]);
+  const liste = (jobs && jobs.data) || [];
+  let ww = null;
+  if (liste.length) {
+    try {
+      const w = await db.from("tool_changes").select("job_id").in("job_id", liste.map((j) => j.id));
+      const mit = new Set(((w && w.data) || []).map((z) => z.job_id));
+      ww = liste.find((j) => mit.has(j.id) || j.wz_historie_url) || null;
+    } catch (f) { ww = liste.find((j) => j.wz_historie_url) || null; }
+  }
+  const zeiten = {};
+  for (const z of (typ && typ.data) || []) if (z.stueckzeit_s) zeiten[z.type_id] = z.stueckzeit_s;
+  return {
+    teil: (teil && teil.data) || {},
+    letzter: liste.find((j) => j.plan_status !== "geplant") || liste[0] || null,
+    material: (liste.find((j) => j.material_bez) || {}).material_bez || "",
+    wbg: liste.find((j) => j.wbg_url) || null,
+    ww, zeiten,
+  };
+}
+
+function RustInfo({ hoco, zeit }) {
+  const { daten: i } = useDaten(() => rustInfoLaden(hoco), [hoco]);
+  useEffect(() => { if (i && zeit) zeit(i.zeiten); }, [i]);
+  if (!i) return <p className="ri-leer">Infos werden geladen …</p>;
+  const masch = (id) => { const m = ((alt.prod.maschinen || []).find((x) => x.id === id)); return m ? (m.machine_number || m.name) : ""; };
+  const l = i.teil.teil_laenge_mm ? Number(i.teil.teil_laenge_mm) : null;
+  return (
+    <div className="ri-info" data-richten-info={hoco}>
+      <div className="hocoteil__angaben">
+        <span className="hocoteil__angabe" data-richten-laenge={l || ""}><small>Länge Fertigteil</small>
+          <b>{l ? laengeText(l) + (i.teil.teil_mass_bestaetigt ? "" : " · nicht bestätigt") : "—"}</b></span>
+        <span className="hocoteil__angabe"><small>Material</small><b>{i.material || "—"}</b></span>
+        <span className="hocoteil__angabe"><small>Zuletzt</small>
+          <b>{i.letzter ? (i.letzter.planned_from ? new Date(i.letzter.planned_from).toLocaleDateString("de-CH") : "—") + (masch(i.letzter.machine_id) ? " · " + masch(i.letzter.machine_id) : "")
+            + (i.letzter.fa_nr ? " · FA " + i.letzter.fa_nr : "") : "noch nie geplant"}</b></span>
+      </div>
+      <div className="pdfreihe ri-info__knoepfe">
+        <button className="knopf knopf--klein" data-richten-zeichnung={hoco}
+          onClick={() => dokZeigen({ art: "zeichnung", titel: "Zeichnung " + hoco, adresse: i.teil.zeichnung_url, hoco })}>Zeichnung</button>
+        {i.wbg && <button className="knopf knopf--klein" data-richten-wbg={hoco}
+          onClick={() => dokZeigen({ art: "wbg", titel: "WBG " + (i.wbg.fa_nr || hoco), adresse: i.wbg.wbg_url, hoco, auftragId: i.wbg.id })}>WBG</button>}
+        {i.ww && <button className="knopf knopf--klein hocoteil__anhang--wz" data-richten-ww={hoco}
+          onClick={() => protokollWwZeigen(i.ww.id)}>Protokoll WW{i.ww.fa_nr ? " (FA " + i.ww.fa_nr + ")" : ""}</button>}
+      </div>
+    </div>
+  );
+}
 
 // Zuletzt bearbeitete Blätter. Das Einlesen im Hintergrund legt Blätter
 // mit erstellt_am = geaendert_am an; erst ein Speichern von Hand oder
@@ -172,7 +236,8 @@ export default function Richten() {
           <h2>HOCO Nr.</h2>
           <div className="ri-liste">
             {(treffer || []).map((t) => <Treffer key={t.hoco} t={t} typen={typen} typName={typName} darf={darf} passt={passt}
-              anMaschine={anMaschine} bearbeiten={bearbeiten} />)}
+              anMaschine={anMaschine} bearbeiten={bearbeiten}
+              offen={treffer.length <= 3 || roh(t.hoco) === q} />)}
             {treffer && !treffer.length && !sucheLaedt && <p className="ri-leer">Keine HOCO Nr. gefunden.
               {darf && /^\d{5}-?\d{4}$/.test(frage.trim()) && <> Neu anlegen: <NeuFuerTyp hoco={frage.trim().replace(/^(\d{5})-?/, "$1-")}
                 typen={typen} vorhanden={new Map()} bearbeiten={bearbeiten} /></>}</p>}
@@ -222,16 +287,22 @@ export default function Richten() {
 }
 
 // Eine HOCO Nr. mit allen ihren Blättern
-function Treffer({ t, typen, typName, darf, passt, anMaschine, bearbeiten }) {
+function Treffer({ t, typen, typName, darf, passt, anMaschine, bearbeiten, offen }) {
+  const [zeiten, setZeiten] = useState({});
+  const [infoAuf, setInfoAuf] = useState(!!offen);
   const liste = [...t.typen.entries()].filter(([typId]) => passt(typId)).sort((a, b) => typName(a[0]).localeCompare(typName(b[0]), "de"));
   return (
     <div className="ri-treffer" data-richten-hoco-treffer={t.hoco}>
       <div className="ri-treffer__kopf"><b>{t.hoco}</b>{t.bez && <small>{t.bez}</small>}</div>
+      {/* Bei vielen Treffern erst auf Tipp, damit nicht 40 Teile auf einmal laden */}
+      {infoAuf ? <RustInfo hoco={t.hoco} zeit={setZeiten} />
+        : <button className="knopf knopf--klein" data-richten-info-auf={t.hoco} onClick={() => setInfoAuf(true)}>ⓘ Infos zum Teil</button>}
       {liste.map(([typId, x]) => {
         const wo = anMaschine(t.hoco, typId);
         return (
           <div key={typId} className="ri-zeile ri-zeile--treffer" data-richten-treffer-typ={typId}>
-            <span className="ri-maschine">{typName(typId) || "Unbekannter Typ"}{wo && <small>läuft auf {wo}</small>}</span>
+            <span className="ri-maschine">{typName(typId) || "Unbekannter Typ"}{wo && <small>läuft auf {wo}</small>}
+              {zeiten[typId] && <small data-richten-stueckzeit={typId}>Stückzeit {stueckzeitText(zeiten[typId])}</small>}</span>
             <span><Stand app={x.app} excel={x.excel} /></span>
             <span className="ri-knopf">{(x.app || darf) &&
               <button className="knopf knopf--klein" data-richten-bearbeiten={t.hoco}

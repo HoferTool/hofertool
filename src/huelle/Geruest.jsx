@@ -16,7 +16,6 @@ import { anmeldungAbbauen } from "./Anmeldung.jsx";
 import { GeraetMarke } from "../pad/geraet.jsx";
 import { UNTERREITER, reiterAktiv, reiterBeobachten, reiterWaehlen, menuePunkt } from "./unterreiter.js";
 import { planerSichtbar, istPlanerTab } from "../pad/planerTab.js";
-import { AufgabeLeiste } from "./Aufgaben.jsx";
 
 // Todo des Planers unten in der Seitenleiste, nur für Admins (seit 1.536.0).
 // Erst nachgeladen, damit der Planer nicht im Startpaket steckt.
@@ -371,9 +370,7 @@ function Geruest() {
         {/* Am Handy statt der Leiste unten ein Knopf mit Fenster (seit 1.57.0).
             Externe behalten die Leiste, sie haben nur zwei Punkte. */}
         {!alt.istExtern() && <HandyMenue aktiv={aktiv} />}
-        {/* Aufgaben statt Menü, nur aus der Vorschau #/startneu (seit 1.671.0) */}
-        {!alt.istExtern() && <AufgabeLeiste seite={offeneSeite} />}
-        <main className="inhalt" id="inhalt" />
+                <main className="inhalt" id="inhalt" />
       </div>
     </>
   );

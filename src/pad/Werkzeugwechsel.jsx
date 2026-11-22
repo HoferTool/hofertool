@@ -236,8 +236,12 @@ async function eintragen(maschine, auftrag, liste) {
 
 // ---------- Historie ----------
 
-async function historieLaden(maschine) {
-  const r = await alt.zeitlimit(alt.db.from("werkzeugwechsel").select("*").eq("machine_id", maschine.id)
+async function historieLaden(maschine, hoco) {
+  // Mit HOCO Nr. nur deren Wechsel, damit auch ältere Aufträge nicht
+  // hinter den letzten 300 Wechseln der Maschine verschwinden
+  let q = alt.db.from("werkzeugwechsel").select("*").eq("machine_id", maschine.id);
+  if (hoco) q = q.eq("hoco_nr", hoco);
+  const r = await alt.zeitlimit(q
     .order("gewechselt_am", { ascending: false }).limit(300), 12000, "Werkzeugwechsel");
   if (r.error) throw r.error;
   const liste = r.data || [];
@@ -297,7 +301,7 @@ export async function protokollWwZeigen(jobId) {
     const m = await alt.db.from("machines").select("id, name, machine_number, type_id").eq("id", auftrag.machine_id).single();
     if (m.error) throw m.error;
     const maschine = m.data;
-    const runden = await historieLaden(maschine);
+    const runden = await historieLaden(maschine, auftrag.job_number);
     const { html, titel } = await alt.historieHtml(maschine, auftrag, runden,
       async () => (await indexPdfAufbau(maschine, auftrag).catch(() => null)) || blattSpalten(maschine, auftrag, runden));
     const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
