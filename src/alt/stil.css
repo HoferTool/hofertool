@@ -15362,3 +15362,7 @@ body.dunkel .cam-wz__artikel { background: #22344d; }
 /* HOFERCAM Vorlagen: Wahl mit Knöpfen (seit 1.695.0) */
 .cam-feld--wahl { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; flex-basis: 100%; }
 .cam-feld--wahl > span { margin-right: 4px; }
+
+/* Seit 1.698.0: Wahl SB-20RG / SW-20 im Tutorial-Fenster von HOFERCAM */
+.hc-tutorial-wahl { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+.kt-tutorial__kopf { flex-wrap: wrap; }
