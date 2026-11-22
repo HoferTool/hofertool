@@ -81,27 +81,96 @@ function fenster(inhalt, fertig) {
   fensterOeffnen((zu) => inhalt(zu), fertig, "db2-huelle");
 }
 
-// ---------- Solar: klein und ruhig (Patrick: „soll nicht so herausstechen“) ----------
-function SolarKlein() {
-  const [w, setW] = useState(null);
-  useEffect(() => {
-    const holen = () => alt.solarLaden().then((r) => setW(r.length ? r[r.length - 1] : false), () => setW(false));
-    holen();
-    const t = setInterval(holen, 60000);
-    return () => clearInterval(t);
-  }, []);
-  if (!w) return null;
-  const prod = Number(w.produktion_w) || 0, verb = Number(w.verbrauch_w) || 0, netz = Number(w.netz_w) || 0;
-  const eigen = verb > 0 ? Math.round(Math.min(prod, verb) / verb * 100) : 0;
-  const gross = () => fenster((zu) => <Fenster titel="Solaranlage" farbe="#65a30d" zu={zu}><Solaranlage ohneId /></Fenster>);
+// ---------- Solar als Karte neben den Bestellungen (seit 1.707.0) ----------
+// Wunsch Patrick 22. November 2026: „halb so viel Platz, daneben die
+// Ansicht vom Solar mit Diagramm … etwas einfacher, und wenn man
+// draufklickt, ein Fenster mit mehr Infos“. Das Fenster bleibt in der App.
+function solarPfad(werte, feld, b, h, max) {
+  if (werte.length < 2 || !max) return "";
+  const t0 = new Date(werte[0].gemessen).getTime(), t1 = new Date(werte[werte.length - 1].gemessen).getTime();
+  const dt = Math.max(1, t1 - t0);
+  return werte.map((w, i) => {
+    const x = ((new Date(w.gemessen).getTime() - t0) / dt) * b;
+    const y = h - (Math.max(0, Number(w[feld]) || 0) / max) * (h - 4);
+    return (i ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1);
+  }).join(" ");
+}
+function SolarDiagramm({ werte, b = 300, h = 90, achsen }) {
+  const max = Math.max(1, ...werte.map((w) => Math.max(Number(w.produktion_w) || 0, Number(w.verbrauch_w) || 0)));
+  const prod = solarPfad(werte, "produktion_w", b, h, max);
+  const verb = solarPfad(werte, "verbrauch_w", b, h, max);
+  const zeit = (w) => new Date(w.gemessen).toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" });
   return (
-    <button type="button" className="db2-solar-klein" id="db2-solar" onClick={gross} title="Solaranlage">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5" /><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M16.9 7.1l1.8-1.8M5.3 18.7l1.8-1.8" /></svg>
-      <span><b>{alt.solarKw(prod)}</b> Erzeugung</span>
-      <span><b>{alt.solarKw(verb)}</b> Verbrauch</span>
-      <span><b>{alt.solarKw(Math.abs(netz))}</b> {netz > 0 ? "Bezug" : "Einspeisung"}</span>
-      <span><b>{eigen} %</b> eigen</span>
-    </button>
+    <div className="db3-solar__bild">
+      <svg viewBox={"0 0 " + b + " " + h} preserveAspectRatio="none" aria-hidden="true">
+        {prod && <path className="db3-solar__flaeche" d={prod + " L" + b + " " + h + " L0 " + h + " Z"} />}
+        {prod && <path className="db3-solar__prod" d={prod} vectorEffect="non-scaling-stroke" />}
+        {verb && <path className="db3-solar__verb" d={verb} vectorEffect="non-scaling-stroke" />}
+      </svg>
+      {achsen && werte.length > 1 && <div className="db3-solar__achse"><span>{zeit(werte[0])}</span>
+        <span>höchstens {alt.solarKw(max)}</span><span>{zeit(werte[werte.length - 1])}</span></div>}
+    </div>
+  );
+}
+// Energie aus den Messpunkten (Trapez), in kWh
+function solarKwh(werte, feld) {
+  let wh = 0;
+  for (let i = 1; i < werte.length; i++) {
+    const dt = (new Date(werte[i].gemessen) - new Date(werte[i - 1].gemessen)) / 3600000;
+    if (dt <= 0 || dt > 1) continue;
+    wh += ((Math.max(0, Number(werte[i][feld]) || 0) + Math.max(0, Number(werte[i - 1][feld]) || 0)) / 2) * dt;
+  }
+  return (wh / 1000).toFixed(1).replace(".", ",") + " kWh";
+}
+function SolarFenster({ werte, zu }) {
+  const w = werte[werte.length - 1];
+  const prod = Number(w.produktion_w) || 0, verb = Number(w.verbrauch_w) || 0, netz = Number(w.netz_w) || 0;
+  const spitze = werte.reduce((m, x) => ((Number(x.produktion_w) || 0) > (Number(m.produktion_w) || 0) ? x : m), werte[0]);
+  const eigen = verb > 0 ? Math.round(Math.min(prod, verb) / verb * 100) : 0;
+  const zahlen = [
+    ["Erzeugung jetzt", alt.solarKw(prod)], ["Verbrauch jetzt", alt.solarKw(verb)],
+    [netz > 0 ? "Bezug vom Netz" : "Einspeisung ins Netz", alt.solarKw(Math.abs(netz))], ["Eigenanteil jetzt", eigen + " %"],
+    ["Erzeugt in 24 h", solarKwh(werte, "produktion_w")], ["Verbraucht in 24 h", solarKwh(werte, "verbrauch_w")],
+    ["Spitze in 24 h", alt.solarKw(spitze.produktion_w) + " um " + new Date(spitze.gemessen).toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" })],
+    ["Gemessen", alt.datumZeitKurz(w.gemessen)],
+  ];
+  return (
+    <Fenster titel="Solaranlage" unter="letzte 24 Stunden" farbe="#65a30d" zu={zu}>
+      <div className="db3-solarfenster" id="db3-solarfenster">
+        <div className="db3-solarfenster__zahlen">
+          {zahlen.map(([t, v]) => <div key={t}><span>{t}</span><b>{v}</b></div>)}
+        </div>
+        <SolarDiagramm werte={werte} b={600} h={180} achsen />
+        <div className="db3-solar__legende"><span className="db3-solar__punkt--prod">Erzeugung</span><span className="db3-solar__punkt--verb">Verbrauch</span></div>
+        <Solaranlage ohneId />
+      </div>
+    </Fenster>
+  );
+}
+function SolarKarte({ auffrischen }) {
+  const [werte, setWerte] = useState(null);
+  useEffect(() => {
+    const holen = () => alt.solarLaden().then((r) => setWerte(r), () => setWerte([]));
+    holen();
+    const t = setInterval(() => { if (!document.querySelector(".dialog-huelle")) holen(); }, 60000);
+    return () => clearInterval(t);
+  }, [auffrischen]);
+  if (!werte || !werte.length) return null;
+  const w = werte[werte.length - 1];
+  const prod = Number(w.produktion_w) || 0, verb = Number(w.verbrauch_w) || 0, netz = Number(w.netz_w) || 0;
+  return (
+    <section className="karte db3-solar" id="db3-solar" role="button" tabIndex={0}
+      onClick={() => fenster((zu) => <SolarFenster werte={werte} zu={zu} />)}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); } }}>
+      <h2>Solaranlage</h2>
+      <div className="db3-solar__werte">
+        <div><b>{alt.solarKw(prod)}</b><span>Erzeugung</span></div>
+        <div><b>{alt.solarKw(verb)}</b><span>Verbrauch</span></div>
+        <div><b>{alt.solarKw(Math.abs(netz))}</b><span>{netz > 0 ? "Bezug" : "Einspeisung"}</span></div>
+      </div>
+      <SolarDiagramm werte={werte} />
+      <div className="db3-solar__legende"><span className="db3-solar__punkt--prod">Erzeugung</span><span className="db3-solar__punkt--verb">Verbrauch</span><span className="db3-solar__mehr">24 h · mehr ›</span></div>
+    </section>
   );
 }
 
@@ -173,7 +242,13 @@ function Kopf({ menueAuf }) {
   const z = (n) => String(n).padStart(2, "0");
   return (
     <header className="db2-kopf">
-      <button type="button" className="db2-menueknopf" id="db2-menueknopf" aria-label="Menü öffnen" title="Menü" onClick={menueAuf}>{VIER}</button>
+      {/* Seit 1.706.0 (Wunsch Patrick 22. November 2026): ganz links nur Einstellungen als Zeichen,
+          daneben Zeit und Wetter, wo vorher das Kachel-Zeichen stand; kein Planwand-Knopf mehr. */}
+      <button type="button" className="db2-kopfknopf db2-kopfknopf--rund" data-db2-einstellungen="" title="Einstellungen"
+        aria-label="Einstellungen" onClick={() => alt.einstellungenOeffnen()}>
+        <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: ZAHNRAD }} /></button>
+      <div className="db2-kopf__uhr">{z(jetzt.getHours())}:{z(jetzt.getMinutes())}</div>
+      {wetter && <div className="db2-kopf__wetter"><b>{wetter.temperatur}°</b><span>{wetter.text}</span></div>}
       <span className="db2-logo" role="img" aria-label="Hofer + Co.">
         <img className="db2-logo--hell" src="logo-empfang.png" alt="" />
         <img className="db2-logo--dunkel" src="logo-weiss.svg" alt="" />
@@ -181,13 +256,6 @@ function Kopf({ menueAuf }) {
       <span className="db2-kopf__luecke" />
       <button type="button" className="db2-kopfknopf" data-db2-pad="" title="Pad Mode" onClick={() => alt.padOeffnen()}>
         <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: TABLET }} /><span className="db2-kopfknopf__text">Pad Mode</span></button>
-      <button type="button" className="db2-kopfknopf" data-db2-einstellungen="" title="Einstellungen" onClick={() => alt.einstellungenOeffnen()}>
-        <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: ZAHNRAD }} /><span className="db2-kopfknopf__text">Einstellungen</span></button>
-      {wetter && <div className="db2-kopf__wetter"><b>{wetter.temperatur}°</b><span>{wetter.text}</span></div>}
-      {alt.seiteSichtbar("planwand") && <button type="button" className="db2-planwand" data-db2-planwand=""
-        title={kombiDarf() ? "Planwand und Planer in einem Tab" : "Planwand"} onClick={planungOeffnen}>
-        <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: alt.SYM.planwand || "" }} />Planwand</button>}
-      <div className="db2-kopf__uhr">{z(jetzt.getHours())}:{z(jetzt.getMinutes())}</div>
     </header>
   );
 }
@@ -206,7 +274,6 @@ function Gruss({ kinder }) {
         <h1 className="db2-kopf__gruss">{alt.begruessung()}{name ? ", " + name : ""}</h1>
         {kinder.length > 0 && <div className="db3-geburtstag" id="db3-geburtstag">🎂 Heute hat {kinder.map((k) => k.name).join(" und ")} Geburtstag</div>}
       </div>
-      <SolarKlein />
     </div>
   );
 }
@@ -263,7 +330,8 @@ export default function StartModule({ auffrischen }) {
         {alt.istAdmin() && <Z voll><Systemzustand auffrischen={a} /></Z>}
         <Z voll><NeuesTutorial /></Z>
         <Z voll><HeuteOffen auffrischen={a} /></Z>
-        <Z voll><Bestellstand auffrischen={a} /></Z>
+        <Z><Bestellstand auffrischen={a} /></Z>
+        {intern() && <Z><SolarKarte auffrischen={a} /></Z>}
         {probSehen && <Z><Probleme liste={prob.daten} fehler={prob.fehler} neu={prob.neu} /></Z>}
         <Z><KalenderKarte auffrischen={a} /></Z>
         <Z><OhneWbg auffrischen={a} /></Z>

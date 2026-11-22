@@ -1,3 +1,4 @@
+import os
 # Vorschau neues Dashboard (seit 1.672.0): #/startneu zeigt Kacheln ohne Menü,
 # ein Tipp öffnet den Bereich als Fenster, Escape schliesst es
 import time, os
@@ -26,20 +27,28 @@ with sync_playwright() as p:
             pruefe(name + ": Karte " + k, pg.locator("#db3-raster #" + k + " .karte, #db3-raster #" + k + ".karte").count() >= 1)
         pruefe(name + ": Bestellungen zuoberst (vor Problemen)", pg.evaluate("document.querySelector('#db-status').getBoundingClientRect().top < document.querySelector('#db-probleme').getBoundingClientRect().top"))
         if name == "pc":
-            pruefe(name + ": Probleme und Kalender nebeneinander", pg.evaluate("(() => { const a = document.querySelector('#db-probleme').getBoundingClientRect(), b = document.querySelector('#db-kalender').getBoundingClientRect(); return Math.abs(a.top - b.top) < 4 && b.left > a.right; })()"))
+            pruefe(name + ": Probleme und Kalender in zwei Spalten", pg.evaluate("(() => { const a = document.querySelector('#db-probleme').getBoundingClientRect(), b = document.querySelector('#db-kalender').getBoundingClientRect(); return b.left > a.right || a.left > b.right; })()"))
+            # Bestellungen halb so breit, daneben Solar mit Diagramm (seit 1.707.0)
+            sol = pg.locator("#db3-solar")
+            if sol.count():
+                pruefe(name + ": Bestellungen und Solar nebeneinander", pg.evaluate("(() => { const a = document.querySelector('#db-status').getBoundingClientRect(), b = document.querySelector('#db3-solar').getBoundingClientRect(); return Math.abs(a.top - b.top) < 4 && b.left > a.right; })()"))
+                pruefe(name + ": Solar mit Diagramm", pg.locator("#db3-solar svg path").count() >= 1)
+                sol.click(); pg.wait_for_timeout(700)
+                pruefe(name + ": Solar-Fenster in der App", pg.locator(".dialog-huelle #db3-solarfenster").count() == 1)
+                if os.environ.get("BILD"): pg.screenshot(path=os.environ["BILD"] + "/solar-fenster-" + name + ".png")
+                pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
+            else:
+                print("Hinweis: keine Solarwerte im Nachbau")
             pruefe(name + ": Menü links sichtbar", pg.locator(".nav").is_visible())
         pruefe(name + ": keine Kopfzeile der App", not pg.locator("header.kopf").is_visible())
-        pruefe(name + ": Planwand-Knopf da", pg.locator("[data-db2-planwand]").count() == 1)
+        pruefe(name + ": kein Planwand-Knopf, kein Kachel-Knopf", pg.locator("[data-db2-planwand]").count() == 0 and pg.locator("#db2-menueknopf").count() == 0)
+        pruefe(name + ": Einstellungen nur als Zeichen", pg.locator("[data-db2-einstellungen]").inner_text().strip() == "")
+        if name == "pc":
+            pruefe(name + ": Pad Mode breit in der Leiste", pg.locator("#nav-pad").is_visible() and pg.locator("#nav-pad").bounding_box()["width"] > 150)
+            pruefe(name + ": Uhr links neben Einstellungen", pg.evaluate("document.querySelector('.db2-kopf__uhr').getBoundingClientRect().left > document.querySelector('[data-db2-einstellungen]').getBoundingClientRect().right"))
         pruefe(name + ": keine leere Zelle", pg.evaluate("[...document.querySelectorAll('.db3-zelle')].every(z => getComputedStyle(z).display === 'none' || z.offsetHeight > 20)"))
         pruefe(name + ": kein seitliches Rollen", pg.evaluate("document.documentElement.scrollWidth <= innerWidth + 1"))
         pg.screenshot(path=BILD + "/db3-" + name + ".png", full_page=True)
-        pg.click("#db2-menueknopf"); pg.wait_for_timeout(700)
-        m = pg.locator("[data-db2-menuepunkt]").count()
-        pruefe(name + ": Menü mit Punkten (" + str(m) + ")", m >= 8)
-        pruefe(name + ": Menü mit Pad und Einstellungen", pg.locator("[data-db2-menuepunkt=pad]").count() == 1 and pg.locator("[data-db2-menuepunkt=einstellungen]").count() == 1)
-        pg.screenshot(path=BILD + "/db2-menue-" + name + ".png")
-        pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
-        pruefe(name + ": Menü zu mit Escape", pg.locator("#db2-menue").count() == 0)
         pg.click("#sm-vorschau a"); pg.wait_for_timeout(800)
         pruefe(name + ": alte Startseite mit Menü", pg.evaluate("!document.body.classList.contains('db2-modus')") and pg.locator("#db2").count() == 0)
     br.close()

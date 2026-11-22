@@ -36,11 +36,7 @@ with sync_playwright() as p:
     pruefe("Leiste zeigt Lieferanten markiert", pg.evaluate("document.querySelector('.nav__unterpunkt.aktiv').textContent") == "Lieferanten")
 
     pruefe("Reiter stehen am PC nicht nochmals auf der Seite", not pg.locator(".reiter--seite").is_visible())
-    pg.click("#nav-klapp"); pg.wait_for_timeout(900)
-    pruefe("Eingeklappt: Reiter wieder auf der Seite", pg.locator(".reiter--seite").is_visible())
-    pg.click(".reiter__knopf[data-best='artikel']"); pg.wait_for_timeout(300)
-    pg.click("#nav-klapp"); pg.wait_for_timeout(900)
-    pruefe("Reiter auf der Seite führt die Leiste mit", pg.evaluate("document.querySelector('.nav__unterpunkt.aktiv').textContent") == "Artikel")
+    pruefe("Kein ☰ am Computer (seit 1.707.0)", not pg.locator("#nav-klapp").is_visible())
 
     # Rechner: Reiter in der Leiste wählen und wieder zurück zur Seite
     pg.click(".nav__punkt[data-nav='nc']"); pg.wait_for_selector(".nav__unterpunkt[data-unter='nc/gravur']")
@@ -51,10 +47,7 @@ with sync_playwright() as p:
     pruefe("Produktion: Infos zum Richten über die Leiste", pg.evaluate("document.querySelector('.reiter__knopf.aktiv').textContent") == "Infos zum Richten")
     pg.screenshot(path="unterreiter.png")
 
-    # Eingeklappt und am Handy: nicht sichtbar
-    pg.click("#nav-klapp"); pg.wait_for_timeout(900)
-    pruefe("Eingeklappt unsichtbar", not pg.locator(".nav__unter").is_visible())
-    pg.click("#nav-klapp"); pg.wait_for_timeout(900)
+    # Am Handy: nicht sichtbar
     pg.set_viewport_size({"width": 420, "height": 800}); pg.wait_for_timeout(300)
     pruefe("Am Handy unsichtbar", not pg.locator(".nav__unter").is_visible())
     pruefe("Am Handy Reiter auf der Seite", pg.locator(".reiter--seite").is_visible())
