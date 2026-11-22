@@ -45,6 +45,7 @@ export const HALTER = {
   "SGTFR 1212-2": { typ: "klinge", name: "Iscar SGTFR/L 1212-2 (Self-Grip)", b: 12, h: 12, f1: 12, l1: 110, quelle: "Iscar SGTFR 1212-3 (l1 110), Sitz 2 angenommen gleich" },
   "RH100 1212": { typ: "klinge", name: "Horn RH/LH100.1212.02 (S100)", b: 12, h: 12, f1: 12, l1: 125, quelle: "Horn RH100.1212.02, f1 nicht veröffentlicht" },
   "UTILIS 5000 1212": { typ: "klinge", name: "Utilis 5000-12x100 R/L", b: 12, h: 12, f1: 12, l1: 100, quelle: "Utilis multidec-5000 Katalog 2025, f1 angenommen" },
+  "UTILIS 3000 1212": { typ: "schraube", name: "Utilis Halter 3000 12x12 R/L (CUT 3004)", b: 12, h: 12, f1: 12, kr: 90, l1: 100, quelle: "Utilis Tool-holder 3000, Masse angenommen" },
   "UTILIS 1600 1212": { typ: "klinge", name: "Utilis 1600-12x100 90 ST RA/LA", b: 12, h: 12, f1: 15, l1: 100, quelle: "Utilis Shop (w = 15)" },
 };
 
@@ -60,6 +61,8 @@ function nachForm(wz) {
   if (f.id === "W") return "SWLCR 1212";
   if (f.id === "T") return "STGCR 1212";
   if (f.id === "R") return "SRDCN 1212";
+  // Utilis Multidec (Form U) sitzt im Halter 3000, nicht in einer Klinge
+  if (f.id === "U") return "UTILIS 3000 1212";
   if (f.art === "frei") return "STECH 1212";
   return "SDJCR 1212";
 }
@@ -73,6 +76,7 @@ const REGELN = [
   { test: (t) => /\bDGN\b|SELF-GRIP|SGTF/.test(t), halter: "SGTFR 1212-2" },
   { test: (t) => /\bS100\b|\b100\.\d{4}|H100/.test(t) && t.includes("HORN"), halter: "RH100 1212" },
   { test: (t) => /CUT\s*50\d\d|\b50\d\d-\d/.test(t), halter: "UTILIS 5000 1212" },
+  { test: (t) => /CUT\s*30\d\d|\b30\d\d-\d/.test(t) && t.includes("UTILIS"), halter: "UTILIS 3000 1212" },
   { test: (t) => /CUT\s*16\d\d|\b16[01]\d\b/.test(t) && t.includes("UTILIS"), halter: "UTILIS 1600 1212" },
   { test: (t) => /VC[GM][TX]/.test(t), halter: "SVXCR 1212 H11 U" },
 ];

@@ -263,13 +263,16 @@ function horn105(t) {
 }
 
 // Utilis Multidec 3004 / 1604 mit Schneide 29xyz (R = xyz/100): Form U,
-// Spitzenwinkel 27°, Freiwinkel 61° (Katalog Utilis)
+// Spitzenwinkel 27°, Freiwinkel 61° (Katalog Utilis). Laut shop.utilis.com
+// „Turning insert CUT 3004 SP“ unter Aussendrehen / Kopierdrehen, a 3.2,
+// c 11: also aussen, Lage unten (bis 1.696.1 fälschlich innen, dann kam
+// eine Bohrstange; Patrick 22. November 2026: „was ist das???“)
 function utilisDec(t) {
   const m = /\b(3004|1604)-(\d+(?:[.,]\d+)?)-[\d.-]+\s+(F?[RL])\s+(?:SP)?29(\d{3})/i.exec(t);
   if (!m) return null;
   const r = Number(m[4]) / 100;
   const c = m[1] === "3004" ? 11 : 4.5;
-  const wz = { art: "dreh", form: "U", sl: /L/i.test(m[3]) ? "ol" : "or", r: rund(r || 0.02), winkel: "27", schraeg: "2", l: rund(c),
+  const wz = { art: "dreh", form: "U", sl: /L/i.test(m[3]) ? "ul" : "ur", r: rund(r || 0.02), winkel: "27", schraeg: "2", l: rund(c),
     dicke: m[1] === "3004" ? "3" : "2" };
   return { art: "dreh", wz, status: "teilweise", geschaetzt: ["Dicke", "Lage"],
     info: `Utilis Multidec ${m[1]}, a ${zahl(m[2])}, R${r}, Spitzenwinkel 27°, Freiwinkel 61°` };
