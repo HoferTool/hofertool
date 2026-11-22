@@ -142,7 +142,7 @@ export const VORLAGE_TEXT = {
   g83: "Bohren in Schritten mit Rückzug zum Spänebrechen",
   g87: "Bohrungen quer, gleich verteilt über den Umfang",
   g76: "Gewinde in mehreren Durchgängen an der Flanke",
-  einstich: "Nut am Mantel oder an der Front, mit Fasen und Radien",
+  einstich: "Nut am Mantel, innen in der Bohrung oder an der Front, mit Fasen und Radien",
 };
 
 export function VorlageBild({ id }) {

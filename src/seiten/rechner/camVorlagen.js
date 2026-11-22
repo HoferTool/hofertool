@@ -79,7 +79,7 @@ export const VORLAGEN = [
     ],
   },  // Seit 1.603.0: Einstich am Mantel und an der Front, eingegeben in einer
   // Skizze (CamEinstichBild.jsx), gerechnet in camEinstich.js
-  { id: "einstich", name: "Einstich Mantel / Front", grafik: true, felder: [] },
+  { id: "einstich", name: "Einstich Mantel / Innen / Front", grafik: true, felder: [] },
 ];
 
 export const vorlageVon = (id) => VORLAGEN.find((v) => v.id === id) || VORLAGEN[0];
