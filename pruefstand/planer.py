@@ -169,7 +169,7 @@ with sync_playwright() as p:
     pruefe(pg.locator("[data-pllieferant='Schmobi'] [data-pllwahl]", has_text="📌").count() >= 1, "📌 zeigt die Regel")
     # Eigenes Todo anlegen
     pg.click("#pl-todo-neu"); pg.wait_for_selector(".dialog textarea")
-    pruefe(pg.locator(".dialog .feld-schieber input").count() == 1 and not pg.locator(".dialog .feld-schieber input").is_checked(), "Schieber steht auf Nur für mich")
+    pruefe(pg.eval_on_selector(".dialog select", "s => s.value") == "ich", "Wahl steht auf Nur für mich")
     pg.wait_for_timeout(300); pg.screenshot(path=BILD + "/planer-todo-neu.png")
     pg.fill(".dialog textarea", "Zangen nachzählen"); pg.locator(".dialog button:has-text('Speichern')").click()
     pg.wait_for_timeout(800)
@@ -179,9 +179,9 @@ with sync_playwright() as p:
     # Fremdes „nur für mich“ erscheint nicht
     pruefe(pg.locator("[data-pltodo='eigen']", has_text="Geheim von jemand anderem").count() == 0, "fremdes privates Todo unsichtbar")
     pg.click("#pl-todo-neu"); pg.wait_for_selector(".dialog textarea")
-    pg.click(".dialog .feld-schieber input"); pg.fill(".dialog textarea", "Für alle sichtbar")
+    pg.select_option(".dialog select", "admins"); pg.fill(".dialog textarea", "Für alle sichtbar")
     pg.locator(".dialog button:has-text('Speichern')").click(); pg.wait_for_timeout(800)
-    pruefe(pg.evaluate("TEST.daten.planer_todos.find(t => t.text === 'Für alle sichtbar').fuer_alle") is True, "Schieber auf alle Admins")
+    pruefe(pg.evaluate("TEST.daten.planer_todos.find(t => t.text === 'Für alle sichtbar').fuer_alle") is True, "Wahl alle Admins")
     pg.locator("[data-pltodo='eigen']", has_text="Zangen").locator(".pl-haken").click(); pg.wait_for_timeout(600)
     pruefe(pg.locator("[data-pltodo='eigen']", has_text="Zangen").count() == 0, "abgehaktes Todo aus der Liste")
     pruefe("(1)" in pg.inner_text("#pl-abgeschlossen"), "Knopf Abgeschlossen zählt")

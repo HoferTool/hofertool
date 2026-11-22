@@ -292,7 +292,6 @@ function Gruss({ kinder }) {
       {/* Am Computer rechts auf der Höhe des Grusses (seit 1.708.0) */}
       <div className="db3-gruss__rechts db2-kopf" data-db3-kopf="">
         <ZeitWetter />
-        <ProfilKnopf />
       </div>
       {/* Dicker Balken über die ganze Breite gleich unter dem Gruss (seit 1.708.1, Patrick) */}
       {kinder.length > 0 && <div className="db3-geburtstag" id="db3-geburtstag">
