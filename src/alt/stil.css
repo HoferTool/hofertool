@@ -14070,34 +14070,6 @@ body.dunkel .cam-sim__schritt { background: #101820; }
   @keyframes nav-todo-zu { to { opacity: 0; transform: translateY(6px); } }
 }
 
-/* ---------- Lager für eigene Teile (seit 1.557.0) ---------- */
-.lager-liste { padding: 0; overflow: hidden; }
-.lager-zeile { display: grid; grid-template-columns: 9rem minmax(8rem, 1.4fr) 7rem minmax(8rem, 1fr) 8rem;
-  gap: 10px; align-items: baseline; width: 100%; padding: 9px 14px; background: none; border: none;
-  border-bottom: 1px solid var(--linie); font: inherit; color: inherit; text-align: left; cursor: pointer; }
-button.lager-zeile:hover { background: var(--flaeche-hover, rgba(0, 56, 132, .05)); }
-.lager-zeile--kopf { cursor: default; color: var(--gedaempft); font-weight: 600; }
-.lager-zeile--leer { opacity: .55; }
-.lager-zeile--minus .lager-zahl { color: #c0392b; }
-.lager-zahl { text-align: right; font-variant-numeric: tabular-nums; }
-.lager-offen { padding: 8px 14px 14px 30px; border-bottom: 1px solid var(--linie); background: rgba(0, 56, 132, .03); }
-.lager-buchungen { display: flex; flex-direction: column; }
-.lager-buchung { display: grid; grid-template-columns: 8rem 6rem 1fr auto; gap: 10px; align-items: center;
-  padding: 6px 0; border-bottom: 1px solid var(--linie); }
-.lager-buchung:last-child { border-bottom: none; }
-.karte.lager-buchungen { padding: 6px 14px; }
-.lager-ein { color: #1e8449; }
-.lager-aus { color: #c0392b; }
-body.dunkel .lager-ein { color: #6fdc8c !important; }
-body.dunkel .lager-aus, body.dunkel .lager-zeile--minus .lager-zahl { color: #ff8a80 !important; }
-@media (max-width: 700px) {
-  .lager-zeile { grid-template-columns: 1fr auto; }
-  .lager-zeile > :nth-child(2), .lager-zeile > :nth-child(4) { grid-column: 1 / -1; }
-  .lager-zeile > :nth-child(5), .lager-zeile--kopf { display: none; }
-  .lager-buchung { grid-template-columns: auto auto; }
-  .lager-buchung > :nth-child(3) { grid-column: 1 / -1; }
-  .lager-offen { padding-left: 14px; }
-}
 /* ---------- Prüfmittel (provisorisch, seit 1.557.0) ---------- */
 .pm-erklaerung { margin: -4px 0 12px; color: var(--gedaempft); max-width: 900px; }
 .pm-kacheln { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; }

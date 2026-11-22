@@ -18,7 +18,6 @@ import { statistikZurueck } from "../seiten/Statistik.jsx";
 import Kalkulation, { kalkulationZurueck } from "../seiten/Kalkulation.jsx";
 import Erp from "../seiten/Erp.jsx";
 import StartModule from "../seiten/StartModule.jsx";
-import Lager from "../seiten/Lager.jsx";
 import Zeiterfassung from "../seiten/Zeiterfassung.jsx";
 import { zeitApp, istZeitAdresse, zeitHandy } from "../seiten/zeit/app.js";
 import Reihen from "../seiten/Reihen.jsx";
@@ -3316,8 +3315,6 @@ function seiteSichtbar(pfad) {
   if (pfad === "startneu") return istAdmin() && !istExtern();
   if (pfad === "kalkulation") return kalkulationSehen(profil) && !istExtern();
   if (pfad === "erp") return erpSehen(profil) && !istExtern();
-  // Lager für eigene Teile, provisorisch nur Admins (seit 1.557.0)
-  if (pfad === "lager") return istAdmin() && !istExtern();
   // Zeiterfassung (seit 1.626.0): alle Personen ausser Externen, Dienst und
   // Gerätekonten, wie zeit_darf() in der Datenbank; Admins immer
   // Seit 1.635.1 nur noch in der eigenen App HOFERTIME, nicht mehr als
@@ -10905,10 +10902,6 @@ SYM.erp = svg('<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18
 SYM.reihen = svg('<path d="M12 2.5l1.6 2.2 2.7-.6.6 2.7 2.4 1.3-1 2.5 1 2.5-2.4 1.3-.6 2.7-2.7-.6L12 21.5l-1.6-2.2-2.7.6-.6-2.7-2.4-1.3 1-2.5-1-2.5 2.4-1.3.6-2.7 2.7.6z"/>'
   + '<path d="M9.6 9.6l4.8 4.8M14.4 9.6l-4.8 4.8"/>');
 
-// Lager: Regal mit Kisten
-SYM.lager = svg('<path d="M3.5 3v18M20.5 3v18M3.5 11h17M3.5 19h17"/>'
-  + '<rect x="6" y="6" width="5" height="5" rx=".6"/><rect x="12.5" y="7.5" width="4" height="3.5" rx=".6"/><rect x="7.5" y="14" width="6" height="5" rx=".6"/>');
-
 // Zeiterfassung: Stempeluhr
 SYM.zeit = svg('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9.5 2.5h5M12 2.5V5"/>');
 
@@ -11036,8 +11029,6 @@ const SEITEN = [
   // QMS (Wunsch Patrick 10. November 2026)
   // QMS: schlankes QM-System nach ISO 9001 (seit 1.463.0, bis 1.473.x „QM alternativ“)
   { pfad: "qmalt",        titel: "QMS", zeichen: SYM.qs, zeige: reactSeite(QmAlternativ) },
-  // Lager für eigene Teile, provisorisch nur Admins (Wunsch Patrick 15. November 2026)
-  { pfad: "lager",        titel: "Lager",        zeichen: SYM.lager, zeige: reactSeite(Lager) },
   // Zeiterfassung: Kommen / Gehen am Handy, PC und iPad (Wunsch Patrick 18. November 2026)
   { pfad: "zeit",         titel: "HOFERTIME", zeichen: SYM.zeit, zeige: reactSeite(Zeiterfassung) },
   { pfad: "bestellungen", titel: "Bestellungen", zeichen: SYM.bestellungen, zeige: seiteBestellungen },
