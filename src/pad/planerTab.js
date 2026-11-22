@@ -8,12 +8,6 @@
 import { alt } from "../bruecke.jsx";
 
 export const planerSichtbar = () => alt.istAdmin() && !alt.istExtern();
-// Todos in der Seitenleiste haben seit 1.707.0 alle ausser Externen, dem
-// Dienstkonto und reinen HOFERTIME-Konten (Wunsch Patrick 22. November 2026)
-export const todosSichtbar = () => {
-  const r = alt.meineRolle && alt.meineRolle();
-  return !!r && !alt.istExtern() && r !== "dienst" && !(alt.profil && alt.profil.nur_zeit);
-};
 export const istPlanerTab = () => /^#\/?planer(\/|$)/.test(location.hash);
 
 export function planerTabOeffnen() {

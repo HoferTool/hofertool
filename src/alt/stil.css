@@ -15620,6 +15620,13 @@ body.db2-modus.db2-nav .nav { background: var(--db2-karte); }
   border-radius: 22px !important; padding: 16px 18px 14px; color: var(--db2-text);
   box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 8px 24px -12px rgba(15, 23, 42, .12) !important; }
 .db3 .karte:not(.karte--warnung):not(.heuteoffen):not(.neues-tutorial) { background: var(--db2-karte); }
+/* Auf dieser Seite gibt es keine Kopfzeile mit ☰: das Menü steht darum
+   auch bei Admins immer da, die Todos darunter */
+@media (min-width: 780px) {
+  body.db2-nav.nav--todos .nav > .nav__punkt { display: flex; }
+  body.db2-nav.nav--todos .nav > .nav__unter { display: grid; }
+  body.db2-nav.nav--todos .nav-todo { margin-top: 14px; border-top: 1px solid var(--linie-stark); padding-top: 12px; }
+}
 .db3 .karte h2 { font-size: 16px; font-weight: 750; letter-spacing: -.01em; text-wrap: balance; }
 .db3 .karte--warnung { box-shadow: 0 0 0 2px rgba(220, 38, 38, .25), 0 8px 24px -12px rgba(220, 38, 38, .25) !important; }
 .db3 .db2-gruss { margin-bottom: 18px; }
@@ -15785,40 +15792,3 @@ body.dunkel .cam-wzg__mass b { color: #ffa24a !important; }
   .login--zeit .login__reihe, .login--zeit .login__kacheln--reihen { gap: 10px !important; }
   .login--zeit .login__kachel-name { font-size: .82rem; }
 }
-
-/* 1.711.0: Look der Startseite auf allen Seiten (Wunsch Patrick 22. November
-   2026: „so wie Start aussieht soll es immer bleiben“): am Computer keine
-   Kopfzeile, oben in der Leiste das Logo, darunter ☰ (Menü ↔ Todos), Pad Mode
-   und das Bild für die Einstellungen. Die Leiste klappt nicht mehr ein.
-   Suchen mit Strg + F, Rückgängig mit Strg + Z. Externe behalten die Kopfzeile. */
-.nav__oben { display: none; }
-@media (min-width: 780px) {
-  html.ohne-kopf body:not(.rolle-extern) { --kopfhoehe: 0px; }
-  html.ohne-kopf body:not(.rolle-extern) .kopf:not(.db2-kopf) { display: none !important; }
-  html.ohne-kopf body:not(.rolle-extern) .rahmen { padding-top: 0 !important; }
-  html.ohne-kopf body:not(.rolle-extern) .nav__oben { display: block; padding: 10px 14px 12px; }
-  html.ohne-kopf body:not(.rolle-extern) .nav { background: var(--karte, #fff); }
-  html.ohne-kopf body.dunkel:not(.rolle-extern) .nav { background: #141d2e; }
-  html.ohne-kopf body:not(.rolle-extern) #pad-knopf { display: none !important; }
-  body.db2-nav .db2-kopf .db2-logo { display: none; }
-  .nav__logo { display: block; width: 100%; padding: 2px 0 10px; border: 0; background: none; cursor: pointer; }
-  .nav__logo img { display: block; width: 100%; max-width: 180px; height: auto; margin: 0 auto; }
-  .nav__logo--dunkel { display: none !important; }
-  body.dunkel .nav__logo--hell { display: none !important; }
-  body.dunkel .nav__logo--dunkel { display: block !important; }
-  .nav__knoepfe { display: flex; gap: 8px; align-items: center; }
-  .nav__klapp, .nav__pad, .nav__ich { display: grid; place-items: center; flex: none; width: 40px; height: 40px;
-    padding: 0; border: 0; border-radius: 10px; cursor: pointer; font: inherit;
-    transition-property: background-color, filter, scale; transition-duration: .15s; transition-timing-function: ease-out; }
-  .nav__klapp, .nav__pad { background: var(--karte, #fff); color: var(--tinte, #1e293b);
-    box-shadow: 0 0 0 1px var(--rand, #d6dde6), 0 1px 2px rgba(15, 23, 42, .06); }
-  .nav__klapp svg { fill: currentColor; display: block; transition: rotate .25s ease-out; }
-  .nav__klapp--auf { background: var(--marke) !important; color: #fff !important; }
-  .nav__klapp--auf svg { rotate: 90deg; }
-  .nav__klapp:hover, .nav__pad:hover { background: color-mix(in srgb, var(--marke) 10%, var(--karte, #fff)); }
-  .nav__klapp:active, .nav__pad:active, .nav__ich:active { scale: .96; }
-  body.dunkel .nav__klapp:not(.nav__klapp--auf), body.dunkel .nav__pad { background: #1e293b; box-shadow: 0 0 0 1px #334155; }
-  .nav__ich { margin-left: auto; background: none; }
-  .nav__ich .kopf__bild { width: 40px; height: 40px; border-radius: 10px; font-size: 17px; object-fit: cover; }
-}
-body.rolle-extern .nav__oben, body.pw-vollbild .nav__oben { display: none !important; }

@@ -172,7 +172,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.711.1";
+const APP_VERSION = "1.711.2";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -11612,10 +11612,6 @@ function zeichneGeruest() {
   einstellungenNeuLesen();
   document.body.classList.toggle("dunkel", einstellung("dunkel"));
   document.body.classList.toggle("nav--schmal", einstellungWert("navschmal", "0") === "1");
-  // Am Computer ohne Kopfzeile, Logo und Knöpfe oben in der Leiste (seit 1.711.0,
-  // Wunsch Patrick 22. November 2026). Ältere Prüfstände bedienen noch die
-  // Knöpfe der Kopfzeile, darum dort nur mit TEST.ohneKopf.
-  document.documentElement.classList.toggle("ohne-kopf", !(window.TEST && !window.TEST.ohneKopf));
   themaAnwenden();
   // Administratoren sehen den Pad-Knopf auf jedem Gerät
   document.body.classList.toggle("ist-admin", istAdmin());

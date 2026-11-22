@@ -15,14 +15,14 @@ import { alt } from "../bruecke.jsx";
 import { anmeldungAbbauen } from "./Anmeldung.jsx";
 import { GeraetMarke } from "../pad/geraet.jsx";
 import { UNTERREITER, reiterAktiv, reiterBeobachten, reiterWaehlen, menuePunkt } from "./unterreiter.js";
-import { todosSichtbar, istPlanerTab } from "../pad/planerTab.js";
+import { planerSichtbar, istPlanerTab } from "../pad/planerTab.js";
 
 // Todo des Planers unten in der Seitenleiste, nur für Admins (seit 1.536.0).
 // Erst nachgeladen, damit der Planer nicht im Startpaket steckt.
 function NavTodoPlatz() {
   const [Teil, setTeil] = useState(null);
   // Im Planer-Tab steht dieselbe Liste schon gross
-  const darf = todosSichtbar() && !(alt.istArchiv && alt.istArchiv()) && !istPlanerTab();
+  const darf = planerSichtbar() && !(alt.istArchiv && alt.istArchiv()) && !istPlanerTab();
   useEffect(() => {
     if (!darf) return;
     let weg = false;
@@ -44,7 +44,7 @@ function todoModusDarf() {
   // Im Prüfstand nur, wenn ein Test es will (nav_todo.py): sonst wären
   // die Menüpunkte für alle Tests mit Admin verborgen.
   if (window.TEST && !window.TEST.navTodos) return false;
-  return todosSichtbar() && !(alt.istArchiv && alt.istArchiv()) && !istPlanerTab();
+  return planerSichtbar() && !(alt.istArchiv && alt.istArchiv()) && !istPlanerTab();
 }
 // Wahl je Person (seit 1.644.0, Wunsch Patrick 19. November 2026: „dass
 // bei mir der Leistenbereich nicht verschwindet und die Todos hoch rücken
@@ -287,8 +287,7 @@ function Geruest() {
       document.body.classList.remove("nav--todos", "nav--zeigt-menue"); };
   }, []);
   const klappen = () => {
-    // Mit Todos klappt die Leiste nie ein: der Knopf wechselt zwischen Todos
-    // und Menü (seit 1.711.0 für alle ausser Externen)
+    // Admins klappen nicht ein: der Knopf wechselt zwischen Todos und Menü
     if (todoModus) {
       if (menueFest()) { alt.meldung("Das Menü bleibt immer stehen (Einstellungen → Allgemein → „Menü immer zeigen“)."); return; }
       menueZeigen(!document.body.classList.contains("nav--zeigt-menue")); return;
@@ -354,38 +353,6 @@ function Geruest() {
       <div className="rahmen">
         <nav className="nav" aria-label="Hauptnavigation"
           onPointerMove={menueNochDa} onPointerDown={menueNochDa} onWheel={menueNochDa} onKeyDown={menueNochDa}>
-          {/* Am Computer auf allen Seiten oben in der Leiste: Logo, darunter ☰
-              (wechselt zwischen Menü und Todos), Pad Mode und das Bild für die
-              Einstellungen (seit 1.711.0, Wunsch Patrick 22. November 2026:
-              „links überhalb vom Menü Hoferlogo, darunter der Button für Menü
-              hoch und runterfahren wegen Todos“); die Kopfzeile ist dort weg */}
-          <div className="nav__oben">
-            <button type="button" className="nav__logo" title="Seite neu laden" onClick={() => location.reload()}>
-              <img className="nav__logo--hell" src="logo-empfang.png" alt="Hofer + Co." />
-              <img className="nav__logo--dunkel" src="logo-weiss.svg" alt="Hofer + Co." />
-            </button>
-            <div className="nav__knoepfe">
-              <button type="button" className={"nav__klapp" + (todoModus && menueAuf ? " nav__klapp--auf" : "")} id="nav-klapp2"
-                title={todoModus ? (menueAuf ? "Zurück zu den Todos" : "Menü zeigen") : "Menü"} aria-label="Menü oder Todos zeigen"
-                onClick={klappen}>
-                <svg viewBox="0 0 18 14" width="18" height="14" aria-hidden="true">
-                  <rect y="0" width="18" height="2" rx="1" /><rect y="6" width="18" height="2" rx="1" /><rect y="12" width="18" height="2" rx="1" />
-                </svg>
-              </button>
-              <button type="button" className="nav__pad" id="nav-pad" title="Pad Mode" aria-label="Pad Mode"
-                onClick={() => alt.padOeffnen()}>
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9"
-                  strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <rect x="4" y="2.5" width="16" height="19" rx="2.5" /><path d="M11 18.5h2" /></svg>
-              </button>
-              <button type="button" className="nav__ich" id="nav-ich" title="Einstellungen"
-                aria-label="Einstellungen" onClick={() => alt.einstellungenOeffnen()}>
-                {profil && profil.bild_url
-                  ? <img className="kopf__bild" src={profil.bild_url} alt="" />
-                  : <span className="kopf__bild kopf__bild--leer">{(anzeige || "?").charAt(0).toUpperCase()}</span>}
-              </button>
-            </div>
-          </div>
           {navSeiten.map((s, i) => (
             <Fragment key={s.pfad}>
               <a className={"nav__punkt" + (aktiv === s.pfad ? " aktiv" : "")}
