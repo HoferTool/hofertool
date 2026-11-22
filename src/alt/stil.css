@@ -15284,3 +15284,41 @@ body.dunkel .cam-protokoll { background: #18222e; border-color: #3d6a96; }
 .cam-opt__ok, .cam-opt__fuss { font-size: 13px; opacity: .75; }
 body.dunkel .cam-opt__punkt { background: rgba(255, 255, 255, .05); }
 @media (max-width: 600px) { .cam-opt__punkt { flex-direction: column; gap: 2px; } .cam-opt__stufe { flex: none; } }
+
+/* HOFERCAM Vorlagen als Auswahlbild (seit 1.693.0, Wunsch Patrick 22. November 2026) */
+.cam-vorlage__kopf [data-camvorlage-zurueck] { margin-left: 0 !important; }
+.cam-vwahl { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.cam-vwahl__karte { display: flex; flex-direction: column; align-items: stretch; gap: 3px; text-align: left; padding: 8px;
+  border: 1px solid #d9c3a8; border-radius: 8px; background: #fff; cursor: pointer; font: inherit; color: inherit;
+  transition: border-color .15s, box-shadow .15s, transform .15s; }
+.cam-vwahl__karte:hover, .cam-vwahl__karte:focus-visible { border-color: #e07b1a; box-shadow: 0 2px 10px rgba(224,123,26,.25); transform: translateY(-1px); outline: none; }
+.cam-vwahl__karte b { font-size: 13px; }
+.cam-vwahl__karte .klein { color: #5b6470; line-height: 1.25; }
+.cam-vorlage__erkl { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.cam-vorlage__erkl .cam-vbild { width: 180px; flex: 0 0 auto; }
+.cam-vbild { background: #f4f7fb; border-radius: 6px; }
+.cam-vbild svg { display: block; width: 100%; height: auto; }
+.cam-vbild__teil { fill: #c9d3df; stroke: #3d4b5c; stroke-width: 1.2; }
+.cam-vbild__loch { fill: #f4f7fb; stroke: #3d4b5c; stroke-width: 1.2; }
+.cam-vbild__bohrung { stroke: #f4f7fb; stroke-width: 6; stroke-linecap: round; }
+.cam-vbild__stufe { stroke: #e07b1a; stroke-width: 1; stroke-dasharray: 3 2; fill: none; }
+.cam-vbild__wz { fill: #e8b54a; stroke: #7a5a12; stroke-width: 1.2; }
+.cam-vbild__achse { stroke: #8a96a6; stroke-width: 1; stroke-dasharray: 10 3 2 3; }
+.cam-vbild__mass { stroke: #003884; stroke-width: 1.1; }
+.cam-vbild__weg { stroke: #e07b1a; stroke-width: 1.6; fill: none; }
+.cam-vbild__weg-flaeche { stroke: none; }
+.cam-vbild__schraff { stroke: #e07b1a; stroke-width: 1.2; opacity: .55; }
+.cam-vbild__hilf { stroke: #8a96a6; stroke-width: .8; }
+.cam-vbild__spitze { fill: #003884; }
+.cam-vbild__text { font: 600 11px system-ui, sans-serif; fill: #003884; }
+.cam-vbild__klein { font: 9px system-ui, sans-serif; fill: #3d4b5c; }
+body.dunkel .cam-vwahl__karte { background: #1d2430; border-color: #8a5a2a; }
+body.dunkel .cam-vwahl__karte .klein { color: #b8c2cf !important; }
+body.dunkel .cam-vbild { background: #121821; }
+body.dunkel .cam-vbild__teil { fill: #4a5a6e; stroke: #c9d3df; }
+body.dunkel .cam-vbild__loch { fill: #121821; stroke: #c9d3df; }
+body.dunkel .cam-vbild__bohrung { stroke: #121821; }
+body.dunkel .cam-vbild__mass { stroke: #8fb6ff; }
+body.dunkel .cam-vbild__spitze { fill: #8fb6ff; }
+body.dunkel .cam-vbild__text { fill: #8fb6ff !important; }
+body.dunkel .cam-vbild__klein { fill: #d6dde6 !important; }

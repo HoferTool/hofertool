@@ -216,6 +216,7 @@ def s_front(pg, a):
 def s_front2(pg, a):
     a.hin(bl(0, "[data-camblock='code']"), ms=200)
     a.hin("[data-camvorlage-auf='0']", ms=700)
+    a.hin("[data-camvorlage-bild='g83']", ms=700)
     for n, w in [("W", "4.5"), ("Q", "1"), ("F", "0.02")]: a.tippen(f"[data-camvorlage-feld='{n}']", w)
     a.hin("[data-camvorlage-vorschau]", klick=False, ms=800)
     a.hin("[data-camvorlage-einfuegen]", ms=700)
@@ -449,6 +450,7 @@ def s_gegen(pg, a):
 def s_gegen2(pg, a):
     a.hin(bl(5, "[data-camblock='code']"), ms=200)
     a.hin("[data-camvorlage-auf='5']", ms=600)
+    a.hin("[data-camvorlage-bild='g83']", ms=700)
     for n, w in [("W", "4.5"), ("Q", "1"), ("F", "0.02")]: a.tippen(f"[data-camvorlage-feld='{n}']", w)
     a.hin("[data-camvorlage-einfuegen]", ms=600)
     werkzeug(pg, a, 5, "fraes", "bohrer", [("d", "1.8"), ("winkel", "118"), ("laenge", "8")])

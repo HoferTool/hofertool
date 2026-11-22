@@ -30,6 +30,7 @@ import AbstecherBild from "./AbstecherBild.jsx";
 import SchnabelBild from "./SchnabelBild.jsx";
 import { hofercamTutorialOeffnen } from "../start/NeuesTutorial.jsx";
 import { EinstichBild, EinstichSteuerung } from "./CamEinstichBild.jsx";
+import { VorlageBild, VORLAGE_TEXT } from "./CamVorlageBilder.jsx";
 import { bereichLage, zLang, feldFuerTyp, SW20_BILD, SW20_FRONT_BILD, SW20_SCHLITZ_BILD, swApparate, swSchlitzVon, SW20_FRONT_PLAETZE, SW20_KANAL_PLAETZE, sw20Bereich, swFrontVon, swFrontArt, nrKanal, FELDER, HD_STUFEN, abVersatz, AB_VERSATZ_VORGABE, plaetzeVon, platzGruppe, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, handZurueck, markenPaare, eigenerKanal, kanalZahl, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Seit 1.427.0 (Wunsch Patrick 5. November 2026: „vordefinierte
@@ -38,8 +39,27 @@ import { bereichLage, zLang, feldFuerTyp, SW20_BILD, SW20_FRONT_BILD, SW20_SCHLI
 // Zeilen nach der Zeile mit der Schreibmarke im NC-Code ein (ohne Marke
 // ans Ende). Rechnen in camVorlagen.js.
 function VorlageFeld({ code, pos, einsetzen, zu }) {
-  const [id, setId] = useState(VORLAGEN[0].id);
-  const [werte, setWerte] = useState(() => ({ [VORLAGEN[0].id]: vorlageStart(VORLAGEN[0].id) }));
+  // Seit 1.693.0 zuerst ein Auswahlbild mit Erklärungsgrafik je Vorlage
+  // statt einer Liste (Wunsch Patrick 22. November 2026); null = Auswahl
+  const [id, setId] = useState(null);
+  const [werte, setWerte] = useState({});
+  if (!id) return (
+    <div className="cam-vorlage" data-camvorlage>
+      <div className="cam-vorlage__kopf">
+        <b>Vorlage wählen</b>
+        <button className="knopf knopf--klein" title="Schliessen" onClick={zu}>✕</button>
+      </div>
+      <div className="cam-vwahl" data-camvorlage-auswahl>
+        {VORLAGEN.map((x) => (
+          <button key={x.id} type="button" className="cam-vwahl__karte" data-camvorlage-bild={x.id}
+            onClick={() => { setId(x.id); if (!werte[x.id]) setWerte({ ...werte, [x.id]: vorlageStart(x.id) }); }}>
+            <VorlageBild id={x.id} />
+            <b>{x.name}</b>
+            <span className="klein">{VORLAGE_TEXT[x.id] || ""}</span>
+          </button>))}
+      </div>
+    </div>
+  );
   const v = vorlageVon(id);
   const w = werte[id] || vorlageStart(id);
   const setze = (n, x) => setWerte({ ...werte, [id]: { ...w, [n]: x } });
@@ -47,13 +67,11 @@ function VorlageFeld({ code, pos, einsetzen, zu }) {
   return (
     <div className="cam-vorlage" data-camvorlage>
       <div className="cam-vorlage__kopf">
-        <b>Vorlage</b>
-        <select data-camvorlage-wahl value={id} onChange={(e) => { setId(e.target.value);
-          if (!werte[e.target.value]) setWerte({ ...werte, [e.target.value]: vorlageStart(e.target.value) }); }}>
-          {VORLAGEN.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
-        </select>
+        <button className="knopf knopf--klein" data-camvorlage-zurueck title="Andere Vorlage wählen" onClick={() => setId(null)}>← Auswahl</button>
+        <b>{v.name}</b>
         <button className="knopf knopf--klein" title="Schliessen" onClick={zu}>✕</button>
       </div>
+      {!v.grafik && <div className="cam-vorlage__erkl"><VorlageBild id={id} /><span className="klein">{VORLAGE_TEXT[id] || ""}</span></div>}
       {v.grafik && <><EinstichSteuerung w={w} setze={setze} /><EinstichBild w={w} setze={setze} /></>}
       <div className="cam-vorlage__felder">
         {v.felder.map((f) => f.typ === "haken"

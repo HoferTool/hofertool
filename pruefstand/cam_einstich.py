@@ -6,6 +6,12 @@ from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
 fehler = []
+
+def vorlage_waehlen(pg, vid):
+    # Seit 1.693.0 Auswahlbild statt Liste: falls schon eine Vorlage offen ist, zurück zur Auswahl
+    if pg.locator("[data-camvorlage-zurueck]").count(): pg.click("[data-camvorlage-zurueck]")
+    pg.click(f"[data-camvorlage-bild='{vid}']")
+
 def pruefe(name, ok):
     print(("ok   " if ok else "FALSCH ") + name)
     if not ok: fehler.append(name)
@@ -56,7 +62,7 @@ with sync_playwright() as p:
 
     # Vorlage Einstich
     pg.click("[data-camvorlage-auf='0']")
-    pg.select_option("[data-camvorlage-wahl]", "einstich")
+    vorlage_waehlen(pg, "einstich")
     pruefe("Skizze da", pg.locator("[data-camein-bild] svg").count() == 1)
     pruefe("Ohne Masse kein Einfügen", pg.locator("[data-camvorlage-einfuegen]").is_disabled())
     for n, v in [("D", "12"), ("Z", "5"), ("B", "3"), ("T", "1.5"), ("PB", "1.5"), ("PL", "3"), ("PR", "0.1")]:

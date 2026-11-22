@@ -5,6 +5,12 @@ from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
 fehler = []
+
+def vorlage_waehlen(pg, vid):
+    # Seit 1.693.0 Auswahlbild statt Liste: falls schon eine Vorlage offen ist, zurück zur Auswahl
+    if pg.locator("[data-camvorlage-zurueck]").count(): pg.click("[data-camvorlage-zurueck]")
+    pg.click(f"[data-camvorlage-bild='{vid}']")
+
 def pruefe(name, ok):
     print(("ok   " if ok else "FALSCH ") + name)
     if not ok: fehler.append(name)
@@ -82,21 +88,25 @@ with sync_playwright() as p:
     cb = "[data-block='0'] [data-camblock='code']"
     pg.click(cb); pg.keyboard.press("Control+Home"); pg.keyboard.press("End")
     pg.click("[data-camvorlage-auf='0']")
-    pg.select_option("[data-camvorlage-wahl]", "g83")
+    pruefe("Auswahlbild mit 4 Vorlagen und Grafik", pg.locator("[data-camvorlage-bild]").count() == 4
+           and pg.locator("[data-camvorlage-auswahl] svg").count() == 4)
+    pg.locator("[data-camvorlage]").screenshot(path="hofer_cam_vorlage_wahl.png")
+    vorlage_waehlen(pg, "g83")
+    pruefe("Erklärbild bei offener Vorlage", pg.locator("[data-camvorlage] .cam-vorlage__erkl svg").count() == 1)
     pruefe("Vorlage meldet fehlende Werte", pg.locator("[data-camvorlage-einfuegen]").is_disabled())
     pg.fill("[data-camvorlage-feld='W']", "18.5"); pg.fill("[data-camvorlage-feld='Q']", "5.25"); pg.fill("[data-camvorlage-feld='F']", "0.06")
     pruefe("Vorschau G83", pg.text_content("[data-camvorlage-vorschau]") == "G83W18.5Q5250F0.06\nG80")
     pg.click("[data-camvorlage-einfuegen]")
     pruefe("G83 nach der Zeile mit der Schreibmarke", pg.input_value(cb) == "G1X-0.8F0.05\nG83W18.5Q5250F0.06\nG80\n\nG0Z0.5"
            and pg.locator("[data-camvorlage]").count() == 0 and "G83W18.5Q5250F0.06" in k(1))
-    pg.click("[data-camvorlage-auf='0']"); pg.select_option("[data-camvorlage-wahl]", "g83")
+    pg.click("[data-camvorlage-auf='0']"); vorlage_waehlen(pg, "g83")
     pg.fill("[data-camvorlage-feld='Z']", "0"); pg.fill("[data-camvorlage-feld='X']", "0"); pg.fill("[data-camvorlage-feld='Y']", "1.5")
     pg.fill("[data-camvorlage-feld='W']", "18.5"); pg.fill("[data-camvorlage-feld='Q']", "5.25"); pg.fill("[data-camvorlage-feld='F']", "0.06")
     pruefe("G83 mit Vorposition Z", pg.text_content("[data-camvorlage-vorschau]") == "G0Z0.\nG0X0.\nG0Y1.5\nG83W18.5Q5250F0.06\nG80")
-    pg.select_option("[data-camvorlage-wahl]", "g76")
+    vorlage_waehlen(pg, "g76")
     pg.fill("[data-camvorlage-feld='D']", "9"); pg.fill("[data-camvorlage-feld='F']", "0.5"); pg.fill("[data-camvorlage-feld='Z']", "4.74")
     pruefe("Vorschau G76 wie O1458", pg.text_content("[data-camvorlage-vorschau]") == "G76P030060Q40R10\nG76X8.3Z4.74P330Q80F0.5")
-    pg.select_option("[data-camvorlage-wahl]", "g87")
+    vorlage_waehlen(pg, "g87")
     pg.fill("[data-camvorlage-feld='XA']", "14.5"); pg.fill("[data-camvorlage-feld='X']", "9.625")
     pg.fill("[data-camvorlage-feld='Q']", "1"); pg.fill("[data-camvorlage-feld='P']", "200"); pg.fill("[data-camvorlage-feld='F']", "0.01")
     v = (pg.text_content("[data-camvorlage-vorschau]") or "").split("\n")
