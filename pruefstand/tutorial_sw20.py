@@ -514,7 +514,7 @@ def s_r_neu(pg, a):
 
 @schritt("Werkzeug: eine D Platte mit Radius null komma zwei.", "Werkzeug: <b>D-Platte</b>, R <b>0.2</b>.")
 def s_r_wz(pg, a):
-    werkzeug(pg, a, FASE, "dreh", "D", [("r", "0.2")])
+    werkzeug(pg, a, FASE, "dreh", "D", [("r", "0.2")], lage="u")
     wz_zu(pg, a)
 
 @schritt("Dann die Bohrung hinten: Durchmesser fünf, vierzehn Millimeter tief.", "Die <b>Bohrung hinten Ø5</b>, 14 tief.")
