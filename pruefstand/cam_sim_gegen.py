@@ -86,7 +86,11 @@ with sync_playwright() as p:
     g = E("gegen"); fr = E("frame"); k2 = E("k2"); print("Kanal 2", g, fr, k2)
     pruefe("Kanal 2: Teil in der Gegenspindel (Rahmen gedreht)", fr and fr["s"] == -1)
     pruefe("Kanal 2: Einheit am angetriebenen Werkzeug", k2 and 2100 <= k2["aktiv"] <= 2400)
-    pruefe("Kanal 2: Werkzeug bei X8 steht 4 mm neben der Achse", fr and abs(abs(fr["xf"] + 125) - 4) < 0.01)
+    # seit 1.691.1 liegen die Werkzeuge waagrecht in Y, X2 fährt in Welt-Y
+    PL = {2100: (0, -78), 2200: (0, -114), 2300: (0, -147), 2400: (0, -180)}
+    lx, ly = PL.get(k2["aktiv"] // 100 * 100, PL[2100]) if k2 else (0, 0)
+    pruefe("Kanal 2: Werkzeug bei X8 steht 4 mm neben der Achse", fr and abs(((fr["xf"] - lx) ** 2 + (fr["yf"] - ly) ** 2) ** 0.5 - 4) < 0.01)
+    pruefe("Kanal 2: Gegenspindel fährt waagrecht (nur in Y)", fr and abs(fr["xf"] - lx) < 0.01)
     pruefe("Kanal 2: Gegenspindel hält das Teil", g and abs(g["x"] - fr["xf"]) < 1e-6)
     pg.locator("#cam-sim").screenshot(path=S + "gegen_k2.png")
     pg.click("#cam-sim-ende"); pg.wait_for_timeout(300)

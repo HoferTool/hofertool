@@ -400,10 +400,18 @@ export function swK2Quader(o, aktiv, benutzt = null, m = SW20_K2) {
 // =================================================================
 export const SB20_K2 = {
   spitze: -174.5,
-  platz: { 2100: [-125, 0], 2200: [-161, 0], 2300: [-194, 0], 2400: [-227, 0] },
+  // seit 1.691.1 (Patrick 22. November 2026: „die Werkzeuge von Kanal 2
+  // müssen horizontal stehen … schau dir das Bild genau an“): X2 der
+  // Gegenspindel liegt im Bild parallel zu Y1, also waagrecht. Die Einheit
+  // steht auf Höhe der Drehachse seitlich (−Y) neben der Gegenspindel, die
+  // vier Werkzeuge nebeneinander in Y (Abstände 36/33/33 aus dem Handbuch)
+  platz: { 2100: [0, -78], 2200: [0, -114], 2300: [0, -147], 2400: [0, -180] },
   gegenHeim: -223.5,
   gegenSpitze: -155,
-  ablage: { x: -175, y: -70, dz: 120 },
+  // Schale links neben der Einheit, etwas tiefer
+  ablage: { x: -10, y: -300, dz: 40 },
+  // X2 der Gegenspindel in Welt-Y (Teil um −90° gedreht)
+  x2InY: true,
 };
 
 // Fester Rückseitenblock der SB-20RG; o = {z: Spitze an der Maschine}
@@ -411,9 +419,13 @@ export function sbK2Quader(o, aktiv, benutzt = null, m = SB20_K2) {
   const q = [];
   const box = (z0, z1, x0, x1, y0, y1, art) => q.push({ z0: o.z + z0, z1: o.z + z1, x0, x1, y0, y1, art });
   const walze = (achse, z, x, y, L, r, art, r2 = r) => q.push(walzeTeil(achse, o.z + z, x, y, L, r, art, r2));
-  box(30, 102, -248, -104, -24, 24, "block");
-  box(102, 116, -256, -96, -32, 32, "schlitten");
-  for (const xx of [-240, -112]) for (const yy of [-16, 16]) walze("z", 30, xx, yy, -1.6, 2.4, "schraube");
+  const ys = Object.values(m.platz).map(([, y]) => y);
+  const ya = Math.min(...ys) - 22, yb = Math.max(...ys) + 18;
+  box(30, 102, -24, 24, ya, yb, "block");
+  box(102, 116, -32, 32, ya - 8, yb + 8, "schlitten");
+  // Fuss nach unten auf das Bett
+  box(40, 110, -95, -24, ya + 6, yb - 6, "schlitten");
+  for (const xx of [-16, 16]) for (const yy of [ya + 8, yb - 8]) walze("z", 30, xx, yy, -1.6, 2.4, "schraube");
   for (const [t, [x, y]] of Object.entries(m.platz)) {
     const nr = Number(t);
     box(18, 30, x - 12, x + 12, y - 12, y + 12, "gold");

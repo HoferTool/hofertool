@@ -1030,26 +1030,30 @@ function Simulation({ w, zu }) {
         sAkt = x; pAkt = x.punkte[Math.min(nn, x.bis) - x.von - 1];
       }
       const spitzeW = ebene + M2.spitze;
-      if (!pAkt) return { frame: { s: -1, z0: spitzeW - 25, xf: 0, yf: 0 }, k2: { aktiv: 0, y: 0 }, roll: null, sAkt, pAkt, weg: false };
+      if (!pAkt) return { frame: { s: -1, z0: spitzeW - 25, xf: 0, yf: 0 }, k2: { aktiv: 0, y: 0 }, roll: M2.x2InY ? -Math.PI / 2 : null, sAkt, pAkt, weg: false };
       const yM = pAkt.mx != null ? pAkt.mx : pAkt.r, wM = pAkt.my != null ? pAkt.my : 0;
       if (pAkt.phi != null && Math.hypot(yM, wM) > 1e-6) r2 = Math.atan2(wM, yM) - pAkt.phi;
+      // SB-20RG: X2 liegt waagrecht (Welt-Y), das Teil ist darum um −90°
+      // gedreht und die Gegenspindel fährt in Y statt in X
+      const x2y = !!M2.x2InY;
+      if (x2y) r2 = (r2 != null ? r2 : 0) - Math.PI / 2;
       const ph = (pAkt.phi || 0) + (r2 != null ? r2 : roll), r = pAkt.r || 0;
       const pX = r * Math.cos(ph), pY = r * Math.sin(ph);
       const [lx, ly] = M2.platz[sAkt.platz] || M2.platz[2100];
-      let fr = { s: -1, z0: spitzeW + pAkt.z, xf: lx - pX, yf: 0 };
-      let k2 = { aktiv: sAkt.platz, y: -pY - ly }, weg = false;
+      let fr = x2y ? { s: -1, z0: spitzeW + pAkt.z, xf: lx - pX, yf: ly + pY } : { s: -1, z0: spitzeW + pAkt.z, xf: lx - pX, yf: 0 };
+      let k2 = { aktiv: sAkt.platz, y: x2y ? 0 : -pY - ly }, weg = false;
       // SB-20RG: Werkzeuge der Bohreinheit von Träger 1 zur Gegenspindel,
       // Träger 1 steht mit dem Werkzeug auf der Achse, die Gegenspindel kommt
       if (!sim.sw && (sAkt.art === "front" || sAkt.art === "quer")) {
         const l = platzLage(sAkt.platz);
-        fr = { s: -1, z0: ebene + M2.gegenSpitze + pAkt.z, xf: -pX, yf: 0 };
-        k2 = { aktiv: 0, y: 0, t1: l ? { z: ebene, x: -l.x, y: -l.y - pY, aktiv: sAkt.platz } : null };
+        fr = { s: -1, z0: ebene + M2.gegenSpitze + pAkt.z, xf: -pX, yf: pY };
+        k2 = { aktiv: 0, y: 0, t1: l ? { z: ebene, x: -l.x, y: -l.y, aktiv: sAkt.platz } : null };
       }
       // G28 U / G28 W am Ende: Gegenspindel fährt in X bzw. Z in die Grundstellung
       if (nn >= sAkt.bis) {
         const zl = (sAkt.zeilen || []).map(String);
         const u = zl.some((z) => /G28\s*U/i.test(z)), wz = zl.some((z) => /G28\s*W/i.test(z));
-        if (u) fr.xf = 0;
+        if (u) { fr.xf = 0; if (x2y) fr.yf = 0; }
         if (wz) fr.z0 = ebene + M2.gegenHeim + W - sim.greif;
         if (u || wz) { k2 = { aktiv: 0, y: 0 }; weg = true; }
       }
@@ -1136,41 +1140,55 @@ function Simulation({ w, zu }) {
         maschine.quader.push(walzeTeil("z", zb + 6, 25 * Math.cos(f), 25 * Math.sin(f), -1.6, 2.6, "schraube"));
       }
       // Gegenspindel gelb: in Grundstellung, bei der Übergabe am Teil, in Kanal 2 mit dem Teil
-      const gGelb = (z, x) => {
-        const gk = { z, x, ri: A / 2, nase: Math.max(gs.nase, A / 2 + 4), naseL: gs.naseL, r: gs.r - 8, L: 40, dir: -1, art: "gelb" };
+      const gGelb = (z, x, y = 0) => {
+        const gk = { z, x, y, ri: A / 2, nase: Math.max(gs.nase, A / 2 + 4), naseL: gs.naseL, r: gs.r - 8, L: 40, dir: -1, art: "gelb" };
         maschine.koepfe.push(gk);
         const hz = z - gs.naseL - 40;
-        maschine.quader.push({ z0: hz - 50, z1: hz, x0: x - 38, x1: x + 38, y0: -38, y1: 38, art: "gelb" });
+        maschine.quader.push({ z0: hz - 50, z1: hz, x0: x - 38, x1: x + 38, y0: y - 38, y1: y + 38, art: "gelb" });
         // seit 1.686.0: Spannmutter vorne, Schrauben an der Stirn des
         // Gehäuses, darunter der Schlitten X2/Z2
-        maschine.quader.push(walzeTeil("z", z, x, 0, -7, gk.nase + 3, "mutter", gk.nase + 2));
+        maschine.quader.push(walzeTeil("z", z, x, y, -7, gk.nase + 3, "mutter", gk.nase + 2));
         for (let i = 0; i < 6; i++) {
           const f = (i * Math.PI) / 3 + Math.PI / 6;
-          maschine.quader.push(walzeTeil("z", z - gs.naseL, x + (gk.r - 6) * Math.cos(f), (gk.r - 6) * Math.sin(f), 1.6, 2.4, "schraube"));
+          maschine.quader.push(walzeTeil("z", z - gs.naseL, x + (gk.r - 6) * Math.cos(f), y + (gk.r - 6) * Math.sin(f), 1.6, 2.4, "schraube"));
         }
-        maschine.quader.push({ z0: hz - 62, z1: hz + 6, x0: x - 50, x1: x + 50, y0: -56, y1: -38, art: "schlitten" });
-        maschine.quader.push({ z0: hz - 70, z1: hz + 14, x0: x - 40, x1: x + 40, y0: -66, y1: -56, art: "schlitten2" });
+        if (M2.x2InY) {
+          // SB-20RG: Schlitten X2/Z2 unter der Gegenspindel, X2 waagrecht
+          maschine.quader.push({ z0: hz - 62, z1: hz + 6, x0: x - 56, x1: x - 38, y0: y - 50, y1: y + 50, art: "schlitten" });
+          maschine.quader.push({ z0: hz - 70, z1: hz + 14, x0: x - 66, x1: x - 56, y0: y - 40, y1: y + 40, art: "schlitten2" });
+        } else {
+          maschine.quader.push({ z0: hz - 62, z1: hz + 6, x0: x - 50, x1: x + 50, y0: -56, y1: -38, art: "schlitten" });
+          maschine.quader.push({ z0: hz - 70, z1: hz + 14, x0: x - 40, x1: x + 40, y0: -66, y1: -56, art: "schlitten2" });
+        }
         return gk;
       };
       if (kanal === 1) {
         if (abS && n > abS.von) {
           const pa = abS.punkte[Math.min(n, abS.bis) - abS.von - 1];
           gegen = gGelb((pa && pa.g != null ? pa.g : sim.greif) - wegZ, 0);
-        } else if (zweit && !zweit.abgelegt) gegen = gGelb(zweit.frame.z0 - (W - sim.greif), zweit.frame.xf);
+        } else if (zweit && !zweit.abgelegt) gegen = gGelb(zweit.frame.z0 - (W - sim.greif), zweit.frame.xf, M2.x2InY ? zweit.frame.yf : 0);
         else gegen = gGelb(swEbene + M2.gegenHeim, 0);
       } else {
         // Büchse und Rest der Stange bleiben an der Hauptspindel
         maschine.koepfe.push({ z: zb, ri: A / 2, nase: BUECHSE_R, naseL: BUECHSE_L, r: BUECHSE_R, L: 0, art: "buechse" });
         const rest = W + (abS ? abS.breite : 0);
         if (kopfZ > rest) maschine.koepfe.push({ z: rest, ri: 0, nase: A / 2, naseL: kopfZ - rest, r: A / 2, L: 0, art: "roh" });
-        gegen = abgelegt ? gGelb(swEbene + M2.gegenHeim, 0) : gGelb(frame.z0 - (W - sim.greif), frame.xf);
+        gegen = abgelegt ? gGelb(swEbene + M2.gegenHeim, 0) : gGelb(frame.z0 - (W - sim.greif), frame.xf, M2.x2InY ? frame.yf : 0);
       }
       // Schale für das ausgeworfene Teil neben dem Block Kanal 2
       if (ablage && (abgelegt || abgelegtB)) {
         const f = ablage.frame, zA = f.z0 - W - 6, zB = f.z0 + 6, y0 = f.yf - A / 2 - 4;
+        if (M2.x2InY) {
+          // SB-20RG: Boden unten in −X, Ränder in Y
+          const x0 = f.xf - A / 2 - 4;
+          maschine.quader.push({ z0: zA, z1: zB, x0, x1: x0 + 3, y0: f.yf - A / 2 - 8, y1: f.yf + A / 2 + 8, art: "schlitten" });
+          maschine.quader.push({ z0: zA, z1: zB, x0, x1: x0 + 10, y0: f.yf - A / 2 - 8, y1: f.yf - A / 2 - 5, art: "schlitten" });
+          maschine.quader.push({ z0: zA, z1: zB, x0, x1: x0 + 10, y0: f.yf + A / 2 + 5, y1: f.yf + A / 2 + 8, art: "schlitten" });
+        } else {
         maschine.quader.push({ z0: zA, z1: zB, x0: f.xf - A / 2 - 8, x1: f.xf + A / 2 + 8, y0, y1: y0 + 3, art: "schlitten" });
         maschine.quader.push({ z0: zA, z1: zB, x0: f.xf - A / 2 - 8, x1: f.xf - A / 2 - 5, y0, y1: y0 + 10, art: "schlitten" });
         maschine.quader.push({ z0: zA, z1: zB, x0: f.xf + A / 2 + 5, x1: f.xf + A / 2 + 8, y0, y1: y0 + 10, art: "schlitten" });
+        }
       }
     } else if (kanal === 1 && maschineAn) {
       maschine = {
