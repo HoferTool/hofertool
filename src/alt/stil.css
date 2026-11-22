@@ -15602,6 +15602,7 @@ body.dunkel .kombi-leiste button.aktiv { color: #0f172a !important; }
   .db2-menue__punkt { min-height: 88px; }
 }
 
+/* =================================================================
    STARTSEITE NEU MIT DEN KARTEN DER STARTSEITE (seit 1.701.0,
    Wunsch Patrick 22. November 2026: „was auf dem Start ist, soll
    gleich sein … aussehen wie das neue … trotzdem ein Reitermenü“).
@@ -15634,7 +15635,6 @@ body.db2-modus.db2-nav .nav { background: var(--db2-karte); }
 @media (max-width: 900px) {
   .db3-raster { grid-template-columns: minmax(0, 1fr); gap: 12px; }
 }
-=======
 /* Infos zum Teil unter „Infos zum Richten“ (seit 1.701.0) */
 .ri-info { margin: 6px 0 8px; }
 .ri-info .hocoteil__angaben { margin-bottom: 6px; }
@@ -15643,4 +15643,3 @@ body.db2-modus.db2-nav .nav { background: var(--db2-karte); }
 /* Seit 1.703.0: Wahl SB-20RG / SW-20 im Tutorial-Fenster von HOFERCAM */
 .hc-tutorial-wahl { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
 .kt-tutorial__kopf { flex-wrap: wrap; }
-/* ==========================================================
