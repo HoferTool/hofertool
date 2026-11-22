@@ -156,11 +156,16 @@ function halterKoerper(wz, p, umriss, d, opt, aus) {
     const uc = p.r - e, wc = -0.3 * Rn;
     const Ls = hals || Math.max(3, (inn.tiefe || 5) + 3);
     const z0 = p.z + zc, z1 = z0 + dir * Ls;
-    stangeZ(kreisFlach(uc, wc, Rn, 0), Math.min(z0, z1), Math.max(z0, z1), "werkzeug", aus);
+    // Hals rund wie bei Ifanger: nur vorne bei der Platte die Spanfläche
+    // angeschliffen, dahinter ganz rund (Patrick 22. November 2026)
+    const Lf = Math.min(Ls, Math.max(1.5, 2.5 * Rn));
+    const zf = z0 + dir * Lf;
+    stangeZ(kreisFlach(uc, wc, Rn, 0, 32), Math.min(z0, zf), Math.max(z0, zf), "werkzeug", aus);
+    if (Ls > Lf) stangeZ(kreisFlach(uc, wc, Rn, Infinity, 32), Math.min(zf, z1), Math.max(zf, z1), "werkzeug", aus);
     const Rs = (num(wz.schaft) || (dmin && schaftAusBohrung(dmin, hals)) || h.schaft || 6) / 2;
     const z2 = z1 + dir * 2, z3 = z2 + dir * (opt.maschine ? 10 : 36);
-    if (Rs > Rn) stangeZ(kreisFlach(uc, wc, (Rn + Rs) / 2, 0), Math.min(z1, z2), Math.max(z1, z2), "werkzeug", aus);
-    stangeZ(kreisFlach(uc, wc, Math.max(Rn, Rs), Math.max(0, wc + Rs - 0.6)), Math.min(z2, z3), Math.max(z2, z3), "halter", aus);
+    if (Rs > Rn) stangeZ(kreisFlach(uc, wc, (Rn + Rs) / 2, Infinity, 32), Math.min(z1, z2), Math.max(z1, z2), "werkzeug", aus);
+    stangeZ(kreisFlach(uc, wc, Math.max(Rn, Rs), wc + Rs - 0.6, 32), Math.min(z2, z3), Math.max(z2, z3), "halter", aus);
     // Bohrstangen sind immer rund und freigeschliffen (Ifanger, Horn,
     // Utilis …), kein eckiger Block hinten (Patrick 22. November 2026)
     return;
