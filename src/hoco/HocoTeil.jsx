@@ -220,7 +220,7 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
                 <button className="knopf knopf--klein hocoteil__anhang hocoteil__anhang--wbg" data-fadatei={x.wbg_url || ""}
                   onClick={() => dokZeigen({ art: "wbg", titel: "WBG " + x.fa_nr, adresse: x.wbg_url, hoco: t.hoco_nr,
                     auftragId: x.id, fa: x.fa_nr, neu: () => neu() })}>WBG</button>
-                {x.wz_historie_url && <button className="knopf knopf--klein hocoteil__anhang hocoteil__anhang--wz" data-fadatei={x.wz_historie_url}
+                {x.hatWw && <button className="knopf knopf--klein hocoteil__anhang hocoteil__anhang--wz" data-fadatei={x.wz_historie_url || "ww"}
                   onClick={() => protokollWwZeigen(x.id)}>Protokoll WW</button>}
                 {darf && <label className="knopf knopf--klein bildknopf">{x.wbg_url ? "WBG ersetzen" : "WBG wählen"}
                   <input type="file" accept="application/pdf" hidden data-wbgauftrag={x.id}

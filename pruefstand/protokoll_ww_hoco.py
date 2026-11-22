@@ -16,7 +16,7 @@ daten.type_slots = [];
 [1, 2, 3].forEach(n => { for (let t = 1; t <= 10; t++) daten.type_slots.push({ id: 's' + n + '-' + t, path_id: 'rv' + n,
   bezeichnung: null, kind_id: 'k1', platz_nr: t, tool_nr: 'T' + t, werkzeuge: 1, hinweis: null, sortierung: t }); });
 daten.einrichtblatt_app = [];
-daten.jobs.forEach(j => { if (/^m-l/.test(j.machine_id)) j.wz_historie_url = 'https://x.invalid/alt.html'; });
+// Seit 1.700.1 ohne abgelegte Datei: der Knopf kommt bei jedem Auftrag mit Wechseln
 daten.jobs.forEach(j => {
   daten.einrichtblatt_app.push({ id: 'eb' + j.id, hoco_nr: j.job_number, type_id: 't1',
     plaetze: { 'R1-T1': { taetigkeit: 'ANSCHLAG' }, 'R1-T3': { taetigkeit: 'SCHLICHTER', hersteller: 'Utilis' }, 'R2-T2': { taetigkeit: 'ECO CUT D8' }, 'R3-T4': { taetigkeit: 'SCHLICHTER' }, 'R3-T5': {} } });
@@ -41,7 +41,7 @@ with sync_playwright() as p:
         ctx.route(u, lambda r: r.abort())
     pg.goto(f"http://127.0.0.1:{PORT}/index.html#planwand", wait_until="domcontentloaded")
     pg.wait_for_selector(".pw-tafel"); pg.wait_for_timeout(1500)
-    hoco = pg.evaluate("() => TEST.daten.jobs.find(j => j.wz_historie_url).job_number")
+    hoco = pg.evaluate("() => TEST.daten.jobs.find(j => TEST.daten.tool_changes.some(t => t.job_id === j.id && t.machine_id === j.machine_id) && /^m-l/.test(j.machine_id)).job_number")
     pg.locator("#pw-hoco").click(); pg.wait_for_timeout(1200)
     pg.fill("#hoco-such", hoco); pg.wait_for_timeout(500)
     pg.locator(f"[data-hoco-auf='{hoco}']").first.click(); pg.wait_for_timeout(1500)
