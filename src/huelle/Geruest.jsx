@@ -67,7 +67,8 @@ function menueZeigen(an) {
   clearTimeout(menueUhr);
   const b = document.body;
   if (!todoModusDarf()) { b.classList.remove("nav--todos", "nav--zeigt-menue", ...WECHSEL); return; }
-  b.classList.remove("nav--schmal", "nav--klappt-auf", "nav--klappt-zu");
+  // nav--schmal bleibt: seit 1.708.0 klappt ☰ die Leiste wieder ein, ein Tipp in die Leiste darf das nicht aufheben.
+  if (!menueFest()) b.classList.remove("nav--schmal", "nav--klappt-auf", "nav--klappt-zu");
   const fest = menueFest();
   an = !!an || fest;
   const setzen = () => {
@@ -290,14 +291,16 @@ function Geruest() {
   }, []);
   const klappen = () => {
     // Admins klappen nicht ein: der Knopf wechselt zwischen Todos und Menü
-    if (todoModus) {
-      if (menueFest()) return;
+    // Seit 1.708.0 klappt die Leiste wieder ein, mit dem Knopf ☰ neben
+    // „Pad Mode“ (Wunsch Patrick 22. November 2026: „der Menüknopf soll
+    // aber noch neben dem Padmode-Button sein zum Einfahren“); das Menü
+    // wechselt weiter nicht zu den Todos.
+    if (todoModus && !menueFest()) {
       menueZeigen(!document.body.classList.contains("nav--zeigt-menue")); return;
     }
-    // Die Seitenleiste klappt seit 1.707.0 nie mehr ein
-    if (innerWidth >= 780) return;
     const b = document.body;
     const schmal = !b.classList.contains("nav--schmal") || b.classList.contains("nav--klappt-zu");
+    alt.einstellungSetzenWert("navschmal", schmal ? "1" : "0");
     klappenZeigen(schmal);
   };
   // Die Suche schon beim Darüberfahren laden — bis zum Klick ist sie meist da
@@ -371,6 +374,20 @@ function Geruest() {
                 strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <rect x="4" y="2.5" width="16" height="19" rx="2.5" /><path d="M10.5 18h3" /></svg>
               <span className="nav__pad-text">Pad Mode</span>
+            </button>
+            <button type="button" className="nav__klapp" id="nav-klapp2" title="Menü ein- oder ausklappen"
+              aria-label="Menü ein- oder ausklappen" onClick={klappen}>
+              <svg viewBox="0 0 18 14" width="18" height="14" aria-hidden="true">
+                <rect y="0" width="18" height="2" rx="1" /><rect y="6" width="18" height="2" rx="1" /><rect y="12" width="18" height="2" rx="1" />
+              </svg>
+            </button>
+            {/* Bild wie oben rechts in der früheren Kopfzeile, führt in die
+                Einstellungen (seit 1.708.0: am Computer keine Leiste oben mehr) */}
+            <button type="button" className="nav__ich" id="nav-ich" title="Einstellungen"
+              aria-label="Einstellungen" onClick={() => alt.einstellungenOeffnen()}>
+              {profil && profil.bild_url
+                ? <img className="kopf__bild" src={profil.bild_url} alt="" />
+                : <span className="kopf__bild kopf__bild--leer">{(anzeige || "?").charAt(0).toUpperCase()}</span>}
             </button>
           </div>
           {navSeiten.map((s, i) => (

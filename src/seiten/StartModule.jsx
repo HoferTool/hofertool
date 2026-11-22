@@ -231,7 +231,23 @@ function Menue({ zu, neu }) {
   );
 }
 
-function Kopf({ menueAuf }) {
+// Bild wie oben rechts in der Kopfzeile: Profilbild, sonst der Anfangsbuchstabe;
+// es führt in die Einstellungen (seit 1.708.0, Wunsch Patrick 22. November 2026:
+// „statt Zahnrad soll das Bild wie vorher sein“)
+function ProfilKnopf() {
+  const p = alt.profil;
+  const anzeige = (p && (p.full_name || (p.email || "").split("@")[0])) || "?";
+  return (
+    <button type="button" className="db2-ich" data-db2-einstellungen="" title="Einstellungen"
+      aria-label="Einstellungen" onClick={() => alt.einstellungenOeffnen()}>
+      {p && p.bild_url
+        ? <img className="kopf__bild" src={p.bild_url} alt="" />
+        : <span className="kopf__bild kopf__bild--leer">{anzeige.charAt(0).toUpperCase()}</span>}
+    </button>
+  );
+}
+
+function ZeitWetter() {
   const [jetzt, setJetzt] = useState(() => new Date());
   const [wetter, setWetter] = useState(null);
   useEffect(() => {
@@ -240,19 +256,18 @@ function Kopf({ menueAuf }) {
     return () => clearInterval(t);
   }, []);
   const z = (n) => String(n).padStart(2, "0");
+  return (<>
+    <div className="db2-kopf__uhr">{z(jetzt.getHours())}:{z(jetzt.getMinutes())}</div>
+    {wetter && <div className="db2-kopf__wetter"><b>{wetter.temperatur}°</b><span>{wetter.text}</span></div>}
+  </>);
+}
+
+// Nur noch am Handy: am Computer stehen Zeit, Wetter und Bild rechts neben dem Gruss
+function Kopf() {
   return (
     <header className="db2-kopf">
-      {/* Seit 1.706.0 (Wunsch Patrick 22. November 2026): ganz links nur Einstellungen als Zeichen,
-          daneben Zeit und Wetter, wo vorher das Kachel-Zeichen stand; kein Planwand-Knopf mehr. */}
-      <button type="button" className="db2-kopfknopf db2-kopfknopf--rund" data-db2-einstellungen="" title="Einstellungen"
-        aria-label="Einstellungen" onClick={() => alt.einstellungenOeffnen()}>
-        <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: ZAHNRAD }} /></button>
-      <div className="db2-kopf__uhr">{z(jetzt.getHours())}:{z(jetzt.getMinutes())}</div>
-      {wetter && <div className="db2-kopf__wetter"><b>{wetter.temperatur}°</b><span>{wetter.text}</span></div>}
-      <span className="db2-logo" role="img" aria-label="Hofer + Co.">
-        <img className="db2-logo--hell" src="logo-empfang.png" alt="" />
-        <img className="db2-logo--dunkel" src="logo-weiss.svg" alt="" />
-      </span>
+      <ProfilKnopf />
+      <ZeitWetter />
       <span className="db2-kopf__luecke" />
       <button type="button" className="db2-kopfknopf" data-db2-pad="" title="Pad Mode" onClick={() => alt.padOeffnen()}>
         <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: TABLET }} /><span className="db2-kopfknopf__text">Pad Mode</span></button>
@@ -274,6 +289,11 @@ function Gruss({ kinder }) {
         <h1 className="db2-kopf__gruss">{alt.begruessung()}{name ? ", " + name : ""}</h1>
         {kinder.length > 0 && <div className="db3-geburtstag" id="db3-geburtstag">🎂 Heute hat {kinder.map((k) => k.name).join(" und ")} Geburtstag</div>}
       </div>
+      {/* Am Computer rechts auf der Höhe des Grusses (seit 1.708.0) */}
+      <div className="db3-gruss__rechts db2-kopf" data-db3-kopf="">
+        <ZeitWetter />
+        <ProfilKnopf />
+      </div>
     </div>
   );
 }
@@ -285,6 +305,35 @@ function Gruss({ kinder }) {
 // (Wunsch Patrick 22. November 2026). Wächst eine Karte, rechnet der
 // ResizeObserver neu.
 const REIHE = 4;
+// Seit 1.708.0 geht jede Spalte bis ganz nach unten auf (Wunsch Patrick
+// 22. November 2026: „die Felder sollen so gross sein, dass es bis nach unten
+// aufgeht“): die letzte Karte der kürzeren Spalte wird so hoch wie nötig.
+function ausgleichen(raster) {
+  if (!raster) return;
+  const zellen = [...raster.children].filter((z) => z.classList.contains("db3-zelle") && z.offsetParent);
+  zellen.forEach((z) => { z.style.gridRowEnd = z.dataset.natur ? "span " + z.dataset.natur : ""; z.classList.remove("db3-zelle--strecken"); });
+  const spalten = new Map();
+  let tiefst = 0;
+  for (const z of zellen) {
+    if (z.classList.contains("db3-zelle--voll")) continue;
+    const unten = z.offsetTop + z.offsetHeight;
+    tiefst = Math.max(tiefst, unten);
+    const alt0 = spalten.get(z.offsetLeft);
+    if (!alt0 || unten >= alt0.unten) spalten.set(z.offsetLeft, { z, unten });
+  }
+  if (spalten.size < 2) return;
+  for (const { z, unten } of spalten.values()) {
+    const mehr = Math.floor((tiefst - unten) / REIHE);
+    if (mehr <= 0) continue;
+    z.style.gridRowEnd = "span " + (Number(z.dataset.natur || 1) + mehr);
+    z.classList.add("db3-zelle--strecken");
+  }
+}
+let ausgleichenGeplant = 0;
+function ausgleichenBald(raster) {
+  cancelAnimationFrame(ausgleichenGeplant);
+  ausgleichenGeplant = requestAnimationFrame(() => ausgleichen(raster));
+}
 function Z({ voll, children }) {
   const ref = useRef(null);
   useEffect(() => {
@@ -292,8 +341,19 @@ function Z({ voll, children }) {
     if (!el || typeof ResizeObserver === "undefined") return undefined;
     const innen = el.firstElementChild;
     const rechnen = () => {
+      // gemessen wird immer die natürliche Höhe, ohne Streckung
+      const gestreckt = el.classList.contains("db3-zelle--strecken");
+      if (gestreckt) el.classList.remove("db3-zelle--strecken");
+      const vorher = el.style.gridRowEnd;
+      el.style.gridRowEnd = "";
       const h = el.scrollHeight;
-      el.style.gridRowEnd = h > 0 ? "span " + Math.max(1, Math.ceil(h / REIHE)) : "";
+      const n = h > 0 ? Math.max(1, Math.ceil(h / REIHE)) : 0;
+      el.style.gridRowEnd = vorher;
+      if (gestreckt) el.classList.add("db3-zelle--strecken");
+      const alt0 = el.dataset.natur || "";
+      el.dataset.natur = n ? String(n) : "";
+      if (!vorher || alt0 !== el.dataset.natur) el.style.gridRowEnd = n ? "span " + n : "";
+      if (alt0 !== el.dataset.natur) ausgleichenBald(el.parentElement);
     };
     const ro = new ResizeObserver(rechnen);
     ro.observe(el);
@@ -301,7 +361,9 @@ function Z({ voll, children }) {
     mo.observe(el, { childList: true });
     if (innen) ro.observe(innen);
     rechnen();
-    return () => { ro.disconnect(); mo.disconnect(); };
+    const fenster = () => ausgleichenBald(el.parentElement);
+    window.addEventListener("resize", fenster);
+    return () => { ro.disconnect(); mo.disconnect(); window.removeEventListener("resize", fenster); };
   }, []);
   return <div ref={ref} className={"db3-zelle" + (voll ? " db3-zelle--voll" : "")}>{children}</div>;
 }
@@ -322,7 +384,7 @@ export default function StartModule({ auffrischen }) {
   const prob = useDaten(probSehen ? problemeLaden : keineProbleme, [a, probSehen]);
   return (
     <div className="db2 db3" id="db2">
-      <Kopf menueAuf={() => setMenue(true)} />
+      <Kopf />
       {menue && <Menue zu={() => setMenue(false)} neu={neu} />}
       <Gruss kinder={kinder} />
       {/* Dieselben Karten wie die Startseite, nur anders angeordnet */}

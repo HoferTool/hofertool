@@ -172,7 +172,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.707.0";
+const APP_VERSION = "1.708.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -11611,9 +11611,10 @@ function zeichneGeruest() {
   // Anmelden, stehen sie fest — also hier noch einmal anwenden.
   einstellungenNeuLesen();
   document.body.classList.toggle("dunkel", einstellung("dunkel"));
-  // Die Seitenleiste klappt nie mehr ein (seit 1.707.0, Wunsch Patrick
-  // 22. November 2026: „menu reiter sollen nicht mehr eingeklappt werden“)
-  document.body.classList.remove("nav--schmal");
+  // Eingeklappt mit ☰ neben „Pad Mode“ (wieder seit 1.708.0)
+  document.body.classList.toggle("nav--schmal", einstellungWert("navschmal", "0") === "1");
+  // Ohne Kopfzeile am Computer (1.708.0). Ältere Prüfstände bedienen noch die Knöpfe oben, darum nur mit TEST.ohneKopf.
+  document.documentElement.classList.toggle("ohne-kopf", !(window.TEST && !window.TEST.ohneKopf));
   themaAnwenden();
   // Administratoren sehen den Pad-Knopf auf jedem Gerät
   document.body.classList.toggle("ist-admin", istAdmin());

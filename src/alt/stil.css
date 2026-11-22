@@ -15718,3 +15718,62 @@ body.rolle-extern .nav__pad, body.pw-vollbild .nav__pad { display: none !importa
 .db3-solarfenster__zahlen span { font-size: .78rem; color: var(--tinte-leise, #64748b); }
 .db3-solarfenster__zahlen b { font-size: 1.1rem; font-variant-numeric: tabular-nums; }
 body.dunkel .db3-solarfenster__zahlen div { background: #ffffff12; }
+
+/* 1.708.0: Seitenleiste klappt wieder ein, mit ☰ neben „Pad Mode“ (Wunsch Patrick
+   22. November 2026: „der Menüknopf soll noch neben dem Padmode-Button sein zum Einfahren“) */
+.nav__klapp { display: none; }
+@media (min-width: 780px) {
+  .nav__oben { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .nav__logo { flex: 0 0 100%; }
+  .nav__pad { flex: 1 1 0; width: auto; min-width: 0; }
+  .nav__klapp { display: grid; place-items: center; flex: none; width: 40px; height: 40px; padding: 0;
+    border: 0; border-radius: 10px; cursor: pointer; background: var(--karte, #fff); color: var(--tinte, #1e293b);
+    box-shadow: 0 0 0 1px var(--rand, #d6dde6), 0 1px 2px rgba(15, 23, 42, .06);
+    transition-property: background-color, scale; transition-duration: .15s; transition-timing-function: ease-out; }
+  .nav__klapp svg { fill: currentColor; display: block; }
+  .nav__klapp:hover { background: color-mix(in srgb, var(--marke) 10%, var(--karte, #fff)); }
+  .nav__klapp:active { scale: .96; }
+  body.dunkel .nav__klapp { background: #1e293b; box-shadow: 0 0 0 1px #334155; }
+  /* Eingeklappt: ☰ oben, darunter das Tablet-Zeichen */
+  body.nav--schmal .nav__oben, body.nav--klappt-zu .nav__oben { flex-direction: column; }
+  body.nav--schmal .nav__pad, body.nav--klappt-zu .nav__pad { flex: none; width: 40px; order: 2; }
+  body.nav--schmal .nav__klapp, body.nav--klappt-zu .nav__klapp { order: 1; }
+}
+body.rolle-extern .nav__klapp { display: none !important; }
+
+/* 1.708.0: Zeit, Wetter und Bild rechts auf der Höhe des Grusses (Wunsch Patrick) */
+.db2-ich { flex: none; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 12px;
+  transition-property: scale; transition-duration: .15s; }
+.db2-ich:active { scale: .96; }
+.db2-ich .kopf__bild { width: 42px; height: 42px; border-radius: 12px; font-size: 18px; }
+.db3-gruss__rechts { display: none !important; }
+@media (min-width: 780px) {
+  .db3 > .db2-kopf { display: none !important; }
+  .db3-gruss__rechts { display: flex !important; margin: 0 !important; padding: 0 !important; align-self: center; gap: 14px !important; }
+  .db3-gruss__rechts .db2-kopf__uhr { margin-left: 0; }
+}
+/* Die gestreckte Karte füllt ihre Zelle (1.708.0) */
+.db3-zelle--strecken { display: flex; flex-direction: column; align-self: stretch; }
+.db3-zelle--strecken > * { flex: 1 1 auto; }
+.db3-zelle--strecken > :not(.karte) { display: flex; flex-direction: column; }
+.db3-zelle--strecken > :not(.karte) > .karte { flex: 1 1 auto; }
+
+/* 1.708.0: am Computer keine Leiste oben mehr, die Seitenleiste rollt mit der
+   Seite (Wunsch Patrick 22. November 2026: „kein Balken mehr oben“, „Menü soll
+   nach oben scrollen können, nicht fix“). Suchen mit Strg + F, Rückgängig mit
+   Strg + Z, Einstellungen über das Bild neben „Pad Mode“. Externe wie bisher. */
+.nav__ich { display: none; }
+@media (min-width: 780px) {
+  html.ohne-kopf body:not(.rolle-extern) { --kopfhoehe: 0px; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf { display: none !important; }
+  html.ohne-kopf body:not(.rolle-extern) .rahmen { padding-top: 0; }
+  html.ohne-kopf body:not(.rolle-extern) .nav { position: relative !important; top: auto !important; height: auto !important;
+    min-height: 100dvh; align-self: stretch; }
+  html.ohne-kopf body:not(.rolle-extern) .nav__ich { display: grid; place-items: center; flex: none; width: 40px; height: 40px;
+    padding: 0; border: 0; background: none; cursor: pointer; border-radius: 10px;
+    transition-property: scale; transition-duration: .15s; }
+  .nav__ich:active { scale: .96; }
+  .nav__ich .kopf__bild { width: 40px; height: 40px; border-radius: 10px; font-size: 17px; }
+  body.db2-modus .nav__ich { display: none !important; }
+  body.nav--schmal .nav__ich, body.nav--klappt-zu .nav__ich { order: 3; }
+}
