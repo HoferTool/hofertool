@@ -95,6 +95,7 @@ import "../daten/mailkonto.js";
 import { istModulFehler } from "../teile/modulFehler.js";
 import { reihenAllein, istReihenAdresse } from "../seiten/reihen/allein.js";
 import { istVollbildTab, vollbildNachholen, vollbildVerlassenFragen } from "../planwand/vollbildTab.js";
+import { kombiLeisteAnwenden } from "../planwand/kombiTab.js";
 import { istModulTab, modulTabVerlassenFragen } from "../seiten/rechner/modulTab.jsx";
 
 const BOOT = document.getElementById("boot");
@@ -172,7 +173,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.699.0";
+const APP_VERSION = "1.700.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -11551,8 +11552,10 @@ function zeichneSeite() {
     document.title = "Planer · Hofer Tool";
     if (document.getElementById("pad")) { pad.wo = "planer"; padZeichnen(); }
     else padOeffnen({ wo: "planer" });
+    kombiLeisteAnwenden();
     return;
   }
+  kombiLeisteAnwenden();
   const titelSoll = zeitApp ? "HOFERTIME" : "Hofer Tool";
   if (document.title !== titelSoll) document.title = titelSoll;
 

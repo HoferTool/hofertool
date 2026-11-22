@@ -15526,3 +15526,179 @@ body.dunkel .db2-zustand--ruesten { color: #fdba74 !important; }
 .db2 .db2-vorschau { justify-content: center; gap: 4px; margin: 28px 0 0; font-size: 11px; opacity: .45; }
 .db2 .db2-vorschau a { color: inherit; font-weight: 400; text-decoration: underline; }
 .db2 .db2-vorschau:hover { opacity: .9; }
+
+/* =================================================================
+   STARTSEITE NEU (seit 1.700.0, Wunsch Patrick 22. November 2026)
+   Ohne Kopfzeile der App: eigener Kopf mit Menüfeld (vier Vierecke),
+   grossem Logo, Pad Mode, Einstellungen, Wetter, Planwand, Uhr ganz
+   rechts. Solar nur als ruhige Zeile beim Gruss.
+   ================================================================= */
+body.db2-modus { --kopfhoehe: 0px; -webkit-font-smoothing: antialiased; }
+body.db2-modus > .kopf, body.db2-modus .kopf:not(.db2-kopf), body.db2-modus #werkzeugleiste { display: none !important; }
+body.db2-modus .rahmen { padding-top: 0 !important; }
+body.db2-modus .inhalt { padding-top: 14px; }
+.db2-kopf { display: flex !important; align-items: center !important; justify-content: flex-start !important; gap: 10px !important;
+  flex-wrap: nowrap !important; margin: 0 0 22px !important; padding: 8px 0; }
+.db2-kopf__luecke { flex: 1; min-width: 8px; }
+.db2-menueknopf { width: 46px; height: 46px; flex: none; border-radius: 14px; border: 0; cursor: pointer;
+  display: grid; place-items: center; background: var(--db2-karte); color: var(--db2-text);
+  box-shadow: 0 0 0 1px var(--db2-rand), 0 2px 6px rgba(15, 23, 42, .06);
+  transition-property: transform, box-shadow, background-color; transition-duration: .15s; transition-timing-function: ease-out; }
+.db2-menueknopf svg { width: 22px; height: 22px; fill: currentColor; }
+.db2-menueknopf svg rect:nth-child(1) { fill: #2563eb; }
+.db2-menueknopf:hover { box-shadow: 0 0 0 1px var(--db2-rand), 0 6px 16px rgba(15, 23, 42, .1); }
+.db2-menueknopf:active, .db2-kopfknopf:active, .db2-planwand:active, .db2-menue__punkt:active,
+.db2-solar-klein:active, .db2-notiz:active, .db2-lief__zeile:active { transform: scale(.96); }
+.db2-logo { display: block; height: 64px; margin-left: 10px; flex: none; }
+.db2-logo img { height: 100%; width: auto; display: block; }
+.db2-logo--dunkel { display: none !important; }
+body.dunkel .db2-logo--hell { display: none !important; }
+body.dunkel .db2-logo--dunkel { display: block !important; }
+.db2-kopfknopf { display: inline-flex; align-items: center; gap: 7px; height: 42px; padding: 0 13px; border-radius: 13px;
+  border: 0; background: var(--db2-karte); color: var(--db2-text); font: inherit; font-size: 14px; font-weight: 650; cursor: pointer;
+  box-shadow: 0 0 0 1px var(--db2-rand); flex: none;
+  transition-property: transform, background-color; transition-duration: .15s; transition-timing-function: ease-out; }
+.db2-kopfknopf:hover { background: color-mix(in srgb, var(--db2-text) 5%, var(--db2-karte)); }
+.db2-kopfknopf > span:first-child { display: grid; }
+.db2-kopfknopf svg { width: 19px; height: 19px; }
+.db2-kopf .db2-kopf__wetter { flex-direction: row !important; align-items: baseline !important; gap: 6px; margin: 0 6px; flex: none; }
+.db2-kopf .db2-kopf__wetter b { font-size: 18px; font-variant-numeric: tabular-nums; }
+.db2-planwand { height: 42px; padding: 0 16px; flex: none; transition-property: transform, background-color; transition-duration: .15s; }
+.db2-planwand > span { display: grid; }
+.db2-kopf .db2-kopf__uhr { font-size: 34px; font-weight: 300; letter-spacing: -.02em; line-height: 1; min-width: 92px;
+  text-align: right; flex: none; margin-left: 6px; font-variant-numeric: tabular-nums; }
+
+.db2-gruss { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap; margin: 0 0 18px; }
+.db2-gruss h1 { text-wrap: balance; }
+.db2-solar-klein { display: inline-flex; align-items: center; gap: 14px; padding: 7px 12px; border-radius: 12px; border: 0;
+  background: transparent; color: var(--db2-leise); font: inherit; font-size: 12.5px; cursor: pointer; flex-wrap: wrap;
+  transition-property: transform, background-color; transition-duration: .15s; }
+.db2-solar-klein:hover { background: color-mix(in srgb, var(--db2-text) 5%, transparent); }
+.db2-solar-klein svg { width: 16px; height: 16px; fill: none; stroke: #a3a3a3; stroke-width: 1.8; stroke-linecap: round; }
+.db2-solar-klein b { color: var(--db2-text); font-weight: 650; font-variant-numeric: tabular-nums; margin-right: 2px; }
+
+/* Raster: Bestellungen + Probleme, Material + Notizen, Kalender über alles */
+.db2-karte--voll { grid-column: 1 / -1; }
+button.db2-zahl { font: inherit; color: inherit; text-align: left; cursor: pointer;
+  transition-property: transform, box-shadow; transition-duration: .15s; transition-timing-function: ease-out; }
+button.db2-zahl:hover { box-shadow: 0 6px 18px rgba(15, 23, 42, .08); }
+button.db2-zahl:active { transform: scale(.96); }
+.db2-mehr--plus { margin-left: auto; width: 30px; height: 28px; padding: 0; font-size: 18px; line-height: 1; }
+.db2-mehr--plus + .db2-mehr { margin-left: 0; }
+.db2-zeile--still { cursor: default; }
+
+/* Bestellungen je Lieferant */
+.db2-lief { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; }
+.db2-lief__zeile { display: flex; flex-direction: column; gap: 3px; padding: 9px 11px; border-radius: 13px; border: 1px solid transparent;
+  background: color-mix(in srgb, var(--db2-text) 3.5%, transparent); color: inherit; font: inherit; text-align: left; cursor: pointer;
+  min-width: 0; transition-property: transform, background-color, border-color; transition-duration: .15s; }
+.db2-lief__zeile:hover { border-color: color-mix(in srgb, #db2777 40%, transparent); background: color-mix(in srgb, #db2777 7%, transparent); }
+.db2-lief__kopf { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.db2-lief__kopf b { font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }
+.db2-lief__bahn { flex: 1; min-width: 30px; height: 7px; border-radius: 99px; background: color-mix(in srgb, var(--db2-text) 8%, transparent); overflow: hidden; }
+.db2-lief__bahn i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #f472b6, #db2777); }
+.db2-lief__zahl { font-weight: 800; font-variant-numeric: tabular-nums; min-width: 20px; text-align: right; }
+.db2-lief__artikel { font-size: 12.5px; color: var(--db2-leise); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.db2-lief .db2-klein-text { grid-column: 1 / -1; }
+.db2-fuss { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--db2-rand); }
+.db2-fuss .db2-knopf { border-color: var(--db2-rand); font-size: 13px; padding: 7px 12px; }
+
+/* Kalender: zwei Wochen */
+.db2-kal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.db2-kal__tag { min-height: 92px; padding: 8px 8px 7px; border-radius: 13px; display: flex; flex-direction: column; gap: 4px; min-width: 0;
+  background: color-mix(in srgb, var(--db2-text) 3%, transparent); }
+.db2-kal__kopf { display: flex; align-items: baseline; gap: 6px; }
+.db2-kal__kopf span { font-size: 12px; font-weight: 700; color: var(--db2-leise); text-transform: uppercase; letter-spacing: .04em; }
+.db2-kal__kopf b { font-size: 17px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.db2-kal__tag--we { background: transparent; box-shadow: inset 0 0 0 1px var(--db2-rand); }
+.db2-kal__tag--vorbei { opacity: .45; }
+.db2-kal__tag--heute { background: color-mix(in srgb, #0891b2 12%, transparent); box-shadow: inset 0 0 0 2px #0891b2; }
+.db2-kal__tag--heute .db2-kal__kopf span, .db2-kal__tag--heute .db2-kal__kopf b { color: #0891b2; }
+body.dunkel .db2-kal__tag--heute .db2-kal__kopf * { color: #67d8ee !important; }
+.db2-kal__eintrag { font-size: 12px; font-weight: 600; line-height: 1.25; padding: 3px 6px; border-radius: 7px;
+  background: color-mix(in srgb, #0891b2 14%, var(--db2-karte)); color: var(--db2-text);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.db2-kal__mehr { font-size: 11.5px; color: var(--db2-leise); font-weight: 700; }
+.db2-kal__countdown { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 12px; font-size: 13px; color: var(--db2-leise); }
+.db2-kal__countdown b { color: var(--db2-text); }
+
+/* Notizen als Zettel */
+.db2-notizen { display: flex; flex-direction: column; gap: 8px; }
+.db2-notiz { display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 10px 12px; border-radius: 12px; cursor: pointer;
+  border: 0; font: inherit; font-size: 14px; color: #422006; background: #fef3c7; box-shadow: 0 1px 2px rgba(120, 80, 0, .12);
+  transition-property: transform, box-shadow; transition-duration: .15s; transition-timing-function: ease-out; }
+.db2-notiz:hover { box-shadow: 0 6px 14px rgba(120, 80, 0, .16); }
+.db2-notiz small { font-size: 12px; color: #92400e; font-weight: 700; }
+.db2-notiz span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+body.dunkel .db2-notiz { background: #3b2f0e; }
+body.dunkel .db2-notiz, body.dunkel .db2-notiz * { color: #fde68a !important; }
+body.dunkel .db2-notiz small.db2-rot { color: #fca5a5 !important; }
+
+/* Menüfeld: wächst aus dem Knopf oben links */
+.db2-menue { position: fixed; inset: 0; z-index: 900; }
+.db2-menue__schleier { position: absolute; inset: 0; background: rgba(15, 23, 42, .28); backdrop-filter: blur(3px);
+  animation: db2-schleier .18s ease-out; }
+@keyframes db2-schleier { from { opacity: 0; } }
+.db2-menue__feld { position: absolute; top: 14px; left: max(14px, calc((100vw - 1280px) / 2 + 14px)); width: min(640px, calc(100vw - 28px));
+  max-height: calc(100dvh - 28px); overflow: auto; padding: 14px 14px 16px; border-radius: 24px; background: var(--db2-karte);
+  color: var(--db2-text); box-shadow: 0 0 0 1px var(--db2-rand), 0 24px 60px rgba(15, 23, 42, .25);
+  transform-origin: 23px 23px; animation: db2-menue-auf .22s cubic-bezier(.2, .8, .2, 1); }
+@keyframes db2-menue-auf { from { opacity: 0; transform: scale(.6); } }
+.db2-menue--weg .db2-menue__feld { opacity: 0; transform: scale(.92); transition: opacity .15s ease-out, transform .15s ease-out; }
+.db2-menue--weg .db2-menue__schleier { opacity: 0; transition: opacity .15s ease-out; }
+.db2-menue__kopf { display: flex; align-items: center; justify-content: space-between; padding: 0 2px 10px 6px; }
+.db2-menue__kopf b { font-size: 17px; }
+.db2-menue__raster { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.db2-menue__punkt { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  min-height: 96px; padding: 12px 6px; border-radius: 16px; border: 0; cursor: pointer; font: inherit; color: inherit;
+  background: color-mix(in srgb, var(--db2-text) 4%, transparent);
+  animation: db2-punkt-auf .24s cubic-bezier(.2, .8, .2, 1) backwards; animation-delay: calc(var(--nr) * 14ms + 40ms);
+  transition-property: transform, background-color; transition-duration: .15s; }
+@keyframes db2-punkt-auf { from { opacity: 0; transform: translateY(6px); } }
+.db2-menue__punkt:hover { background: color-mix(in srgb, #2563eb 10%, transparent); }
+.db2-menue__zeichen { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center;
+  background: color-mix(in srgb, #2563eb 12%, transparent); color: #2563eb; }
+body.dunkel .db2-menue__zeichen, body.dunkel .db2-menue__zeichen * { color: #93b4ff !important; }
+.db2-menue__zeichen svg { width: 22px; height: 22px; }
+.db2-menue__text { font-size: 13px; font-weight: 650; text-align: center; line-height: 1.2; text-wrap: balance; overflow-wrap: anywhere; }
+.db2-menue__tab { position: absolute; top: 7px; right: 9px; font-style: normal; font-size: 12px; color: var(--db2-leise); opacity: .7; }
+@media (prefers-reduced-motion: reduce) {
+  .db2-menue__feld, .db2-menue__punkt, .db2-menue__schleier { animation: none; }
+}
+
+/* Umschalter Planwand / Planer im gemeinsamen Tab der Admins */
+.kombi-leiste { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 2147483000; display: flex; gap: 2px;
+  padding: 3px; border-radius: 999px; background: rgba(15, 23, 42, .82); backdrop-filter: blur(8px);
+  box-shadow: 0 6px 20px rgba(15, 23, 42, .25); }
+.kombi-leiste button { border: 0; background: transparent; color: #cbd5e1; font: inherit; font-size: 13.5px; font-weight: 700;
+  padding: 6px 16px; border-radius: 999px; cursor: pointer; transition-property: background-color, color, transform; transition-duration: .15s; }
+.kombi-leiste button:hover { color: #fff; }
+.kombi-leiste button:active { transform: scale(.96); }
+.kombi-leiste button.aktiv { background: #fff; color: #0f172a; }
+body.dunkel .kombi-leiste button { color: #cbd5e1 !important; }
+body.dunkel .kombi-leiste button.aktiv { color: #0f172a !important; }
+
+@media (max-width: 1100px) {
+  .db2-kopfknopf__text { display: none; }
+  .db2-kopfknopf { width: 42px; padding: 0; justify-content: center; }
+  .db2-kal { grid-template-columns: repeat(7, minmax(84px, 1fr)); overflow-x: auto; }
+}
+@media (max-width: 700px) {
+  body.db2-modus .inhalt { padding-top: 8px; }
+  .db2-kopf { gap: 7px !important; margin-bottom: 14px !important; flex-wrap: wrap !important; }
+  .db2-menueknopf { width: 42px; height: 42px; }
+  .db2-logo { height: 42px; margin-left: 4px; }
+  .db2-kopf .db2-kopf__wetter { display: none !important; }
+  .db2-kopf .db2-kopf__uhr { display: none; }
+  .db2-planwand { order: 9; width: 100%; justify-content: center; height: 44px; }
+  .db2-kopfknopf { width: 42px; }
+  .db2-lief { grid-template-columns: minmax(0, 1fr); }
+  .db2-solar-klein { gap: 10px; padding: 4px 0; }
+  .db2-kal { display: flex; flex-direction: column; overflow: visible; }
+  .db2-kal__tag { min-height: 0; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 7px 10px; }
+  .db2-kal__tag:not(.db2-kal__tag--heute):not(:has(.db2-kal__eintrag)) { display: none; }
+  .db2-kal__kopf { width: 62px; flex: none; }
+  .db2-menue__raster { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .db2-menue__feld { top: 8px; left: 8px; width: calc(100vw - 16px); max-height: calc(100dvh - 16px); }
+  .db2-menue__punkt { min-height: 88px; }
+}

@@ -47,7 +47,7 @@ export default function Notizen({ auffrischen }) {
                     <span className={"notiz__frist" + (t.due_date < heute ? " notiz__frist--spaet" : "")}>
                       {alt.kurzDatum(t.due_date)}</span>}
                   <button className="linkknopf" data-notizbearb={t.id}
-                    onClick={(e) => { e.preventDefault(); bearbeiten(t, neu); }}>Bearbeiten</button>
+                    onClick={(e) => { e.preventDefault(); notizBearbeiten(t, neu); }}>Bearbeiten</button>
                   {admin &&
                     <button className="linkknopf linkknopf--gefahr" data-nweg={t.id}
                       onClick={async (e) => {
@@ -65,7 +65,7 @@ export default function Notizen({ auffrischen }) {
   );
 }
 
-async function neueNotiz(neu) {
+export async function neueNotiz(neu) {
   const w = await alt.dialogFelder({ titel: "Neue Notiz",
     felder: [
       { name: "text", label: "Was ist zu tun?", typ: "textarea", pflicht: true },
@@ -79,7 +79,7 @@ async function neueNotiz(neu) {
   alt.meldung("Notiz gespeichert."); neu();
 }
 
-async function bearbeiten(t, neu) {
+export async function notizBearbeiten(t, neu) {
   const w = await alt.dialogFelder({ titel: "Notiz bearbeiten",
     felder: [
       { name: "text", label: "Was ist zu tun?", typ: "textarea", wert: t.text, pflicht: true },
