@@ -15,6 +15,12 @@
 //  von oben nach unten und den Grund zur Mitte, die Platte wird bei der
 //  Vorlage abgefragt (nicht aus „Werkzeug“, das oft leer ist).
 //
+//  Seit 1.694.0 auch innen in der Bohrung (Wunsch Patrick 22. November
+//  2026: „für die Vorlage Einstich brauche ich auch die Variante für
+//  Inneneinstich“): wie am Mantel, nur geht die Tiefe nach aussen
+//  (X wird grösser), D ist der Bohrungs-Ø, Sicherheitsabstand in die
+//  Bohrung hinein; programmiert ist ebenfalls die Ecke zur Büchse.
+//
 //  Gerechnet wird in einem eigenen Rahmen (s, t): s quer über den
 //  Einstich von 0 bis B (0 = Seite zur Stirn bzw. innen an der Front),
 //  t die Tiefe ab der Oberfläche (0 oben, T am Grund). Die Bahn der
@@ -38,10 +44,10 @@ export const nc = (n) => {
 
 // Felder: Masse stehen in der Skizze (EinstichBild in CamEinstichBild.jsx)
 export const EINSTICH_FELDER = [
-  { name: "D", text: "Ø oben", einheit: "mm", pflicht: true, lang: "Mantel: Ø der Oberfläche (X oben). Front: Aussen-Ø des Einstichs" },
-  { name: "Z", text: "Z", einheit: "mm", pflicht: true, lang: "Mantel: Z der Flanke zur Stirn. Front: Z der Stirnfläche" },
+  { name: "D", text: "Ø oben", einheit: "mm", pflicht: true, lang: "Mantel: Ø der Oberfläche (X oben). Innen: Bohrungs-Ø. Front: Aussen-Ø des Einstichs" },
+  { name: "Z", text: "Z", einheit: "mm", pflicht: true, lang: "Mantel und Innen: Z der Flanke zur Stirn. Front: Z der Stirnfläche" },
   { name: "B", text: "Breite", einheit: "mm", pflicht: true, lang: "Breite des Einstichs (an der Front radial)" },
-  { name: "T", text: "Tiefe", einheit: "mm", pflicht: true, lang: "Tiefe ab der Oberfläche (Mantel radial, Front in Z)" },
+  { name: "T", text: "Tiefe", einheit: "mm", pflicht: true, lang: "Tiefe ab der Oberfläche (Mantel und Innen radial, Front in Z)" },
   { name: "eo", text: "oben", einheit: "mm", lang: "Fase oder Radius oben an beiden Kanten, leer = scharf" },
   { name: "eg", text: "Grund", einheit: "mm", lang: "Fase oder Radius im Grund an beiden Ecken, leer = scharf" },
   { name: "PB", text: "Plattenbreite", einheit: "mm", pflicht: true, lang: "Breite der Einstechplatte" },
@@ -209,7 +215,7 @@ function eckeSuchen(bahn, i) {
 export function einstichWerte(w) {
   const g = (n) => num(w[n]);
   const v = {
-    lage: w.lage === "front" ? "front" : "mantel",
+    lage: ["front", "innen"].includes(w.lage) ? w.lage : "mantel",
     strat: ["schruppen", "schlichten"].includes(w.strat) ? w.strat : "beide",
     D: g("D"), Z: g("Z"), B: g("B"), T: g("T"),
     eo: { art: w.eoArt || "", w: g("eo") || 0 }, eg: { art: w.egArt || "", w: g("eg") || 0 },
@@ -237,6 +243,8 @@ export function einstichFehler(w) {
   if (2 * Math.max(v.eg.w, 0) > v.B + 1e-9) return "Fase / Radius im Grund ist grösser als die halbe Breite.";
   if (v.lage === "front" && v.D / 2 - v.B < -1e-9) return "Der Einstich ist breiter als der halbe Aussen-Ø.";
   if (v.lage === "mantel" && v.D / 2 - v.T < -1e-9) return "Der Einstich ist tiefer als der halbe Ø.";
+  if (v.lage === "innen" && !(v.D > 0)) return "Der Bohrungs-Ø muss grösser als 0 sein.";
+  if (v.lage === "innen" && v.D - 2 * v.S < -1e-9) return "Der Sicherheitsabstand ist grösser als der halbe Bohrungs-Ø.";
   if (v.Q != null && v.Q > 0 && !(v.RZ > 0)) return "Für den Spanbruch einen Rückzug grösser als 0 eintragen.";
   return null;
 }
@@ -246,6 +254,7 @@ export function einstichHinweise(w) {
   const v = einstichWerte(w);
   const h = [];
   if (v.eg.art === "R" && v.eg.w > 0 && v.eg.w < v.PR) h.push("Der Radius im Grund ist kleiner als der Eckradius der Platte, dort entsteht der Eckradius.");
+  if (v.lage === "innen") h.push("Platte und Halter müssen in die Bohrung Ø" + (v.D || "…") + " passen, Anfahren in Z im Kopf der Bearbeitung.");
   if (v.eo.w > 0 && v.strat === "schruppen") h.push("Fase / Radius oben macht erst das Schlichten.");
   return h;
 }
@@ -256,6 +265,8 @@ function abbildung(v) {
     const ri = v.D / 2 - v.B;
     return (p) => ({ x: 2 * (ri + p[0]), z: v.Z + p[1] });
   }
+  // Innen: Tiefe nach aussen, Sicherheitsabstand (t < 0) in die Bohrung
+  if (v.lage === "innen") return (p) => ({ x: v.D + 2 * p[1], z: v.Z + p[0] });
   return (p) => ({ x: v.D - 2 * p[1], z: v.Z + p[0] });
 }
 
@@ -276,7 +287,7 @@ export function einstichZeilen(w) {
   const quer = v.lage === "front" ? "x" : "z";
   const front = v.lage === "front";
   const rand = (e) => (e.art === "F" ? "F" : e.art === "R" ? "R" : "") + (e.art && e.w ? nc(e.w) : "");
-  z.push("(EINSTICH " + (front ? "FRONT DA" + nc(v.D) : "MANTEL D" + nc(v.D)) + " Z" + nc(v.Z)
+  z.push("(EINSTICH " + (front ? "FRONT DA" + nc(v.D) : v.lage === "innen" ? "INNEN DI" + nc(v.D) : "MANTEL D" + nc(v.D)) + " Z" + nc(v.Z)
     + " B" + nc(v.B) + " T" + nc(v.T)
     + (v.eo.art && v.eo.w ? " OBEN " + rand(v.eo) : "") + (v.eg.art && v.eg.w ? " GRUND " + rand(v.eg) : "") + ")");
   z.push("(PLATTE B" + nc(v.PB) + " L" + nc(v.PL) + " R" + nc(v.PR) + ", PROGRAMMIERT ECKE " + (front ? "AUSSEN" : "ZUR BUECHSE") + ")");

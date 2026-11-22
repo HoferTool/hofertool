@@ -1,4 +1,4 @@
-# HOFERCAM (seit 1.603.0): Vorlage Einstich Mantel / Front mit Skizze,
+# HOFERCAM (seit 1.603.0): Vorlage Einstich Mantel / Innen / Front mit Skizze,
 # Schreibmarke in der Bezeichnung bei neuer Bearbeitung, Datum mit
 # Kalender und Taste H, HOFERCONTUR aus HOFERCAM leer.
 import time, datetime
@@ -6,6 +6,12 @@ from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
 fehler = []
+
+def vorlage_waehlen(pg, vid):
+    # Seit 1.693.0 Auswahlbild statt Liste: falls schon eine Vorlage offen ist, zurück zur Auswahl
+    if pg.locator("[data-camvorlage-zurueck]").count(): pg.click("[data-camvorlage-zurueck]")
+    pg.click(f"[data-camvorlage-bild='{vid}']")
+
 def pruefe(name, ok):
     print(("ok   " if ok else "FALSCH ") + name)
     if not ok: fehler.append(name)
@@ -56,7 +62,7 @@ with sync_playwright() as p:
 
     # Vorlage Einstich
     pg.click("[data-camvorlage-auf='0']")
-    pg.select_option("[data-camvorlage-wahl]", "einstich")
+    vorlage_waehlen(pg, "einstich")
     pruefe("Skizze da", pg.locator("[data-camein-bild] svg").count() == 1)
     pruefe("Ohne Masse kein Einfügen", pg.locator("[data-camvorlage-einfuegen]").is_disabled())
     for n, v in [("D", "12"), ("Z", "5"), ("B", "3"), ("T", "1.5"), ("PB", "1.5"), ("PL", "3"), ("PR", "0.1")]:
@@ -79,8 +85,17 @@ with sync_playwright() as p:
     v = pg.text_content("[data-camvorlage-vorschau]") or ""
     pruefe("Front aussen programmiert", "(EINSTICH FRONT DA10." in v and "(SCHLICHTEN AUSSEN)" in v and "G0X11.6Z-0.5" in v and "G1X7.6Z1.5" in v)
     pg.screenshot(path="cam_einstich_front.png")
-    pg.click("[data-camein-wahl='lage:mantel']"); pg.fill("[data-camein='D']", "12"); pg.fill("[data-camein='Z']", "5")
+    # Seit 1.694.0 Inneneinstich: Tiefe nach aussen, Sicherheitsabstand in die Bohrung
+    pg.click("[data-camein-wahl='lage:innen']"); pg.fill("[data-camein='D']", "8"); pg.fill("[data-camein='Z']", "5")
     pg.click("[data-camein-wahl='strat:beide']")
+    v = pg.text_content("[data-camvorlage-vorschau]") or ""
+    print(v)
+    pruefe("Innen Kopfzeile", v.startswith("(EINSTICH INNEN DI8. Z5. B3. T1.5"))
+    pruefe("Innen Schruppen nach aussen", "G0X7.Z7.95" in v and v.count("G1X10.9") == 3)
+    pruefe("Innen Schlichten mit Fase und Radius", "G1X8.Z6.5,C0.259" in v and "G1X11.Z6.5,R0.1" in v and "G1X8.Z8.,C0.259" in v and "G1X11.Z8.,R0.1" in v)
+    pruefe("Innen Hinweis Bohrung", "in die Bohrung" in (pg.text_content("[data-camvorlage]") or ""))
+    pg.locator("[data-camein-bild]").screenshot(path="cam_einstich_innen.png")
+    pg.click("[data-camein-wahl='lage:mantel']"); pg.fill("[data-camein='D']", "12"); pg.fill("[data-camein='Z']", "5")
     pg.locator("[data-camein-bild]").screenshot(path="cam_einstich_mantel.png")
     pg.click("[data-camvorlage-einfuegen]"); pg.wait_for_timeout(150)
     pruefe("Eingefügt", pg.locator("[data-camvorlage]").count() == 0)

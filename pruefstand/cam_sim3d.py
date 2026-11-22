@@ -78,11 +78,11 @@ with sync_playwright() as p:
     pg.evaluate("n => { const r = document.querySelector('#cam-sim-regler'); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(r, n); r.dispatchEvent(new Event('input', {bubbles: true})); }", s0["von"] + int(len(s0["punkte"]) * 0.55))
     pg.wait_for_timeout(200)
     pg.locator("#cam-sim").screenshot(path=S + "sim_dreh.png")
-    # 3D-Werkzeug (seit 1.621.0): Platte als Körper, ohne Maschine mit Schaft
+    # 3D-Werkzeug (seit 1.621.0): Platte als Körper, ohne Maschine mit Schaft (seit 1.696.0 Halter statt Schaft, darum nur mindestens gleich viele)
     k_mit = pg.evaluate("() => document.querySelector('#cam-sim-bild').__koerper")
     pg.uncheck("#cam-sim-maschine"); pg.wait_for_timeout(200)
     k_ohne = pg.evaluate("() => document.querySelector('#cam-sim-bild').__koerper")
-    pruefe("3D-Platte (%s Flächen), ohne Maschine mit Schaft (%s)" % (k_mit, k_ohne), k_mit >= 6 and k_ohne == k_mit + 6)
+    pruefe("3D-Platte (%s Flächen), ohne Maschine mit Schaft (%s)" % (k_mit, k_ohne), k_mit >= 6 and k_ohne >= k_mit)
     pg.locator("#cam-sim").screenshot(path=S + "sim_dreh_ohne.png")
     pg.uncheck("#cam-sim-wz3d"); pg.wait_for_timeout(200)
     pruefe("3D-Werkzeug aus: flach", pg.evaluate("() => document.querySelector('#cam-sim-bild').__koerper") == 0)

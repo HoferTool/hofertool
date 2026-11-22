@@ -18,7 +18,7 @@ import { teilMerken } from "../teile/wiederherstellen.js";
 import { materialZerlegen, werkstoffGenau } from "../daten/material.js";
 import {
   z, chf, stundensatz, staffelRechnen, leereKalkulation, kalkulationenLaden, maschinenLaden,
-  kalkulationSpeichern, maschineSpeichern, naechsteNr, BEISPIEL_MASCHINEN, beispielKalkulation, START_MASCHINEN, startArbeitsplan, WAEHRUNGEN, kursHolen, EXTERN_NEBEN, FGK_DREHEN, SPEZ_GEWICHT, PREIS_JE_STAFFEL, preisInStaffeln,
+  kalkulationSpeichern, maschineSpeichern, naechsteNr, BEISPIEL_MASCHINEN, beispielKalkulation, START_MASCHINEN, startArbeitsplan, WAEHRUNGEN, kursHolen, PREISEINHEITEN, peWert, peText, EXTERN_NEBEN, FGK_DREHEN, SPEZ_GEWICHT, PREIS_JE_STAFFEL, preisInStaffeln,
 } from "../daten/kalkulation.js";
 
 const REITER = [
@@ -139,7 +139,7 @@ function Liste({ liste, maschinen, oeffnen, neu, saetze }) {
                       <td className="kalk-liste__kunde">{k.kunde || "–"}</td>
                       <td className="kalk-liste__artikel">{k.artikel || ""}{d.kopf && d.kopf.bezeichnung ? <span className="kalk-klein">{d.kopf.bezeichnung}</span> : null}</td>
                       <td className="kalk-liste__staffeln">{staffeln.map((s) => chf(z(s.menge), 0)).join(" / ")}</td>
-                      <td className="rechts kalk-liste__preis">{erste ? chf(erste.angebotAus) + (erste.waehrung !== "CHF" ? " " + erste.waehrung : "") : "–"}</td>
+                      <td className="rechts kalk-liste__preis">{erste ? chf(erste.angebotPe) + (erste.waehrung !== "CHF" ? " " + erste.waehrung : "") + (erste.pe > 1 ? " / " + peText(erste.pe) : "") : "–"}</td>
                       <td className="kalk-liste__datum">{alt.datumZeitKurz ? alt.datumZeitKurz(k.geaendert_am) : ""}</td>
                     </tr>);
                 })}
@@ -222,7 +222,7 @@ function Bearbeiten({ eintrag, maschinen, zurueck, neu, oeffnen, liste }) {
         {rechnung.length ? rechnung.map((r, i) => (
           <div className="kalk-band__staffel" key={i} data-staffel={i}>
             <span>{chf(r.menge, 0)} Stk</span>
-            <b>{chf(r.angebotAus)}{r.waehrung !== "CHF" ? " " + r.waehrung : ""}</b>
+            <b>{chf(r.angebotPe)}{r.waehrung !== "CHF" ? " " + r.waehrung : ""}{r.pe > 1 ? " / " + peText(r.pe) : ""}</b>
             <small>Selbstkosten {chf(r.selbstVerz, 4)} · DB {chf(r.dbPct, 1)} %</small>
           </div>)) : <div className="kalk-band__leer">Noch keine Staffelmenge</div>}
       </div>
@@ -784,6 +784,13 @@ function Preis({ k, setze, setK, rechnung }) {
             <option value="pauschal">Pauschal CHF/Stk</option><option value="prozent">Prozent</option>
           </select>
         </label>
+        {/* Preis pro 1, 100 oder 1000 Stk (Wunsch Patrick 21. November 2026),
+            Angebots- und Zielpreis gelten dann für diese Menge */}
+        <label className="kalk-mini"><span>Preis pro</span>
+          <select id="kalk-pe" value={String(peWert(k.preis.pe))} onChange={(e) => setze("preis.pe", e.target.value)}>
+            {PREISEINHEITEN.map((x) => <option key={x} value={String(x)}>{peText(x)}</option>)}
+          </select>
+        </label>
         <label className="kalk-mini"><span>Runden auf</span>
           <select id="kalk-rundung" value={k.preis.rundung || "0.01"} onChange={(e) => setze("preis.rundung", e.target.value)}>
             <option value="0.01">1 Rappen</option><option value="0.05">5 Rappen</option>
@@ -829,12 +836,12 @@ function Preis({ k, setze, setK, rechnung }) {
               <Zeile titel="Grenzkosten GK" einheit="CHF/Stk" werte={R((r) => r.grenz, 4)} klein />
               <Zeile titel="Marge VK" einheit="CHF" werte={R((r) => r.margeVk, 4)} />
               <Zeile titel="Verkaufspreis VK" einheit="CHF/Stk" werte={R((r) => r.vk, 4)} fett />
-              <tr><td>Angebotspreis <span className="kalk-einheit">{w}/Stk</span> <small>leer = VK gerundet</small></td>{rechnung.map((r, i) => SF("angebot", i, "kalk-angebot-" + i, chf(Math.round(r.vk * r.faktor / (z(k.preis.rundung) || 0.01)) * (z(k.preis.rundung) || 0.01))))}</tr>
-              <tr><td>Zielpreis <span className="kalk-einheit">{w}/Stk</span></td>{rechnung.map((r, i) => SF("ziel", i, "kalk-ziel-" + i))}</tr>
-              <tr className="kalk-fett kalk-hervor"><td>Angebotspreis gilt <span className="kalk-einheit">{w}/Stk</span></td>{rechnung.map((r, i) => <td key={i} className="rechts">{chf(r.angebotAus)}</td>)}</tr>
+              <tr><td>Angebotspreis <span className="kalk-einheit">{w}/{peText(k.preis.pe)}</span> <small>leer = VK gerundet</small></td>{rechnung.map((r, i) => SF("angebot", i, "kalk-angebot-" + i, chf(Math.round(r.vk * r.faktor * r.pe / (z(k.preis.rundung) || 0.01)) * (z(k.preis.rundung) || 0.01))))}</tr>
+              <tr><td>Zielpreis <span className="kalk-einheit">{w}/{peText(k.preis.pe)}</span></td>{rechnung.map((r, i) => SF("ziel", i, "kalk-ziel-" + i))}</tr>
+              <tr className="kalk-fett kalk-hervor"><td>Angebotspreis gilt <span className="kalk-einheit">{w}/{peText(k.preis.pe)}</span></td>{rechnung.map((r, i) => <td key={i} className="rechts" data-kalk-gilt={i}>{chf(r.angebotPe)}</td>)}</tr>
               {/* nur mit Zielpreis, spart sonst eine Zeile */}
               {rechnung.some((r) => r.ziel > 0) &&
-                <Zeile titel="Abstand zum Zielpreis" einheit={w + "/Stk"} werte={rechnung.map((r) => (r.ziel > 0 ? chf(r.angebotAus - r.ziel, 4) : "–"))} klein />}
+                <Zeile titel="Abstand zum Zielpreis" einheit={w + "/" + peText(k.preis.pe)} werte={rechnung.map((r) => (r.zielPe > 0 ? chf(r.angebotPe - r.zielPe, 4) : "–"))} klein />}
             </tbody>
           </table>
         </section>}
@@ -929,7 +936,7 @@ function Angebot({ k, setze, nr, rechnung }) {
         <table className="kalk-blatt__preise">
           <thead><tr><th>Pos</th><th className="rechts">Menge</th><th>ME</th><th className="rechts">Preis (exkl. MwSt.)</th><th className="rechts">Pro</th></tr></thead>
           <tbody>{rechnung.map((r, i) => <tr key={i}><td>{i + 1}</td><td className="rechts">{chf(r.menge, 0)}</td><td>Stk</td>
-            <td className="rechts">{chf(r.angebotAus)} {r.waehrung}</td><td className="rechts">1</td></tr>)}</tbody>
+            <td className="rechts">{chf(r.angebotPe)} {r.waehrung}</td><td className="rechts">{chf(r.pe, 0)}</td></tr>)}</tbody>
         </table>
         <dl className="kalk-blatt__teil">
           <dt>Lieferzeit</dt><dd>{k.angebot.lieferzeit}</dd>

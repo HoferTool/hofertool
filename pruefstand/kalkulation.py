@@ -28,7 +28,8 @@ with sync_playwright() as p:
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=MIT))
     pg.reload(wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
-    pruefe(pg.locator("[data-nav='kalkulation']").count() > 0, "Kalkulation im Menü mit Vermerk")
+    # Seit 1.672.0 steht die Kalkulation im Test ERP, nicht mehr im Menü; #/kalkulation geht weiter
+    pruefe(pg.locator("[data-nav='kalkulation']").count() == 0, "Kalkulation nicht mehr im Menü (im Test ERP)")
     pg.evaluate("location.hash='#/kalkulation'"); pg.wait_for_selector("#kalk-beispiel")
     pg.click("#kalk-beispiel"); pg.wait_for_selector("#kalk-band .kalk-band__staffel"); pg.wait_for_timeout(600)
     band = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()

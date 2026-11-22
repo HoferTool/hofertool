@@ -3,6 +3,25 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.691.1 (22. November 2026)
+
+- Prüfstand `reihen.py` robuster: scheiterte auf GitHub ab und zu, weil das Spiel im langsamen Runner länger zum Starten und Beenden brauchte als die festen 6 Sekunden. Jetzt wartet er bis 20 Sekunden auf Start und Ende, Klicks bis 60 Sekunden, und misst „Menü ohne Rollen“ erst, wenn das Menü ruhig steht. Die App selbst ist unverändert.
+
+## 1.690.0 (21. November 2026)
+
+- Test ERP: Fenster im Aufbau wie im Gewatec, im Stil des HoferTools: oben die wichtigsten Felder, rechts das Bild, darunter Reiter, unten die Knöpfe. Blau unterstrichene Beschriftungen öffnen mit Rechtsklick (am iPad antippen) die passenden Sprünge. Neu: Kunde/Lieferant mit Reitern, Artikel mit Reitern Verkauf, Arbeitsplan (Arbeitsgang je Fenster), Lager, Belege, Dokumente, Artikel-Cockpit, Positionsfenster und Lieferplan beim Auftrag. Bewusst schlank, nur die Grundfunktionen (Wunsch Patrick). Behoben: nach dem ersten Speichern hiess der Artikel wieder „neu“, wenn die Datenbank die Zeile nicht zurückgab.
+
+## 1.685.0 (21. November 2026)
+
+- Test ERP: Reiter Kalkulation zuerst, dann Stammdaten. Kalkulation wahlweise pro 1, 100 oder 1'000 Stk. Aus der Kalkulation kommen alle Staffelpreise als Preisliste in den Artikel, mit Vermerk, aus welcher Kalkulation, und das Rohmaterial, wenn der Rohmaterial-Artikel schon besteht (sonst nur als Text). Neues grosses Artikelfenster mit Preisliste (ändern, drucken) und Platz für Zeichnung und 3D-Modell (kommen mit dem Dokumentenmanagement). Positionen mit Preiseinheit und Staffelpreis nach Menge. Alle ERP-Fenster waren auf 400 Punkte begrenzt, jetzt breit, Stammdaten gross (Wunsch Patrick).
+
+
+- Prüfstand `reihen` robuster: scheiterte seit Tagen auf allen Zweigen und nachts auf main („8 von 10 richtig“, Klick-Zeitüberschreitung). Er wartet jetzt auf die nächste Aufgabe statt fester Pausen, macht keine Bildschirmfotos mehr, während die 3 Sekunden laufen (mit WebGL dauerte eines oft länger), und merkt die grüne Rückmeldung mit einem Beobachter im Browser. Die App selbst ist unverändert.
+
+## 1.672.0 (20. November 2026)
+
+- Neuer Menüpunkt **Test ERP** (nur mit Vermerk `erpSehen`, nie Externe): Stammdaten (Kunden, Lieferanten, Artikel mit Index, Bedingungen, Lager), Aufträge und Rahmenaufträge mit Lieferplan, Fertigungsaufträge mit Arbeitsplan, Material und Fertigmeldung, Bestellungen mit Wareneingang, Lieferscheine nur aus Bestand mit gleichem Index, Rechnungen aus Lieferscheinen (Sammel- oder Einzelrechnung), freie Rechnungen, Gutschriften, Proforma, Fibu-Export nur Debitoren (Rechnungen und Gutschriften), Rückverfolgung je Charge bis zum Rohmaterial (Pflichtenheft Patrick). Die bestehende Kalkulation steht jetzt als Reiter im Test ERP statt im Menü (Wunsch Patrick); daraus legt „Artikel und Arbeitsplan anlegen“ den Artikel mit Index und Arbeitsplan an. Prüfstand `erp_test.py`.
+
 ## 1.661.1 (20. November 2026)
 
 - Drucken über den Pool-Rechner: die Meldung „Der Pool-Rechner hat sich länger nicht gemeldet“ kam fälschlich, weil die Datenbank sein Lebenszeichen nur alle 10 Minuten neu schreibt (status-sparsam), die App aber schon nach 2 Minuten warnte. Jetzt erst nach 12 Minuten (`poolLebt` in `src/teile/poolDruck.js`).

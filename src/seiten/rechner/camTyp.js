@@ -376,6 +376,69 @@ G28U0.
 M01`,
   "dreh.k2": `{PAARE2}`,
   "dreh.k3": `{PAARE3}`,
+  // Seit 1.677.0 (Patrick 21. November 2026: „t1100 und t1200 sind
+  // drehwerkzeuge für kanal 3 … gleiche bearbeitungsvorlage wie t100-t400“)
+  "k3dr.k1": `{PAARE}`, "k3dr.k2": `{PAARE2}`,
+  "k3dr.k3": `T{PLATZ}{BEZ_K}
+{DREH}S{SSTART}T{TK}
+[hd] M1881D{HD}
+G0X[#531+1.]Z{ANZ}
+[g50] G50S{G50}
+[g96] G96S{S}
+{CODE}
+[hdaus] M1891
+[g96] G97
+T0
+G28U0.
+M01`,
+  // Seit 1.678.0 (Patrick 21. November 2026: „bearbeitungen für
+  // querangetriebene werkzeuge t500-t700 und t1300-t1500, nimm die gleichen
+  // vorlagen wie bei der sb20-rg“): wie "seite.k1" der SB-20RG, nur die
+  // Korrektur zweistellig wie bei der SW-20 (G0T05, G0T13)
+  "seite.k1": `T{PLATZ}{BEZ_K}
+[hd] M1883D{HD}
+G0T{TK}
+{DREH}S{S}
+G0X[#531+1.]Z{ANZ}
+{VOR}
+M8
+M7
+G0
+G28H0.
+G1Y0.C0.F1.
+{CODE}
+G0X30.
+G0Y0.
+[hdaus] M1893
+T0
+[m38] M38
+M9
+G99
+T0
+M1`,
+  "seite.k3": `{PAARE3}`,
+  "k3s.k1": `{PAARE}`, "k3s.k2": `{PAARE2}`,
+  "k3s.k3": `T{PLATZ}{BEZ_K}
+[hd] M1883D{HD}
+G0T{TK}
+{DREH}S{S}
+G0X[#531+1.]Z{ANZ}
+{VOR}
+M8
+M7
+G0
+G28H0.
+G1Y0.C0.F1.
+{CODE}
+G0X30.
+G0Y0.
+[hdaus] M1893
+T0
+[m38] M38
+M9
+G99
+T0
+M1`,
   k1kopf: `%
 O{NR}{NAME}(N)
 ({DATUM_KUERZEL})
@@ -396,7 +459,7 @@ G40M9
 G99M3S1409
 M11
 G4U0.2
-G0Z{SCHLICHT}T0(PLANDREH-ZUGABE)
+G0Z-{SCHLICHT}T0(PLANDREH-ZUGABE)
 M10
 G4U0.20
 T100
@@ -416,7 +479,7 @@ M3S{S}T01
 M25
 G0X[#531+1]Z[#530+#528]
 G4U0.20
-G1W0.10F0.10
+G1W{PLAN}F0.10
 M1881D2(HD EIN)
 M82
 M40
@@ -593,6 +656,27 @@ G50Z{NZ}
 M01
 G28U0.
 G0T0`,
+  // Seit 1.676.0 Frontbohrhalter fest T1300–T1500 (Bestückung „fest“)
+  // nach Patricks T1400 und T1500 aus O3272 (21. November 2026): wie die
+  // festen Werkzeuge, am Ende Nullpunkt zurück G0Z / G50Z / G0Z weg
+  "k3ff.k1": `{PAARE}`,
+  "k3ff.k2": `{PAARE2}`,
+  "k3ff.k3": `T{PLATZ}{BEZ_K}
+{VOR}
+{DREH}S{S}T{TK}
+[hd] M188{HDN}D{HD}
+G0X{VORX}
+G0Z{ANZ}
+G50Z{NZ}
+[y] G0{Y}
+{CODE}
+G0Z{NZ}
+G50Z{ANZ}
+G0Z{WEGZ}
+[hdaus] M189{HDN}(HD AUS)
+M01
+G28U0
+G0T0`,
   k3kopf: `%
 O{NR3}{NAME}(N)
 ({DATUM_KUERZEL})
@@ -629,6 +713,9 @@ export const ARTEN = [
   // Seit 1.666.0 nur SW-20: Kanal 3, Frontbohrapparat T1300–T1500
   { id: "k3f", text: "Kanal 3 Frontbohrapparat", plaetze: "k3f" },
   { id: "k3d", text: "Kanal 3 feste Werkzeuge", plaetze: "k3d" },
+  { id: "k3ff", text: "Kanal 3 Frontbohrhalter fest", plaetze: "k3ff" },
+  { id: "k3dr", text: "Kanal 3 Drehwerkzeug", plaetze: "k3dr" },
+  { id: "k3s", text: "Kanal 3 Querangetrieben", plaetze: "k3s" },
 ];
 export const vorlageArt = (b) => ((b.art === "front" || b.art === "quer") && b.spindel === "gegen" ? b.art + "Gegen" : b.art || "dreh");
 
@@ -643,6 +730,9 @@ export const PLATZ_GRUPPEN = [
   { id: "k2b", text: "Kanal 2 Bohren stehend" },
   { id: "k3f", text: "Kanal 3 Frontbohrapparat" },
   { id: "k3d", text: "Kanal 3 feste Werkzeuge" },
+  { id: "k3ff", text: "Kanal 3 Frontbohrhalter fest" },
+  { id: "k3dr", text: "Kanal 3 Drehwerkzeuge" },
+  { id: "k3s", text: "Kanal 3 Querangetrieben" },
 ];
 const PLAETZE = {
   dreh: ["100", "200", "300", "400", "500", "600"],
@@ -659,9 +749,9 @@ const VORGABEN = { A: "17", W: "15.125", S: "3000", X: "-0.8", Z: "167.85", F: "
 // T100–T400 Drehwerkzeuge, T500 / T600 mit Frontbohrapparat, T700 quer;
 // Kanal 2 T2100–T2800. Nur die Frontbearbeitung hat schon eine Vorlage,
 // die übrigen werden beim Einlesen „wie eingelesen“.
-const PLAETZE_SW20 = { ...PLAETZE, dreh: ["100", "200", "300", "400"], front: ["500", "600"], seite: ["700"], quer: [],
+const PLAETZE_SW20 = { ...PLAETZE, dreh: ["100", "200", "300", "400"], front: ["500", "600"], seite: ["500", "600", "700"], quer: [],
   k2: ["2100", "2200", "2300", "2400"], k2a: ["2500", "2600"], k2b: ["2700", "2800"], k3f: ["1300", "1400", "1500"],
-  k3d: ["1600", "1700", "1800", "1900"] };
+  k3d: ["1600", "1700", "1800", "1900"], k3ff: ["1300", "1400", "1500"], k3dr: ["1100", "1200"], k3s: ["1300", "1400", "1500"] };
 const BLOECKE_SW20 = { dreh: { hd: "3", dreh: "3", S: "2500", sArt: "vc", vc: "350", g96: "1", g50: "5000", anZ: "-0.5" },
   // Kanal 3 Frontbohrapparat (1.666.0) nach Patricks T1300
   // Kanal 2 (1.667.0) nach Patricks T2100, T2600 und T2700
@@ -671,7 +761,13 @@ const BLOECKE_SW20 = { dreh: { hd: "3", dreh: "3", S: "2500", sArt: "vc", vc: "3
   k3f: { hd: "", dreh: "36", S: "5000", X: "", Y: "0.0", anZ: "-2.0", C: "0.1", zuZ: "", wegZ: "1.00" },
   // Kanal 3 feste Werkzeuge (1.666.0) nach Patricks T1600
   k3d: { hd: "5", hdN: "3", dreh: "3", S: "4500", vor: "99", vorX: "0.00", anZ: "25.00", nZ: "-0.50", Y: "0.00" },
+  // Frontbohrhalter fest Kanal 3 (1.676.0) nach Patricks T1400
+  k3ff: { hd: "5", hdN: "4", dreh: "3", S: "2000", vor: "99", vorX: "0.00", anZ: "5.00", nZ: "-0.50", Y: "0.0", wegZ: "2.00" },
   front: { hd: "3", dreh: "3", S: "3000", X: "0.0", Y: "0.0", anZ: "5.00", nZ: "-0.50" } };
+BLOECKE_SW20.k3dr = { ...BLOECKE_SW20.dreh };
+// Querangetrieben (1.678.0) wie bei der SB-20RG
+BLOECKE_SW20.seite = { hd: "3", dreh: "36", S: "6000", anZ: "0" };
+BLOECKE_SW20.k3s = { ...BLOECKE_SW20.seite };
 const BLOECKE = {
   dreh: { hd: "4", dreh: "3", S: "3000", anZ: "0", wegF: "0.05", wegA: "45" },
   front: { hd: "4", dreh: "3", S: "2500", anZ: "5.0", wegZ: "0" },
@@ -697,15 +793,16 @@ export function vorgabeTyp(id = TYP) {
     id: info.id, name: info.name, kanaele: info.kanaele, nummern: [...info.nummern],
     // Bearbeitungsarten dieses Typs (SW-20: noch keine, folgen nach Patrick)
     // Seit 1.665.0 beim SW-20 die Frontbearbeitung Kanal 1
-    arten: sw ? ["dreh", "front", "k2", "k2b", "k2a", "k3f", "k3d"] : ARTEN.map((a) => a.id).filter((a) => !a.startsWith("k3") && a !== "k2b"),
+    arten: sw ? ["dreh", "front", "seite", "k2", "k2b", "k2a", "k3dr", "k3s", "k3f", "k3ff", "k3d"] : ARTEN.map((a) => a.id).filter((a) => !a.startsWith("k3") && a !== "k2b"),
     vorlagen: sw ? { ...V, ...V_SW20 } : { ...V },
     plaetze: Object.fromEntries(Object.entries(sw ? PLAETZE_SW20 : PLAETZE).map(([k, l]) => [k, [...l]])),
     vorgaben: sw ? { ...VORGABEN_SW20 } : { ...VORGABEN },
     bloecke: Object.fromEntries(Object.entries(sw ? { ...BLOECKE, ...BLOECKE_SW20 } : BLOECKE).map(([k, o]) => [k, { ...o }])),
     marken: { ...MARKEN },
-    // SW-20: Kopf und Ende haben kein {PLAN}, das Feld oben bleibt dort weg
+    // SW-20: seit 1.675.2 steht {PLAN} im Ende von Kanal 1 als Schlichtzugabe
+    // für die Gegenspindel (G1W…F0.10 vor dem Abstechen, Patrick 21. November 2026)
     // Frontbearbeitung SW-20: ohne G99/G98 und ohne „Zurück Z“ (Patricks T600)
-    felder: { aus: sw ? { kopf: ["plan"], dreh: ["vor", "wegA", "wegF"], front: ["vor"], k2: ["vor"], k2a: ["vor", "hd"], k2b: ["vor", "hd"], k3f: ["vor"] } : {}, eigene: [] },
+    felder: { aus: sw ? { dreh: ["vor", "wegA", "wegF"], front: ["vor"], k2: ["vor"], k2a: ["vor", "hd"], k2b: ["vor", "hd"], k3f: ["vor"] } : {}, eigene: [] },
   };
 }
 

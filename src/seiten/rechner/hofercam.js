@@ -39,6 +39,17 @@ export function zahl(text) {
   return t.includes(".") ? t : t + ".";
 }
 
+// Seit 1.675.2 (Patrick 21. November 2026: „bei dieser Maschine ist die
+// höchste Position im Programmkopf 205 mm“): Z Start höchstens 205 bei der
+// SW-20, sonst 200
+export const zMax = (w) => (w && w.typ === "star-sw20" ? 205 : 200);
+// Seit 1.675.2: bei der SW-20 ist „plan“ die Schlichtzugabe für die
+// Gegenspindel (G1W…F0.10 im Ende von Kanal 1, Patrick 21. November 2026)
+export const feldFuerTyp = (d, w) => (!w || w.typ !== "star-sw20" ? d
+  : d.name === "plan" ? { ...d, text: "Schlichtzugabe Gegensp. W", lang: "Ende Kanal 1: G1W…F0.10 vor dem Abstechen (Schlichtzugabe für die Gegenspindel)" }
+  : d.name === "schlicht" ? { ...d, text: "Plandrehzugabe Hauptsp. Z", lang: "Kopf Kanal 1: G0Z…T0(PLANDREH-ZUGABE), ohne Minus eingeben, das Programm schreibt G0Z-…", ohneMinus: true } : d);
+export const zLang = (w) => `Z = #525 Z-Achse Startposition, höchstens ${zMax(w)}: ${zMax(w)} mm minus Teilelänge minus inkl. evtl. vers. Abstecher minus Sicherheit`;
+
 export const FELDER = [
   { gruppe: "Programm", felder: [
     { name: "nr", text: "Nr. Kanal 1", einheit: "1–999", lang: "Programm-Nr. Kanal 1, 1 bis 999 (Kanal 2 = Nr. + 1000)", art: "nr" },
@@ -99,7 +110,10 @@ export function pruefen(w) {
     else if (zahl(w[d.name]) == null) f[d.name] = "Zahl fehlt";
     else if (d.ganz && !Number.isInteger(Number(String(w[d.name]).replace(",", ".")))) f[d.name] = "ganze Zahl";
   }
-  if (!f.Z && Number(String(w.Z).replace(",", ".")) > 200) f.Z = "höchstens 200";
+  if (!f.Z && Number(String(w.Z).replace(",", ".")) > zMax(w)) f.Z = "höchstens " + zMax(w);
+  // Seit 1.676.1 (Patrick 21. November 2026: „die plandrehzugabe für
+  // hauptspindel soll nicht mit negativem vorzeichen eingetragen werden können“)
+  if (w.typ === "star-sw20" && !f.schlicht && /^\s*-/.test(String(w.schlicht ?? ""))) f.schlicht = "ohne Minus";
   return f;
 }
 
@@ -178,7 +192,16 @@ export const t34Von = (w) => (w && String(w.t34) === "3421" ? "3421" : "3400");
 const istSw = () => (typ().kanaele || 2) > 2;
 export function montiert(gruppe, w) {
   const l = plaetzeVon(gruppe);
-  if (istSw()) return gruppe === "front" || gruppe === "k3f" ? l.filter((p) => swFrontVon(w).includes(Number(p))) : l;
+  // Seit 1.676.0 (Patrick 21. November 2026: „frontbohrapparate können für
+  // feste werkzeuge oder angetrieben sein“): je Platz fest oder angetrieben
+  if (istSw()) {
+    if (gruppe === "front" || gruppe === "k3ff") return l.filter((p) => swFrontVon(w).includes(Number(p)) && swFrontArt(w, p) === "fest");
+    if (gruppe === "k3f") return l.filter((p) => swFrontVon(w).includes(Number(p)) && swFrontArt(w, p) === "an");
+    // Querangetrieben (1.678.0) nur auf Plätzen ohne Frontbohrapparat
+    // T700 mit Schlitzapparat (1.679.0) ebenso nicht
+    if (gruppe === "seite" || gruppe === "k3s") return l.filter((p) => !swFrontVon(w).includes(Number(p)) && !(Number(p) === 700 && swSchlitzVon(w)));
+    return l;
+  }
   const t = t34Von(w);
   if (gruppe === "seite" && t !== "3400") return l.filter((p) => String(p) !== "3400");
   if (gruppe === "quer" && t === "3400") return [];
@@ -186,7 +209,7 @@ export function montiert(gruppe, w) {
 }
 export function nichtMontiert(b, w) {
   const p = String(b.platz ?? ""), t = t34Von(w);
-  if (istSw()) return (b.art === "front" || b.art === "k3f") && !b.frei && !swFrontVon(w).includes(Number(p));
+  if (istSw()) return ["front", "k3f", "k3ff", "seite", "k3s"].includes(b.art) && !b.frei && !montiert(b.art, w).includes(p);
   return (p === "3400" && t !== "3400") || (/^342[1-3]$/.test(p) && t === "3400");
 }
 // Die SB-20RG hat nur vier Hochdruck-Stufen (Patrick 7. November 2026: „es gibt nur 4 nicht 6“).
@@ -245,13 +268,15 @@ export function drehzahl(b, w = {}) {
 
 export function blockFehler(b, w = {}) {
   const f = {};
-  if (nichtMontiert(b, w)) f.platz = "T" + b.platz + (istSw() ? " hat keinen Frontbohrapparat (Bestückung)" : " ist nicht montiert (Kopfdaten: Platz 34)");
+  if (nichtMontiert(b, w)) f.platz = "T" + b.platz + (!istSw() ? " ist nicht montiert (Kopfdaten: Platz 34)"
+    : !swFrontVon(w).includes(Number(b.platz)) ? " hat keinen Frontbohrapparat (Bestückung)"
+    : " hat einen Frontbohrapparat " + (swFrontArt(w, b.platz) === "an" ? "angetrieben" : "fest") + " (Bestückung)");
   if (b.frei) return f;
   b = wirksamB(b); w = wirksamW(w);
   // Kanal 3 SW-20 (1.666.0)
-  if (b.art === "k3f" || b.art === "k3d") {
+  if (b.art === "k3f" || b.art === "k3d" || b.art === "k3ff") {
     if (!/^\d+$/.test(String(b.S).trim()) || Number(b.S) <= 0) f.S = "ganze Zahl";
-    const pflicht = b.art === "k3f" ? ["X", "anZ", "zuZ", "wegZ"] : ["vorX", "anZ", "nZ"];
+    const pflicht = b.art === "k3f" ? ["X", "anZ", "zuZ", "wegZ"] : b.art === "k3ff" ? ["vorX", "anZ", "nZ", "wegZ"] : ["vorX", "anZ", "nZ"];
     for (const n of pflicht) if (zahl(b[n]) == null) f[n] = "Zahl fehlt";
     for (const n of ["Y", "C"]) if (String(b[n] ?? "").trim() !== "" && zahl(b[n]) == null) f[n] = "Zahl oder leer";
     return f;
@@ -279,7 +304,7 @@ export function blockFehler(b, w = {}) {
     for (const n of ["vorX", "vorZ", "nX", "nZ"]) if (zahl(b[n]) == null) f[n] = "Zahl fehlt";
     return f;
   }
-  if (b.art === "seite") {
+  if (b.art === "seite" || b.art === "k3s") {
     if (!/^\d+$/.test(String(b.S).trim()) || Number(b.S) <= 0) f.S = "ganze Zahl";
     if (zahl(b.anZ) == null) f.anZ = "Zahl fehlt";
     return f;
@@ -364,12 +389,12 @@ function blockWerte(b, w, marke) {
   // Seit 1.662.0: Drehzahlbegrenzung G50S… vor G96, nur mit G96 und Wert
   const g50 = g96 && zahl(b.g50) != null && Number(zahl(b.g50)) > 0 ? String(Math.round(Number(zahl(b.g50)))) : "";
   const roh = String(b.S ?? "").trim();
-  const mitVc = art === "dreh" || art === "front" || art === "frontGegen" || art === "k2";
+  const mitVc = art === "dreh" || art === "k3dr" || art === "front" || art === "frontGegen" || art === "k2";
   const S = mitVc ? drehzahl(b, w) ?? roh : roh;
   // Drehrichtung je Art: stehend M3 / M4, angetrieben M36 / M37
   const dreh = art === "k2" ? (b.dreh === "3" ? 3 : 4)
     : art === "k2a" ? (istSw() ? (b.dreh === "57" ? 57 : 56) : b.dreh === "36" ? 36 : 37)
-    : art === "seite" || art === "quer" || art === "querGegen" || art === "k3f" ? (b.dreh === "37" ? 37 : 36)
+    : art === "seite" || art === "k3s" || art === "quer" || art === "querGegen" || art === "k3f" ? (b.dreh === "37" ? 37 : 36)
     : (b.dreh === "4" ? 4 : 3);
   const mk = marke || (anGegenspindel(b) ? STANDARD_MARKEN[b.art] : null) || {};
   const g = (n) => zahl(b[n]) ?? String(b[n] ?? "");
@@ -722,14 +747,25 @@ export function synchronisieren(...listen) {
     }
     kan.forEach((k) => { pos[k] = bis[k]; });
   };
-  for (const e of anker) {
+  // Seit 1.670.0: ein Kanal, für den eine Marke nicht gilt (z.B. Kanal 2
+  // bei M420P13), läuft daneben weiter bis zu seiner nächsten eigenen
+  // Marke, statt mit leeren Zeilen auf die anderen zu warten (Patrick
+  // 20. November 2026: „warum macht kanal 2 nichts bis m420P13?“)
+  const naechste = (ai, k) => {
+    for (let j = ai; j < anker.length; j++) if (k in anker[j].at) return anker[j].at[k];
+    return zl(k).length;
+  };
+  anker.forEach((e, ai) => {
+    const drin = kan.filter((k) => k in e.at);
+    const n = Math.max(0, ...drin.map((k) => e.at[k] - pos[k]));
     const bis = {};
-    kan.forEach((k) => { bis[k] = k in e.at ? e.at[k] : pos[k]; });
+    kan.forEach((k) => { bis[k] = k in e.at ? e.at[k] : Math.min(pos[k] + n, naechste(ai, k)); });
     abschnitt(bis);
-    const r = { ...leer(), sync: true };
+    const r = { ...leer(), sync: true, syncK: new Set(drin.map((k) => k + 1)) };
     Object.entries(e.at).forEach(([k, i]) => { r["k" + (Number(k) + 1)] = zelle(Number(k), i); pos[k] = i + 1; });
+    kan.forEach((k) => { if (!(k in e.at) && pos[k] < naechste(ai, k)) { r["k" + (k + 1)] = zelle(k, pos[k]); pos[k]++; } });
     reihen.push(r);
-  }
+  });
   const ende = {};
   kan.forEach((k) => { ende[k] = zl(k).length; });
   abschnitt(ende);
@@ -1032,12 +1068,17 @@ const r4 = (a, text, verdeckt) => ({ x: a[0], y: a[1], w: a[2], h: a[3], text, v
 // Kanal 2 Rückseiteneinheit oben T2400–T2100, unten T2800–T2500 (von
 // links). Lage von Claude geschätzt, Patrick: „wir können immer noch
 // korrigieren“
-export const SW20_BILD = { datei: "hilfe/star-sw20.png", b: 603, h: 637 };
+// Seit 1.679.0 (Patrick 21. November 2026: „wenn die Bohrapparate,
+// feststehenden Halter und der Schlitzapparat montiert sind, im
+// Werkzeugauswahlbild anzeigen … für T1500 ein Beispiel im aktuellen Bild“):
+// Grundbild ohne den Apparat auf T1500 (dort ein querangetriebenes
+// Werkzeug wie T1400), die Apparate legt HoferCam.jsx je Bestückung darüber
+export const SW20_BILD = { datei: "hilfe/star-sw20-grund.png", b: 603, h: 637 };
 const SW20_FLAECHEN = {
   100: [228, 393, 34, 15], 200: [228, 377, 34, 15], 300: [228, 361, 34, 15], 400: [228, 345, 34, 15],
   500: [233, 296, 28, 21], 600: [233, 275, 28, 20], 700: [233, 255, 28, 20],
   1100: [325, 299, 38, 16], 1200: [325, 277, 38, 16],
-  1300: [335, 238, 30, 17], 1400: [333, 206, 45, 18], 1500: [333, 190, 45, 15],
+  1300: [333, 187, 45, 18], 1400: [333, 206, 45, 18], 1500: [333, 225, 45, 18],
   1600: [340, 131, 40, 19], 1700: [340, 111, 40, 19], 1800: [340, 91, 40, 19], 1900: [340, 71, 40, 19],
 };
 [2400, 2300, 2200, 2100].forEach((p, i) => { SW20_FLAECHEN[p] = [160 + 25 * i, 485, 26, 50]; });
@@ -1051,10 +1092,40 @@ export const SW20_KANAL_PLAETZE = {
   3: [1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900],
   2: [2100, 2200, 2300, 2400, 2500, 2600, 2700, 2800],
 };
+// Seit 1.680.0 (Patrick 21. November 2026: „an den Platz eines
+// querangetriebenen Werkzeugs kommt einfach das Frontwerkzeug anstelle des
+// querangetriebenen, wenn montiert … schau dir das Bild von 1500 genau an“):
+// je Platz ein Ausschnitt des Bilds, in dem der Querbohrer weg ist und ein
+// Halter wie T1600 in Z-Richtung genau an seiner Stelle sitzt, untereinander
+// wie die Querwerkzeuge. [x, y, b, h] im Bild, Datei hilfe/sw20-front-<platz>-<an|fest>.png
+export const SW20_FRONT_BILD = {
+  1300: { an: [340, 183, 34, 31], fest: [331, 183, 43, 34] },
+  1400: { an: [340, 203, 34, 31], fest: [332, 203, 42, 34] },
+  1500: { an: [340, 222, 34, 31], fest: [330, 222, 44, 33] },
+  500: { an: [211, 301, 52, 30], fest: [211, 296, 62, 35] },
+  600: { an: [211, 278, 52, 30], fest: [211, 273, 62, 35] },
+};
+// Schlitzapparat (1.679.0, Patrick 21. November 2026: „bei Bestückung
+// brauchen wir noch den Schlitzapparat auf T700“; Handbuch: T700 nur
+// Schlitzapparat): Spitze und Richtung des Werkzeugs T700 im Bild
+export const SW20_SCHLITZ_BILD = { spitze: [256, 263], achse: [0.86, -0.5] };
+export function swSchlitzVon(w) { return !!(w && w.swSchlitz); }
+// Alle Apparate der Bestückung fürs Bild: [{platz, art: "fest"|"an"|"schlitz"}]
+export function swApparate(w) {
+  const l = swFrontVon(w).map((p) => ({ platz: p, art: swFrontArt(w, p) }));
+  if (swSchlitzVon(w)) l.push({ platz: 700, art: "schlitz" });
+  return l;
+}
 // Bestückung: Liste der Plätze mit Frontbohrapparat in w.swFront
 export function swFrontVon(w) {
   const l = Array.isArray(w && w.swFront) ? w.swFront.map(Number) : [];
   return SW20_FRONT_PLAETZE.filter((p) => l.includes(p));
+}
+// Art des Frontbohrapparats je Platz (1.676.0): w.swFrontArt {platz: "fest" | "an"};
+// ohne Wahl Kanal 1 fest (Patricks T600), Kanal 3 angetrieben (Patricks T1300)
+export function swFrontArt(w, platz) {
+  const a = w && w.swFrontArt && w.swFrontArt[String(Number(platz))];
+  return a === "fest" || a === "an" ? a : Number(platz) <= 700 ? "fest" : "an";
 }
 export function sw20Bereich(platz, w) {
   const p = Number(platz);
@@ -1062,9 +1133,10 @@ export function sw20Bereich(platz, w) {
   if (!a) return null;
   let text;
   if (p <= 400) text = p === 100 ? "Kanal 1 · Abstechen" : "Kanal 1 · Drehwerkzeug";
-  else if (p <= 700) text = "Kanal 1 · " + (swFrontVon(w).includes(p) ? "Frontbohrapparat" : "angetrieben quer");
+  else if (p === 700 && swSchlitzVon(w)) text = "Kanal 1 · Schlitzapparat";
+  else if (p <= 700) text = "Kanal 1 · " + (swFrontVon(w).includes(p) ? "Frontbohrapparat " + (swFrontArt(w, p) === "an" ? "angetrieben" : "fest") : "angetrieben quer");
   else if (p <= 1200) text = "Kanal 3 · Drehwerkzeug";
-  else if (p <= 1500) text = "Kanal 3 · " + (swFrontVon(w).includes(p) ? "Frontbohrapparat" : "angetrieben quer");
+  else if (p <= 1500) text = "Kanal 3 · " + (swFrontVon(w).includes(p) ? "Frontbohrapparat " + (swFrontArt(w, p) === "an" ? "angetrieben" : "fest") : "angetrieben quer");
   else if (p <= 1900) text = "Kanal 3 · Frontbohrapparat fest";
   else text = "Kanal 2 · Rückseite " + (p === 2400 || p === 2800 ? "fest" : "fest oder angetrieben");
   return r4(a, text);

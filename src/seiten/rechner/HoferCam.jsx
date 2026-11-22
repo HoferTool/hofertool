@@ -20,48 +20,82 @@ import { ModulWahl, modulEmpfaenger, modulZustandAblage } from "./modulTab.jsx";
 import { TYPEN, typInfo, typVon, typWaehlen, eigeneFelder, eigenWert, feldAus, typBeobachten, wirksamB, wirksamW } from "./camTyp.js";
 import { camTypFensterOeffnen, camTypLaden } from "./CamTypFenster.jsx";
 import { bloeckeLesen, kopfLesen } from "./camLesen.js";
-import { wzFehler, wzText } from "./camWerkzeug.js";
+import { wzArten, wzFehler, wzText } from "./camWerkzeug.js";
+import { bibliothekFuerPlatz, bibliothekLaden, wzAusBibliothek } from "./camArtikel.js";
+import { bibliothekOeffnen } from "./CamWzBibliothek.jsx";
 import { WerkzeugFeld } from "./CamWerkzeugBild.jsx";
+import { protokollAusApp, protokollText, protokollZuordnen } from "./camProtokoll.js";
 import { simulationOeffnen } from "./CamSim3D.jsx";
-import { VORLAGEN, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen } from "./camVorlagen.js";
+import { optimierungOeffnen } from "./CamOptimierung.jsx";
+import { VORLAGEN, feldSichtbar, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen } from "./camVorlagen.js";
 import AbstecherBild from "./AbstecherBild.jsx";
 import SchnabelBild from "./SchnabelBild.jsx";
 import { hofercamTutorialOeffnen } from "../start/NeuesTutorial.jsx";
 import { EinstichBild, EinstichSteuerung } from "./CamEinstichBild.jsx";
-import { SW20_BILD, SW20_FRONT_PLAETZE, SW20_KANAL_PLAETZE, sw20Bereich, swFrontVon, nrKanal, FELDER, HD_STUFEN, abVersatz, AB_VERSATZ_VORGABE, plaetzeVon, platzGruppe, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, handZurueck, markenPaare, eigenerKanal, kanalZahl, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
+import { VorlageBild, VORLAGE_TEXT } from "./CamVorlageBilder.jsx";
+import { bereichLage, zLang, feldFuerTyp, SW20_BILD, SW20_FRONT_BILD, SW20_SCHLITZ_BILD, swApparate, swSchlitzVon, SW20_FRONT_PLAETZE, SW20_KANAL_PLAETZE, sw20Bereich, swFrontVon, swFrontArt, nrKanal, FELDER, HD_STUFEN, abVersatz, AB_VERSATZ_VORGABE, plaetzeVon, platzGruppe, montiert, t34Von, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, handZurueck, markenPaare, eigenerKanal, kanalZahl, markenOrdnen, freieMarken, wartemarkenEinsetzen, programmLesen, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Seit 1.427.0 (Wunsch Patrick 5. November 2026: „vordefinierte
 // Bearbeitungen aus einer Liste einfügen … in eine bestehende
 // Bearbeitung“): Vorlage wählen, Werte tippen, „Einfügen“ setzt die
 // Zeilen nach der Zeile mit der Schreibmarke im NC-Code ein (ohne Marke
 // ans Ende). Rechnen in camVorlagen.js.
-function VorlageFeld({ code, pos, einsetzen, zu }) {
-  const [id, setId] = useState(VORLAGEN[0].id);
-  const [werte, setWerte] = useState(() => ({ [VORLAGEN[0].id]: vorlageStart(VORLAGEN[0].id) }));
+function VorlageFeld({ code, pos, einsetzen, zu, art }) {
+  // Seit 1.693.0 zuerst ein Auswahlbild mit Erklärungsgrafik je Vorlage
+  // statt einer Liste (Wunsch Patrick 22. November 2026); null = Auswahl
+  const [id, setId] = useState(null);
+  const [werte, setWerte] = useState({});
+  if (!id) return (
+    <div className="cam-vorlage" data-camvorlage>
+      <div className="cam-vorlage__kopf">
+        <b>Vorlage wählen</b>
+        <button className="knopf knopf--klein" title="Schliessen" onClick={zu}>✕</button>
+      </div>
+      <div className="cam-vwahl" data-camvorlage-auswahl>
+        {VORLAGEN.map((x) => (
+          <button key={x.id} type="button" className="cam-vwahl__karte" data-camvorlage-bild={x.id}
+            onClick={() => { setId(x.id); if (!werte[x.id]) setWerte({ ...werte, [x.id]: vorlageStart(x.id) }); }}>
+            <VorlageBild id={x.id} />
+            <b>{x.name}</b>
+            <span className="klein">{VORLAGE_TEXT[x.id] || ""}</span>
+          </button>))}
+      </div>
+    </div>
+  );
   const v = vorlageVon(id);
-  const w = werte[id] || vorlageStart(id);
+  const roh = werte[id] || vorlageStart(id);
+  // Felder mit ausArt nimmt die Vorlage aus der Bearbeitung statt zu fragen
+  const fest = Object.fromEntries(v.felder.filter((f) => f.ausArt && f.ausArt(art)).map((f) => [f.name, f.ausArt(art)]));
+  const w = { ...roh, ...fest };
   const setze = (n, x) => setWerte({ ...werte, [id]: { ...w, [n]: x } });
   const erg = vorlageZeilen(id, w);
   return (
     <div className="cam-vorlage" data-camvorlage>
       <div className="cam-vorlage__kopf">
-        <b>Vorlage</b>
-        <select data-camvorlage-wahl value={id} onChange={(e) => { setId(e.target.value);
-          if (!werte[e.target.value]) setWerte({ ...werte, [e.target.value]: vorlageStart(e.target.value) }); }}>
-          {VORLAGEN.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
-        </select>
+        <button className="knopf knopf--klein" data-camvorlage-zurueck title="Andere Vorlage wählen" onClick={() => setId(null)}>← Auswahl</button>
+        <b>{v.name}</b>
         <button className="knopf knopf--klein" title="Schliessen" onClick={zu}>✕</button>
       </div>
+      {!v.grafik && <div className="cam-vorlage__erkl"><VorlageBild id={id} /><span className="klein">{VORLAGE_TEXT[id] || ""}</span></div>}
       {v.grafik && <><EinstichSteuerung w={w} setze={setze} /><EinstichBild w={w} setze={setze} /></>}
       <div className="cam-vorlage__felder">
-        {v.felder.map((f) => f.typ === "haken"
+        {v.felder.filter((f) => f.ausArt && fest[f.name]).map((f) => (
+          <span key={f.name} className="cam-feld klein" data-camvorlage-fest={f.name + ":" + fest[f.name]}>
+            {f.text}: <b>{(f.optionen.find((o) => o[0] === fest[f.name]) || [, fest[f.name]])[1]}</b> (aus der Bearbeitung)</span>))}
+        {v.felder.filter((f) => !fest[f.name] && feldSichtbar(f, Object.fromEntries(v.felder.map((x) => [x.name, feldWert(v, w, x)])))).map((f) => f.typ === "wahl"
+          ? <div key={f.name} className="cam-feld cam-feld--wahl" title={f.lang} role="group" aria-label={f.text}>
+              <span>{f.text}</span>
+              {f.optionen.map(([o, t]) => <button key={o} type="button" data-camvorlage-wahl={f.name + ":" + o}
+                className={"knopf knopf--klein" + (feldWert(v, w, f) === o ? " aktiv" : "")} onClick={() => setze(f.name, o)}>{t}</button>)}
+            </div>
+          : f.typ === "haken"
           ? <label key={f.name} className="cam-feld cam-feld--haken" title={f.lang}>
               <input type="checkbox" data-camvorlage-feld={f.name} checked={feldWert(v, w, f)} onChange={(e) => setze(f.name, e.target.checked)} />
               <span>{f.text}</span></label>
           : <label key={f.name} className="cam-feld" title={f.lang}>
               {/* Seit 1.542.0 mit Einheit wie bei den Kopfdaten (Wunsch Patrick 14. November 2026) */}
               <span>{f.text}{f.einheit && <small className="cam-einheit"> [{f.einheit}]</small>}</span>
-              <input data-camvorlage-feld={f.name} value={w[f.name] ?? ""} inputMode="decimal" style={{ width: 64 }}
+              <input data-camvorlage-feld={f.name} value={w[f.name] ?? ""} inputMode={f.typ === "text" ? "text" : "decimal"} style={{ width: f.typ === "text" ? 170 : 64 }}
                 placeholder={(f.vorgabe && f.vorgabe(w)) || f.einheit || ""} onChange={(e) => setze(f.name, e.target.value)} />
             </label>)}
       </div>
@@ -217,7 +251,7 @@ function ImFenster() {
   const einlesen = (dateien, k) => einlesenJetzt && einlesenJetzt(dateien, k);
   return (<>
     <FensterKnoepfe w={w} einlesen={einlesen} />
-    <Kanaele prog={prog} sync={synchronisieren(prog.k1, prog.k2, prog.k3 && prog.k3.length ? prog.k3 : undefined)} fehler={pruefen(w)} bereich={bereich} bereich2={prog.bereiche2[aktivId]}
+    <Kanaele prog={prog} sync={synchronisieren(prog.k1, prog.k2, prog.k3 && prog.k3.length ? prog.k3 : undefined)} fehler={pruefen(w)} bereich={bereich} bereich2={prog.bereiche2[aktivId]} bereich3={prog.bereiche3 && prog.bereiche3[aktivId]}
       w={w} handSetzen={handSetzen} einlesen={einlesen} />
   </>);
 }
@@ -241,6 +275,97 @@ function EinlesenKnopf({ id, kanal, merkmal, einlesen, title, children }) {
     </label>
   );
 }
+// Seit 1.688.0 (Wunsch Patrick 21. November 2026: „eine Option, um
+// Werkzeugprotokolle einzulesen, um die Werkzeuge für die Simulation zu
+// erzeugen“): Excel-Werkzeugprotokoll oder Einrichtblatt der App lesen,
+// je Bearbeitung mit gleicher T-Nr. ein Werkzeug vorschlagen, ansehen,
+// Häkchen setzen und übernehmen (camProtokoll.js)
+function ProtokollFeld({ w, bloecke, setzeBloecke }) {
+  const [auf, setAuf] = useState(false);
+  const [liste, setListe] = useState(null);   // [{b, tnr, p, wz}]
+  const [an, setAn] = useState({});
+  const [quelle, setQuelle] = useState("");
+  const [laeuft, setLaeuft] = useState(false);
+  const zeigen = async (plaetze, name) => {
+    const l = protokollZuordnen(bloecke, plaetze);
+    // Seit 1.695.0: zuerst das reale Werkzeug aus der Bibliothek (Artikel im
+    // Einrichtblatt oder Art.-Nr. im Text), mit Kantenlänge und Dicke
+    try {
+      const bib = await bibliothekLaden(alt.db);
+      for (const z of l) {
+        if (!z.p) continue;
+        const e = bibliothekFuerPlatz(bib, z.p);
+        if (e && e.wz && !e.kein && wzArten(z.b.art).includes(e.wz.art)) { z.wz = wzAusBibliothek(e, z.wz || z.b.wz); z.bib = e; }
+      }
+    } catch (x) { /* ohne Bibliothek wie bisher */ }
+    if (!l.some((z) => z.p)) { alt.meldung("Im Protokoll steht keine T-Nr. der Bearbeitungen.", "warn"); return; }
+    const a = {};
+    l.forEach((z) => { if (z.wz) a[z.b.id] = !(z.b.wz && z.b.wz.form); });
+    setListe(l); setAn(a); setQuelle(name);
+  };
+  const ausDatei = async (datei) => {
+    if (!datei) return;
+    setLaeuft(true);
+    try {
+      const { excelRoh, blattAusExcel } = await import("../../einrichtblatt/excelEinlesen.js");
+      const blatt = blattAusExcel(await excelRoh(new Uint8Array(await datei.arrayBuffer())));
+      zeigen(blatt.plaetze, datei.name);
+    } catch (x) { alt.meldung("Werkzeugprotokoll lesen ging nicht: " + (x && x.message ? x.message : x), "fehler"); }
+    setLaeuft(false);
+  };
+  const ausApp = async () => {
+    setLaeuft(true);
+    try {
+      const r = await protokollAusApp(alt.db, String(w.hoco).trim(), w.typ || "star-sb20rg");
+      if (!r) alt.meldung("Zu " + w.hoco + " gibt es kein Einrichtblatt in der App mit Werkzeugen.", "warn");
+      else zeigen(r.plaetze, "Einrichtblatt " + w.hoco + (r.typName ? " " + r.typName : ""));
+    } catch (x) { alt.meldung("Einrichtblatt laden ging nicht: " + (x && x.message ? x.message : x), "fehler"); }
+    setLaeuft(false);
+  };
+  const uebernehmen = () => {
+    const neu = Object.fromEntries((liste || []).filter((z) => z.wz && an[z.b.id]).map((z) => [z.b.id, z.wz]));
+    const n = Object.keys(neu).length;
+    if (!n) return;
+    setzeBloecke(bloecke.map((b) => (neu[b.id] ? { ...b, wz: { ...(b.wz && b.wz.step ? { step: b.wz.step } : {}), ...neu[b.id] } } : b)));
+    alt.meldung(n === 1 ? "1 Werkzeug übernommen." : n + " Werkzeuge übernommen.", "gut");
+    setListe(null); setAuf(false);
+  };
+  const zu = () => { setAuf(false); setListe(null); };
+  if (!auf) return (<button className="knopf knopf--klein" id="cam-protokoll-auf"
+    title="Werkzeuge der Bearbeitungen aus dem Werkzeugprotokoll (Excel-Einrichtblatt) oder dem Einrichtblatt in der App erzeugen, für die 3D-Simulation"
+    onClick={() => setAuf(true)}>📥 Werkzeugprotokoll einlesen</button>);
+  const zahl = (liste || []).filter((z) => z.wz && an[z.b.id]).length;
+  return (<div className="cam-protokoll" id="cam-protokoll">
+    <div className="cam-protokoll__kopf"><b>Werkzeuge aus dem Werkzeugprotokoll</b>
+      <button className="linkknopf" id="cam-protokoll-zu" onClick={zu}>✕</button></div>
+    {!liste && <div className="cam-protokoll__wahl">
+      <label className="knopf knopf--klein" id="cam-protokoll-datei">📂 Excel-Datei wählen
+        <input type="file" hidden accept=".xlsx,.xlsm,.xls" data-ablegen="direkt" onChange={(e) => { ausDatei(e.target.files[0]); e.target.value = ""; }} /></label>
+      {String(w.hoco || "").trim() && <button className="knopf knopf--klein" id="cam-protokoll-app" disabled={laeuft} onClick={ausApp}>
+        Einrichtblatt in der App zu {w.hoco}</button>}
+      <span className="klein">{laeuft ? "Wird gelesen …" : "Die Werkzeuge kommen in die Bearbeitungen mit derselben T-Nr. Vorher siehst du alles und wählst aus."}</span>
+    </div>}
+    {liste && <>
+      <p className="klein">Aus {quelle}. Vorschlag aus Platte, Ø und Aufgabe, bitte prüfen. Bearbeitungen mit Werkzeug sind nicht angehakt.</p>
+      <table className="cam-protokoll__tab"><thead><tr><th></th><th>T-Nr.</th><th>Bearbeitung</th><th>Im Protokoll</th><th>Werkzeug</th></tr></thead>
+        <tbody>{liste.map((z, i) => (
+          <tr key={z.b.id} data-camproto-zeile={i} className={z.wz ? "" : "cam-protokoll--leer"}>
+            <td>{z.wz && <input type="checkbox" data-camproto-haken={i} checked={!!an[z.b.id]} onChange={() => setAn({ ...an, [z.b.id]: !an[z.b.id] })} />}</td>
+            <td>{z.tnr || "–"}</td>
+            <td>{z.b.bez || "(ohne Bezeichnung)"}</td>
+            <td className="klein">{z.p ? protokollText(z.p) : "nicht im Protokoll"}</td>
+            <td data-camproto-wz={i}>{z.bib && <span className="cam-bib__marke" title="Reales Werkzeug aus der Bibliothek">📚 </span>}{z.wz ? wzText({ ...z.b, wz: z.wz }) : z.p ? "kein Vorschlag" : ""}
+              {z.wz && z.b.wz && z.b.wz.form && <div className="klein">bisher: {wzText(z.b)}</div>}</td>
+          </tr>))}</tbody></table>
+      <div className="cam-protokoll__knoepfe">
+        <button className="knopf" id="cam-protokoll-ok" disabled={!zahl} onClick={uebernehmen}>{zahl === 1 ? "1 Werkzeug übernehmen" : zahl + " Werkzeuge übernehmen"}</button>
+        <button className="knopf knopf--klein" onClick={() => setListe(null)}>Andere Datei</button>
+        <button className="knopf knopf--klein" onClick={zu}>Abbrechen</button>
+      </div>
+    </>}
+  </div>);
+}
+
 // Welche Datei „Speichern“ für diesen Kanal aktualisiert
 function DateiSchild({ k }) {
   const [, neu] = useState(0);
@@ -280,6 +405,10 @@ function FensterKnoepfe({ w, einlesen, eigen }) {
     {<button className="knopf knopf--klein" id={eigen ? "cam-sim-auf" : "cam-sim-auf-fenster"} data-cam-sim="1"
       title="Drehen, Bohren und Fräsen in 3D, Kanal 1 und Kanal 2, mit den Werkzeugen der Bearbeitungen"
       onClick={() => simulationOeffnen(w)}>🧊 3D-Simulation</button>}
+    {/* Seit 1.692.0 (Patrick 22. November 2026): zuerst Material, dann Vorschläge als Liste */}
+    <button className="knopf knopf--klein" id={eigen ? "cam-opt-auf" : "cam-opt-auf-fenster"} data-cam-opt-auf="1"
+      title="Programm prüfen: Schnittwerte, Vorschub, Bohrtiefe, Leerwege, Laufzeit. Fragt zuerst nach dem Material."
+      onClick={() => optimierungOeffnen(w)}>💡 Optimierung</button>
     <EinlesenKnopf id={eigen ? "cam-einlesen" : "cam-einlesen-fenster"} merkmal={{ "data-cam-einlesen-alle": "1" }} einlesen={einlesen}
       title={"Bestehendes Programm (" + (sb ? "Kanal 1 und / oder Kanal 2" : "eine bis drei Dateien, Kanal 1 bis 3") + ") einlesen, Abweichungen zum Standard violett"}>📂 Programm einlesen</EinlesenKnopf>
   </>);
@@ -401,7 +530,42 @@ function MaschinenBild({ block, t34, gruppe }) {
 // alle Plätze des Knopfs zugleich, blinkend, ohne Schild je Platz
 // Patrick 17. November 2026: „wird zu gross angezeigt“, darum höchstens
 // so gross wie ein Kärtchen, nicht wie beim Platz einer Bearbeitung
+const K2_ARTEN = ["k2", "k2a", "k2b"];
 const GRUPPE_BILD = 300;
+// Seit 1.679.0 (Patrick 21. November 2026: „die Apparate sollen dann auf
+// dem Bild montiert sein, du hast für T1500 ein Beispiel im aktuellen
+// Bild“): Frontbohrapparat (angetrieben mit, fest ohne roten Drehpfeil)
+// als Bild des Originals, in Kanal 1 gespiegelt; vorher (1.670.0) ein
+// gezeichneter gelber Bohrer
+function SwApparat({ platz, art }) {
+  const base = import.meta.env.BASE_URL;
+  if (art === "schlitz") {
+    // Schlitzapparat: Bohrer weiss abdecken, Sägescheibe quer zur Achse
+    const [tx, ty] = SW20_SCHLITZ_BILD.spitze, [ax, ay] = SW20_SCHLITZ_BILD.achse;
+    const wink = (Math.atan2(ay, ax) * 180 / Math.PI).toFixed(1);
+    return (<g className="cam-bild__apparat" data-cam-apparat="700" data-art="schlitz">
+      <g transform={`rotate(${wink} ${tx} ${ty})`}>
+        <rect x={tx - 15} y={ty - 4.5} width="17" height="9" rx="3" fill="#fff" filter="url(#cam-bild-weich)" />
+        <rect x={tx - 16} y={ty - 1.6} width="11" height="3.2" fill="#9aa7b4" stroke="#33475b" strokeWidth=".6" />
+        <ellipse cx={tx - 5} cy={ty} rx="2.6" ry="13" fill="#d7dee6" stroke="#22364b" strokeWidth=".8" />
+        <ellipse cx={tx - 5} cy={ty} rx="2.6" ry="13" fill="none" stroke="#22364b" strokeWidth="1.6" strokeDasharray="1 1.4" />
+        <ellipse cx={tx - 5} cy={ty} rx="1" ry="4" fill="#5b6d80" />
+      </g>
+    </g>);
+  }
+  // Seit 1.680.0 je Platz ein eigener Ausschnitt: Halter anstelle des Querwerkzeugs
+  const l = SW20_FRONT_BILD[platz] && SW20_FRONT_BILD[platz][art === "fest" ? "fest" : "an"];
+  if (!l) return null;
+  const [x, y, b, h] = l;
+  return (<g className="cam-bild__apparat" data-cam-apparat={platz} data-art={art}>
+    <image href={base + `hilfe/sw20-front-${platz}-${art === "fest" ? "fest" : "an"}.png`} x={x} y={y} width={b} height={h} />
+  </g>);
+}
+// Reihenfolge: oben zuerst, damit der untere Apparat den oberen überdeckt
+function apparateSortiert(l) {
+  const y = (a) => a.art === "schlitz" ? 0 : ((SW20_FRONT_BILD[a.platz] || {}).an || [0, 0])[1];
+  return [...l].sort((a, b) => y(a) - y(b));
+}
 function GruppenBild({ gruppe, t34, ref_, mass }) {
   // Seit 1.664.0 bringt die SW-20 ihre Bereiche und ihr Bild selbst mit
   const rs = gruppe.bereiche || gruppe.bloecke.map((b) => bildBereich(b, t34));
@@ -414,8 +578,11 @@ function GruppenBild({ gruppe, t34, ref_, mass }) {
         <defs><mask id="cam-bild-maske">
           <rect x="0" y="0" width={bild.b} height={bild.h} fill="#fff" />
           {rs.map((r, i) => <rect key={i} x={r.x - 3} y={r.y - 3} width={r.w + 6} height={r.h + 6} rx="6" fill="#000" />)}
-        </mask></defs>
+        </mask>
+        <linearGradient id="cam-bild-gelb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fff2bf" /><stop offset=".5" stopColor="#f3d27a" /><stop offset="1" stopColor="#d9ad45" /></linearGradient>
+        <filter id="cam-bild-weich" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.5" /></filter></defs>
         <image href={import.meta.env.BASE_URL + bild.datei} x="0" y="0" width={bild.b} height={bild.h} />
+        {apparateSortiert(gruppe.apparate || []).map((a) => <SwApparat key={a.platz} platz={a.platz} art={a.art} />)}
         <rect x="0" y="0" width={bild.b} height={bild.h} fill="rgba(20,30,45,.45)" mask="url(#cam-bild-maske)" />
         {rs.map((r, i) => <rect key={i} className={"cam-bild__rahmen cam-bild__rahmen--blink" + (r.verdeckt ? " cam-bild__rahmen--verdeckt" : "")}
           x={r.x} y={r.y} width={r.w} height={r.h} rx="5" />)}
@@ -472,14 +639,52 @@ function herunterladen(e, zeilen, nr) {
 const BLOCK_EINHEIT = { S: "U/min", g50: "U/min", vc: "m/min", vcD: "mm", X: "mm", Y: "mm", anZ: "mm", wegZ: "mm", wegA: "Grad",
   vorX: "mm", vorZ: "mm", nX: "mm", nZ: "mm", C: "Grad", zuZ: "mm" };
 let fokusNach = null;
-function Kanaele({ prog, sync, fehler, bereich, bereich2, w, handSetzen, einlesen }) {
+function Kanaele({ prog, sync, fehler, bereich, bereich2, bereich3, w, handSetzen, einlesen }) {
   const kasten = useRef(null);
   // Seit 1.663.0 zwei oder drei Kanäle (SW-20)
-  const kn = prog.k3 && prog.k3.length ? [1, 2, 3] : [1, 2];
+  // Seit 1.670.0 Kanal 3 gleich nach Kanal 1 (Wunsch Patrick 20. November 2026)
+  const kn = prog.k3 && prog.k3.length ? [1, 3, 2] : [1, 2];
+  // Seit 1.675.1 (Patrick 21. November 2026: „warum zeigst du nicht den
+  // richtigen bereich im nc code an?“): die Bereiche gelten im erzeugten
+  // Programm; mit Handänderungen oder eingelesenem Programm stehen die
+  // Zeilen woanders, darum über bereichLage auf die gezeigten Zeilen legen.
+  const lage = (b, k) => {
+    const l = b && bereichLage(prog["auto" + k] || prog["k" + k] || [], prog["k" + k] || [], b);
+    return l ? [l[0] + 1, l[1] + 1] : null;
+  };
+  const b1 = lage(bereich, 1), b2 = lage(bereich2, 2), b3 = lage(bereich3, 3);
   const imBereich = (z, k) => {
-    const b = k === 0 ? bereich : k === 1 ? bereich2 : null;
+    const b = k === 1 ? b1 : k === 2 ? b2 : k === 3 ? b3 : null;
     return z && b && z.nr >= b[0] && z.nr <= b[1];
   };
+  // Seit 1.687.0 (Patrick 21. November 2026: „wenn ich in die Bearbeitungen
+  // springe, soll im NC-Code der Scrollbalken dorthin springen“): wechselt
+  // die angewählte Bearbeitung, rollt das Programmfenster (nur dieses, nicht
+  // die Seite) so, dass ihre erste Zeile oben sichtbar ist. Nicht während
+  // man im Programmfenster selbst schreibt.
+  const aktivSchluessel = [b1, b2, b3].map((b) => (b ? b[0] : "")).join("|");
+  useEffect(() => {
+    const ka = kasten.current;
+    if (!ka || aktivSchluessel === "||") return;
+    const d = ka.ownerDocument;
+    if (d.activeElement && ka.contains(d.activeElement)) return;
+    const el = ka.querySelector(".cam-zeile--aktiv");
+    if (!el) return;
+    const win = d.defaultView;
+    let box = el.parentElement;
+    while (box && box !== d.body) {
+      const oy = win.getComputedStyle(box).overflowY;
+      if ((oy === "auto" || oy === "scroll") && box.scrollHeight > box.clientHeight + 2) break;
+      box = box.parentElement;
+    }
+    if (!box || box === d.body) return;
+    const ra = el.getBoundingClientRect(), rb = box.getBoundingClientRect();
+    // Kopfzeile der Kanäle bleibt oben stehen, darum etwas Luft lassen
+    const kopf = box.querySelector(".cam-spalte--kopf");
+    const luft = (kopf ? kopf.getBoundingClientRect().height : 0) + 8;
+    if (ra.top >= rb.top + luft && ra.bottom <= rb.bottom) return;
+    box.scrollTop += ra.top - rb.top - luft;
+  }, [aktivSchluessel]);
   const zeilenVon = (k) => prog["k" + k];
   // Seit 1.619.0: Änderungen im NC-Code einer Bearbeitung gehen zurück in die Bearbeitung
   const setzen = (k, zeilen) => { const r = handZurueck(w, k, zeilen); handSetzen(r.hand, r.bloecke); };
@@ -516,6 +721,10 @@ function Kanaele({ prog, sync, fehler, bereich, bereich2, w, handSetzen, einlese
     } else if (e.key === "Escape") { e.preventDefault(); e.currentTarget.textContent = zeilenVon(k)[nr - 1]; e.currentTarget.blur(); }
   };
   const verwerfen = (k) => { const h = { ...(w.hand || {}) }; delete h["k" + k]; handSetzen(h); };
+  // Seit 1.676.0 (Wunsch Patrick 21. November 2026: „ich will das anzeigen der
+  // violetten markierungen ein und ausschalten können“), gemerkt je Gerät
+  const [violett, setViolett] = useState(() => { try { return localStorage.getItem("hofer.cam.violett") !== "aus"; } catch { return true; } });
+  const violettSetzen = (an) => { setViolett(an); try { localStorage.setItem("hofer.cam.violett", an ? "an" : "aus"); } catch { /* egal */ } };
   const verloren = kn.map((k) => [k, prog["verloren" + k]]).filter(([, v]) => v && v.length);
   const leerF = Object.keys(fehler).filter((n) => fehler[n] === "leer");
   fehler = Object.fromEntries(Object.entries(fehler).filter(([, t]) => t !== "leer"));
@@ -525,7 +734,8 @@ function Kanaele({ prog, sync, fehler, bereich, bereich2, w, handSetzen, einlese
         {/* Seit 1.624.0: woher die Zeilen kommen (Wunsch Patrick 18. November 2026) */}
         <span className="cam-herkunft" id="cam-herkunft"><i className="cam-her cam-her--code" />NC-Code der Bearbeitung
           <i className="cam-her cam-her--vorlage" />Kopf und Ende der Bearbeitung <i className="cam-her cam-her--kopf" />Programmkopf und -ende</span>
-        {kn.some((k) => prog["ein" + k]?.size > 0) && <span className="cam-stand--ein" id="cam-ein-stand">Violett = eingelesen, anders als der Standard.</span>}
+        {kn.some((k) => prog["ein" + k]?.size > 0) && <label className="cam-stand--ein" id="cam-ein-stand" title="Violette Markierungen anzeigen oder ausblenden">
+          <input type="checkbox" data-cam-violett checked={violett} onChange={(e) => violettSetzen(e.target.checked)} /> Violett = eingelesen, anders als der Standard.</label>}
         {kn.some((k) => w.hand?.["k" + k]) && <span className="cam-stand--hand" id="cam-hand-stand">Gelb = von Hand geändert.
           {kn.filter((k) => w.hand?.["k" + k]).map((k) => (
             <button key={k} className="knopf knopf--klein" data-cam-verwerfen={k} onClick={() => verwerfen(k)}>Kanal {k} wie erzeugt</button>))} </span>}
@@ -556,18 +766,18 @@ function Kanaele({ prog, sync, fehler, bereich, bereich2, w, handSetzen, einlese
             </span>
           </div>))}
         {sync.reihen.map((r, i) => (
-          kn.map((kk) => r["k" + kk]).map((z, k) => (
-            <div key={i + "-" + k} data-reihe={i} data-kanal={k + 1} data-nr={z ? z.nr : undefined}
-              className={"cam-zeile" + (r.sync ? " cam-zeile--sync" : "") + (!z ? " cam-zeile--leer" : "")
-                + (z && prog["gelb" + (k + 1)]?.has(z.nr - 1) ? " cam-zeile--hand" : "")
-                + (z && prog["ein" + (k + 1)]?.has(z.nr - 1) ? " cam-zeile--ein" : "")
+          kn.map((k) => [k, r["k" + k]]).map(([k, z]) => (
+            <div key={i + "-" + k} data-reihe={i} data-kanal={k} data-nr={z ? z.nr : undefined}
+              className={"cam-zeile" + (r.sync && (!r.syncK || r.syncK.has(k)) ? " cam-zeile--sync" : "") + (!z ? " cam-zeile--leer" : "")
+                + (z && prog["gelb" + k]?.has(z.nr - 1) ? " cam-zeile--hand" : "")
+                + (violett && z && prog["ein" + k]?.has(z.nr - 1) ? " cam-zeile--ein" : "")
                 + (z?.fehler ? " cam-zeile--fehler" : "") + (imBereich(z, k) ? " cam-zeile--aktiv" : "")
-                + (z ? " cam-zeile--her-" + (prog["her" + (k + 1)]?.[z.nr - 1] || "kopf") : "")}>
+                + (z ? " cam-zeile--her-" + (prog["her" + k]?.[z.nr - 1] || "kopf") : "")}>
               <span className="cam-nr">{z ? z.nr : ""}</span>
               {z
                 ? <span className="cam-text" key={z.nr + ":" + z.text} contentEditable suppressContentEditableWarning spellCheck={false}
-                    onBlur={(e) => zeileFertig(k + 1, z.nr, e.currentTarget.textContent)}
-                    onKeyDown={(e) => taste(e, k + 1, z.nr)}>{z.text}</span>
+                    onBlur={(e) => zeileFertig(k, z.nr, e.currentTarget.textContent)}
+                    onKeyDown={(e) => taste(e, k, z.nr)}>{z.text}</span>
                 : <span className="cam-text" />}
             </div>
           ))
@@ -678,6 +888,11 @@ export default function HoferCam() {
         if (r.bloecke) { neu.bloecke = r.bloecke; neu.hand = r.hand; }
       } catch { /* bleibt wie gespeichert */ }
     }
+    // Seit 1.676.0 (Wunsch Patrick 21. November 2026: „öffne programme immer
+    // mit eingeklappten bearbeitungen“)
+    neu.bloecke = neu.bloecke.map((b) => ({ ...b, zu: true }));
+    // Seit 1.676.1: Plandrehzugabe der SW-20 ohne Minus, das Minus setzt die Vorlage
+    if (neu.typ === "star-sw20" && /^\s*-/.test(String(neu.schlicht ?? ""))) neu.schlicht = String(neu.schlicht).replace(/-/g, "").trim();
     Object.keys(gemerkt).forEach((k) => delete gemerkt[k]);
     Object.assign(gemerkt, neu);
     setW({ ...neu });
@@ -690,17 +905,27 @@ export default function HoferCam() {
     melden();
   };
   const bloecke = w.bloecke || [];
-  const setzeBloecke = (neu) => setze("bloecke", neu);
+  // Seit 1.675.0 (Wunsch Patrick 20. November 2026: „Kanal 2 soll bei den
+  // Bearbeitungen immer als letztes sein“): Bearbeitungen nur in Kanal 2
+  // stehen in der Liste immer hinter allen anderen, unter sich in ihrer
+  // Reihenfolge; an der Gegenspindel (Kanal 1 und 2) bleiben, wo sie sind
+  const k2Ende = (l) => [...l.filter((b) => !K2_ARTEN.includes(b.art)), ...l.filter((b) => K2_ARTEN.includes(b.art))];
+  const setzeBloecke = (neu) => setze("bloecke", k2Ende(neu));
+  // auch bei geöffneten oder eingelesenen Programmen
+  useEffect(() => {
+    const s = k2Ende(bloecke);
+    if (s.some((b, i) => b !== bloecke[i])) setzeBloecke(s);
+  }, [bloecke]);
   const blockAendern = (id, feld, wert) => setzeBloecke(bloecke.map((b) => (b.id === id ? { ...b, [feld]: wert } : b)));
   const blockSchieben = (i, um) => {
     const j = i + um;
     if (j < 0 || j >= bloecke.length) return;
     const neu = [...bloecke];
     [neu[i], neu[j]] = [neu[j], neu[i]];
-    setzeBloecke(markenOrdnen({ ...w, bloecke: neu }));
+    setzeBloecke(markenOrdnen({ ...w, bloecke: k2Ende(neu) }));
   };
   // Seit 1.579.0: nach jedem Umstellen die Wartemarken der Reihe nach neu
-  const ordnenMitMarken = (neu) => setzeBloecke(markenOrdnen({ ...w, bloecke: neu }));
+  const ordnenMitMarken = (neu) => setzeBloecke(markenOrdnen({ ...w, bloecke: k2Ende(neu) }));
   const frei = freieMarken(w);
   // Seit 1.668.0 (SW-20, Wunsch Patrick 20. November 2026: „bei der Auswahl
   // der Wartemarken anklicken können, für welche Kanäle sie gelten“): je
@@ -762,14 +987,22 @@ export default function HoferCam() {
     // Seit 1.663.0: die Felder oben liest die App vorerst nur bei der
     // SB-20RG; seit 1.665.0 bei der SW-20 auch die Bearbeitungen Kanal 1
     // (Drehen und Front, die übrigen „wie eingelesen“)
-    const kopf = sb ? kopfLesen(nur(1), nur(2)) : {};
+    // Seit 1.675.2 die Felder oben auch bei der SW-20 (Plandrehzugabe Kopf,
+    // Schlichtzugabe Gegenspindel im Ende; Patrick 21. November 2026)
+    const kopf = kopfLesen(nur(1), nur(2));
     const { bloecke, unklar } = bloeckeLesen(zeilen[1], zeilen[2], sb ? null : zeilen[3]);
     // SW-20: Frontbohrapparat dort, wo eine Frontbearbeitung eingelesen wurde
-    const swF = sb ? [] : bloecke.filter((b) => b.art === "front" || b.art === "k3f").map((b) => Number(b.platz));
+    const swF = sb ? [] : bloecke.filter((b) => ["front", "k3f", "k3ff"].includes(b.art)).map((b) => Number(b.platz));
     let neu = { ...w, ...kopf };
     for (const r of gelesen) neu = { ...neu, ...r.felder };
-    neu.bloecke = bloecke;
+    neu.bloecke = bloecke.map((b) => ({ ...b, zu: true }));
     if (swF.length) neu.swFront = [...new Set([...swFrontVon(w), ...swF])].sort((x, y) => x - y);
+    // Seit 1.676.0 auch die Art: fest (Kanal 1, k3ff) oder angetrieben (k3f)
+    if (swF.length) {
+      const art = { ...(w.swFrontArt || {}) };
+      for (const b of bloecke) if (["front", "k3f", "k3ff"].includes(b.art)) art[String(Number(b.platz))] = b.art === "k3f" ? "an" : "fest";
+      neu.swFrontArt = art;
+    }
     // Seit 1.582.0: Bestückung von Platz 34 aus dem Programm
     if (bloecke.some((b) => String(b.platz) === "3400")) neu.t34 = "3400";
     else if (bloecke.some((b) => /^342[1-3]$/.test(String(b.platz)))) neu.t34 = "3421";
@@ -865,11 +1098,11 @@ export default function HoferCam() {
             .concat(!sb ? [] : w.abArt === "versetzt" ? "Abstecher versetzt " + (String(w.abVersatz ?? "").trim() || AB_VERSATZ_VORGABE) : "Abstecher normal").join(" · ")}</span>}
       </div>
       {!kopfZu && <div className="cam-gruppen">
-        {FELDER.map((g) => ({ ...g, felder: g.felder.filter((d) => !feldAus("kopf", d.name)) })).filter((g) => g.felder.length).map((g) => (
+        {FELDER.map((g) => ({ ...g, felder: g.felder.filter((d) => !feldAus("kopf", d.name)).map((d) => feldFuerTyp(d, w)) })).filter((g) => g.felder.length).map((g) => (
           <fieldset key={g.gruppe} className="cam-gruppe">
             <legend>{g.gruppe}</legend>
             {g.felder.map((d) => (
-              <label key={d.name} title={(d.lang || d.text) + (fehler[d.name] ? " – " + fehler[d.name] : "")}
+              <label key={d.name} title={(d.name === "Z" ? zLang(w) : d.lang || d.text) + (fehler[d.name] ? " – " + fehler[d.name] : "")}
                 className={"cam-feld" + (fehler[d.name] && fehler[d.name] !== "leer" ? " cam-feld--fehler" : "") + (d.art === "text" ? " cam-feld--text" : "") + (d.name === "schnabel" ? " cam-mitbild" : "")}
                 {...(d.name === "schnabel" ? {
                   onMouseEnter: () => setSchnabelBild((a) => ({ ...a, maus: true })), onMouseLeave: () => setSchnabelBild((a) => ({ ...a, maus: false })),
@@ -877,7 +1110,7 @@ export default function HoferCam() {
                 <span>{d.text}{d.einheit && /^[a-zA-Z/]+$/.test(d.einheit) && <small className="cam-einheit"> [{d.einheit}]</small>}</span>
                 {d.name === "datum" ? <DatumFeld wert={w.datum ?? ""} setze={(x) => setze("datum", x)} />
                   : <input data-cam={d.name} value={w[d.name] ?? ""} placeholder={d.einheit || ""} inputMode={d.art === "text" ? "text" : "decimal"}
-                  onChange={(e) => setze(d.name, e.target.value)} />}
+                  onChange={(e) => setze(d.name, d.ohneMinus ? e.target.value.replace(/-/g, "") : e.target.value)} />}
                 {/* Seit 1.640.0: Erklärungsbild wie beim Abstecher */}
                 {d.name === "schnabel" && (schnabelBild.maus || schnabelBild.fokus) && <div className="cam-ab__bild" data-cam-schnabelbild-feld>
                   <SchnabelBild b={w.schnabel} /></div>}
@@ -928,8 +1161,17 @@ export default function HoferCam() {
                 <input type="checkbox" checked={an} onChange={(e) => {
                   const l = swFrontVon(w).filter((x) => x !== p);
                   setze("swFront", e.target.checked ? [...l, p].sort((a, b) => a - b) : l);
-                }} /> T{p}</label>;
+                }} /> T{p}
+                {/* Seit 1.676.0 (Patrick 21. November 2026): fest oder angetrieben */}
+                {an && <select className="cam-sw-frontart" data-cam-swfrontart={p} value={swFrontArt(w, p)}
+                  title="Frontbohrapparat für feste Werkzeuge oder angetrieben"
+                  onChange={(e) => setze("swFrontArt", { ...(w.swFrontArt || {}), [p]: e.target.value })}>
+                  <option value="fest">fest</option><option value="an">angetrieben</option>
+                </select>}</label>;
             })}
+            {/* Seit 1.679.0 (Patrick 21. November 2026): Schlitzapparat auf T700 */}
+            <label data-cam-swschlitz {...swMaus("p700s", [700], "T700")} title="Schlitzapparat auf T700 statt des querangetriebenen Werkzeugs">
+              <input type="checkbox" checked={swSchlitzVon(w)} onChange={(e) => setze("swSchlitz", e.target.checked)} /> Schlitzapparat T700</label>
             <span className="cam-sw-kanaele">
               {[[1, "Kanal 1"], [3, "Kanal 3"], [2, "Kanal 2"]].map(([k, t]) => <span key={k} className="knopf knopf--klein" tabIndex={0} data-cam-swkanal={k}
                 {...swMaus("k" + k, SW20_KANAL_PLAETZE[k], t + ": Werkzeuge")}>{t} im Bild</span>)}
@@ -945,7 +1187,7 @@ export default function HoferCam() {
 
       {!sb && knopfUeber && knopfUeber.sw && (() => {
         const rs = knopfUeber.sw.map((p) => sw20Bereich(p, w)).filter(Boolean);
-        return <MaschinenBild gruppe={{ art: knopfUeber.art, text: knopfUeber.art[0] === "p" && rs[0] ? "T" + knopfUeber.sw[0] + " · " + rs[0].text : knopfUeber.text, bereiche: rs, nummern: knopfUeber.sw, bild: SW20_BILD, gross: 420 }} />;
+        return <MaschinenBild gruppe={{ art: knopfUeber.art, text: knopfUeber.art[0] === "p" && rs[0] ? "T" + knopfUeber.sw[0] + " · " + rs[0].text : knopfUeber.text, bereiche: rs, nummern: knopfUeber.sw, bild: SW20_BILD, gross: 420, apparate: swApparate(w) }} />;
       })()}
       {<>
       {(() => {
@@ -957,7 +1199,7 @@ export default function HoferCam() {
           if (!bb) return null;
           const p = Number(vorPlatz && vorPlatz.id === bb.id ? vorPlatz.platz : bb.platz);
           const r = sw20Bereich(p, w);
-          return r ? <MaschinenBild gruppe={{ art: "swblock", text: "T" + p + " · " + r.text, bereiche: [r], nummern: [p], bild: SW20_BILD, gross: 420 }} /> : null;
+          return r ? <MaschinenBild gruppe={{ art: "swblock", text: "T" + p + " · " + r.text, bereiche: [r], nummern: [p], bild: SW20_BILD, gross: 420, apparate: swApparate(w) }} /> : null;
         }
         const kg = !bb && knopfUeber ? knopfGruppe(knopfUeber.art, w, knopfUeber.text) : null;
         return <MaschinenBild t34={t34Von(w)} gruppe={kg} block={bb && vorPlatz && vorPlatz.id === bb.id ? { ...bb, platz: vorPlatz.platz } : bb} />;
@@ -974,7 +1216,11 @@ export default function HoferCam() {
             title={montiert("front", w).length ? "" : "Zuerst unter Bestückung T500 oder T600 mit Frontbohrapparat wählen"}
             {...swMaus("swfront", montiert("front", w).map(Number), "Frontbohrapparat Kanal 1")}
             onClick={() => { const nb = neuerBlock(bloecke, "front", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Frontbohrapparat {montiert("front", w).map((p) => "T" + p).join(", ") || "(Bestückung)"}</button>
-          <span className="klein">Weitere Bearbeitungen folgen nach deinen Beispielen.</span>
+          {/* Seit 1.678.0 Querangetrieben T500–T700 nach der Vorlage der SB-20RG (Patrick 21. November 2026) */}
+          <button className="knopf knopf--klein" id="cam-neu-seite" disabled={!montiert("seite", w).length}
+            title={montiert("seite", w).length ? "" : "Alle Plätze T500–T700 haben einen Frontbohrapparat"}
+            {...swMaus("swseite", montiert("seite", w).map(Number), "Querangetrieben Kanal 1")}
+            onClick={() => { const nb = neuerBlock(bloecke, "seite", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Querangetrieben {montiert("seite", w).map((p) => "T" + p).join(", ") || "(Bestückung)"}</button>
           </>}
           {sb && <>
           <button className="knopf knopf--klein" id="cam-neu-dreh" {...knopfMaus("dreh", "Drehwerkzeug")}
@@ -989,23 +1235,34 @@ export default function HoferCam() {
             onClick={() => { const nb = neuerBlock(bloecke, "quer", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Frontangetrieben {spanne("quer", w)}</button>}
           </>}
         </div>
+        {/* Seit 1.666.0 SW-20: Kanal 3 (Rückseitenblock) nach Patricks T1300
+            und T1600 aus O3272 (20. November 2026) */}
+        {!sb && <div className="cam-bearb__kopf">
+          <b>Bearbeitungen Kanal 3</b>
+          <button className="knopf knopf--klein" id="cam-neu-k3dr" {...swMaus("swk3dr", plaetzeVon("k3dr").map(Number), "Drehwerkzeug Kanal 3")}
+            onClick={() => { const nb = neuerBlock(bloecke, "k3dr", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Drehwerkzeug {spanne("k3dr")}</button>
+          <button className="knopf knopf--klein" id="cam-neu-k3s" disabled={!montiert("k3s", w).length}
+            title={montiert("k3s", w).length ? "" : "Alle Plätze T1300–T1500 haben einen Frontbohrapparat"}
+            {...swMaus("swk3s", montiert("k3s", w).map(Number), "Querangetrieben Kanal 3")}
+            onClick={() => { const nb = neuerBlock(bloecke, "k3s", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Querangetrieben {montiert("k3s", w).map((p) => "T" + p).join(", ") || "(Bestückung)"}</button>
+          <button className="knopf knopf--klein" id="cam-neu-k3f" disabled={!montiert("k3f", w).length}
+            title={montiert("k3f", w).length ? "" : "Zuerst unter Bestückung T1300, T1400 oder T1500 mit Frontbohrapparat angetrieben wählen"}
+            {...swMaus("swk3f", montiert("k3f", w).map(Number), "Frontbohrapparat Kanal 3")}
+            onClick={() => { const nb = neuerBlock(bloecke, "k3f", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Frontbohrapparat angetrieben {montiert("k3f", w).map((p) => "T" + p).join(", ") || "(Bestückung)"}</button>
+          {/* Seit 1.676.0 nach Patricks T1400 / T1500 aus O3272 (21. November 2026) */}
+          <button className="knopf knopf--klein" id="cam-neu-k3ff" disabled={!montiert("k3ff", w).length}
+            title={montiert("k3ff", w).length ? "" : "Zuerst unter Bestückung T1300, T1400 oder T1500 mit Frontbohrapparat fest wählen"}
+            {...swMaus("swk3ff", montiert("k3ff", w).map(Number), "Frontbohrhalter fest Kanal 3")}
+            onClick={() => { const nb = neuerBlock(bloecke, "k3ff", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Frontbohrhalter fest {montiert("k3ff", w).map((p) => "T" + p).join(", ") || "(Bestückung)"}</button>
+          <button className="knopf knopf--klein" id="cam-neu-k3d" {...swMaus("swk3d", plaetzeVon("k3d").map(Number), "Feste Werkzeuge Kanal 3")}
+            onClick={() => { const nb = neuerBlock(bloecke, "k3d", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Feste Werkzeuge {spanne("k3d")}</button>
+        </div>}
         {/* Seit 1.667.0 SW-20: Kanal 2 nach Patricks T2100, T2700 und T2600 */}
         {!sb && <div className="cam-bearb__kopf">
           <b>Bearbeitungen Kanal 2</b>
           {[["k2", "Drehen"], ["k2b", "Bohren stehend"], ["k2a", "Angetrieben"]].map(([a, t]) => (
             <button key={a} className="knopf knopf--klein" id={"cam-neu-" + a} {...swMaus("sw" + a, plaetzeVon(a).map(Number), t + " Kanal 2")}
               onClick={() => { const nb = neuerBlock(bloecke, a, w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ {t} {spanne(a)}</button>))}
-        </div>}
-        {/* Seit 1.666.0 SW-20: Kanal 3 (Rückseitenblock) nach Patricks T1300
-            und T1600 aus O3272 (20. November 2026) */}
-        {!sb && <div className="cam-bearb__kopf">
-          <b>Bearbeitungen Kanal 3</b>
-          <button className="knopf knopf--klein" id="cam-neu-k3f" disabled={!montiert("k3f", w).length}
-            title={montiert("k3f", w).length ? "" : "Zuerst unter Bestückung T1300, T1400 oder T1500 mit Frontbohrapparat wählen"}
-            {...swMaus("swk3f", montiert("k3f", w).map(Number), "Frontbohrapparat Kanal 3")}
-            onClick={() => { const nb = neuerBlock(bloecke, "k3f", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Frontbohrapparat {montiert("k3f", w).map((p) => "T" + p).join(", ") || "(Bestückung)"}</button>
-          <button className="knopf knopf--klein" id="cam-neu-k3d" {...swMaus("swk3d", plaetzeVon("k3d").map(Number), "Feste Werkzeuge Kanal 3")}
-            onClick={() => { const nb = neuerBlock(bloecke, "k3d", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Feste Werkzeuge {spanne("k3d")}</button>
         </div>}
         {/* Seit 1.425.3 (Wunsch Patrick 5. November 2026): Kanal 2 in einer
             eigenen Zeile darunter */}
@@ -1017,6 +1274,17 @@ export default function HoferCam() {
           <button className="knopf knopf--klein" id="cam-neu-k2a" {...knopfMaus("k2a", "Angetrieben")}
             onClick={() => { const nb = neuerBlock(bloecke, "k2a", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Angetrieben {spanne("k2")}</button>
         </div>}
+        {/* Seit 1.674.0 (Wunsch Patrick 20. November 2026: „mach eine Option
+            alle Bearbeitungen einklappen“): setzt zu an allen Bearbeitungen */}
+        {bloecke.length > 1 && <div className="cam-alle-zu">
+          <button className="knopf knopf--klein" id="cam-alle-zu" onClick={() => setzeBloecke(bloecke.map((b) => ({ ...b, zu: true })))}
+            disabled={bloecke.every((b) => b.zu)}>▸ Alle Bearbeitungen einklappen</button>
+          <button className="knopf knopf--klein" id="cam-alle-auf" onClick={() => setzeBloecke(bloecke.map((b) => ({ ...b, zu: false })))}
+            disabled={bloecke.every((b) => !b.zu)}>▾ Alle aufklappen</button>
+        </div>}
+        <div className="cam-protokoll-zeile">{bloecke.length > 0 && <ProtokollFeld w={w} bloecke={bloecke} setzeBloecke={setzeBloecke} />}
+          <button className="knopf knopf--klein" id="cam-bibliothek-auf" title="Alle realen Werkzeuge aus den Artikeln und Einrichtblättern ansehen und ergänzen"
+            onClick={() => bibliothekOeffnen()}>📚 Reale Werkzeuge</button></div>
         {bloecke.length === 0 && <p className="klein">Noch keine Bearbeitung. Sie kommt zwischen „(Ende Kopf)“ und „(Start Ende)“.</p>}
         {/* Seit 1.405.0 (Wunsch Patrick 5. November 2026): Bearbeitungen am
             Griff ⠿ untereinander verschieben, statt Pfeilen */}
@@ -1025,12 +1293,13 @@ export default function HoferCam() {
           eintraege={bloecke.map((b, i) => {
           const bf = blockFehler(b, w);
           const front = b.art === "front";
-          const seite = b.art === "seite";
+          const seite = b.art === "seite" || b.art === "k3s";
           const quer = b.art === "quer" || seite;
           const k2a = b.art === "k2a";
           const k2b = b.art === "k2b";
           const k2 = b.art === "k2" || k2a || k2b;
-          const k3f = b.art === "k3f", k3d = b.art === "k3d", k3 = k3f || k3d;
+          // k3ff (1.676.0) Frontbohrhalter fest: Felder wie die festen Werkzeuge
+          const k3ff = b.art === "k3ff", k3f = b.art === "k3f", k3d = b.art === "k3d" || k3ff, k3 = k3f || k3d;
           // Kanal-2-Blöcke verhalten sich wie die Gegenspindel: NC-Code in
           // Kanal 2, Markenpaare geben ein Feld für Kanal 1
           const gegen = ((quer || front) && b.spindel === "gegen") || k2;
@@ -1049,13 +1318,18 @@ export default function HoferCam() {
             </label>
           );
           return { key: b.id, inhalt: (
-            <div key={b.id} className={"cam-block" + (k2 ? " cam-block--k2" : "") + (k3 ? " cam-block--k3" : "") + (b.id === aktiv ? " cam-block--aktiv" : "")} data-block={i} data-blockid={b.id}
+            <div key={b.id} className={"cam-block" + (k2 ? " cam-block--k2" : "") + (k3 || b.art === "k3s" ? " cam-block--k3" : "") + (b.id === aktiv ? " cam-block--aktiv" : "")} data-block={i} data-blockid={b.id}
               onFocusCapture={() => setAktiv(b.id)} onPointerDown={() => setAktiv(b.id)}>
               <div className="cam-block__zeile">
                 {/* Seit 1.399.0 (Wunsch Patrick 5. November 2026): NC-Code mit
                     dem Pfeil ein- und ausklappen, gemerkt am Block (zu) */}
                 <button className="cam-block__pfeil" data-camblock-pfeil={i} title={b.zu ? "NC-Code zeigen" : "NC-Code einklappen"}
                   aria-expanded={!b.zu} onClick={() => blockAendern(b.id, "zu", !b.zu)}>{b.zu ? "▸" : "▾"}</button>
+                {/* Seit 1.675.0 (Wunsch Patrick 20. November 2026: „gib bei den
+                    Bearbeitungen an, um welchen Kanal es sich handelt“) */}
+                {(() => { const ek = eigenerKanal(b), beide = ek === 2 && !K2_ARTEN.includes(b.art);
+                  return <span className={"cam-block__kanal cam-block__kanal--k" + (beide ? "12" : ek)} data-camblock-kanal={i}
+                    title={beide ? "Kanal 1 und Kanal 2 (Gegenspindel)" : "Kanal " + ek}>{beide ? "K1+K2" : "K" + ek}</span>; })()}
                 {/* Seit 1.596.0 (Wunsch Patrick 17. November 2026: „das Feld
                     Bezeichnung immer an vorderster Stelle und dann das Werkzeug“) */}
                 {!b.frei && <label className="cam-feld cam-feld--text" title="Steht in Klammern hinter dem Werkzeugaufruf"><span>Bezeichnung</span>
@@ -1068,8 +1342,8 @@ export default function HoferCam() {
                 <label className={"cam-feld" + (bf.platz ? " cam-feld--fehler" : "")} data-camblock-platzfeld={i}
                   onPointerEnter={(e) => { if (e.pointerType === "mouse") setUeber(b.id); }}
                   onPointerLeave={() => setUeber((x) => (x === b.id ? null : x))}
-                  title={k3f ? "Frontbohrapparat Kanal 3" : k3d ? "Festes Werkzeug Kanal 3" : k2 ? "Werkzeugplatz Kanal 2" : quer ? "Werkzeugplatz (angetrieben, Weg mit der Gegenspindel)" : front ? "Werkzeugplatz (Frontwerkzeug fest)" : "Werkzeugplatz (Drehwerkzeug Kanal 1)"}><span>Platz</span>
-                  <PlatzWahl wert={b.platz} plaetze={montiert(k3 ? b.art : k2 ? platzGruppe(b.art) : seite ? "seite" : quer ? "quer" : front ? "front" : "dreh", w)}
+                  title={b.art === "k3dr" ? "Drehwerkzeug Kanal 3" : b.art === "k3s" ? "Querangetriebenes Werkzeug Kanal 3" : k3f ? "Frontbohrapparat angetrieben Kanal 3" : k3ff ? "Frontbohrhalter fest Kanal 3" : k3d ? "Festes Werkzeug Kanal 3" : k2 ? "Werkzeugplatz Kanal 2" : quer ? "Werkzeugplatz (angetrieben, Weg mit der Gegenspindel)" : front ? "Werkzeugplatz (Frontwerkzeug fest)" : "Werkzeugplatz (Drehwerkzeug Kanal 1)"}><span>Platz</span>
+                  <PlatzWahl wert={b.platz} plaetze={montiert(k3 || b.art === "k3dr" ? b.art : k2 ? platzGruppe(b.art) : seite ? b.art : quer ? "quer" : front ? "front" : "dreh", w)}
                     waehlen={(p) => { blockAendern(b.id, "platz", p); setUeber(b.id); }}
                     vorschau={(p) => { setVorPlatz(p ? { id: b.id, platz: p } : null); if (p) setUeber(b.id); }} />
                   {bf.platz && <small className="cam-fehltext" data-camblock-nichtmontiert={i}>nicht montiert</small>}</label>
@@ -1127,6 +1401,7 @@ export default function HoferCam() {
                   {feld("anZ", "Vorpos. Z", "G0Z… Vorpositionieren", 58)}
                   {feld("nZ", "Nullpunkt Z", "G50Z… Nullpunkt setzen", 58)}
                   {feld("Y", "Position Y", "G0Y… nach G50, leer = ohne", 58)}
+                  {k3ff && feld("wegZ", "Zurück Z", "Am Ende G0Z<Nullpunkt>, G50Z<Vorpos.>, dann G0Z… weg", 58)}
                 </> : k2b ? <>
                   {/* Seit 1.667.0 SW-20 nach Patricks T2700 */}
                   {!aus("dreh") && <label className="cam-feld" title="Drehrichtung"><span>Richtung</span>
@@ -1271,7 +1546,7 @@ export default function HoferCam() {
                       {frei.length ? "frei ab " + frei[0] + " · noch " + frei.length : "keine Marke mehr frei"}</span>}
                   </div>
                   {vorlageBei === "w" + b.id && <WerkzeugFeld b={b} setze={(wz) => blockAendern(b.id, "wz", wz)} zu={() => setVorlageBei(null)} />}
-                  {vorlageBei === b.id && <VorlageFeld code={b.code} pos={marke.current[b.id]}
+                  {vorlageBei === b.id && <VorlageFeld code={b.code} pos={marke.current[b.id]} art={b.art}
                     einsetzen={(t) => blockAendern(b.id, "code", t)} zu={() => setVorlageBei(null)} />}
                   {vorlageBei === "m" + b.id && <ModulWahl blockId={b.id} pos={() => marke.current[b.id]} zu={() => setVorlageBei(null)} />}
                   <CodeFeld data-camblock="code" min={4}
@@ -1307,7 +1582,7 @@ export default function HoferCam() {
             <button className="knopf knopf--klein" id="cam-fenster" title="Kanäle in einem eigenen Browserfenster, auch auf einem anderen Bildschirm"
               onClick={programmFensterAuf}>⧉ Eigenes Fenster</button>
             <FensterKnoepfe w={w} einlesen={einlesen} eigen /></div>
-          <Kanaele prog={prog} sync={sync} fehler={fehler} bereich={prog.bereiche[aktiv]} bereich2={prog.bereiche2[aktiv]}
+          <Kanaele prog={prog} sync={sync} fehler={fehler} bereich={prog.bereiche[aktiv]} bereich2={prog.bereiche2[aktiv]} bereich3={prog.bereiche3 && prog.bereiche3[aktiv]}
             w={w} handSetzen={(h, bl) => { const neu = { ...w, hand: h, ...(bl ? { bloecke: bl } : {}) }; Object.assign(gemerkt, neu); setW(neu); melden(); }} einlesen={einlesen} />
         </>}
     </div>

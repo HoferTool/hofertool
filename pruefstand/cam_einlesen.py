@@ -86,6 +86,8 @@ with sync_playwright() as p:
     pruefe("Knopf Einlesen bei beiden Kanälen", pg.locator("[data-cam-einlesen='1'] input").count() == 1 and pg.locator("[data-cam-einlesen='2'] input").count() == 1)
     pg.set_input_files("[data-cam-einlesen='1'] input", [ORDNER + "/K1.NC"]); pg.wait_for_timeout(500)
     pruefe("Kanal 1 allein: drei Bearbeitungen", pg.locator(".cam-block").count() == 3)
+    pruefe("Eingelesene Bearbeitungen eingeklappt (seit 1.676.0)", pg.locator("[data-camblock-pfeil='0']").get_attribute("aria-expanded") == "false")
+    pg.click("[data-camblock-pfeil='0']"); pg.wait_for_timeout(200)
     pruefe("Code der ersten Bearbeitung erkannt", pg.locator(".cam-block[data-block='0'] textarea").first.input_value() == "G1X10.F0.1\nG1Z-5.")
     pg.set_input_files("[data-cam-einlesen='2'] input", [ORDNER + "/K2.NC"]); pg.wait_for_timeout(500)
     pruefe("Danach Kanal 2: vier Bearbeitungen", pg.locator(".cam-block").count() == 4)

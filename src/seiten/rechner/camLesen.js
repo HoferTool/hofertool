@@ -104,8 +104,14 @@ export function kopfLesen(k1, k2) {
   const sauber = (l) => l && l.map((z) => z.trim()).filter(Boolean);
   k1 = sauber(k1); k2 = sauber(k2);
   const t = typ().vorlagen, f = {};
-  const teil = (zeilen, start) => {
+  const teil = (zeilen, start, kanal) => {
     const i = zeilen.findIndex((z) => /^\(Ende Kopf\)$/i.test(z)), j = zeilen.findIndex((z) => /^\(Start Ende\)$/i.test(z));
+    // Seit 1.675.2 auch SW-20 ohne „(Ende Kopf)“ / „(Start Ende)“: Kopf
+    // und Ende wie bei den Bearbeitungen über die Länge der Vorlage
+    if (i < 0 && j < 0) {
+      const m = mitte(zeilen, kanal), a = m.length ? zeilen.indexOf(m[0]) : zeilen.length;
+      return start ? zeilen.slice(0, a) : zeilen.slice(m.length ? a + m.length : a);
+    }
     return start ? zeilen.slice(0, i < 0 ? zeilen.length : i + 1) : zeilen.slice(j < 0 ? zeilen.length : j);
   };
   const nimm = (w) => {
@@ -115,8 +121,8 @@ export function kopfLesen(k1, k2) {
     if (w.NAME) f.hoco = w.NAME.replace(/^\(|\)$/g, "");
     if (w.ABZ != null && w.ABZ !== "") f._abz = Number(String(w.ABZ).replace(/\.$/, ""));
   };
-  if (k1) { nimm(vorlageLesen(t.k1kopf, teil(k1, true)).werte); nimm(vorlageLesen(t.k1ende, teil(k1, false)).werte); }
-  if (k2) { nimm(vorlageLesen(t.k2kopf, teil(k2, true)).werte); nimm(vorlageLesen(t.k2ende, teil(k2, false)).werte); }
+  if (k1) { nimm(vorlageLesen(t.k1kopf, teil(k1, true, 1)).werte); nimm(vorlageLesen(t.k1ende, teil(k1, false, 1)).werte); }
+  if (k2) { nimm(vorlageLesen(t.k2kopf, teil(k2, true, 2)).werte); nimm(vorlageLesen(t.k2ende, teil(k2, false, 2)).werte); }
   // Abstecher: Z-0. = normal, sonst versetzt mit Versatz = Wert + B
   if (f._abz != null && !Number.isNaN(f._abz)) {
     if (f._abz > 0) { f.abArt = "versetzt"; f.abVersatz = String(Math.round((f._abz + (Number(f.B) || 0)) * 1000) / 1000); }
@@ -278,7 +284,9 @@ export function bloeckeLesen(k1, k2, k3) {
   t1.ab.forEach((s, i) => {
     const platz = s[0].match(/^T(\d{3,4})/i)[1];
     const gr = gruppeVon(platz);
-    const arten = K1_ARTEN[gr];
+    // Seit 1.678.0 SW-20: T500 / T600 querangetrieben oder Frontbohrapparat,
+    // die besser passende Vorlage gilt
+    const arten = (typ().kanaele || 2) > 2 && gr === "front" && plaetzeVon("seite").includes(String(platz)) ? ["front", "seite"] : K1_ARTEN[gr];
     const best = arten && besteVorlage(arten, s, 1);
     if (zuSchlecht(best, s)) {
       if (istEnde1(s)) return;
@@ -342,11 +350,16 @@ export function bloeckeLesen(k1, k2, k3) {
     t3 = abschnitteVon(mitte(k3, 3), (z) => /^T\d{3,4}(\(|$)/i.test(z) && !/^T0+(\(|$)/.test(z));
     t3.ab.forEach((s, pos) => {
       const platz = s[0].match(/^T(\d{3,4})/i)[1];
-      const art = arten3.find((a) => plaetzeVon(a).includes(platz));
-      if (!art) return;
-      const best = besteVorlage([art], s, 3);
-      if (zuSchlecht(best, s)) { liste.push({ b: freiBlock(art, s, platz), p1: Infinity, p3: pos }); return; }
-      const b = blockAus(art, null, best.r);
+      // Seit 1.676.0 teilen sich Frontbohrapparat angetrieben (k3f) und
+      // fest (k3ff) die Plätze T1300–T1500: die besser passende Vorlage gilt
+      const arten = arten3.filter((a) => plaetzeVon(a).includes(platz));
+      if (!arten.length) return;
+      const best = besteVorlage(arten, s, 3);
+      // Seit 1.677.0: ein blosser Werkzeugaufruf ohne Spindel (T1100 in
+      // Kopf und Ende von O3272, Platten T1100 / T1200) ist keine Bearbeitung
+      if (zuSchlecht(best, s) && !s.some((z) => /M\d+S\d/i.test(String(z).replace(/\s/g, "")))) return;
+      if (zuSchlecht(best, s)) { liste.push({ b: freiBlock(arten[0], s, platz), p1: Infinity, p3: pos }); return; }
+      const b = blockAus(best.art, null, best.r);
       b.code = (best.r.liste || []).join("\n");
       liste.push({ b, p1: Infinity, p3: pos });
     });

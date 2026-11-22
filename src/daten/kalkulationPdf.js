@@ -71,8 +71,8 @@ export async function angebotPdf(k, nr, rechnung) {
     pdf.text(String(i + 1), L, y);
     pdf.text(chf(r.menge, 0), 70, y, { align: "right" });
     pdf.text("Stk", 74, y);
-    pdf.text(chf(r.angebotAus) + "  " + r.waehrung, 150, y, { align: "right" });
-    pdf.text("1", 172, y);
+    pdf.text(chf(r.angebotPe) + "  " + r.waehrung, 150, y, { align: "right" });
+    pdf.text(chf(r.pe || 1, 0), 172, y);
     y += 6;
   });
   pdf.line(L, y, R, y); y += 14;

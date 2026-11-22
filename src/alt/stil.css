@@ -15107,3 +15107,296 @@ body.dunkel .db2-chip, body.dunkel .db2-chip * { color: color-mix(in srgb, var(-
   .db2-fenster { width: 100vw; height: 100dvh; border-radius: 0; }
   .db2-fenster__inhalt { padding: 12px 12px 30px; }
 }
+
+/* ===== Test ERP (seit 1.672.0) ===== */
+.erp-schild { display: inline-block; margin-left: 10px; padding: 2px 10px; border-radius: 999px; font-size: 13px;
+  font-weight: 600; vertical-align: middle; background: #e6edf6; color: #1f3b63; }
+.erp-schild.erp-gut { background: #dcf2e2; color: #1d5e2f; }
+.erp-unterreiter { margin-top: 4px; }
+.erp-suche { min-width: 220px; flex: 1; max-width: 420px; }
+.erp-fenster { width: min(760px, 96vw); max-height: 92vh; overflow-y: auto; }
+.erp-fenster--breit { width: min(1180px, 96vw); }
+.erp-formular { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px 14px; align-items: end; }
+.erp-formular__titel { grid-column: 1 / -1; margin: 12px 0 0; font-size: 15px; color: var(--blau, #1f4f8f); }
+.erp-feld { min-width: 0; }
+.erp-feld input, .erp-feld select, .erp-feld textarea { width: 100%; box-sizing: border-box; }
+.erp-feld--breit { grid-column: 1 / -1; }
+.erp-feld--artikel { flex: 3 1 260px; }
+.erp-liste { border: 1px solid #c9d3df; border-radius: 10px; padding: 8px 10px 10px; margin: 10px 0; min-width: 0; }
+.erp-liste legend { padding: 0 6px; font-weight: 600; }
+.erp-liste__zeile { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; margin-bottom: 8px; }
+.erp-liste__zeile > .erp-feld { flex: 1 1 120px; }
+.erp-pos { border-bottom: 1px dashed #c9d3df; padding-bottom: 6px; margin-bottom: 8px; }
+.erp-wahlzeile { padding: 8px 0; border-bottom: 1px solid #e3e8ee; }
+.erp-wahlzeile > .feld-haken { flex: 2 1 260px; }
+.erp-tabelle-huelle { overflow-x: auto; margin: 8px 0; }
+.erp-tabelle { width: 100%; border-collapse: collapse; font-size: 14px; }
+.erp-tabelle th, .erp-tabelle td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #e3e8ee; vertical-align: top; }
+.erp-tabelle th { background: #eef2f7; font-weight: 600; white-space: nowrap; }
+.erp-tabelle tr.erp-klick { cursor: pointer; }
+.erp-tabelle tr.erp-klick:hover td { background: #f3f7fc; }
+.erp-tabelle tr.erp-blass td { opacity: .55; }
+.erp-tabelle tr.erp-gut td:last-child { color: #1d7a3a; font-weight: 600; }
+.erp-tabelle tr.erp-minus td { color: #9b2c2c; }
+.erp-links a { margin-right: 8px; }
+.erp-kopf { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px 16px; margin: 6px 0 10px; }
+.erp-kopf div { min-width: 0; }
+.erp-kopf dt { font-size: 12px; color: #5a6878; }
+.erp-kopf dd { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
+.erp-summe { display: flex; gap: 18px; justify-content: flex-end; flex-wrap: wrap; margin: 4px 0 8px; }
+.erp-aktionen { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.erp-folge { margin: 4px 0; }
+.erp-abrufe { margin: 4px 0 0 18px; padding: 0; font-size: 13px; }
+.erp-abrufe .erp-gut { color: #1d7a3a; }
+.erp-ag { display: flex; padding: 4px 0; }
+.erp-buchungen { margin: 8px 0; }
+.erp-buchungen summary { cursor: pointer; font-weight: 600; }
+.erp-spur { margin: 10px 0; padding: 12px 14px; }
+.erp-spur h3 { margin: 0 0 6px; }
+.erp-spur__teil ul { margin: 2px 0 8px 18px; padding: 0; }
+body.dunkel .erp-schild { background: #2a3d57; }
+body.dunkel .erp-schild.erp-gut { background: #1f4a2c; }
+body.dunkel .erp-tabelle th { background: #233247; }
+body.dunkel .erp-tabelle th, body.dunkel .erp-tabelle td, body.dunkel .erp-wahlzeile { border-color: #34465e; }
+body.dunkel .erp-tabelle tr.erp-klick:hover td { background: #1d2b3e; }
+body.dunkel .erp-liste, body.dunkel .erp-pos { border-color: #3a4d66; }
+.erp-kalk .seitentitel { font-size: 20px; margin-top: 6px; }
+
+/* HOFERCAM: Alle Bearbeitungen ein- und aufklappen (1.674.0) */
+.cam-alle-zu { display: flex; gap: 6px; margin: 4px 0 6px; }
+
+/* HOFERCAM: Kanal je Bearbeitung (1.675.0) */
+.cam .cam-block__kanal { align-self: center; font-size: 12px; font-weight: 700; padding: 2px 7px; border-radius: 10px;
+  color: #fff !important; -webkit-text-fill-color: #fff; background: #1f5fa8; white-space: nowrap; }
+.cam .cam-block__kanal--k2 { background: #138a8a; }
+.cam .cam-block__kanal--k3 { background: #7a55b5; }
+.cam .cam-block__kanal--k12 { background: linear-gradient(90deg, #1f5fa8, #138a8a); }
+
+/* Test ERP: Artikelfenster mit Preisliste, Zeichnung und 3D (seit 1.685.0) */
+.erp-artfenster__kopf { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.erp-artfenster__raster { display: grid; grid-template-columns: minmax(300px, 1fr) minmax(320px, 1.3fr); gap: 16px; }
+.erp-artfenster__rechts { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.erp-art-zeichnung, .erp-art-modell { border: 1px solid var(--linie, #d5dde6); border-radius: 8px; min-height: 260px;
+  display: flex; align-items: center; justify-content: center; text-align: center; background: var(--flaeche, #f5f7fa); }
+.erp-art-zeichnung { min-height: 340px; }
+.erp-dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 0 0 10px; }
+.erp-dl dt { color: #5b6573; }
+.erp-dl dd { margin: 0; overflow-wrap: anywhere; }
+.erp-pl-tab { width: auto; min-width: 280px; }
+.erp-rot { color: #b42318; }
+body.dunkel .erp-art-zeichnung, body.dunkel .erp-art-modell { background: #1c2530; border-color: #3a4656; }
+body.dunkel .erp-rot { color: #ff8a80 !important; }
+@media (max-width: 820px) { .erp-artfenster__raster { grid-template-columns: 1fr; } }
+/* Stammdaten-Fenster gross mit viel Platz für die Übersicht (seit 1.685.0) */
+.erp-fenster--gross { width: min(1500px, 97vw); min-height: min(820px, 88vh); max-height: 94vh; }
+.erp-fenster--gross .erp-formular { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px 18px; }
+.erp-fenster--gross.erp-artfenster .erp-art-zeichnung, .erp-fenster--gross.erp-artfenster .erp-art-modell { min-height: 300px; }
+/* .dialog begrenzt auf 400 Punkte, die ERP-Fenster waren darum alle schmal */
+.dialog.erp-fenster { max-width: 97vw; }
+.erp-art-zeichnung, .erp-art-modell { position: relative; }
+.erp-fenster--gross.erp-artfenster .erp-art-zeichnung { min-height: 420px; }
+.erp-art-zeichnung .h3d-hinweis, .erp-art-modell .h3d-hinweis { flex-direction: column; gap: 4px; }
+
+/* ---------- Test ERP: Fenster im Aufbau wie Gewatec (1.686.0) ----------
+   Kopf mit den Schlüsselfeldern, Reiter, Inhalt rollt, Knopfleiste unten.
+   Beschriftung links wie im Gewatec; blau unterstrichen = Sprünge mit
+   Rechtsklick (Wunsch Patrick 21. November 2026). */
+.dialog.erp-fenster.gf { display: flex; flex-direction: column; height: min(900px, 92vh); max-height: 94vh; overflow: hidden; padding: 0; position: relative; }
+.gf-titel { display: flex; align-items: center; gap: 10px; padding: 12px 16px 8px; border-bottom: 1px solid var(--linie, #d5dde6); }
+.gf-titel h2 { margin: 0; flex: 1; font-size: 1.15rem; overflow-wrap: anywhere; }
+.gf-zu { font-size: 1.1rem; padding: 4px 10px; }
+.gf-kopf { display: grid; grid-template-columns: 1fr; gap: 12px; padding: 10px 16px; background: var(--grund, #f3f6f9); border-bottom: 1px solid var(--linie, #d5dde6); }
+.gf-kopf--bild { grid-template-columns: 1fr 220px; }
+.gf-kopf__felder { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 6px 18px; align-content: start; }
+.gf-kopf__bild { min-height: 120px; }
+.gf-reiter { padding: 6px 16px 0; margin: 0; flex-wrap: wrap; }
+.gf-inhalt { flex: 1; overflow-y: auto; padding: 12px 16px; min-height: 0; }
+.gf-fuss { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--linie, #d5dde6); background: var(--grund, #f3f6f9); }
+.gf-fuss__luecke { flex: 1; }
+.gf-geaendert { color: #a15c00; font-weight: 600; }
+.gf-f { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 8px; align-items: center; margin: 3px 0; min-width: 0; }
+.gf-f--breit { grid-column: 1 / -1; }
+.gf-f--lang { align-items: start; }
+.gf-f--haken { display: flex; gap: 8px; align-items: center; }
+.gf-f input:not([type=checkbox]), .gf-f select, .gf-f textarea { width: 100%; min-width: 0; padding: 5px 8px; font: inherit; }
+.gf-l { font-size: 0.86rem; color: var(--gedaempft, #5a6878); overflow-wrap: anywhere; }
+.gf-l--link { color: var(--marke, #003884); text-decoration: underline; text-underline-offset: 2px; cursor: context-menu; }
+.gf-l--link:focus-visible { outline: 2px solid var(--marke, #003884); outline-offset: 2px; }
+.gf-wert { padding: 5px 8px; background: #eceff3; border: 1px solid #d5dde6; border-radius: 6px; min-height: 1.9em; overflow-wrap: anywhere; }
+.gf-wert--rechts, .gf-rechts { text-align: right; }
+.gf-wert--lang { white-space: pre-line; min-height: 4em; }
+.gf-gruppe { border: 1px solid var(--linie, #d5dde6); border-radius: 8px; padding: 6px 12px 10px; margin: 0 0 12px; min-width: 0; }
+.gf-gruppe legend { font-weight: 600; padding: 0 6px; color: var(--marke, #003884); }
+.gf-spalten { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px 20px; align-items: start; }
+.gf-zeile { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; margin-bottom: 8px; }
+.gf-zeile > .gf-f { flex: 1 1 300px; }
+.gf-knoepfe { margin-top: 8px; }
+/* PLZ mit Beschriftung links, daneben der Ort im selben Feldstil */
+.gf-plzort { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 8px; align-items: center; }
+.gf-f--ort { grid-template-columns: minmax(0, 1fr); }
+.gf-tab-huelle { overflow-x: auto; border: 1px solid var(--linie, #d5dde6); border-radius: 8px; }
+.gf-tab { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.gf-tab th { background: #e8eef5; text-align: left; padding: 6px 8px; font-weight: 600; white-space: nowrap; }
+.gf-tab td { padding: 5px 8px; border-top: 1px solid #e3e8ee; vertical-align: top; overflow-wrap: anywhere; }
+.gf-tab .rechts { text-align: right; }
+.gf-tab tr.erp-klick { cursor: pointer; }
+.gf-tab tr.erp-klick:hover td { background: #f0f5fb; }
+.gf-tab tr.gewaehlt td { background: #d6e4f5; }
+.gf-tab__leer { color: var(--gedaempft, #5a6878); font-style: italic; }
+.gf-tab input { width: 100%; min-width: 60px; padding: 3px 6px; font: inherit; }
+.gf-summe { text-align: right; margin: 8px 0; }
+.gf-abschnitt { margin-bottom: 16px; }
+.gf-abschnitt h3 { margin: 4px 0 6px; font-size: 1rem; }
+.gf-abschnitt h3 small { font-weight: 400; color: var(--gedaempft, #5a6878); margin-left: 6px; }
+.gf-bildflaeche { height: 100%; min-height: 120px; border: 1px dashed #b8c4d2; border-radius: 8px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; text-align: center; color: var(--gedaempft, #5a6878); background: #fff; padding: 8px; }
+.gf-bildflaeche span { font-weight: 600; }
+.gf-doku { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; }
+.gf-menue { position: absolute; z-index: 20; min-width: 220px; background: #fff; border: 1px solid #c9d3de; border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 30, 70, 0.18); padding: 4px; display: flex; flex-direction: column; }
+.gf-menue button { text-align: left; background: none; border: 0; padding: 8px 12px; border-radius: 6px; font: inherit; cursor: pointer; color: #13243a; }
+.gf-menue button:hover, .gf-menue button:focus-visible { background: #e6eef8; }
+.gf-warn { color: #a15c00; font-weight: 600; }
+@media (max-width: 820px) {
+  .gf-kopf--bild { grid-template-columns: 1fr; }
+  .gf-kopf__bild { display: none; }
+  .gf-f { grid-template-columns: 1fr; gap: 2px; }
+  .dialog.erp-fenster.gf { height: 94vh; }
+}
+body.dunkel .gf-kopf, body.dunkel .gf-fuss { background: #18212b; border-color: #34404e; }
+body.dunkel .gf-titel { border-color: #34404e; }
+body.dunkel .gf-wert { background: #232e3a; border-color: #3a4656; }
+body.dunkel .gf-l--link { color: #8fb8ff !important; }
+body.dunkel .gf-gruppe { border-color: #3a4656; }
+body.dunkel .gf-gruppe legend { color: #8fb8ff !important; }
+body.dunkel .gf-tab th { background: #243142; }
+body.dunkel .gf-tab td { border-color: #34404e; }
+body.dunkel .gf-tab tr.erp-klick:hover td { background: #1f2a37; }
+body.dunkel .gf-tab tr.gewaehlt td { background: #1d3a5f; }
+body.dunkel .gf-tab-huelle { border-color: #3a4656; }
+body.dunkel .gf-bildflaeche { background: #1c2530; border-color: #3a4656; }
+body.dunkel .gf-menue { background: #1f2935; border-color: #3a4656; }
+body.dunkel .gf-menue button:hover { background: #2b3a4c; }
+body.dunkel .gf-geaendert, body.dunkel .gf-warn { color: #ffc46b !important; }
+.gf-zwischentitel { margin: 14px 0 6px; font-size: 1rem; }
+.gf-tab tr.erp-minus td { background: #fdecea; }
+.gf-tab tr.erp-gut td { background: #eaf6ec; }
+body.dunkel .gf-tab tr.erp-minus td { background: #3a2224; }
+body.dunkel .gf-tab tr.erp-gut td { background: #1f3326; }
+/* HOFERCAM: Werkzeugprotokoll einlesen (seit 1.688.0) */
+.cam-protokoll-zeile { margin: 4px 0 8px; }
+.cam-protokoll { border: 1px solid #7aa7d6; background: #f3f8fd; border-radius: 8px; padding: 8px 10px; }
+body.dunkel .cam-protokoll { background: #18222e; border-color: #3d6a96; }
+.cam-protokoll__kopf { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.cam-protokoll__wahl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cam-protokoll__tab { width: 100%; border-collapse: collapse; font-size: 13px; margin: 6px 0; }
+.cam-protokoll__tab th, .cam-protokoll__tab td { text-align: left; padding: 4px 6px; border-bottom: 1px solid rgba(120, 140, 170, .3); vertical-align: top; overflow-wrap: anywhere; }
+.cam-protokoll--leer td { opacity: .55; }
+.cam-protokoll__knoepfe { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* HOFERCAM Optimierung (seit 1.692.0) */
+.cam-opt-huelle .dialog.cam-opt { width: min(980px, calc(100vw - 24px)); max-width: none; max-height: calc(100vh - 24px); overflow: auto; padding: 14px 16px; }
+.cam-opt__kopf { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.cam-opt__kopf h2 { margin: 0; }
+.cam-opt__frage { font-weight: 600; margin: 10px 0 8px; }
+.cam-opt__werkstoffe { display: flex; flex-wrap: wrap; gap: 6px; }
+.cam-opt__feld { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; font-size: 13px; }
+.cam-opt__feld input { padding: 6px 8px; font-size: 15px; }
+.cam-opt__hinweis { min-height: 18px; font-size: 13px; color: var(--grau, #667); margin-top: 4px; }
+.cam-opt__knoepfe { display: flex; justify-content: flex-end; margin-top: 10px; }
+.cam-opt__stand { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; margin: 8px 0; font-size: 14px; }
+.cam-opt__zahlen { font-weight: 600; margin: 4px 0 10px; }
+.cam-opt__gruppe { margin: 10px 0; }
+.cam-opt__gruppe h3 { font-size: 15px; margin: 0 0 6px; }
+.cam-opt__gruppe h3 small { font-weight: 400; opacity: .7; margin-left: 6px; }
+.cam-opt__gruppe ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.cam-opt__punkt { display: flex; gap: 10px; align-items: flex-start; padding: 7px 10px; border-radius: 8px; border-left: 4px solid #8aa; background: rgba(0, 56, 132, .05); font-size: 14px; line-height: 1.35; }
+.cam-opt__punkt--wichtig { border-left-color: #c62828; background: rgba(198, 40, 40, .07); }
+.cam-opt__punkt--empfehlung { border-left-color: #e08a00; background: rgba(224, 138, 0, .08); }
+.cam-opt__punkt--tipp { border-left-color: #1e6fd0; }
+.cam-opt__stufe { flex: 0 0 92px; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; padding-top: 1px; }
+.cam-opt__punkt--wichtig .cam-opt__stufe { color: #c62828; }
+.cam-opt__punkt--empfehlung .cam-opt__stufe { color: #b06a00; }
+.cam-opt__punkt--tipp .cam-opt__stufe { color: #1e6fd0; }
+.cam-opt__zeile { display: block; margin-top: 3px; font-size: 12px; opacity: .8; word-break: break-all; }
+.cam-opt__ok, .cam-opt__fuss { font-size: 13px; opacity: .75; }
+body.dunkel .cam-opt__punkt { background: rgba(255, 255, 255, .05); }
+@media (max-width: 600px) { .cam-opt__punkt { flex-direction: column; gap: 2px; } .cam-opt__stufe { flex: none; } }
+
+/* HOFERCAM Vorlagen als Auswahlbild (seit 1.693.0, Wunsch Patrick 22. November 2026) */
+.cam-vorlage__kopf [data-camvorlage-zurueck] { margin-left: 0 !important; }
+.cam-vwahl { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.cam-vwahl__karte { display: flex; flex-direction: column; align-items: stretch; gap: 3px; text-align: left; padding: 8px;
+  border: 1px solid #d9c3a8; border-radius: 8px; background: #fff; cursor: pointer; font: inherit; color: inherit;
+  transition: border-color .15s, box-shadow .15s, transform .15s; }
+.cam-vwahl__karte:hover, .cam-vwahl__karte:focus-visible { border-color: #e07b1a; box-shadow: 0 2px 10px rgba(224,123,26,.25); transform: translateY(-1px); outline: none; }
+.cam-vwahl__karte b { font-size: 13px; }
+.cam-vwahl__karte .klein { color: #5b6470; line-height: 1.25; }
+.cam-vorlage__erkl { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.cam-vorlage__erkl .cam-vbild { width: 180px; flex: 0 0 auto; }
+.cam-vbild { background: #f4f7fb; border-radius: 6px; }
+.cam-vbild svg { display: block; width: 100%; height: auto; }
+.cam-vbild__teil { fill: #c9d3df; stroke: #3d4b5c; stroke-width: 1.2; }
+.cam-vbild__loch { fill: #f4f7fb; stroke: #3d4b5c; stroke-width: 1.2; }
+.cam-vbild__bohrung { stroke: #f4f7fb; stroke-width: 6; stroke-linecap: round; }
+.cam-vbild__stufe { stroke: #e07b1a; stroke-width: 1; stroke-dasharray: 3 2; fill: none; }
+.cam-vbild__wz { fill: #e8b54a; stroke: #7a5a12; stroke-width: 1.2; }
+.cam-vbild__achse { stroke: #8a96a6; stroke-width: 1; stroke-dasharray: 10 3 2 3; }
+.cam-vbild__mass { stroke: #003884; stroke-width: 1.1; }
+.cam-vbild__weg { stroke: #e07b1a; stroke-width: 1.6; fill: none; }
+.cam-vbild__weg-flaeche { stroke: none; }
+.cam-vbild__schraff { stroke: #e07b1a; stroke-width: 1.2; opacity: .55; }
+.cam-vbild__hilf { stroke: #8a96a6; stroke-width: .8; }
+.cam-vbild__spitze { fill: #003884; }
+.cam-vbild__text { font: 600 11px system-ui, sans-serif; fill: #003884; }
+.cam-vbild__klein { font: 9px system-ui, sans-serif; fill: #3d4b5c; }
+body.dunkel .cam-vwahl__karte { background: #1d2430; border-color: #8a5a2a; }
+body.dunkel .cam-vwahl__karte .klein { color: #b8c2cf !important; }
+body.dunkel .cam-vbild { background: #121821; }
+body.dunkel .cam-vbild__teil { fill: #4a5a6e; stroke: #c9d3df; }
+body.dunkel .cam-vbild__loch { fill: #121821; stroke: #c9d3df; }
+body.dunkel .cam-vbild__bohrung { stroke: #121821; }
+body.dunkel .cam-vbild__mass { stroke: #8fb6ff; }
+body.dunkel .cam-vbild__spitze { fill: #8fb6ff; }
+body.dunkel .cam-vbild__text { fill: #8fb6ff !important; }
+body.dunkel .cam-vbild__klein { fill: #d6dde6 !important; }
+
+/* HOFERCAM: Bibliothek reale Werkzeuge (seit 1.695.0) */
+.cam-mini3d { display: block; flex: none; border-radius: 8px; background: radial-gradient(circle at 40% 35%, #f4f7fb, #dfe6ee); cursor: grab; }
+.cam-mini3d--leer { display: inline-flex; align-items: center; justify-content: center; color: #8a96a3; font-weight: 600; }
+body.dunkel .cam-mini3d { background: radial-gradient(circle at 40% 35%, #2c3642, #1b222b); }
+.cam-bib.dialog.cam-opt { width: min(1100px, calc(100vw - 24px)); }
+.cam-bib__leiste { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: 6px 0 8px; position: sticky; top: -14px; background: inherit; padding: 4px 0; z-index: 1; }
+.cam-bib__such { flex: 1 1 240px; min-width: 0; padding: 6px 8px; }
+.cam-bib__filter { display: flex; flex-wrap: wrap; gap: 4px; }
+.cam-bib__liste { display: flex; flex-direction: column; gap: 6px; }
+.cam-bib__zeile { display: grid; grid-template-columns: 64px 1fr auto; gap: 10px; align-items: center; padding: 6px 8px; border: 1px solid #d5dde6; border-left-width: 4px; border-radius: 8px; background: #fff; }
+.cam-bib--erkannt { border-left-color: #2e7d32; }
+.cam-bib--teilweise { border-left-color: #e0a100; }
+.cam-bib--nein { border-left-color: #b3261e; }
+.cam-bib--hand { border-left-color: #1565c0; }
+.cam-bib--kein { border-left-color: #8a96a3; opacity: 0.8; }
+body.dunkel .cam-bib__zeile { background: #1f2730; border-color: #34404d; }
+.cam-bib__text { min-width: 0; overflow-wrap: anywhere; }
+.cam-bib__gesch { color: #8a5a00; }
+body.dunkel .cam-bib__gesch { color: #f0c060 !important; }
+.cam-bib__rechts { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; text-align: right; }
+.cam-bib__knoepfe { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.cam-bib__status { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: #e8edf2; color: #33414f; white-space: nowrap; }
+.cam-bib__status--erkannt { background: #e3f2e5; color: #1f5f23; }
+.cam-bib__status--teilweise { background: #fff3d1; color: #7a5600; }
+.cam-bib__status--nein { background: #fdecea; color: #8c1d18; }
+.cam-bib__status--hand { background: #e3edfb; color: #0d4a94; }
+body.dunkel .cam-bib__status { background: #33414f; color: #fff !important; }
+.cam-bib__ergaenzen { grid-column: 1 / -1; border-top: 1px dashed #c7d1dc; padding-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+.cam-bib__ergaenzen .cam-bib__knoepfe { justify-content: flex-start; }
+.cam-bib__fehler { color: #b3261e; }
+.cam-wz__bib { max-height: 420px; overflow: auto; border: 1px solid #d5dde6; border-radius: 8px; padding: 6px 8px; margin: 6px 0; }
+.cam-wz__artikel { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 8px; margin: 4px 0; border-radius: 6px; background: #e3edfb; font-size: 13px; }
+body.dunkel .cam-wz__artikel { background: #22344d; }
+.cam-wz__gross { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; max-width: 340px; }
+@media (max-width: 640px) { .cam-bib__zeile { grid-template-columns: 56px 1fr; } .cam-bib__rechts { grid-column: 1 / -1; align-items: flex-start; text-align: left; } }
+
+/* HOFERCAM Vorlagen: Wahl mit Knöpfen (seit 1.695.0) */
+.cam-feld--wahl { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; flex-basis: 100%; }
+.cam-feld--wahl > span { margin-right: 4px; }

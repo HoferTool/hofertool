@@ -23,6 +23,12 @@ def oeffnen(br, vp, mit=True, hash="", js="", **kw):
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1000)
     return ctx, pg, pf
 
+def frisch(pg, ms=8000):
+    # Wartet, bis eine neue Aufgabe ohne Rückmeldung dasteht. Auf langsamen
+    # Rechnern kommt die nächste Aufgabe später als die festen Pausen, sonst
+    # wurde die alte Aufgabe nochmals beantwortet (6/10 statt 8/10).
+    pg.wait_for_function("() => document.querySelector('[data-rr-ende]') || (document.querySelector('[data-rr-frage]') && !document.querySelector('.rr-frage--gut, .rr-frage--schlecht'))", timeout=ms)
+
 def frage(pg):
     t = pg.locator("[data-rr-frage]").inner_text().replace("×", "x")
     a, b = [int(x) for x in t.split("x")]
@@ -43,59 +49,67 @@ with sync_playwright() as p:
         if pg.locator(f"[data-rr-reihe='{n}']").get_attribute("class").find(" an") >= 0: pg.click(f"[data-rr-reihe='{n}']")
     pg.click("[data-rr-reihe='7']"); pg.click("[data-rr-zeit='3']"); pg.click("[data-rr-anzahl='10']")
     pg.click("[data-rr-los]", force=True)
-    pg.wait_for_selector("[data-rr-frage]", timeout=6000)
-    pg.wait_for_timeout(300)
-    pg.screenshot(path=BILD + "/rr-fahrt-pc.png")
+    pg.wait_for_selector("[data-rr-frage]", timeout=20000)
+    # Keine Bildschirmfotos während die Zeit läuft: mit WebGL im Prüfstand
+    # dauert eines oft mehrere Sekunden, dann war die Zeit schon um.
+    frisch(pg)
     # 1: richtig mit dem Zifferblock
     l = frage(pg)
     pruefe(l % 7 == 0, "nur 7er Reihe: %s" % l)
+    # Ob es grün wurde, merkt ein Beobachter im Browser: auf langsamen
+    # Rechnern ist die grüne Rückmeldung (700 ms) schon weg, bis Playwright nachsieht.
+    pg.evaluate("""() => { window.__rrGut = false; const o = new MutationObserver(() => { if (document.querySelector('.rr-frage--gut')) { window.__rrGut = true; o.disconnect(); } }); o.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] }); }""")
     for d in str(l): pg.locator(f"[data-rr-ziffer='{d}']").dispatch_event("pointerdown")
-    pg.wait_for_timeout(150)
-    pruefe(pg.locator(".rr-frage--gut").count() == 1, "richtige Antwort grün")
-    pg.wait_for_timeout(250); pg.screenshot(path=BILD + "/rr-richtig.png")
-    pg.wait_for_timeout(700)
+    try: pg.wait_for_function("() => window.__rrGut", timeout=3000)
+    except Exception: pass
+    pruefe(pg.evaluate("window.__rrGut"), "richtige Antwort grün")
+    frisch(pg)
     # 2: falsch mit der Tastatur
     l = frage(pg)
     falsch = "1" if l > 9 else str((l + 1) % 10)
     falsch = (falsch + "1") if l > 9 else falsch
     for d in falsch: pg.keyboard.press(d)
-    pg.wait_for_timeout(200)
+    try: pg.wait_for_selector(".rr-frage--schlecht", timeout=2000)
+    except Exception: pass
     pruefe(pg.locator(".rr-frage--schlecht").count() == 1, "falsche Antwort rot")
     pruefe(str(l) in pg.locator("[data-rr-antwort]").inner_text(), "Lösung steht da")
-    pg.wait_for_timeout(500); pg.screenshot(path=BILD + "/rr-falsch.png")
-    pg.wait_for_timeout(1500)
-    # 3: Zeit um
-    pg.wait_for_timeout(3400)
+    # 3: Zeit um (nichts tippen)
+    frisch(pg)
+    try: pg.wait_for_function("() => (document.querySelector('.rr') || {}).innerText.includes('ZEIT UM')", timeout=9000)
+    except Exception: pass
     pruefe("ZEIT UM" in pg.inner_text(".rr"), "nach 3 s Zeit um")
-    pg.wait_for_timeout(1800)
+    frisch(pg)
     # Pause mit Escape
-    pg.keyboard.press("Escape"); pg.wait_for_timeout(200)
+    pg.keyboard.press("Escape")
+    try: pg.wait_for_selector(".rr-pause", timeout=3000)
+    except Exception: pass
     pruefe(pg.locator(".rr-pause").count() == 1, "Escape pausiert")
-    pg.wait_for_timeout(1500)
-    pg.click("text=▶ Weiter")
+    pg.screenshot(path=BILD + "/rr-fahrt-pc.png")
+    pg.click("text=▶ Weiter", timeout=60000)
     # Rest richtig
     for i in range(10):
         if pg.locator("[data-rr-ende]").count(): break
-        pg.wait_for_selector("[data-rr-frage], [data-rr-ende]", timeout=5000)
+        frisch(pg)
         if pg.locator("[data-rr-ende]").count(): break
         l = frage(pg)
         for d in str(l): pg.keyboard.press(d)
-        pg.wait_for_timeout(800)
-    pg.wait_for_selector("[data-rr-ende]", timeout=6000); pg.wait_for_timeout(1500)
+        try: pg.wait_for_selector(".rr-frage--gut, .rr-frage--schlecht, [data-rr-ende]", timeout=2000)
+        except Exception: pass
+    pg.wait_for_selector("[data-rr-ende]", timeout=20000); pg.wait_for_timeout(1500)
     pg.screenshot(path=BILD + "/rr-ende-pc.png")
     t = pg.inner_text(".rr-karte--ende")
     pruefe("8/10" in t, "8 von 10 richtig: %s" % t[:120].replace("\n", " "))
     pruefe("XP" in t and "LEVEL UP" in t, "XP und Level up")
     stand = pg.evaluate("(TEST.daten.profiles.find(x => x.id === 'u1').einstellungen || {}).reihen_stand || ''")
     pruefe('"xp"' in stand and '"7x' in stand or 'x7"' in stand, "Stand am Konto gespeichert")
-    pg.click(".rr-ende__knoepfe >> text=Menü"); pg.wait_for_selector("[data-rr-los]")
+    pg.click(".rr-ende__knoepfe >> text=Menü", timeout=60000); pg.wait_for_selector("[data-rr-los]", timeout=20000)
     pruefe(pg.locator("[data-rr-fehler]").is_enabled(), "Fehler-Training mit Fehlern frei")
-    pg.click("[data-rr-garage]"); pg.wait_for_timeout(300)
+    pg.click("[data-rr-garage]", timeout=60000); pg.wait_for_timeout(300)
     pruefe(not pg.locator("[data-rr-skin='gelbschwarz']").is_disabled(), "Gelb-Schwarz ab Level 2 frei")
-    pg.click("[data-rr-skin='gelbschwarz']"); pg.wait_for_timeout(600)
+    pg.click("[data-rr-skin='gelbschwarz']", timeout=60000); pg.wait_for_timeout(600)
     pg.screenshot(path=BILD + "/rr-garage.png")
     pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
-    pg.click("text=📊 Meine Reihen"); pg.wait_for_timeout(300); pg.screenshot(path=BILD + "/rr-reihen.png")
+    pg.click("text=📊 Meine Reihen", timeout=60000); pg.wait_for_timeout(300); pg.screenshot(path=BILD + "/rr-reihen.png")
     pg.keyboard.press("Escape"); pg.keyboard.press("Escape"); pg.wait_for_timeout(600)
     pruefe(pg.locator(".rr").count() == 0 and "dashboard" in pg.evaluate("location.hash"), "Escape schliesst zur Startseite")
     pruefe(not pf, "keine Fehler auf der Seite: %s" % pf)
@@ -106,9 +120,12 @@ with sync_playwright() as p:
         ctx, pg, pf = oeffnen(br, kw.pop("viewport"), **kw)
         pg.evaluate("location.hash='#/reihen'"); pg.wait_for_selector("[data-rr-los]", timeout=15000); pg.wait_for_timeout(1200)
         pg.screenshot(path=BILD + f"/rr-menue-{name}.png")
+        # Das Menü baut sich mit Einblendungen auf; erst messen, wenn es ruhig steht
+        try: pg.wait_for_function("() => { const m = document.querySelector('.rr-menue'); return m && m.scrollHeight <= innerHeight + 2 }", timeout=8000)
+        except Exception: pass
         pruefe(pg.evaluate("document.querySelector('.rr-menue').scrollHeight <= innerHeight + 2"), f"{name}: Menü ohne Rollen")
         pg.tap("[data-rr-zeit='0']")  # ohne Zeit, sonst läuft sie beim Bildschirmfoto ab
-        pg.tap("[data-rr-los]", force=True); pg.wait_for_selector("[data-rr-frage]", timeout=6000); pg.wait_for_timeout(1500)
+        pg.tap("[data-rr-los]", force=True); pg.wait_for_selector("[data-rr-frage]", timeout=20000); pg.wait_for_timeout(1500)
         pg.screenshot(path=BILD + f"/rr-fahrt-{name}.png")
         box = pg.locator("[data-rr-ziffern]").bounding_box(); fr = pg.locator(".rr-frage").bounding_box()
         pruefe(box["y"] + box["height"] <= kw.get("h", 2000) and fr["y"] + fr["height"] < box["y"] or box["x"] > fr["x"] + fr["width"], f"{name}: Frage und Zifferblock überlappen nicht")

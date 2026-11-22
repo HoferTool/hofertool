@@ -461,7 +461,8 @@ function bauer(tabelle) {
             if (m) { z.maschine = m.name; z.maschine_nr = m.machine_number;
                      z.park_id = m.park_id; z.maschine_reihenfolge = m.sort_order; }
           });
-          fertig({ data: treffer, error: null });
+          // wie die echte Datenbank: mit single()/maybeSingle() eine Zeile statt einer Liste
+          fertig({ data: zustand.einzeln ? (treffer[0] || null) : treffer, error: null });
           return;
         }
 

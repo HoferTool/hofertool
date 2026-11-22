@@ -10,8 +10,10 @@
 //  Alle Punkte im Teil wie die Bahn: [z, u, w], u nach +X, w nach +Y.
 // =================================================================
 
-import { plattenForm, fraeserUmriss } from "./camWerkzeug.js";
+import { plattenForm, plattenUmriss, fraeserUmriss } from "./camWerkzeug.js";
 import { SPITZEN } from "./kontur.js";
+import { halterFuer } from "./camHalter.js";
+import { schaftAusBohrung } from "./camArtikel.js";
 
 // Flächen eines Prismas: Umriss in der Ebene (z, u), von w0 bis w1
 function prisma(pts, w0, w1, art, aus) {
@@ -29,7 +31,7 @@ function quader(z0, z1, u0, u1, w0, w1, art, aus) {
   prisma([{ z: z0, u: u0 }, { z: z1, u: u0 }, { z: z1, u: u1 }, { z: z0, u: u1 }], w0, w1, art, aus);
 }
 
-// Dicke der Platte: kleine Platten 3.18, sonst 4.76 (ISO 06 / 11 / 16)
+// Übliche Dicke der Platte (ISO), drehKoerper nimmt höchstens diese
 function plattenDicke(f) {
   if (!f) return 3;
   if (f.art === "einstech") return 3;
@@ -44,19 +46,184 @@ export function drehKoerper(wz, p, umriss, mitHalter) {
   const aus = [];
   if (!umriss || umriss.length < 3) return aus;
   const f = plattenForm(wz && wz.form);
-  const d = plattenDicke(f);
+  // Seit 1.686.1 (Patrick 21. November 2026: „verändere auch die Dicke
+  // der Drehplatten im Verhältnis zu der Grösse, bei Innenbearbeitungen
+  // z.B. Ø5 ist sie viel zu dick“): die Dicke folgt der Grösse des Umrisses
+  // (bei Innenplatten schon verkleinert, innenTiefe), etwa 0.4 × der
+  // kleineren Seite, höchstens die übliche Dicke, mindestens 0.5 mm
+  const us = umriss.map((q) => q.x), zs0 = umriss.map((q) => q.z);
+  const bx = Math.max(...us) - Math.min(...us), bz = Math.max(...zs0) - Math.min(...zs0);
+  // Einstechplatten sind schmal, dort zählt die Länge
+  const klein = f && f.art === "einstech" ? 0.6 * Math.max(bx, bz) : Math.min(bx, bz);
+  // Seit 1.695.0: Dicke aus der Bibliothek reale Werkzeuge (ISO-Code oder
+  // von Hand), wenn eingetragen
+  const dw = Number(String((wz && wz.dicke) ?? "").replace(",", "."));
+  // (bei Innenplatten, die die Simulation verkleinert hat, im selben Mass)
+  let massstab = 1;
+  if (dw > 0) {
+    const voll = plattenUmriss(wz);
+    const ausd = (q) => Math.max(Math.max(...q.map((x) => x.x)) - Math.min(...q.map((x) => x.x)), Math.max(...q.map((x) => x.z)) - Math.min(...q.map((x) => x.z)));
+    if (voll.length) massstab = Math.min(1, ausd(umriss) / Math.max(0.001, ausd(voll)));
+  }
+  const d = dw > 0 && dw < 30 ? Math.max(0.3, dw * massstab) : Math.max(0.5, Math.min(plattenDicke(f), 0.4 * klein));
   const pts = umriss.map((q) => ({ z: p.z + q.z, u: p.r + q.x }));
   prisma(pts, -d, 0, "schneide", aus);
-  const s = SPITZEN.find((x) => x.id === (wz && wz.sl)) || { z: 1, r: -1 };
-  if (mitHalter && s.r < 0) {
-    const xs = umriss.map((q) => q.x), zs = umriss.map((q) => q.z);
-    const xmax = Math.max(...xs), zmin = Math.min(...zs), zmax = Math.max(...zs);
-    // Schaft 12 breit in Z, bündig mit der Seite der Spitze
-    const z0 = s.z > 0 ? zmax - 12 : s.z < 0 ? zmin : (zmin + zmax) / 2 - 6;
-    // hinter der Platte (Seite +Y), damit die Platte vorne sichtbar bleibt
-    quader(p.z + z0, p.z + z0 + 12, p.r + xmax * 0.35, p.r + xmax + 40, 0, 12, "werkzeug", aus);
-  }
+  // Seit 1.696.0 der passende Halter 12 × 12 (camHalter.js) statt eines
+  // blossen Schafts; opt.innen = {rb, tiefe, dir} beim Ausdrehen,
+  // opt.maschine: Schaft nur kurz, den Rest hält der Träger
+  const opt = mitHalter === true ? {} : mitHalter;
+  if (opt) halterKoerper(wz, p, umriss, d, opt, aus);
   return aus;
+}
+
+// Lage des Schafts zur Spitze (z quer zur Schaftachse, w Höhe), für den
+// Träger der Maschine; null ohne radialen Halter
+export function halterLage(wz, umriss) {
+  const s = SPITZEN.find((x) => x.id === (wz && wz.sl)) || { z: 1, r: -1 };
+  if (!umriss || umriss.length < 3 || !(s.r < 0)) return null;
+  const h = halterFuer(wz, false);
+  if (!h || h.typ === "bohrstange") return null;
+  const [z0, z1] = schaftZ(h, s, umriss);
+  return { z0, z1, w0: -h.h, w1: 0, halter: h };
+}
+
+// Schaft quer zur Achse: Spitze f1 vor der Rückseite des Schafts; bei
+// neutralen Haltern (f1 = b/2) oder gerader Lage mittig zur Spitze
+function schaftZ(h, s, umriss) {
+  const b = h.b || 12, f1 = h.f1 ?? 16;
+  if (h.typ === "klinge" && !s.z) {
+    const zs = umriss.map((q) => q.z), zc = (Math.min(...zs) + Math.max(...zs)) / 2;
+    return [zc - b / 2, zc + b / 2];
+  }
+  if (!s.z || Math.abs(f1 - b / 2) < 0.01) return [-b / 2, b / 2];
+  // Spitze auf der +Z-Seite der Platte: Schaft liegt auf −Z
+  return s.z > 0 ? [-f1, -f1 + b] : [f1 - b, f1];
+}
+
+// Stange entlang Z mit Querschnitt pts [{u, w}]
+function stangeZ(quer, z0, z1, art, aus) {
+  const n = quer.length;
+  aus.push({ pts: quer.map((q) => [z0, q.u, q.w]), art });
+  aus.push({ pts: quer.map((q) => [z1, q.u, q.w]), art });
+  for (let i = 0; i < n; i++) {
+    const a = quer[i], b = quer[(i + 1) % n];
+    aus.push({ pts: [[z0, a.u, a.w], [z0, b.u, b.w], [z1, b.u, b.w], [z1, a.u, a.w]], art });
+  }
+}
+
+// Kreis um (u, w) mit Radius r, oben bei wMax abgeflacht (Spanfläche)
+function kreisFlach(u, w, r, wMax, N = 18) {
+  const p = [];
+  for (let j = 0; j < N; j++) {
+    const f = (2 * Math.PI * j) / N;
+    p.push({ u: u + r * Math.cos(f), w: Math.min(wMax, w + r * Math.sin(f)) });
+  }
+  return p;
+}
+
+// Konvexe Hülle (z, u)
+function huelle(pts) {
+  const p = [...pts].sort((a, b) => a.z - b.z || a.u - b.u);
+  if (p.length < 3) return p;
+  const kreuz = (o, a, b) => (a.z - o.z) * (b.u - o.u) - (a.u - o.u) * (b.z - o.z);
+  const unten = [], oben = [];
+  for (const q of p) { while (unten.length >= 2 && kreuz(unten[unten.length - 2], unten[unten.length - 1], q) <= 0) unten.pop(); unten.push(q); }
+  for (let i = p.length - 1; i >= 0; i--) { const q = p[i]; while (oben.length >= 2 && kreuz(oben[oben.length - 2], oben[oben.length - 1], q) <= 0) oben.pop(); oben.push(q); }
+  return unten.slice(0, -1).concat(oben.slice(0, -1));
+}
+
+function halterKoerper(wz, p, umriss, d, opt, aus) {
+  const s = SPITZEN.find((x) => x.id === (wz && wz.sl)) || { z: 1, r: -1 };
+  const innen = s.r > 0;
+  const h = halterFuer(wz, innen);
+  if (!h) return;
+  const xs = umriss.map((q) => q.x), zs = umriss.map((q) => q.z);
+  const xmin = Math.min(...xs), xmax = Math.max(...xs), zmin = Math.min(...zs), zmax = Math.max(...zs);
+  const zc = (zmin + zmax) / 2;
+  if (h.typ === "bohrstange") {
+    // Ausdrehen: Hals so dick, dass er im kleinsten Loch Platz hat, die
+    // Spitze steht aussen am Hals, die Spanfläche auf Drehmitte
+    const inn = opt.innen || {};
+    const rb = Math.max(0.6, inn.rb || p.r || 2);
+    // Masse aus dem Katalog des Herstellers (camArtikel.js: dmin kleinste
+    // Bohrung, versatz Spitze bis Mitte Schaft, hals Länge des Halses),
+    // sonst geschätzt aus dem kleinsten Radius der Bearbeitung
+    const num = (v) => { const n = Number(String(v ?? "").replace(",", ".")); return n > 0 ? n : null; };
+    const dmin = num(wz.dmin), ver = num(wz.versatz), hals = num(wz.hals);
+    const Rn = dmin ? Math.max(0.15, 0.4 * dmin) : Math.max(0.3, 0.42 * rb);
+    const e = ver || 0.5 * rb;
+    const dir = inn.dir || -1;
+    const uc = p.r - e, wc = -0.3 * Rn;
+    const Ls = hals || Math.max(3, (inn.tiefe || 5) + 3);
+    const z0 = p.z + zc, z1 = z0 + dir * Ls;
+    // Hals rund wie bei Ifanger: nur vorne bei der Platte die Spanfläche
+    // angeschliffen, dahinter ganz rund (Patrick 22. November 2026)
+    const Lf = Math.min(Ls, Math.max(1.5, 2.5 * Rn));
+    const zf = z0 + dir * Lf;
+    stangeZ(kreisFlach(uc, wc, Rn, 0, 32), Math.min(z0, zf), Math.max(z0, zf), "werkzeug", aus);
+    if (Ls > Lf) stangeZ(kreisFlach(uc, wc, Rn, Infinity, 32), Math.min(zf, z1), Math.max(zf, z1), "werkzeug", aus);
+    const Rs = (num(wz.schaft) || (dmin && schaftAusBohrung(dmin, hals)) || h.schaft || 6) / 2;
+    const z2 = z1 + dir * 2, z3 = z2 + dir * (opt.maschine ? 10 : 36);
+    if (Rs > Rn) stangeZ(kreisFlach(uc, wc, (Rn + Rs) / 2, Infinity, 32), Math.min(z1, z2), Math.max(z1, z2), "werkzeug", aus);
+    stangeZ(kreisFlach(uc, wc, Math.max(Rn, Rs), wc + Rs - 0.6, 32), Math.min(z2, z3), Math.max(z2, z3), "halter", aus);
+    // Bohrstangen sind immer rund und freigeschliffen (Ifanger, Horn,
+    // Utilis …), kein eckiger Block hinten (Patrick 22. November 2026)
+    return;
+  }
+  // Frontwerkzeuge (Bohreinheit, Kanal 2) haben keinen radialen Halter
+  if (innen || opt.radial === false) return;
+  const hh = h.h || 12;
+  const [sz0, sz1] = schaftZ(h, s, umriss);
+  const uP = p.r, zP = p.z;
+  const lang = opt.maschine ? 14 : 45;
+  if (h.typ === "klinge") {
+    // Einstechen: Klinge etwas schmaler als die Platte, untere Backe stützt,
+    // obere Backe klemmt den hinteren Teil der Platte
+    const hw = Math.max(0.4, (zmax - zmin) / 2 - 0.15);
+    const L = xmax;
+    const uKe = uP + L + 3, uS = uP + L + 8;
+    quader(zP + zc - hw, zP + zc + hw, uP + Math.max(0.6, 0.28 * L), uKe, -hh, -d, "halter", aus);
+    quader(zP + zc - hw, zP + zc + hw, uP + 0.55 * L, uKe, 0, 2.2, "halter", aus);
+    const ueber = huelle([
+      { z: zP + zc - hw, u: uKe }, { z: zP + zc + hw, u: uKe },
+      { z: zP + sz0, u: uS }, { z: zP + sz1, u: uS },
+    ]);
+    prisma(ueber, -hh, 0, "halter", aus);
+    quader(zP + sz0, zP + sz1, uS, uS + lang, -hh, 0, "halter", aus);
+    return;
+  }
+  // Klemmhalter mit Schraube: Sitz unter der Platte, Anlage an den
+  // hinteren Kanten, Schaft dahinter
+  const cz = umriss.reduce((a, q) => a + q.z, 0) / umriss.length, cx = umriss.reduce((a, q) => a + q.x, 0) / umriss.length;
+  const sitz = umriss.map((q) => ({ z: zP + cz + (q.z - cz) * 0.9, u: uP + cx + (q.x - cx) * 0.9 }));
+  const uS = uP + xmax + 1.5;
+  const kopf = huelle([...sitz, { z: zP + sz0, u: uS }, { z: zP + sz1, u: uS }, { z: zP + sz0, u: uS + 3 }, { z: zP + sz1, u: uS + 3 }]);
+  prisma(kopf, -hh, -d, "halter", aus);
+  // Anlagewände an den Kanten weit weg von der Spitze
+  const dist = umriss.map((q) => Math.hypot(q.z, q.x));
+  const dmax = Math.max(...dist);
+  const n = umriss.length;
+  for (let i = 0; i < n; i++) {
+    const a = umriss[i], b = umriss[(i + 1) % n];
+    if (Math.hypot(a.z, a.x) < 0.55 * dmax || Math.hypot(b.z, b.x) < 0.55 * dmax) continue;
+    // nach aussen (weg von der Mitte der Platte)
+    let nz = b.x - a.x, nx = -(b.z - a.z);
+    const l = Math.hypot(nz, nx) || 1; nz /= l; nx /= l;
+    const mz = (a.z + b.z) / 2 - cz, mx = (a.x + b.x) / 2 - cx;
+    if (nz * mz + nx * mx < 0) { nz = -nz; nx = -nx; }
+    const t = 1.2;
+    prisma([
+      { z: zP + a.z, u: uP + a.x }, { z: zP + b.z, u: uP + b.x },
+      { z: zP + b.z + nz * t, u: uP + b.x + nx * t }, { z: zP + a.z + nz * t, u: uP + a.x + nx * t },
+    ], -d, -0.15 * d, "halter", aus);
+  }
+  // Schaft
+  quader(zP + sz0, zP + sz1, uS, uS + lang, -hh, 0, "halter", aus);
+  // Schraube in der Senkung der Platte (nicht bei Rundplatten mit Pratze)
+  const kl = Math.min(xmax - xmin, zmax - zmin);
+  const rS = Math.max(0.5, Math.min(2.2, 0.16 * kl));
+  const kreis = Array.from({ length: 14 }, (_, j) => { const f = (2 * Math.PI * j) / 14; return { z: zP + cz + rS * Math.cos(f), u: uP + cx + rS * Math.sin(f) }; });
+  prisma(kreis, -0.05, 0.12, "schraube", aus);
 }
 
 // Abstecher: Platte Breite B, Klinge nach aussen

@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8">
+<!-- 3D-Ansicht des Beispielteils fürs Tutorial HOFERCAM SW-20. Läuft nur im
+     Aufnahmeskript tutorial_sw20.py (im Video über der App eingeblendet).
+     Das Skript ruft zeige("name") und zeigt so, wovon gerade die Rede ist:
+     das Merkmal leuchtet in der Farbe seines Kanals, die Kamera fährt hin. -->
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: radial-gradient(ellipse at 50% 40%, #1a4f99 0%, #0b2a5c 55%, #061833 100%); font-family: Inter, system-ui, sans-serif; }
+  canvas { display: block; }
+  #kopf { position: fixed; left: 40px; top: 30px; color: #fff; }
+  #kopf h1 { margin: 0; font: 700 40px/1.1 Inter, system-ui, sans-serif; letter-spacing: .5px; }
+  #kopf p { margin: 8px 0 0; font: 500 20px/1.3 Inter, system-ui, sans-serif; color: #cfe2ff; }
+  #schild { position: fixed; right: 40px; top: 34px; padding: 14px 22px; border-radius: 14px; color: #fff; font: 700 26px/1.2 Inter, system-ui, sans-serif;
+    background: rgba(255,255,255,.1); border: 2px solid rgba(255,255,255,.35); opacity: 0; transition: opacity .4s; max-width: 640px; text-align: right; }
+  #schild small { display: block; font: 500 18px/1.35 Inter, system-ui, sans-serif; color: #e6efff; margin-top: 6px; }
+  #legende { position: fixed; left: 40px; bottom: 30px; display: flex; gap: 22px; color: #fff; font: 600 18px Inter, system-ui, sans-serif; opacity: .95; }
+  #legende i { display: inline-block; width: 16px; height: 16px; border-radius: 4px; margin-right: 8px; vertical-align: -2px; }
+  #logo { position: fixed; right: 40px; bottom: 26px; height: 46px; opacity: .9; }
+</style>
+<script type="importmap">{ "imports": { "three": "./three.module.js" } }</script>
+</head><body>
+<div id="kopf"><h1>Anschlussnippel</h1><p>Ø16 × 38 mm · 1.4305 · Star SW-20</p></div>
+<div id="schild"></div>
+<div id="legende"><span><i style="background:#3d8bff"></i>Kanal 1 Hauptspindel</span><span><i style="background:#a46bff"></i>Kanal 3 Rückseitenblock vorne</span><span><i style="background:#22c3b5"></i>Kanal 2 Gegenspindel</span></div>
+<img id="logo" src="./logo-weiss.svg" alt="">
+<script type="module">
+import * as THREE from "three";
+import { STLLoader } from "./STLLoader.js";
+import { RoomEnvironment } from "./RoomEnvironment.js";
+
+const K1 = 0x3d8bff, K3 = 0xa46bff, K2 = 0x22c3b5;
+const r = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+r.setPixelRatio(1); r.setSize(innerWidth, innerHeight); r.localClippingEnabled = true;
+r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.15;
+document.body.appendChild(r.domElement);
+const szene = new THREE.Scene();
+szene.environment = new THREE.PMREMGenerator(r).fromScene(new RoomEnvironment(), 0.04).texture;
+szene.environmentIntensity = 0.55;
+const kam = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 1, 1000);
+szene.add(new THREE.HemisphereLight(0xdfe9ff, 0x223044, 1.4));
+const l1 = new THREE.DirectionalLight(0xffffff, 2.6); l1.position.set(60, 80, 70); szene.add(l1);
+const l2 = new THREE.DirectionalLight(0x9fc4ff, 1.2); l2.position.set(-70, -30, -50); szene.add(l2);
+const l3 = new THREE.DirectionalLight(0xffffff, 0.8); l3.position.set(0, -60, 80); szene.add(l3);
+
+// Teil liegt waagrecht: Achse des Teils = Welt-X, vorne (Z0) rechts wie an der Maschine gesehen
+const halter = new THREE.Group(); szene.add(halter);
+const teil = new THREE.Group(); halter.add(teil);
+teil.rotation.y = -Math.PI / 2;     // Modell-Z -> Welt -X: vorne rechts
+teil.position.x = 19;               // Mitte des Teils in den Ursprung
+const schnitt = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);
+const metall = new THREE.MeshStandardMaterial({ color: 0xd9dee5, metalness: 0.85, roughness: 0.28, side: THREE.DoubleSide, clippingPlanes: [] });
+const roh = new THREE.Mesh(new THREE.CylinderGeometry(8.05, 8.05, 38.2, 96, 1, true),
+  new THREE.MeshStandardMaterial({ color: 0x9a7a55, metalness: 0.4, roughness: 0.6, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
+roh.rotation.x = Math.PI / 2; roh.position.z = 19; teil.add(roh);
+
+new STLLoader().load("./anschlussnippel.stl", (g) => {
+  g.computeVertexNormals();
+  const m = new THREE.Mesh(g, metall); teil.add(m);
+  gewindeRinge();
+  zeige(window.__start || "ganz");
+});
+
+// Gewinde nur optisch: feine Ringe auf Ø12 von Z0.8 bis Z11 (im Modell glatt)
+let ringMat;
+function gewindeRinge() {
+  const mat = ringMat = new THREE.MeshStandardMaterial({ color: 0xc5ccd6, metalness: 0.85, roughness: 0.35 });
+  for (let z = 1.2; z < 10.9; z += 1) {
+    const t = new THREE.Mesh(new THREE.TorusGeometry(5.86, 0.2, 8, 72), mat);
+    t.position.z = z; teil.add(t);
+  }
+}
+
+// Leuchtende Hüllen für die Merkmale (Masse wie im Modell, teil.py)
+function huelle(r1, r2, z1, z2, farbe) {
+  const g = new THREE.CylinderGeometry(r2, r1, z2 - z1, 96, 1, true);
+  const m = new THREE.Mesh(g, leucht(farbe)); m.rotation.x = Math.PI / 2; m.position.z = (z1 + z2) / 2; return m;
+}
+function leucht(farbe) {
+  return new THREE.MeshStandardMaterial({ color: farbe, emissive: farbe, emissiveIntensity: 0.85, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide, metalness: 0, roughness: 0.6 });
+}
+function stab(r, l, farbe, ort, rot) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, l, 48), leucht(farbe));
+  m.position.set(...ort); if (rot) m.rotation.set(...rot); return m;
+}
+function kasten(b, h, t, farbe, ort) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(b, h, t), leucht(farbe)); m.position.set(...ort); return m;
+}
+const MERKMALE = {
+  ganz:      { titel: "", text: "", teile: [], blick: [35, 18, 1] },
+  vorne:     { titel: "Vorderseite", text: "Kanal 1 und Kanal 3 an der Hauptspindel", teile: [], blick: [70, 15, 1.1] },
+  hinten:    { titel: "Rückseite", text: "Kanal 2 in der Gegenspindel", teile: [], blick: [-110, 15, 1.1] },
+  roh:       { titel: "Rohmaterial", text: "Stange Ø16, 1.4305 (V2A)", teile: [], roh: 0.45, blick: [35, 18, 1] },
+  kontur:    { titel: "Aussenkontur", text: "Kanal 1 · T200 Schruppen und Schlichten", teile: [() => huelle(5.2, 6.05, 0, 0.8, K1), () => huelle(6.05, 6.05, 0.8, 11, K1), () => huelle(7.05, 7.05, 13.5, 25, K1), () => huelle(6.55, 7.05, 13, 13.5, K1), () => huelle(7.55, 8.05, 25, 25.5, K1)], blick: [50, 16, 1.15] },
+  freistich: { titel: "Freistich Ø10.4", text: "Kanal 1 · T300 Einstechplatte, Vorlage Einstich", teile: [() => huelle(5.25, 5.25, 11, 13, K1)], blick: [55, 12, 1.6] },
+  gewinde:   { titel: "Gewinde M12 × 1", text: "Kanal 1 · T400 Gewindeplatte, Vorlage G76", teile: [() => huelle(6.1, 6.1, 0.5, 11, K1)], blick: [55, 14, 1.5] },
+  bohrung:   { titel: "Bohrung Ø6, 25 tief", text: "Kanal 3 · T1600 fest, Vorlage Tieflochbohren G83", teile: [() => stab(3.02, 25, K3, [0, 0, 12.5], [Math.PI / 2, 0, 0])], schnitt: true, blick: [15, 28, 1.25] },
+  quer:      { titel: "Querbohrung Ø4", text: "Kanal 1 · T500 querangetrieben, Vorlage Querbohren G87", teile: [() => stab(2.03, 16.4, K1, [0, 0, 31.5], [0, 0, Math.PI / 2])], blick: [20, 30, 1.5] },
+  flaeche:   { titel: "Schlüsselfläche SW13", text: "Kanal 1 · T600 querangetrieben mit Y, Code aus Bohren / Fräsen", teile: [() => kasten(0.2, 9.7, 8, K1, [6.55, 0, 32]), () => kasten(0.2, 9.7, 8, K1, [-6.55, 0, 32])], blick: [-20, 15, 1.4] },
+  fase:      { titel: "Fase hinten 0.5", text: "Kanal 2 · T2100 Drehen", teile: [() => huelle(8.05, 7.55, 37.5, 38, K2)], blick: [-125, 22, 1.3] },
+  hbohrung:  { titel: "Bohrung Ø5, 14 tief", text: "Kanal 2 · T2700 Bohren stehend, Vorlage G83", teile: [() => stab(2.52, 14, K2, [0, 0, 31], [Math.PI / 2, 0, 0])], schnitt: true, blick: [-25, 28, 1.25] },
+  lochkreis: { titel: "3 Bohrungen Ø2.5 auf Ø10", text: "Kanal 2 · T2600 angetrieben, Vorlage G83 mit C-Achse", teile: [0, 1, 2].map((i) => () => { const w = Math.PI / 2 + i * 2 * Math.PI / 3; return stab(1.27, 4, K2, [5 * Math.cos(w), 5 * Math.sin(w), 36], [Math.PI / 2, 0, 0]); }), blick: [-125, 28, 1.25] },
+};
+
+let aktiv = [], ziel = { gier: 35, nick: 18, zoom: 1 }, ist = { gier: 35, nick: 18, zoom: 1 }, dreht = true, rohZiel = 0;
+window.zeige = (name, opts = {}) => {
+  const m = MERKMALE[name] || MERKMALE.ganz;
+  aktiv.forEach((x) => teil.remove(x)); aktiv = m.teile.map((f) => f()); aktiv.forEach((x) => teil.add(x));
+  [ziel.gier, ziel.nick, ziel.zoom] = m.blick; dreht = opts.dreht ?? !m.teile.length;
+  metall.clippingPlanes = m.schnitt ? [schnitt] : [];
+  if (ringMat) { ringMat.clippingPlanes = metall.clippingPlanes; ringMat.needsUpdate = true; }
+  metall.needsUpdate = true;
+  rohZiel = m.roh || 0;
+  const s = document.getElementById("schild");
+  s.innerHTML = m.titel ? m.titel + (m.text ? "<small>" + m.text + "</small>" : "") : ""; s.style.opacity = m.titel ? 1 : 0;
+};
+
+let t0 = performance.now(), wink = 0;
+// Unsichtbar zeichnet das Bild nicht: sonst rechnet Swiftshader dauernd mit und die App wird träg
+window.ruhe = false;
+function malen(t) {
+  if (window.ruhe) { t0 = t; requestAnimationFrame(malen); return; }
+  const dt = Math.min(0.05, (t - t0) / 1000); t0 = t;
+  if (dreht) ziel.gier += dt * 14;
+  for (const k of ["gier", "nick", "zoom"]) ist[k] += (ziel[k] - ist[k]) * Math.min(1, dt * 2.2);
+  const g = THREE.MathUtils.degToRad(ist.gier), n = THREE.MathUtils.degToRad(ist.nick), d = 95 / ist.zoom;
+  kam.position.set(Math.sin(g) * Math.cos(n) * d, Math.sin(n) * d, Math.cos(g) * Math.cos(n) * d);
+  kam.lookAt(0, 0, 0);
+  // Schnitt immer zur Kamera hin offen: Ebene durch die Achse, quer zum Blick
+  const blick = new THREE.Vector3().subVectors(kam.position, new THREE.Vector3()).normalize();
+  const ach = new THREE.Vector3(1, 0, 0); const nrm = new THREE.Vector3().crossVectors(ach, new THREE.Vector3().crossVectors(blick, ach)).normalize();
+  schnitt.normal.copy(nrm.multiplyScalar(-1)); schnitt.constant = 0;
+  roh.material.opacity += (rohZiel - roh.material.opacity) * Math.min(1, dt * 3);
+  aktiv.forEach((x) => { x.material.opacity = 0.42 + 0.22 * Math.sin(t / 260); });
+  r.render(szene, kam); requestAnimationFrame(malen);
+}
+requestAnimationFrame(malen);
+addEventListener("resize", () => { r.setSize(innerWidth, innerHeight); kam.aspect = innerWidth / innerHeight; kam.updateProjectionMatrix(); });
+</script>
+</body></html>

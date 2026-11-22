@@ -80,8 +80,11 @@ export const fraeserForm = (id) => FRAESER.find((p) => p.id === id) || null;
 // nur Drehen, angetriebene nur Bohren / Fräsen, feste Front- und stehende
 // Kanal-2-Werkzeuge beides
 export function wzArten(blockArt) {
-  if (blockArt === "dreh") return ["dreh"];
-  if (blockArt === "front") return ["fraes", "dreh"];
+  if (blockArt === "dreh" || blockArt === "k3dr") return ["dreh"];
+  // Seit 1.679.1 auch die festen Frontwerkzeuge der SW-20 (Kanal 3 T1600–T1900,
+  // Frontbohrhalter fest T1300–T1500, Kanal 2 Bohren stehend): dort stecken
+  // oft Bohrstangen mit Drehplatte (Werkzeugprotokoll 10844-0049)
+  if (blockArt === "front" || blockArt === "k3d" || blockArt === "k3ff" || blockArt === "k2b") return ["fraes", "dreh"];
   if (blockArt === "k2") return ["dreh", "fraes"];
   return ["fraes"];
 }
@@ -148,6 +151,11 @@ export function wzFehler(b) {
     else if (w === null && fw !== null) { const g = 90 - (n ?? 0) - fw; if (!(g > 0 && g < 90)) f.freiw = "Spitzenwinkel wäre " + g + "°"; }
   }
   if (art === "dreh" && plattenForm(wz.form)?.art !== "rund" && !wz.sl) f.sl = "fehlt";
+  // Kantenlänge und Dicke sind freiwillig (leer = Vorgabe)
+  if (art === "dreh") for (const n of ["l", "dicke"]) {
+    const x = wz[n];
+    if (String(x ?? "").trim() !== "" && (!zahlOk(x) || !(zahlV(x) > 0) || zahlV(x) >= 60)) f[n] = "Zahl über 0";
+  }
   if (art === "fraes" && wz.form === "eck" && !f.r && !f.d && zahlV(wz.r) * 2 > zahlV(wz.d)) f.r = "grösser als Ø/2";
   if (art === "fraes" && wz.form === "scheibe" && !f.hals && !f.d && zahlV(wz.hals) >= zahlV(wz.d)) f.hals = "kleiner als Ø Scheibe";
   if (art === "fraes" && wz.form === "scheibe" && !f.laenge && !f.breite && zahlV(wz.laenge) <= zahlV(wz.breite)) f.laenge = "länger als Breite";
@@ -165,10 +173,15 @@ export function wzText(b) {
     const teile = [f.art === "einstech" ? "Einstechplatte" + (wz.breite ? " B" + wz.breite : "")
       : f.dreiWinkel ? f.name + " " + plattenWinkel(wz).winkel + "° Neigung " + plattenWinkel(wz).schraeg + "° frei " + freiWinkel(wz) + "°"
       : f.art === "frei" ? f.name + " " + plattenWinkel(wz).winkel + "° schräg " + plattenWinkel(wz).schraeg + "°" : f.name];
+    // Ausdreher aus dem Katalog: Bohrstange mit Schaft und Hals
+    if (wz.dmin || wz.hals) teile.unshift("Bohrstange ab Ø" + (wz.dmin || "?") + (wz.schaft ? " · Schaft Ø" + wz.schaft : "") + (wz.hals ? " · Hals " + wz.hals : ""));
     if (wz.r) teile.push("R" + wz.r);
+    if (wz.l && !(wz.dmin || wz.hals)) teile.push("L" + wz.l);
+    if (wz.dicke) teile.push("Dicke " + wz.dicke);
     const s = SPITZEN.find((x) => x.id === wz.sl);
     if (s) teile.push("Lage " + LAGE_NAME[s.id]);
     if (wz.step) teile.push("STEP");
+    if (wz.artikel && wz.artikel.nr) teile.push("Art. " + wz.artikel.nr);
     return teile.join(" · ");
   }
   const f = fraeserForm(wz.form);
@@ -182,6 +195,7 @@ export function wzText(b) {
   if ((wz.form === "bohrer" || wz.form === "fase") && wz.winkel) teile.push(wz.winkel + "°");
   if (wz.laenge) teile.push("L" + wz.laenge);
   if (wz.step) teile.push("STEP");
+  if (wz.artikel && wz.artikel.nr) teile.push("Art. " + wz.artikel.nr);
   return teile.join(" · ");
 }
 // Namen wie an der Maschine gesehen (seit 1.558.3): Führungsbüchse links,
@@ -200,7 +214,18 @@ export const LAGEN_MASCHINE = ["or", "o", "ol", "r", "m", "l", "ur", "u", "ul"];
 // Simulation. Rückgabe: Liste von Punkten {z, x} (geschlossen).
 // Halter 93°: Hauptschneide 3° über die Senkrechte zur Achse hinaus
 export const HALTER_NEIGUNG = 3;
-export function plattenUmriss(wz, gross = 8) {
+// axial (seit 1.681.0): Einstechplatte für Planeinstiche, die Schneide
+// zeigt in Z und die Breite liegt radial ab der Ecke der Lage (Patrick
+// 21. November 2026, 10844-0049: Ringnut mit Zapfen in der Mitte, die
+// Platte stach in der Simulation quer durch den Zapfen). hoch: Länge der
+// Einstechplatte von der Schneide weg, ohne die Breite zu ändern.
+// Grösse der Platte (seit 1.695.0): Kantenlänge L aus dem Werkzeug
+// (Bibliothek reale Werkzeuge, ISO-Code), sonst wie bisher 8 mm
+export function plattenGross(wz) {
+  const l = wz ? Number(String(wz.l ?? "").replace(",", ".")) : NaN;
+  return l > 0 && l < 60 ? l : 8;
+}
+export function plattenUmriss(wz, gross = plattenGross(wz), axial = false, hoch = 0) {
   const f = plattenForm(wz.form);
   if (!f) return [];
   let s = SPITZEN.find((x) => x.id === wz.sl) || { z: 1, r: -1 };
@@ -220,10 +245,10 @@ export function plattenUmriss(wz, gross = 8) {
   }
   if (f.art === "einstech") {
     const B = zahlOk(wz.breite) && zahlV(wz.breite) > 0 ? zahlV(wz.breite) : 2;
-    const H = Math.max(gross, B * 2.5);
+    const H = hoch > 0 ? hoch : Math.max(gross, B * 2.5);
     // Schneide zeigt in X (oben / unten) oder in Z (links / rechts);
     // Ecken der Schneide: diagonale Lage = diese Ecke, sonst Mitte
-    const inX = s.r !== 0 || s.z === 0;
+    const inX = axial && s.z !== 0 ? false : s.r !== 0 || s.z === 0;
     const sx = s.r === 0 && s.z === 0 ? -1 : s.r;
     let p;
     if (inX) {
@@ -231,7 +256,7 @@ export function plattenUmriss(wz, gross = 8) {
       const zu = sx < 0 ? 1 : -1; // Platte liegt auf der Gegenseite der Schneide
       p = [{ z: z0, x: 0 }, { z: z0 + B, x: 0 }, { z: z0 + B, x: zu * H }, { z: z0, x: zu * H }];
     } else {
-      const x0 = -B / 2;
+      const x0 = s.r > 0 ? -B : s.r < 0 ? 0 : -B / 2;
       const zu = s.z < 0 ? 1 : -1;
       p = [{ z: 0, x: x0 }, { z: 0, x: x0 + B }, { z: zu * H, x: x0 + B }, { z: zu * H, x: x0 }];
     }

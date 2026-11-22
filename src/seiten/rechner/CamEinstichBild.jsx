@@ -53,15 +53,17 @@ function punkte(el) {
 
 export function EinstichBild({ w, setze }) {
   const v = einstichWerte(w);
-  const front = v.lage === "front";
+  const front = v.lage === "front", innen = v.lage === "innen";
   const B = v.B > 0 ? v.B : 3, T = v.T > 0 ? v.T : 2;
   const PB = v.PB > 0 ? Math.min(v.PB, B) : Math.min(2, B), PR = Math.max(0, Math.min(v.PR || 0, PB / 2));
   const k = Math.min(150 / B, 110 / T);
   const Lz = Math.min(v.PL > 0 ? v.PL : T * 1.5, T + 85 / k);     // so lang gezeichnet
   // (s, t) → Bild
+  // Innen (seit 1.694.0): wie Mantel, Bohrung unten, Tiefe nach oben
   const M = front
     ? (s, t) => ({ x: 390 - t * k, y: 165 + (B / 2 - s) * k })
-    : (s, t) => ({ x: 330 - (s - B / 2) * k, y: 150 + t * k });
+    : innen ? (s, t) => ({ x: 330 - (s - B / 2) * k, y: 230 - t * k })
+      : (s, t) => ({ x: 330 - (s - B / 2) * k, y: 150 + t * k });
   const umriss = einstichUmriss({ ...w, B: String(B), T: String(T) }) || [];
   const nut = punkte(umriss).map((p) => M(p[0], p[1]));
   const pts = (l) => l.map((p) => p.x + "," + p.y).join(" ");
@@ -86,7 +88,34 @@ export function EinstichBild({ w, setze }) {
   const felder = [];
   const teile = [];
 
-  if (!front) {
+  if (innen) {
+    // Innen: Material oben, Bohrung darunter, Stirn rechts
+    const xStirn = Math.min(BW - 40, o0.x + 120);
+    teile.push(<rect key="mat" className="cam-ein__mat" x="40" y="24" width={xStirn - 40} height={o0.y - 24} />);
+    teile.push(<polygon key="nut" className="cam-ein__nut" points={pts([{ x: oB.x - 1, y: o0.y + 1 }, ...nut, { x: o0.x + 1, y: o0.y + 1 }])} />);
+    teile.push(<line key="st" className="cam-ein__stirn" x1={xStirn} y1="24" x2={xStirn} y2={o0.y} />);
+    teile.push(<text key="stt" className="cam-mass__notiz" x={xStirn + 4} y="36">Stirn</text>);
+    teile.push(<text key="bu" className="cam-mass__notiz" x="44" y="36">← Büchse</text>);
+    teile.push(<text key="bo" className="cam-mass__notiz" x={xStirn + 4} y={o0.y + 14}>Bohrung</text>);
+    teile.push(<line key="mi" className="cam-mass__hilf" x1="40" y1={BH - 10} x2={BW - 20} y2={BH - 10} strokeDasharray="8 3 2 3" />);
+    teile.push(<text key="mit" className="cam-mass__notiz" x={xStirn - 70} y={BH - 14}>Drehmitte</text>);
+    // Z: Stirn bis Flanke, in der Bohrung
+    teile.push(<Mass key="mz" a={{ x: xStirn, y: o0.y + 12 }} b={{ x: o0.x, y: o0.y + 12 }} />);
+    felder.push(<Feld key="Z" n="Z" w={w} setze={setze} x={(xStirn + o0.x) / 2 + 10} y={o0.y + 30} vor="Z" />);
+    // Breite über dem Grund
+    const yb = g0.y - 26;
+    teile.push(<Hilf key="hb1" a={g0} b={{ x: g0.x, y: yb - 4 }} />, <Hilf key="hb2" a={gB} b={{ x: gB.x, y: yb - 4 }} />);
+    teile.push(<Mass key="mb" a={{ x: gB.x, y: yb }} b={{ x: g0.x, y: yb }} />);
+    felder.push(<Feld key="B" n="B" w={w} setze={setze} x={(g0.x + gB.x) / 2} y={yb - 18} vor="Breite" />);
+    // Tiefe rechts
+    const xt = o0.x + 24;
+    teile.push(<Hilf key="ht" a={g0} b={{ x: xt + 4, y: g0.y }} />);
+    teile.push(<Mass key="mt" a={{ x: xt, y: o0.y }} b={{ x: xt, y: g0.y }} />);
+    felder.push(<Feld key="T" n="T" w={w} setze={setze} x={xt + 52} y={(o0.y + g0.y) / 2 - 8} vor="Tiefe" />);
+    felder.push(<Feld key="D" n="D" w={w} setze={setze} x={110} y={o0.y + 22} vor="Bohrungs-Ø" />);
+    felder.push(<Feld key="eo" n="eo" art="eoArt" w={w} setze={setze} x={120} y={o0.y + 60} vor="oben" />);
+    felder.push(<Feld key="eg" n="eg" art="egArt" w={w} setze={setze} x={g0.x + 90} y={g0.y - 20} vor="Grund" />);
+  } else if (!front) {
     // Mantel: Oberfläche bei y von o0, Stirn rechts
     const xStirn = Math.min(BW - 40, o0.x + 120);
     teile.push(<rect key="mat" className="cam-ein__mat" x="40" y={o0.y} width={xStirn - 40} height={BH - 40 - o0.y} />);
@@ -136,9 +165,9 @@ export function EinstichBild({ w, setze }) {
   }
   // Platte und ihre Masse
   const pAus = M(B, T - Lz), pIn = M(B - PB, T - Lz);
-  felder.push(<Feld key="PB" n="PB" w={w} setze={setze} x={front ? pAus.x + 70 : (pAus.x + pIn.x) / 2} y={front ? (pAus.y + pIn.y) / 2 : pAus.y - 16} vor="Platte B" />);
+  felder.push(<Feld key="PB" n="PB" w={w} setze={setze} x={front ? pAus.x + 70 : (pAus.x + pIn.x) / 2} y={front ? (pAus.y + pIn.y) / 2 : innen ? pAus.y + 2 : pAus.y - 16} vor="Platte B" />);
   felder.push(<Feld key="PL" n="PL" w={w} setze={setze} x={front ? (pAus.x + spitze.x) / 2 + 10 : pAus.x - 80} y={front ? pAus.y - 18 : (pAus.y + spitze.y) / 2 - 20} vor="Länge" />);
-  felder.push(<Feld key="PR" n="PR" w={w} setze={setze} x={front ? spitze.x - 95 : spitze.x - 70} y={front ? spitze.y - 10 : spitze.y + 4} vor="Eck-R" />);
+  felder.push(<Feld key="PR" n="PR" w={w} setze={setze} x={front ? spitze.x - 95 : spitze.x - 70} y={front ? spitze.y - 10 : innen ? spitze.y - 26 : spitze.y + 4} vor="Eck-R" />);
 
   return (
     <div className="cam-ein" data-camein-bild>
@@ -165,7 +194,7 @@ export function EinstichSteuerung({ w, setze }) {
     && !(w.strat === "schruppen" && n === "FS"));
   return (
     <div className="cam-ein__steuer">
-      <div className="moduswahl">{knopf("lage", "mantel", "Mantel")}{knopf("lage", "front", "Front")}</div>
+      <div className="moduswahl">{knopf("lage", "mantel", "Mantel")}{knopf("lage", "innen", "Innen")}{knopf("lage", "front", "Front")}</div>
       <div className="moduswahl">{knopf("strat", "beide", "Schruppen + Schlichten")}{knopf("strat", "schruppen", "Nur Schruppen")}{knopf("strat", "schlichten", "Nur Schlichten")}</div>
       <div className="cam-vorlage__felder">
         {rest.map((n) => { const f = feldVon(n); return (
