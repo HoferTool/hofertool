@@ -99,6 +99,182 @@ function stechRadius(nr, desc) {
   return null;
 }
 
+// Ifanger MicroTurn MTNU (Einstechen innen), Katalog 2024 S. 26 und
+// ifanger.com (Patrick 22. November 2026: „suche mit der Artikel-Nr. im Web“)
+// D = kleinste Bohrung, S Schaft, L ganz, L1 Hals, L2 Auskragung,
+// F Lage zur Mitte, T Einstechtiefe, B Breite
+const MTNU = Object.fromEntries([
+  ["42006", 2.0, 4, 31, 6, 15, 1.00, 0.5, 0.6], ["42508", 2.5, 4, 31, 8, 15, 1.25, 0.6, 0.8],
+  ["43208", 3.2, 4, 31, 8, 15, 1.60, 0.8, 1.0], ["43212", 3.2, 4, 31, 12, 15, 1.60, 0.8, 1.0],
+  ["43217", 3.2, 4, 36, 17, 20, 1.60, 0.8, 1.0], ["44010", 4.0, 4, 31, 10, 15, 1.95, 0.8, 1.0],
+  ["44014", 4.0, 4, 31, 14, 15, 1.95, 0.8, 1.0], ["44019", 4.0, 4, 36, 19, 20, 1.95, 0.8, 1.0],
+  ["64025", 4.0, 6, 48, 25, 29, 1.95, 0.8, 1.0], ["64030", 4.0, 6, 53, 30, 34, 1.95, 0.8, 1.0],
+  ["65012", 5.0, 6, 35, 12, 16, 2.50, 1.5, 1.2], ["65017", 5.0, 6, 43, 17, 24, 2.50, 1.5, 1.2],
+  ["65025", 5.0, 6, 48, 25, 29, 2.50, 1.5, 1.2], ["65032", 5.0, 6, 53, 32, 34, 2.50, 1.5, 1.2],
+  ["65040", 5.0, 6, 61, 40, 42, 2.50, 1.5, 1.2], ["66012", 6.0, 6, 35, 12, 16, 2.95, 2.0, 1.5],
+  ["66020", 6.0, 6, 43, 20, 24, 2.95, 2.0, 2.0], ["66030", 6.0, 6, 53, 30, 34, 2.95, 2.0, 2.0],
+  ["66040", 6.0, 6, 61, 40, 42, 2.95, 2.0, 2.0],
+].map(([k, D, S, L, L1, L2, F, T, B]) => [k, { D, S, L, L1, L2, F, T, B }]));
+
+// Weitere Ifanger MicroTurn (Katalog 2024, über alouettetool.com und
+// ifanger.com; Patrick 22. November 2026: „mach es bei jeder Artikel-Nr. so“).
+// Spalten wie MTNU: D kleinste Bohrung, S Schaft, L, L1 Hals, L2 Auskragung,
+// F Spitze bis Mitte Schaft; R = Radius der fünfstelligen Nummer (die
+// sechsstellige: Endziffer 0 scharf, 5 = R0.05), T Tiefe, B Breite, M Gewinde
+const tab = (zeilen, felder) => Object.fromEntries(zeilen.map(([k, ...w]) =>
+  [k, Object.fromEntries(felder.map((f, i) => [f, w[i]]))]));
+const MTE = tab([
+  ["41003", 1.0, 4, 26, 3, 10, 0.5, 0.02], ["41005", 1.0, 4, 26, 5, 10, 0.5, 0.02],
+  ["41204", 1.2, 4, 31, 4, 15, 0.6, 0.02], ["41207", 1.2, 4, 31, 7, 15, 0.6, 0.02],
+  ["41505", 1.5, 4, 31, 5, 15, 0.75, 0.02], ["41508", 1.5, 4, 31, 8, 15, 0.75, 0.02],
+  ["41805", 1.8, 4, 31, 5, 15, 0.9, 0.03], ["41809", 1.8, 4, 31, 9, 15, 0.9, 0.03],
+  ["41814", 1.8, 4, 31, 14, 15, 0.9, 0.03], ["42206", 2.2, 4, 31, 6, 15, 1.1, 0.05],
+  ["42210", 2.2, 4, 31, 10, 15, 1.1, 0.05], ["42214", 2.2, 4, 31, 14, 15, 1.1, 0.05],
+  ["42506", 2.5, 4, 31, 6, 15, 1.25, 0.05], ["42508", 2.5, 4, 31, 8, 15, 1.25, 0.05],
+  ["42510", 2.5, 4, 31, 10, 15, 1.25, 0.05], ["42514", 2.5, 4, 31, 14, 15, 1.25, 0.05],
+  ["43208", 3.2, 4, 31, 8, 15, 1.6, 0.08], ["43212", 3.2, 4, 31, 12, 15, 1.6, 0.08],
+  ["43217", 3.2, 4, 36, 17, 20, 1.6, 0.08], ["44010", 4.0, 4, 31, 10, 15, 1.95, 0.12],
+  ["44014", 4.0, 4, 31, 14, 15, 1.95, 0.12], ["44019", 4.0, 4, 36, 19, 20, 1.95, 0.12],
+  ["64025", 4.0, 6, 48, 25, 29, 1.95, 0.12], ["64030", 4.0, 6, 53, 30, 34, 1.95, 0.12],
+  ["65012", 5.0, 6, 35, 12, 16, 2.5, 0.15], ["65017", 5.0, 6, 43, 17, 24, 2.5, 0.15],
+  ["65025", 5.0, 6, 48, 25, 29, 2.5, 0.15], ["65032", 5.0, 6, 53, 32, 34, 2.5, 0.15],
+  ["65040", 5.0, 6, 61, 40, 42, 2.5, 0.15], ["66012", 6.0, 6, 35, 12, 16, 2.95, 0.2],
+  ["66020", 6.0, 6, 43, 20, 24, 2.95, 0.2], ["66030", 6.0, 6, 53, 30, 34, 2.95, 0.2],
+  ["66040", 6.0, 6, 61, 40, 42, 2.95, 0.2], ["66050", 6.0, 6, 71, 50, 52, 2.95, 0.2],
+], ["D", "S", "L", "L1", "L2", "F", "R"]);
+// MTKH (Profil), MTKO gleich mit eigenem F/T
+const MTK = tab([
+  ["42004", 2.0, 4, 31, 4, 15, 1.0, 0.5, 0.05], ["42506", 2.5, 4, 31, 6, 15, 1.25, 0.5, 0.05],
+  ["42510", 2.5, 4, 31, 10, 15, 1.25, 0.5, 0.05], ["43208", 3.2, 4, 31, 8, 15, 1.6, 0.6, 0.08],
+  ["43212", 3.2, 4, 31, 12, 15, 1.6, 0.6, 0.08], ["43217", 3.2, 4, 36, 17, 20, 1.6, 0.6, 0.08],
+  ["44010", 4.0, 4, 31, 10, 15, 1.95, 0.8, 0.12], ["44014", 4.0, 4, 31, 14, 15, 1.95, 0.8, 0.12],
+  ["44019", 4.0, 4, 36, 19, 20, 1.95, 0.8, 0.12], ["64025", 4.0, 6, 48, 25, 29, 1.95, 0.8, 0.12],
+  ["64030", 4.0, 6, 53, 30, 34, 1.95, 0.8, 0.12], ["65012", 5.0, 6, 35, 12, 16, 2.5, 1.2, 0.15],
+  ["65017", 5.0, 6, 43, 17, 24, 2.5, 1.2, 0.15], ["65025", 5.0, 6, 48, 25, 29, 2.5, 1.2, 0.15],
+  ["65032", 5.0, 6, 53, 32, 34, 2.5, 1.2, 0.15], ["65040", 5.0, 6, 61, 40, 42, 2.5, 1.2, 0.15],
+  ["66012", 6.0, 6, 35, 12, 16, 2.95, 1.45, 0.2], ["66020", 6.0, 6, 43, 20, 24, 2.95, 1.45, 0.2],
+  ["66030", 6.0, 6, 53, 30, 34, 2.95, 1.45, 0.2], ["66040", 6.0, 6, 61, 40, 42, 2.95, 1.45, 0.2],
+  ["66050", 6.0, 6, 71, 50, 52, 2.95, 1.45, 0.2],
+], ["D", "S", "L", "L1", "L2", "F", "T", "R"]);
+const MTKO_FT = { "42": [1.0, 0.5], "425": [1.3, 0.6], "432": [1.6, 0.8], "440": [2.0, 0.8], "640": [2.0, 0.8], "650": [2.5, 1.2], "660": [3.0, 1.45] };
+const MTGE = tab([
+  ["41203", 1.2, 4, 26, 2.3, 10, 0.6, "M1.6", 0.3], ["41604", 1.6, 4, 26, 3.7, 10, 0.8, "M2", 0.4],
+  ["42206", 2.2, 4, 31, 5.1, 15, 1.1, "M3", 0.6], ["43208", 3.2, 4, 31, 7.5, 15, 1.6, "M4", 1.0],
+  ["44010", 4.0, 4, 31, 9.4, 15, 2.0, "M5", 0.95], ["44014", 4.0, 4, 31, 13.4, 15, 2.0, "M5", 0.95],
+  ["65012", 5, 6, 35, 11.1, 16, 2.5, "M6", 1.5], ["65017", 5, 6, 43, 16.1, 24, 2.5, "M6", 1.5],
+  ["66012", 6, 6, 35, 11.0, 16, 3.0, "M8", 1.5], ["66020", 6, 6, 43, 19.0, 24, 3.0, "M8", 1.5],
+  ["66030", 6, 6, 53, 29.0, 34, 3.0, "M8", 1.5],
+], ["D", "S", "L", "L1", "L2", "F", "M", "T"]);
+const MTFA = tab([
+  ["42006", 2, 4, 31, 5.4, 15, 1.0, 0.5], ["42508", 2.5, 4, 31, 7.3, 15, 1.25, 0.6],
+  ["43212", 3.2, 4, 31, 11, 15, 1.6, 0.8], ["44014", 4, 4, 31, 13, 15, 1.95, 0.8],
+  ["44019", 4, 4, 36, 18, 20, 1.95, 0.8], ["65017", 5, 6, 43, 15.4, 24, 2.5, 1.45],
+  ["66020", 6, 6, 43, 18.4, 24, 2.95, 1.45], ["66030", 6, 6, 53, 28.4, 34, 2.95, 1.45],
+], ["D", "S", "L", "L1", "L2", "F", "T"]);
+const MTNX = tab([
+  ["40710", 4, 4, 26, 3, 10, 1.95, 1.2, 0.7], ["41015", 6, 4, 26, 5, 10, 1.95, 1.5, 1.0],
+  ["41520", 6, 4, 26, 7, 10, 1.95, 2.0, 1.5], ["61525", 6, 6, 35, 8, 16, 2.95, 2.5, 1.5],
+  ["62030", 6, 6, 35, 10, 16, 2.95, 3.0, 2.0],
+], ["D", "S", "L", "L1", "L2", "F", "T", "B"]);
+const MTNY = tab([
+  ["40710", 4, 4, 26, 6, 10, 1.2, 0.7], ["41015", 6, 4, 31, 8, 15, 1.5, 1.0],
+  ["41520", 6, 4, 31, 12, 15, 2.0, 1.5], ["61525", 6, 6, 35, 14, 16, 2.5, 1.5],
+  ["62030", 6, 6, 43, 20, 24, 3.0, 2.0],
+], ["D", "S", "L", "L1", "L2", "T", "B"]);
+
+// Ifanger-Werkzeug aus der Nummer (MTEC 650125-R …) oder null
+function ifanger(t) {
+  const m = /\bMT([A-Z]{2})\s*(\d{5})(\d?)/i.exec(t);
+  if (!m) return null;
+  const typ = m[1].toUpperCase(), k = m[2], sechs = m[3];
+  let z = null, quelle = "";
+  if (typ === "EC" || typ === "EN") z = MTE[k];
+  else if (typ === "EE" && k === "41805") z = { D: 1.8, S: 4, L: 31, L1: 5, L2: 15, F: 0.95, R: 0.05 };
+  else if (typ === "NN" && k === "42508") z = { D: 2.5, S: 4, L: 31, L1: 8, L2: 15, F: 1.25, R: 0.05 };
+  else if (typ === "KH") z = MTK[k];
+  else if (typ === "KO" && MTK[k]) {
+    const ft = MTKO_FT[k.slice(0, 3)] || MTKO_FT[k.slice(0, 2)];
+    z = { ...MTK[k], F: ft[0], T: ft[1] }; if (/^640/.test(k)) z.D = 5;
+  }
+  else if (typ === "GE") z = MTGE[k];
+  else if (typ === "FA") z = MTFA[k];
+  else if (typ === "NX") z = MTNX[k];
+  else if (typ === "NY") z = MTNY[k];
+  else if (typ === "NU") z = MTNU[k];
+  if (!z) return null;
+  quelle = `Ifanger MicroTurn MT${typ} ${k}${sechs}: Bohrung ab Ø${z.D}, Schaft Ø${z.S}, L ${z.L}, L1 ${z.L1}, L2 ${z.L2}` +
+    (z.F ? `, F ${z.F}` : "") + (z.T ? `, T ${z.T}` : "") + (z.B ? `, B ${z.B}` : "") + (z.M ? `, ${z.M}` : "");
+  const halter = { schaft: rund(z.S), auskrag: rund(z.L2), hals: rund(z.L1), dmin: rund(z.D), versatz: rund(z.F || z.D / 2) };
+  const gesch = ["Dicke"];
+  let wz;
+  if (typ === "NU" || typ === "NX" || typ === "NY") {
+    wz = { art: "dreh", form: "E", sl: "or", r: "0.05", breite: rund(z.B), l: rund(z.T) };
+    gesch.push("Eckradius");
+  } else if (typ === "GE") {
+    wz = { art: "dreh", form: "G", sl: "or", r: "0.05", l: rund(Math.max(0.5, z.F)) };
+    gesch.push("Radius");
+  } else if (typ === "FA") {
+    wz = { art: "dreh", form: "V", sl: "or", r: "0.05", l: rund(Math.max(0.5, z.T * 1.4)) };
+    gesch.push("Radius");
+  } else {
+    // Radius: sechsstellig 0 = scharf, 5 = R0.05; fünfstellig der Katalogwert
+    const r = sechs === "0" ? 0.01 : sechs === "5" ? 0.05 : z.R;
+    wz = { art: "dreh", form: typ[0] === "K" ? "V" : "D", sl: "or", r: rund(r), l: rund(Math.max(0.5, z.T || z.F)) };
+  }
+  wz.dicke = rund(Math.max(0.3, (z.F || z.D / 2) * 0.5));
+  Object.assign(wz, halter);
+  return { art: "dreh", wz, status: "teilweise", geschaetzt: gesch, info: quelle };
+}
+
+// Horn Mini R105 (Ausdrehen): R105.<Typ><Grösse>.[Radius].<Länge>.<Dmin>.
+// Genau aus dem Katalog nur die Zeilen in HORN105, sonst aus der Nummer:
+// letzte Gruppe = kleinste Bohrung (15 = 1.5, HV4/H.7 = 4/7), Gruppe 005/01
+// davor = Eckradius (ohne: 0.2, geschätzt), Länge aus der Längenstufe geschätzt
+const HORN105 = {
+  "R105.1033.2.6": { D: 6, l2: 15, d: 5.4, r: 0.2 },
+  "R105.1033.005.4.6": { D: 6, l2: 25, d: 5.4, r: 0.05 },
+  "R105.1813.01.0.15": { D: 1.5, l2: 6, d: 1.1, r: 0.1 },
+};
+function horn105(t) {
+  const m = /\bR105\.(\d{4})((?:\.[0-9A-Z]+)+)/i.exec(t);
+  if (!m) return null;
+  const teile = m[2].split(".").filter(Boolean).map((s) => s.toUpperCase());
+  const kurz = ("R105." + m[1] + "." + teile.join(".")).replace(/\.H\./, ".");
+  const gesch = [];
+  let D, r, l2, genau = HORN105[kurz];
+  if (genau) ({ D, r, l2 } = genau);
+  else {
+    const letzt = teile[teile.length - 1].replace(/^H?V?/, "");
+    D = letzt.length >= 2 ? Number(letzt) / 10 : Number(letzt);   // 15 = 1.5
+    const zahlen = teile.slice(0, -1).filter((s) => /^\d+$/.test(s));
+    const rG = zahlen.find((s) => /^0\d+$/.test(s) && s.length >= 2);
+    r = rG ? Number("0." + rG.slice(1)) : 0.2;
+    if (!rG) gesch.push("Eckradius");
+    const stufe = Number(zahlen.filter((s) => s !== rG).pop() || 1);
+    l2 = Math.max(3 * D, D * (5 + 5 * stufe) / 6);
+    gesch.push("Länge");
+  }
+  if (!(D > 0)) return null;
+  gesch.push("Dicke", "Lage zur Mitte", "Schaft");
+  const wz = { art: "dreh", form: "D", sl: "or", r: rund(r), l: rund(Math.max(0.5, D * 0.35)),
+    dicke: rund(Math.max(0.3, D * 0.2)), schaft: "6", dmin: rund(D), hals: rund(l2), auskrag: rund(l2), versatz: rund(D * 0.45) };
+  return { art: "dreh", wz, status: "teilweise", geschaetzt: gesch,
+    info: `Horn Mini R105: Bohrung ab Ø${D}, Eckradius ${r}, Ausspannlänge ${rund(l2)}` + (genau ? " (Katalog)" : " (aus der Nummer)") };
+}
+
+// Utilis Multidec 3004 / 1604 mit Schneide 29xyz (R = xyz/100): Form U,
+// Spitzenwinkel 27°, Freiwinkel 61° (Katalog Utilis)
+function utilisDec(t) {
+  const m = /\b(3004|1604)-(\d+(?:[.,]\d+)?)-[\d.-]+\s+(F?[RL])\s+(?:SP)?29(\d{3})/i.exec(t);
+  if (!m) return null;
+  const r = Number(m[4]) / 100;
+  const c = m[1] === "3004" ? 11 : 4.5;
+  const wz = { art: "dreh", form: "U", sl: /L/i.test(m[3]) ? "ol" : "or", r: rund(r || 0.02), winkel: "27", schraeg: "2", l: rund(c),
+    dicke: m[1] === "3004" ? "3" : "2" };
+  return { art: "dreh", wz, status: "teilweise", geschaetzt: ["Dicke", "Lage"],
+    info: `Utilis Multidec ${m[1]}, a ${zahl(m[2])}, R${r}, Spitzenwinkel 27°, Freiwinkel 61°` };
+}
+
 // Werkzeug aus einem Artikel: {art, wz, status, geschaetzt[]} oder null.
 // innen: Lage oben (Bohrung), sonst aussen unten (wie camProtokoll.js)
 export function artikelWerkzeug(kat, nr, desc) {
@@ -124,6 +300,31 @@ export function artikelWerkzeug(kat, nr, desc) {
       wz.dicke = g && g < 6 ? "2" : "3.5"; gesch.push("Dicke");
       const p = /\bP\s*(\d+(?:[.,]\d+)?)/i.exec(desc) || (gew[3] && /\d/.test(gew[3]) ? [0, gew[3]] : null);
       return { art: "dreh", wz, status: "teilweise", geschaetzt: gesch, info: p ? "Steigung " + zahl(p[1]) : "" };
+    }
+    const kat1 = ifanger(t) || horn105(t) || utilisDec(t);
+    if (kat1) return kat1;
+    // Ifanger Swiss-MicroTurn MTN.. (Einstechen innen, Vollhartmetall mit
+    // Schaft; Patrick 22. November 2026: lag vorher als D-Platte da)
+    const mtn = /\bMTN[A-Z]?\s*(\d{5})/i.exec(t);
+    if (mtn || /\bMTN[A-Z]?\s*\d{4}/i.test(t)) {
+      const m = mtn && MTNU[mtn[1]];
+      if (m) {
+        // Katalog Ifanger MicroTurn 2024 S. 26: Schneide ohne Radius, Dicke
+        // = Hals (F etwas unter dem Schaftradius)
+        const wz = { art: "dreh", form: "E", sl: "or", r: "0.05", breite: rund(m.B), l: rund(m.T), dicke: rund(Math.max(0.5, m.F * 0.5)),
+          schaft: rund(m.S), auskrag: rund(m.L2) };
+        return { art: "dreh", wz, status: "teilweise", geschaetzt: ["Dicke"],
+          info: `Ifanger MicroTurn MTNU ${mtn[1]}: Bohrung ab Ø${m.D}, B ${m.B}, T ${m.T}, Schaft Ø${m.S}, L ${m.L}, L1 ${m.L1}, L2 ${m.L2}, F ${m.F}` };
+      }
+      const ab = /ab\s*Ø\s*(\d+(?:[.,]\d+)?)/i.exec(desc);
+      const dmin = ab ? zahl(ab[1]) : null;
+      const b = stechBreite(nr, desc);
+      const wz = { art: "dreh", form: "E", sl: "or", r: "0.05" };
+      gesch.push("Eckradius");
+      if (b) wz.breite = rund(b); else { wz.breite = rund(dmin ? Math.min(1.5, Math.max(0.5, dmin * 0.25)) : 1); gesch.push("Breite"); }
+      wz.l = rund(dmin ? Math.max(1, dmin * 0.4) : 2); gesch.push("Tiefe");
+      wz.dicke = rund(dmin ? Math.max(0.6, dmin * 0.25) : 1); gesch.push("Dicke");
+      return { art: "dreh", wz, status: "teilweise", geschaetzt: gesch, info: "Ifanger Swiss-MicroTurn, Einstechen innen" + (dmin ? ", Bohrung ab Ø" + dmin : "") };
     }
     const breite = stechBreite(nr, desc);
     if (k === "Stechplatte" || (breite && !iso) || /einstech|stechplatte/i.test(t)) {

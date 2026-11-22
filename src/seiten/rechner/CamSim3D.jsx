@@ -13,7 +13,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { RASTER, materialStand, simAufbauen, umrissVon, plattenHuelle, bohrerHuelle, innenTiefe, huelleFuer } from "./camSim.js";
-import { drehKoerper, abstechKoerper, fraeserKoerper } from "./camKoerper.js";
+import { drehKoerper, abstechKoerper, fraeserKoerper, halterLage } from "./camKoerper.js";
 import { stepFertig, stepHolen, stepLokal, stepDrehKoerper, stepRundKoerper } from "./camStep.js";
 import { MASCHINE_SB20RG, GEGEN_SB20RG, platzLage, traegerQuader, gegenEinheit, gegenQuader, platzLageSw, traegerSwQuader, swGehaeuseVorne, MASCHINE_SW20, SW20_K2, swK2Quader, walzeTeil, SB20_K2, sbK2Quader } from "./camMaschine.js";
 
@@ -632,6 +632,29 @@ const STATUS = {
 
 // Einzelsatz: Ende der NC-Zeile, zu der der nächste Punkt ab „ab“ gehört
 // (alle Punkte einer Zeile tragen dieselbe Nummer nr)
+// Seit 1.696.0 der Halter 12 × 12 zur Platte (camHalter.js), beim
+// Ausdrehen eine Bohrstange: dafür das kleinste Loch, in dem sie schneidet,
+// und wie tief sie eintaucht (aus den Vorschubzeilen der Bearbeitung)
+function halterOpt(s, maschine) {
+  const pk = s.punkte || [];
+  let rb = Infinity, zmin = Infinity, zmax = -Infinity;
+  for (let i = 0; i < pk.length; i++) {
+    const q = pk[i];
+    if (!q.vor) continue;
+    zmin = Math.min(zmin, q.z); zmax = Math.max(zmax, q.z);
+    if (i + 1 < pk.length && pk[i + 1].nr === q.nr) continue;
+    if (q.r > 0.05 && q.r < rb) rb = q.r;
+  }
+  const p0 = pk[0];
+  // radial im Stahlhalter (T100–T600, SW-20 T100–T400, T1100/T1200)
+  const radial = s.art === "dreh" || s.art === "k3dr";
+  if (!p0 || zmin === Infinity) return { maschine, radial };
+  // aus dem Loch heraus: dorthin, wo die Bearbeitung anfängt
+  const dir = p0.z <= (zmin + zmax) / 2 ? -1 : 1;
+  const tiefe = Math.max(Math.abs(zmax - p0.z), Math.abs(zmin - p0.z));
+  return { maschine, radial, innen: { rb: rb === Infinity ? 0 : rb, tiefe, dir } };
+}
+
 export function satzEnde(s, ab) {
   let k = Math.max(ab, s.von);
   if (k >= s.bis) return s.bis;
@@ -834,6 +857,7 @@ function Simulation({ w, zu }) {
     let bereich = { ...bereich0, zmin: bereich0.zmin + dz, zmax: bereich0.zmax + dz, px: schieb.x, py: schieb.y };
     // Bahn und Werkzeug des aktuellen Schritts
     const ueber = { bahnen: [], werkzeuge: [], stangen: [], koerper: [], spitze: null, buechse: null };
+    let halterSchieb = null;
     if (akt && akt.kanal === kanal && akt.punkte.length && n > akt.von) {
       const bis = Math.min(n, akt.bis) - akt.von;
       const pts = akt.punkte.slice(0, bis);
@@ -855,7 +879,13 @@ function Simulation({ w, zu }) {
         const netz = dreiD && akt.wz.step && stepFertig(akt.wz.step.url);
         const k0 = ueber.koerper.length;
         if (netz) ueber.koerper.push(...stepDrehKoerper(stepLokal(netz, akt.wz, false), p));
-        else if (h && dreiD) ueber.koerper.push(...drehKoerper(akt.wz, p, h.umriss, !maschineAn && akt.art === "dreh"));
+        else if (h && dreiD) {
+          ueber.koerper.push(...drehKoerper(akt.wz, p, h.umriss, halterOpt(akt, maschineAn)));
+          // Träger so, dass sein Schaft genau dort sitzt, wo der Halter die
+          // Platte hält (Spanfläche = Oberkante, f1 nach ISO 5610)
+          const hl = (akt.art === "dreh" || akt.art === "k3dr") ? halterLage(akt.wz, h.umriss) : null;
+          if (hl) halterSchieb = { dz: (hl.z0 + hl.z1) / 2 + 6, dy: akt.pfad === 3 ? 6 : -6, platz: akt.platz };
+        }
         // Kanal 3 der SW-20: Träger gegenüber, der Körper um die Achse gedreht
         if (akt.pfad === 3) for (let j = k0; j < ueber.koerper.length; j++) ueber.koerper[j] = { ...ueber.koerper[j], pts: ueber.koerper[j].pts.map((q) => [q[0], -q[1], -q[2]]) };
       } else if (akt.wz && akt.modus === "c") {
@@ -1113,6 +1143,10 @@ function Simulation({ w, zu }) {
     let maschine = null, gegen = null;
     if (swMaschine) {
       const lg = kanal === 1 ? swLage : { ...swEnde, aktiv: 0 };
+      // seit 1.696.0: Träger des arbeitenden Drehwerkzeugs um den Halter
+      // versetzt, sein Schaft fehlt dort (zeichnet der Halter)
+      const hs = kanal === 1 && halterSchieb && lg.aktiv === halterSchieb.platz ? halterSchieb : null;
+      const mitHs = (o, pf) => (hs && o && (lg.pfad || 1) === pf ? { ...o, z: o.z + hs.dz, y: o.y + hs.dy } : o);
       const benutzt = new Set(sim.schritte.map((x) => x.platz));
       const zb = swEbene + 2;
       // SB-20RG: Träger 1 aus Kanal 1, in Kanal 2 wo Kanal 1 ihn liess
@@ -1120,10 +1154,10 @@ function Simulation({ w, zu }) {
       const sbT1 = kanal === 1 ? traeger : swK2 && swK2.t1 ? swK2.t1 : { ...lg.t1, aktiv: 0 };
       const ab1 = { vor: A / 2 + 1, b: Math.max(0.5, sim.roh.B || 2), dz: -(sim.abVersatz || 0) };
       maschine = {
-        quader: sim.sw ? [...traegerSwQuader(lg.t1, 1, lg.aktiv, sim.swFront, benutzt, MASCHINE_SW20, sim.swSchlitz, swSpitzen.dz, sim.swFest),
-          ...traegerSwQuader(lg.t3, 3, lg.aktiv, sim.swFront, benutzt, MASCHINE_SW20, false, swSpitzen.dz, sim.swFest),
+        quader: sim.sw ? [...traegerSwQuader(mitHs(lg.t1, 1), 1, lg.aktiv, sim.swFront, benutzt, MASCHINE_SW20, sim.swSchlitz, swSpitzen.dz, sim.swFest, !!hs && lg.pfad !== 3),
+          ...traegerSwQuader(mitHs(lg.t3, 3), 3, lg.aktiv, sim.swFront, benutzt, MASCHINE_SW20, false, swSpitzen.dz, sim.swFest, !!hs && lg.pfad === 3),
           ...swK2Quader({ z: swEbene + SW20_K2.spitze, y: swK2 ? swK2.y : 0 }, swK2 ? swK2.aktiv : 0, benutzt)]
-          : [...(sbT1 ? traegerQuader(sbT1, sbT1.aktiv, undefined, sim.t34, ab1, kanal === 1 ? sbT1.spitze : null, new Set(sim.schritte.filter((x) => x.kanal === 1).map((x) => x.platz))) : []),
+          : [...(sbT1 ? traegerQuader(mitHs(sbT1, 1), sbT1.aktiv, undefined, sim.t34, ab1, kanal === 1 ? sbT1.spitze : null, new Set(sim.schritte.filter((x) => x.kanal === 1).map((x) => x.platz)), !!hs) : []),
             ...sbK2Quader({ z: swEbene + M2.spitze }, swK2 ? swK2.aktiv : 0, benutzt)],
         roll, grob: laeuft, kopf: { z: kopfZ, ri: A / 2, nase: k.nase, naseL: k.naseL, r: k.r, L: k.L },
       };
@@ -1192,7 +1226,11 @@ function Simulation({ w, zu }) {
       }
     } else if (kanal === 1 && maschineAn) {
       maschine = {
-        quader: traeger ? traegerQuader(traeger, traeger.aktiv, undefined, sim.t34, { vor: A / 2 + 1, b: Math.max(0.5, sim.roh.B || 2), dz: -(sim.abVersatz || 0) }, traeger.spitze, new Set(sim.schritte.filter((x) => x.kanal === 1).map((x) => x.platz))) : [], roll, grob: laeuft,
+        quader: traeger ? (() => {
+          const hs = halterSchieb && traeger.aktiv === halterSchieb.platz ? halterSchieb : null;
+          const o = hs ? { ...traeger, z: traeger.z + hs.dz, y: traeger.y + hs.dy } : traeger;
+          return traegerQuader(o, traeger.aktiv, undefined, sim.t34, { vor: A / 2 + 1, b: Math.max(0.5, sim.roh.B || 2), dz: -(sim.abVersatz || 0) }, traeger.spitze, new Set(sim.schritte.filter((x) => x.kanal === 1).map((x) => x.platz)), !!hs);
+        })() : [], roll, grob: laeuft,
         kopf: { z: kopfZ, ri: A / 2, nase: k.nase, naseL: k.naseL, r: k.r, L: k.L },
       };
       maschine.koepfe = [maschine.kopf];

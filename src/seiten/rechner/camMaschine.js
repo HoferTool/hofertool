@@ -54,7 +54,9 @@ export const TRAEGER_PLAETZE = [100, 200, 300, 400, 500, 600, 3100, 3200, 3300, 
 // von T100–T600, die nicht vorkommen (Patrick 16. November 2026: „wenn bei
 // den Drehhaltern das Werkzeug im Programm nicht verwendet wird, blende es
 // in der Simulation aus“), ohne Set alle wie bisher
-export function traegerQuader(o, aktiv, m = MASCHINE_SB20RG, t34 = "3421", ab = null, spitze = null, benutzt = null) {
+// ohneSchaft (seit 1.696.0): den Schaft des arbeitenden Drehwerkzeugs
+// zeichnet die Simulation mit seinem Halter selbst (camHalter.js)
+export function traegerQuader(o, aktiv, m = MASCHINE_SB20RG, t34 = "3421", ab = null, spitze = null, benutzt = null, ohneSchaft = false) {
   const q = [];
   const box = (z0, z1, x0, x1, y0, y1, art) => q.push({ z0: o.z + z0, z1: o.z + z1, x0: o.x + x0, x1: o.x + x1, y0: o.y + y0, y1: o.y + y1, art });
   // Seit 1.584.1 (Patrick 16. November 2026): die Schäfte 12 × 12 stecken
@@ -75,8 +77,9 @@ export function traegerQuader(o, aktiv, m = MASCHINE_SB20RG, t34 = "3421", ab = 
       if (t !== aktiv) box((ab.dz || 0) - ab.b, ab.dz || 0, 0, ab.vor + 3, y - 3, y + 3, "schneide");
       continue;
     }
-    box(-12, 0, pl / 2, 40, y - 6, y + 6, "halter");      // Schaft 12 × 12 (Patrick)
-    if (t !== aktiv) box(-5, 0, 0, pl, y - 3, y + 3, "schneide");
+    if (!(ohneSchaft && t === aktiv)) box(-12, 0, pl / 2, 40, y - 6, y + 6, "halter");      // Schaft 12 × 12 (Patrick)
+    // Spanfläche = Oberkante des Schafts (ISO 5610, h1 = h), seit 1.696.0
+    if (t !== aktiv) box(-5, 0, 0, pl, y + 3, y + 6, "schneide");
   }
   // Querangetrieben: nur das Gehäuse; Werkzeuge ausser T100–T600 zeichnet
   // die Simulation nur, wenn sie arbeiten (Patrick 16. November 2026)
@@ -209,7 +212,7 @@ export function walzeTeil(achse, z, x, y, L, r, art, r2 = r) {
 // aus dem Programm vor der Null seines Trägers steht; der Träger ist ein
 // starrer Block, jedes benutzte Frontwerkzeug steckt mit einem Schaft in
 // seinem Gehäuse und fährt mit, auch wenn es gerade nicht arbeitet
-export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null, m = MASCHINE_SW20, schlitz = false, spitzen = null, fest = []) {
+export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null, m = MASCHINE_SW20, schlitz = false, spitzen = null, fest = [], ohneSchaft = false) {
   const q = [], sg = traeger === 3 ? -1 : 1;
   const box = (z0, z1, x0, x1, y0, y1, art) => {
     const xa = o.x + sg * x0, xb = o.x + sg * x1;
@@ -251,11 +254,15 @@ export function traegerSwQuader(o, traeger, aktiv, frontAuf = [], benutzt = null
     const y = yd[k];
     if (benutzt && !benutzt.has(t) && t !== aktiv) return;
     // Schaft 12 × 12 mit Kopf, der zur Spitze schmaler wird
-    box(-12, 0, 14, 40, y - 6, y + 6, "halter");
-    box(-12, 0, 5, 14, y - 6, y + 4, "halter");
+    if (!(ohneSchaft && t === aktiv)) {
+      box(-12, 0, 14, 40, y - 6, y + 6, "halter");
+      box(-12, 0, 5, 14, y - 6, y + 6, "halter");
+    }
     if (t !== aktiv) {
-      box(-4, 0, 0, 6, y - 2.6, y + 2.6, "schneide");
-      walze("x", -2, 3, y + 2.8, 0, 1.1, "schraube");
+      // Spanfläche = Oberkante des Schafts (beim Träger 3 unten, er steht
+      // gegenüber), seit 1.696.0
+      const yo = traeger === 3 ? y - 6 : y + 6, sy = traeger === 3 ? 1 : -1;
+      box(-4, 0, 0, 6, Math.min(yo, yo + sy * 2.6), Math.max(yo, yo + sy * 2.6), "schneide");
     }
   });
   // angetriebene Plätze: Gehäuse quer oder Frontbohrapparat
