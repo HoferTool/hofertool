@@ -71,7 +71,13 @@ with sync_playwright() as p:
     pg.screenshot(path="produktion_richten_dunkel.png")
     pg.evaluate("document.body.classList.remove('dunkel')")
 
-    pg.fill("[data-richten-suche]", "10000-0301"); pg.wait_for_timeout(900)
+    pg.evaluate("""() => { const p = TEST.daten.hoco_parts.find(x => x.hoco_nr === '10000-0301');
+      if (p) { p.teil_laenge_mm = 12.5; p.teil_mass_bestaetigt = true; } else TEST.daten.hoco_parts.push({ hoco_nr: '10000-0301', teil_laenge_mm: 12.5, teil_mass_bestaetigt: true }); }""")
+    pg.fill("[data-richten-suche]", "10000-0301"); pg.wait_for_timeout(1500)
+    info = pg.locator("[data-richten-info='10000-0301']")
+    pruefe("Infos zum Teil mit Länge", info.count() == 1 and pg.locator("[data-richten-laenge='12.5']").count() == 1)
+    pruefe("Zeichnung-Knopf da", pg.locator("[data-richten-zeichnung='10000-0301']").count() == 1)
+    pg.screenshot(path="/tmp/claude-0/richten_info.png")
     pg.locator("[data-richten-hoco-treffer='10000-0301'] [data-richten-bearbeiten]").click(); pg.wait_for_selector("[data-eba-seite]")
     # Seit 1.178.0 liest das Blatt das Excel selbst vor, gespeichert wird mit Speichern
     pg.wait_for_selector("[data-eba-vorgelesen]:has-text('Aus dem Excel vorgelesen')")

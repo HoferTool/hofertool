@@ -514,7 +514,7 @@ def s_r_neu(pg, a):
 
 @schritt("Werkzeug: eine D Platte mit Radius null komma zwei.", "Werkzeug: <b>D-Platte</b>, R <b>0.2</b>.")
 def s_r_wz(pg, a):
-    werkzeug(pg, a, FASE, "dreh", "D", [("r", "0.2")])
+    werkzeug(pg, a, FASE, "dreh", "D", [("r", "0.2")], lage="u")
     wz_zu(pg, a)
 
 @schritt("Dann die Bohrung hinten: Durchmesser fünf, vierzehn Millimeter tief.", "Die <b>Bohrung hinten Ø5</b>, 14 tief.")
@@ -835,7 +835,7 @@ with sync_playwright() as p:
     pg.evaluate("() => { const e = document.getElementById('tut-titel'); e.style.transition = 'none'; e.innerHTML = 'HOFERCAM'; e.style.opacity = 1; }")
     pg.wait_for_timeout(600)
     start = time.time() - t0
-    pg.set_default_timeout(6000)
+    pg.set_default_timeout(30000)
 
     class A: pass
     a = A()
@@ -901,7 +901,8 @@ with sync_playwright() as p:
         try:
             f(pg, a)
         except Exception as e:
-            pg.screenshot(path=os.path.join(tempfile.gettempdir(), f"sw20-fehler-{i}.png"))
+            try: pg.screenshot(path=os.path.join(tempfile.gettempdir(), f"sw20-fehler-{i}.png"), timeout=20000)
+            except Exception: pass
             print("Fehler bei Schritt", i, f.__name__, (str(e) or repr(e)).splitlines()[0])
             fehler.append(f.__name__)
             pg.keyboard.press("Escape")

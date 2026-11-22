@@ -1051,7 +1051,7 @@ export default function HoferCam() {
         {alt.istAdmin && alt.istAdmin() && <button className="knopf knopf--klein" id="cam-typ-einst" title="Kopf, Ende, Bearbeitungen, Plätze und Vorgaben dieses Maschinentyps einstellen"
           onClick={camTypFensterOeffnen}>⚙ Maschinentyp</button>}
         {/* Seit 1.601.0: Tutorial jederzeit wieder anschauen (Wunsch Patrick 17. November 2026) */}
-        <button className="knopf knopf--klein" id="cam-tutorial" title="Tutorial-Video zu HOFERCAM anschauen" onClick={hofercamTutorialOeffnen}>▶ Tutorial</button>
+        <button className="knopf knopf--klein" id="cam-tutorial" title="Tutorial-Video zu HOFERCAM anschauen" onClick={() => hofercamTutorialOeffnen(w.typ)}>▶ Tutorial</button>
         <NcAblage art="cam" kurz="camab" wort="HOFERCAM" daten={w} nc={ncBeide} laden={laden}
           gespeichert={gespeichert} setGespeichert={setGespeichert}
           vorSpeichern={schreibrechtHolen} nachSpeichern={async (name, recht) => {

@@ -14,7 +14,7 @@ import { partnerFensterOeffnen } from "./PartnerFenster.jsx";
 
 export const STAMM_REITER = [
   ["lieferant", "Lieferanten"], ["kunde", "Kunden"], ["artikel", "Artikel"], ["betriebsmittel", "Betriebsmittel"],
-  ["pruefmittel", "Prüfmittel"], ["liefer", "Lieferbedingungen"], ["zahlung", "Zahlungsbedingungen"],
+  ["liefer", "Lieferbedingungen"], ["zahlung", "Zahlungsbedingungen"],
   ["lager", "Lager"], ["arbeitsplan", "Arbeitspläne"],
 ];
 
@@ -32,7 +32,6 @@ export default function Stammdaten({ d, neu }) {
       {(reiter === "lieferant" || reiter === "kunde") && <Partner d={d} neu={neu} art={reiter} />}
       {reiter === "artikel" && <Artikel d={d} neu={neu} />}
       {reiter === "betriebsmittel" && <Betriebsmittel />}
-      {reiter === "pruefmittel" && <Pruefmittel />}
       {(reiter === "liefer" || reiter === "zahlung") && <Bedingungen d={d} neu={neu} art={reiter} />}
       {reiter === "lager" && <Lager d={d} neu={neu} />}
       {reiter === "arbeitsplan" && <Arbeitsplaene d={d} neu={neu} />}
@@ -266,24 +265,6 @@ function Betriebsmittel() {
         {" "}<a href="#/kalkulation">Zur Kalkulation</a></p>
       <Tabelle kopf={["Betriebsmittel", "Stundensatz CHF/h", "Rüstsatz CHF/h"]}
         zeilen={daten.map((m) => { const s = stundensatz(m); return { key: m.id, zellen: [<b>{m.name}</b>, chf(s.eff), chf(s.ruest)] }; })} />
-    </>
-  );
-}
-
-function Pruefmittel() {
-  const { daten, fehler } = useDaten(async () => {
-    const r = await alt.db.from("pruefmittel").select("id, nr, bezeichnung, art, mass, ort_art, ort_text, status, letzte_pruefung, intervall_monate").order("nr");
-    if (r.error) throw r.error;
-    return r.data || [];
-  }, []);
-  if (fehler) return <div className="karte karte--fehler"><p>{alt.fehlertext(fehler)}</p></div>;
-  if (!daten) return <div className="laedt">Wird geladen …</div>;
-  return (
-    <>
-      <p className="klein">Die Prüfmittel werden in der Qualitätssicherung geführt. <a href="#/pruefmittel">Zu den Prüfmitteln</a></p>
-      <Tabelle kopf={["Nr.", "Bezeichnung", "Art", "Mass", "Ort", "Zuletzt geprüft", "Status"]} leer="Noch keine Prüfmittel."
-        zeilen={daten.map((p) => ({ key: p.id, zellen: [<b>{p.nr || ""}</b>, p.bezeichnung, p.art || "", p.mass || "",
-          p.ort_text || p.ort_art || "", p.letzte_pruefung ? alt.kurzDatum(p.letzte_pruefung) : "", p.status] }))} />
     </>
   );
 }
