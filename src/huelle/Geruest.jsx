@@ -32,6 +32,48 @@ function NavTodoPlatz() {
   return darf && Teil ? <Teil /> : null;
 }
 
+// Am Handy im neuen Look (seit 1.713.0, Wunsch Patrick 23. November 2026:
+// „auch Hochformat Handy neuer Look, und es soll Sinn machen“): dort gibt es
+// keine Seitenleiste, darum oben ein Knopf, der die Todos als Blatt unter der
+// Kopfzeile öffnet. Geladen erst beim Öffnen, damit nichts doppelt läuft.
+function KopfTodos() {
+  const [auf, setAuf] = useState(false);
+  const [Teil, setTeil] = useState(null);
+  const darf = todosSichtbar() && !(alt.istArchiv && alt.istArchiv()) && !istPlanerTab();
+  useEffect(() => {
+    if (!auf || Teil) return;
+    import("../pad/Planer.jsx").then((m) => setTeil(() => m.NavTodos)).catch(() => {});
+  }, [auf, Teil]);
+  useEffect(() => {
+    if (!auf) return;
+    const zu = () => setAuf(false);
+    // Ein Todo führt zur Planwand: dann geht das Blatt zu
+    window.addEventListener("hashchange", zu);
+    const taste = (e) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      e.preventDefault(); e.stopPropagation(); zu();
+    };
+    document.addEventListener("keydown", taste, true);
+    return () => { window.removeEventListener("hashchange", zu); document.removeEventListener("keydown", taste, true); };
+  }, [auf]);
+  if (!darf) return null;
+  return <>
+    <button type="button" className={"kopf__todos" + (auf ? " kopf__todos--auf" : "")} id="kopf-todos"
+      title="Todos" aria-label="Todos" aria-expanded={auf} onClick={() => setAuf(!auf)}>
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9"
+        strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M4 6.5l1.6 1.6L8.5 5" /><path d="M4 12.5l1.6 1.6 2.9-3.1" /><path d="M4 18.5l1.6 1.6 2.9-3.1" />
+        <path d="M11.5 7h8.5" /><path d="M11.5 13h8.5" /><path d="M11.5 19h8.5" /></svg>
+    </button>
+    {auf && <>
+      <div className="kopf-todos__schleier" onClick={() => setAuf(false)} />
+      <div className="kopf-todos" role="dialog" aria-label="Todos">
+        {Teil ? <Teil id="kopf-todo-liste" /> : <p className="kopf-todos__laden">Todos werden geladen …</p>}
+      </div>
+    </>}
+  </>;
+}
+
 // Admins: Seitenleiste zeigt die Todos, der Knopf ☰ holt das Menü für
 // eine Minute (seit 1.606.0, Wunsch Patrick 17. November 2026: „admins
 // das Menü nicht einklappen können … oben auf den Button kommt das Menü,
@@ -321,7 +363,10 @@ function Geruest() {
             Weg, eine hängende Ansicht aufzufrischen. Der Link auf hoferco.ch
             (111.42.0) ist wieder weg (Wunsch 5. Oktober 2026 abends). */}
         <button className="kopf__logolink" id="kopf-neuladen" title="Seite neu laden"
-          onClick={() => location.reload()}><Logo /></button>
+          onClick={() => location.reload()}><Logo />
+          {/* Am Handy im neuen Look das Logo wie oben in der Leiste am Computer */}
+          <img className="kopf__logobild kopf__logobild--hell" src="logo-empfang.png" alt="" />
+          <img className="kopf__logobild kopf__logobild--dunkel" src="logo-weiss.svg" alt="" /></button>
         {/* Gesperrt und freigegeben wird er von knopfRueckgaengigZeigen im
             alten Programm. Kein disabled hier: React würde Klicks sonst
             auch nach dem Freigeben verschlucken. */}
@@ -343,6 +388,14 @@ function Geruest() {
           <span>Suchen</span><kbd>Strg F</kbd>
         </button>
         {/* Das Bild ganz rechts führt in die Einstellungen */}
+        {/* Nur am Handy im neuen Look sichtbar (statt „Pad Mode“ als Schild) */}
+        <KopfTodos />
+        <button type="button" className="kopf__pad" id="kopf-pad" title="Pad Mode" aria-label="Pad Mode"
+          onClick={() => alt.padOeffnen()}>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9"
+            strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="4" y="2.5" width="16" height="19" rx="2.5" /><path d="M11 18.5h2" /></svg>
+        </button>
         <span className="kopf__benutzer" data-benutzername="">{anzeige}</span>
         <button className="kopf__ich" id="kopf-einstellungen" title="Einstellungen"
           onClick={() => alt.einstellungenOeffnen()}>

@@ -172,7 +172,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.712.0";
+const APP_VERSION = "1.713.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3228,6 +3228,12 @@ function zeitAdmin() { return istAdmin() && !!(profil && profil.zeitAdmin); }
 // Ohne u gilt die angemeldete Person. Solange sql/andere-nutzer.sql
 // fehlt, kennt das Profil das Häkchen nicht; dann zählt die Rolle
 // Planwand, denn genau das waren bisher die Gerätekonten.
+// Neuer Look (ohne Kopfzeile, Logo und Knöpfe oben in der Leiste, am Handy
+// eigene Kopfleiste) vorerst nur mit Vermerk neuerLook am Konto (seit
+// 1.713.0, Wunsch Patrick 23. November 2026: „Änder zu nur Saheesan“).
+function neuerLookSehen(u) {
+  return !!(u && u.einstellungen && u.einstellungen.neuerLook);
+}
 function empfangSehen(u) {
   return !!(u && u.einstellungen && u.einstellungen.empfangSehen);
 }
@@ -11613,11 +11619,11 @@ function zeichneGeruest() {
   document.body.classList.toggle("dunkel", einstellung("dunkel"));
   document.body.classList.toggle("nav--schmal", einstellungWert("navschmal", "0") === "1");
   // Am Computer ohne Kopfzeile, Logo und Knöpfe oben in der Leiste (seit 1.711.0,
-  // Wunsch Patrick 22. November 2026). Seit 1.712.0 vorerst nur für Admins
-  // als Test, für alle erst, wenn Patrick es ausdrücklich sagt. Ältere
+  // Wunsch Patrick 22. November 2026). Seit 1.713.0 vorerst nur mit Vermerk
+  // neuerLook (Saheesan), für alle erst, wenn Patrick es ausdrücklich sagt. Ältere
   // Prüfstände bedienen noch die Knöpfe der Kopfzeile, darum dort nur mit
   // TEST.ohneKopf.
-  document.documentElement.classList.toggle("ohne-kopf", istAdmin() && !(window.TEST && !window.TEST.ohneKopf));
+  document.documentElement.classList.toggle("ohne-kopf", neuerLookSehen(profil) && !(window.TEST && !window.TEST.ohneKopf));
   themaAnwenden();
   // Administratoren sehen den Pad-Knopf auf jedem Gerät
   document.body.classList.toggle("ist-admin", istAdmin());

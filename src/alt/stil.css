@@ -15824,3 +15824,71 @@ body.dunkel .cam-wzg__mass b { color: #ffa24a !important; }
   .nav__ich .kopf__bild { width: 40px; height: 40px; border-radius: 10px; font-size: 17px; object-fit: cover; }
 }
 body.rolle-extern .nav__oben, body.pw-vollbild .nav__oben { display: none !important; }
+
+/* 1.713.0: neuer Look auch am Handy hochkant (Wunsch Patrick 23. November
+   2026: „auch Hochformat Handy neuer Look, und es soll Sinn machen“). Ohne
+   Seitenleiste bleibt oben eine schlanke Kopfleiste im Stil der Leiste am
+   Computer: Logo links, rechts runde Quadrate für Rückgängig, Suchen, Todos,
+   Pad Mode und das Bild für die Einstellungen. Die Todos öffnen sich als
+   Blatt unter der Kopfleiste. Nur mit html.ohne-kopf (Vermerk neuerLook). */
+.kopf__todos, .kopf__pad { display: none; }
+.kopf-todos, .kopf-todos__schleier { display: none; }
+@media (max-width: 779px) {
+  html.ohne-kopf body:not(.rolle-extern) { --kopfhoehe: calc(60px + env(safe-area-inset-top, 0px)); }
+  html.ohne-kopf body:not(.rolle-extern) .kopf { gap: 8px; padding: 0 12px; border-bottom: 0;
+    background: var(--karte, #fff); box-shadow: 0 1px 0 var(--rand, #d6dde6), 0 4px 14px rgba(15, 23, 42, .06); }
+  html.ohne-kopf body.dunkel:not(.rolle-extern) .kopf { background: #141d2e; box-shadow: 0 1px 0 #26334a; }
+  html.ohne-kopf body:not(.rolle-extern) #pad-knopf,
+  html.ohne-kopf body:not(.rolle-extern) .kopf__klapp,
+  html.ohne-kopf body:not(.rolle-extern) .kopf__benutzer { display: none !important; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf__logolink { order: 0; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf__logo { height: 34px; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf__luecke { order: 1; flex: 1; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf__rueck { order: 2; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf__suche { order: 3; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf__todos { order: 4; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf__pad { order: 5; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf__ich { order: 6; margin-left: 0; padding: 0; }
+  html.ohne-kopf body:not(.rolle-extern) :is(.kopf__rueck, .kopf__suche, .kopf__todos, .kopf__pad) {
+    display: grid !important; place-items: center; flex: none; width: 40px; height: 40px; min-width: 0;
+    padding: 0; border: 0; border-radius: 10px; cursor: pointer; font: inherit;
+    background: var(--karte, #fff); color: var(--tinte, #1e293b);
+    box-shadow: 0 0 0 1px var(--rand, #d6dde6), 0 1px 2px rgba(15, 23, 42, .06);
+    transition-property: background-color, scale; transition-duration: .15s; transition-timing-function: ease-out; }
+  html.ohne-kopf body:not(.rolle-extern) :is(.kopf__rueck, .kopf__suche) :is(b, span, kbd) { display: none; }
+  html.ohne-kopf body:not(.rolle-extern) :is(.kopf__rueck, .kopf__suche) svg { width: 19px; height: 19px; color: var(--marke); }
+  html.ohne-kopf body:not(.rolle-extern) :is(.kopf__rueck, .kopf__suche, .kopf__todos, .kopf__pad, .kopf__ich):active { scale: .96; }
+  html.ohne-kopf body.dunkel:not(.rolle-extern) :is(.kopf__rueck, .kopf__suche, .kopf__todos, .kopf__pad) {
+    background: #1e293b; box-shadow: 0 0 0 1px #334155; }
+  html.ohne-kopf body.dunkel:not(.rolle-extern) :is(.kopf__rueck, .kopf__suche) svg { color: inherit; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf__todos--auf { background: var(--marke) !important; color: #fff !important; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf__ich .kopf__bild { width: 40px; height: 40px; border-radius: 10px; font-size: 17px; object-fit: cover; }
+  /* Blatt mit den Todos unter der Kopfleiste */
+  html.ohne-kopf body:not(.rolle-extern) .kopf-todos__schleier { display: block; position: fixed; inset: var(--kopfhoehe) 0 0;
+    background: rgba(15, 23, 42, .35); animation: kopf-todos-schleier .18s ease-out; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf-todos { display: block; position: fixed; top: calc(var(--kopfhoehe) + 8px);
+    left: 10px; right: 10px; max-height: calc(100dvh - var(--kopfhoehe) - 96px); overflow-y: auto; overscroll-behavior: contain;
+    padding: 12px; border-radius: 16px; background: var(--karte, #fff);
+    box-shadow: 0 0 0 1px var(--rand, #d6dde6), 0 18px 40px rgba(15, 23, 42, .22);
+    animation: kopf-todos-auf .2s ease-out; }
+  html.ohne-kopf body.dunkel:not(.rolle-extern) .kopf-todos { background: #141d2e; box-shadow: 0 0 0 1px #334155, 0 18px 40px rgba(0, 0, 0, .5); }
+  html.ohne-kopf body:not(.rolle-extern) .kopf-todos .nav-todo { display: block; margin: 0; padding: 0; border: 0; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf-todos .pl-todo__eintrag { padding: 9px 8px; font-size: .92rem; }
+  .kopf-todos__laden { margin: 6px 2px; color: #6a7c96; }
+}
+@keyframes kopf-todos-auf { from { opacity: 0; translate: 0 -6px; } }
+@keyframes kopf-todos-schleier { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .kopf-todos, .kopf-todos__schleier { animation: none !important; } }
+.kopf__logobild { display: none; }
+@media (max-width: 779px) {
+  html.ohne-kopf body:not(.rolle-extern) .kopf__logolink .kopf__logo { display: none; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf__logobild--hell { display: block; height: 38px; width: auto; }
+  html.ohne-kopf body.dunkel:not(.rolle-extern) .kopf__logobild--hell { display: none; }
+  html.ohne-kopf body.dunkel:not(.rolle-extern) .kopf__logobild--dunkel { display: block; height: 30px; width: auto; }
+}
+@media (max-width: 779px) {
+  /* Die farbige Linie unter der alten Kopfzeile passt nicht zur hellen Leiste */
+  html.ohne-kopf body:not(.rolle-extern) .kopf::after,
+  html.ohne-kopf body:not(.rolle-extern) .kopf::before { display: none; }
+  html.ohne-kopf body:not(.rolle-extern) :is(.kopf__rueck, .kopf__suche) { margin: 0; }
+}

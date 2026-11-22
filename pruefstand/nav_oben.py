@@ -16,6 +16,7 @@ def daten(rolle):
 (function(){
   TEST.navTodos = true; TEST.ohneKopf = true;
   TEST.daten.profiles[0].role = '%s';
+  if (TEST.daten.profiles[0].role === 'admin') TEST.daten.profiles[0].einstellungen = Object.assign({}, TEST.daten.profiles[0].einstellungen || {}, { neuerLook: true });
   const J = TEST.daten.jobs; J[0].problem = 'Spindel klemmt';
   TEST.daten.planer_todos = [
     { id: 't1', text: 'Mein eigenes Todo', sicht: 'ich', fuer_alle: false, erstellt_von: 'u1', erledigt_am: null, erstellt_am: '2026-11-12T08:00:00Z' },
@@ -66,6 +67,27 @@ with sync_playwright() as p:
             pruefe(pg.eval_on_selector(".dialog select", "s => s.value") == "ich" and opts == ["ich", "alle"], "mechaniker: Vorgabe nur für mich, Wahl für alle")
             pg.keyboard.press("Escape")
         pruefe(not pf, rolle + ": keine Fehler im Browser " + str(pf))
+        ctx.close()
+        # Handy hochkant (seit 1.713.0): neuer Look mit eigener Kopfleiste
+        ctx = br.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+        pg = ctx.new_page(); pf = []
+        pg.on("pageerror", lambda e: pf.append(str(e)[:300]))
+        ctx.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FAKE + d))
+        for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
+            ctx.route(u, lambda r: r.abort())
+        pg.goto(f"http://127.0.0.1:{PORT}/index.html#/planwand", wait_until="domcontentloaded")
+        pg.wait_for_selector("header.kopf", timeout=20000); pg.wait_for_timeout(1500)
+        if rolle == "admin":
+            pruefe(pg.locator("#kopf-todos").is_visible() and pg.locator("#kopf-pad").is_visible(), "handy admin: Todos und Pad in der Kopfleiste")
+            pruefe(not pg.locator("#pad-knopf").is_visible(), "handy admin: kein Schild Pad Mode")
+            pg.click("#kopf-todos"); pg.wait_for_selector("#kopf-todo-liste .pl-todo__eintrag", timeout=10000)
+            pruefe("Mein eigenes Todo" in pg.inner_text("#kopf-todo-liste"), "handy admin: Todos im Blatt")
+            pg.screenshot(path=BILD + "/nav-oben-handy-todos.png")
+            pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+            pruefe(pg.locator(".kopf-todos").count() == 0, "handy admin: Escape schliesst das Blatt")
+        else:
+            pruefe(not pg.locator("#kopf-todos").is_visible() and not pg.locator("#kopf-pad").is_visible(), "handy mechaniker: Kopfzeile wie bisher")
+        pruefe(not pf, rolle + " handy: keine Fehler im Browser " + str(pf))
         ctx.close()
     br.close()
 print("Fehler: " + (", ".join(fehler) if fehler else "keine"))

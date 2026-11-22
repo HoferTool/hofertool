@@ -713,7 +713,7 @@ async function nurTodosLaden() {
   return { heute: alt.isoDatum(new Date()), offen: [], zeilen: [], quittiert: {}, todos: error ? null : data || [] };
 }
 
-export function NavTodos() {
+export function NavTodos({ id = "nav-todo" } = {}) {
   const [d, setD] = useState(null);
   useEffect(() => {
     let weg = false, laeuft = false;
@@ -740,5 +740,5 @@ export function NavTodos() {
   // (seit 1.556.1, Patrick 15. November 2026: „soll zur Planwand gehen und
   // nicht so komisch öffnen“)
   const oeffnen = (j) => alt.balkenZeigen(j.id);
-  return <div className="nav-todo" id="nav-todo"><Todos d={d} neu={neu} titel="Todos" oeffnen={oeffnen} titelKlick={alt.istAdmin() ? planerTabOeffnen : null} /></div>;
+  return <div className="nav-todo" id={id}><Todos d={d} neu={neu} titel="Todos" oeffnen={oeffnen} titelKlick={alt.istAdmin() ? planerTabOeffnen : null} /></div>;
 }
