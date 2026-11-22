@@ -17,6 +17,7 @@ import { STATUS_TEXT, bibliothekLaden, bibliothekSpeichern } from "./camArtikel.
 import { wzFehler, wzText } from "./camWerkzeug.js";
 import { WzMini3D } from "./CamWzMini3D.jsx";
 import { WerkzeugFeld } from "./CamWerkzeugBild.jsx";
+import { werkzeugGrossOeffnen } from "./CamWz3DGross.jsx";
 
 let offenZu = null;
 export function bibliothekOeffnen() {
@@ -26,7 +27,7 @@ export function bibliothekOeffnen() {
       <div className="cam-opt__kopf"><h2>📚 Reale Werkzeuge</h2>
         <button className="knopf knopf--klein" data-cam-bib-zu onClick={zu}>✕</button></div>
       <p className="klein">Aus den Werkzeug-Artikeln (Bestellungen → Artikel) und den Einrichtblättern. Kantenlänge und Dicke kommen aus dem ISO-Code der Platte.
-        Gelb = teilweise geschätzt, rot = nicht erkannt: mit „Ergänzen“ von Hand festlegen. Maus über das Bild dreht das Werkzeug.</p>
+        Gelb = teilweise geschätzt, rot = nicht erkannt: mit „Ergänzen“ von Hand festlegen. Maus über das Bild dreht das Werkzeug, Antippen zeigt es gross zum Drehen und Messen.</p>
       <BibliothekListe />
     </div>), () => { offenZu = null; }, "cam-opt-huelle");
 }
@@ -66,7 +67,7 @@ export function BibliothekListe({ arten, waehlen }) {
     </div>
     {!passend.length && <p className="klein">Nichts gefunden.</p>}
     {gezeigt.map((e) => (<div key={e.schluessel} className={"cam-bib__zeile cam-bib--" + e.status} data-cam-bib-eintrag={e.schluessel}>
-      <WzMini3D wz={e.kein ? null : e.wz} gross={64} />
+      <WzMini3D wz={e.kein ? null : e.wz} gross={64} oeffnen={e.wz && !e.kein ? () => werkzeugGrossOeffnen(e) : undefined} />
       <div className="cam-bib__text">
         <div><b data-cam-bib-nr>{e.nr || "Im Einrichtblatt"}</b>{e.lief && <span> · {e.lief}</span>}{e.kat && <span className="klein"> · {e.kat}</span>}</div>
         <div className="klein cam-bib__beschr">{e.text}</div>

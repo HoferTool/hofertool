@@ -12,7 +12,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { drehKoerper, fraeserKoerper } from "./camKoerper.js";
 import { plattenUmriss } from "./camWerkzeug.js";
 
-function koerperVon(wz) {
+export function koerperVon(wz) {
   if (!wz || !wz.form) return [];
   try {
     // Seit 1.696.1 mit dem Halter wie in der Simulation, Ausdreher als
@@ -27,7 +27,7 @@ function koerperVon(wz) {
   } catch (f) { return []; }
 }
 
-const FARBE = { schneide: [214, 166, 64], werkzeug: [150, 160, 172], halter: [70, 84, 102] };
+export const FARBE = { schneide: [214, 166, 64], werkzeug: [150, 160, 172], halter: [70, 84, 102] };
 
 function malen(cv, flaechen, a, t) {
   const ctx = cv.getContext("2d");
@@ -70,7 +70,7 @@ function malen(cv, flaechen, a, t) {
   }
 }
 
-export function WzMini3D({ wz, gross = 72 }) {
+export function WzMini3D({ wz, gross = 72, oeffnen }) {
   const ref = useRef(null);
   const lauf = useRef(null);
   const winkel = useRef(0.7);
@@ -100,7 +100,10 @@ export function WzMini3D({ wz, gross = 72 }) {
   };
   const halt = () => { if (lauf.current) cancelAnimationFrame(lauf.current); lauf.current = null; };
   if (!flaechen.length) return <span className="cam-mini3d cam-mini3d--leer" style={{ width: gross, height: gross }} data-cam-mini3d="leer">?</span>;
-  return <canvas ref={ref} className="cam-mini3d" data-cam-mini3d={flaechen.length} style={{ width: gross, height: gross }}
-    onMouseEnter={start} onMouseLeave={halt} onPointerDown={() => (lauf.current ? halt() : start())}
-    title="Maus darüber dreht das Werkzeug" />;
+  return <canvas ref={ref} className="cam-mini3d" data-cam-mini3d={flaechen.length}
+    onMouseEnter={start} onMouseLeave={halt}
+    onPointerDown={oeffnen ? undefined : () => (lauf.current ? halt() : start())}
+    onClick={oeffnen ? () => { halt(); oeffnen(); } : undefined} data-camwz-gross={oeffnen ? "auf" : undefined}
+    style={{ width: gross, height: gross, cursor: oeffnen ? "zoom-in" : undefined }}
+    title={oeffnen ? "Antippen: gross ansehen, drehen und messen" : "Maus darüber dreht das Werkzeug"} />;
 }
