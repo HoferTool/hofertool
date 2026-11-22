@@ -20,12 +20,14 @@ import { ModulWahl, modulEmpfaenger, modulZustandAblage } from "./modulTab.jsx";
 import { TYPEN, typInfo, typVon, typWaehlen, eigeneFelder, eigenWert, feldAus, typBeobachten, wirksamB, wirksamW } from "./camTyp.js";
 import { camTypFensterOeffnen, camTypLaden } from "./CamTypFenster.jsx";
 import { bloeckeLesen, kopfLesen } from "./camLesen.js";
-import { wzFehler, wzText } from "./camWerkzeug.js";
+import { wzArten, wzFehler, wzText } from "./camWerkzeug.js";
+import { bibliothekFuerPlatz, bibliothekLaden, wzAusBibliothek } from "./camArtikel.js";
+import { bibliothekOeffnen } from "./CamWzBibliothek.jsx";
 import { WerkzeugFeld } from "./CamWerkzeugBild.jsx";
 import { protokollAusApp, protokollText, protokollZuordnen } from "./camProtokoll.js";
 import { simulationOeffnen } from "./CamSim3D.jsx";
 import { optimierungOeffnen } from "./CamOptimierung.jsx";
-import { VORLAGEN, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen } from "./camVorlagen.js";
+import { VORLAGEN, feldSichtbar, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen } from "./camVorlagen.js";
 import AbstecherBild from "./AbstecherBild.jsx";
 import SchnabelBild from "./SchnabelBild.jsx";
 import { hofercamTutorialOeffnen } from "../start/NeuesTutorial.jsx";
@@ -74,14 +76,20 @@ function VorlageFeld({ code, pos, einsetzen, zu }) {
       {!v.grafik && <div className="cam-vorlage__erkl"><VorlageBild id={id} /><span className="klein">{VORLAGE_TEXT[id] || ""}</span></div>}
       {v.grafik && <><EinstichSteuerung w={w} setze={setze} /><EinstichBild w={w} setze={setze} /></>}
       <div className="cam-vorlage__felder">
-        {v.felder.map((f) => f.typ === "haken"
+        {v.felder.filter((f) => feldSichtbar(f, Object.fromEntries(v.felder.map((x) => [x.name, feldWert(v, w, x)])))).map((f) => f.typ === "wahl"
+          ? <div key={f.name} className="cam-feld cam-feld--wahl" title={f.lang} role="group" aria-label={f.text}>
+              <span>{f.text}</span>
+              {f.optionen.map(([o, t]) => <button key={o} type="button" data-camvorlage-wahl={f.name + ":" + o}
+                className={"knopf knopf--klein" + (feldWert(v, w, f) === o ? " aktiv" : "")} onClick={() => setze(f.name, o)}>{t}</button>)}
+            </div>
+          : f.typ === "haken"
           ? <label key={f.name} className="cam-feld cam-feld--haken" title={f.lang}>
               <input type="checkbox" data-camvorlage-feld={f.name} checked={feldWert(v, w, f)} onChange={(e) => setze(f.name, e.target.checked)} />
               <span>{f.text}</span></label>
           : <label key={f.name} className="cam-feld" title={f.lang}>
               {/* Seit 1.542.0 mit Einheit wie bei den Kopfdaten (Wunsch Patrick 14. November 2026) */}
               <span>{f.text}{f.einheit && <small className="cam-einheit"> [{f.einheit}]</small>}</span>
-              <input data-camvorlage-feld={f.name} value={w[f.name] ?? ""} inputMode="decimal" style={{ width: 64 }}
+              <input data-camvorlage-feld={f.name} value={w[f.name] ?? ""} inputMode={f.typ === "text" ? "text" : "decimal"} style={{ width: f.typ === "text" ? 170 : 64 }}
                 placeholder={(f.vorgabe && f.vorgabe(w)) || f.einheit || ""} onChange={(e) => setze(f.name, e.target.value)} />
             </label>)}
       </div>
@@ -272,8 +280,18 @@ function ProtokollFeld({ w, bloecke, setzeBloecke }) {
   const [an, setAn] = useState({});
   const [quelle, setQuelle] = useState("");
   const [laeuft, setLaeuft] = useState(false);
-  const zeigen = (plaetze, name) => {
+  const zeigen = async (plaetze, name) => {
     const l = protokollZuordnen(bloecke, plaetze);
+    // Seit 1.695.0: zuerst das reale Werkzeug aus der Bibliothek (Artikel im
+    // Einrichtblatt oder Art.-Nr. im Text), mit Kantenlänge und Dicke
+    try {
+      const bib = await bibliothekLaden(alt.db);
+      for (const z of l) {
+        if (!z.p) continue;
+        const e = bibliothekFuerPlatz(bib, z.p);
+        if (e && e.wz && !e.kein && wzArten(z.b.art).includes(e.wz.art)) { z.wz = wzAusBibliothek(e, z.wz || z.b.wz); z.bib = e; }
+      }
+    } catch (x) { /* ohne Bibliothek wie bisher */ }
     if (!l.some((z) => z.p)) { alt.meldung("Im Protokoll steht keine T-Nr. der Bearbeitungen.", "warn"); return; }
     const a = {};
     l.forEach((z) => { if (z.wz) a[z.b.id] = !(z.b.wz && z.b.wz.form); });
@@ -330,7 +348,7 @@ function ProtokollFeld({ w, bloecke, setzeBloecke }) {
             <td>{z.tnr || "–"}</td>
             <td>{z.b.bez || "(ohne Bezeichnung)"}</td>
             <td className="klein">{z.p ? protokollText(z.p) : "nicht im Protokoll"}</td>
-            <td data-camproto-wz={i}>{z.wz ? wzText({ ...z.b, wz: z.wz }) : z.p ? "kein Vorschlag" : ""}
+            <td data-camproto-wz={i}>{z.bib && <span className="cam-bib__marke" title="Reales Werkzeug aus der Bibliothek">📚 </span>}{z.wz ? wzText({ ...z.b, wz: z.wz }) : z.p ? "kein Vorschlag" : ""}
               {z.wz && z.b.wz && z.b.wz.form && <div className="klein">bisher: {wzText(z.b)}</div>}</td>
           </tr>))}</tbody></table>
       <div className="cam-protokoll__knoepfe">
@@ -1258,7 +1276,9 @@ export default function HoferCam() {
           <button className="knopf knopf--klein" id="cam-alle-auf" onClick={() => setzeBloecke(bloecke.map((b) => ({ ...b, zu: false })))}
             disabled={bloecke.every((b) => !b.zu)}>▾ Alle aufklappen</button>
         </div>}
-        {bloecke.length > 0 && <div className="cam-protokoll-zeile"><ProtokollFeld w={w} bloecke={bloecke} setzeBloecke={setzeBloecke} /></div>}
+        <div className="cam-protokoll-zeile">{bloecke.length > 0 && <ProtokollFeld w={w} bloecke={bloecke} setzeBloecke={setzeBloecke} />}
+          <button className="knopf knopf--klein" id="cam-bibliothek-auf" title="Alle realen Werkzeuge aus den Artikeln und Einrichtblättern ansehen und ergänzen"
+            onClick={() => bibliothekOeffnen()}>📚 Reale Werkzeuge</button></div>
         {bloecke.length === 0 && <p className="klein">Noch keine Bearbeitung. Sie kommt zwischen „(Ende Kopf)“ und „(Start Ende)“.</p>}
         {/* Seit 1.405.0 (Wunsch Patrick 5. November 2026): Bearbeitungen am
             Griff ⠿ untereinander verschieben, statt Pfeilen */}

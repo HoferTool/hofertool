@@ -33,6 +33,7 @@ export function protokollPlaetze(plaetze) {
     if (!/^T\d+$/.test(t)) continue;
     const e = { taetigkeit: p.taetigkeit || "", mass: p.mass || "", hersteller: p.hersteller || "", werkzeug: p.werkzeug || "", bezeichnung: p.bezeichnung || "" };
     if (!Object.values(e).some((x) => String(x).trim())) continue;
+    if (p.article_id) e.article_id = p.article_id;
     raus["T" + Number(t.slice(1))] = e;
   }
   return raus;

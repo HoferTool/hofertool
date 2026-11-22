@@ -21,7 +21,7 @@
 
 import { blockZeilen, blockZeilen2, blockZeilen3, kanalZahl, swFrontVon, swFrontArt, bereichMitHand, bereichLage, k1Zeilen, markenPaare, markenVergeben, programme, programmeMitHand, zahl, abVersatz, t34Von } from "./hofercam.js";
 import { wirksamB, wirksamW } from "./camTyp.js";
-import { fraeserUmriss, plattenForm, plattenUmriss, wzArt, wzVollstaendig } from "./camWerkzeug.js";
+import { fraeserUmriss, plattenForm, plattenGross, plattenUmriss, wzArt, wzVollstaendig } from "./camWerkzeug.js";
 import { SPITZEN } from "./kontur.js";
 
 export const RASTER = 0.02; // mm je Zelle des Materials
@@ -317,13 +317,14 @@ export function bahnLesen(zeilen, v, { mitG50 = false, start = null } = {}) {
 // axial (Planeinstich) liegt die Breite radial und bleibt, wie sie ist.
 export function plattenHuelle(wz, tief, axial = false) {
   const einstech = plattenForm(wz.form)?.art === "einstech";
-  let p = plattenUmriss(wz, 8, einstech && axial);
+  const G = plattenGross(wz);
+  let p = plattenUmriss(wz, G, einstech && axial);
   if (!p.length) return null;
   const tiefe = (q) => Math.max(0, ...q.map((x) => -x.x));
   if (einstech) {
-    if (!axial && tief > 0 && tiefe(p) > tief) p = plattenUmriss(wz, 8, false, tief);
+    if (!axial && tief > 0 && tiefe(p) > tief) p = plattenUmriss(wz, G, false, tief);
   } else if (tief > 0 && tiefe(p) > tief) {
-    const q = plattenUmriss(wz, Math.max(0.3, 8 * tief / tiefe(p)));
+    const q = plattenUmriss(wz, Math.max(0.3, G * tief / tiefe(p)));
     if (q.length) p = q;
     const t = tiefe(p);
     if (t > tief) p = p.map((x) => ({ z: x.z * tief / t, x: x.x * tief / t }));

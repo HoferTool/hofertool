@@ -10,7 +10,7 @@
 //  Alle Punkte im Teil wie die Bahn: [z, u, w], u nach +X, w nach +Y.
 // =================================================================
 
-import { plattenForm, fraeserUmriss } from "./camWerkzeug.js";
+import { plattenForm, plattenUmriss, fraeserUmriss } from "./camWerkzeug.js";
 import { SPITZEN } from "./kontur.js";
 
 // Flächen eines Prismas: Umriss in der Ebene (z, u), von w0 bis w1
@@ -53,7 +53,17 @@ export function drehKoerper(wz, p, umriss, mitHalter) {
   const bx = Math.max(...us) - Math.min(...us), bz = Math.max(...zs0) - Math.min(...zs0);
   // Einstechplatten sind schmal, dort zählt die Länge
   const klein = f && f.art === "einstech" ? 0.6 * Math.max(bx, bz) : Math.min(bx, bz);
-  const d = Math.max(0.5, Math.min(plattenDicke(f), 0.4 * klein));
+  // Seit 1.695.0: Dicke aus der Bibliothek reale Werkzeuge (ISO-Code oder
+  // von Hand), wenn eingetragen
+  const dw = Number(String((wz && wz.dicke) ?? "").replace(",", "."));
+  // (bei Innenplatten, die die Simulation verkleinert hat, im selben Mass)
+  let massstab = 1;
+  if (dw > 0) {
+    const voll = plattenUmriss(wz);
+    const ausd = (q) => Math.max(Math.max(...q.map((x) => x.x)) - Math.min(...q.map((x) => x.x)), Math.max(...q.map((x) => x.z)) - Math.min(...q.map((x) => x.z)));
+    if (voll.length) massstab = Math.min(1, ausd(umriss) / Math.max(0.001, ausd(voll)));
+  }
+  const d = dw > 0 && dw < 30 ? Math.max(0.3, dw * massstab) : Math.max(0.5, Math.min(plattenDicke(f), 0.4 * klein));
   const pts = umriss.map((q) => ({ z: p.z + q.z, u: p.r + q.x }));
   prisma(pts, -d, 0, "schneide", aus);
   const s = SPITZEN.find((x) => x.id === (wz && wz.sl)) || { z: 1, r: -1 };

@@ -8,7 +8,11 @@
 //  Spitzenwinkel an der Spitze). Die Zeichnung folgt den Werten live.
 // =================================================================
 
+import { useState } from "react";
 import { StepFeld } from "./CamStepFeld.jsx";
+import { BibliothekListe } from "./CamWzBibliothek.jsx";
+import { WzMini3D } from "./CamWzMini3D.jsx";
+import { wzAusBibliothek } from "./camArtikel.js";
 import { FRAESER, LAGE_NAME, freiWinkel, LAGEN_MASCHINE, PLATTEN, SPITZEN, fraeserUmriss, plattenForm, plattenUmriss, wzArt, wzArten, wzFehler, wzFelder } from "./camWerkzeug.js";
 
 const BW = 340, BH = 240; // Massbild in Punkten (1 Punkt = 1 Pixel)
@@ -251,7 +255,8 @@ function LageBild({ wz }) {
     </div>);
 }
 
-export function WerkzeugFeld({ b, setze, zu }) {
+export function WerkzeugFeld({ b, setze, zu, ohneBibliothek }) {
+  const [bib, setBib] = useState(false);
   const arten = wzArten(b.art);
   const art = wzArt(b);
   const wz = { ...(b.wz || {}), art };
@@ -267,9 +272,20 @@ export function WerkzeugFeld({ b, setze, zu }) {
           {arten.map((a) => <button key={a} data-camwz-art={a} className={"knopf knopf--klein" + (a === art ? " aktiv" : "")}
             onClick={() => a !== art && setze({ art: a })}>{a === "dreh" ? "Drehwerkzeug" : "Bohr- / Fräswerkzeug"}</button>)}
         </div>}
+        {!ohneBibliothek && <button className={"knopf knopf--klein" + (bib ? " aktiv" : "")} data-camwz-bib
+          title="Werkzeug aus den Artikeln und Einrichtblättern wählen, mit Art.-Nr., Kantenlänge und Dicke" onClick={() => setBib(!bib)}>📚 Reale Werkzeuge</button>}
         {wz.form && <button className="knopf knopf--klein" data-camwz-weg title="Werkzeugangaben entfernen" onClick={() => setze(null)}>Entfernen</button>}
         <button className="knopf knopf--klein" title="Schliessen" onClick={zu}>✕</button>
       </div>
+      {bib && <div className="cam-wz__bib" data-camwz-bibliste>
+        <BibliothekListe arten={arten} waehlen={(e) => { setze(wzAusBibliothek(e, b.wz)); setBib(false); }} />
+      </div>}
+      {wz.artikel && <div className="cam-wz__artikel" data-camwz-artikel>
+        <span>📚 Reales Werkzeug: <b>{wz.artikel.nr || "aus dem Einrichtblatt"}</b>{wz.artikel.lief ? " · " + wz.artikel.lief : ""}
+          {wz.artikel.text ? <span className="klein"> · {wz.artikel.text}</span> : null}</span>
+        <button className="linkknopf" title="Verbindung zum Artikel lösen, die Masse bleiben" data-camwz-artikel-weg
+          onClick={() => { const n = { ...wz }; delete n.artikel; setze(n); }}>✕</button>
+      </div>}
       <div className="cam-wz__formen" role="group" aria-label="Form">
         {(art === "dreh" ? PLATTEN : FRAESER).map((x) => (
           <button key={x.id} data-camwz-form={x.id} className={"cam-wz__form" + (wz.form === x.id ? " aktiv" : "")}
@@ -279,6 +295,16 @@ export function WerkzeugFeld({ b, setze, zu }) {
       </div>
       {wz.form && <div className="cam-wz__inhalt">
         {art === "dreh" ? <div className="cam-wz__drehspalte"><DrehBild wz={wz} f={f} aendern={aendern} felder={felder} />
+          <div className="cam-wz__gross" data-camwz-gross>
+            <WzMini3D wz={wz} gross={64} />
+            <span className="klein">Plattengrösse für die Simulation (leer = Vorgabe):</span>
+            {[["l", "Kantenlänge L", "8"], ["dicke", "Dicke", "auto"]].map(([n, t, ph]) => (
+              <label key={n} className={"cam-wz__freifeld" + (f[n] ? " cam-feld--fehler" : "")} title={f[n] || ""}>
+                <span>{t}</span>
+                <input type="text" data-camwz={n} value={wz[n] ?? ""} inputMode="decimal" placeholder={ph}
+                  onChange={(e) => aendern(n, e.target.value)} /><small className="cam-einheit">mm</small>
+              </label>))}
+          </div>
           {form && form.art === "frei" && <div className="cam-wz__frei" data-camwz-frei>
             {felder.filter((fe) => fe.name !== "r").map((fe) => (
               <label key={fe.name} className={"cam-wz__freifeld" + (f[fe.name] ? " cam-feld--fehler" : "")} title={f[fe.name] || ""}>
@@ -291,7 +317,8 @@ export function WerkzeugFeld({ b, setze, zu }) {
               ? "Zwei Winkel eintragen, der dritte ergibt sich: Spitzenwinkel + Neigung + Freiwinkel = 90°. Neigung = Hauptschneide gegen die Stirn, Freiwinkel = Nebenschneide zur Drehachse."
               : "Schräg = Neigung der Hauptschneide gegen die Stirn (Einstellwinkel 90° + Schräg), Freiwinkel = 90° − Schräg − Spitzenwinkel."}</span>
           </div>}</div>
-          : <FraesBild wz={wz} f={f} aendern={aendern} felder={felder} />}
+          : <div className="cam-wz__drehspalte"><FraesBild wz={wz} f={f} aendern={aendern} felder={felder} />
+            <div className="cam-wz__gross"><WzMini3D wz={wz} gross={64} /><span className="klein">So sieht es in der Simulation aus.</span></div></div>}
         {art === "dreh" && form && form.art !== "rund" && <div className={"cam-wz__lage" + (f.sl ? " cam-feld--fehler" : "")}>
           <span className="klein">Schneidenlage{wz.sl ? ": " + LAGE_NAME[wz.sl] : " wählen"}</span>
           <div className="kt-lage" role="group" aria-label="Schneidenlage">

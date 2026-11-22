@@ -139,8 +139,8 @@ function Einstich() {
 
 const BILDER = { g83: G83, g87: G87, g76: G76, einstich: Einstich };
 export const VORLAGE_TEXT = {
-  g83: "Bohren in Schritten mit Rückzug zum Spänebrechen",
-  g87: "Bohrungen quer, gleich verteilt über den Umfang",
+  g83: "Bohren in Schritten mit Rückzug zum Spänebrechen, in der Mitte oder angetrieben auf Lochkreis oder X/Y",
+  g87: "Bohrungen quer über den Umfang, gleich oder frei verteilt, wahlweise mit Z je Bohrung",
   g76: "Gewinde in mehreren Durchgängen an der Flanke",
   einstich: "Nut am Mantel, innen in der Bohrung oder an der Front, mit Fasen und Radien",
 };

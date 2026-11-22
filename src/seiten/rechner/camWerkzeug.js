@@ -151,6 +151,11 @@ export function wzFehler(b) {
     else if (w === null && fw !== null) { const g = 90 - (n ?? 0) - fw; if (!(g > 0 && g < 90)) f.freiw = "Spitzenwinkel wäre " + g + "°"; }
   }
   if (art === "dreh" && plattenForm(wz.form)?.art !== "rund" && !wz.sl) f.sl = "fehlt";
+  // Kantenlänge und Dicke sind freiwillig (leer = Vorgabe)
+  if (art === "dreh") for (const n of ["l", "dicke"]) {
+    const x = wz[n];
+    if (String(x ?? "").trim() !== "" && (!zahlOk(x) || !(zahlV(x) > 0) || zahlV(x) >= 60)) f[n] = "Zahl über 0";
+  }
   if (art === "fraes" && wz.form === "eck" && !f.r && !f.d && zahlV(wz.r) * 2 > zahlV(wz.d)) f.r = "grösser als Ø/2";
   if (art === "fraes" && wz.form === "scheibe" && !f.hals && !f.d && zahlV(wz.hals) >= zahlV(wz.d)) f.hals = "kleiner als Ø Scheibe";
   if (art === "fraes" && wz.form === "scheibe" && !f.laenge && !f.breite && zahlV(wz.laenge) <= zahlV(wz.breite)) f.laenge = "länger als Breite";
@@ -169,9 +174,12 @@ export function wzText(b) {
       : f.dreiWinkel ? f.name + " " + plattenWinkel(wz).winkel + "° Neigung " + plattenWinkel(wz).schraeg + "° frei " + freiWinkel(wz) + "°"
       : f.art === "frei" ? f.name + " " + plattenWinkel(wz).winkel + "° schräg " + plattenWinkel(wz).schraeg + "°" : f.name];
     if (wz.r) teile.push("R" + wz.r);
+    if (wz.l) teile.push("L" + wz.l);
+    if (wz.dicke) teile.push("Dicke " + wz.dicke);
     const s = SPITZEN.find((x) => x.id === wz.sl);
     if (s) teile.push("Lage " + LAGE_NAME[s.id]);
     if (wz.step) teile.push("STEP");
+    if (wz.artikel && wz.artikel.nr) teile.push("Art. " + wz.artikel.nr);
     return teile.join(" · ");
   }
   const f = fraeserForm(wz.form);
@@ -185,6 +193,7 @@ export function wzText(b) {
   if ((wz.form === "bohrer" || wz.form === "fase") && wz.winkel) teile.push(wz.winkel + "°");
   if (wz.laenge) teile.push("L" + wz.laenge);
   if (wz.step) teile.push("STEP");
+  if (wz.artikel && wz.artikel.nr) teile.push("Art. " + wz.artikel.nr);
   return teile.join(" · ");
 }
 // Namen wie an der Maschine gesehen (seit 1.558.3): Führungsbüchse links,
@@ -208,7 +217,13 @@ export const HALTER_NEIGUNG = 3;
 // 21. November 2026, 10844-0049: Ringnut mit Zapfen in der Mitte, die
 // Platte stach in der Simulation quer durch den Zapfen). hoch: Länge der
 // Einstechplatte von der Schneide weg, ohne die Breite zu ändern.
-export function plattenUmriss(wz, gross = 8, axial = false, hoch = 0) {
+// Grösse der Platte (seit 1.695.0): Kantenlänge L aus dem Werkzeug
+// (Bibliothek reale Werkzeuge, ISO-Code), sonst wie bisher 8 mm
+export function plattenGross(wz) {
+  const l = wz ? Number(String(wz.l ?? "").replace(",", ".")) : NaN;
+  return l > 0 && l < 60 ? l : 8;
+}
+export function plattenUmriss(wz, gross = plattenGross(wz), axial = false, hoch = 0) {
   const f = plattenForm(wz.form);
   if (!f) return [];
   let s = SPITZEN.find((x) => x.id === wz.sl) || { z: 1, r: -1 };
