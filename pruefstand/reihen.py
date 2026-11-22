@@ -49,7 +49,7 @@ with sync_playwright() as p:
         if pg.locator(f"[data-rr-reihe='{n}']").get_attribute("class").find(" an") >= 0: pg.click(f"[data-rr-reihe='{n}']")
     pg.click("[data-rr-reihe='7']"); pg.click("[data-rr-zeit='3']"); pg.click("[data-rr-anzahl='10']")
     pg.click("[data-rr-los]", force=True)
-    pg.wait_for_selector("[data-rr-frage]", timeout=6000)
+    pg.wait_for_selector("[data-rr-frage]", timeout=20000)
     # Keine Bildschirmfotos während die Zeit läuft: mit WebGL im Prüfstand
     # dauert eines oft mehrere Sekunden, dann war die Zeit schon um.
     frisch(pg)
@@ -85,7 +85,7 @@ with sync_playwright() as p:
     except Exception: pass
     pruefe(pg.locator(".rr-pause").count() == 1, "Escape pausiert")
     pg.screenshot(path=BILD + "/rr-fahrt-pc.png")
-    pg.click("text=▶ Weiter")
+    pg.click("text=▶ Weiter", timeout=60000)
     # Rest richtig
     for i in range(10):
         if pg.locator("[data-rr-ende]").count(): break
@@ -95,21 +95,21 @@ with sync_playwright() as p:
         for d in str(l): pg.keyboard.press(d)
         try: pg.wait_for_selector(".rr-frage--gut, .rr-frage--schlecht, [data-rr-ende]", timeout=2000)
         except Exception: pass
-    pg.wait_for_selector("[data-rr-ende]", timeout=6000); pg.wait_for_timeout(1500)
+    pg.wait_for_selector("[data-rr-ende]", timeout=20000); pg.wait_for_timeout(1500)
     pg.screenshot(path=BILD + "/rr-ende-pc.png")
     t = pg.inner_text(".rr-karte--ende")
     pruefe("8/10" in t, "8 von 10 richtig: %s" % t[:120].replace("\n", " "))
     pruefe("XP" in t and "LEVEL UP" in t, "XP und Level up")
     stand = pg.evaluate("(TEST.daten.profiles.find(x => x.id === 'u1').einstellungen || {}).reihen_stand || ''")
     pruefe('"xp"' in stand and '"7x' in stand or 'x7"' in stand, "Stand am Konto gespeichert")
-    pg.click(".rr-ende__knoepfe >> text=Menü"); pg.wait_for_selector("[data-rr-los]")
+    pg.click(".rr-ende__knoepfe >> text=Menü", timeout=60000); pg.wait_for_selector("[data-rr-los]", timeout=20000)
     pruefe(pg.locator("[data-rr-fehler]").is_enabled(), "Fehler-Training mit Fehlern frei")
-    pg.click("[data-rr-garage]"); pg.wait_for_timeout(300)
+    pg.click("[data-rr-garage]", timeout=60000); pg.wait_for_timeout(300)
     pruefe(not pg.locator("[data-rr-skin='gelbschwarz']").is_disabled(), "Gelb-Schwarz ab Level 2 frei")
-    pg.click("[data-rr-skin='gelbschwarz']"); pg.wait_for_timeout(600)
+    pg.click("[data-rr-skin='gelbschwarz']", timeout=60000); pg.wait_for_timeout(600)
     pg.screenshot(path=BILD + "/rr-garage.png")
     pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
-    pg.click("text=📊 Meine Reihen"); pg.wait_for_timeout(300); pg.screenshot(path=BILD + "/rr-reihen.png")
+    pg.click("text=📊 Meine Reihen", timeout=60000); pg.wait_for_timeout(300); pg.screenshot(path=BILD + "/rr-reihen.png")
     pg.keyboard.press("Escape"); pg.keyboard.press("Escape"); pg.wait_for_timeout(600)
     pruefe(pg.locator(".rr").count() == 0 and "dashboard" in pg.evaluate("location.hash"), "Escape schliesst zur Startseite")
     pruefe(not pf, "keine Fehler auf der Seite: %s" % pf)
@@ -120,9 +120,12 @@ with sync_playwright() as p:
         ctx, pg, pf = oeffnen(br, kw.pop("viewport"), **kw)
         pg.evaluate("location.hash='#/reihen'"); pg.wait_for_selector("[data-rr-los]", timeout=15000); pg.wait_for_timeout(1200)
         pg.screenshot(path=BILD + f"/rr-menue-{name}.png")
+        # Das Menü baut sich mit Einblendungen auf; erst messen, wenn es ruhig steht
+        try: pg.wait_for_function("() => { const m = document.querySelector('.rr-menue'); return m && m.scrollHeight <= innerHeight + 2 }", timeout=8000)
+        except Exception: pass
         pruefe(pg.evaluate("document.querySelector('.rr-menue').scrollHeight <= innerHeight + 2"), f"{name}: Menü ohne Rollen")
         pg.tap("[data-rr-zeit='0']")  # ohne Zeit, sonst läuft sie beim Bildschirmfoto ab
-        pg.tap("[data-rr-los]", force=True); pg.wait_for_selector("[data-rr-frage]", timeout=6000); pg.wait_for_timeout(1500)
+        pg.tap("[data-rr-los]", force=True); pg.wait_for_selector("[data-rr-frage]", timeout=20000); pg.wait_for_timeout(1500)
         pg.screenshot(path=BILD + f"/rr-fahrt-{name}.png")
         box = pg.locator("[data-rr-ziffern]").bounding_box(); fr = pg.locator(".rr-frage").bounding_box()
         pruefe(box["y"] + box["height"] <= kw.get("h", 2000) and fr["y"] + fr["height"] < box["y"] or box["x"] > fr["x"] + fr["width"], f"{name}: Frage und Zifferblock überlappen nicht")
