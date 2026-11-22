@@ -8,6 +8,16 @@
 import { alt } from "../bruecke.jsx";
 
 export const planerSichtbar = () => alt.istAdmin() && !alt.istExtern();
+// Todos in der Seitenleiste haben seit 1.707.0 alle ausser Externen, dem
+// Dienstkonto und reinen HOFERTIME-Konten (Wunsch Patrick 22. November 2026)
+// Todos für alle ausser Externen, Dienst und reinen HOFERTIME-Konten
+// (seit 1.711.0, Patrick 23. November 2026: „mit Todos für alle“); false = nur Admins.
+export const TODOS_FUER_ALLE = true;
+export const todosSichtbar = () => {
+  if (!TODOS_FUER_ALLE) return planerSichtbar();
+  const r = alt.meineRolle && alt.meineRolle();
+  return !!r && !alt.istExtern() && r !== "dienst" && !(alt.profil && alt.profil.nur_zeit);
+};
 export const istPlanerTab = () => /^#\/?planer(\/|$)/.test(location.hash);
 
 export function planerTabOeffnen() {

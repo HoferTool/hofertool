@@ -44,7 +44,11 @@ with sync_playwright() as p:
             pruefe(name + ": Menü links sichtbar", pg.locator(".nav").is_visible())
         pruefe(name + ": keine Kopfzeile der App", not pg.locator("header.kopf").is_visible())
         pruefe(name + ": kein Planwand-Knopf, kein Kachel-Knopf", pg.locator("[data-db2-planwand]").count() == 0 and pg.locator("#db2-menueknopf").count() == 0)
-        pruefe(name + ": Bild statt Zahnrad (seit 1.708.0)", pg.locator("[data-db2-einstellungen]:visible .kopf__bild").count() == 1 and pg.locator("[data-db2-einstellungen]:visible svg").count() == 0)
+        if name == "handy":
+            pruefe(name + ": Bild statt Zahnrad (seit 1.708.0)", pg.locator("[data-db2-einstellungen]:visible .kopf__bild").count() == 1 and pg.locator("[data-db2-einstellungen]:visible svg").count() == 0)
+        else:
+            # Admins ohne Kopfzeile: Bild steht oben in der Leiste, nicht beim Gruss (seit 1.712.0)
+            pruefe(name + ": kein Bild beim Gruss (seit 1.712.0)", pg.locator(".db3-gruss__rechts [data-db2-einstellungen]:visible").count() == 0)
         pruefe(name + ": Geburtstag unter dem Gruss", pg.locator("#db3-geburtstag").is_visible())
         if name == "pc":
             # Zeit, Wetter und Bild rechts auf der Höhe des Grusses (seit 1.708.0)

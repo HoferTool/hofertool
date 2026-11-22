@@ -397,12 +397,18 @@ export function lieferantenVerteilen(zeilen, lieferanten, wahl) {
 
 // ---------- Todos ----------
 
-export async function todoNeu(text, faellig, fuerAlle = true) {
+export async function todoNeu(text, faellig, sicht = "ich") {
+  if (sicht === true) sicht = "admins"; else if (sicht === false) sicht = "ich";
   const p = alt.profil || {};
-  const zeile = { text, faellig: faellig || null, erstellt_name: p.full_name || p.email || null, fuer_alle: !!fuerAlle };
+  const zeile = { text, faellig: faellig || null, erstellt_name: p.full_name || p.email || null, fuer_alle: sicht !== "ich", sicht };
   if (alt.meineProfilId()) zeile.erstellt_von = alt.meineProfilId();
   let { data, error } = await alt.db.from("planer_todos").insert(zeile).select("*").single();
   // Ohne sql/planer-todos-fuer.sql kennt die Datenbank fuer_alle noch nicht: dann für alle
+  // Ohne sql/todos-alle.sql kennt die Datenbank sicht noch nicht
+  if (error && /sicht/.test(error.message || "")) {
+    delete zeile.sicht;
+    ({ data, error } = await alt.db.from("planer_todos").insert(zeile).select("*").single());
+  }
   if (error && /fuer_alle/.test(error.message || "")) {
     delete zeile.fuer_alle;
     ({ data, error } = await alt.db.from("planer_todos").insert(zeile).select("*").single());
@@ -423,6 +429,10 @@ export async function todoHaken(t, erledigt) {
 export async function todoAendern(t, felder) {
   const vorher = await alt.rueckSichern("planer_todos", { id: t.id });
   let { error } = await alt.db.from("planer_todos").update(felder).eq("id", t.id);
+  if (error && /sicht/.test(error.message || "")) {
+    felder = { ...felder }; delete felder.sicht;
+    ({ error } = await alt.db.from("planer_todos").update(felder).eq("id", t.id));
+  }
   if (error && /fuer_alle/.test(error.message || "")) {
     const ohne = { ...felder }; delete ohne.fuer_alle;
     ({ error } = await alt.db.from("planer_todos").update(ohne).eq("id", t.id));
