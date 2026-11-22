@@ -15620,47 +15620,13 @@ body.db2-modus.db2-nav .nav { background: var(--db2-karte); }
   border-radius: 22px !important; padding: 16px 18px 14px; color: var(--db2-text);
   box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 8px 24px -12px rgba(15, 23, 42, .12) !important; }
 .db3 .karte:not(.karte--warnung):not(.heuteoffen):not(.neues-tutorial) { background: var(--db2-karte); }
-/* Logo über allen Reitern, darunter ein breiter Knopf „Pad Mode“ (seit 1.706.0
-   auf allen Seiten, Wunsch Patrick 22. November 2026: „statt Menübutton länger
-   dort den Padmode button hin“). Das Logo der Kopfzeile und der schwebende
-   Knopf Pad Mode oben in der Mitte sind am Computer darum weg, ☰ bleibt. */
-.nav__oben { display: none; }
+/* Auf dieser Seite gibt es keine Kopfzeile mit ☰: das Menü steht darum
+   auch bei Admins immer da, die Todos darunter */
 @media (min-width: 780px) {
-  .nav__oben { display: block; padding: 8px 14px 12px; }
-  .nav__logo { display: block; width: 100%; padding: 4px 0 10px; border: 0;
-    background: none; cursor: pointer; }
-  .nav__logo img { display: block; width: 100%; max-width: 190px; height: auto; margin: 0 auto; }
-  .nav__logo--dunkel { display: none !important; }
-  body.dunkel .nav__logo--hell { display: none !important; }
-  body.dunkel .nav__logo--dunkel { display: block !important; }
-  .nav__pad { display: flex; align-items: center; justify-content: center; gap: 9px;
-    width: 100%; height: 40px; padding: 0 12px; white-space: nowrap; overflow: hidden;
-    border: 0; border-radius: 10px; background: var(--marke); color: #fff;
-    font: inherit; font-size: 14px; font-weight: 700; letter-spacing: .02em; cursor: pointer;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, .12), 0 4px 12px -4px color-mix(in srgb, var(--marke) 60%, transparent);
-    transition-property: filter, scale; transition-duration: .15s; transition-timing-function: ease-out; }
-  .nav__pad svg { display: block; flex: none; }
-  .nav__pad:hover { filter: brightness(1.1); }
-  .nav__pad:active { scale: .96; }
-  body.dunkel .nav__pad { color: #fff !important; }
-  /* Eingeklappt: nur noch das Zeichen, Logo und Wort passen nicht in 62 Punkte */
-  body.nav--schmal .nav__oben, body.nav--klappt-zu .nav__oben { padding: 8px 10px 10px; }
-  body.nav--schmal .nav__logo, body.nav--klappt-zu .nav__logo { display: none; }
-  body.nav--schmal .nav__pad-text, body.nav--klappt-zu .nav__pad-text { display: none; }
-  body.nav--schmal .nav__pad { padding: 0; }
-  .kopf__logolink { display: none !important; }
-  #pad-knopf { display: none !important; }
-  body.db2-nav .db2-kopf .db2-logo { display: none; }
+  body.db2-nav.nav--todos .nav > .nav__punkt { display: flex; }
+  body.db2-nav.nav--todos .nav > .nav__unter { display: grid; }
+  body.db2-nav.nav--todos .nav-todo { margin-top: 14px; border-top: 1px solid var(--linie-stark); padding-top: 12px; }
 }
-body.rolle-extern .nav__pad, body.pw-vollbild .nav__pad { display: none !important; }
-
-/* Felder rücken nach oben, ohne Lücke (seit 1.705.0, Patrick: „die Felder
-   sollen nachrücken, dass alles schön beieinander ist“): feine Reihen von
-   4 Punkten, jede Zelle spannt so viele, wie sie hoch ist (Masse in
-   StartModule.jsx). Der Abstand nach unten steckt in der Zelle. */
-.db3-raster { row-gap: 0; grid-auto-rows: 4px; }
-.db3-zelle { padding-bottom: 16px; }
-@media (max-width: 900px) { .db3-raster { row-gap: 0 !important; } .db3-zelle { padding-bottom: 12px; } }
 .db3 .karte h2 { font-size: 16px; font-weight: 750; letter-spacing: -.01em; text-wrap: balance; }
 .db3 .karte--warnung { box-shadow: 0 0 0 2px rgba(220, 38, 38, .25), 0 8px 24px -12px rgba(220, 38, 38, .25) !important; }
 .db3 .db2-gruss { margin-bottom: 18px; }
@@ -15678,6 +15644,17 @@ body.rolle-extern .nav__pad, body.pw-vollbild .nav__pad { display: none !importa
 .hc-tutorial-wahl { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
 .kt-tutorial__kopf { flex-wrap: wrap; }
 
+/* Testseite startneu (1.705.0 bis 1.709.0), nur dort; die übrige App wieder wie
+   in 1.704.1 (Wunsch Patrick 22. November 2026: „will die App wie vorher mit altem
+   Look, muss es zuerst abklären“) */
+/* Felder rücken nach oben, ohne Lücke (seit 1.705.0, Patrick: „die Felder
+   sollen nachrücken, dass alles schön beieinander ist“): feine Reihen von
+   4 Punkten, jede Zelle spannt so viele, wie sie hoch ist (Masse in
+   StartModule.jsx). Der Abstand nach unten steckt in der Zelle. */
+.db3-raster { row-gap: 0; grid-auto-rows: 4px; }
+.db3-zelle { padding-bottom: 16px; }
+@media (max-width: 900px) { .db3-raster { row-gap: 0 !important; } .db3-zelle { padding-bottom: 12px; } }
+
 /* 1.706.0: Kopf der neuen Startseite: links Einstellungen nur als Zeichen, dann Zeit und Wetter */
 .db2-kopfknopf--rund { width: 42px; padding: 0; justify-content: center; }
 .db2-kopf .db2-kopf__uhr { text-align: left; min-width: 0; margin-left: 8px; }
@@ -15686,12 +15663,6 @@ body.rolle-extern .nav__pad, body.pw-vollbild .nav__pad { display: none !importa
   .db2-kopf .db2-kopf__uhr { display: block; font-size: 26px; }
 }
 @media (min-width: 780px) { .db2-kopf [data-db2-pad] { display: none !important; } }
-
-/* Seitenleiste klappt nie mehr ein (seit 1.707.0, Wunsch Patrick
-   22. November 2026): kein ☰ mehr am Computer */
-@media (min-width: 780px) {
-  .kopf__klapp { display: none !important; }
-}
 
 /* Solar-Karte auf der neuen Startseite (seit 1.707.0) */
 .db3-solar { cursor: pointer; }
@@ -15719,28 +15690,6 @@ body.rolle-extern .nav__pad, body.pw-vollbild .nav__pad { display: none !importa
 .db3-solarfenster__zahlen b { font-size: 1.1rem; font-variant-numeric: tabular-nums; }
 body.dunkel .db3-solarfenster__zahlen div { background: #ffffff12; }
 
-/* 1.708.0: Seitenleiste klappt wieder ein, mit ☰ neben „Pad Mode“ (Wunsch Patrick
-   22. November 2026: „der Menüknopf soll noch neben dem Padmode-Button sein zum Einfahren“) */
-.nav__klapp { display: none; }
-@media (min-width: 780px) {
-  .nav__oben { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .nav__logo { flex: 0 0 100%; }
-  .nav__pad { flex: 1 1 0; width: auto; min-width: 0; }
-  .nav__klapp { display: grid; place-items: center; flex: none; width: 40px; height: 40px; padding: 0;
-    border: 0; border-radius: 10px; cursor: pointer; background: var(--karte, #fff); color: var(--tinte, #1e293b);
-    box-shadow: 0 0 0 1px var(--rand, #d6dde6), 0 1px 2px rgba(15, 23, 42, .06);
-    transition-property: background-color, scale; transition-duration: .15s; transition-timing-function: ease-out; }
-  .nav__klapp svg { fill: currentColor; display: block; }
-  .nav__klapp:hover { background: color-mix(in srgb, var(--marke) 10%, var(--karte, #fff)); }
-  .nav__klapp:active { scale: .96; }
-  body.dunkel .nav__klapp { background: #1e293b; box-shadow: 0 0 0 1px #334155; }
-  /* Eingeklappt: ☰ oben, darunter das Tablet-Zeichen */
-  body.nav--schmal .nav__oben, body.nav--klappt-zu .nav__oben { flex-direction: column; }
-  body.nav--schmal .nav__pad, body.nav--klappt-zu .nav__pad { flex: none; width: 40px; order: 2; }
-  body.nav--schmal .nav__klapp, body.nav--klappt-zu .nav__klapp { order: 1; }
-}
-body.rolle-extern .nav__klapp { display: none !important; }
-
 /* 1.708.0: Zeit, Wetter und Bild rechts auf der Höhe des Grusses (Wunsch Patrick) */
 .db2-ich { flex: none; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 12px;
   transition-property: scale; transition-duration: .15s; }
@@ -15757,26 +15706,6 @@ body.rolle-extern .nav__klapp { display: none !important; }
 .db3-zelle--strecken > * { flex: 1 1 auto; }
 .db3-zelle--strecken > :not(.karte) { display: flex; flex-direction: column; }
 .db3-zelle--strecken > :not(.karte) > .karte { flex: 1 1 auto; }
-
-/* 1.708.0: am Computer keine Leiste oben mehr, die Seitenleiste rollt mit der
-   Seite (Wunsch Patrick 22. November 2026: „kein Balken mehr oben“, „Menü soll
-   nach oben scrollen können, nicht fix“). Suchen mit Strg + F, Rückgängig mit
-   Strg + Z, Einstellungen über das Bild neben „Pad Mode“. Externe wie bisher. */
-.nav__ich { display: none; }
-@media (min-width: 780px) {
-  html.ohne-kopf body:not(.rolle-extern) { --kopfhoehe: 0px; }
-  html.ohne-kopf body:not(.rolle-extern) .kopf { display: none !important; }
-  html.ohne-kopf body:not(.rolle-extern) .rahmen { padding-top: 0; }
-  html.ohne-kopf body:not(.rolle-extern) .nav { position: relative !important; top: auto !important; height: auto !important;
-    min-height: 100dvh; align-self: stretch; }
-  html.ohne-kopf body:not(.rolle-extern) .nav__ich { display: grid; place-items: center; flex: none; width: 40px; height: 40px;
-    padding: 0; border: 0; background: none; cursor: pointer; border-radius: 10px;
-    transition-property: scale; transition-duration: .15s; }
-  .nav__ich:active { scale: .96; }
-  .nav__ich .kopf__bild { width: 40px; height: 40px; border-radius: 10px; font-size: 17px; }
-  body.db2-modus .nav__ich { display: none !important; }
-  body.nav--schmal .nav__ich, body.nav--klappt-zu .nav__ich { order: 3; }
-}
 
 /* 1.708.1 Geburtstag als dicker Balken unter dem Gruss (Patrick 22. November 2026:
    „Geburtstag soll dicker Balken bekommen oben nach Guten Tag“). */
@@ -15805,3 +15734,17 @@ body.dunkel .db3-geburtstag { background: linear-gradient(100deg, #9d174d, #be18
 .db3-geburtstag__bild--leer { display: grid; place-items: center; font-size: 40px; font-weight: 800; color: #db2777 !important; }
 @media (max-width: 600px) { .db3-geburtstag { font-size: 19px; padding: 12px 14px; min-height: 0; gap: 10px; }
   .db3-geburtstag__bild { width: 56px; height: 56px; border-width: 3px; } .db3-geburtstag__kuchen { font-size: 24px; } }
+
+/* 1.709.0 Geburtstag wie im früheren blauen Band: Person mit Bild, Kuchen
+   mit Alter, Name, Datum, Konfetti und Feuerwerk, nur als Balken unter dem
+   Gruss (Patrick: „mit Alter und Feuerwerk wie vorher, einfach in neu“). */
+.db3-geburtstag { position: relative; overflow: hidden; isolation: isolate; display: flex;
+  align-items: center; justify-content: center; padding: 26px 24px; min-height: 0;
+  background: radial-gradient(120% 140% at 50% 0%, #1a57b5 0%, var(--marke) 55%, #002a63 100%);
+  box-shadow: 0 14px 32px -16px rgba(0, 42, 99, .7); color: #fff !important; font-size: 16px; }
+.db3-geburtstag > :not(.geb-konfetti) { position: relative; z-index: 1; }
+.db3-geburtstag .geb-mitte { --bild: 170px; }
+.db3-geburtstag .geb-mitte--mehrere { --bild: 120px; }
+.db3-geburtstag :is(.geb-name, .geb-datum, .geb-alter) { color: #fff !important; }
+body.dunkel .db3-geburtstag { background: radial-gradient(120% 140% at 50% 0%, #1a4b94 0%, #0b2f66 55%, #031a3d 100%); }
+@media (max-width: 600px) { .db3-geburtstag { padding: 18px 12px; } .db3-geburtstag .geb-mitte { --bild: 120px; } }

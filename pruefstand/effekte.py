@@ -45,10 +45,11 @@ with sync_playwright() as p:
     pruefe("Klassen nach dem Wechsel wieder weg", pg.evaluate(
         "!document.querySelector('.kopf').classList.contains('fx-glanz') && !document.getElementById('inhalt').classList.contains('fx-seite')"))
 
-    # Reiter stehen am PC in der Leiste; seit 1.707.0 klappt sie nie ein,
-    # darum auf schmalem Bildschirm, wo sie auf der Seite stehen
-    pg.set_viewport_size({"width": 760, "height": 800}); pg.wait_for_timeout(500)
+    # Reiter (stehen am PC nur bei eingeklappter Seitenleiste auf der Seite)
+    pg.click("#nav-klapp"); pg.wait_for_timeout(300)
     pg.wait_for_selector(".reiter.fx-gleit")
+    # Die Seitenleiste klappt animiert zu, die Reiter rutschen dabei noch:
+    # bis 3 Sekunden warten, bis die Markierung nachgezogen hat
     for _ in range(15):
         l = lage(".reiter")
         if l["x"] == l["ax"] and l["sicht"] == "1": break
@@ -64,7 +65,7 @@ with sync_playwright() as p:
     pruefe("Welle erscheint", pg.locator(".fx-welle").count() == 1)
     pg.mouse.up(); pg.wait_for_timeout(1000)
     pruefe("Welle wieder weg", pg.locator(".fx-welle").count() == 0)
-    pg.set_viewport_size({"width": 1400, "height": 800}); pg.wait_for_timeout(500)
+    pg.click("#nav-klapp"); pg.wait_for_timeout(300)
 
     # Licht unter der Maus auf einer Karte der Startseite
     pg.click(".nav__punkt[data-nav='dashboard']"); pg.wait_for_selector(".karte--klickbar"); pg.wait_for_timeout(900)

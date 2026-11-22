@@ -186,9 +186,6 @@ function lieferantenFenster(neu) {
 // ---------- Todo ----------
 
 function Todos({ d, neu, titel, oeffnen = planwandZeigen, titelKlick, suche = "" }) {
-  // Alle ausser Externen haben die Todos (seit 1.707.0, Wunsch Patrick
-  // 22. November 2026); Meldungen quittieren und „läuft ohne WBG“ nur Admins
-  const admin = alt.istAdmin();
   const heute = d.heute;
   const bald = alt.plusTage(heute, 7);
   const posten = [];
@@ -215,9 +212,9 @@ function Todos({ d, neu, titel, oeffnen = planwandZeigen, titelKlick, suche = ""
     const unterM = [z.j.job_number, z.j.material_bez, z.stand === "offen" ? "„" + z.j.material_menge + "“" : "", z.stand === "teil" ? "fehlen noch " + zahl(z.fehltKg) + " kg" : "",
       z.liefertSpaet ? "geliefert " + z.j.material_liefertermin : z.zuSpaet ? "kommt zu spät" : ""].filter(Boolean).join(" · ");
     posten.push({ k, art: "m", rot: z.zuSpaet, sort: "2" + z.start, titel: titelM, unter: unterM,
-      haken: admin ? quittieren(k, titelM, unterM) : null, auf: () => oeffnen(z.j) });
+      haken: quittieren(k, titelM, unterM), auf: () => oeffnen(z.j) });
   }
-  for (const j of admin ? d.offen : []) {
+  for (const j of d.offen) {
     if (j.plan_status !== "laeuft" || j.wbg_url) continue;
     const k = "w" + j.id;
     if (quitt[k]) continue;
@@ -225,9 +222,9 @@ function Todos({ d, neu, titel, oeffnen = planwandZeigen, titelKlick, suche = ""
     posten.push({ k, art: "wbg", sort: "3" + j.job_number, titel: titelW, unter: j.job_number,
       haken: quittieren(k, titelW, j.job_number), auf: () => oeffnen(j) });
   }
-  // Wer was sieht, steht in `sicht` (seit 1.707.0): nur ich, für alle oder
-  // alle Admins; die Datenbank filtert ebenso
-  const sichtbar = (d.todos || []).filter(todoSichtbar);
+  // „Nur für mich“ sieht nur, wer es geschrieben hat (seit 1.521.0)
+  const ich = alt.meineProfilId();
+  const sichtbar = (d.todos || []).filter((t) => t.fuer_alle !== false || t.erstellt_von === ich);
   // Erledigtes steht nicht mehr in der Liste, nur im Fenster „Abgeschlossen“
   // (seit 1.529.0, Wunsch Patrick 13. November 2026)
   const erledigt = sichtbar.filter((t) => t.erledigt_am);
@@ -239,9 +236,9 @@ function Todos({ d, neu, titel, oeffnen = planwandZeigen, titelKlick, suche = ""
     posten.push({ k: "e" + t.id, art: "eigen", erledigt: !!t.erledigt_am, rot: spaet, sort: "4",
       titel: t.text,
       unter: t.erledigt_am ? "erledigt " + alt.datumZeitKurz(t.erledigt_am) + (t.erledigt_von ? " · " + t.erledigt_von : "")
-        : [t.faellig ? "fällig " + tagText(t.faellig) : "", sichtText(t), t.erstellt_von === alt.meineProfilId() ? "" : t.erstellt_name].filter(Boolean).join(" · "),
+        : [t.faellig ? "fällig " + tagText(t.faellig) : "", t.fuer_alle === false ? "nur für mich" : t.erstellt_name].filter(Boolean).join(" · "),
       haken: async () => { try { await todoHaken(t, !t.erledigt_am); neu(); } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); } },
-      auf: () => todoBearbeiten(t, neu), weg: todoDarfWeg(t) ? () => todoWeg(t, neu) : null });
+      auf: () => todoBearbeiten(t, neu), weg: () => todoWeg(t, neu) });
   }
   // Gemeldete Probleme zuerst, gleich darunter die eigenen, dann was von
   // selbst kommt (Patrick 13. November 2026: „eigene sollen gleich unter
@@ -313,7 +310,8 @@ function Abgeschlossen({ start, quitt: quittStart, zu, neu }) {
     try { await meldungWiederOffen(m.k); setQuitt((x) => x.filter((y) => y.k !== m.k)); neu(); }
     catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
   };
-  const liste = todos.filter((t) => t.erledigt_am && todoSichtbar(t))
+  const ich = alt.meineProfilId();
+  const liste = todos.filter((t) => t.erledigt_am && (t.fuer_alle !== false || t.erstellt_von === ich))
     .sort((a, b) => String(b.erledigt_am).localeCompare(String(a.erledigt_am)));
   const wiederOffen = async (t) => {
     try {
@@ -349,11 +347,11 @@ function Abgeschlossen({ start, quitt: quittStart, zu, neu }) {
             <span className="pl-abg__text">
               <b>{t.text}</b>
               <small>{["erledigt " + alt.datumZeitKurz(t.erledigt_am), t.erledigt_von,
-                sichtText(t)].filter(Boolean).join(" · ")}</small>
+                t.fuer_alle === false ? "nur für mich" : ""].filter(Boolean).join(" · ")}</small>
             </span>
             <button className="knopf knopf--still" data-plwieder={t.id} onClick={() => wiederOffen(t)}>↶ Wieder offen</button>
-            {todoDarfWeg(t) && <button className="pl-todo__weg" data-plabgweg={t.id} title="Todo löschen" aria-label="Todo löschen"
-              onClick={() => todoWeg(t, () => { setTodos((x) => x.filter((y) => y.id !== t.id)); neu(); })}>✕</button>}
+            <button className="pl-todo__weg" data-plabgweg={t.id} title="Todo löschen" aria-label="Todo löschen"
+              onClick={() => todoWeg(t, () => { setTodos((x) => x.filter((y) => y.id !== t.id)); neu(); })}>✕</button>
           </div>
         ))}
       </div>
@@ -365,15 +363,6 @@ function Abgeschlossen({ start, quitt: quittStart, zu, neu }) {
 // Rückgängig (seit 1.573.0, Wunsch Patrick 16. November 2026: „man soll
 // todos auch löschen können“; vorher nur über leeren Text, was die
 // Pflicht im Feld verhinderte)
-// Sicht eines Todos: ich, alle oder admins (ältere nur mit fuer_alle)
-function todoSicht(t) { return t.sicht || (t.fuer_alle === false ? "ich" : "admins"); }
-function todoSichtbar(t) {
-  const s = todoSicht(t);
-  return t.erstellt_von === alt.meineProfilId() || s === "alle" || (s === "admins" && alt.istAdmin());
-}
-function sichtText(t) { return { ich: "nur für mich", alle: "für alle", admins: "alle Admins" }[todoSicht(t)]; }
-function todoDarfWeg(t) { return alt.istAdmin() || t.erstellt_von === alt.meineProfilId(); }
-
 async function todoWeg(t, neu) {
   if (!(await alt.nachfragen({ titel: "Todo löschen?", text: t.text, bestaetigen: "Löschen", gefahr: true }))) return;
   try { await todoLoeschen(t); alt.meldung("Todo gelöscht.", "gut"); neu(); }
@@ -386,11 +375,10 @@ async function todoBearbeiten(t, neu) {
     felder: [
       { name: "text", label: "Was ist zu tun?", typ: "textarea", wert: t ? t.text : "", pflicht: true },
       { name: "faellig", label: "Fällig am (freiwillig)", typ: "date", wert: t ? t.faellig || "" : "" },
-      // Neue Todos sind zuerst nur für mich; seit 1.707.0 auch für alle,
-      // Admins dazu „Alle Admins“ (Wunsch Patrick 22. November 2026)
-      { name: "sicht", label: "Wer sieht es?", auswahl: [["ich", "Nur für mich"], ["alle", "Für alle"],
-        ...(alt.istAdmin() || (t && todoSicht(t) === "admins") ? [["admins", "Alle Admins"]] : [])],
-        wert: t ? todoSicht(t) : "ich" },
+      // Neue Todos sind zuerst nur für mich, der Schieber stellt auf alle Admins
+      // (seit 1.521.0, Wunsch Patrick 13. November 2026)
+      { name: "alle", typ: "haken", schieber: true, aus: "Nur für mich", label: "Alle Admins",
+        wert: t ? t.fuer_alle !== false : false },
     ],
     bestaetigen: "Speichern",
   });
@@ -402,9 +390,8 @@ async function todoBearbeiten(t, neu) {
     return;
   }
   try {
-    const sicht = w.sicht || "ich";
-    if (t) await todoAendern(t, { text: w.text.trim(), faellig: w.faellig || null, sicht, fuer_alle: sicht !== "ich" });
-    else await todoNeu(w.text.trim(), w.faellig, sicht);
+    if (t) await todoAendern(t, { text: w.text.trim(), faellig: w.faellig || null, fuer_alle: !!w.alle });
+    else await todoNeu(w.text.trim(), w.faellig, !!w.alle);
     neu();
   } catch (f) {
     alt.meldung(/planer_todos|schema cache|does not exist/i.test(f.message || "")
@@ -732,5 +719,5 @@ export function NavTodos() {
   // (seit 1.556.1, Patrick 15. November 2026: „soll zur Planwand gehen und
   // nicht so komisch öffnen“)
   const oeffnen = (j) => alt.balkenZeigen(j.id);
-  return <div className="nav-todo" id="nav-todo"><Todos d={d} neu={neu} titel="Todos" oeffnen={oeffnen} titelKlick={alt.istAdmin() ? planerTabOeffnen : null} /></div>;
+  return <div className="nav-todo" id="nav-todo"><Todos d={d} neu={neu} titel="Todos" oeffnen={oeffnen} titelKlick={planerTabOeffnen} /></div>;
 }

@@ -172,7 +172,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.708.2";
+const APP_VERSION = "1.709.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -11611,15 +11611,13 @@ function zeichneGeruest() {
   // Anmelden, stehen sie fest — also hier noch einmal anwenden.
   einstellungenNeuLesen();
   document.body.classList.toggle("dunkel", einstellung("dunkel"));
-  // Eingeklappt mit ☰ neben „Pad Mode“ (wieder seit 1.708.0)
   document.body.classList.toggle("nav--schmal", einstellungWert("navschmal", "0") === "1");
-  // Ohne Kopfzeile am Computer (1.708.0). Ältere Prüfstände bedienen noch die Knöpfe oben, darum nur mit TEST.ohneKopf.
-  document.documentElement.classList.toggle("ohne-kopf", !(window.TEST && !window.TEST.ohneKopf));
   themaAnwenden();
   // Administratoren sehen den Pad-Knopf auf jedem Gerät
   document.body.classList.toggle("ist-admin", istAdmin());
   // Steuert die Touch-Freigabe auf der Planwand
   document.body.classList.toggle("tippgeraet", istTippgeraet());
+  if (einstellung("navschmal")) document.body.classList.add("nav--schmal");
 
   // Kopfzeile, Navigation und #inhalt: src/huelle/Geruest.jsx
   geruestZeichnen(WURZEL);
@@ -11633,6 +11631,7 @@ function zeichneGeruest() {
 
   knopfRueckgaengigZeigen();
 
+  if (einstellungWert("navschmal", "0") === "1") document.body.classList.add("nav--schmal");
   navTodoAnwenden();
 
   // Nach fünf Minuten ohne Eingabe wird abgemeldet. 10 Sekunden vorher

@@ -64,20 +64,49 @@ with sync_playwright() as p:
           const h = document.querySelector('#nav-todo .pl-kopf h2'), z = document.querySelector('#nav-todo .pl-zahlen');
           return { navRollt: n.scrollHeight > n.clientHeight + 1, listeRollt: l.scrollHeight > l.clientHeight + 1,
             titel: h.textContent.trim(), titelOben: h.getBoundingClientRect().bottom <= z.getBoundingClientRect().top + 1 }; })()""")
+        pruefe(not r["navRollt"], "Reiter rollen nicht " + str(r))
         pruefe(r["listeRollt"], "nur die Liste rollt " + str(r))
         pruefe(r["titel"].startswith("Todos"), "Titel Todos " + str(r))
         pruefe(r["titelOben"], "Titel über den Zahlen " + str(r))
         pg.screenshot(path=f"{BILD}/nav_todo{'_dunkel' if dunkel else ''}.png")
         if not dunkel:
-            # seit 1.707.0: das Menü steht immer, die Todos darunter, kein ☰ am Computer
-            pruefe(pg.is_visible(".nav > .nav__punkt") and pg.is_visible("#nav-todo"), "Menü und Todos zugleich")
+            # seit 1.606.0: Admins sehen zuerst die Todos, ☰ zeigt das Menü 1 Minute
+            pruefe(pg.evaluate("document.body.classList.contains('nav--todos')"), "Start mit Todos")
+            pruefe(not pg.is_visible(".nav > .nav__punkt"), "Menüpunkte verborgen")
+            # seit 1.608.1: Todos bleiben beim Wechsel immer sichtbar und stehen unter dem Menü
+            pg.evaluate("""window.__todoProbe = []; (function t(){ const e = document.getElementById('nav-todo');
+              if (e) window.__todoProbe.push([e.offsetHeight, +getComputedStyle(e).opacity]);
+              if (window.__todoProbe.length < 60) requestAnimationFrame(t); })()""")
+            pg.click("#nav-klapp"); pg.wait_for_timeout(600)
+            pruefe(pg.is_visible(".nav > .nav__punkt") and pg.is_visible("#nav-todo"), "☰ zeigt das Menü, Todos darunter")
+            pruefe(all(h > 0 and o > 0.99 for h, o in pg.evaluate("window.__todoProbe")), "Todos verschwinden beim Wechsel nie")
             unter = pg.evaluate("""document.getElementById('nav-todo').getBoundingClientRect().top >
               [...document.querySelectorAll('.nav > .nav__punkt')].pop().getBoundingClientRect().top""")
             pruefe(unter, "Todos stehen unter den Menüpunkten")
-            pruefe(not pg.is_visible("#nav-klapp"), "kein ☰ am Computer")
-            pruefe(not pg.evaluate("document.body.classList.contains('nav--schmal')"), "klappt nie ein")
-            pg.evaluate("TEST.todoMenueMs = 1500"); pg.mouse.move(900, 500); pg.wait_for_timeout(2500)
-            pruefe(pg.is_visible(".nav > .nav__punkt"), "Menü bleibt nach der Zeit")
+            pg.wait_for_timeout(1300)
+            pruefe(pg.evaluate("[...document.querySelectorAll('.nav > .nav__punkt, .nav__text')].every(e => +getComputedStyle(e).opacity > .99)"), "Menü ganz da")
+            pg.screenshot(path=f"{BILD}/nav_todo_menue_fertig.png", clip={"x": 0, "y": 0, "width": 300, "height": 900})
+            pruefe(not pg.evaluate("document.body.classList.contains('nav--schmal')"), "Admin klappt nie ein")
+            pg.screenshot(path=f"{BILD}/nav_todo_menue.png")
+            # seit 1.611.1: Wahl im Menü lässt es offen, nach der Zeit zurück zu den Todos
+            pg.click(".nav__punkt[data-nav='bestellungen']"); pg.wait_for_timeout(800)
+            pruefe(pg.is_visible(".nav > .nav__punkt"), "Wahl im Menü lässt es offen")
+            pg.evaluate("TEST.todoMenueMs = 2500")
+            pg.click("#nav-klapp"); pg.wait_for_timeout(1200); pg.click("#nav-klapp"); pg.wait_for_timeout(1200)
+            pg.mouse.move(900, 500); pg.wait_for_timeout(3500)
+            pruefe(pg.is_visible("#nav-todo") and not pg.is_visible(".nav > .nav__punkt"), "nach der Zeit wieder Todos")
+            geist = pg.evaluate("getComputedStyle(document.querySelector('.nav'), '::before').display")
+            pruefe(geist == "none", "kein Feld vom Menü über den Todos " + geist)
+            pruefe(pg.is_visible(".reiter--seite"), "Seite zeigt ihre Reiter selbst")
+            # Knopf zeigt drei Striche als Bild (das Zeichen ☰ sprang nach der Drehung)
+            pg.mouse.move(900, 500); pg.wait_for_timeout(400); vor = pg.locator("#nav-klapp").screenshot()
+            pg.evaluate("document.body.classList.add('nav--klappt-auf')"); pg.wait_for_timeout(900)
+            pg.evaluate("document.body.classList.remove('nav--klappt-auf')"); pg.mouse.move(900, 500); pg.wait_for_timeout(300)
+            pruefe(pg.locator("#nav-klapp svg.kopf__klapp-bild").count() == 1, "Knopf mit Strichen als Bild")
+            nach = pg.locator("#nav-klapp").screenshot()
+            from PIL import Image, ImageChops; import io
+            d = ImageChops.difference(Image.open(io.BytesIO(vor)).convert("RGB"), Image.open(io.BytesIO(nach)).convert("RGB"))
+            pruefe(max(max(px) for px in d.getdata()) < 40, "Knopf nach der Drehung wie vorher " + str(d.getbbox()))
             # seit 1.573.0: eigenes Todo mit ✕ löschen
             vorher = pg.locator("#nav-todo [data-pltodo='eigen']").count()
             pruefe(pg.locator("#nav-todo [data-pltodo='m'] [data-pltodoweg]").count() == 0, "nur eigene haben ✕")
@@ -98,38 +127,6 @@ with sync_playwright() as p:
             pg.set_viewport_size({"width": 390, "height": 844}); pg.wait_for_timeout(500)
             pruefe(not pg.is_visible("#nav-todo"), "am Handy nicht")
         pruefe(not pf, "keine Fehler im Browser " + str(pf[:2]))
-        ctx.close()
-    # seit 1.707.0: auch Mitarbeiter haben die Todos, ohne WBG und ohne Quittieren von Material
-    for rolle in ("mitarbeiter", "extern"):
-        ctx = br.new_context(viewport={"width": 1440, "height": 900})
-        pg = ctx.new_page(); pf = []
-        pg.on("pageerror", lambda e: pf.append(str(e)[:300]))
-        F = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;",
-            "daten.profiles[0].role = '" + rolle + "'; daten.profiles[0].darf_bearbeiten = false;\nif (typeof window !== \"undefined\") window.TEST = TEST;")
-        koerper = F + DATEN
-        ctx.route("**/cdn.jsdelivr.net/**", (lambda k: (lambda r: r.fulfill(status=200, content_type="application/javascript", body=k)))(koerper))
-        for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
-            ctx.route(u, lambda r: r.abort())
-        pg.goto(f"http://127.0.0.1:{PORT}/index.html#/" + ("planwand" if rolle == "extern" else "dashboard"), wait_until="domcontentloaded")
-        if rolle == "extern":
-            pg.wait_for_timeout(5000)
-            pruefe(pg.locator("#nav-todo").count() == 0, "Externe ohne Todos")
-        else:
-            pg.wait_for_selector("#nav-todo .pl-todo__eintrag", timeout=20000); pg.wait_for_timeout(600)
-            pruefe(pg.locator("#nav-todo [data-pltodo='m']").count() >= 1, "Mitarbeiter: Material in der Liste")
-            pruefe(pg.locator("#nav-todo [data-pltodo='wbg']").count() == 0, "Mitarbeiter: kein „läuft ohne WBG“")
-            pruefe(pg.locator("#nav-todo [data-pltodo='m'] button.pl-haken").count() == 0, "Mitarbeiter: Material nicht quittieren")
-            pruefe(pg.locator("#nav-todo-dashboard").count() == 0, "Mitarbeiter: Titel ohne Planer-Link")
-            pg.click("#pl-todo-neu"); pg.wait_for_selector(".dialog textarea")
-            opts = pg.eval_on_selector(".dialog select", "s => [...s.options].map(o => o.value)")
-            pruefe(opts == ["ich", "alle"], "Mitarbeiter: nur für mich oder für alle " + str(opts))
-            pg.select_option(".dialog select", "alle"); pg.fill(".dialog textarea", "Bitte Kaffee nachfüllen")
-            pg.locator(".dialog button:has-text('Speichern')").click(); pg.wait_for_timeout(900)
-            neu = pg.evaluate("TEST.daten.planer_todos.find(t => t.text === 'Bitte Kaffee nachfüllen')")
-            pruefe(neu and neu.get("sicht") == "alle" and neu.get("fuer_alle") is True, "Mitarbeiter: Todo für alle gespeichert " + str(neu))
-            pruefe("für alle" in pg.locator("[data-pltodo='eigen']", has_text="Kaffee").inner_text(), "zeigt „für alle“")
-            pg.screenshot(path=f"{BILD}/nav_todo_mitarbeiter.png")
-        pruefe(not pf, rolle + ": keine Fehler im Browser " + str(pf[:2]))
         ctx.close()
     br.close()
 print("Fehler: " + (", ".join(fehler) if fehler else "keine"))

@@ -27,6 +27,7 @@
 // =================================================================
 
 import { useEffect, useRef, useState } from "react";
+import { GeburtstagMitte, Konfetti } from "./start/Geburtstag.jsx";
 import { alt, useDaten } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { Probleme, problemeLaden, EinkaufKurz, Bestellstand, Geburtstage,
@@ -295,12 +296,8 @@ function Gruss({ kinder }) {
       </div>
       {/* Dicker Balken über die ganze Breite gleich unter dem Gruss (seit 1.708.1, Patrick) */}
       {kinder.length > 0 && <div className="db3-geburtstag" id="db3-geburtstag">
-        <span className="db3-geburtstag__bilder">{kinder.map((k, i) => k.bild
-          ? <img key={i} className="db3-geburtstag__bild" src={k.bild} alt="" />
-          : <span key={i} className="db3-geburtstag__bild db3-geburtstag__bild--leer">{k.name.charAt(0).toUpperCase()}</span>)}</span>
-        <span className="db3-geburtstag__kuchen" aria-hidden="true">🎂</span>
-        <span>Heute hat <b>{kinder.map((k) => k.name).join(" und ")}</b> Geburtstag</span>
-        <span className="db3-geburtstag__kuchen" aria-hidden="true">🎉</span>
+        <Konfetti />
+        <GeburtstagMitte kinder={kinder} />
       </div>}
     </div>
   );

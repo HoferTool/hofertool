@@ -15,14 +15,14 @@ import { alt } from "../bruecke.jsx";
 import { anmeldungAbbauen } from "./Anmeldung.jsx";
 import { GeraetMarke } from "../pad/geraet.jsx";
 import { UNTERREITER, reiterAktiv, reiterBeobachten, reiterWaehlen, menuePunkt } from "./unterreiter.js";
-import { todosSichtbar, istPlanerTab } from "../pad/planerTab.js";
+import { planerSichtbar, istPlanerTab } from "../pad/planerTab.js";
 
 // Todo des Planers unten in der Seitenleiste, nur für Admins (seit 1.536.0).
 // Erst nachgeladen, damit der Planer nicht im Startpaket steckt.
 function NavTodoPlatz() {
   const [Teil, setTeil] = useState(null);
   // Im Planer-Tab steht dieselbe Liste schon gross
-  const darf = todosSichtbar() && !(alt.istArchiv && alt.istArchiv()) && !istPlanerTab();
+  const darf = planerSichtbar() && !(alt.istArchiv && alt.istArchiv()) && !istPlanerTab();
   useEffect(() => {
     if (!darf) return;
     let weg = false;
@@ -44,17 +44,15 @@ function todoModusDarf() {
   // Im Prüfstand nur, wenn ein Test es will (nav_todo.py): sonst wären
   // die Menüpunkte für alle Tests mit Admin verborgen.
   if (window.TEST && !window.TEST.navTodos) return false;
-  return todosSichtbar() && !(alt.istArchiv && alt.istArchiv()) && !istPlanerTab();
+  return planerSichtbar() && !(alt.istArchiv && alt.istArchiv()) && !istPlanerTab();
 }
 // Wahl je Person (seit 1.644.0, Wunsch Patrick 19. November 2026: „dass
 // bei mir der Leistenbereich nicht verschwindet und die Todos hoch rücken
 // … man soll auswählen können, ob man es will“): mit „Menü immer zeigen“
 // unter Einstellungen → Allgemein bleiben die Menüpunkte stehen und die
 // Todos stehen darunter, ohne Wechsel nach 3 Minuten.
-// Seit 1.707.0 immer: das Menü klappt nie mehr ein und wechselt nicht zu
-// den Todos (Wunsch Patrick 22. November 2026), die Todos stehen darunter.
 export function menueFest() {
-  return true;
+  return alt.einstellung && alt.einstellung("navmenuefest");
 }
 export function menueFestAnwenden() {
   if (todoModusDarf()) menueZeigen(menueFest() || document.body.classList.contains("nav--zeigt-menue"));
@@ -67,8 +65,7 @@ function menueZeigen(an) {
   clearTimeout(menueUhr);
   const b = document.body;
   if (!todoModusDarf()) { b.classList.remove("nav--todos", "nav--zeigt-menue", ...WECHSEL); return; }
-  // nav--schmal bleibt: seit 1.708.0 klappt ☰ die Leiste wieder ein, ein Tipp in die Leiste darf das nicht aufheben.
-  if (!menueFest()) b.classList.remove("nav--schmal", "nav--klappt-auf", "nav--klappt-zu");
+  b.classList.remove("nav--schmal", "nav--klappt-auf", "nav--klappt-zu");
   const fest = menueFest();
   an = !!an || fest;
   const setzen = () => {
@@ -291,11 +288,8 @@ function Geruest() {
   }, []);
   const klappen = () => {
     // Admins klappen nicht ein: der Knopf wechselt zwischen Todos und Menü
-    // Seit 1.708.0 klappt die Leiste wieder ein, mit dem Knopf ☰ neben
-    // „Pad Mode“ (Wunsch Patrick 22. November 2026: „der Menüknopf soll
-    // aber noch neben dem Padmode-Button sein zum Einfahren“); das Menü
-    // wechselt weiter nicht zu den Todos.
-    if (todoModus && !menueFest()) {
+    if (todoModus) {
+      if (menueFest()) { alt.meldung("Das Menü bleibt immer stehen (Einstellungen → Allgemein → „Menü immer zeigen“)."); return; }
       menueZeigen(!document.body.classList.contains("nav--zeigt-menue")); return;
     }
     const b = document.body;
@@ -359,37 +353,6 @@ function Geruest() {
       <div className="rahmen">
         <nav className="nav" aria-label="Hauptnavigation"
           onPointerMove={menueNochDa} onPointerDown={menueNochDa} onWheel={menueNochDa} onKeyDown={menueNochDa}>
-          {/* Am Computer auf allen Seiten: Logo über allen Reitern, darunter der
-              breite Knopf „Pad Mode“ (seit 1.706.0, Wunsch Patrick 22. November 2026:
-              „statt Menübutton länger dort den Padmode button hin“); das Logo der
-              Kopfzeile ist dort weg, ☰ zum Ein- und Ausklappen bleibt oben links */}
-          <div className="nav__oben">
-            <button type="button" className="nav__logo" title="Seite neu laden" onClick={() => location.reload()}>
-              <img className="nav__logo--hell" src="logo-empfang.png" alt="Hofer + Co." />
-              <img className="nav__logo--dunkel" src="logo-weiss.svg" alt="Hofer + Co." />
-            </button>
-            <button type="button" className="nav__pad" id="nav-pad" title="Oberfläche für das Tablet an der Maschine"
-              onClick={() => alt.padOeffnen()}>
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"
-                strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <rect x="4" y="2.5" width="16" height="19" rx="2.5" /><path d="M10.5 18h3" /></svg>
-              <span className="nav__pad-text">Pad Mode</span>
-            </button>
-            <button type="button" className="nav__klapp" id="nav-klapp2" title="Menü ein- oder ausklappen"
-              aria-label="Menü ein- oder ausklappen" onClick={klappen}>
-              <svg viewBox="0 0 18 14" width="18" height="14" aria-hidden="true">
-                <rect y="0" width="18" height="2" rx="1" /><rect y="6" width="18" height="2" rx="1" /><rect y="12" width="18" height="2" rx="1" />
-              </svg>
-            </button>
-            {/* Bild wie oben rechts in der früheren Kopfzeile, führt in die
-                Einstellungen (seit 1.708.0: am Computer keine Leiste oben mehr) */}
-            <button type="button" className="nav__ich" id="nav-ich" title="Einstellungen"
-              aria-label="Einstellungen" onClick={() => alt.einstellungenOeffnen()}>
-              {profil && profil.bild_url
-                ? <img className="kopf__bild" src={profil.bild_url} alt="" />
-                : <span className="kopf__bild kopf__bild--leer">{(anzeige || "?").charAt(0).toUpperCase()}</span>}
-            </button>
-          </div>
           {navSeiten.map((s, i) => (
             <Fragment key={s.pfad}>
               <a className={"nav__punkt" + (aktiv === s.pfad ? " aktiv" : "")}

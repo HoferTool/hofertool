@@ -28,12 +28,10 @@ with sync_playwright() as p:
             deckend = not s[0].startswith("rgba") and s[0] != "transparent" and s[1] in ("none", "")
             pruefe(f"{breite}px {'dunkel' if dunkel else 'hell'}: Kopfzeile deckend {s}", deckend)
         pg.evaluate("document.body.classList.remove('dunkel'); window.scrollTo(0, 0)")
-        # Seit 1.706.0 steht das Logo am Computer oben in der Seitenleiste
-        logo = ".kopf__logolink" if breite < 800 else ".nav__logo"
-        pruefe("Logo ist der Neuladen-Knopf", pg.evaluate("""(sel) => { const b = document.querySelector(sel);
-          return !!b && b.tagName === 'BUTTON' && !b.closest('a') && b.getBoundingClientRect().width > 0; }""", logo))
+        pruefe("Logo ist der Neuladen-Knopf", pg.evaluate("""() => { const b = document.querySelector('.kopf__logolink');
+          return !!b && b.tagName === 'BUTTON' && b.id === 'kopf-neuladen' && !b.closest('a'); }"""))
         pg.evaluate("window.__vorNeuladen = 1")
-        pg.click(logo); pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
+        pg.click(".kopf__logolink"); pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
         pruefe("Klick aufs Logo lädt neu", pg.evaluate("window.__vorNeuladen === undefined") and len(pg.context.pages) == 1)
         if breite < 800:
             pg.close(); continue
