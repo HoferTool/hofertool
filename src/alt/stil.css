@@ -15003,8 +15003,8 @@ body:not(.dunkel) .cam .cam-spalte--kopf.cam-spalte--k3 { background: #e7e0f3; b
    Wunsch Patrick 22. November 2026: Dashboard statt Menü und Reiter, ein Tipp auf
    eine Kachel öffnet den Bereich als Fenster, neuer Look. body.db2-modus blendet
    das Menü aus. Eigene Farben nur hier (--db2-*), hell und dunkel. */
-body.db2-modus .nav, body.db2-modus .handymenue { display: none !important; }
-body.db2-modus .rahmen { grid-template-columns: none !important; display: block !important; }
+body.db2-modus:not(.db2-nav) .nav, body.db2-modus:not(.db2-nav) .handymenue { display: none !important; }
+body.db2-modus:not(.db2-nav) .rahmen { grid-template-columns: none !important; display: block !important; }
 body.db2-modus .inhalt { max-width: 1280px; margin: 0 auto; }
 body.db2-modus { --db2-grund: #eef1f6; --db2-karte: #ffffff; --db2-rand: rgba(15, 23, 42, .07);
   --db2-text: #0f172a; --db2-leise: #64748b; background: var(--db2-grund); }
@@ -15701,4 +15701,38 @@ body.dunkel .kombi-leiste button.aktiv { color: #0f172a !important; }
   .db2-menue__raster { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .db2-menue__feld { top: 8px; left: 8px; width: calc(100vw - 16px); max-height: calc(100dvh - 16px); }
   .db2-menue__punkt { min-height: 88px; }
+}
+
+/* =================================================================
+   STARTSEITE NEU MIT DEN KARTEN DER STARTSEITE (seit 1.701.0,
+   Wunsch Patrick 22. November 2026: „was auf dem Start ist, soll
+   gleich sein … aussehen wie das neue … trotzdem ein Reitermenü“).
+   Menü links bleibt (body.db2-nav), Karten der Startseite im Raster:
+   Bestellungen über die ganze Breite, darunter Probleme und Kalender
+   nebeneinander, dann der Rest in zwei Spalten.
+   ================================================================= */
+body.db2-modus.db2-nav { background: var(--db2-grund); }
+body.db2-modus.db2-nav .nav { background: var(--db2-karte); }
+.db3-raster { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.db3-zelle { min-width: 0; }
+.db3-zelle--voll { grid-column: 1 / -1; }
+.db3-zelle:not(:has(.karte)) { display: none; }
+.db3 .karte { margin: 0 !important; border: 1px solid var(--db2-rand) !important;
+  border-radius: 22px !important; padding: 16px 18px 14px; color: var(--db2-text);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 8px 24px -12px rgba(15, 23, 42, .12) !important; }
+.db3 .karte:not(.karte--warnung):not(.heuteoffen):not(.neues-tutorial) { background: var(--db2-karte); }
+/* Auf dieser Seite gibt es keine Kopfzeile mit ☰: das Menü steht darum
+   auch bei Admins immer da, die Todos darunter */
+@media (min-width: 780px) {
+  body.db2-nav.nav--todos .nav > .nav__punkt { display: flex; }
+  body.db2-nav.nav--todos .nav > .nav__unter { display: grid; }
+  body.db2-nav.nav--todos .nav-todo { margin-top: 14px; border-top: 1px solid var(--linie-stark); padding-top: 12px; }
+}
+.db3 .karte h2 { font-size: 16px; font-weight: 750; letter-spacing: -.01em; text-wrap: balance; }
+.db3 .karte--warnung { box-shadow: 0 0 0 2px rgba(220, 38, 38, .25), 0 8px 24px -12px rgba(220, 38, 38, .25) !important; }
+.db3 .db2-gruss { margin-bottom: 18px; }
+.db3-feiertag { color: var(--db2-leise); font-weight: 500; }
+.db3-geburtstag { margin-top: 4px; font-size: 15px; font-weight: 650; color: #db2777; }
+@media (max-width: 900px) {
+  .db3-raster { grid-template-columns: minmax(0, 1fr); gap: 12px; }
 }
