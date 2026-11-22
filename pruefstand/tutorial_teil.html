@@ -115,7 +115,10 @@ window.zeige = (name, opts = {}) => {
 };
 
 let t0 = performance.now(), wink = 0;
+// Unsichtbar zeichnet das Bild nicht: sonst rechnet Swiftshader dauernd mit und die App wird träg
+window.ruhe = false;
 function malen(t) {
+  if (window.ruhe) { t0 = t; requestAnimationFrame(malen); return; }
   const dt = Math.min(0.05, (t - t0) / 1000); t0 = t;
   if (dreht) ziel.gier += dt * 14;
   for (const k of ["gier", "nick", "zoom"]) ist[k] += (ziel[k] - ist[k]) * Math.min(1, dt * 2.2);

@@ -782,7 +782,7 @@ def untertitel(datei, zeiten, ende):
             "Style: Band,DejaVu Sans,34,&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,2,90,90,40,1\n\n"
             "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n")
     zeilen = []
-    for i, (_, _, zeile, _) in enumerate(SCHRITTE):
+    for i, (_, _, zeile, _) in enumerate(SCHRITTE[:len(zeiten)]):
         von, bis = zeiten[i], (zeiten[i + 1] if i + 1 < len(zeiten) else ende)
         t = re.sub(r"<b>", r"{\\b1\\c&H4AC2FF&}", zeile); t = re.sub(r"</b>", r"{\\b0\\c&HFFFFFF&}", t)
         t = re.sub(r"<[^>]+>", "", t)
@@ -830,6 +830,7 @@ with sync_playwright() as p:
         if fr and fr.evaluate("typeof window.zeige === 'function'"): break
         pg.wait_for_timeout(200)
     pg.wait_for_timeout(2500)
+    if fr: fr.evaluate("window.ruhe = true")
     pg.mouse.move(B / 2, H / 2)
     pg.evaluate("() => { const e = document.getElementById('tut-titel'); e.style.transition = 'none'; e.innerHTML = 'HOFERCAM'; e.style.opacity = 1; }")
     pg.wait_for_timeout(600)
@@ -845,12 +846,13 @@ with sync_playwright() as p:
     def teil3d(name):
         fr = next((f for f in pg.frames if "teil.local" in f.url), None)
         if name and fr:
-            fr.evaluate("(n) => zeige(n)", name)
+            fr.evaluate("(n) => { window.ruhe = false; zeige(n); }", name)
             pg.evaluate("document.getElementById('tut-teil').style.opacity = 1")
             pg.mouse.move(B + 40, H / 2)
         else:
             pg.evaluate("document.getElementById('tut-teil').style.opacity = 0")
-            pg.wait_for_timeout(450)
+            pg.wait_for_timeout(550)
+            if fr: fr.evaluate("window.ruhe = true")
     def hin(sel, klick=True, ms=500):
         loc = pg.locator(sel)
         if not loc.count(): print("  fehlt:", sel); return
@@ -887,7 +889,9 @@ with sync_playwright() as p:
         pg.wait_for_timeout(500)
     a.hin, a.tippen, a.reiter, a.titel, a.teil, a.spielen = hin, tippen, reiter, titel, teil3d, spielen
 
+    BIS = int(os.environ.get("BIS", "0") or 0)
     for i, (_, sprechen, zeile, f) in enumerate(SCHRITTE):
+        if BIS and i >= BIS: break
         beginn = time.time()
         zeiten.append(beginn - t0 - start)
         try:

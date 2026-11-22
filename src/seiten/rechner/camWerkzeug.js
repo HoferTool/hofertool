@@ -173,8 +173,10 @@ export function wzText(b) {
     const teile = [f.art === "einstech" ? "Einstechplatte" + (wz.breite ? " B" + wz.breite : "")
       : f.dreiWinkel ? f.name + " " + plattenWinkel(wz).winkel + "° Neigung " + plattenWinkel(wz).schraeg + "° frei " + freiWinkel(wz) + "°"
       : f.art === "frei" ? f.name + " " + plattenWinkel(wz).winkel + "° schräg " + plattenWinkel(wz).schraeg + "°" : f.name];
+    // Ausdreher aus dem Katalog: Bohrstange mit Schaft und Hals
+    if (wz.dmin || wz.hals) teile.unshift("Bohrstange ab Ø" + (wz.dmin || "?") + (wz.schaft ? " · Schaft Ø" + wz.schaft : "") + (wz.hals ? " · Hals " + wz.hals : ""));
     if (wz.r) teile.push("R" + wz.r);
-    if (wz.l) teile.push("L" + wz.l);
+    if (wz.l && !(wz.dmin || wz.hals)) teile.push("L" + wz.l);
     if (wz.dicke) teile.push("Dicke " + wz.dicke);
     const s = SPITZEN.find((x) => x.id === wz.sl);
     if (s) teile.push("Lage " + LAGE_NAME[s.id]);

@@ -15,12 +15,19 @@ import { plattenUmriss } from "./camWerkzeug.js";
 function koerperVon(wz) {
   if (!wz || !wz.form) return [];
   try {
-    if (wz.art === "dreh") return drehKoerper(wz, { z: 0, r: 0 }, plattenUmriss(wz), false);
+    // Seit 1.696.1 mit dem Halter wie in der Simulation, Ausdreher als
+    // Bohrstange mit Hals und Schaft aus dem Katalog (Patrick 22. November
+    // 2026: „das wäre ja ein Ausdreher, du hast gesagt du baust sie richtig nach“)
+    if (wz.art === "dreh") {
+      const n = (v) => { const x = Number(String(v ?? "").replace(",", ".")); return x > 0 ? x : 0; };
+      const rb = n(wz.dmin) ? n(wz.dmin) / 2 : 2;
+      return drehKoerper(wz, { z: 0, r: 0 }, plattenUmriss(wz), { innen: { rb, tiefe: n(wz.hals) || 6, dir: -1 } });
+    }
     return fraeserKoerper(wz, [0, 0, 0], [0, 1, 0]);
   } catch (f) { return []; }
 }
 
-const FARBE = { schneide: [214, 166, 64], werkzeug: [128, 140, 154] };
+const FARBE = { schneide: [214, 166, 64], werkzeug: [150, 160, 172], halter: [70, 84, 102] };
 
 function malen(cv, flaechen, a, t) {
   const ctx = cv.getContext("2d");

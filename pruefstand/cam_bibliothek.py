@@ -13,7 +13,8 @@ ART = """() => {
   TEST.daten.articles.push(
     { id: "w1", article_number: "DCMT 11T304-PF 4325", name: "Wendeplatte", description: "Sandvik Wendeplatte", supplier_id: "s1", is_active: true },
     { id: "w2", article_number: "HSS-3.2", name: "Bohrer", description: "Spiralbohrer Ø3.2 HSS", supplier_id: "s2", is_active: true },
-    { id: "w3", article_number: "XYZ-999", name: "Wendeplatte", description: "Unbekannt", supplier_id: "s1", is_active: true });
+    { id: "w3", article_number: "XYZ-999", name: "Wendeplatte", description: "Unbekannt", supplier_id: "s1", is_active: true },
+    { id: "w4", article_number: "MTEC 660125-R K10", name: "Ausdrehwerkzeug", description: "Ifanger Ausdreher", supplier_id: "s1", is_active: true });
   TEST.daten.cam_werkzeuge = [];
   TEST.rpc.cam_wz_nutzung = () => [];
 }"""
@@ -35,7 +36,10 @@ with sync_playwright() as p:
     pg.click("#cam-bibliothek-auf")
     pg.wait_for_selector("[data-cam-bib-liste]")
     zeilen = pg.locator("[data-cam-bib-eintrag]")
-    pruefe("Alle vier Werkzeug-Artikel in der Liste", zeilen.count() == 4)
+    pruefe("Alle fünf Werkzeug-Artikel in der Liste", zeilen.count() == 5)
+    aus = pg.text_content("[data-cam-bib-eintrag='a:w4'] [data-cam-bib-wz]") or ""
+    pruefe("Ausdreher als Bohrstange " + aus, "Bohrstange ab Ø6" in aus and "Schaft Ø6" in aus)
+    pg.locator("[data-cam-bib-eintrag='a:w4']").screenshot(path="cam_bib_ausdreher.png")
     st = {pg.text_content(f"[data-cam-bib-eintrag='a:{i}'] [data-cam-bib-nr]"): pg.get_attribute(f"[data-cam-bib-eintrag='a:{i}'] [data-cam-bib-status]", "data-cam-bib-status") for i in ("w1", "w2", "w3")}
     print(st)
     pruefe("DCMT erkannt", st.get("DCMT 11T304-PF 4325") in ("erkannt", "teilweise"))
