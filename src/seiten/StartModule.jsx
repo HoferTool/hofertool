@@ -1,212 +1,412 @@
 // =================================================================
 //  NEUES DASHBOARD (Vorschau #/startneu)
-//  1.670.0 Module, 1.671.0 Aufgaben ohne Menü, seit 1.672.0 ein
-//  Dashboard mit Fenstern (Wunsch Patrick 22. November 2026: „ganz
-//  neues Start, so mässig ein Dashboard, nicht mit Reitern und Menü,
-//  sondern mit Fenstern: auf dem Dashboard sieht man Infos, wenn man
-//  mehr sehen oder etwas machen will, drückt man drauf, das Fenster
-//  öffnet sich“, „ein neuer Look, weil es immer so gleich aussieht“).
-//  Jede Kachel zeigt das Wichtigste ihres Bereichs; ein Tipp öffnet
-//  den ganzen Bereich als grosses Fenster über dem Dashboard. Das Menü
-//  links ist auf dieser Seite weg (Klasse db2-modus am body).
+//  1.670.0 Module, 1.671.0 Aufgaben ohne Menü, 1.672.0 Kacheln mit
+//  Fenstern. Seit 1.699.0 ganz neu (Wunsch Patrick 22. November 2026:
+//  „man soll nicht mehr haben, was aussieht wie vorher, ganz ein neues
+//  Dashboard, dass man auch paar Sachen sehen kann, paar Aufträge, paar
+//  Bestellungen, die nötig sind, mit Diagramm“): das Dashboard zeigt
+//  selbst Daten (Maschinen, Ausstoss, Material, Bestellungen, Nächste
+//  Aufträge), ein Tipp öffnet eine eigene neue Ansicht als Fenster, nie
+//  mehr die alte Seite darin. Die übrigen Bereiche und die Planwand
+//  öffnen extern in einem eigenen Tab, bis sie neu gebaut sind.
+//  Das Menü links ist auf dieser Seite weg (Klasse db2-modus am body).
 // =================================================================
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { alt, useDaten, reactAufraeumen } from "../bruecke.jsx";
+import { useEffect, useState } from "react";
+import { alt, useDaten } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
+import { Saeulen } from "../teile/Diagramm.jsx";
 import { problemeLaden } from "./start/Karten.jsx";
-import { heuteOffenLaden } from "./start/HeuteOffen.jsx";
 import Notizen from "./start/Notizen.jsx";
-import { Solaranlage } from "./Start.jsx";
 import Systemzustand from "./start/Systemzustand.jsx";
+import { Solaranlage } from "./Start.jsx";
 import { kalenderLaden, kommendeTermine, wannText } from "../daten/kalender.js";
 import { kalenderOeffnen, kalenderDarf } from "./Kalender.jsx";
 import { einkaufOeffnen } from "./Einkauf.jsx";
-import { planwandFensterOeffnen } from "../pad/PlanwandFenster.jsx";
+import { planerLaden, zuBestellen } from "../daten/planer.js";
+import { statistikLaden, statistikRechnen } from "../daten/statistik.js";
 
-const zahl = (n) => alt.zahlText(n || 0);
+const zahl = (n) => alt.zahlText(Math.round(n || 0));
 const intern = () => !alt.istExtern() && alt.meineRolle() !== "dienst";
-async function anzahl(anfrage, name) {
-  const r = await alt.zeitlimit(anfrage, 9000, name);
-  if (r.error) throw r.error;
-  return r.data || [];
+const kurz = (iso) => iso ? alt.ausIso(String(iso).slice(0, 10)).toLocaleDateString("de-CH", { weekday: "short", day: "numeric", month: "numeric" }) : "";
+const ZUSTAND = { laeuft: "läuft", ruesten: "Rüsten", geplant: "geplant", fertig: "fertig" };
+const mitMaus = () => window.matchMedia && window.matchMedia("(pointer: fine)").matches;
+
+// Ein Bereich, der noch nicht neu gebaut ist, geht extern in einem
+// eigenen Tab auf (am Computer); am Handy auf derselben Seite
+function tabOeffnen(pfad) {
+  const basis = location.href.split("#")[0].split("?")[0];
+  if (mitMaus()) {
+    const w = window.open(basis + "#/" + pfad, "hofer-" + pfad.replace(/\W/g, "-"));
+    if (w) return;
+  }
+  location.hash = "#/" + pfad;
+}
+function hofertimeOeffnen() {
+  const basis = location.href.split("#")[0].split("?")[0].replace(/[^/]*$/, "");
+  if (!window.open(basis + "hofertime/", "hofertime")) location.href = basis + "hofertime/";
 }
 
-// ---------- Ganze Seite als Fenster ----------
+// ---------- Daten ----------
 
-// Zeigt eine Seite aus SEITEN in einem grossen Fenster. Die Seite läuft
-// genau wie im Menü, nur in einem eigenen Behälter.
-function SeitenInhalt({ pfad, titel, farbe, zeichen, zu }) {
-  const ref = useRef(null);
-  useLayoutEffect(() => {
-    const b = ref.current;
-    const s = alt.SEITEN.find((x) => x.pfad === pfad);
-    if (b && s) s.zeige(b);
-    return () => { try { reactAufraeumen(b); } catch { /* schon weg */ } };
-  }, [pfad]);
-  return (
-    <FensterRahmen titel={titel} farbe={farbe} zeichen={zeichen} zu={zu}>
-      <div className="db2-fenster__seite" ref={ref} />
-    </FensterRahmen>
-  );
+// Alle offenen Aufträge einmal je Auffrischen, mehrere Teile brauchen sie
+let auftraegeGemerkt = { takt: null, p: null };
+function auftraegeLaden(takt) {
+  if (auftraegeGemerkt.takt === takt && auftraegeGemerkt.p) return auftraegeGemerkt.p;
+  const p = (async () => {
+    await alt.ladeParks(false);
+    const r = await alt.zeitlimit(alt.db.from("planwand").select("*").is("ended_at", null), 12000, "Aufträge");
+    if (r.error) throw r.error;
+    const alle = (r.data || []).filter((j) => !alt.parkIstExtern(j.park_id) || alt.istAdmin());
+    const reihe = (a, b) => (Number(a.maschine_reihenfolge) || 0) - (Number(b.maschine_reihenfolge) || 0)
+      || String(a.maschine_nr || "").localeCompare(String(b.maschine_nr || ""), "de", { numeric: true });
+    const anMaschine = alle.filter((j) => j.plan_status === "laeuft" || j.plan_status === "ruesten").sort(reihe);
+    const heute = alt.isoDatum(new Date());
+    const bis = alt.plusTage(heute, 14);
+    const naechste = alle.filter((j) => (j.plan_status || "geplant") === "geplant" && j.planned_from
+      && j.planned_from <= bis).sort((a, b) => String(a.planned_from).localeCompare(String(b.planned_from)) || reihe(a, b));
+    let maschinen = 0;
+    try { maschinen = (await alt.ladeMaschinen(false)).filter((m) => !alt.parkIstExtern(m.park_id)).length; } catch { /* nur Zahl */ }
+    return { alle, anMaschine, naechste, maschinen };
+  })();
+  auftraegeGemerkt = { takt, p };
+  p.catch(() => { auftraegeGemerkt = { takt: null, p: null }; });
+  return p;
 }
 
-function FensterRahmen({ titel, farbe, zeichen, zu, children }) {
+// Ausstoss der letzten 10 Arbeitstage, ohne heute (wie die Statistik)
+async function ausstossLaden() {
+  const gestern = alt.plusTage(alt.isoDatum(new Date()), -1);
+  const von = alt.plusTage(gestern, -15);
+  const r = statistikRechnen(await statistikLaden(von, gestern));
+  const tage = r.gesamt.jeTag.filter((t) => ![0, 6].includes(alt.ausIso(t.datum).getDay())).slice(-10);
+  return { tage, summe: tage.reduce((s, t) => s + t.stk, 0), stunden: tage.reduce((s, t) => s + t.h, 0) };
+}
+
+async function materialLaden() {
+  const d = await planerLaden(10);
+  const q = d.quittiert || {};
+  return d.zeilen.filter((z) => zuBestellen(z) && !q["m" + z.j.id] && !q["z" + z.j.id]);
+}
+
+async function bestellungenLaden() {
+  const liste = await alt.ladeBestellungen(true);
+  const offen = liste.filter((z) => z.status === "offen");
+  const unterwegs = liste.filter((z) => z.status !== "offen");
+  const lieferant = (z) => (z.suppliers && z.suppliers.name) || (z.articles && z.articles.suppliers && z.articles.suppliers.name) || "Ohne Lieferant";
+  const je = {};
+  offen.forEach((z) => { const n = lieferant(z); (je[n] = je[n] || []).push(z); });
+  const gruppen = Object.entries(je).map(([name, l]) => ({ name, l })).sort((a, b) => b.l.length - a.l.length || a.name.localeCompare(b.name));
+  return { offen, unterwegs, gruppen, lieferant };
+}
+
+// ---------- Bausteine ----------
+
+function Fenster({ titel, unter, farbe, zu, children, extern }) {
   return (
     <div className="dialog db2-fenster" style={{ "--db2-farbe": farbe }} role="dialog" aria-label={titel}>
       <div className="db2-fenster__kopf">
-        <span className="db2-chip" aria-hidden="true" dangerouslySetInnerHTML={{ __html: alt.SYM[zeichen] || "" }} />
-        <h2>{titel}</h2>
+        <div className="db2-fenster__titel"><h2>{titel}</h2>{unter && <span>{unter}</span>}</div>
+        {extern && <button type="button" className="db2-knopf" data-db2-extern="" onClick={() => { zu(); tabOeffnen(extern); }}>Bearbeiten ↗</button>}
         <button type="button" className="db2-fenster__zu" aria-label="Schliessen" data-nein="" onClick={zu}>✕</button>
       </div>
       <div className="db2-fenster__inhalt">{children}</div>
     </div>
   );
 }
-
-function seiteFenster(k, fertig) {
-  fensterOeffnen((zu) => <SeitenInhalt pfad={k.pfad} titel={k.titel} farbe={k.farbe} zeichen={k.zeichen} zu={zu} />,
-    fertig, "db2-huelle");
-}
-function inhaltFenster(k, inhalt, fertig) {
-  fensterOeffnen((zu) => <FensterRahmen titel={k.titel} farbe={k.farbe} zeichen={k.zeichen} zu={zu}>
-    {inhalt(zu)}</FensterRahmen>, fertig, "db2-huelle");
+function fenster(inhalt, fertig) {
+  fensterOeffnen((zu) => inhalt(zu), fertig, "db2-huelle");
 }
 
-// ---------- Probleme im Fenster ----------
-
-function ProblemListe({ zu }) {
-  const { daten, neu } = useDaten(problemeLaden, []);
-  if (!daten) return <p className="hinweis">Wird geladen …</p>;
-  if (!daten.length) return <p className="db2-leer">✓ Keine Probleme gemeldet.</p>;
-  const darf = alt.darfProblemErledigen();
+function Karte({ id, titel, unter, farbe, breit, mehr, children }) {
   return (
-    <div className="db2-liste">
-      {daten.map((j) => (
-        <div className="db2-zeile db2-zeile--warn" key={j.id}>
-          <button type="button" className="db2-zeile__haupt" data-db2-problem={j.id}
-            onClick={() => { zu(); planwandFensterOeffnen(j); }}>
-            <b>{j.job_number}{j.maschine ? " · " + j.maschine : ""}</b>
-            <span>{j.problem}</span>
-            <span className="klein">{j.problem_von || ""}{j.problem_at ? " · " + alt.datumZeitKurz(j.problem_at) : ""}</span>
-          </button>
-          {darf && <button type="button" className="knopf knopf--klein"
-            onClick={() => alt.problemQuittieren(j, null, neu)}>✓ Erledigt</button>}
-        </div>))}
+    <section className={"db2-karte" + (breit ? " db2-karte--breit" : "")} data-db2={id} style={{ "--db2-farbe": farbe }}>
+      <header className="db2-karte__kopf">
+        <i className="db2-punkt" />
+        <h2>{titel}</h2>
+        {unter && <span className="db2-karte__unter">{unter}</span>}
+        {mehr && <button type="button" className="db2-mehr" data-db2-mehr={id} onClick={mehr}>Alle ↗</button>}
+      </header>
+      {children}
+    </section>
+  );
+}
+
+function Laedt({ d, fehler, children }) {
+  if (d != null) return children(d);
+  if (fehler) return <p className="db2-leer">Gerade nicht verfügbar</p>;
+  return <div className="db2-laedt-block"><span className="db2-laedt" /><span className="db2-laedt" /></div>;
+}
+
+function Fortschritt({ j }) {
+  const ziel = Number(j.target_quantity) || 0;
+  const stand = Number(j.stand) || 0;
+  const p = ziel ? Math.min(100, Math.round(stand / ziel * 100)) : 0;
+  return (
+    <span className="db2-fort" title={ziel ? zahl(stand) + " von " + zahl(ziel) : ""}>
+      <span className="db2-fort__bahn"><i style={{ width: p + "%" }} /></span>
+      <span className="db2-fort__text">{ziel ? p + " %" : zahl(stand)}</span>
+    </span>
+  );
+}
+
+function Werkstoff({ j }) {
+  const f = alt.auftragFarbe(j);
+  return <i className="db2-werkstoff" style={{ background: f ? f.hex : "transparent" }} title={j.material_bez || ""} />;
+}
+
+// ---------- Fenster: ein Auftrag ----------
+
+function AuftragAnsicht({ j, zu }) {
+  const ziel = Number(j.target_quantity) || 0;
+  const stand = Number(j.stand) || 0;
+  const offen = Math.max(0, ziel - stand);
+  return (
+    <Fenster titel={j.job_number || "Auftrag"} unter={"Maschine " + (j.maschine_nr || j.maschine || "–")} farbe="#2563eb" zu={zu}>
+      <div className="db2-auftrag">
+        <div className="db2-auftrag__zahlen">
+          <div><span>Zustand</span><b className={"db2-zustand db2-zustand--" + (j.plan_status || "geplant")}>{ZUSTAND[j.plan_status] || "geplant"}</b></div>
+          <div><span>Gemacht</span><b>{zahl(stand)}</b></div>
+          <div><span>Noch offen</span><b>{ziel ? zahl(offen) : "–"}</b></div>
+          <div><span>Menge</span><b>{ziel ? zahl(ziel) : "–"}</b></div>
+        </div>
+        {ziel > 0 && <div className="db2-auftrag__fort"><Fortschritt j={j} /></div>}
+        <dl className="db2-angaben">
+          <dt>Material</dt><dd><Werkstoff j={j} /> {j.material_bez || "–"}</dd>
+          <dt>Material da?</dt><dd>{j.material_menge || "nichts eingetragen"}</dd>
+          <dt>Geplant</dt><dd>{kurz(j.planned_from)}{j.planned_to ? " bis " + kurz(j.planned_to) : ""}</dd>
+          {j.fa_nr && <><dt>FA Nr.</dt><dd>{j.fa_nr}</dd></>}
+          {j.abruf_info && <><dt>Abruf</dt><dd className="db2-umbruch">{j.abruf_info}</dd></>}
+          {j.problem && <><dt>Problem</dt><dd className="db2-umbruch db2-rot">⚠ {j.problem}</dd></>}
+        </dl>
+        <div className="db2-knoepfe">
+          <button type="button" className="db2-knopf db2-knopf--voll" data-db2-auftragsfenster=""
+            onClick={() => { zu(); alt.planAuftragDialog(j, {}); }}>Auftrag bearbeiten</button>
+          <button type="button" className="db2-knopf" onClick={() => { zu(); tabOeffnen("planwand"); }}>Planwand ↗</button>
+        </div>
+      </div>
+    </Fenster>
+  );
+}
+const auftragOeffnen = (j, fertig) => fenster((zu) => <AuftragAnsicht j={j} zu={zu} />, fertig);
+
+// ---------- Teile des Dashboards ----------
+
+function Zahlen({ takt }) {
+  const a = useDaten(() => auftraegeLaden(takt), [takt]).daten;
+  const p = useDaten(problemeLaden, [takt]).daten;
+  const b = useDaten(bestellungenLaden, [takt]).daten;
+  const z = (wert, text, warn, id) => (
+    <div className={"db2-zahl" + (warn ? " db2-zahl--warn" : "")} data-db2-zahl={id}>
+      <b>{wert == null ? "…" : wert}</b><span>{text}</span>
+    </div>);
+  return (
+    <div className="db2-zahlen">
+      {z(a && zahl(a.anMaschine.filter((j) => j.plan_status === "laeuft").length), a ? "laufen von " + zahl(a.maschinen) + " Maschinen" : "laufen", false, "laufen")}
+      {z(a && zahl(a.anMaschine.filter((j) => j.plan_status === "ruesten").length), "am Rüsten", false, "ruesten")}
+      {z(p && zahl(p.length), "Probleme offen", p && p.length > 0, "probleme")}
+      {z(b && zahl(b.offen.length), "Positionen zu bestellen", b && b.offen.length > 0, "bestellen")}
     </div>
   );
 }
 
-// ---------- Die Kacheln ----------
-// laden: Zahlen für die Kachel. zeige: was auf der Kachel steht.
-// tun: was ein Tipp öffnet (Standard: die Seite pfad als Fenster).
-
-const KACHELN = [
-  { id: "planwand", titel: "Planwand", zeichen: "planwand", farbe: "#2563eb", pfad: "planwand",
-    laden: async () => {
-      await alt.ladeParks(false);
-      const [m, l] = await Promise.all([alt.ladeMaschinen(false), alt.ladeLaufendeAuftraege()]);
-      const js = Object.values(l || {});
-      return { laeuft: js.filter((j) => j.plan_status === "laeuft").length,
-        ruesten: js.filter((j) => j.plan_status === "ruesten").length, maschinen: m.length };
-    },
-    zeige: (d) => <>
-      <div className="db2-gross">{zahl(d.laeuft)}<small> laufen</small></div>
-      <p>{zahl(d.ruesten)} am Rüsten · {zahl(d.maschinen)} Maschinen</p>
-    </> },
-  { id: "probleme", titel: "Probleme", zeichen: "qs", farbe: "#dc2626", sichtbar: intern,
-    laden: problemeLaden,
-    warn: (d) => d.length > 0,
-    zeige: (d) => d.length
-      ? <><div className="db2-gross">{zahl(d.length)}<small> offen</small></div>
-          {d.slice(0, 2).map((j) => <p key={j.id} className="db2-eine"><b>{j.job_number}</b> {j.problem}</p>)}</>
-      : <><div className="db2-gross db2-gut">✓</div><p>Keine Probleme gemeldet</p></>,
-    tun: (k, fertig) => inhaltFenster(k, (zu) => <ProblemListe zu={zu} />, fertig) },
-  { id: "produktion", titel: "Produktion", zeichen: "produktion", farbe: "#16a34a", pfad: "produktion",
-    laden: heuteOffenLaden,
-    warn: (d) => d.stk.length > 0,
-    zeige: (d) => d.stk.length
-      ? <><div className="db2-gross">{zahl(d.stk.length)}<small> ohne Stückzahl</small></div>
-          <p className="db2-eine">{d.stk.map((z) => z.m.machine_number || z.m.name).join(", ")}</p></>
-      : <><div className="db2-gross db2-gut">✓</div><p>Alle Stückzahlen von heute da</p></> },
-  { id: "bestellungen", titel: "Bestellungen", zeichen: "bestellungen", farbe: "#ea580c", pfad: "bestellungen",
-    laden: async () => {
-      const d = await anzahl(alt.db.from("order_items").select("status")
-        .in("status", ["offen", "bestellt", "teilweise_geliefert"]), "Bestellungen");
-      return { offen: d.filter((z) => z.status === "offen").length,
-        bestellt: d.filter((z) => z.status !== "offen").length };
-    },
-    zeige: (d) => <>
-      <div className="db2-gross">{zahl(d.offen)}<small> zu bestellen</small></div>
-      <p>{zahl(d.bestellt)} bestellt, noch nicht da</p>
-    </> },
-  { id: "material", titel: "Material", zeichen: "material", farbe: "#64748b", pfad: "material",
-    laden: async () => (await anzahl(alt.db.from("material_posten").select("id").is("weg_am", null), "Material")).length,
-    zeige: (n) => <><div className="db2-gross">{zahl(n)}<small> Restposten</small></div><p>im Lager</p></> },
-  { id: "qs", titel: "Qualität", zeichen: "pruefmittel", farbe: "#ca8a04", pfad: "qs",
-    laden: async () => (await anzahl(alt.db.from("qs_meldungen").select("id"), "QS")).length,
-    warn: (n) => n > 0,
-    zeige: (n) => n
-      ? <><div className="db2-gross">{zahl(n)}<small> Ausschuss</small></div><p>Meldungen offen</p></>
-      : <><div className="db2-gross db2-gut">✓</div><p>Keine Ausschussmeldung offen</p></> },
-  { id: "kalender", titel: "Kalender", zeichen: "kalender", farbe: "#7c3aed", sichtbar: () => kalenderDarf(),
-    laden: async () => kommendeTermine(await kalenderLaden(), 14, undefined, 3),
-    zeige: (t) => t.length
-      ? t.map((x) => <p key={x.eintrag.id} className="db2-eine"><b>{wannText(x)}</b> {x.eintrag.titel}</p>)
-      : <p>Keine Termine in den nächsten zwei Wochen</p>,
-    tun: (k, fertig) => kalenderOeffnen(fertig) },
-  { id: "notizen", titel: "Notizen", zeichen: "dokumente", farbe: "#0891b2",
-    laden: () => alt.ladeTodos(),
-    zeige: (d) => d.length
-      ? <><div className="db2-gross">{zahl(d.length)}<small> Notizen</small></div>
-          {d.slice(0, 2).map((n) => <p key={n.id} className="db2-eine">{n.text}</p>)}</>
-      : <p>Keine Notizen</p>,
-    tun: (k, fertig) => inhaltFenster(k, () => <Notizen auffrischen={0} />, fertig) },
-  { id: "einkauf", titel: "Einkaufsliste", zeichen: "einkauf", farbe: "#db2777", sichtbar: intern,
-    laden: async () => (await anzahl(alt.db.from("shopping_items").select("id").eq("is_done", false), "Einkauf")).length,
-    zeige: (n) => <><div className="db2-gross">{zahl(n)}<small> Sachen</small></div><p>zum Einkaufen</p></>,
-    tun: (k, fertig) => einkaufOeffnen(fertig) },
-  { id: "maschinen", titel: "Maschinen", zeichen: "maschinen", farbe: "#0f766e", pfad: "maschinen",
-    laden: async () => (await alt.ladeMaschinen(false)).length,
-    zeige: (n) => <><div className="db2-gross">{zahl(n)}<small> Maschinen</small></div><p>Infos, Wartung, Unterlagen</p></> },
-];
-
-// Weitere Bereiche ohne Zahlen, klein unten
-const WEITERE = [
-  ["nc", "NC-PRO", "nc", "#4f46e5"], ["lager", "Lager", "lager", "#78716c"],
-  ["kalkulation", "Kalkulation", "kalkulation", "#0e7490"], ["qmalt", "QMS", "qs", "#a16207"],
-  ["hofer2dto3d", "2D → 3D", "hofer2dto3d", "#6d28d9"], ["einlagen", "Einlagen", "einlagen", "#15803d"],
-  ["bildschirme", "Anzeigen", "bildschirme", "#be185d"], ["reihen", "Zahlensprint", "reihen", "#65a30d"],
-].map(([pfad, titel, zeichen, farbe]) => ({ id: pfad, pfad, titel, zeichen, farbe }));
-
-function hofertimeOeffnen() {
-  const basis = location.href.split("#")[0].split("?")[0].replace(/[^/]*$/, "");
-  if (!window.open(basis + "hofertime/", "hofertime")) location.href = basis + "hofertime/";
-}
-
-function darf(k) {
-  if (k.sichtbar && !k.sichtbar()) return false;
-  return !k.pfad || alt.seiteSichtbar(k.pfad);
-}
-
-function Kachel({ k, takt, neu }) {
-  const { daten, fehler } = useDaten(() => k.laden(), [takt]);
-  const warn = daten != null && k.warn && k.warn(daten);
-  const oeffnen = () => (k.tun ? k.tun(k, neu) : seiteFenster(k, neu));
+function AnMaschinen({ takt, neu }) {
+  const { daten, fehler } = useDaten(() => auftraegeLaden(takt), [takt]);
+  const zeile = (j) => (
+    <button key={j.id} type="button" className="db2-zeile" data-db2-auftrag={j.id} onClick={() => auftragOeffnen(j, neu)}>
+      <span className="db2-masch">{j.maschine_nr || "–"}</span>
+      <span className="db2-zeile__mitte">
+        <b>{j.job_number}{j.problem && <span className="db2-warn" title={j.problem}> ⚠</span>}</b>
+        <small><Werkstoff j={j} />{j.material_bez || "ohne Material"}</small>
+      </span>
+      {j.plan_status === "ruesten" ? <span className="db2-zustand db2-zustand--ruesten">Rüsten</span> : <Fortschritt j={j} />}
+    </button>);
+  const alle = (d) => fenster((zu) => (
+    <Fenster titel="An den Maschinen" unter={zahl(d.anMaschine.length) + " Aufträge"} farbe="#2563eb" zu={zu} extern="planwand">
+      <div className="db2-liste">{d.anMaschine.map((j) => zeile(j))}</div>
+    </Fenster>), neu);
   return (
-    <button type="button" className={"db2-kachel" + (warn ? " db2-kachel--warn" : "")} data-db2={k.id}
-      style={{ "--db2-farbe": k.farbe }} onClick={oeffnen}>
-      <span className="db2-kachel__kopf">
-        <span className="db2-chip" aria-hidden="true" dangerouslySetInnerHTML={{ __html: alt.SYM[k.zeichen] || "" }} />
-        <span className="db2-kachel__titel">{k.titel}</span>
-        <span className="db2-kachel__pfeil" aria-hidden="true">↗</span>
-      </span>
-      <span className="db2-kachel__inhalt">
-        {daten != null ? k.zeige(daten) : fehler ? <p className="klein">Gerade nicht verfügbar</p>
-          : <span className="db2-laedt" />}
-      </span>
-    </button>
+    <Karte id="maschinen" titel="An den Maschinen" farbe="#2563eb" breit
+      unter={daten ? zahl(daten.anMaschine.length) + " Aufträge" : ""} mehr={daten ? () => alle(daten) : null}>
+      <Laedt d={daten} fehler={fehler}>{(d) => d.anMaschine.length
+        ? <div className="db2-liste db2-liste--spalten">{d.anMaschine.slice(0, 10).map(zeile)}</div>
+        : <p className="db2-leer">Gerade läuft nichts.</p>}</Laedt>
+    </Karte>
   );
 }
+
+function Ausstoss({ takt }) {
+  const { daten, fehler } = useDaten(ausstossLaden, [takt]);
+  return (
+    <Karte id="ausstoss" titel="Ausstoss" farbe="#16a34a" unter="Stück je Arbeitstag, ohne heute">
+      <Laedt d={daten} fehler={fehler}>{(d) => <>
+        <div className="db2-zeilezahlen">
+          <div><b>{zahl(d.summe)}</b><span>Stück in 10 Tagen</span></div>
+          <div><b>{zahl(d.tage.length ? d.summe / d.tage.length : 0)}</b><span>Ø je Tag</span></div>
+          {d.stunden > 0 && <div><b>{zahl(d.stunden)}</b><span>Stunden Produktion</span></div>}
+        </div>
+        <Saeulen id="db2-ausstoss" hoehe={150} wertText={() => ""} werte={d.tage.map((t) => ({ key: t.datum, label: alt.ausIso(t.datum).getDate() + ".",
+          wert: t.stk, blass: !t.gemeldet, tip: <><b>{zahl(t.stk)} Stück</b> {kurz(t.datum)}<br />{zahl(t.h)} h · {t.gemeldet} Maschinen gemeldet</> }))}
+          format={(n) => n >= 10000 ? Math.round(n / 1000) + "k" : zahl(n)} />
+      </>}</Laedt>
+    </Karte>
+  );
+}
+
+function Material({ takt, neu }) {
+  const { daten, fehler } = useDaten(materialLaden, [takt]);
+  const zeile = (z) => (
+    <div key={z.j.id} className={"db2-zeile db2-zeile--still" + (z.zuSpaet ? " db2-zeile--rot" : "")} data-db2-material={z.j.id}>
+      <span className="db2-datum">{kurz(z.start)}</span>
+      <span className="db2-zeile__mitte">
+        <b>{z.j.job_number} <small className="db2-grau">· {z.maschine}</small></b>
+        <small><Werkstoff j={z.j} />{z.j.material_bez}</small>
+      </span>
+      <span className="db2-rechts">
+        <b>{z.fehltKg ? "noch " + zahl(z.fehltKg) + " kg" : z.bedarf ? zahl(z.bedarf.kg) + " kg" : z.ohneBedarf}</b>
+        <small>{z.lieferant || "Lieferant offen"}{z.zuSpaet ? " · zu spät!" : ""}</small>
+      </span>
+    </div>);
+  const alle = (l) => fenster((zu) => (
+    <Fenster titel="Material bestellen" unter="Aufträge der nächsten 2 Wochen" farbe="#ea580c" zu={zu} extern="planer">
+      <div className="db2-liste">{l.map(zeile)}</div>
+    </Fenster>), neu);
+  return (
+    <Karte id="material" titel="Material bestellen" farbe="#ea580c" unter={daten ? zahl(daten.length) + " Aufträge" : ""}
+      mehr={daten && daten.length ? () => alle(daten) : null}>
+      <Laedt d={daten} fehler={fehler}>{(l) => l.length
+        ? <div className="db2-liste">{l.slice(0, 5).map(zeile)}</div>
+        : <p className="db2-leer db2-gut">✓ Für die nächsten 2 Wochen ist alles da oder bestellt.</p>}</Laedt>
+    </Karte>
+  );
+}
+
+function Bestellungen({ takt, neu }) {
+  const { daten, fehler } = useDaten(bestellungenLaden, [takt]);
+  const max = daten ? Math.max(1, ...daten.gruppen.map((g) => g.l.length)) : 1;
+  const alle = (d) => fenster((zu) => (
+    <Fenster titel="Zu bestellen" unter={zahl(d.offen.length) + " Positionen"} farbe="#db2777" zu={zu} extern="bestellungen">
+      {d.gruppen.map((g) => (
+        <div key={g.name} className="db2-gruppe" data-db2-lieferant={g.name}>
+          <h3>{g.name} <small>{g.l.length}</small></h3>
+          <div className="db2-liste">{g.l.map((z) => (
+            <div key={z.id} className="db2-zeile db2-zeile--still">
+              <span className="db2-zeile__mitte">
+                <b>{(z.articles && z.articles.article_number) || "–"}</b>
+                <small>{(z.articles && (z.articles.description || z.articles.name)) || z.note || ""}</small>
+              </span>
+              <span className="db2-rechts"><b>{zahl(z.quantity)} {(z.articles && z.articles.unit) || ""}</b>
+                {z.needed_by && <small>bis {kurz(z.needed_by)}</small>}</span>
+            </div>))}</div>
+        </div>))}
+      {!d.offen.length && <p className="db2-leer">Nichts zu bestellen.</p>}
+    </Fenster>), neu);
+  return (
+    <Karte id="bestellungen" titel="Zu bestellen" farbe="#db2777"
+      unter={daten ? zahl(daten.unterwegs.length) + " bestellt, unterwegs" : ""} mehr={daten ? () => alle(daten) : null}>
+      <Laedt d={daten} fehler={fehler}>{(d) => d.gruppen.length
+        ? <div className="db2-balken">{d.gruppen.slice(0, 6).map((g) => (
+            <button key={g.name} type="button" className="db2-balken__zeile" onClick={() => alle(d)}>
+              <span className="db2-balken__name">{g.name}</span>
+              <span className="db2-balken__bahn"><i style={{ width: g.l.length / max * 100 + "%" }} /></span>
+              <b>{g.l.length}</b>
+            </button>))}
+            {d.gruppen.length > 6 && <p className="db2-klein-text">und {d.gruppen.length - 6} weitere Lieferanten</p>}
+          </div>
+        : <p className="db2-leer db2-gut">✓ Keine offenen Positionen.</p>}</Laedt>
+    </Karte>
+  );
+}
+
+function Naechste({ takt, neu }) {
+  const { daten, fehler } = useDaten(() => auftraegeLaden(takt), [takt]);
+  const zeile = (j) => (
+    <button key={j.id} type="button" className="db2-zeile" data-db2-naechster={j.id} onClick={() => auftragOeffnen(j, neu)}>
+      <span className="db2-datum">{kurz(j.planned_from)}</span>
+      <span className="db2-zeile__mitte"><b>{j.job_number}</b><small><Werkstoff j={j} />{j.material_bez || ""}</small></span>
+      <span className="db2-masch db2-masch--klein">{j.maschine_nr || "–"}</span>
+    </button>);
+  const alle = (l) => fenster((zu) => (
+    <Fenster titel="Als Nächstes" unter="geplant in den nächsten 2 Wochen" farbe="#7c3aed" zu={zu} extern="planwand">
+      <div className="db2-liste">{l.map(zeile)}</div>
+    </Fenster>), neu);
+  return (
+    <Karte id="naechste" titel="Als Nächstes" farbe="#7c3aed" unter="nächste 2 Wochen"
+      mehr={daten && daten.naechste.length ? () => alle(daten.naechste) : null}>
+      <Laedt d={daten} fehler={fehler}>{(d) => d.naechste.length
+        ? <div className="db2-liste">{d.naechste.slice(0, 5).map(zeile)}</div>
+        : <p className="db2-leer">Nichts geplant.</p>}</Laedt>
+    </Karte>
+  );
+}
+
+function ProblemZeilen({ liste, zu, neu }) {
+  const darf = alt.darfProblemErledigen();
+  return <div className="db2-liste">{liste.map((j) => (
+    <div className="db2-zeile db2-zeile--still db2-zeile--rot" key={j.id}>
+      <button type="button" className="db2-zeile__mitte db2-knopflos" data-db2-problem={j.id}
+        onClick={() => { if (zu) zu(); auftragOeffnen(j, neu); }}>
+        <b>{j.job_number}{j.maschine ? " · " + j.maschine : ""}</b>
+        <small className="db2-umbruch">{j.problem}</small>
+      </button>
+      {darf && <button type="button" className="db2-knopf" onClick={() => alt.problemQuittieren(j, null, neu)}>✓ Erledigt</button>}
+    </div>))}</div>;
+}
+
+function Probleme({ takt, neu }) {
+  const { daten, fehler } = useDaten(problemeLaden, [takt]);
+  const alle = (l) => fenster((zu) => (
+    <Fenster titel="Probleme" unter={zahl(l.length) + " offen"} farbe="#dc2626" zu={zu}>
+      {l.length ? <ProblemZeilen liste={l} zu={zu} neu={neu} /> : <p className="db2-leer">Keine Probleme.</p>}
+    </Fenster>), neu);
+  return (
+    <Karte id="probleme" titel="Probleme" farbe="#dc2626" unter={daten && daten.length ? zahl(daten.length) + " offen" : ""}
+      mehr={daten && daten.length ? () => alle(daten) : null}>
+      <Laedt d={daten} fehler={fehler}>{(l) => l.length
+        ? <ProblemZeilen liste={l.slice(0, 3)} neu={neu} />
+        : <p className="db2-leer db2-gut">✓ Keine Probleme gemeldet.</p>}</Laedt>
+    </Karte>
+  );
+}
+
+function Termine({ takt, neu }) {
+  const { daten, fehler } = useDaten(async () => kommendeTermine(await kalenderLaden(), 14, undefined, 5), [takt]);
+  return (
+    <Karte id="kalender" titel="Termine" farbe="#0891b2" unter="nächste 2 Wochen" mehr={() => kalenderOeffnen(neu)}>
+      <Laedt d={daten} fehler={fehler}>{(t) => t.length
+        ? <div className="db2-liste">{t.map((x) => (
+            <div key={x.eintrag.id} className="db2-zeile db2-zeile--still">
+              <span className="db2-datum">{wannText(x)}</span>
+              <span className="db2-zeile__mitte"><b>{x.eintrag.titel}</b></span>
+            </div>))}</div>
+        : <p className="db2-leer">Keine Termine.</p>}</Laedt>
+    </Karte>
+  );
+}
+
+function NotizKarte({ takt, neu }) {
+  const { daten, fehler } = useDaten(() => alt.ladeTodos(), [takt]);
+  const alle = () => fenster((zu) => <Fenster titel="Notizen" farbe="#64748b" zu={zu}><Notizen auffrischen={0} /></Fenster>, neu);
+  return (
+    <Karte id="notizen" titel="Notizen" farbe="#64748b" unter={daten ? zahl(daten.length) : ""} mehr={alle}>
+      <Laedt d={daten} fehler={fehler}>{(l) => l.length
+        ? <div className="db2-liste">{l.slice(0, 4).map((n) => (
+            <button key={n.id} type="button" className="db2-zeile" onClick={alle}>
+              <span className="db2-zeile__mitte"><small className="db2-umbruch db2-schwarz">{n.text}</small></span>
+            </button>))}</div>
+        : <p className="db2-leer">Keine Notizen.</p>}</Laedt>
+    </Karte>
+  );
+}
+
+// Bereiche, die noch nicht neu gebaut sind: öffnen extern im eigenen Tab
+const BEREICHE = [
+  ["planwand", "Planwand", "planwand"], ["produktion", "Produktion", "produktion"],
+  ["bestellungen", "Bestellungen", "bestellungen"], ["material", "Material", "material"],
+  ["qs", "Qualität", "pruefmittel"], ["maschinen", "Maschinen", "maschinen"],
+  ["nc", "NC-PRO", "nc"], ["lager", "Lager", "lager"], ["kalkulation", "Kalkulation", "kalkulation"],
+  ["qmalt", "QMS", "qs"], ["hofer2dto3d", "2D → 3D", "hofer2dto3d"], ["einlagen", "Einlagen", "einlagen"],
+  ["bildschirme", "Anzeigen", "bildschirme"], ["reihen", "Zahlensprint", "reihen"],
+];
 
 function Kopf() {
   const [jetzt, setJetzt] = useState(() => new Date());
@@ -228,6 +428,9 @@ function Kopf() {
       <div className="db2-kopf__rechts">
         {wetter && <div className="db2-kopf__wetter"><b>{wetter.temperatur}°</b><span>{wetter.text}</span></div>}
         <div className="db2-kopf__uhr">{z(jetzt.getHours())}:{z(jetzt.getMinutes())}</div>
+        {alt.seiteSichtbar("planwand") && <button type="button" className="db2-planwand" data-db2-planwand=""
+          onClick={() => tabOeffnen("planwand")}>
+          <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: alt.SYM.planwand || "" }} />Planwand ↗</button>}
       </div>
     </header>
   );
@@ -241,35 +444,42 @@ export default function StartModule({ auffrischen }) {
     document.body.classList.add("db2-modus");
     return () => document.body.classList.remove("db2-modus");
   }, []);
-  const kacheln = KACHELN.filter(darf);
-  const weitere = WEITERE.filter(darf);
+  const bereiche = BEREICHE.filter(([pfad]) => alt.seiteSichtbar(pfad));
   const zeit = intern() && !(alt.profil && alt.profil.andere_nutzer);
   return (
     <div className="db2" id="db2">
-      <div className="db2-vorschau" id="sm-vorschau">
-        <span><b>Testseite</b> · neues Dashboard mit Fenstern.</span>
-        <a href="#/dashboard">Zur jetzigen Startseite</a>
-      </div>
       <Kopf />
+      <div className="db2-solar db2-solar--oben" id="db2-solar"><Solaranlage /></div>
       {alt.istAdmin() && <Systemzustand auffrischen={auffrischen} />}
+      <Zahlen takt={takt} />
       <div className="db2-raster" id="db2-raster">
-        {kacheln.map((k) => <Kachel key={k.id} k={k} takt={takt} neu={neu} />)}
+        <AnMaschinen takt={takt} neu={neu} />
+        <Ausstoss takt={takt} />
+        <Probleme takt={takt} neu={neu} />
+        <Material takt={takt} neu={neu} />
+        <Bestellungen takt={takt} neu={neu} />
+        <Naechste takt={takt} neu={neu} />
+        {kalenderDarf() && <Termine takt={takt} neu={neu} />}
+        <NotizKarte takt={takt} neu={neu} />
       </div>
-      <h2 className="db2-titel">Weitere Bereiche</h2>
+      <h2 className="db2-titel">Bereiche <small>öffnen im eigenen Tab</small></h2>
       <div className="db2-weitere">
-        {weitere.map((k) => (
-          <button key={k.id} type="button" className="db2-klein" data-db2={k.id} style={{ "--db2-farbe": k.farbe }}
-            onClick={() => seiteFenster(k, neu)}>
-            <span className="db2-chip" aria-hidden="true" dangerouslySetInnerHTML={{ __html: alt.SYM[k.zeichen] || "" }} />
-            <span>{k.titel}</span>
+        {bereiche.map(([pfad, titel, zeichen]) => (
+          <button key={pfad} type="button" className="db2-klein" data-db2-bereich={pfad} onClick={() => tabOeffnen(pfad)}>
+            <span className="db2-chip" aria-hidden="true" dangerouslySetInnerHTML={{ __html: alt.SYM[zeichen] || "" }} />
+            <span>{titel}</span><i aria-hidden="true">↗</i>
           </button>))}
-        {zeit && <button type="button" className="db2-klein" data-db2="zeit" style={{ "--db2-farbe": "#0a7ea4" }}
-          onClick={hofertimeOeffnen}>
+        {intern() && <button type="button" className="db2-klein" data-db2-bereich="einkauf" onClick={() => einkaufOeffnen(neu)}>
+          <span className="db2-chip" aria-hidden="true" dangerouslySetInnerHTML={{ __html: alt.SYM.einkauf || "" }} />
+          <span>Einkaufsliste</span></button>}
+        {zeit && <button type="button" className="db2-klein" data-db2-bereich="zeit" onClick={hofertimeOeffnen}>
           <span className="db2-chip" aria-hidden="true" dangerouslySetInnerHTML={{ __html: alt.SYM.zeit || "" }} />
-          <span>HOFERTIME</span>
-        </button>}
+          <span>HOFERTIME</span><i aria-hidden="true">↗</i></button>}
       </div>
-      <div className="db2-solar"><Solaranlage /></div>
+      {/* Ganz unten und leise, damit die Seite wie die echte Startseite wirkt (Patrick 22. November 2026) */}
+      <div className="db2-vorschau" id="sm-vorschau">
+        <span>Testseite</span> · <a href="#/dashboard">jetzige Startseite</a>
+      </div>
     </div>
   );
 }

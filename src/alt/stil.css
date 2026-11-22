@@ -15080,33 +15080,6 @@ body.dunkel .db2-chip, body.dunkel .db2-chip * { color: color-mix(in srgb, var(-
   .db2-weitere { grid-template-columns: 1fr 1fr; }
 }
 /* Das Fenster eines Bereichs */
-.db2-huelle { padding: 2vh 2vw !important; align-items: stretch !important; }
-.db2-fenster { --db2-karte: #fff; --db2-rand: rgba(15, 23, 42, .08); width: min(1500px, 96vw); max-width: none !important;
-  height: 94vh; max-height: none !important; display: flex; flex-direction: column; padding: 0 !important;
-  border-radius: 22px; overflow: hidden; background: var(--flaeche, #fff); margin: auto;
-  animation: db2-auf .22s cubic-bezier(.2, .8, .2, 1); }
-@keyframes db2-auf { from { opacity: 0; transform: translateY(14px) scale(.98); } }
-.db2-fenster__kopf { display: flex; align-items: center; gap: 12px; padding: 12px 16px; flex: none;
-  border-bottom: 1px solid var(--linie); box-shadow: inset 0 3px 0 var(--db2-farbe); }
-.db2-fenster__kopf h2 { margin: 0; font-size: 19px; flex: 1; }
-.db2-fenster__zu { width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--linie);
-  background: transparent; color: inherit; font-size: 17px; cursor: pointer; }
-.db2-fenster__zu:hover { background: rgba(127, 127, 127, .12); }
-.db2-fenster__inhalt { flex: 1; overflow: auto; padding: 16px 20px 24px; }
-/* Die Seite bringt ihren Titel mit; im Fenster steht er schon oben */
-.db2-fenster__seite > .react-seite > h1:first-child, .db2-fenster__seite .seitenkopf > h1 { display: none; }
-.db2-liste { display: flex; flex-direction: column; gap: 10px; }
-.db2-zeile { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px;
-  border: 1px solid var(--linie); }
-.db2-zeile--warn { border-left: 4px solid #dc2626; }
-.db2-zeile__haupt { flex: 1; display: flex; flex-direction: column; gap: 3px; text-align: left; background: none;
-  border: 0; color: inherit; font: inherit; cursor: pointer; padding: 0; }
-.db2-leer { font-size: 18px; color: #16a34a; font-weight: 600; }
-@media (max-width: 640px) {
-  .db2-huelle { padding: 0 !important; }
-  .db2-fenster { width: 100vw; height: 100dvh; border-radius: 0; }
-  .db2-fenster__inhalt { padding: 12px 12px 30px; }
-}
 
 /* ===== Test ERP (seit 1.672.0) ===== */
 .erp-schild { display: inline-block; margin-left: 10px; padding: 2px 10px; border-radius: 999px; font-size: 13px;
@@ -15400,3 +15373,156 @@ body.dunkel .cam-wz__artikel { background: #22344d; }
 /* HOFERCAM Vorlagen: Wahl mit Knöpfen (seit 1.695.0) */
 .cam-feld--wahl { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; flex-basis: 100%; }
 .cam-feld--wahl > span { margin-right: 4px; }
+
+/* ---------- Neues Dashboard mit eigenen Ansichten (seit 1.699.0) ----------
+   Wunsch Patrick 22. November 2026: „ganz ein neues Dashboard … paar Aufträge,
+   paar Bestellungen, mit Diagramm“. Karten mit Daten, Fenster mit eigenen
+   Ansichten, keine alten Seiten mehr darin. */
+.db2-zahlen { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+.db2-zahl { background: var(--db2-karte); border: 1px solid var(--db2-rand); border-radius: 18px; padding: 14px 18px;
+  display: flex; flex-direction: column; gap: 2px; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
+.db2-zahl b { font-size: 34px; font-weight: 800; letter-spacing: -.03em; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.db2-zahl span { font-size: 13px; color: var(--db2-leise); font-weight: 600; }
+.db2-zahl--warn { background: linear-gradient(160deg, rgba(220, 38, 38, .12), var(--db2-karte) 70%); }
+.db2-zahl--warn b { color: #dc2626; }
+.db2-raster { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 16px !important; align-items: start; }
+.db2-karte { background: var(--db2-karte); border: 1px solid var(--db2-rand); border-radius: 22px; padding: 16px 16px 14px;
+  min-width: 0; box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 8px 24px rgba(15, 23, 42, .05); }
+.db2-karte--breit { grid-column: span 2; }
+.db2-karte__kopf { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; flex-wrap: wrap; }
+.db2-karte__kopf h2 { margin: 0; font-size: 16px; font-weight: 750; }
+.db2-karte__unter { font-size: 13px; color: var(--db2-leise); flex: 1; }
+.db2-punkt { width: 10px; height: 10px; border-radius: 50%; background: var(--db2-farbe);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--db2-farbe) 18%, transparent); flex: none; }
+.db2-mehr { margin-left: auto; border: 0; background: color-mix(in srgb, var(--db2-farbe) 12%, transparent);
+  color: var(--db2-farbe); font: inherit; font-size: 13px; font-weight: 700; padding: 5px 11px; border-radius: 999px; cursor: pointer; }
+.db2-mehr:hover { background: color-mix(in srgb, var(--db2-farbe) 22%, transparent); }
+body.dunkel .db2-mehr { color: color-mix(in srgb, var(--db2-farbe) 65%, #fff) !important; }
+.db2-liste { display: flex; flex-direction: column; gap: 6px; }
+.db2-liste--spalten { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; }
+.db2-zeile { display: flex; align-items: center; gap: 12px; padding: 9px 11px; border-radius: 13px; text-align: left;
+  background: color-mix(in srgb, var(--db2-text) 3.5%, transparent); border: 1px solid transparent;
+  color: inherit; font: inherit; min-width: 0; width: 100%; }
+button.db2-zeile { cursor: pointer; transition: background .15s, border-color .15s; }
+button.db2-zeile:hover { border-color: color-mix(in srgb, var(--db2-farbe, #2563eb) 40%, transparent);
+  background: color-mix(in srgb, var(--db2-farbe, #2563eb) 7%, transparent); }
+.db2-zeile--rot { box-shadow: inset 3px 0 0 #dc2626; }
+.db2-zeile__mitte { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.db2-zeile__mitte b { font-size: 14.5px; font-weight: 700; }
+.db2-zeile__mitte small, .db2-rechts small { font-size: 12.5px; color: var(--db2-leise); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px; }
+.db2-knopflos { background: none; border: 0; padding: 0; text-align: left; color: inherit; font: inherit; cursor: pointer; }
+.db2-umbruch { white-space: normal !important; overflow-wrap: anywhere; }
+.db2-schwarz { color: var(--db2-text) !important; font-size: 13.5px !important; }
+.db2-grau { color: var(--db2-leise); font-weight: 500; }
+.db2-rot { color: #dc2626; }
+.db2-warn { color: #d97706; }
+.db2-rechts { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 2px; flex: none; max-width: 45%; }
+.db2-rechts b { font-size: 14px; white-space: nowrap; }
+.db2-masch { flex: none; min-width: 44px; height: 36px; padding: 0 6px; border-radius: 10px; display: grid; place-items: center;
+  font-weight: 800; font-size: 15px; font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, #2563eb 12%, transparent); color: #2563eb; }
+.db2-masch--klein { min-width: 38px; height: 28px; font-size: 13px; }
+body.dunkel .db2-masch { color: #93b4ff !important; }
+.db2-datum { flex: none; min-width: 64px; font-size: 12.5px; font-weight: 700; color: var(--db2-leise); }
+.db2-werkstoff { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex: none;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, .25); }
+.db2-fort { flex: none; display: flex; align-items: center; gap: 8px; width: 120px; }
+.db2-fort__bahn { flex: 1; height: 8px; border-radius: 99px; background: color-mix(in srgb, var(--db2-text) 10%, transparent); overflow: hidden; }
+.db2-fort__bahn i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #22c55e, #16a34a); }
+.db2-fort__text { font-size: 12.5px; font-weight: 700; min-width: 36px; text-align: right; font-variant-numeric: tabular-nums; }
+.db2-zustand { flex: none; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 99px;
+  background: rgba(100, 116, 139, .15); color: var(--db2-leise); }
+.db2-zustand--laeuft { background: rgba(22, 163, 74, .15); color: #15803d; }
+.db2-zustand--ruesten { background: rgba(234, 88, 12, .15); color: #c2410c; }
+body.dunkel .db2-zustand--laeuft { color: #6ee7a0 !important; }
+body.dunkel .db2-zustand--ruesten { color: #fdba74 !important; }
+.db2-zeilezahlen { display: flex; gap: 18px; margin-bottom: 10px; flex-wrap: wrap; }
+.db2-zeilezahlen div { display: flex; flex-direction: column; }
+.db2-zeilezahlen b { font-size: 22px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.db2-zeilezahlen span { font-size: 12px; color: var(--db2-leise); }
+.db2-karte .dg-saeule { background: linear-gradient(180deg, #4ade80, #16a34a) !important; border-radius: 6px 6px 2px 2px; }
+.db2-balken { display: flex; flex-direction: column; gap: 6px; }
+.db2-balken__zeile { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 30px; align-items: center; gap: 10px;
+  background: none; border: 0; padding: 5px 2px; color: inherit; font: inherit; cursor: pointer; text-align: left; border-radius: 8px; }
+.db2-balken__zeile:hover { background: color-mix(in srgb, #db2777 7%, transparent); }
+.db2-balken__name { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.db2-balken__bahn { height: 12px; border-radius: 99px; background: color-mix(in srgb, var(--db2-text) 7%, transparent); overflow: hidden; }
+.db2-balken__bahn i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #f472b6, #db2777); }
+.db2-balken__zeile b { text-align: right; font-variant-numeric: tabular-nums; }
+.db2-klein-text { font-size: 12.5px; color: var(--db2-leise); margin: 4px 0 0; }
+.db2-leer { font-size: 14px; color: var(--db2-leise); margin: 6px 0; font-weight: 600; }
+.db2-leer.db2-gut { color: #16a34a; }
+.db2-laedt-block { display: flex; flex-direction: column; gap: 8px; }
+.db2-laedt-block .db2-laedt { width: 100%; height: 34px; }
+.db2-planwand { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 14px; border: 0;
+  background: #2563eb; color: #fff; font: inherit; font-weight: 700; font-size: 15px; cursor: pointer;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, .3); }
+.db2-planwand svg { width: 19px; height: 19px; }
+.db2-planwand:hover { background: #1d4ed8; }
+.db2-titel small { font-weight: 500; font-size: 12.5px; margin-left: 6px; }
+.db2-klein i { margin-left: auto; font-style: normal; color: var(--db2-leise); font-size: 13px; }
+.db2-klein .db2-chip { --db2-farbe: #475569; }
+/* Fenster mit eigener Ansicht */
+.db2-huelle { padding: 3vh 3vw !important; }
+.db2-fenster { --db2-karte: var(--flaeche, #fff); width: min(860px, 96vw); max-width: none !important; max-height: 92vh !important;
+  display: flex; flex-direction: column; padding: 0 !important; border-radius: 22px; overflow: hidden; margin: auto;
+  background: var(--flaeche, #fff); color: var(--db2-text, inherit); animation: db2-auf .22s cubic-bezier(.2, .8, .2, 1); }
+@keyframes db2-auf { from { opacity: 0; transform: translateY(14px) scale(.98); } }
+.db2-fenster__kopf { display: flex; align-items: center; gap: 10px; padding: 14px 16px 12px 20px; flex: none;
+  border-bottom: 1px solid var(--linie); box-shadow: inset 0 4px 0 var(--db2-farbe); }
+.db2-fenster__titel { flex: 1; min-width: 0; }
+.db2-fenster__titel h2 { margin: 0; font-size: 20px; font-weight: 800; }
+.db2-fenster__titel span { font-size: 13px; color: var(--gedaempft, #64748b); }
+.db2-fenster__zu { width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--linie); flex: none;
+  background: transparent; color: inherit; font-size: 17px; cursor: pointer; }
+.db2-fenster__zu:hover { background: rgba(127, 127, 127, .12); }
+.db2-fenster__inhalt { flex: 1; overflow: auto; padding: 16px 20px 24px; }
+.db2-knopf { border: 1px solid var(--linie); background: transparent; color: inherit; font: inherit; font-size: 14px; font-weight: 700;
+  padding: 8px 14px; border-radius: 12px; cursor: pointer; flex: none; }
+.db2-knopf:hover { background: rgba(127, 127, 127, .1); }
+.db2-knopf--voll { background: #2563eb; border-color: #2563eb; color: #fff; }
+.db2-knopf--voll:hover { background: #1d4ed8; }
+.db2-gruppe + .db2-gruppe { margin-top: 18px; }
+.db2-gruppe h3 { margin: 0 0 8px; font-size: 15px; }
+.db2-gruppe h3 small { color: var(--gedaempft, #64748b); font-weight: 600; margin-left: 4px; }
+.db2-auftrag__zahlen { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.db2-auftrag__zahlen div { display: flex; flex-direction: column; gap: 3px; padding: 12px; border-radius: 14px;
+  background: rgba(127, 127, 127, .08); }
+.db2-auftrag__zahlen span { font-size: 12px; color: var(--gedaempft, #64748b); font-weight: 600; }
+.db2-auftrag__zahlen b { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.db2-auftrag__zahlen b.db2-zustand { font-size: 14px; align-self: flex-start; margin-top: 4px; }
+.db2-auftrag__fort { margin: 14px 0 4px; }
+.db2-auftrag__fort .db2-fort { width: 100%; }
+.db2-auftrag__fort .db2-fort__bahn { height: 12px; }
+.db2-angaben { display: grid; grid-template-columns: 120px 1fr; gap: 8px 14px; margin: 16px 0; font-size: 15px; }
+.db2-angaben dt { color: var(--gedaempft, #64748b); font-weight: 600; }
+.db2-angaben dd { margin: 0; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.db2-knoepfe { display: flex; gap: 10px; flex-wrap: wrap; }
+.db2-fenster .db2-zeile { background: rgba(127, 127, 127, .07); }
+@media (max-width: 1100px) {
+  .db2-raster { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .db2-zahlen { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 700px) {
+  .db2-raster { grid-template-columns: minmax(0, 1fr) !important; gap: 12px !important; }
+  .db2-karte--breit { grid-column: auto; }
+  .db2-liste--spalten { grid-template-columns: minmax(0, 1fr); }
+  .db2-zahlen { gap: 10px; }
+  .db2-zahl { padding: 11px 13px; }
+  .db2-zahl b { font-size: 26px; }
+  .db2-planwand { padding: 8px 12px; font-size: 14px; }
+  .db2-kopf__uhr { display: none; }
+  .db2-fort { width: 90px; }
+  .db2-huelle { padding: 0 !important; }
+  .db2-fenster { width: 100vw; max-height: none !important; height: 100dvh; border-radius: 0; }
+  .db2-fenster__inhalt { padding: 12px 12px 30px; }
+  .db2-auftrag__zahlen { grid-template-columns: 1fr 1fr; }
+  .db2-angaben { grid-template-columns: 96px 1fr; font-size: 14px; }
+}
+.db2-solar--oben { margin: 0 0 16px; }
+
+/* Hinweis Testseite ganz unten und unauffällig (seit 1.699.0) */
+.db2 .db2-vorschau { justify-content: center; gap: 4px; margin: 28px 0 0; font-size: 11px; opacity: .45; }
+.db2 .db2-vorschau a { color: inherit; font-weight: 400; text-decoration: underline; }
+.db2 .db2-vorschau:hover { opacity: .9; }
