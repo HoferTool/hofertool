@@ -287,13 +287,18 @@ function Gruss({ kinder }) {
         <div className="db2-kopf__datum">{new Date().toLocaleDateString("de-CH", { weekday: "long", day: "numeric", month: "long" })}
           {feiText && <span className="db3-feiertag"> · {feiText}</span>}</div>
         <h1 className="db2-kopf__gruss">{alt.begruessung()}{name ? ", " + name : ""}</h1>
-        {kinder.length > 0 && <div className="db3-geburtstag" id="db3-geburtstag">🎂 Heute hat {kinder.map((k) => k.name).join(" und ")} Geburtstag</div>}
       </div>
       {/* Am Computer rechts auf der Höhe des Grusses (seit 1.708.0) */}
       <div className="db3-gruss__rechts db2-kopf" data-db3-kopf="">
         <ZeitWetter />
         <ProfilKnopf />
       </div>
+      {/* Dicker Balken über die ganze Breite gleich unter dem Gruss (seit 1.708.1, Patrick) */}
+      {kinder.length > 0 && <div className="db3-geburtstag" id="db3-geburtstag">
+        <span className="db3-geburtstag__kuchen" aria-hidden="true">🎂</span>
+        <span>Heute hat <b>{kinder.map((k) => k.name).join(" und ")}</b> Geburtstag</span>
+        <span className="db3-geburtstag__kuchen" aria-hidden="true">🎉</span>
+      </div>}
     </div>
   );
 }
