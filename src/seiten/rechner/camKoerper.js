@@ -13,6 +13,7 @@
 import { plattenForm, plattenUmriss, fraeserUmriss } from "./camWerkzeug.js";
 import { SPITZEN } from "./kontur.js";
 import { halterFuer } from "./camHalter.js";
+import { schaftAusBohrung } from "./camArtikel.js";
 
 // Flächen eines Prismas: Umriss in der Ebene (z, u), von w0 bis w1
 function prisma(pts, w0, w1, art, aus) {
@@ -156,15 +157,12 @@ function halterKoerper(wz, p, umriss, d, opt, aus) {
     const Ls = hals || Math.max(3, (inn.tiefe || 5) + 3);
     const z0 = p.z + zc, z1 = z0 + dir * Ls;
     stangeZ(kreisFlach(uc, wc, Rn, 0), Math.min(z0, z1), Math.max(z0, z1), "werkzeug", aus);
-    const Rs = (num(wz.schaft) || h.schaft || 6) / 2;
-    const z2 = z1 + dir * 2, z3 = z2 + dir * (opt.maschine ? 10 : 30);
+    const Rs = (num(wz.schaft) || (dmin && schaftAusBohrung(dmin, hals)) || h.schaft || 6) / 2;
+    const z2 = z1 + dir * 2, z3 = z2 + dir * (opt.maschine ? 10 : 36);
     if (Rs > Rn) stangeZ(kreisFlach(uc, wc, (Rn + Rs) / 2, 0), Math.min(z1, z2), Math.max(z1, z2), "werkzeug", aus);
     stangeZ(kreisFlach(uc, wc, Math.max(Rn, Rs), Math.max(0, wc + Rs - 0.6)), Math.min(z2, z3), Math.max(z2, z3), "halter", aus);
-    if (!opt.maschine) {
-      // Hülse 12 × 12 hinten
-      const za = z2 + dir * 12, zb = z3;
-      quader(Math.min(za, zb), Math.max(za, zb), uc - 6, uc + 6, wc - 6, wc + 6, "halter", aus);
-    }
+    // Bohrstangen sind immer rund und freigeschliffen (Ifanger, Horn,
+    // Utilis …), kein eckiger Block hinten (Patrick 22. November 2026)
     return;
   }
   // Frontwerkzeuge (Bohreinheit, Kanal 2) haben keinen radialen Halter

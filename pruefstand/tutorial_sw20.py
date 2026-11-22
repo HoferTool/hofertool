@@ -860,6 +860,10 @@ with sync_playwright() as p:
         try: el.scroll_into_view_if_needed(timeout=2000)
         except Exception: pass
         b = el.bounding_box()
+        # unter der festen Kopfzeile oder am unteren Rand: in die Mitte holen,
+        # sonst ging der Klick auf die Kopfzeile und es wurde nichts angelegt
+        if b and (b["y"] < 80 or b["y"] + b["height"] > H - 20):
+            el.evaluate("e => e.scrollIntoView({block: 'center'})"); pg.wait_for_timeout(250); b = el.bounding_box()
         if not b: print("  unsichtbar:", sel); return
         pg.mouse.move(b["x"] + b["width"] / 2, b["y"] + b["height"] / 2, steps=22)
         pg.wait_for_timeout(300)

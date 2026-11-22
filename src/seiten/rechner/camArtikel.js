@@ -316,9 +316,25 @@ function guehring(t) {
 // aus dem Text oder geschätzt, damit die Bohrstange in Bibliothek und
 // Simulation eine sinnvolle Grösse hat (Patrick 22. November 2026: „mach
 // das über alle Artikel so“)
+// Schaft der Bohrstange aus der kleinsten Bohrung, wie in den Katalogen
+// (Ifanger: bis Ø4 Schaft 4, lange Hälse und Ø5–6 Schaft 6; Horn 111 ab Ø11
+// Schaft 12), Patrick 22. November 2026: „pro Artikel der minimale
+// Ausdrehdurchmesser … daher kannst du die Dimension vom Schaft bestimmen“
+export function schaftAusBohrung(D, hals) {
+  const d = Number(D) || 0, l = Number(hals) || 0;
+  if (!(d > 0)) return null;
+  if (d <= 4) return l > 20 ? 6 : 4;
+  if (d <= 7) return 6;
+  if (d <= 10) return 8;
+  if (d <= 14) return 10;
+  return d <= 20 ? 12 : 16;
+}
+
 export function artikelWerkzeug(kat, nr, desc) {
   const e = artikelWerkzeugRoh(kat, nr, desc);
   const wz = e && e.wz;
+  if (wz && wz.dmin && !wz.schaft && wz.art === "dreh" && /^o/.test(wz.sl || ""))
+    return { ...e, wz: { ...wz, schaft: String(schaftAusBohrung(wz.dmin, wz.hals)) } };
   if (!wz || wz.art !== "dreh" || !/^o/.test(wz.sl || "") || wz.dmin) return e;
   const t = String(nr || "") + " " + String(desc || "");
   const gesch = [...(e.geschaetzt || [])];
@@ -348,7 +364,7 @@ export function artikelWerkzeug(kat, nr, desc) {
   if (Number(wz.dicke) > D * 0.3) neu.dicke = rund(Math.max(0.3, D * 0.3));
   if (!wz.hals) neu.hals = rund(L || Math.max(6, D * 3));
   if (!wz.auskrag) neu.auskrag = neu.hals;
-  if (!wz.schaft) neu.schaft = rund(S || (D < 6 ? 4 : D < 10 ? 8 : D < 16 ? 10 : 12));
+  if (!wz.schaft) neu.schaft = rund(S || schaftAusBohrung(D, neu.hals));
   return { ...e, wz: neu, geschaetzt: [...new Set(gesch)],
     info: [e.info, /ab Ø/.test(e.info || "") ? "" : `Bohrung ab Ø${rund(D)} (${quelle})`].filter(Boolean).join(", ") };
 }
