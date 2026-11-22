@@ -26,7 +26,7 @@
 //  dem Menü links (Klasse db2-nav am body).
 // =================================================================
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { Probleme, problemeLaden, EinkaufKurz, Bestellstand, Geburtstage,
@@ -213,7 +213,31 @@ function Gruss({ kinder }) {
 
 // Eine Zelle im Raster; ohne Karte darin (nichts zu melden, lädt noch)
 // fällt sie weg, damit keine Lücke bleibt
-const Z = ({ voll, children }) => <div className={"db3-zelle" + (voll ? " db3-zelle--voll" : "")}>{children}</div>;
+// Jede Zelle spannt so viele 4-Punkte-Reihen, wie sie hoch ist: so rücken
+// die Felder in ihrer Spalte nach oben, statt auf das Nachbarfeld zu warten
+// (Wunsch Patrick 22. November 2026). Wächst eine Karte, rechnet der
+// ResizeObserver neu.
+const REIHE = 4;
+function Z({ voll, children }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    const innen = el.firstElementChild;
+    const rechnen = () => {
+      const h = el.scrollHeight;
+      el.style.gridRowEnd = h > 0 ? "span " + Math.max(1, Math.ceil(h / REIHE)) : "";
+    };
+    const ro = new ResizeObserver(rechnen);
+    ro.observe(el);
+    const mo = new MutationObserver(() => { const n = el.firstElementChild; if (n) ro.observe(n); rechnen(); });
+    mo.observe(el, { childList: true });
+    if (innen) ro.observe(innen);
+    rechnen();
+    return () => { ro.disconnect(); mo.disconnect(); };
+  }, []);
+  return <div ref={ref} className={"db3-zelle" + (voll ? " db3-zelle--voll" : "")}>{children}</div>;
+}
 
 export default function StartModule({ auffrischen }) {
   const [eigen, setEigen] = useState(0);

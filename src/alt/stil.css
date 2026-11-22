@@ -15620,13 +15620,37 @@ body.db2-modus.db2-nav .nav { background: var(--db2-karte); }
   border-radius: 22px !important; padding: 16px 18px 14px; color: var(--db2-text);
   box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 8px 24px -12px rgba(15, 23, 42, .12) !important; }
 .db3 .karte:not(.karte--warnung):not(.heuteoffen):not(.neues-tutorial) { background: var(--db2-karte); }
-/* Auf dieser Seite gibt es keine Kopfzeile mit ☰: das Menü steht darum
-   auch bei Admins immer da, die Todos darunter */
+/* Logo über allen Reitern, darunter ☰ wie in der Kopfzeile (seit 1.705.0,
+   Wunsch Patrick 22. November 2026). Nur auf dieser Seite, sonst unsichtbar. */
+.nav__oben { display: none; }
 @media (min-width: 780px) {
-  body.db2-nav.nav--todos .nav > .nav__punkt { display: flex; }
-  body.db2-nav.nav--todos .nav > .nav__unter { display: grid; }
-  body.db2-nav.nav--todos .nav-todo { margin-top: 14px; border-top: 1px solid var(--linie-stark); padding-top: 12px; }
+  body.db2-nav .nav__oben { display: block; padding: 8px 14px 12px; }
+  body.db2-nav .nav__logo { display: block; width: 100%; padding: 4px 0 10px; border: 0;
+    background: none; cursor: pointer; }
+  body.db2-nav .nav__logo img { display: block; width: 100%; max-width: 190px; height: auto; margin: 0 auto; }
+  body.db2-nav .nav__logo--dunkel { display: none !important; }
+  body.dunkel.db2-nav .nav__logo--hell { display: none !important; }
+  body.dunkel.db2-nav .nav__logo--dunkel { display: block !important; }
+  body.db2-nav .nav__klapp { display: grid; place-items: center; width: 36px; height: 36px; padding: 0;
+    border: 1px solid var(--linie-stark); border-radius: 10px; background: none; color: var(--marke);
+    cursor: pointer; transition-property: background-color, color; transition-duration: .15s; }
+  body.db2-nav .nav__klapp svg { display: block; fill: currentColor; }
+  body.db2-nav .nav__klapp:active { scale: .96; }
+  body.db2-nav .nav__klapp--auf { background: var(--marke); color: #fff; border-color: var(--marke); }
+  body.dunkel.db2-nav .nav__klapp--auf { color: #fff !important; }
+  /* Eingeklappt: nur noch der Knopf, das Logo passt nicht in 62 Punkte */
+  body.db2-nav.nav--schmal .nav__oben, body.db2-nav.nav--klappt-zu .nav__oben { padding: 8px 13px 10px; }
+  body.db2-nav.nav--schmal .nav__logo { display: none; }
+  /* Das Logo steht jetzt links, oben auf der Seite nicht nochmals */
+  body.db2-nav .db2-kopf .db2-logo { display: none; }
 }
+/* Felder rücken nach oben, ohne Lücke (seit 1.705.0, Patrick: „die Felder
+   sollen nachrücken, dass alles schön beieinander ist“): feine Reihen von
+   4 Punkten, jede Zelle spannt so viele, wie sie hoch ist (Masse in
+   StartModule.jsx). Der Abstand nach unten steckt in der Zelle. */
+.db3-raster { row-gap: 0; grid-auto-rows: 4px; }
+.db3-zelle { padding-bottom: 16px; }
+@media (max-width: 900px) { .db3-raster { row-gap: 0 !important; } .db3-zelle { padding-bottom: 12px; } }
 .db3 .karte h2 { font-size: 16px; font-weight: 750; letter-spacing: -.01em; text-wrap: balance; }
 .db3 .karte--warnung { box-shadow: 0 0 0 2px rgba(220, 38, 38, .25), 0 8px 24px -12px rgba(220, 38, 38, .25) !important; }
 .db3 .db2-gruss { margin-bottom: 18px; }

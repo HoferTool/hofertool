@@ -353,6 +353,22 @@ function Geruest() {
       <div className="rahmen">
         <nav className="nav" aria-label="Hauptnavigation"
           onPointerMove={menueNochDa} onPointerDown={menueNochDa} onWheel={menueNochDa} onKeyDown={menueNochDa}>
+          {/* Nur auf der neuen Startseite ohne Kopfzeile (body.db2-nav): Logo über
+              allen Reitern, darunter der Knopf zum Ein- und Ausklappen wie oben
+              in der Kopfzeile (Wunsch Patrick 22. November 2026) */}
+          <div className="nav__oben">
+            <button type="button" className="nav__logo" title="Seite neu laden" onClick={() => location.reload()}>
+              <img className="nav__logo--hell" src="logo-empfang.png" alt="Hofer + Co." />
+              <img className="nav__logo--dunkel" src="logo-weiss.svg" alt="Hofer + Co." />
+            </button>
+            <button type="button" className={"nav__klapp" + (todoModus && menueAuf ? " nav__klapp--auf" : "")} id="nav-klapp-oben"
+              title={todoModus ? (menueAuf ? "Zurück zu den Todos" : "Menü zeigen") : "Menü ein- oder ausklappen"}
+              onClick={klappen}>
+              <svg viewBox="0 0 18 14" width="18" height="14" aria-hidden="true">
+                <rect y="0" width="18" height="2" rx="1" /><rect y="6" width="18" height="2" rx="1" /><rect y="12" width="18" height="2" rx="1" />
+              </svg>
+            </button>
+          </div>
           {navSeiten.map((s, i) => (
             <Fragment key={s.pfad}>
               <a className={"nav__punkt" + (aktiv === s.pfad ? " aktiv" : "")}
