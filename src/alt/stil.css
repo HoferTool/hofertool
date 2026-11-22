@@ -15702,3 +15702,9 @@ body.dunkel .kombi-leiste button.aktiv { color: #0f172a !important; }
   .db2-menue__feld { top: 8px; left: 8px; width: calc(100vw - 16px); max-height: calc(100dvh - 16px); }
   .db2-menue__punkt { min-height: 88px; }
 }
+
+/* Infos zum Teil unter „Infos zum Richten“ (seit 1.701.0) */
+.ri-info { margin: 6px 0 8px; }
+.ri-info .hocoteil__angaben { margin-bottom: 6px; }
+.ri-info__knoepfe { gap: 6px; flex-wrap: wrap; }
+.ri-maschine small[data-richten-stueckzeit] { display: block; }
