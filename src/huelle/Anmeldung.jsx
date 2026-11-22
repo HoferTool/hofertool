@@ -172,9 +172,12 @@ export function istAndererNutzer(u) {
 // waagrecht gefüllt: aus 18 Personen werden 6 · 6 · 6. Bei wenigen
 // Personen mindestens drei nebeneinander, sonst stünde bei drei
 // Personen eine senkrechte Spalte da.
-function reihenBilden(data) {
+// In HOFERTIME grössere Bilder (Wunsch Patrick 22. November 2026): dort
+// höchstens `spalten` nebeneinander, dafür beliebig viele Zeilen.
+function reihenBilden(data, spalten) {
   const anzahl = data.length;
-  const reihen = Math.min(3, Math.max(1, Math.ceil(anzahl / 3)));
+  const reihen = spalten ? Math.max(1, Math.ceil(anzahl / spalten))
+    : Math.min(3, Math.max(1, Math.ceil(anzahl / 3)));
   const grund = Math.floor(anzahl / reihen);
   const mehr = anzahl % reihen;          // so viele Zeilen kriegen eine mehr
   const raus = [];
@@ -351,8 +354,10 @@ function Anmeldung() {
     geraete = kacheln.filter(istAndererNutzer);
     // Ohne Leute gleich die anderen, ohne andere gibt es nichts umzuschalten
     gezeigt = (andere && geraete.length) || !leute.length ? geraete : leute;
-    wand = reihenBilden(gezeigt);
-    const breit = wand.breiteste * 112 + (wand.breiteste - 1) * 14 + 56;
+    const zeitSpalten = zeitApp ? (window.innerWidth < 600 ? 3 : window.innerWidth < 1000 ? 5 : 8) : 0;
+    wand = reihenBilden(gezeigt, zeitSpalten);
+    const kachel = zeitApp ? 150 : 112;
+    const breit = wand.breiteste * kachel + (wand.breiteste - 1) * 14 + 56;
     karteStil = { maxWidth: "min(96vw, " + Math.max(380, breit) + "px)" };
   }
 
@@ -385,7 +390,7 @@ function Anmeldung() {
   }
 
   return (
-    <div className="login">
+    <div className={"login" + (zeitApp ? " login--zeit" : "")}>
       <div className={"login__karte" + (karteWeg ? " login__karte--weg" : "")} style={karteStil}>
         <div className="login__marke" id="lg-marke">
           <div className="login__band">
