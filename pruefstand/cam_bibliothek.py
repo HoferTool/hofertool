@@ -14,7 +14,10 @@ ART = """() => {
     { id: "w1", article_number: "DCMT 11T304-PF 4325", name: "Wendeplatte", description: "Sandvik Wendeplatte", supplier_id: "s1", is_active: true },
     { id: "w2", article_number: "HSS-3.2", name: "Bohrer", description: "Spiralbohrer Ø3.2 HSS", supplier_id: "s2", is_active: true },
     { id: "w3", article_number: "XYZ-999", name: "Wendeplatte", description: "Unbekannt", supplier_id: "s1", is_active: true },
-    { id: "w4", article_number: "MTEC 660125-R K10", name: "Ausdrehwerkzeug", description: "Ifanger Ausdreher", supplier_id: "s1", is_active: true });
+    { id: "w4", article_number: "MTEC 660125-R K10", name: "Ausdrehwerkzeug", description: "Ifanger Ausdreher", supplier_id: "s1", is_active: true },
+    { id: "w6", article_number: "25502-6.230", name: "Ausdrehwerkzeug", description: "GT106.0847.015.22.50.R", supplier_id: "s1", is_active: true },
+    { id: "w7", article_number: "RS111.0250.D2 TH35", name: "Ausdrehwerkzeug", description: "Horn Ausdreher", supplier_id: "s1", is_active: true },
+    { id: "w8", article_number: "3004-3.2-6 R SP29015 UHM30 HX", name: "Wendeplatte", description: "Utilis", supplier_id: "s1", is_active: true });
   TEST.daten.cam_werkzeuge = [];
   TEST.rpc.cam_wz_nutzung = () => [];
 }"""
@@ -36,9 +39,15 @@ with sync_playwright() as p:
     pg.click("#cam-bibliothek-auf")
     pg.wait_for_selector("[data-cam-bib-liste]")
     zeilen = pg.locator("[data-cam-bib-eintrag]")
-    pruefe("Alle fünf Werkzeug-Artikel in der Liste", zeilen.count() == 5)
+    pruefe("Alle acht Werkzeug-Artikel in der Liste", zeilen.count() == 8)
     aus = pg.text_content("[data-cam-bib-eintrag='a:w4'] [data-cam-bib-wz]") or ""
     pruefe("Ausdreher als Bohrstange " + aus, "Bohrstange ab Ø6" in aus and "Schaft Ø6" in aus)
+    gt = pg.text_content("[data-cam-bib-eintrag='a:w6'] [data-cam-bib-wz]") or ""
+    pruefe("Gühring GT aus dem Code " + gt, "Bohrstange ab Ø5" in gt and "Schaft Ø6" in gt and "R0.15" in gt)
+    h111 = pg.text_content("[data-cam-bib-eintrag='a:w7'] [data-cam-bib-wz]") or ""
+    pruefe("Horn 111 Einstechen innen " + h111, "Bohrstange ab Ø11" in h111 and "Schaft Ø12" in h111)
+    ut = pg.text_content("[data-cam-bib-eintrag='a:w8'] [data-cam-bib-wz]") or ""
+    pruefe("Multidec 3004 aussen " + ut, "unten" in ut and "Bohrstange" not in ut)
     pg.locator("[data-cam-bib-eintrag='a:w4']").screenshot(path="cam_bib_ausdreher.png")
     st = {pg.text_content(f"[data-cam-bib-eintrag='a:{i}'] [data-cam-bib-nr]"): pg.get_attribute(f"[data-cam-bib-eintrag='a:{i}'] [data-cam-bib-status]", "data-cam-bib-status") for i in ("w1", "w2", "w3")}
     print(st)

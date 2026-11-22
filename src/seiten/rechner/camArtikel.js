@@ -262,6 +262,97 @@ function horn105(t) {
     info: `Horn Mini R105: Bohrung ab Ø${D}, Eckradius ${r}, Ausspannlänge ${rund(l2)}` + (genau ? " (Katalog)" : " (aus der Nummer)") };
 }
 
+// Horn Supermini 111 (Platte im Halter B111.0012.02, Katalog horn-group.com:
+// Bohrung ab Ø11, Kopf d 8, Platte s 3.95, tmax 2.3; Halter Schaft Ø12,
+// Hals Ø8, Ausspannlänge 42). R111.0200 / RS111.0250 = Einstechen innen mit
+// Breite 2 / 2.5 (Nummer bis 0600 = Breite in 1/100 mm), sonst Ausdrehen;
+// Eckradius aus .02 / .R4 (= 0.2 / 0.4, so auf den Horn-Seiten)
+function horn111(t) {
+  const m = /\bRS?111\.(\d{4})\.([0-9A-Z]{2})/i.exec(t);
+  if (!m) return null;
+  const nr = Number(m[1]), suf = m[2].toUpperCase();
+  const gesch = ["Lage zur Mitte"];
+  let r = 0.2;
+  if (/^0\d$/.test(suf)) r = Number(suf[1]) / 10;
+  else if (/^[RD]\d$/.test(suf) && suf[0] === "R") r = Number(suf[1]) / 10;
+  else gesch.push("Eckradius");
+  const bohr = { schaft: "12", dmin: "11", hals: "42", auskrag: "42", versatz: "4.95" };
+  if (nr > 0 && nr <= 600) {
+    const b = nr / 100;
+    const wz = { art: "dreh", form: "E", sl: "or", r: rund(Math.min(r, b / 2)), breite: rund(b), l: "2.3", dicke: "3.95", ...bohr };
+    return { art: "dreh", wz, status: "teilweise", geschaetzt: gesch,
+      info: `Horn Supermini 111: Einstechen innen, Breite ${b}, Bohrung ab Ø11, Schaft Ø12, Ausspannlänge 42 (Halter B111.0012.02)` };
+  }
+  gesch.push("Plattenform");
+  const wz = { art: "dreh", form: "D", sl: "or", r: rund(r), l: "3.5", dicke: "3.95", ...bohr };
+  return { art: "dreh", wz, status: "teilweise", geschaetzt: gesch,
+    info: `Horn Supermini 111: Ausdrehen, R${r}, Bohrung ab Ø11, Schaft Ø12, Ausspannlänge 42 (Halter B111.0012.02)` };
+}
+
+// Gühring Ausdreher GT 104 / 106 / 108 (Vollhartmetall mit Schaft Ø4/6/8).
+// Aus dem Code GT1SS.KKDD.RRR.LL.BB.R: SS Schaft, RRR Eckradius in 1/100,
+// LL Ausspannlänge, BB kleinste Bohrung in 1/10 mm (aus den Codes der
+// Artikel abgeleitet, z.B. GT106.0847.015.22.50.R = Schaft 6, R0.15,
+// Länge 22, ab Ø5.0). Nur „GT 104“ im Text gibt nur den Schaft.
+function guehring(t) {
+  const m = /\bGT\s*1(0[468])(?:\.(\d{4})\.(\d{3})\.(\d{2})\.(\d{2}))?/i.exec(t);
+  if (!m) return null;
+  const S = Number(m[1]);
+  const gesch = ["Lage zur Mitte", "Dicke"];
+  let D, r, L;
+  if (m[3]) { r = Number(m[3]) / 100; L = Number(m[4]); D = Number(m[5]) / 10; }
+  else {
+    D = S * 0.6; L = S * 3; r = 0.1;
+    gesch.push("Bohrung", "Länge", "Eckradius");
+  }
+  if (!(D > 0)) return null;
+  const wz = { art: "dreh", form: "D", sl: "or", r: rund(r || 0.05), l: rund(Math.max(0.5, D * 0.35)),
+    dicke: rund(Math.max(0.3, D * 0.2)), schaft: String(S), dmin: rund(D), hals: rund(L), auskrag: rund(L), versatz: rund(D * 0.45) };
+  return { art: "dreh", wz, status: "teilweise", geschaetzt: gesch,
+    info: `Gühring GT ${100 + S}: Schaft Ø${S}` + (m[3] ? `, Bohrung ab Ø${D}, R${r}, Ausspannlänge ${L} (aus dem Code)` : " (Bohrung und Länge geschätzt)") };
+}
+
+// Innenwerkzeuge ohne kleinste Bohrung aus einem Katalog bekommen sie hier
+// aus dem Text oder geschätzt, damit die Bohrstange in Bibliothek und
+// Simulation eine sinnvolle Grösse hat (Patrick 22. November 2026: „mach
+// das über alle Artikel so“)
+export function artikelWerkzeug(kat, nr, desc) {
+  const e = artikelWerkzeugRoh(kat, nr, desc);
+  const wz = e && e.wz;
+  if (!wz || wz.art !== "dreh" || !/^o/.test(wz.sl || "") || wz.dmin) return e;
+  const t = String(nr || "") + " " + String(desc || "");
+  const gesch = [...(e.geschaetzt || [])];
+  let D = null, L = null, S = null, quelle = "";
+  const ab = /ab\s*Ø\s*(\d+(?:[.,]\d+)?)/i.exec(t);
+  // Triag Minibohrstange MVR8B30L27: Schaft 8, ab Ø3.0, Länge 27
+  const mvr = /\bMVR(\d+)B(\d{2})L(\d{2})/i.exec(t);
+  // Utilis RS008.0090 / RS011.0110 (Dümmel): ab Ø0.8 / 1.1, Länge 9 / 11
+  const rs = /\bRS0(\d{2})\.(\d{4})\b/i.exec(t);
+  const gew = /\b(\d{2})\s*IR\b/i.exec(t);
+  if (mvr) { S = Number(mvr[1]); D = Number(mvr[2]) / 10; L = Number(mvr[3]); quelle = "aus der Nummer"; gesch.push("Bohrung", "Länge"); }
+  else if (rs) { D = Number(rs[1]) / 10; L = Number(rs[2]) / 10; S = 4; quelle = "aus der Nummer"; gesch.push("Bohrung", "Länge", "Schaft"); }
+  else if (ab) { D = zahl(ab[1]); quelle = "aus dem Text"; gesch.push("Länge", "Schaft"); }
+  else if (gew) {
+    // Gewinde innen: 06 IR ab etwa Ø7, 11 IR ab Ø13, 16 IR ab Ø20
+    const g = Number(gew[1]);
+    D = g <= 6 ? 7 : g <= 11 ? 13 : 20; quelle = "geschätzt"; gesch.push("Bohrung", "Länge", "Schaft");
+  } else {
+    // Wendeplatte innen: Bohrstange etwa 1.6 × Kantenlänge
+    const l = Number(wz.l) || 4;
+    D = Math.max(3, Math.round(l * 1.6 * 10) / 10); quelle = "geschätzt"; gesch.push("Bohrung", "Länge", "Schaft");
+  }
+  if (!(D > 0)) return e;
+  const neu = { ...wz, dmin: rund(D), versatz: rund(D * 0.45) };
+  // die Platte muss in die Bohrung passen
+  if (Number(wz.l) > D * 0.45 && wz.form !== "G") neu.l = rund(Math.max(0.4, D * 0.45));
+  if (Number(wz.dicke) > D * 0.3) neu.dicke = rund(Math.max(0.3, D * 0.3));
+  if (!wz.hals) neu.hals = rund(L || Math.max(6, D * 3));
+  if (!wz.auskrag) neu.auskrag = neu.hals;
+  if (!wz.schaft) neu.schaft = rund(S || (D < 6 ? 4 : D < 10 ? 8 : D < 16 ? 10 : 12));
+  return { ...e, wz: neu, geschaetzt: [...new Set(gesch)],
+    info: [e.info, /ab Ø/.test(e.info || "") ? "" : `Bohrung ab Ø${rund(D)} (${quelle})`].filter(Boolean).join(", ") };
+}
+
 // Utilis Multidec 3004 / 1604 mit Schneide 29xyz (R = xyz/100): Form U,
 // Spitzenwinkel 27°, Freiwinkel 61° (Katalog Utilis). Laut shop.utilis.com
 // „Turning insert CUT 3004 SP“ unter Aussendrehen / Kopierdrehen, a 3.2,
@@ -280,7 +371,7 @@ function utilisDec(t) {
 
 // Werkzeug aus einem Artikel: {art, wz, status, geschaetzt[]} oder null.
 // innen: Lage oben (Bohrung), sonst aussen unten (wie camProtokoll.js)
-export function artikelWerkzeug(kat, nr, desc) {
+function artikelWerkzeugRoh(kat, nr, desc) {
   nr = String(nr || ""); desc = String(desc || "");
   const t = nr + " " + desc;
   const gesch = [];
@@ -304,7 +395,7 @@ export function artikelWerkzeug(kat, nr, desc) {
       const p = /\bP\s*(\d+(?:[.,]\d+)?)/i.exec(desc) || (gew[3] && /\d/.test(gew[3]) ? [0, gew[3]] : null);
       return { art: "dreh", wz, status: "teilweise", geschaetzt: gesch, info: p ? "Steigung " + zahl(p[1]) : "" };
     }
-    const kat1 = ifanger(t) || horn105(t) || utilisDec(t);
+    const kat1 = ifanger(t) || horn105(t) || horn111(t) || guehring(t) || utilisDec(t);
     if (kat1) return kat1;
     // Ifanger Swiss-MicroTurn MTN.. (Einstechen innen, Vollhartmetall mit
     // Schaft; Patrick 22. November 2026: lag vorher als D-Platte da)
