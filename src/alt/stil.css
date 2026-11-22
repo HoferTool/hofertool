@@ -15770,10 +15770,11 @@ body.dunkel .cam-wzg__mass b { color: #ffa24a !important; }
 .login--zeit .login__karte { padding-top: 8px; }
 .login--zeit .login__marke { margin-bottom: 16px; padding-bottom: 10px; }
 .login--zeit .login__band { margin-top: 0; aspect-ratio: auto; padding: 18px 0; }
-.login--zeit .login__logo-svg { width: 46%; max-width: 260px; }
+.login--zeit .login__logo-svg { width: min(260px, 60vw); max-width: 260px; }
+/* Grösse rechnet Anmeldung.jsx (--zk), damit alle ohne Rollen Platz haben */
 .login--zeit .login__kacheln--reihen .login__kachel {
-  flex: 0 0 min(150px, calc((100% - (var(--spalten, 3) - 1) * 14px) / var(--spalten, 3))) !important;
-  max-width: 150px !important; }
+  flex: 0 0 var(--zk, 120px) !important; width: var(--zk, 120px) !important;
+  max-width: var(--zk, 120px) !important; min-width: 0 !important; }
 .login--zeit .login__kacheln--reihen .login__kachel img,
 .login--zeit .login__kacheln--reihen .login__kachel-buchstabe { width: 100%; max-width: 100%; border-radius: 14px; }
 .login--zeit .login__kachel-name { font-size: .9rem; max-width: 100%; overflow: hidden;
@@ -15781,11 +15782,7 @@ body.dunkel .cam-wzg__mass b { color: #ffa24a !important; }
 @media (max-width: 600px) {
   .login--zeit { padding: 6px 8px 16px; }
   .login--zeit .login__karte { padding: 6px 12px 18px; }
-  .login--zeit .login__logo-svg { width: 60%; }
-  .login--zeit .login__reihe { gap: 10px !important; }
-  .login--zeit .login__kacheln--reihen .login__kachel {
-    flex: 0 0 calc((100% - (var(--spalten, 3) - 1) * 10px) / var(--spalten, 3)) !important;
-    max-width: 130px !important; }
+  .login--zeit .login__reihe, .login--zeit .login__kacheln--reihen { gap: 10px !important; }
   .login--zeit .login__kachel-name { font-size: .82rem; }
 }
 

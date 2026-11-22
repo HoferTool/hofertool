@@ -343,6 +343,57 @@ function Anmeldung() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wahl]);
 
+  // HOFERTIME: Bilder so gross, dass alle ohne Rollen auf den Bildschirm
+  // passen (Wunsch Patrick 22. November 2026: „Alle Bilder so gross, dass
+  // sie alle auf dem Bildschirm Platz haben“). Gemessen wird, wie viel
+  // Platz unter dem Logo bleibt, dann für jede Spaltenzahl die Kachelgrösse
+  // gerechnet und die grösste genommen.
+  const [zeitMass, setZeitMass] = useState(null);
+  const [fensterTakt, setFensterTakt] = useState(0);
+  useEffect(() => {
+    if (!zeitApp) return undefined;
+    let t = 0;
+    const neu = () => { clearTimeout(t); t = setTimeout(() => setFensterTakt((n) => n + 1), 120); };
+    window.addEventListener("resize", neu);
+    window.addEventListener("orientationchange", neu);
+    return () => { clearTimeout(t); window.removeEventListener("resize", neu); window.removeEventListener("orientationchange", neu); };
+  }, []);
+  const zeitAnzahl = kacheln ? ((andere && kacheln.some(istAndererNutzer)) || !kacheln.some((u) => !istAndererNutzer(u))
+    ? kacheln.filter(istAndererNutzer).length : kacheln.filter((u) => !istAndererNutzer(u)).length) : 0;
+  useLayoutEffect(() => {
+    if (!zeitApp || !zeitAnzahl || wahl) return;
+    const ausw = document.getElementById("lg-auswahl");
+    const karte = ausw && ausw.closest(".login__karte");
+    const huelle = karte && karte.closest(".login");
+    if (!ausw || !karte || !huelle) return;
+    const px = (el, w) => parseFloat(getComputedStyle(el)[w]) || 0;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const handy = vw < 600;
+    const luecke = handy ? 10 : 14;
+    const karteX = px(karte, "paddingLeft") + px(karte, "paddingRight");
+    const breiteMax = Math.min(vw * 0.96, vw - px(huelle, "paddingLeft") - px(huelle, "paddingRight"));
+    const W = breiteMax - karteX;
+    const oben = ausw.getBoundingClientRect().top + window.scrollY;
+    const knopf = document.getElementById("lg-andere");
+    const unten = (knopf ? knopf.offsetHeight + 14 : 0) + px(karte, "paddingBottom") + px(huelle, "paddingBottom") + 14;
+    const H = vh - oben - unten;
+    const name = ausw.querySelector(".login__kachel-name");
+    const zusatz = (name ? name.offsetHeight : 20) + 6 + 12;   // Name, Abstand, Polster der Kachel
+    let best = { spalten: 3, kachel: 44 };
+    for (let c = 1; c <= zeitAnzahl; c++) {
+      const r = Math.ceil(zeitAnzahl / c);
+      const nachBreite = (W - (c - 1) * luecke) / c;
+      const nachHoehe = (H - (r - 1) * luecke) / r - zusatz + 8;
+      const k = Math.floor(Math.min(nachBreite, nachHoehe, handy ? 170 : 240));
+      if (k > best.kachel) best = { spalten: c, kachel: k };
+    }
+    const mass = { ...best, karte: Math.ceil(Math.min(breiteMax, Math.max(320,
+      best.spalten * best.kachel + (best.spalten - 1) * luecke + karteX + 2))) };
+    huelle.style.setProperty("--zk", best.kachel + "px");
+    setZeitMass((alt) => (alt && alt.spalten === mass.spalten && alt.kachel === mass.kachel
+      && alt.karte === mass.karte ? alt : mass));
+  }, [zeitAnzahl, wahl, fensterTakt, !!zeitMass]);
+
   // Die Karte ist von Haus aus schmal. Bei sechs Kacheln in einer Zeile
   // liefe die Reihe über den Rand; also wächst sie mit, höchstens aber
   // auf die Fensterbreite.
@@ -354,11 +405,14 @@ function Anmeldung() {
     geraete = kacheln.filter(istAndererNutzer);
     // Ohne Leute gleich die anderen, ohne andere gibt es nichts umzuschalten
     gezeigt = (andere && geraete.length) || !leute.length ? geraete : leute;
-    const zeitSpalten = zeitApp ? (window.innerWidth < 600 ? 3 : window.innerWidth < 1000 ? 5 : 8) : 0;
-    wand = reihenBilden(gezeigt, zeitSpalten);
-    const kachel = zeitApp ? 150 : 112;
-    const breit = wand.breiteste * kachel + (wand.breiteste - 1) * 14 + 56;
-    karteStil = { maxWidth: "min(96vw, " + Math.max(380, breit) + "px)" };
+    if (zeitApp && zeitMass) {
+      wand = reihenBilden(gezeigt, zeitMass.spalten);
+      karteStil = { maxWidth: zeitMass.karte + "px" };
+    } else {
+      wand = reihenBilden(gezeigt, zeitApp ? 3 : 0);
+      const breit = wand.breiteste * 112 + (wand.breiteste - 1) * 14 + 56;
+      karteStil = { maxWidth: "min(96vw, " + Math.max(380, breit) + "px)" };
+    }
   }
 
   let auswahl;
