@@ -78,7 +78,12 @@ with sync_playwright() as p:
     pruefe("Stehend ohne X/Y-Felder", pg.locator("[data-camvorlage-feld='D']").count() == 0 and pg.locator("[data-camvorlage-feld='XY']").count() == 0)
     for n, v in (("W", "10"), ("Q", "1"), ("F", "0.05"), ("Z", "5")): setz(n, v)
     pruefe("Stehend in der Mitte", vs().split("\n") == ["G0Z5.", "G83W10.Q1000F0.05", "G80"])
-    pg.click("[data-camvorlage-wahl='art:an']")
+    pruefe("Drehwerkzeug fest stehend", pg.locator("[data-camvorlage-fest='art:stehend']").count() == 1)
+    pg.click("[data-camvorlage] .cam-vorlage__kopf button[title='Schliessen']")
+    pg.click("#cam-neu-seite"); pg.click("[data-camvorlage-auf='1']"); wahl("g83")
+    pruefe("Querangetrieben fest angetrieben", pg.locator("[data-camvorlage-fest='art:an']").count() == 1
+        and pg.locator("[data-camvorlage-wahl='art:stehend']").count() == 0)
+    for n, v in (("W", "10"), ("Q", "1"), ("F", "0.05"), ("Z", "5")): setz(n, v)
     setz("D", "12"); setz("N", "4"); setz("C", "15")
     pruefe("Lochkreis mit C", vs().split("\n") == ["G0Z5.", "G0X12.C15.", "G83W10.Q1000F0.05", "C105.", "C195.", "C285.", "G80"])
     setz("CF", "0; 45; 200")

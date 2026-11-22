@@ -40,7 +40,7 @@ import { bereichLage, zLang, feldFuerTyp, SW20_BILD, SW20_FRONT_BILD, SW20_SCHLI
 // Bearbeitung“): Vorlage wählen, Werte tippen, „Einfügen“ setzt die
 // Zeilen nach der Zeile mit der Schreibmarke im NC-Code ein (ohne Marke
 // ans Ende). Rechnen in camVorlagen.js.
-function VorlageFeld({ code, pos, einsetzen, zu }) {
+function VorlageFeld({ code, pos, einsetzen, zu, art }) {
   // Seit 1.693.0 zuerst ein Auswahlbild mit Erklärungsgrafik je Vorlage
   // statt einer Liste (Wunsch Patrick 22. November 2026); null = Auswahl
   const [id, setId] = useState(null);
@@ -63,7 +63,10 @@ function VorlageFeld({ code, pos, einsetzen, zu }) {
     </div>
   );
   const v = vorlageVon(id);
-  const w = werte[id] || vorlageStart(id);
+  const roh = werte[id] || vorlageStart(id);
+  // Felder mit ausArt nimmt die Vorlage aus der Bearbeitung statt zu fragen
+  const fest = Object.fromEntries(v.felder.filter((f) => f.ausArt && f.ausArt(art)).map((f) => [f.name, f.ausArt(art)]));
+  const w = { ...roh, ...fest };
   const setze = (n, x) => setWerte({ ...werte, [id]: { ...w, [n]: x } });
   const erg = vorlageZeilen(id, w);
   return (
@@ -76,7 +79,10 @@ function VorlageFeld({ code, pos, einsetzen, zu }) {
       {!v.grafik && <div className="cam-vorlage__erkl"><VorlageBild id={id} /><span className="klein">{VORLAGE_TEXT[id] || ""}</span></div>}
       {v.grafik && <><EinstichSteuerung w={w} setze={setze} /><EinstichBild w={w} setze={setze} /></>}
       <div className="cam-vorlage__felder">
-        {v.felder.filter((f) => feldSichtbar(f, Object.fromEntries(v.felder.map((x) => [x.name, feldWert(v, w, x)])))).map((f) => f.typ === "wahl"
+        {v.felder.filter((f) => f.ausArt && fest[f.name]).map((f) => (
+          <span key={f.name} className="cam-feld klein" data-camvorlage-fest={f.name + ":" + fest[f.name]}>
+            {f.text}: <b>{(f.optionen.find((o) => o[0] === fest[f.name]) || [, fest[f.name]])[1]}</b> (aus der Bearbeitung)</span>))}
+        {v.felder.filter((f) => !fest[f.name] && feldSichtbar(f, Object.fromEntries(v.felder.map((x) => [x.name, feldWert(v, w, x)])))).map((f) => f.typ === "wahl"
           ? <div key={f.name} className="cam-feld cam-feld--wahl" title={f.lang} role="group" aria-label={f.text}>
               <span>{f.text}</span>
               {f.optionen.map(([o, t]) => <button key={o} type="button" data-camvorlage-wahl={f.name + ":" + o}
@@ -1540,7 +1546,7 @@ export default function HoferCam() {
                       {frei.length ? "frei ab " + frei[0] + " · noch " + frei.length : "keine Marke mehr frei"}</span>}
                   </div>
                   {vorlageBei === "w" + b.id && <WerkzeugFeld b={b} setze={(wz) => blockAendern(b.id, "wz", wz)} zu={() => setVorlageBei(null)} />}
-                  {vorlageBei === b.id && <VorlageFeld code={b.code} pos={marke.current[b.id]}
+                  {vorlageBei === b.id && <VorlageFeld code={b.code} pos={marke.current[b.id]} art={b.art}
                     einsetzen={(t) => blockAendern(b.id, "code", t)} zu={() => setVorlageBei(null)} />}
                   {vorlageBei === "m" + b.id && <ModulWahl blockId={b.id} pos={() => marke.current[b.id]} zu={() => setVorlageBei(null)} />}
                   <CodeFeld data-camblock="code" min={4}

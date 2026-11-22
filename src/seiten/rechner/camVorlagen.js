@@ -28,6 +28,10 @@ const rund = (n, s = 3) => String(Math.round(n * 10 ** s) / 10 ** s);
 // Felder je Vorlage: name, text, lang (Erklärung beim Darüberfahren),
 // typ "haken" für Häkchen; vorgabe(w) rechnet einen Vorschlag aus
 // anderen Feldern, solange das Feld leer ist.
+// Bearbeitungsarten mit angetriebenem Werkzeug (Quer, Frontangetrieben,
+// Kanal 2 angetrieben, SW-20 Kanal 3); alle anderen stehen
+export const ANGETRIEBEN = ["seite", "quer", "querGegen", "k2a", "k3f", "k3s"];
+
 export const VORLAGEN = [
   {
     id: "g83", name: "Tieflochbohren G83",
@@ -36,7 +40,11 @@ export const VORLAGEN = [
       // nur in der Mitte, angetriebenes auch ausserhalb und an mehreren
       // Stellen, über Lochkreis und C-Achse oder über X/Y
       { name: "art", text: "Werkzeug", typ: "wahl", start: "stehend",
-        optionen: [["stehend", "Stehend (nur Mitte)"], ["an", "Angetrieben"]], lang: "Stehendes Werkzeug bohrt nur zentrisch, angetriebenes auch ausserhalb der Mitte" },
+        optionen: [["stehend", "Stehend (nur Mitte)"], ["an", "Angetrieben"]],
+        // Seit 1.695.1 aus der Bearbeitung (Patrick 22. November 2026: „du
+        // erkennst doch anhand der gewählten Bearbeitung, ob das Werkzeug
+        // stehend oder angetrieben ist“); gewählt wird nur ohne bekannte Art
+        ausArt: (art) => !art ? null : ANGETRIEBEN.includes(art) ? "an" : "stehend", lang: "Stehendes Werkzeug bohrt nur zentrisch, angetriebenes auch ausserhalb der Mitte" },
       { name: "lage", text: "Positionen", typ: "wahl", start: "kreis", zeigen: (w) => w.art === "an",
         optionen: [["kreis", "Lochkreis + C-Achse"], ["xy", "X / Y Positionen"]], lang: "Wie die Bohrungen liegen" },
       // Seit 1.427.1 (Patrick 5. November 2026: „beim Tieflochbohren mit
