@@ -15255,3 +15255,32 @@ body.dunkel .cam-protokoll { background: #18222e; border-color: #3d6a96; }
 .cam-protokoll__tab th, .cam-protokoll__tab td { text-align: left; padding: 4px 6px; border-bottom: 1px solid rgba(120, 140, 170, .3); vertical-align: top; overflow-wrap: anywhere; }
 .cam-protokoll--leer td { opacity: .55; }
 .cam-protokoll__knoepfe { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* HOFERCAM Optimierung (seit 1.692.0) */
+.cam-opt-huelle .dialog.cam-opt { width: min(980px, calc(100vw - 24px)); max-width: none; max-height: calc(100vh - 24px); overflow: auto; padding: 14px 16px; }
+.cam-opt__kopf { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.cam-opt__kopf h2 { margin: 0; }
+.cam-opt__frage { font-weight: 600; margin: 10px 0 8px; }
+.cam-opt__werkstoffe { display: flex; flex-wrap: wrap; gap: 6px; }
+.cam-opt__feld { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; font-size: 13px; }
+.cam-opt__feld input { padding: 6px 8px; font-size: 15px; }
+.cam-opt__hinweis { min-height: 18px; font-size: 13px; color: var(--grau, #667); margin-top: 4px; }
+.cam-opt__knoepfe { display: flex; justify-content: flex-end; margin-top: 10px; }
+.cam-opt__stand { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; margin: 8px 0; font-size: 14px; }
+.cam-opt__zahlen { font-weight: 600; margin: 4px 0 10px; }
+.cam-opt__gruppe { margin: 10px 0; }
+.cam-opt__gruppe h3 { font-size: 15px; margin: 0 0 6px; }
+.cam-opt__gruppe h3 small { font-weight: 400; opacity: .7; margin-left: 6px; }
+.cam-opt__gruppe ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.cam-opt__punkt { display: flex; gap: 10px; align-items: flex-start; padding: 7px 10px; border-radius: 8px; border-left: 4px solid #8aa; background: rgba(0, 56, 132, .05); font-size: 14px; line-height: 1.35; }
+.cam-opt__punkt--wichtig { border-left-color: #c62828; background: rgba(198, 40, 40, .07); }
+.cam-opt__punkt--empfehlung { border-left-color: #e08a00; background: rgba(224, 138, 0, .08); }
+.cam-opt__punkt--tipp { border-left-color: #1e6fd0; }
+.cam-opt__stufe { flex: 0 0 92px; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; padding-top: 1px; }
+.cam-opt__punkt--wichtig .cam-opt__stufe { color: #c62828; }
+.cam-opt__punkt--empfehlung .cam-opt__stufe { color: #b06a00; }
+.cam-opt__punkt--tipp .cam-opt__stufe { color: #1e6fd0; }
+.cam-opt__zeile { display: block; margin-top: 3px; font-size: 12px; opacity: .8; word-break: break-all; }
+.cam-opt__ok, .cam-opt__fuss { font-size: 13px; opacity: .75; }
+body.dunkel .cam-opt__punkt { background: rgba(255, 255, 255, .05); }
+@media (max-width: 600px) { .cam-opt__punkt { flex-direction: column; gap: 2px; } .cam-opt__stufe { flex: none; } }

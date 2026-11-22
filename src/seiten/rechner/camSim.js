@@ -692,6 +692,8 @@ export function simAufbauen(wRoh) {
   // der Führungsbüchse aus dem Bild läuft
   const zStange = zMax + Math.max(80, 4 * (zMax - vorne + A));
   return {
+    // Seit 1.692.0 für die Optimierung: Variablen #5xx wie oben
+    vars: v,
     sw, swFront: sw ? swFrontVon(wRoh) : [], swFest: sw ? swFrontVon(wRoh).filter((p) => swFrontArt(wRoh, p) === "fest") : [], swSchlitz: sw && !!(wRoh && wRoh.swSchlitz),
     roh: { A, W, B, vorne }, schritte: sortiert, gesamt: ab, zMax, zStange, hatK2: sortiert.some((s) => s.kanal === 2),
     // Platz 34: T3400 oder T3421–T3423 montiert, die Simulation zeigt nur das Montierte

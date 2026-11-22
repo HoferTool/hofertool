@@ -24,6 +24,7 @@ import { wzFehler, wzText } from "./camWerkzeug.js";
 import { WerkzeugFeld } from "./CamWerkzeugBild.jsx";
 import { protokollAusApp, protokollText, protokollZuordnen } from "./camProtokoll.js";
 import { simulationOeffnen } from "./CamSim3D.jsx";
+import { optimierungOeffnen } from "./CamOptimierung.jsx";
 import { VORLAGEN, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen } from "./camVorlagen.js";
 import AbstecherBild from "./AbstecherBild.jsx";
 import SchnabelBild from "./SchnabelBild.jsx";
@@ -362,6 +363,10 @@ function FensterKnoepfe({ w, einlesen, eigen }) {
     {<button className="knopf knopf--klein" id={eigen ? "cam-sim-auf" : "cam-sim-auf-fenster"} data-cam-sim="1"
       title="Drehen, Bohren und Fräsen in 3D, Kanal 1 und Kanal 2, mit den Werkzeugen der Bearbeitungen"
       onClick={() => simulationOeffnen(w)}>🧊 3D-Simulation</button>}
+    {/* Seit 1.692.0 (Patrick 22. November 2026): zuerst Material, dann Vorschläge als Liste */}
+    <button className="knopf knopf--klein" id={eigen ? "cam-opt-auf" : "cam-opt-auf-fenster"} data-cam-opt-auf="1"
+      title="Programm prüfen: Schnittwerte, Vorschub, Bohrtiefe, Leerwege, Laufzeit. Fragt zuerst nach dem Material."
+      onClick={() => optimierungOeffnen(w)}>💡 Optimierung</button>
     <EinlesenKnopf id={eigen ? "cam-einlesen" : "cam-einlesen-fenster"} merkmal={{ "data-cam-einlesen-alle": "1" }} einlesen={einlesen}
       title={"Bestehendes Programm (" + (sb ? "Kanal 1 und / oder Kanal 2" : "eine bis drei Dateien, Kanal 1 bis 3") + ") einlesen, Abweichungen zum Standard violett"}>📂 Programm einlesen</EinlesenKnopf>
   </>);
