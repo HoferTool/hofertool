@@ -14999,73 +14999,111 @@ body:not(.dunkel) .cam .cam-spalte--kopf.cam-spalte--k3 { background: #e7e0f3; b
 .cam-marken-kanaele label { display: inline-flex; align-items: center; gap: 2px; cursor: pointer; }
 .cam-marken-kanal--eigen { opacity: .6; cursor: default; }
 
-/* ---------- Neue Startseite „Was willst du machen?“, Testseite #/startneu ----------
-   1.670.0 Module, seit 1.671.0 Aufgaben ohne Menü (Wunsch Patrick 20. November 2026).
-   body.aufgabe-modus: Menü links und Handy-Menü weg. body.mit-aufgabenleiste: die
-   Leiste der Aufgabe steht am PC oben im Inhalt, am Handy unten wie eine App. */
-.sm-vorschau { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
-  background: var(--marke-hell); border: 1px dashed var(--marke); border-radius: 8px;
-  padding: 8px 12px; margin-bottom: 12px; font-size: 14px; }
-.sm-vorschau > span { flex: 1 1 260px; }
-body.dunkel .sm-vorschau { background: #1d2a3d; }
-.sm-wahl { margin: 6px 0 22px; }
-.sm-wahl__frage { font-size: 22px; margin: 0 0 12px; }
-.sm-wahl__raster { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
-.sm-aufgabe { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left;
-  background: var(--flaeche); border: 1px solid var(--linie); border-radius: 16px; padding: 16px;
-  cursor: pointer; color: inherit; font: inherit; min-height: 132px;
-  box-shadow: 0 1px 3px rgba(20, 30, 50, .08); transition: transform .15s, box-shadow .15s, border-color .15s; }
-.sm-aufgabe:hover, .sm-aufgabe:focus-visible { transform: translateY(-2px); border-color: var(--sm-farbe);
-  box-shadow: 0 6px 18px rgba(20, 30, 50, .14); }
-.sm-aufgabe:active { transform: scale(.98); }
-.sm-aufgabe__zeichen { width: 48px; height: 48px; border-radius: 13px; display: grid; place-items: center;
-  background: var(--sm-farbe); color: #fff; margin-bottom: 4px; }
-.sm-aufgabe__zeichen svg { width: 26px; height: 26px; }
-body.dunkel .sm-aufgabe__zeichen, body.dunkel .sm-aufgabe__zeichen * { color: #fff !important; }
-.sm-aufgabe__titel { font-size: 18px; font-weight: 700; line-height: 1.2; }
-.sm-aufgabe__frage { font-size: 13px; color: var(--gedaempft); line-height: 1.3; }
-.sm-heute { font-size: 20px; margin: 8px 0 10px; }
-body .kopfkarte + .gruss { margin-top: 14px; }
+/* ---------- Neues Dashboard mit Fenstern, Testseite #/startneu (seit 1.672.0) ----------
+   Wunsch Patrick 22. November 2026: Dashboard statt Menü und Reiter, ein Tipp auf
+   eine Kachel öffnet den Bereich als Fenster, neuer Look. body.db2-modus blendet
+   das Menü aus. Eigene Farben nur hier (--db2-*), hell und dunkel. */
+body.db2-modus .nav, body.db2-modus .handymenue { display: none !important; }
+body.db2-modus .rahmen { grid-template-columns: none !important; display: block !important; }
+body.db2-modus .inhalt { max-width: 1280px; margin: 0 auto; }
+body.db2-modus { --db2-grund: #eef1f6; --db2-karte: #ffffff; --db2-rand: rgba(15, 23, 42, .07);
+  --db2-text: #0f172a; --db2-leise: #64748b; background: var(--db2-grund); }
+body.db2-modus.dunkel { --db2-grund: #0b1220; --db2-karte: #141d2e; --db2-rand: rgba(255, 255, 255, .08);
+  --db2-text: #e2e8f0; --db2-leise: #94a3b8; }
+.db2 { color: var(--db2-text); padding-bottom: 30px; }
+.db2-vorschau { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 13px;
+  color: var(--db2-leise); margin: 2px 0 10px; }
+.db2-vorschau a { color: #2563eb; font-weight: 600; }
+.db2-kopf { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap;
+  margin: 6px 0 22px; }
+.db2-kopf__datum { font-size: 14px; font-weight: 600; color: var(--db2-leise); text-transform: capitalize; }
+.db2-kopf__gruss { font-size: clamp(26px, 4vw, 38px); font-weight: 800; letter-spacing: -.02em; margin: 2px 0 0;
+  line-height: 1.1; }
+.db2-kopf__rechts { display: flex; align-items: center; gap: 18px; }
+.db2-kopf__wetter { display: flex; flex-direction: column; align-items: flex-end; font-size: 13px;
+  color: var(--db2-leise); }
+.db2-kopf__wetter b { font-size: 22px; color: var(--db2-text); font-weight: 700; }
+.db2-kopf__uhr { font-size: clamp(30px, 4.5vw, 44px); font-weight: 300; font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em; }
+.db2-raster { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.db2-kachel { position: relative; display: flex; flex-direction: column; gap: 14px; text-align: left; min-height: 168px;
+  padding: 18px 18px 16px; border-radius: 22px; border: 1px solid var(--db2-rand); background: var(--db2-karte);
+  color: inherit; font: inherit; cursor: pointer; overflow: hidden;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 8px 24px rgba(15, 23, 42, .05);
+  transition: transform .18s ease, box-shadow .18s ease; }
+.db2-kachel::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 4px; background: var(--db2-farbe); opacity: .85; }
+.db2-kachel:hover, .db2-kachel:focus-visible { transform: translateY(-3px);
+  box-shadow: 0 2px 4px rgba(15, 23, 42, .05), 0 16px 36px rgba(15, 23, 42, .10); }
+.db2-kachel:active { transform: scale(.985); }
+.db2-kachel--warn { background: linear-gradient(160deg, color-mix(in srgb, var(--db2-farbe) 10%, var(--db2-karte)), var(--db2-karte) 60%); }
+.db2-kachel__kopf { display: flex; align-items: center; gap: 10px; }
+.db2-kachel__titel { font-size: 16px; font-weight: 700; flex: 1; }
+.db2-kachel__pfeil { color: var(--db2-leise); font-size: 16px; opacity: .6; transition: opacity .18s, transform .18s; }
+.db2-kachel:hover .db2-kachel__pfeil { opacity: 1; transform: translate(2px, -2px); }
+.db2-chip { width: 38px; height: 38px; flex: none; border-radius: 12px; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--db2-farbe) 14%, transparent); color: var(--db2-farbe); }
+.db2-chip svg { width: 21px; height: 21px; }
+body.dunkel .db2-chip, body.dunkel .db2-chip * { color: color-mix(in srgb, var(--db2-farbe) 70%, #fff) !important; }
+.db2-kachel__inhalt { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.db2-kachel__inhalt p { margin: 0; font-size: 14px; color: var(--db2-leise); }
+.db2-gross { font-size: 40px; font-weight: 800; line-height: 1; letter-spacing: -.03em; color: var(--db2-farbe);
+  font-variant-numeric: tabular-nums; }
+.db2-gross small { font-size: 15px; font-weight: 600; letter-spacing: 0; color: var(--db2-leise); margin-left: 4px; }
+.db2-gut { color: #16a34a; }
+.db2-eine { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.db2-eine b { color: var(--db2-text); margin-right: 4px; }
+.db2-laedt { display: block; height: 40px; width: 60%; border-radius: 10px;
+  background: linear-gradient(90deg, var(--db2-rand), transparent, var(--db2-rand)); background-size: 200% 100%;
+  animation: db2-laedt 1.2s linear infinite; }
+@keyframes db2-laedt { to { background-position: -200% 0; } }
+.db2-titel { font-size: 15px; font-weight: 700; color: var(--db2-leise); margin: 28px 0 10px; letter-spacing: .02em; }
+.db2-weitere { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.db2-klein { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 16px;
+  border: 1px solid var(--db2-rand); background: var(--db2-karte); color: inherit; font: inherit; font-size: 14px;
+  font-weight: 600; cursor: pointer; text-align: left; transition: transform .15s ease, box-shadow .15s ease; }
+.db2-klein:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(15, 23, 42, .08); }
+.db2-klein .db2-chip { width: 32px; height: 32px; border-radius: 10px; }
+.db2-klein .db2-chip svg { width: 18px; height: 18px; }
+.db2-solar { margin-top: 26px; }
 @media (max-width: 640px) {
-  .sm-wahl__raster { grid-template-columns: 1fr 1fr; gap: 10px; }
-  .sm-aufgabe { min-height: 118px; padding: 13px; border-radius: 14px; }
-  .sm-aufgabe__titel { font-size: 16px; }
-  .sm-aufgabe__frage { font-size: 12px; }
+  .db2-kopf { margin-bottom: 16px; }
+  .db2-kopf__wetter { display: none; }
+  .db2-raster { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .db2-kachel { min-height: 138px; padding: 14px 13px 12px; border-radius: 18px; gap: 10px; }
+  .db2-kachel__titel { font-size: 14px; }
+  .db2-kachel__pfeil { display: none; }
+  .db2-chip { width: 32px; height: 32px; border-radius: 10px; }
+  .db2-chip svg { width: 18px; height: 18px; }
+  .db2-gross { font-size: 30px; }
+  .db2-gross small { display: block; margin: 4px 0 0; font-size: 12px; }
+  .db2-kachel__inhalt p { font-size: 12px; }
+  .db2-weitere { grid-template-columns: 1fr 1fr; }
 }
-body.aufgabe-modus .nav, body.aufgabe-modus .handymenue { display: none !important; }
-body.aufgabe-modus .rahmen { grid-template-columns: none !important; display: block !important; }
-body.aufgabe-modus .inhalt { max-width: 1240px; margin: 0 auto; }
-.aufgabe-leiste { position: sticky; top: var(--kopfhoehe); z-index: 40; display: flex; align-items: center;
-  gap: 10px; width: 100%; box-sizing: border-box; max-width: 1240px; margin: 0 auto; padding: 8px 14px; background: var(--flaeche);
-  border-bottom: 3px solid var(--auf-farbe); box-shadow: 0 2px 8px rgba(20, 30, 50, .06); }
-.aufgabe-leiste__start, .aufgabe-leiste__punkt { display: inline-flex; align-items: center; gap: 7px;
-  border: 1px solid var(--linie); background: var(--flaeche); color: inherit; font: inherit; font-size: 14px;
-  border-radius: 999px; padding: 6px 13px; cursor: pointer; text-decoration: none; white-space: nowrap; }
-.aufgabe-leiste__punkt.aktiv { background: var(--auf-farbe); border-color: var(--auf-farbe); color: #fff; }
-body.dunkel .aufgabe-leiste__punkt.aktiv, body.dunkel .aufgabe-leiste__punkt.aktiv * { color: #fff !important; }
-.aufgabe-leiste__zeichen { width: 18px; height: 18px; display: inline-grid; }
-.aufgabe-leiste__zeichen svg { width: 18px; height: 18px; }
-.aufgabe-leiste__titel { font-weight: 700; color: var(--auf-farbe); margin-right: 4px; white-space: nowrap; }
-.aufgabe-leiste__punkte { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+/* Das Fenster eines Bereichs */
+.db2-huelle { padding: 2vh 2vw !important; align-items: stretch !important; }
+.db2-fenster { --db2-karte: #fff; --db2-rand: rgba(15, 23, 42, .08); width: min(1500px, 96vw); max-width: none !important;
+  height: 94vh; max-height: none !important; display: flex; flex-direction: column; padding: 0 !important;
+  border-radius: 22px; overflow: hidden; background: var(--flaeche, #fff); margin: auto;
+  animation: db2-auf .22s cubic-bezier(.2, .8, .2, 1); }
+@keyframes db2-auf { from { opacity: 0; transform: translateY(14px) scale(.98); } }
+.db2-fenster__kopf { display: flex; align-items: center; gap: 12px; padding: 12px 16px; flex: none;
+  border-bottom: 1px solid var(--linie); box-shadow: inset 0 3px 0 var(--db2-farbe); }
+.db2-fenster__kopf h2 { margin: 0; font-size: 19px; flex: 1; }
+.db2-fenster__zu { width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--linie);
+  background: transparent; color: inherit; font-size: 17px; cursor: pointer; }
+.db2-fenster__zu:hover { background: rgba(127, 127, 127, .12); }
+.db2-fenster__inhalt { flex: 1; overflow: auto; padding: 16px 20px 24px; }
+/* Die Seite bringt ihren Titel mit; im Fenster steht er schon oben */
+.db2-fenster__seite > .react-seite > h1:first-child, .db2-fenster__seite .seitenkopf > h1 { display: none; }
+.db2-liste { display: flex; flex-direction: column; gap: 10px; }
+.db2-zeile { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px;
+  border: 1px solid var(--linie); }
+.db2-zeile--warn { border-left: 4px solid #dc2626; }
+.db2-zeile__haupt { flex: 1; display: flex; flex-direction: column; gap: 3px; text-align: left; background: none;
+  border: 0; color: inherit; font: inherit; cursor: pointer; padding: 0; }
+.db2-leer { font-size: 18px; color: #16a34a; font-weight: 600; }
 @media (max-width: 640px) {
-  .aufgabe-leiste { position: fixed; top: auto; bottom: 0; left: 0; right: 0; max-width: none; z-index: 60;
-    padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); gap: 0; border-bottom: 0;
-    border-top: 3px solid var(--auf-farbe); box-shadow: 0 -2px 10px rgba(20, 30, 50, .12); }
-  .aufgabe-leiste__titel { display: none; }
-  .aufgabe-leiste__punkte { flex: 1; gap: 0; }
-  .aufgabe-leiste__start, .aufgabe-leiste__punkt { flex: 1 1 0; min-width: 54px; flex-direction: column; gap: 2px;
-    border: 0; border-radius: 10px; padding: 6px 2px; font-size: 11px; background: none; }
-  .aufgabe-leiste__zeichen, .aufgabe-leiste__zeichen svg { width: 22px; height: 22px; }
-  .aufgabe-leiste__punkt.aktiv { background: none; color: var(--auf-farbe); }
-  .aufgabe-leiste__punkt.aktiv .aufgabe-leiste__zeichen { color: var(--auf-farbe); }
-  body.dunkel .aufgabe-leiste__punkt.aktiv, body.dunkel .aufgabe-leiste__punkt.aktiv * { color: #8fb6ff !important; }
-  body.mit-aufgabenleiste .inhalt { padding-bottom: 90px; }
-}
-/* Aufgaben (1.671.1): Reiter, die schon in der Aufgabenleiste stehen,
-   nicht nochmals oben auf der Seite; auf dem Handy alle Knöpfe gleich breit */
-body.aufgabe-ohne-seitenreiter .reiter--seite { display: none !important; }
-@media (max-width: 640px) {
-  /* Start und Punkte gleich breit nebeneinander wie in einer App */
-  .aufgabe-leiste__punkte { display: contents; }
-  .aufgabe-leiste__start, .aufgabe-leiste__punkt { min-width: 0; font-size: 11px; }
+  .db2-huelle { padding: 0 !important; }
+  .db2-fenster { width: 100vw; height: 100dvh; border-radius: 0; }
+  .db2-fenster__inhalt { padding: 12px 12px 30px; }
 }
