@@ -15794,3 +15794,14 @@ body.rolle-extern .nav__klapp { display: none !important; }
 .db3-geburtstag__kuchen { font-size: 28px; line-height: 1; }
 body.dunkel .db3-geburtstag { background: linear-gradient(100deg, #9d174d, #be185d 55%, #b45309); }
 @media (max-width: 600px) { .db3-geburtstag { font-size: 17px; padding: 10px 14px; gap: 8px; } .db3-geburtstag__kuchen { font-size: 22px; } }
+
+/* 1.708.2 noch dicker und mit Profilbild (Patrick: „noch dicker mit Bild“) */
+.db3-geburtstag { padding: 18px 28px; font-size: 30px; gap: 20px; border-radius: 20px; min-height: 120px; }
+.db3-geburtstag__kuchen { font-size: 38px; }
+.db3-geburtstag__bilder { display: flex; }
+.db3-geburtstag__bild { width: 92px; height: 92px; border-radius: 50%; object-fit: cover; flex: none;
+  border: 4px solid #fff; box-shadow: 0 6px 18px -6px rgba(0,0,0,.45); background: #fff; }
+.db3-geburtstag__bild + .db3-geburtstag__bild { margin-left: -18px; }
+.db3-geburtstag__bild--leer { display: grid; place-items: center; font-size: 40px; font-weight: 800; color: #db2777 !important; }
+@media (max-width: 600px) { .db3-geburtstag { font-size: 19px; padding: 12px 14px; min-height: 0; gap: 10px; }
+  .db3-geburtstag__bild { width: 56px; height: 56px; border-width: 3px; } .db3-geburtstag__kuchen { font-size: 24px; } }
