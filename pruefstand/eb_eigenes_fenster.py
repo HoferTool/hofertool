@@ -41,12 +41,7 @@ with sync_playwright() as p:
         w.click("button:has-text('Ins App-Blatt umwandeln')"); w.wait_for_timeout(2500)
         if BILD: w.screenshot(path=BILD + "/eb-umwandeln.png"); pg.screenshot(path=BILD + "/eb-umwandeln-app.png")
     print("Blatt im eigenen Fenster:", w.locator("[data-eba-seite]").count(), "| in der App:", pg.locator("[data-eba-seite]").count())
-    if w.locator("[data-eba-bearbeiten]").count():
-        w.click("[data-eba-bearbeiten]"); w.wait_for_timeout(800)
-    if BILD: w.screenshot(path=BILD + "/eb-bearbeiten.png")
-    w.locator("[data-eba-seite] :text('T100')").first.click(); w.wait_for_timeout(800)
-    if BILD: w.screenshot(path=BILD + "/eb-platz.png")
-    print("Platzfenster hier:", w.evaluate("document.querySelectorAll('.dialog-huelle').length"), "dort:", pg.evaluate("document.querySelectorAll('.dialog-huelle').length"))
+    # Bearbeiten führt seit 1.715.0 in die Produktion (eb_planwand_bearbeiten.py)
     st = w.evaluate("""() => { const h = document.querySelector('.eba-huelle'); const d = h && h.firstElementChild;
       const s = (e) => e ? getComputedStyle(e) : {}; return [h && h.className, s(h).backgroundColor, s(d).backgroundColor, s(d).opacity, d && d.className,
       JSON.stringify(h && h.getBoundingClientRect()), innerWidth, innerHeight] }""")

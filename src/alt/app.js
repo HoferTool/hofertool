@@ -172,7 +172,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.714.0";
+const APP_VERSION = "1.715.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -9137,7 +9137,7 @@ async function blattPdfSuchen(hocoNr, typId) {
   return { eigenes: eigenes, vorlage: vorlage, adresse: eigenes || vorlage };
 }
 
-async function einrichtblattPdfOeffnen(hocoNr, typId, titel) {
+async function einrichtblattPdfOeffnen(hocoNr, typId, titel, { bearbeitenAnders } = {}) {
   if (!typId) {
     meldung("Dieser Maschine ist kein Typ zugewiesen. "
       + "Den trägst du unter Produktion → Maschinen ein.", "warn");
@@ -9152,7 +9152,7 @@ async function einrichtblattPdfOeffnen(hocoNr, typId, titel) {
   const darfEb = !!hocoNr && darfSchreiben() && !istExtern();
   const app = hocoNr ? await appBlattSuchen(hocoNr, typId) : null;
   if (app && (!imPad || app.gut_am)) {
-    await einrichtblattAppOeffnen(hocoNr, typId, { nurLesen: !darfEb });
+    await einrichtblattAppOeffnen(hocoNr, typId, { nurLesen: !darfEb, bearbeitenAnders });
     return;
   }
   let gefunden;
@@ -9165,7 +9165,7 @@ async function einrichtblattPdfOeffnen(hocoNr, typId, titel) {
     const k = await materialBlattFuer(hocoNr, typId);
     const mb = k ? await appBlattSuchen(k, typId) : null;
     if (mb && (!imPad || mb.gut_am)) {
-      await einrichtblattAppOeffnen(k, typId, { nurLesen: !darfEb, auftrag: hocoNr });
+      await einrichtblattAppOeffnen(k, typId, { nurLesen: !darfEb, auftrag: hocoNr, bearbeitenAnders });
       return;
     }
   }
@@ -9176,7 +9176,7 @@ async function einrichtblattPdfOeffnen(hocoNr, typId, titel) {
   // Im Pad steht ein noch nicht bestätigtes App-Blatt hinter dem Excel,
   // der Knopf führt dorthin zum Bearbeiten.
   const appBlatt = !darfEb ? null
-    : app ? { text: "Einrichtblatt in der App bearbeiten", tu: async (zu) => { zu(); await einrichtblattAppOeffnen(hocoNr, typId, { bearbeiten: true }); } }
+    : app ? { text: "Einrichtblatt in der App bearbeiten", tu: async (zu) => { zu(); if (bearbeitenAnders) bearbeitenAnders(hocoNr, typId); else await einrichtblattAppOeffnen(hocoNr, typId, { bearbeiten: true }); } }
     : gefunden.eigenes
       // Das Blatt geht zum Bearbeiten auf und liest sich selbst aus dem
       // Excel vor; gespeichert wird erst mit Speichern (seit 1.178.0)
