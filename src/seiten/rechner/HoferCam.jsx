@@ -13,7 +13,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { useEntwurfZurueck } from "../../teile/lokalZurueck.js";
 import { NcAblage, NcStand } from "./NcAblage.jsx";
-import { dateiBeobachten, dateiFehler, dateiNeuWaehlen, dateienFuerName, dateienLaden, dateienSchreiben, dateienWaehlen, dateiMerken, dateiVergessen, dateiVon, kannSchreiben, schreibrechtHolen } from "./camDatei.js";
+import { dateiBeobachten, dateiFehler, dateiNeuWaehlen, dateienFuerName, dateienLaden, dateienSchreiben, dateienWaehlen, dateiMerken, dateiVergessen, dateiVon, kannSchreiben, schreibrechtHolen, nachbarHolen, ordnerFreigeben, ordnerMoeglich, ordnerVon } from "./camDatei.js";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
 import { ModulWahl, modulEmpfaenger, modulZustandAblage } from "./modulTab.jsx";
@@ -301,7 +301,40 @@ function ImFenster() {
 // Browsers, damit „Speichern“ die Datei später wieder beschreiben kann
 // (camDatei.js); sonst wie bisher das Dateifeld. Hineinziehen geht weiter
 // über das Dateifeld, dann ohne Zurückschreiben.
-function EinlesenKnopf({ id, kanal, kanaele, merkmal, einlesen, title, children }) {
+// Fehlende Kanäle aus dem Ordner der gewählten Datei holen (1.733.0)
+async function nachbarnErgaenzen(f, liste, kanaele, nummern) {
+  const gelesen = [];
+  for (const x of liste) { try { const r = programmLesen(await x.datei.text()); if (!r.fehler) gelesen.push({ x, r }); } catch (y) { /* unlesbar */ } }
+  const da = new Set(gelesen.map((g) => g.r.kanal));
+  const fehlt = [];
+  for (let k = 1; k <= kanaele; k++) if (!da.has(k)) fehlt.push(k);
+  const mitGriff = gelesen.find((g) => g.x.griff);
+  if (!fehlt.length || !mitGriff) return liste;
+  const { x, r } = mitGriff;
+  let ort = await ordnerVon(x.griff);
+  if (ort && ort.ohneRecht) {
+    const ja = await alt.nachfragen({ titel: "Ordner wieder freigeben?", text: "Damit die App die Dateien für Kanal " + fehlt.join(" und ") + " selbst holt, braucht sie nochmals die Erlaubnis für den Ordner.", bestaetigen: "Erlauben", abbrechen: "Nein" });
+    if (!ja) return liste;
+    ort = await ordnerVon(x.griff, true);
+  }
+  if (!ort || ort.ohneRecht) {
+    if (!ordnerMoeglich(f)) return liste;
+    const ja = await alt.nachfragen({ titel: "Kanal " + fehlt.join(" und ") + " selbst holen?",
+      text: "Der Browser gibt aus der Dateiwahl nur die angeklickte Datei. Gib den Ordner, in dem „" + x.datei.name + "“ liegt, einmal frei (im nächsten Fenster gleich „Ordner auswählen“ und dann „Zulassen“ drücken). Danach holt die App die Dateien der anderen Kanäle dort immer selbst.",
+      bestaetigen: "Ordner freigeben", abbrechen: "Nein" });
+    if (!ja) return liste;
+    try { await ordnerFreigeben(f, x.griff); } catch (y) { if (y && y.name === "AbortError") return liste; throw y; }
+    ort = await ordnerVon(x.griff);
+    if (!ort || ort.ohneRecht) { alt.meldung("Die Datei liegt nicht im gewählten Ordner. Bitte genau den Ordner der Datei wählen.", "warn"); return liste; }
+  }
+  // Nur holen, nie schreiben (Patrick 23. November 2026: „du darfst dort
+  // aber nie schreiben, nur holen“): Ordner nur mit Leserecht, dazugeholte
+  // Dateien ohne Griff, also beim Speichern kein Zurückschreiben
+  const neu = await nachbarHolen(ort, fehlt.map((k) => nummern[k - 1] + Number(r.nr)));
+  if (neu.length) alt.meldung("Aus dem Ordner dazugeholt: " + neu.map((n) => n.datei.name).join(", "), "gut");
+  return [...liste, ...neu.filter((m) => !liste.some((y) => y.datei.name === m.datei.name)).map(({ datei }) => ({ datei }))];
+}
+function EinlesenKnopf({ id, kanal, kanaele, nummern, merkmal, einlesen, title, children }) {
   return (
     <label className="knopf knopf--klein" id={id} {...merkmal} title={title}
       onClick={(e) => {
@@ -314,6 +347,13 @@ function EinlesenKnopf({ id, kanal, kanaele, merkmal, einlesen, title, children 
           // Einlesen für alle Kanäle nur eine Datei wählt, bekommt die
           // übrigen Kanäle sonst nur als Standard. Darum fragen und die
           // Dateiwahl gleich nochmals öffnen (Klick im Fenster = erlaubt)
+          // Seit 1.733.0 (Patrick 23. November 2026: „ich will, dass es 2066
+          // und 3066 selber holt … es ist ja im selben Ordner“): fehlen
+          // Kanäle, sucht die App sie im freigegebenen Ordner der gewählten
+          // Datei; ist er noch nicht freigegeben, einmal fragen
+          if (!kanal && kanaele && nummern && liste.length) {
+            try { liste = await nachbarnErgaenzen(f, liste, kanaele, nummern); } catch (y) { alt.fehlerMerken && alt.fehlerMerken("HOFERCAM Nachbarn holen", String(y && y.message || y)); }
+          }
           while (!kanal && kanaele && liste.length) {
             const da = new Set();
             for (const x of liste) { try { const r = programmLesen(await x.datei.text()); if (!r.fehler) da.add(r.kanal); } catch (y) { /* unlesbar */ } }
@@ -471,7 +511,7 @@ function FensterKnoepfe({ w, einlesen, eigen }) {
     <button className="knopf knopf--klein" id={eigen ? "cam-opt-auf" : "cam-opt-auf-fenster"} data-cam-opt-auf="1"
       title="Programm prüfen: Schnittwerte, Vorschub, Bohrtiefe, Leerwege, Laufzeit. Fragt zuerst nach dem Material."
       onClick={() => optimierungOeffnen(w)}>💡 Optimierung</button>
-    <EinlesenKnopf id={eigen ? "cam-einlesen" : "cam-einlesen-fenster"} merkmal={{ "data-cam-einlesen-alle": "1" }} einlesen={einlesen} kanaele={sb ? 2 : 3}
+    <EinlesenKnopf id={eigen ? "cam-einlesen" : "cam-einlesen-fenster"} merkmal={{ "data-cam-einlesen-alle": "1" }} einlesen={einlesen} kanaele={sb ? 2 : 3} nummern={sb ? [0, 1000] : [1000, 2000, 3000]}
       title={"Bestehendes Programm (" + (sb ? "Kanal 1 und / oder Kanal 2" : "eine bis drei Dateien, Kanal 1 bis 3") + ") einlesen, Abweichungen zum Standard violett"}>📂 Programm einlesen</EinlesenKnopf>
   </>);
 }
