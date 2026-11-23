@@ -301,15 +301,36 @@ function ImFenster() {
 // Browsers, damit „Speichern“ die Datei später wieder beschreiben kann
 // (camDatei.js); sonst wie bisher das Dateifeld. Hineinziehen geht weiter
 // über das Dateifeld, dann ohne Zurückschreiben.
-function EinlesenKnopf({ id, kanal, merkmal, einlesen, title, children }) {
+function EinlesenKnopf({ id, kanal, kanaele, merkmal, einlesen, title, children }) {
   return (
     <label className="knopf knopf--klein" id={id} {...merkmal} title={title}
       onClick={(e) => {
         const f = e.currentTarget.ownerDocument.defaultView || window;
         if (!kannSchreiben(f) || e.target.tagName === "INPUT") return;
         e.preventDefault();
-        dateienWaehlen(f, !kanal).then((liste) => liste.length && einlesen(liste, kanal))
-          .catch((x) => alt.meldung("Datei öffnen ging nicht: " + (x && x.message ? x.message : x), "fehler"));
+        dateienWaehlen(f, !kanal).then(async (liste) => {
+          // Seit 1.732.1 (Patrick 23. November 2026: „wenn ich im Ordner
+          // O1066 anwähle … 3066 aber mit falschem Inhalt“): wer beim
+          // Einlesen für alle Kanäle nur eine Datei wählt, bekommt die
+          // übrigen Kanäle sonst nur als Standard. Darum fragen und die
+          // Dateiwahl gleich nochmals öffnen (Klick im Fenster = erlaubt)
+          while (!kanal && kanaele && liste.length) {
+            const da = new Set();
+            for (const x of liste) { try { const r = programmLesen(await x.datei.text()); if (!r.fehler) da.add(r.kanal); } catch (y) { /* unlesbar */ } }
+            const fehlt = [];
+            for (let k = 1; k <= kanaele; k++) if (!da.has(k)) fehlt.push(k);
+            if (!fehlt.length || !da.size) break;
+            const nochmal = await alt.nachfragen({ titel: "Weitere Kanäle einlesen?",
+              text: "Gewählt: Kanal " + [...da].sort().join(", ") + ". Für Kanal " + fehlt.join(" und ")
+                + " wurde keine Datei gewählt, dort stünde sonst nur der Standard. Tipp: im Fenster mit Strg alle Dateien zusammen anklicken.",
+              bestaetigen: "Datei für Kanal " + fehlt.join(" und ") + " wählen", abbrechen: "Nur diese einlesen" });
+            if (!nochmal) break;
+            const mehr = await dateienWaehlen(f, true);
+            if (!mehr.length) break;
+            liste = [...liste, ...mehr.filter((m) => !liste.some((x) => x.datei.name === m.datei.name))];
+          }
+          if (liste.length) einlesen(liste, kanal);
+        }).catch((x) => alt.meldung("Datei öffnen ging nicht: " + (x && x.message ? x.message : x), "fehler"));
       }}>
       {children}
       <input type="file" multiple={!kanal} hidden data-ablegen="direkt" data-ablegen-viele={kanal ? "[data-cam-einlesen-alle] input[type=file]" : undefined} onChange={(e) => { einlesen(e.target.files, kanal); e.target.value = ""; }} />
@@ -450,7 +471,7 @@ function FensterKnoepfe({ w, einlesen, eigen }) {
     <button className="knopf knopf--klein" id={eigen ? "cam-opt-auf" : "cam-opt-auf-fenster"} data-cam-opt-auf="1"
       title="Programm prüfen: Schnittwerte, Vorschub, Bohrtiefe, Leerwege, Laufzeit. Fragt zuerst nach dem Material."
       onClick={() => optimierungOeffnen(w)}>💡 Optimierung</button>
-    <EinlesenKnopf id={eigen ? "cam-einlesen" : "cam-einlesen-fenster"} merkmal={{ "data-cam-einlesen-alle": "1" }} einlesen={einlesen}
+    <EinlesenKnopf id={eigen ? "cam-einlesen" : "cam-einlesen-fenster"} merkmal={{ "data-cam-einlesen-alle": "1" }} einlesen={einlesen} kanaele={sb ? 2 : 3}
       title={"Bestehendes Programm (" + (sb ? "Kanal 1 und / oder Kanal 2" : "eine bis drei Dateien, Kanal 1 bis 3") + ") einlesen, Abweichungen zum Standard violett"}>📂 Programm einlesen</EinlesenKnopf>
   </>);
 }
