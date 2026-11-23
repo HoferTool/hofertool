@@ -29,8 +29,20 @@ with sync_playwright() as p:
         if mitBlatt:
             w.click("#pl-blattreihe button"); w.wait_for_timeout(1500)
             if runde == 2 and w.locator("[data-eba-bearbeiten]").count():
-                w.click("[data-eba-bearbeiten]"); w.wait_for_timeout(600)
-                w.locator("[data-eba-seite] :text('T100')").first.click(); w.wait_for_timeout(600)
+                # Seit 1.715.0 führt „Bearbeiten“ aus der Planwand zu Produktion →
+                # Infos zum Richten: das eigene Fenster geht dabei zu, das Blatt
+                # steht im Hauptfenster zum Bearbeiten
+                w.click("[data-eba-bearbeiten]", no_wait_after=True); pg.wait_for_timeout(1500)
+                if not w.is_closed(): fehler.append("Bearbeiten: eigenes Fenster bleibt offen")
+                if not pg.locator("[data-eba-seite]").count(): fehler.append("Bearbeiten: Blatt nicht im Hauptfenster")
+                pg.locator(".dialog-huelle [data-eba-abbrechen], .dialog-huelle button:has-text('Abbrechen')").last.click(timeout=3000, no_wait_after=True)
+                pg.wait_for_timeout(800)
+                for _ in range(3):
+                    k = pg.locator(".dialog-huelle button:has-text('Verwerfen'), .dialog-huelle button:has-text('Schliessen')")
+                    if not k.count(): break
+                    k.last.click(timeout=3000, no_wait_after=True); pg.wait_for_timeout(600)
+                pg.evaluate("location.hash='#planwand'"); pg.wait_for_selector(".pw-balken"); pg.wait_for_timeout(600)
+                continue
         w.close(); pg.wait_for_timeout(1200)
         z = pg.evaluate("""() => ({ huellen: [...document.querySelectorAll('.dialog-huelle')].map(h => h.className),
           oben: (document.elementFromPoint(800, 500) || {}).className, body: document.body.className, ov: getComputedStyle(document.body).overflow })""")
@@ -41,11 +53,11 @@ with sync_playwright() as p:
                 if not pg.evaluate("document.querySelectorAll('.dialog-huelle').length"): break
                 k = pg.locator(".dialog-huelle button:has-text('Schliessen'), .dialog-huelle button:has-text('Abbrechen'), .dialog-huelle button:has-text('Verwerfen')")
                 print("  Knöpfe:", pg.evaluate("[...document.querySelectorAll('.dialog-huelle button')].map(b=>b.textContent.trim().slice(0,14)).slice(0,30)"))
-                k.last.click(timeout=3000); pg.wait_for_timeout(600)
+                k.last.click(timeout=3000, no_wait_after=True); pg.wait_for_timeout(600)
             if pg.evaluate("document.querySelectorAll('.dialog-huelle').length"): fehler.append(f"Runde {runde}: Schliessen im zurückgeholten Fenster geht nicht")
         # Bedienbar? Einfacher Klick auf einen Balken markiert ihn
         try:
-            pg.locator(".pw-balken[data-auftrag]").nth(2).click(timeout=3000)
+            pg.locator(".pw-balken[data-auftrag]").nth(2).click(timeout=3000, no_wait_after=True)
         except Exception as e:
             fehler.append(f"Runde {runde}: Klick geht nicht: " + str(e)[:120])
         if any("dialog-huelle--eigen" in h for h in z["huellen"]): fehler.append(f"Runde {runde}: Hülle des eigenen Fensters bleibt")
