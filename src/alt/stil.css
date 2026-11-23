@@ -16118,14 +16118,14 @@ body.dunkel .bk-mehr { color: #8ec5ff !important; }
 :is(.karte.cam, .cam-eigen) {
   --cm-grund: #f3f5f8; --cm-karte: #ffffff; --cm-rand: #e1e6ec; --cm-rand2: #cfd7e1;
   --cm-feld: #f8fafc; --cm-text: #16212c; --cm-leise: #5d6b79; --cm-akzent: #0b5cc2;
-  --cm-chip: #eef3f9; --cm-chip-rand: #d3dde9; --cm-chip-text: #12365f;
+  --cm-chip: #eef3f9; --cm-chip-rand: #d3dde9; --cm-chip-hover: #dde9f7; --cm-chip-hover-rand: #9fbde3; --cm-chip-text: #12365f;
   --cm-schatten: 0 1px 2px rgba(16, 33, 52, .06), 0 4px 14px rgba(16, 33, 52, .06);
   --cm-k1: #2f6fbe; --cm-k2: #17998a; --cm-k3: #7a55b5;
 }
 body.dunkel :is(.karte.cam, .cam-eigen) {
   --cm-grund: #12161a; --cm-karte: #1a2026; --cm-rand: #2a333c; --cm-rand2: #36414c;
   --cm-feld: #141a1f; --cm-text: #e8edf2; --cm-leise: #9aa7b4; --cm-akzent: #6aa8ff;
-  --cm-chip: #222b34; --cm-chip-rand: #34404c; --cm-chip-text: #d6e4f5;
+  --cm-chip: #222b34; --cm-chip-rand: #34404c; --cm-chip-hover: #2a3a4d; --cm-chip-hover-rand: #4d6e96; --cm-chip-text: #d6e4f5;
   --cm-schatten: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 18px rgba(0, 0, 0, .25);
   --cm-k1: #5b95e0; --cm-k2: #33b5a5; --cm-k3: #9d7ad6;
 }
@@ -16157,7 +16157,7 @@ body :is(.karte.cam, .cam-eigen) .knopf:not(.knopf--primaer):not(.cam-block__pfe
   background: var(--cm-chip); border: 1px solid var(--cm-chip-rand); color: var(--cm-chip-text);
   border-radius: 999px; box-shadow: none; font-weight: 600; transition: background .15s, border-color .15s, transform .1s; }
 body :is(.karte.cam, .cam-eigen) .knopf:not(.knopf--primaer):not(.cam-block__pfeil):hover:not(:disabled) {
-  background: color-mix(in srgb, var(--cm-akzent) 12%, var(--cm-chip)); border-color: color-mix(in srgb, var(--cm-akzent) 45%, var(--cm-chip-rand)); }
+  background-color: var(--cm-chip-hover); border-color: var(--cm-chip-hover-rand); color: var(--cm-chip-text); }
 body :is(.karte.cam, .cam-eigen) .knopf:not(.cam-block__pfeil):active:not(:disabled) { transform: translateY(1px); }
 body :is(.karte.cam, .cam-eigen) .knopf:disabled { opacity: .45; }
 body :is(.karte.cam, .cam-eigen) .knopf--primaer { border-radius: 999px; }
