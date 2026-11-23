@@ -268,8 +268,36 @@ const ohneFest = (arten, s) => (angetrieben(s) ? arten.filter((a) => !FEST_ARTEN
 // Platz und Art aus dem Werkzeugaufruf, der NC-Code ist das ganze Stück
 // vom Werkzeugaufruf bis M1, das Programm schreibt es unverändert.
 const zahlIn = (zeilen, re) => { for (const z of zeilen) { const m = z.replace(/^\//, "").match(re); if (m) return m[1]; } return null; };
+// Seit 1.736.0 (Patrick 23. November 2026: „nimm als Kopf der Bearbeitung
+// alles, was bis zur ersten G1-Bewegung kommt. Ende ab Ausschalten HD,
+// oder Deaktivierung eines Zyklus oder G0T0, Priorität in dieser
+// Reihenfolge. Auch für die SB-20“): das Stück wird in Kopf, NC-Code und
+// Ende geteilt. Ohne G1 zählt die erste andere Vorschubbewegung (G2/G3,
+// Bohrzyklus). Findet sich nichts Passendes, bleibt alles NC-Code.
+const ohneKommentar = (z) => z.replace(/\([^)]*\)?/g, "").replace(/\s/g, "").replace(/^\//, "").replace(/^N\d+/i, "");
+const G1_RE = /G0*1(?![\d.])/i;
+const VOR_RE = /G0*[23](?![\d.])|G(?:7[1-6]|8[1-9])(?!\d)/i;
+const ENDE_RE = [
+  /M189\d*/i, // HD aus (M1891–M1894, M189<Ausgang>)
+  /G80(?!\d)/i, // Zyklus aus
+  /^(?:G0*0)?T0+(?!\d)/i, // G0T0 bzw. T0
+];
+export function freiTeilen(s) {
+  const z = s.map(ohneKommentar);
+  let a = z.findIndex((x) => G1_RE.test(x));
+  if (a < 0) a = z.findIndex((x) => VOR_RE.test(x));
+  if (a < 0) return { kopf: [], code: s, ende: [] };
+  let e = -1;
+  for (const re of ENDE_RE) {
+    for (let i = z.length - 1; i > a; i--) if (re.test(z[i])) { e = i; break; }
+    if (e > 0) break;
+  }
+  if (e < 0) e = s.length;
+  return { kopf: s.slice(0, a), code: s.slice(a, e), ende: s.slice(e) };
+}
 function freiBlock(art, s, platz) {
-  const b = { ...neuerBlock([], art), platz: String(platz), frei: true, code: s.join("\n") };
+  const t3 = freiTeilen(s);
+  const b = { ...neuerBlock([], art), platz: String(platz), frei: true, freiKopf: t3.kopf.join("\n"), code: t3.code.join("\n"), freiEnde: t3.ende.join("\n") };
   delete b.id;
   const t = s.find((z) => /^\/?T\d{3,4}/i.test(z)) || "";
   b.bez = (t.match(/\(([^)]*)\)/) || [])[1]?.trim().toUpperCase() || "";

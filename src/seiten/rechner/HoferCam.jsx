@@ -1644,10 +1644,17 @@ export default function HoferCam() {
                   {vorlageBei === "v" + b.id && hier && <VorlageFeld key={hier.e.k} code={b.code} art={b.art} kanal={eigenerKanal(b)} sw={kanalZahl() > 2}
                     start={{ id: hier.e.id, w: hier.e.w }} einsetzen={(x) => vorlageUebernehmen(b, x, hier)} zu={() => setVorlageBei(null)} />}
                   {vorlageBei === "m" + b.id && <ModulWahl blockId={b.id} pos={() => marke.current[b.id]} zu={() => setVorlageBei(null)} />}
+                  {b.frei && (b.freiKopf || b.freiEnde) && <label className="cam-k1" data-camfrei-kopf={i}>
+                    <span className="klein">Kopf der Bearbeitung (wie eingelesen, bis zur ersten G1-Bewegung)</span>
+                    <CodeFeld min={2} value={b.freiKopf || ""} onChange={(e) => blockAendern(b.id, "freiKopf", e.target.value)} /></label>}
+                  {b.frei && (b.freiKopf || b.freiEnde) && <span className="klein">NC-Code</span>}
                   <CodeFeld data-camblock="code" min={4}
                     onSelect={(e) => { marke.current[b.id] = e.target.selectionStart; vorlageHierPruefen(b, e.target.value, e.target.selectionStart); }}
                     placeholder={gegen ? "NC-Code für Kanal 2 (zwei Marken direkt nacheinander, z.B. M350 und M360, geben Platz für Kanal 1)" : "NC-Code der Bearbeitung hier einfügen (aus Kontur, Bohren / Fräsen …; zwei Marken direkt nacheinander geben Platz für Kanal 2)"}
                     value={b.code} onChange={(e) => { marke.current[b.id] = e.target.selectionStart; vorlageHierPruefen(b, e.target.value, e.target.selectionStart); blockAendern(b.id, "code", e.target.value); }} />
+                  {b.frei && (b.freiKopf || b.freiEnde) && <label className="cam-k1" data-camfrei-ende={i}>
+                    <span className="klein">Ende der Bearbeitung (ab HD aus, sonst Zyklus aus G80, sonst G0T0)</span>
+                    <CodeFeld min={2} value={b.freiEnde || ""} onChange={(e) => blockAendern(b.id, "freiEnde", e.target.value)} /></label>}
                 </>}
               {!b.zu && markenPaare(b).flatMap(([x, y, ziele, xt, yt, sync]) => ziele.map((ander) => {
                 // Seit 1.416.0: an der Gegenspindel ist der NC-Code Kanal 2

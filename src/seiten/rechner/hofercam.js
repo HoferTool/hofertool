@@ -437,7 +437,9 @@ function blockWerte(b, w, marke) {
 }
 // Bearbeitung „wie eingelesen“ (seit 1.561.0): der NC-Code steht
 // unverändert im Programm, ohne Vorlage, im Kanal ihrer Art
-const freiZeilen = (b) => String(b.code || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
+// Seit 1.736.0 mit Kopf (freiKopf) und Ende (freiEnde) wie eingelesen
+const teilZeilen = (t) => String(t || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
+const freiZeilen = (b) => [...teilZeilen(b.freiKopf), ...teilZeilen(b.code), ...teilZeilen(b.freiEnde)];
 const freiK2 = (b) => b.art === "k2" || b.art === "k2a" || b.art === "k2b";
 export function blockZeilen(b, w = {}, marke) {
   if (b.frei) return freiK2(b) || istK3(b) ? [] : freiZeilen(b);
@@ -618,7 +620,7 @@ export function markenOrdnen(w) {
   const reserviert = new Set(kopfEnde);
   const sammeln = (t) => textMarken(t, (m) => { if (fest(m)) reserviert.add(m); return m; });
   bloecke.forEach((b) => {
-    if (b.frei) { sammeln(b.code); return; }
+    if (b.frei) { sammeln(b.code); sammeln(b.freiKopf); sammeln(b.freiEnde); return; }
     sammeln(b.code);
     [...Object.values(b.k1 || {}), ...Object.values(b.k2 || {}), ...Object.values(b.k3 || {})].forEach(sammeln);
     if (anGegenspindel(b)) [b.m1, b.m2, b.m3].map(markeNorm).filter((m) => m && fest(m)).forEach((m) => reserviert.add(m));
@@ -1059,7 +1061,11 @@ export function handZurueck(w, kanal, zeilen) {
 }
 // Wo im erzeugten Block der NC-Code steht: { k: erste Zeile, n: Anzahl, schraeg }
 function codeLage(b, gen, kanal, w, marke) {
-  if (b.frei) return gen.length ? { k: 0, n: gen.length, schraeg: false } : null;
+  if (b.frei) {
+    if (!gen.length) return null;
+    const k = teilZeilen(b.freiKopf).length;
+    return { k, n: Math.max(0, gen.length - k - teilZeilen(b.freiEnde).length), schraeg: false };
+  }
   const c = codeZeilen(b);
   if (!c.length) {
     const s = blockZeilenK({ ...b, code: "\u0001" }, kanal, w, marke);

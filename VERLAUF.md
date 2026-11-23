@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.736.0 (23. November 2026)
+
+- HOFERCAM: Bearbeitungen „wie eingelesen“ haben Kopf, NC-Code und Ende. Kopf bis vor die erste G1-Bewegung, Ende ab HD aus, sonst ab G80, sonst ab G0T0, für SW-20 und SB-20RG (Wunsch Patrick 23. November 2026). Das Programm bleibt gleich.
+
 ## 1.725.0 (23. November 2026)
 
 - USM-Kugeln vom Infoboard entfernt (Wunsch Patrick 23. November 2026: „usm kugeln können wieder weg vom infoboard“): `UsmSchnee.jsx` und Prüfstand `infoboard_usm.py` weg, Schnee, Laub oder Blüten der Jahreszeit bleiben.
