@@ -647,6 +647,11 @@ export function createClient(_url, _key, optionen) {
       // Gemerkte Anmeldung: gültig sind nur Schlüssel in TEST.schluessel
       refreshSession: (a) => {
         TEST.protokoll.push({ art: "refreshSession", a });
+        // Netz weg wie Safari („Load failed“): so viele Versuche schlagen fehl
+        if (window._refreshFehler > 0) {
+          window._refreshFehler--;
+          return Promise.resolve({ data: { session: null }, error: { name: "AuthRetryableFetchError", status: 0, message: "Load failed" } });
+        }
         if (!(TEST.schluessel || []).includes(a.refresh_token)) {
           return Promise.resolve({ data: { session: null }, error: { message: "Invalid Refresh Token" } });
         }

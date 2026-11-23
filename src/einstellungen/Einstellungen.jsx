@@ -374,7 +374,16 @@ function Darstellung() {
             text="Dieses Konto wird nie von selbst abgemeldet." checked disabled />
         : <Schalter id="e-angemeldet" name="angemeldetbleiben" titel="Angemeldet bleiben"
             text="Ohne meldet sich die App nach fünf Minuten ohne Bedienung selbst ab. Nach 4 Stunden ohne Bedienung wird immer abgemeldet."
-            beiAenderung={() => { if (window.untaetigNeuStarten) window.untaetigNeuStarten(); }} />}
+            beiAenderung={async (an) => {
+              if (window.untaetigNeuStarten) window.untaetigNeuStarten();
+              // Angemeldet bleiben heisst auch: das Gerät merkt sich die
+              // Anmeldung, sonst ist sie weg, wenn der Tab zugeht (1.753.1)
+              const p = alt.profil || {};
+              if (an && p.email && !alt.sitzungGemerkt(p.email)) {
+                const s = await alt.sitzung();
+                if (s && s.refresh_token) alt.sitzungMerken(p.email, s.refresh_token);
+              }
+            }} />}
     </Gruppe>
   );
 }

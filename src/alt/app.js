@@ -174,7 +174,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.753.0";
+const APP_VERSION = "1.753.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1170,19 +1170,40 @@ function sitzungenVerfolgen(client) {
 // Mit dem aufgehobenen Schlüssel hinein. Gilt er nicht mehr, wird er
 // vergessen, und es geht mit Passwort oder PIN weiter.
 async function gemerktAnmelden(email) {
-  const schluessel = gemerkteSitzungen()[String(email || "").toLowerCase()];
-  if (!schluessel) return false;
-  try {
-    const { data, error } = await zeitlimit(
-      db.auth.refreshSession({ refresh_token: schluessel }), 15000, "Anmeldung");
-    if (error || !data || !data.session) throw error || new Error("keine Sitzung");
-    sitzungMerken(email, data.session.refresh_token);
-    return true;
-  } catch (f) {
-    // Nur vergessen, wenn der Server den Schlüssel ablehnt, nicht ohne Netz
-    if (!/fetch|netz|network|zeit/i.test(String((f && f.message) || f))) sitzungMerken(email, null);
-    return false;
+  const e = String(email || "").toLowerCase();
+  for (let versuch = 0; versuch < 3; versuch++) {
+    const schluessel = gemerkteSitzungen()[e];
+    if (!schluessel) return false;
+    let fehler = null;
+    try {
+      const { data, error } = await zeitlimit(
+        db.auth.refreshSession({ refresh_token: schluessel }), 15000, "Anmeldung");
+      if (!error && data && data.session) {
+        sitzungMerken(email, data.session.refresh_token);
+        return true;
+      }
+      fehler = error || new Error("keine Sitzung");
+    } catch (f) { fehler = f; }
+    // Nur vergessen, wenn der Server den Schlüssel wirklich ablehnt
+    // (1.753.1, Patrick 23. November 2026: „angemeldet bleiben geht nicht
+    // immer“). Vorher fiel er auch weg, wenn das Netz kurz fehlte: Safari
+    // meldet dann „Load failed“, das erkannte die Prüfung nicht, und nach
+    // dem Aufwachen des iPads oder Handys kam wieder die PIN.
+    if (schluesselAbgelehnt(fehler)) { sitzungMerken(email, null); return false; }
+    if (versuch < 2) await new Promise((ok) => setTimeout(ok, 1500 * (versuch + 1)));
   }
+  throw new Error("Keine Verbindung zum Server. Bitte nochmals antippen.");
+}
+
+// Lehnt der Server den Erneuerungsschlüssel ab (ungültig, schon benutzt,
+// Sitzung beendet)? Netz, Zeitüberschreitung, Serverfehler und Bremse
+// (429) zählen nicht: dann bleibt der Schlüssel für den nächsten Versuch.
+function schluesselAbgelehnt(f) {
+  if (!f) return false;
+  const status = Number(f.status || 0);
+  if (f.name === "AuthRetryableFetchError" || status === 429 || status >= 500) return false;
+  if (status >= 400 && status < 500) return true;
+  return /invalid refresh token|already used|refresh token not found|session.*not found/i.test(String(f.message || f));
 }
 
 // ---------- Neue Fassung beim Anmelden ----------
@@ -1970,6 +1991,11 @@ async function profilLaden(frisch) {
     if (istAndererNutzer(profil) && s.refresh_token && !sitzungGemerkt(profil.email)) {
       sitzungMerken(profil.email, s.refresh_token);
     }
+    // Den Browser bitten, den Speicher nicht von selbst zu leeren
+    // (Safari löscht sonst nach 7 Tagen ohne Besuch alles)
+    try {
+      if (sitzungGemerkt(profil.email) && navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    } catch (f) { /* egal */ }
     lebenszeichenStarten();
     // Meldungen beim Anmelden (1.44.0): was noch nicht gelesen ist, liegt
     // über allem, bis die Person „Gelesen“ tippt
