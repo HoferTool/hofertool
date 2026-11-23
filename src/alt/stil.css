@@ -16355,21 +16355,8 @@ body.dunkel .rk-stand--abgelehnt { background: #3a3f46; }
    und Titel in der Themenfarbe. Alles über --marke, folgt also dem Thema. */
 html.ohne-kopf body:not(.dunkel) { background: color-mix(in srgb, var(--marke) 7%, #f4f6f9); }
 html.ohne-kopf body:not(.dunkel) main, html.ohne-kopf body:not(.dunkel) .inhalt { background: transparent; }
-@media (min-width: 780px) {
-  html.ohne-kopf body:not(.dunkel):not(.rolle-extern) .nav {
-    background: linear-gradient(180deg, color-mix(in srgb, var(--marke) 9%, #fff) 0, color-mix(in srgb, var(--marke) 4%, #fff) 100%);
-    border-right-color: color-mix(in srgb, var(--marke) 22%, #dfe4ec); }
-  html.ohne-kopf body.dunkel:not(.rolle-extern) .nav {
-    background: linear-gradient(180deg, color-mix(in srgb, var(--marke) 30%, #0d1522) 0, color-mix(in srgb, var(--marke) 12%, #0d1522) 100%); }
-  html.ohne-kopf body:not(.rolle-extern) .nav > .nav__punkt.aktiv {
-    background: var(--marke); color: #fff; border-left-color: var(--marke-dunkel);
-    border-radius: 10px; margin-inline: 8px; box-shadow: 0 4px 12px color-mix(in srgb, var(--marke) 35%, transparent); }
-  html.ohne-kopf body:not(.rolle-extern) .nav > .nav__punkt.aktiv :is(.nav__text, .nav__zeichen, svg) { color: #fff !important; }
-  html.ohne-kopf body:not(.rolle-extern) .nav > .nav__punkt:not(.aktiv) .nav__zeichen { color: var(--marke); }
-  html.ohne-kopf body.dunkel:not(.rolle-extern) .nav > .nav__punkt:not(.aktiv) .nav__zeichen { color: color-mix(in srgb, var(--marke) 45%, #fff); }
-  html.ohne-kopf body:not(.rolle-extern) .nav__unterpunkt.aktiv::before { box-shadow: 0 0 0 3px color-mix(in srgb, var(--marke) 25%, transparent); }
-  html.ohne-kopf body:not(.rolle-extern) .nav__oben { border-bottom-color: color-mix(in srgb, var(--marke) 35%, #c3ccd8) !important; }
-}
+/* Seit 1.749.0 wieder ohne Farbe im Menü (Patrick: „mit Themenfarbe meinte ich
+   nicht Menü einfärben“). */
 html.ohne-kopf body:not(.rolle-extern) #nav-pad, html.ohne-kopf body:not(.rolle-extern) #kopf-pad {
   background: var(--marke) !important; color: #fff !important; border-color: var(--marke-dunkel) !important; }
 html.ohne-kopf body:not(.rolle-extern) :is(#nav-pad, #kopf-pad) * { color: #fff !important; }
