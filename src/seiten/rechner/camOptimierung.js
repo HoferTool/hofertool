@@ -12,7 +12,7 @@
 //  Das Programm ändert sich dabei nicht.
 // =================================================================
 
-import { simAufbauen } from "./camSim.js";
+import { simAufbauen, schnittJePunkt } from "./camSim.js";
 import { wzArt } from "./camWerkzeug.js";
 
 // Richtwerte Hartmetall: Vc [m/min] Drehen, Bohren, Fräsen; fB Vorschub
@@ -89,6 +89,9 @@ const STUFEN = { wichtig: 0, empfehlung: 1, tipp: 2 };
 
 export function analysieren(w, werkstoff) {
   const sim = simAufbauen(w);
+  // Seit 1.711.0: je Bahnpunkt, ob er wirklich Material wegnimmt
+  let schnitt = [];
+  try { schnitt = schnittJePunkt(sim); } catch (e) { schnitt = []; }
   const v = sim.vars || {};
   const A = sim.roh.A, vorne = sim.roh.vorne;
   const allgemein = [];
@@ -115,6 +118,7 @@ export function analysieren(w, werkstoff) {
     // Laufzeit, Schnittgeschwindigkeit und Vorschub über die Bahn
     let zeit = 0, vcMin = Infinity, vcMax = 0, nrVcMax = null, nrVcMin = null, dMin = Infinity, dMax = 0, fMax = 0, nrF = null;
     let luft = 0, luftZeit = 0, nrLuft = null, fKlein = null;
+    const schneidet = (k) => schnitt[(s.von || 0) + k];
     for (let k = 1; k < punkte.length; k++) {
       const p = punkte[k], q = punkte[k - 1];
       const l = abstand(p, q);
@@ -126,9 +130,13 @@ export function analysieren(w, werkstoff) {
       if (z.F != null) vf = z.g98 ? z.F : n ? z.F * n : null;
       if (vf > 0) zeit += l / vf * 60;
       if (l < 1e-6) continue;
-      // Vorschub ausserhalb des Rohmaterials (nur Drehen an der Hauptspindel)
-      // zählt nicht für Schnittwerte, er schneidet ja nichts
-      if (dreht && s.kanal === 1 && DREH_ARTEN.has(s.art)) {
+      // Vorschub ohne Material (G1 statt G0, Wegfahren im Vorschub) zählt
+      // nicht für Schnittwerte, er schneidet ja nichts. Seit 1.711.0 aus
+      // dem Materialstand der Simulation; nur wo der nicht bekannt ist
+      // (kein Werkzeug) wie früher geschätzt am Rohmaterial.
+      const sch = schneidet(k);
+      if (sch === false) { luft += l; if (vf > 0) luftZeit += l / vf * 60 - l / EILGANG * 60; if (nrLuft == null) nrLuft = p.nr; continue; }
+      if (sch == null && dreht && s.kanal === 1 && DREH_ARTEN.has(s.art)) {
         const aussen = Math.min(Math.abs(p.r), Math.abs(q.r)) > A / 2 + 0.3;
         const vorn = Math.max(p.z, q.z) < vorne - 1;
         if (aussen || vorn) { luft += l; if (vf > 0) luftZeit += l / vf * 60 - l / EILGANG * 60; if (nrLuft == null) nrLuft = p.nr; continue; }
@@ -187,8 +195,9 @@ export function analysieren(w, werkstoff) {
       // Vorschub je Umdrehung beim Bohren
       if (bohrer && d > 0) {
         let fU = null, nrFu = null;
-        for (const p of punkte) {
-          if (!p.vor) continue;
+        for (let k = 0; k < punkte.length; k++) {
+          const p = punkte[k];
+          if (!p.vor || schneidet(k) === false) continue;
           const z = zu[p.nr] || {};
           const n = drehzahlBei(z, d);
           const f = z.F == null ? null : z.g98 ? (n ? z.F / n : null) : z.F;
@@ -201,7 +210,7 @@ export function analysieren(w, werkstoff) {
         }
         // Tiefe der Bohrung ohne Entspänen
         // Tiefe ab der Stirn (Z0 der Bearbeitung = Stirn, davor Luft)
-        const zs = punkte.filter((p) => p.vor && p.z != null).map((p) => (p.t ? p.t[0] : p.z));
+        const zs = punkte.filter((p, k) => p.vor && p.z != null && schneidet(k) !== false).map((p) => (p.t ? p.t[0] : p.z));
         const tief = zs.length ? Math.max(0, ...zs) : 0;
         const text = zeilen.map(sauber).join(" ");
         const entspanen = /G8[3]|G74|G87/.test(text);
@@ -234,9 +243,9 @@ export function analysieren(w, werkstoff) {
     }
     if (dreht && fKlein != null && fKlein < 0.03 && (werkstoff.rostfrei || werkstoff.zaeh)) add("tipp", "Sehr kleiner Vorschub F" + zahl(fKlein) + " in " + werkstoff.name + ": die Platte reibt mehr als sie schneidet, das Material verfestigt sich. Lieber etwas mehr Vorschub.", null);
 
-    // Wege im Vorschub ausserhalb des Rohmaterials
-    if (luft > 2) add("empfehlung", "Etwa " + zahl(runden(luft, 1)) + " mm im Vorschub ausserhalb des Materials (Rohmaterial Ø" + zahl(A) + " bzw. vor der Stirn). Im Eilgang G0 anfahren"
-      + (luftZeit > 0.05 ? ", spart etwa " + sek(luftZeit) + " je Teil" : "") + ".", nrLuft);
+    // Wege im Vorschub ohne Material: oft gewollt (Wegfahren, sanft
+    // Anfahren), darum nur ein Tipp und nur, wenn es spürbar Zeit kostet
+    if (luft > 2 && luftZeit >= 0.5) add("tipp", "Etwa " + zahl(runden(luft, 1)) + " mm im Vorschub, wo kein Material mehr ist (G1 statt G0). Wenn es nicht nötig ist, im Eilgang fahren, spart etwa " + sek(luftZeit) + " je Teil.", nrLuft);
 
     // Im eigenen NC-Code: doppelte Zeilen und Verweilzeiten
     const code = String(b.code || "").split(/\r?\n/);

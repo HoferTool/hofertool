@@ -757,11 +757,16 @@ export function ringeSchneiden(st, k, lo, hi) {
   if (st.kernA && st.kernA[k] > st.kernI[k] + 1e-6) ringe.push([st.kernI[k], st.kernA[k]]);
   if (!ringe.length || hi <= lo) return;
   const neu = [];
+  let weg = 0;
   for (const [a, b] of ringe) {
     if (hi <= a || lo >= b) { neu.push([a, b]); continue; }
+    weg += Math.min(b, hi) - Math.max(a, lo);
     if (lo > a + 1e-6) neu.push([a, lo]);
     if (hi < b - 1e-6) neu.push([hi, b]);
   }
+  // Wie viel weg ist (mm je Zelle): daran erkennt die Optimierung, ob eine
+  // Vorschubzeile wirklich schneidet (seit 1.711.0)
+  if (weg > 0) st.weg = (st.weg || 0) + weg;
   neu.sort((x, y) => y[1] - x[1]);
   // Seit 1.690.2 (Patrick 21. November 2026, 10844-0049: „komische
   // Absätze“): mehr als zwei Ringe gehen nicht. Vorher fiel der innerste
@@ -982,15 +987,55 @@ export function materialStand(sim, n, cache = new Map()) {
     const h = huelleVon(s, cache);
     const bis = Math.min(n, s.bis);
     if (s.von >= lauf.n) lauf.letzt = null;
-    for (let i = Math.max(s.von, lauf.n); i < bis; i++) {
-      if (s.modus === "abstech") abstechen(st, s, s.punkte[i - s.von]);
-      else if (s.modus === "c") voxelSchritt(lauf, s, i, h);
-      else if (s.punkte[i - s.von].gew) { if (s.kanal === 1 && lauf.vox) gewindeSchritt(lauf, s, i); }
-      else abtragen(st, s, s.punkte[i - s.von], h);
-    }
+    for (let i = Math.max(s.von, lauf.n); i < bis; i++) punktAbtragen(lauf, st, s, i, h);
   }
   lauf.n = Math.max(lauf.n, n);
   return { k1: lauf.k1, k2: lauf.k2, vox: lauf.vox, n };
+}
+
+function punktAbtragen(lauf, st, s, i, h) {
+  if (s.modus === "abstech") abstechen(st, s, s.punkte[i - s.von]);
+  else if (s.modus === "c") voxelSchritt(lauf, s, i, h);
+  else if (s.punkte[i - s.von].gew) { if (s.kanal === 1 && lauf.vox) gewindeSchritt(lauf, s, i); }
+  else abtragen(st, s, s.punkte[i - s.von], h);
+}
+
+// Seit 1.711.0 (Patrick 23. November 2026: „du müsstest wissen, wo noch
+// Rohmaterial vorhanden ist … manchmal fährt man anstelle von G0 mit G1,
+// heisst aber nicht, dass dort bearbeitet wird“): rechnet das Material
+// wie die 3D-Simulation durch und sagt je Bahnpunkt, ob er Material
+// wegnimmt. true = schneidet, false = Luft, null = nicht bekannt (kein
+// Werkzeug, Bohrer neben der Drehmitte, Gewinde ohne Raster): dort gilt
+// weiter die alte Schätzung.
+export function schnittJePunkt(sim) {
+  const cache = new Map();
+  materialStand(sim, 0, cache);
+  const lauf = cache.get("__lauf");
+  const aus = new Array(sim.gesamt || 0).fill(null);
+  const summe = () => (lauf.k1.weg || 0) + (lauf.k2?.weg || 0) + (lauf.vox ? lauf.vox.weg * lauf.vox.h : 0);
+  for (const s of sim.schritte) {
+    if (s.kanal === 2 && !lauf.k2) lauf.k2 = rueckseite(lauf.k1, sim.roh.W);
+    const st = s.kanal === 2 ? lauf.k2 : lauf.k1;
+    const h = huelleVon(s, cache);
+    lauf.letzt = null;
+    let offen = [];
+    for (let i = s.von; i < s.bis; i++) {
+      const p = s.punkte[i - s.von];
+      if (!p.vor) { aus[i] = false; offen = []; punktAbtragen(lauf, st, s, i, h); continue; }
+      const bekannt = s.modus === "abstech" || (h && (s.modus === "c" || (s.modus === "dreh" && !p.gew) || (s.modus === "bohr" && !(p.r > 0.05))));
+      if (!bekannt) { punktAbtragen(lauf, st, s, i, h); continue; }
+      const vorher = summe(), letzt = lauf.letzt;
+      punktAbtragen(lauf, st, s, i, h);
+      // Raster: kurze Stücke rechnet es erst mit dem nächsten Punkt
+      if (s.modus === "c" && lauf.letzt === letzt) { offen.push(i); continue; }
+      const ja = summe() - vorher > 1e-4;
+      aus[i] = ja;
+      for (const j of offen) aus[j] = ja;
+      offen = [];
+    }
+  }
+  lauf.n = sim.gesamt || 0;
+  return aus;
 }
 
 // Das abgestochene Teil (0 … W) von hinten gesehen: z2 = W − z
