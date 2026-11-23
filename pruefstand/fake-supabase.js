@@ -384,6 +384,12 @@ function bauer(tabelle) {
               if (!z.created_at) z.created_at = new Date().toISOString();
             }
             if (tabelle === "qs_meldungen" && !z.erstellt_am) z.erstellt_am = new Date().toISOString();
+            // Reklamationen: Nummer RKJJ-001 vergibt die Datenbank
+            if (tabelle === "reklamationen" && !z.nr) {
+              const jj = String(new Date().getFullYear()).slice(2);
+              z.nr = "RK" + jj + "-" + String(tab.filter((x) => String(x.nr || "").startsWith("RK" + jj)).length + 1).padStart(3, "0");
+              if (!z.erstellt_am) z.erstellt_am = new Date().toISOString();
+            }
             if (tabelle === "materialausgabe") {
               if (!z.raus_am) z.raus_am = new Date().toISOString();
               if (z.rein_am === undefined) { z.rein_am = null; z.rein_von = null; }

@@ -4,18 +4,20 @@
 //  Unterreiter Ausschussmeldungen und dann Prüfmittel, wie damals“).
 //  Ausschussmeldungen ist die frühere Seite QS (1.77.0 bis 1.316.x),
 //  Prüfmittel (1.558.0 bis 1.701.x) ist seit 1.702.0 entfernt. Nicht für
-//  Externe und Dienst (seiteSichtbar „qs“).
+//  Externe und Dienst (seiteSichtbar „qs“). Seit 1.742.0 Reiter
+//  Reklamationsmanagement (qs/Reklamationen.jsx).
 // =================================================================
 import { useReducer } from "react";
 import { alt } from "../bruecke.jsx";
 import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import Ausschuss from "./qs/Ausschuss.jsx";
+import Reklamationen from "./qs/Reklamationen.jsx";
 
 // Gewählter Reiter; bleibt beim Seitenwechsel
 export const qsZustand = { ansicht: "ausschuss" };
 
 export function qsReiter() {
-  const r = [["ausschuss", "Ausschussmeldungen"]];
+  const r = [["ausschuss", "Ausschussmeldungen"], ["reklamationen", "Reklamationsmanagement"]];
   // Den Reiter Prüfmittel gibt es seit 1.702.0 nicht mehr (Wunsch Patrick 22. November 2026)
   return r;
 }
@@ -31,7 +33,8 @@ export default function Qs({ auffrischen, behaelter }) {
       <Reiter reiter={reiter} aktiv={qsZustand.ansicht} waehlen={waehlen} merkmal="qs" seite="qs" />
       <Uebergang key={qsZustand.ansicht}>
         <div id="qs-inhalt">
-          <Ausschuss auffrischen={auffrischen} behaelter={behaelter} />
+          {qsZustand.ansicht === "reklamationen" ? <Reklamationen />
+            : <Ausschuss auffrischen={auffrischen} behaelter={behaelter} />}
         </div>
       </Uebergang>
     </>
