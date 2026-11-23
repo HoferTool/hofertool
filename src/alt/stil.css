@@ -15932,15 +15932,15 @@ body.dunkel .sn2-ecke { background: #1e293b; box-shadow: 0 0 0 1px #334155; }
 .sn2-oben #db-status > * { display: flex; flex-direction: column; }
 .sn2-oben .db-bestellzahlen { flex: 1; }
 .sn2-oben .db-bestellzahl { display: flex; flex-direction: column; justify-content: center; align-items: center; }
-.sn2-spalten { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
-.sn2-spalte { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.sn2-spalte > *, .sn2-spalte > * > .karte { margin: 0 !important; }
-.sn2-spalte > :empty { display: none; }
+.sn2-spalten { column-count: 2; column-gap: 16px; }
+.sn2-spalten > * { break-inside: avoid; display: block; margin: 0 0 16px !important; }
+.sn2-spalten > * > .karte { margin: 0 !important; }
+.sn2-spalten > :empty { display: none; }
 @media (max-width: 1100px) {
   .sn2-oben { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 900px) {
-  .sn2-spalten { grid-template-columns: minmax(0, 1fr); }
+  .sn2-spalten { column-count: 1; }
   .sn2-ecke .kopfkarte__datum { display: none; }
 }
 
@@ -15971,3 +15971,32 @@ body.dunkel .bestellkurz__frist { color: #ff8a80 !important; border-color: #ff8a
 .ze-panel__kachel img,
 .ze-panel__kachel .ze-panel__buchstabe { width: 96px; height: 96px; }
 .ze-panel__kachel .ze-panel__buchstabe { font-size: 40px; }
+
+/* 1.723.0: Startseite im neuen Look etwas lebendiger (Wunsch Patrick
+   23. November 2026: „die ganze Seite etwas dynamischer“). Die Karten kommen
+   beim Öffnen nacheinander herein (nur einmal, stilles Auffrischen baut sie
+   nicht neu), heben sich mit der Maus leicht an, und der Gruss hat einen
+   feinen Verlauf. Mit „weniger Bewegung“ am Gerät alles still. */
+@media (prefers-reduced-motion: no-preference) {
+  .sn2-kopf, .sn2-oben > *, .sn2-spalten > * { animation: sn2-herein .45s cubic-bezier(.2, 0, 0, 1) both; }
+  .sn2-oben > :nth-child(2) { animation-delay: 110ms; }
+  .sn2-spalten > :nth-child(1) { animation-delay: 160ms; }
+  .sn2-spalten > :nth-child(2) { animation-delay: 200ms; }
+  .sn2-spalten > :nth-child(3) { animation-delay: 240ms; }
+  .sn2-spalten > :nth-child(4) { animation-delay: 280ms; }
+  .sn2-spalten > :nth-child(5) { animation-delay: 320ms; }
+  .sn2-spalten > :nth-child(6) { animation-delay: 360ms; }
+  .sn2-spalten > :nth-child(n+7) { animation-delay: 400ms; }
+  @media (hover: hover) and (pointer: fine) {
+    .sn2-spalten .karte, .sn2-oben > .karte, .sn2-oben > * > .karte {
+      transition-property: transform, box-shadow; transition-duration: .2s; transition-timing-function: cubic-bezier(.2, 0, 0, 1); }
+    .sn2-spalten .karte:hover, .sn2-oben > .karte:hover, .sn2-oben > * > .karte:hover {
+      transform: translateY(-2px); box-shadow: 0 1px 2px rgb(0 0 0 / .06), 0 8px 24px rgb(15 40 90 / .12); }
+    body.dunkel .sn2-spalten .karte:hover, body.dunkel .sn2-oben > * > .karte:hover {
+      box-shadow: 0 0 0 1px #3b4f6b, 0 10px 28px rgb(0 0 0 / .45); }
+  }
+  .sn2-ecke .uhr { transition: color .3s; }
+}
+@keyframes sn2-herein { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.sn2-kopf .gruss { background: linear-gradient(90deg, var(--tinte, #1e293b), #0057b8 70%); -webkit-background-clip: text; background-clip: text; color: transparent !important; -webkit-text-fill-color: transparent; }
+body.dunkel .sn2-kopf .gruss { background-image: linear-gradient(90deg, #fff, #8ec5ff 75%); color: transparent !important; -webkit-text-fill-color: transparent !important; }

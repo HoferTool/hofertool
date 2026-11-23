@@ -66,22 +66,21 @@ export default function Start({ auffrischen, module }) {
         </div>
         {admin && <Systemzustand auffrischen={auffrischen} />}
         <NeuesTutorial />
+        {/* 1.723.0: alle Karten in einem Fluss mit zwei Spalten, die der
+            Browser gleich hoch verteilt (Patrick 23. November 2026: „schön
+            aufteilen“), statt fester linker und rechter Spalte */}
         <div className="sn2-spalten">
-          <div className="sn2-spalte">
-            {probSehen && <Probleme liste={prob.daten} fehler={prob.fehler} neu={prob.neu} />}
-            <OhneWbg auffrischen={auffrischen} />
-            <Jubilaeen auffrischen={auffrischen} />
-            <Batterien auffrischen={auffrischen} />
-            <Notizen auffrischen={auffrischen} />
-          </div>
-          <div className="sn2-spalte">
-            <KalenderKarte auffrischen={auffrischen} />
-            <HeuteOffen auffrischen={auffrischen} />
-            <BestellKurz auffrischen={auffrischen} />
-            <Materialausgabe auffrischen={auffrischen} />
-            <Umfragen auffrischen={auffrischen} />
-            <EinkaufKurz auffrischen={auffrischen} />
-          </div>
+          {probSehen && <Probleme liste={prob.daten} fehler={prob.fehler} neu={prob.neu} />}
+          <HeuteOffen auffrischen={auffrischen} />
+          <KalenderKarte auffrischen={auffrischen} />
+          <BestellKurz auffrischen={auffrischen} />
+          <OhneWbg auffrischen={auffrischen} />
+          <Jubilaeen auffrischen={auffrischen} />
+          <Batterien auffrischen={auffrischen} />
+          <Materialausgabe auffrischen={auffrischen} />
+          <Notizen auffrischen={auffrischen} />
+          <Umfragen auffrischen={auffrischen} />
+          <EinkaufKurz auffrischen={auffrischen} />
         </div>
       </div>
     );
