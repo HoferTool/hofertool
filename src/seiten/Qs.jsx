@@ -17,7 +17,9 @@ import Reklamationen from "./qs/Reklamationen.jsx";
 export const qsZustand = { ansicht: "ausschuss" };
 
 export function qsReiter() {
-  const r = [["ausschuss", "Ausschussmeldungen"], ["reklamationen", "Reklamationsmanagement"]];
+  const r = [["ausschuss", "Ausschussmeldungen"]];
+  // Reklamationsmanagement nur für Admins (seit 1.748.0, Wunsch Patrick 23. November 2026)
+  if (alt.istAdmin()) r.push(["reklamationen", "Reklamationsmanagement"]);
   // Den Reiter Prüfmittel gibt es seit 1.702.0 nicht mehr (Wunsch Patrick 22. November 2026)
   return r;
 }

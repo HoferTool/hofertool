@@ -174,7 +174,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.747.0";
+const APP_VERSION = "1.748.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -11130,6 +11130,7 @@ const neuerLook = () => document.documentElement.classList.contains("ohne-kopf")
 
 // Was die neu gebauten React-Seiten vom alten Programm brauchen
 Object.assign(alt, {
+  LOGO_BRIEF, SIEGEL_BRIEF,
   camSehen, SYM, neuerLook,
   meineProfilId, parkIstExtern, padParkVerborgen, leerlaufAktiv,
   zeitlimit, meldung, nachfragen, fehlertext, fehlerMerken, dialogFelder, auswahlDialog,

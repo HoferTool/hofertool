@@ -145,6 +145,9 @@ function MeinKonto() {
   const [bild, setBild] = useState(profil.bild_url || null);
   const [name, setName] = useState(profil.full_name || "");
   const [geburtstag, setGeburtstag] = useState(profil.geburtstag || "");
+  // Telefon fürs eigene Konto (seit 1.748.0): Dokumente wie der 8D-Report
+  // nehmen Name, Mail und Telefon von hier (Wunsch Patrick 23. November 2026)
+  const [telefon, setTelefon] = useState(() => String(alt.einstellungWert("telefon", "") || ""));
   const [passwort, setPasswort] = useState("");
   const [pin, setPin] = useState("");
   const [pin2, setPin2] = useState("");
@@ -284,6 +287,11 @@ function MeinKonto() {
               onKeyDown={(e) => { if (e.key === "Enter") nameSpeichern(); }} />
             <button className="knopf knopf--klein" id="ns" onClick={nameSpeichern}>Speichern</button>
           </div>
+        </Zeile>
+        <Zeile titel="Telefon" text="Steht in Dokumenten, die du erstellst, etwa im 8D-Report.">
+          <input type="tel" id="mk-telefon" className="es-schmal" aria-label="Telefon" value={telefon}
+            placeholder="032 677 55 77" onChange={(e) => setTelefon(e.target.value)}
+            onBlur={() => { alt.einstellungSetzenWert("telefon", telefon.trim()); }} />
         </Zeile>
         <Zeile titel="Geburtstag" text="Erscheint auf der Startseite, wenn er in den nächsten zwei Wochen ansteht.">
           <input type="date" id="mk-geburtstag" className="es-schmal" aria-label="Geburtstag" value={geburtstag}

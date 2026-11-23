@@ -100,3 +100,24 @@ alter table public.reklamationen add column if not exists achtd jsonb not null d
 notify pgrst, 'reload schema';
 select case when exists (select 1 from information_schema.columns where table_name = 'reklamationen' and column_name = 'achtd')
   then 'ok' else 'FEHLT' end as probe_achtd;
+
+-- Seit 1.748.0 nach Patricks 8D-Report (Faulhaber): Kopf wie im Bericht
+-- (Bearbeiter, Adresse Kunde, Bestellt, Retourniert, Gutteile,
+-- Lieferschein, Lieferdatum, Auftrags Nr., Zeichnung, Index, Kunden
+-- Art. Nr., Berichtsdatum) in „kopf“, dazu Fehlerort und Bemerkung.
+alter table public.reklamationen add column if not exists kopf jsonb not null default '{}'::jsonb;
+alter table public.reklamationen add column if not exists fehlerort text;
+alter table public.reklamationen add column if not exists bemerkung text;
+notify pgrst, 'reload schema';
+select case when (select count(*) from information_schema.columns where table_name = 'reklamationen'
+  and column_name in ('kopf', 'fehlerort', 'bemerkung')) = 3 then 'ok' else 'FEHLT' end as probe_kopf;
+
+-- Seit 1.748.0 nur für Admins (Wunsch Patrick 23. November 2026: „diesen
+-- Reiter auch nur für Admins“). alter policy statt drop, gefahrlos mehrfach.
+alter policy "reklamationen lesen" on public.reklamationen using ((select public.bin_admin()));
+alter policy "reklamationen anlegen" on public.reklamationen with check ((select public.bin_admin()));
+alter policy "reklamationen aendern" on public.reklamationen using ((select public.bin_admin())) with check ((select public.bin_admin()));
+alter policy "reklamationen loeschen" on public.reklamationen using ((select public.bin_admin()));
+notify pgrst, 'reload schema';
+select case when (select count(*) from pg_policies where tablename = 'reklamationen' and (qual like '%bin_admin%' or with_check like '%bin_admin%')) = 4
+  then 'ok' else 'FEHLT' end as probe_admin;

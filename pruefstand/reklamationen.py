@@ -24,7 +24,9 @@ with sync_playwright() as p:
     # Eine frühere Reklamation derselben HOCO Nr.
     pg.evaluate("""() => { TEST.daten.reklamationen = [{ id: 'rk1', nr: 'RK26-001', art: 'kunde', partner: 'Kunde A',
         eingang: '2026-10-02', hoco_nr: '10000-0301', fehler: 'Durchmesser zu gross', fehlerart: 'Mass ausser Toleranz',
-        status: 'abgeschlossen', dateien: [], achtd: { d4: ['Werkzeugverschleiss'], d5: ['Werkzeug gewechselt'], d8: ['Massnahmen wirksam'] } }]; }""")
+        status: 'abgeschlossen', dateien: [], achtd: { d4: ['Werkzeugverschleiss'], d5: ['Endkontrolle verschärfen'] } }];
+        TEST.daten.erp_partner = [{ id: 'p1', art: 'kunde', nr: '10000', name: 'Muster AG', aktiv: true,
+          daten: { adresse: { strasse: 'Weg 1', plz: '3000', ort: 'Bern', land: 'CH' }, kontakte: [{ name: 'Frau Test' }] } }];}""")
     pg.evaluate("location.hash='#/qs'"); pg.wait_for_timeout(1200)
     tab = pg.locator("[data-reiter='reklamationen'], button:has-text('Reklamationsmanagement')").first
     if not tab.count(): fehler.append("Reiter Reklamationsmanagement fehlt")
@@ -34,25 +36,37 @@ with sync_playwright() as p:
     if BILDER: pg.screenshot(path=BILDER + "/rk-liste.png")
     # Neue Reklamation
     pg.click("#rk-neu"); pg.wait_for_selector("#rk-fenster")
+    # Kunde aus den Stammdaten: Nummer eintippen füllt Name, Adresse, Kontakt
+    pg.fill("#rk-f-partner", "10000"); pg.locator("#rk-f-partner").blur(); pg.wait_for_timeout(300)
+    if pg.input_value("#rk-f-partner") != "Muster AG": fehler.append("Kunde nicht aus Stammdaten: " + pg.input_value("#rk-f-partner"))
+    if "Bern" not in pg.input_value("#rk-k-adresse"): fehler.append("Adresse nicht aus Stammdaten")
+    if pg.input_value("#rk-f-kontakt") != "Frau Test": fehler.append("Kontakt nicht aus Stammdaten")
     pg.fill("#rk-f-partner", "Kunde B")
     pg.fill("#rk-f-hoco_nr", "10000-0301"); pg.locator("#rk-f-hoco_nr").blur(); pg.wait_for_timeout(600)
     if not pg.locator("#rk-frueher [data-rkuebernehmen='RK26-001']").count(): fehler.append("Frühere Reklamation nicht angezeigt")
     pg.click("[data-rkuebernehmen='RK26-001']"); pg.wait_for_timeout(300)
     an = pg.locator(".rk-haken__punkt.an").all_inner_texts()
     if not any("Werkzeugverschleiss" in x for x in an): fehler.append("Häkchen nicht übernommen: " + str(an))
-    if any("Massnahmen wirksam" in x for x in an): fehler.append("D8 wurde mit übernommen")
+    # „Wie geplant“ kreuzt in 7 die eingeführten Massnahmen zu 6 an
+    pg.click("[data-rk8d='d5'] [data-rkhaken='Dokumente anpassen']")
+    pg.click("#rk-wiegeplant"); pg.wait_for_timeout(200)
+    an7 = pg.locator("[data-rk8d='d7'] .rk-haken__punkt.an").all_inner_texts()
+    if not any("Dokumente wurden angepasst" in x for x in an7): fehler.append("Wie geplant: " + str(an7))
+    pg.fill("#rk-k-lieferschein", "LS-1")
     pg.click("[data-rk8d='d3'] [data-rkhaken='Ersatzlieferung']")
     pg.fill("#rk-f-fehler", "Gewinde nicht gängig")
     if BILDER: pg.screenshot(path=BILDER + "/rk-fenster.png", full_page=True)
     # Bericht speichert zuerst und lädt ein PDF
     with pg.expect_download(timeout=30000) as d:
         pg.click("#rk-bericht")
+    if BILDER: d.value.save_as(BILDER + "/rk.pdf")
     if not d.value.suggested_filename.startswith("8D-Bericht RK"): fehler.append("PDF-Name: " + d.value.suggested_filename)
     z = pg.evaluate("() => TEST.daten.reklamationen.find(r => r.partner === 'Kunde B')")
     if not z: fehler.append("Neue Reklamation nicht gespeichert")
     else:
         if "Ersatzlieferung" not in (z.get("achtd") or {}).get("d3", []): fehler.append("D3 nicht gespeichert: " + str(z.get("achtd")))
         if z.get("nr") != "RK26-002": fehler.append("Nummer: " + str(z.get("nr")))
+        if (z.get("kopf") or {}).get("lieferschein") != "LS-1": fehler.append("Kopf nicht gespeichert: " + str(z.get("kopf")))
     pg.click("#rk-fenster [data-zu]"); pg.wait_for_timeout(500)
     # Dunkel
     pg.evaluate("document.body.classList.add('dunkel')")
