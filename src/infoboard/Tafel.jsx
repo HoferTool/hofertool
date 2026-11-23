@@ -14,7 +14,6 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { Uhr, Wetter, Solaranlage } from "../seiten/Start.jsx";
 import Durchfahrt from "../seiten/start/Durchfahrt.jsx";
-import UsmSchnee from "./UsmSchnee.jsx";
 import Huehnerhimmel from "./Nacht.jsx";
 import EmpfangKopf from "./EmpfangKopf.jsx";
 import KopfBand from "./KopfBand.jsx";
@@ -272,7 +271,6 @@ export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehl
         {/* Schnee, Laub oder Blüten über die ganze Tafel, nur am Infoboard (seit 1.575.0) */}
         {!mass.ruhig && !mass.hell && !nacht && <Durchfahrt nurHimmel tief />}
         {/* USM-Kugeln schneien über die ganze Tafel, nur in der Anzeige des Infoboards (seit 1.660.0) */}
-        {!mass.ruhig && !mass.hell && !nacht && grossZiel && <UsmSchnee />}
         {gross && !nacht && <KachelGross feld={gross} breite={mass.breite} hoehe={mass.hoehe} zu={grossZu}
           inhaltZeigen={(f, b, h) => <FeldInhalt feld={f} format={b > h ? "a3" : "a4"} breite={b} hoehe={h} grund={farben.grund} />} />}
       </div>}

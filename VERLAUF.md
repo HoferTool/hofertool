@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.725.0 (23. November 2026)
+
+- USM-Kugeln vom Infoboard entfernt (Wunsch Patrick 23. November 2026: „usm kugeln können wieder weg vom infoboard“): `UsmSchnee.jsx` und Prüfstand `infoboard_usm.py` weg, Schnee, Laub oder Blüten der Jahreszeit bleiben.
+
 ## 1.715.0 (23. November 2026)
 
 - Einrichtblatt aus der Planwand: „Ansehen“ zeigt es, „Bearbeiten“ führt in die Produktion → Infos zum Richten und öffnet es dort zum Bearbeiten; Blatt und Auftragsfenster gehen dabei zu (Wunsch Patrick 23. November 2026). Prüfstand `eb_planwand_bearbeiten.py`.
