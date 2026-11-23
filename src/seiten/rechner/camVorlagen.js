@@ -291,3 +291,42 @@ export function zeilenEinsetzen(code, zeilen, pos) {
   if (ende < 0) return t + "\n" + neu;
   return t.slice(0, ende) + "\n" + neu + t.slice(ende);
 }
+
+// Seit 1.732.0 (Wunsch Patrick 23. November 2026: „wenn ich in der
+// Bearbeitung auf dem NC-Code für den Einstich bin, wieder in das
+// Vorlagenfenster springen, um eine Änderung vorzunehmen“): jede
+// eingefügte Vorlage merkt sich am Block unter b.vorlagen ihre Werte und
+// Zeilen [{k, id, w, z}]. Steht die Schreibmarke in genau diesen Zeilen,
+// lässt sich die Vorlage wieder öffnen und ersetzt beim Übernehmen nur
+// ihre eigenen Zeilen. Von Hand darin geänderte Zeilen lösen die Verbindung.
+const zeileGleich = (a, b) => String(a).replace(/\r$/, "").trim() === String(b).replace(/\r$/, "").trim();
+function stellen(zeilen, z) {
+  const aus = [];
+  if (!z || !z.length) return aus;
+  for (let i = 0; i + z.length <= zeilen.length; i++) {
+    let ok = true;
+    for (let j = 0; j < z.length && ok; j++) ok = zeileGleich(zeilen[i + j], z[j]);
+    if (ok) aus.push(i);
+  }
+  return aus;
+}
+export function vorlageBeiMarke(code, eintraege, pos) {
+  if (!eintraege || !eintraege.length || pos == null) return null;
+  const t = String(code || "");
+  const zeilen = t.split("\n");
+  const zeile = t.slice(0, Math.max(0, Math.min(pos, t.length))).split("\n").length - 1;
+  for (let n = eintraege.length - 1; n >= 0; n--) {
+    const e = eintraege[n];
+    for (const i of stellen(zeilen, e.z)) if (zeile >= i && zeile < i + e.z.length) return { e, von: i, bis: i + e.z.length };
+  }
+  return null;
+}
+export function vorlageErsetzen(code, von, bis, neu) {
+  const zeilen = String(code || "").split("\n");
+  return [...zeilen.slice(0, von), ...neu, ...zeilen.slice(bis)].join("\n");
+}
+// Einträge, deren Zeilen nicht mehr im Code stehen, fallen weg
+export function vorlagenAufraeumen(code, eintraege) {
+  const zeilen = String(code || "").split("\n");
+  return (eintraege || []).filter((e) => stellen(zeilen, e.z).length);
+}

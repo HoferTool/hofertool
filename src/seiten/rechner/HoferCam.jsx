@@ -28,7 +28,7 @@ import { protokollAusApp, protokollText, protokollZuordnen } from "./camProtokol
 import { simulationOeffnen } from "./CamSim3D.jsx";
 import { optimierungOeffnen } from "./CamOptimierung.jsx";
 import { WERKSTOFFE, werkstoffAusBez } from "./camWerkstoff.js";
-import { VORLAGEN, feldOptionen, feldSichtbar, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen } from "./camVorlagen.js";
+import { VORLAGEN, feldOptionen, feldSichtbar, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen, vorlageBeiMarke, vorlageErsetzen, vorlagenAufraeumen } from "./camVorlagen.js";
 import AbstecherBild from "./AbstecherBild.jsx";
 import SchnabelBild from "./SchnabelBild.jsx";
 import { hofercamTutorialOeffnen } from "../start/NeuesTutorial.jsx";
@@ -41,11 +41,13 @@ import { bereichLage, zLang, feldFuerTyp, SW20_BILD, SW20_FRONT_BILD, SW20_SCHLI
 // Bearbeitung“): Vorlage wählen, Werte tippen, „Einfügen“ setzt die
 // Zeilen nach der Zeile mit der Schreibmarke im NC-Code ein (ohne Marke
 // ans Ende). Rechnen in camVorlagen.js.
-function VorlageFeld({ code, pos, einsetzen, zu, art, kanal = 1, sw = false }) {
+function VorlageFeld({ code, pos, einsetzen, zu, art, kanal = 1, sw = false, start = null }) {
   // Seit 1.693.0 zuerst ein Auswahlbild mit Erklärungsgrafik je Vorlage
-  // statt einer Liste (Wunsch Patrick 22. November 2026); null = Auswahl
-  const [id, setId] = useState(null);
-  const [werte, setWerte] = useState({});
+  // statt einer Liste (Wunsch Patrick 22. November 2026); null = Auswahl.
+  // Seit 1.732.0 mit start = {id, w}: eine schon eingefügte Vorlage wieder
+  // öffnen, „Ersetzen“ tauscht nur ihre Zeilen aus.
+  const [id, setId] = useState(start ? start.id : null);
+  const [werte, setWerte] = useState(start ? { [start.id]: start.w } : {});
   if (!id) return (
     <div className="cam-vorlage" data-camvorlage>
       <div className="cam-vorlage__kopf">
@@ -73,8 +75,8 @@ function VorlageFeld({ code, pos, einsetzen, zu, art, kanal = 1, sw = false }) {
   return (
     <div className="cam-vorlage" data-camvorlage>
       <div className="cam-vorlage__kopf">
-        <button className="knopf knopf--klein" data-camvorlage-zurueck title="Andere Vorlage wählen" onClick={() => setId(null)}>← Auswahl</button>
-        <b>{v.name}</b>
+        {!start && <button className="knopf knopf--klein" data-camvorlage-zurueck title="Andere Vorlage wählen" onClick={() => setId(null)}>← Auswahl</button>}
+        <b>{start ? "Vorlage ändern: " : ""}{v.name}</b>
         <button className="knopf knopf--klein" title="Schliessen" onClick={zu}>✕</button>
       </div>
       {!v.grafik && <div className="cam-vorlage__erkl"><VorlageBild id={id} w={Object.fromEntries(v.felder.map((x) => [x.name, feldWert(v, w, x)]))} /><span className="klein">{VORLAGE_TEXT[id] || ""}</span></div>}
@@ -111,7 +113,7 @@ function VorlageFeld({ code, pos, einsetzen, zu, art, kanal = 1, sw = false }) {
           ? <span className="cam-vorlage__fehler klein">{erg.fehler}</span>
           : <code className="cam-vorlage__vorschau" data-camvorlage-vorschau>{erg.zeilen.join("\n")}</code>}
         <button className="knopf knopf--klein knopf--primaer" data-camvorlage-einfuegen disabled={!!erg.fehler}
-          onClick={() => { einsetzen(zeilenEinsetzen(code, erg.zeilen, pos)); zu(); }}>Einfügen</button>
+          onClick={() => { const { _kanal, ...ohne } = w; einsetzen({ id, w: ohne, z: erg.zeilen }); zu(); }}>{start ? "Ersetzen" : "Einfügen"}</button>
       </div>
     </div>
   );
@@ -956,6 +958,23 @@ export default function HoferCam() {
     if (s.some((b, i) => b !== bloecke[i])) setzeBloecke(s);
   }, [bloecke]);
   const blockAendern = (id, feld, wert) => setzeBloecke(bloecke.map((b) => (b.id === id ? { ...b, [feld]: wert } : b)));
+  // Seit 1.732.0 (Wunsch Patrick 23. November 2026): eingefügte Vorlagen
+  // merken sich am Block unter vorlagen [{k, id, w, z}] Werte und Zeilen,
+  // gespeichert mit dem Programm. Steht die Schreibmarke darin, öffnet
+  // „✎ … ändern“ genau diese Vorlage wieder (vorlageBeiMarke).
+  const [vorlageHier, setVorlageHier] = useState({});
+  const vorlageHierPruefen = (b, code, pos) => {
+    const t = vorlageBeiMarke(code, b.vorlagen, pos);
+    const k = t ? t.e.k + ":" + t.von : null;
+    setVorlageHier((alt) => ((alt[b.id] || null) === k ? alt : { ...alt, [b.id]: k }));
+  };
+  const vorlageUebernehmen = (b, x, ziel) => {
+    const code = ziel ? vorlageErsetzen(b.code, ziel.von, ziel.bis, x.z) : zeilenEinsetzen(b.code, x.z, marke.current[b.id]);
+    const k = ziel ? ziel.e.k : Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const alt = vorlagenAufraeumen(b.code, b.vorlagen).filter((e) => e.k !== k);
+    setzeBloecke(bloecke.map((y) => (y.id === b.id ? { ...y, code, vorlagen: [...alt, { k, id: x.id, w: x.w, z: x.z }] } : y)));
+    if (ziel) setVorlageHier((a) => ({ ...a, [b.id]: k + ":" + ziel.von }));
+  };
   const blockSchieben = (i, um) => {
     const j = i + um;
     if (j < 0 || j >= bloecke.length) return;
@@ -1351,6 +1370,7 @@ export default function HoferCam() {
           // Kanal-2-Blöcke verhalten sich wie die Gegenspindel: NC-Code in
           // Kanal 2, Markenpaare geben ein Feld für Kanal 1
           const gegen = ((quer || front) && b.spindel === "gegen") || k2;
+          const hier = vorlageHier[b.id] ? vorlageBeiMarke(b.code, b.vorlagen, marke.current[b.id]) : null;
           // Seit 1.450.0: im Maschinentyp deaktivierte Felder fehlen hier
           const aus = (name) => feldAus(b.art, name);
           const be = wirksamB(b);
@@ -1577,6 +1597,9 @@ export default function HoferCam() {
                     <button className="knopf knopf--klein" data-camvorlage-auf={i}
                       title="Gewindestrählen, Tieflochbohren … aus einer Liste in den NC-Code einfügen"
                       onClick={() => setVorlageBei(vorlageBei === b.id ? null : b.id)}>+ Vorlage</button>
+                    {hier && <button className="knopf knopf--klein knopf--primaer" data-camvorlage-aendern={i}
+                      title="Die Vorlage, in der die Schreibmarke steht, mit ihren Werten wieder öffnen und ändern"
+                      onClick={() => setVorlageBei(vorlageBei === "v" + b.id ? null : "v" + b.id)}>✎ {vorlageVon(hier.e.id).name} ändern</button>}
                     <button className="knopf knopf--klein" data-cammodul-auf={i}
                       title="Den aktuellen NC-Code aus Bohren / Fräsen, Entgraten, C-Achse, Gravur oder DXF übernehmen"
                       onClick={() => setVorlageBei(vorlageBei === "m" + b.id ? null : "m" + b.id)}>+ Aus Modul</button>
@@ -1595,12 +1618,14 @@ export default function HoferCam() {
                   </div>
                   {vorlageBei === "w" + b.id && <WerkzeugFeld b={b} setze={(wz) => blockAendern(b.id, "wz", wz)} zu={() => setVorlageBei(null)} />}
                   {vorlageBei === b.id && <VorlageFeld code={b.code} pos={marke.current[b.id]} art={b.art} kanal={eigenerKanal(b)} sw={kanalZahl() > 2}
-                    einsetzen={(t) => blockAendern(b.id, "code", t)} zu={() => setVorlageBei(null)} />}
+                    einsetzen={(x) => vorlageUebernehmen(b, x, null)} zu={() => setVorlageBei(null)} />}
+                  {vorlageBei === "v" + b.id && hier && <VorlageFeld key={hier.e.k} code={b.code} art={b.art} kanal={eigenerKanal(b)} sw={kanalZahl() > 2}
+                    start={{ id: hier.e.id, w: hier.e.w }} einsetzen={(x) => vorlageUebernehmen(b, x, hier)} zu={() => setVorlageBei(null)} />}
                   {vorlageBei === "m" + b.id && <ModulWahl blockId={b.id} pos={() => marke.current[b.id]} zu={() => setVorlageBei(null)} />}
                   <CodeFeld data-camblock="code" min={4}
-                    onSelect={(e) => { marke.current[b.id] = e.target.selectionStart; }}
+                    onSelect={(e) => { marke.current[b.id] = e.target.selectionStart; vorlageHierPruefen(b, e.target.value, e.target.selectionStart); }}
                     placeholder={gegen ? "NC-Code für Kanal 2 (zwei Marken direkt nacheinander, z.B. M350 und M360, geben Platz für Kanal 1)" : "NC-Code der Bearbeitung hier einfügen (aus Kontur, Bohren / Fräsen …; zwei Marken direkt nacheinander geben Platz für Kanal 2)"}
-                    value={b.code} onChange={(e) => { marke.current[b.id] = e.target.selectionStart; blockAendern(b.id, "code", e.target.value); }} />
+                    value={b.code} onChange={(e) => { marke.current[b.id] = e.target.selectionStart; vorlageHierPruefen(b, e.target.value, e.target.selectionStart); blockAendern(b.id, "code", e.target.value); }} />
                 </>}
               {!b.zu && markenPaare(b).flatMap(([x, y, ziele, xt, yt, sync]) => ziele.map((ander) => {
                 // Seit 1.416.0: an der Gegenspindel ist der NC-Code Kanal 2
