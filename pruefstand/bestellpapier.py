@@ -27,9 +27,10 @@ with sync_playwright() as p:
            and bl.evaluate("document.querySelector('.balken img.siegel').naturalWidth") > 0)
     t = bl.inner_text(".blatt")
     pruefe("Kontakt im Balken", "Tel:" not in t and "032 677 55 70" in bl.inner_text(".balken") and "www.hoferco.ch" in bl.inner_text(".balken"))
-    pruefe("Adresse in der Mitte", bl.evaluate("""(() => { const b = document.querySelector('.balken').getBoundingClientRect();
-      const a = document.querySelector('.balken .adresse').getBoundingClientRect();
-      return Math.abs((a.left + a.width / 2) - (b.left + b.width / 2)) < 30; })()"""))
+    pruefe("Firmenname über der Adresse", "Hofer + Co. Präzisionsdrehteile" in bl.locator(".balken .adresse").inner_text())
+    pruefe("Gleich verteilt", bl.evaluate("""(() => { const k = [...document.querySelector('.balken').children].map(e => e.getBoundingClientRect());
+      const l = k.slice(1).map((r, i) => r.left - k[i].right);
+      return l.length === 3 && Math.max(...l) - Math.min(...l) < 4; })()"""))
     bl.locator(".blatt").screenshot(path=os.path.join(os.environ.get("BILDER", HIER), "bestellpapier.png"))
     br.close()
 print("Fehler:", ", ".join(fehler) if fehler else "keine")
