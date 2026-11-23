@@ -16128,91 +16128,6 @@ body.dunkel .bk-mehr { color: #8ec5ff !important; }
     grid-template-columns: repeat(var(--pad-spalten-quer, 4), minmax(0, 180px)); }
 }
 
-/* 1.741.0 HOFERCAM moderner (Patrick 23. November 2026: „gaeht der ganze
-   stile vom hofercam auch etwas moderner?“): ruhige Fläche, weisse Karten
-   mit weichem Schatten und runden Ecken, Gruppentitel als kleine Überschrift
-   statt blauer Schilder, Felder hell mit feinem Rand und blauem Fokusring,
-   Knöpfe als runde Chips, Kanäle mit schmaler Farbkante. Nur Aussehen,
-   Aufbau und Klassen bleiben. Gilt in der Seite und im eigenen Fenster. */
-:is(.karte.cam, .cam-eigen) {
-  --cm-grund: #f3f5f8; --cm-karte: #ffffff; --cm-rand: #e1e6ec; --cm-rand2: #cfd7e1;
-  --cm-feld: #f8fafc; --cm-text: #16212c; --cm-leise: #5d6b79; --cm-akzent: #0b5cc2;
-  --cm-chip: #eef3f9; --cm-chip-rand: #d3dde9; --cm-chip-hover: #dde9f7; --cm-chip-hover-rand: #9fbde3; --cm-chip-text: #12365f;
-  --cm-schatten: 0 1px 2px rgba(16, 33, 52, .06), 0 4px 14px rgba(16, 33, 52, .06);
-  --cm-k1: #2f6fbe; --cm-k2: #17998a; --cm-k3: #7a55b5;
-}
-body.dunkel :is(.karte.cam, .cam-eigen) {
-  --cm-grund: #12161a; --cm-karte: #1a2026; --cm-rand: #2a333c; --cm-rand2: #36414c;
-  --cm-feld: #141a1f; --cm-text: #e8edf2; --cm-leise: #9aa7b4; --cm-akzent: #6aa8ff;
-  --cm-chip: #222b34; --cm-chip-rand: #34404c; --cm-chip-hover: #2a3a4d; --cm-chip-hover-rand: #4d6e96; --cm-chip-text: #d6e4f5;
-  --cm-schatten: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 18px rgba(0, 0, 0, .25);
-  --cm-k1: #5b95e0; --cm-k2: #33b5a5; --cm-k3: #9d7ad6;
-}
-body .karte.cam { background: var(--cm-grund); border: 1px solid var(--cm-rand); border-radius: 14px; padding: 14px 16px; }
-
-/* Gruppen der Kopfdaten */
-body :is(.karte.cam, .cam-eigen) .cam-gruppen { gap: 10px; }
-body :is(.karte.cam, .cam-eigen) .cam-gruppe { background: var(--cm-karte); border: 1px solid var(--cm-rand);
-  border-radius: 12px; box-shadow: var(--cm-schatten); padding: 26px 12px 10px; position: relative; }
-body :is(.karte.cam, .cam-eigen) .cam-gruppe legend { position: absolute; top: 8px; left: 12px; padding: 0;
-  background: none; color: var(--cm-leise); border-radius: 0; font-size: 11px; font-weight: 700;
-  letter-spacing: .06em; text-transform: uppercase; }
-body :is(.karte.cam, .cam-eigen) .cam-feld { gap: 8px; margin: 2px 0; }
-body :is(.karte.cam, .cam-eigen) .cam-feld span { color: var(--cm-leise); }
-
-/* Felder */
-body :is(.karte.cam, .cam-eigen) :is(input:not([type=checkbox]):not([type=radio]), select, textarea, .cam-wahl__knopf) {
-  background: var(--cm-feld); border: 1px solid var(--cm-rand2); border-radius: 7px; color: var(--cm-text);
-  transition: border-color .15s, box-shadow .15s, background .15s; }
-body :is(.karte.cam, .cam-eigen) :is(input:not([type=checkbox]):not([type=radio]), select, textarea, .cam-wahl__knopf):hover { border-color: #a9b6c5; }
-body :is(.karte.cam, .cam-eigen) :is(input:not([type=checkbox]):not([type=radio]), select, textarea, .cam-wahl__knopf):focus {
-  outline: none; border-color: var(--cm-akzent); background: var(--cm-karte);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cm-akzent) 22%, transparent); }
-body :is(.karte.cam, .cam-eigen) input[type=checkbox] { accent-color: var(--cm-akzent); }
-body :is(.karte.cam, .cam-eigen) .cam-feld--fehler input { border-color: #d33 !important; box-shadow: 0 0 0 3px rgba(221, 51, 51, .18) !important; }
-
-/* Knöpfe als Chips */
-body :is(.karte.cam, .cam-eigen) .knopf:not(.knopf--primaer):not(.cam-block__pfeil) {
-  background: var(--cm-chip); border: 1px solid var(--cm-chip-rand); color: var(--cm-chip-text);
-  border-radius: 999px; box-shadow: none; font-weight: 600; transition: background .15s, border-color .15s, transform .1s; }
-body :is(.karte.cam, .cam-eigen) .knopf:not(.knopf--primaer):not(.cam-block__pfeil):hover:not(:disabled) {
-  background-color: var(--cm-chip-hover); border-color: var(--cm-chip-hover-rand); color: var(--cm-chip-text); }
-body :is(.karte.cam, .cam-eigen) .knopf:not(.cam-block__pfeil):active:not(:disabled) { transform: translateY(1px); }
-body :is(.karte.cam, .cam-eigen) .knopf:disabled { opacity: .45; }
-body :is(.karte.cam, .cam-eigen) .knopf--primaer { border-radius: 999px; }
-body :is(.karte.cam, .cam-eigen) .cam-block__knoepfe .knopf { border-radius: 8px !important; width: 28px; padding: 0; justify-content: center; }
-body :is(.karte.cam, .cam-eigen) .cam-bearb__kopf > b { color: var(--cm-leise); font-size: 12px; flex-basis: 5em; }
-body :is(.karte.cam, .cam-eigen) .cam-spalte--kopf .knopf { min-height: 0; padding: 4px 10px; font-size: 12px; white-space: nowrap; line-height: 1.3; }
-
-/* Bearbeitungen */
-body :is(.karte.cam, .cam-eigen) .cam-block { background: var(--cm-karte); border: 1px solid var(--cm-rand);
-  border-left: 4px solid var(--cm-k1); border-radius: 12px; box-shadow: var(--cm-schatten); padding: 10px 12px 10px 10px;
-  margin-bottom: 10px; transition: box-shadow .2s, border-color .2s; }
-body :is(.karte.cam, .cam-eigen) .cam-block:hover { box-shadow: 0 2px 4px rgba(16, 33, 52, .08), 0 10px 24px rgba(16, 33, 52, .09); }
-body :is(.karte.cam, .cam-eigen) .cam-block--k2 { border-left-color: var(--cm-k2); }
-body :is(.karte.cam, .cam-eigen) .cam-block--k3 { border-left-color: var(--cm-k3); }
-body :is(.karte.cam, .cam-eigen) .cam-block--aktiv { border-color: #f08a24 !important; border-left-color: #f08a24 !important;
-  box-shadow: 0 0 0 3px rgba(240, 138, 36, .2), var(--cm-schatten) !important; }
-body :is(.karte.cam, .cam-eigen) .cam-block__code { background: var(--cm-feld); border: 1px solid var(--cm-rand2);
-  border-radius: 9px; padding: 8px 10px; line-height: 1.5; }
-body :is(.karte.cam, .cam-eigen) .cam-block__kanal { border-radius: 999px; padding: 2px 8px; letter-spacing: .03em; }
-
-/* Kanäle */
-body :is(.karte.cam, .cam-eigen) .cam-kanaele { background: var(--cm-karte); border: 1px solid var(--cm-rand);
-  border-radius: 14px; box-shadow: var(--cm-schatten); padding: 8px; }
-body :is(.karte.cam, .cam-eigen) .cam-spalte--kopf { background: color-mix(in srgb, var(--cm-k1) 9%, var(--cm-karte));
-  border: 1px solid color-mix(in srgb, var(--cm-k1) 25%, var(--cm-rand)); border-left: 1px solid color-mix(in srgb, var(--cm-k1) 25%, var(--cm-rand));
-  border-top: 3px solid var(--cm-k1); border-radius: 10px; color: var(--cm-text); padding: 6px 10px; }
-body :is(.karte.cam, .cam-eigen) .cam-spalte--kopf ~ .cam-spalte--kopf { background: color-mix(in srgb, var(--cm-k2) 9%, var(--cm-karte));
-  border-color: color-mix(in srgb, var(--cm-k2) 25%, var(--cm-rand)); border-top-color: var(--cm-k2); }
-body :is(.karte.cam, .cam-eigen) .cam-spalte--kopf.cam-spalte--k3 { background: color-mix(in srgb, var(--cm-k3) 9%, var(--cm-karte));
-  border-color: color-mix(in srgb, var(--cm-k3) 25%, var(--cm-rand)); border-top-color: var(--cm-k3); }
-body :is(.karte.cam, .cam-eigen) .cam-zeile { border-radius: 5px; }
-body :is(.karte.cam, .cam-eigen) .cam-nr { color: var(--cm-leise); opacity: .7; }
-body :is(.karte.cam, .cam-eigen) .cam-zeile:hover:not(.cam-zeile--leer) { background-color: color-mix(in srgb, var(--cm-akzent) 6%, transparent); }
-body :is(.karte.cam, .cam-eigen) .cam-zeile--leer { background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--cm-rand) 55%, transparent) 6px 7px); }
-@media (prefers-reduced-motion: reduce) { body :is(.karte.cam, .cam-eigen) * { transition: none !important; } }
-
 /* 1.743.0 (Wunsch Patrick 23. November 2026): Linie zwischen den Knöpfen
    oben in der Leiste und den Todos; Solaranlage oben so hoch wie die
    Geburtstage daneben, damit keine Lücke bleibt */
@@ -16235,8 +16150,59 @@ body.pl-hell:not(.dunkel) .pl-seite { box-shadow: 0 0 0 1px #dfe5ee; }
 .pl-seite__laden { margin: auto; color: var(--pgedaempft); }
 @media (max-width: 779px) { .pl-seite { height: auto; min-height: 0; } .pl-seite .pl { display: flex; flex-direction: column; overflow: visible; } }
 
+/* 1.736.0 (Wunsch Patrick 23. November 2026: „wenn man das Menü einfährt, soll
+   der aktuelle Reiter offen bleiben mit allen Unterreitern, der Rest soll
+   verschwinden mit cooler Animation“). Nur neuer Look: im Todo-Modus bleibt
+   der aktive Punkt samt Unterpunkten stehen, die anderen falten sich nach
+   links weg (schieben, kippen, verblassen, Höhe zu), die Todos rücken mit
+   der Höhe nach. Beim Ausfahren kommen sie umgekehrt wieder. */
+@media (min-width: 780px) {
+  html.ohne-kopf body.nav--todos .nav > .nav__punkt.aktiv { display: flex; }
+  html.ohne-kopf body.nav--todos .nav > .nav__punkt.aktiv + .nav__unter:not(.nav__unter--zu) { display: grid; }
+  html.ohne-kopf body.nav--todos:not(.nav--schmal) .reiter--seite { display: none; }
+  html.ohne-kopf body.nav--todos .nav-todo { margin-top: 12px; }
+  html.ohne-kopf body:is(.nav--menue-weg, .nav--zum-menue) .nav > .nav__punkt.aktiv :is(.nav__text, .nav__zeichen),
+  html.ohne-kopf body:is(.nav--menue-weg, .nav--zum-menue) .nav > .nav__punkt.aktiv + .nav__unter { animation: none !important; }
+  html.ohne-kopf body.nav--menue-weg .nav > .nav__punkt:not(.aktiv) :is(.nav__text, .nav__zeichen) { animation: none; }
+  html.ohne-kopf body.nav--menue-weg .nav > .nav__punkt:not(.aktiv) {
+    overflow: hidden; transform-origin: left center;
+    animation: nav-punkt-weg .4s cubic-bezier(.55, 0, .35, 1) both;
+    animation-delay: calc(var(--n, 0) * 7ms); }
+  html.ohne-kopf body.nav--menue-weg .nav > .nav__punkt:not(.aktiv) + .nav__unter {
+    overflow: hidden; animation: nav-punkt-weg .3s ease-in both; }
+  html.ohne-kopf body.nav--zum-menue .nav > .nav__punkt:not(.aktiv) {
+    overflow: hidden; transform-origin: left center;
+    animation: nav-punkt-her .55s cubic-bezier(.16, 1, .3, 1) backwards;
+    animation-delay: calc(var(--n, 0) * 30ms); }
+  @keyframes nav-punkt-weg {
+    0% { max-height: 56px; opacity: 1; transform: none; filter: none; }
+    55% { opacity: 0; transform: translateX(-40px) perspective(300px) rotateY(35deg) scale(.92); filter: blur(5px);
+      max-height: 56px; }
+    100% { opacity: 0; transform: translateX(-60px) perspective(300px) rotateY(50deg) scale(.85); filter: blur(8px);
+      max-height: 0; padding-block: 0; margin-block: 0; }
+  }
+  @keyframes nav-punkt-her {
+    0% { opacity: 0; transform: translateX(-50px) perspective(300px) rotateY(45deg) scale(.88); filter: blur(7px);
+      max-height: 0; padding-block: 0; margin-block: 0; }
+    45% { max-height: 56px; }
+    100% { opacity: 1; transform: none; filter: none; max-height: 56px; }
+  }
+}
+@media (min-width: 780px) and (prefers-reduced-motion: reduce) {
+  html.ohne-kopf body:is(.nav--menue-weg, .nav--zum-menue) .nav > .nav__punkt { animation: none !important; }
+}
+/* 1.744.0: Namensliste am Stempel-Pad ohne Rollen, Kacheln so gross wie der
+   Platz zulässt (Wunsch Patrick 23. November 2026). Mass aus useKachelMass. */
+.ze-panel__kacheln--passt .ze-panel__kachel { min-height: 0; height: var(--zp-h); padding: 6px; gap: 4px; overflow: hidden; }
+.ze-panel__kacheln--passt .ze-panel__kachel img,
+.ze-panel__kacheln--passt .ze-panel__kachel .ze-panel__buchstabe { width: var(--zp-bild); height: var(--zp-bild); flex: none; }
+.ze-panel__kacheln--passt .ze-panel__buchstabe { font-size: calc(var(--zp-bild) * .42); }
+.ze-panel__kacheln--passt .ze-panel__name { font-size: calc(var(--zp-schrift) * 1.25); }
+.ze-panel__kacheln--passt .klein { font-size: var(--zp-schrift); }
+.ze-panel-rahmen:has(.ze-panel__kacheln--passt) .ze-panel { padding-bottom: 0; }
 
-/* 1.744.0 (Patrick 23. November 2026: „etwas mehr Farbe, Themenfarbe mehr
+
+/* 1.745.0 (Patrick 23. November 2026: „etwas mehr Farbe, Themenfarbe mehr
    einbringen, so schwach“). Nur neuer Look: Leiste leicht in der Themenfarbe
    getönt, aktiver Menüpunkt voll in der Themenfarbe, Pad Mode als farbiger
    Knopf, Grund der Seite getönt, Karten der Startseite mit farbigem Kopfband
@@ -16268,7 +16234,7 @@ html.ohne-kopf .sn2 :is(.sn2-spalten, .sn2-oben) .karte:not(.heuteoffen) > h2:fi
 html.ohne-kopf .sn2 :is(.sn2-spalten, .sn2-oben) .karte:not(.heuteoffen) > :first-child h2 { color: var(--marke); }
 html.ohne-kopf body.dunkel .sn2 :is(.sn2-spalten, .sn2-oben) .karte:not(.heuteoffen) > h2:first-child,
 html.ohne-kopf body.dunkel .sn2 :is(.sn2-spalten, .sn2-oben) .karte:not(.heuteoffen) > :first-child h2 { color: color-mix(in srgb, var(--marke) 45%, #fff) !important; }
-/* 1.744.0 (Patrick: „etwas mittiger positionieren“): Punkt und Schrift im
+/* 1.745.0 (Patrick: „etwas mittiger positionieren“): Punkt und Schrift im
    Knopf Kommen / Gehen genau in der Mitte, Abstand links und rechts gleich */
 .sn2-stempel { line-height: 1; padding: 0 20px; justify-content: center; }
 .sn2-stempel > span { display: block; line-height: 1; }
