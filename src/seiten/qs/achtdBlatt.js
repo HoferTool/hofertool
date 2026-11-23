@@ -27,7 +27,7 @@ export const STIL = `
 .rkpdf .balken { background: #003884; color: #fff; height: 30mm; padding: 0 9mm;
   display: flex; align-items: center; justify-content: space-between; }
 .rkpdf .balken img { height: 21mm; width: auto; display: block; }
-.rkpdf .balken img.siegel { height: 22mm; width: 22mm; }
+.rkpdf .balken img.briefsiegel { height: 22mm; width: 22mm; }
 .rkpdf .balken .adresse, .rkpdf .balken .kontakt2 { font-size: 7.5pt; line-height: 1.5; white-space: nowrap; color: #fff; }
 .rkpdf .balken .kontakt2 { border-left: .6pt solid rgba(255,255,255,.55); padding-left: 5mm; }
 .rkpdf .balken .kontakt2 span { display: inline-block; width: 4mm; opacity: .7; }
@@ -57,7 +57,7 @@ function briefkopf() {
     + 'Alte Bernstrasse 24<br><span class="ort">CH-4573 Lohn-Ammannsegg</span></div>'
     + '<div class="kontakt2"><span>T</span>032 677 55 77<br><span>F</span>032 677 55 70<br>'
     + 'admin@hoferco.ch<br>www.hoferco.ch</div>'
-    + (alt.SIEGEL_BRIEF ? '<img class="siegel" src="' + alt.SIEGEL_BRIEF + '" alt="ISO 9001">' : "")
+    + (alt.SIEGEL_BRIEF ? '<img class="briefsiegel" src="' + alt.SIEGEL_BRIEF + '" alt="ISO 9001">' : "")
     + '</div>';
 }
 
