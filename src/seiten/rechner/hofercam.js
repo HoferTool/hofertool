@@ -200,7 +200,7 @@ export function montiert(gruppe, w) {
   // feste werkzeuge oder angetrieben sein“): je Platz fest oder angetrieben
   if (istSw()) {
     if (gruppe === "front" || gruppe === "k3ff") return l.filter((p) => swFrontVon(w).includes(Number(p)) && swFrontArt(w, p) === "fest");
-    if (gruppe === "k3f") return l.filter((p) => swFrontVon(w).includes(Number(p)) && swFrontArt(w, p) === "an");
+    if (gruppe === "k3f" || gruppe === "k1f") return l.filter((p) => swFrontVon(w).includes(Number(p)) && swFrontArt(w, p) === "an");
     // Querangetrieben (1.678.0) nur auf Plätzen ohne Frontbohrapparat
     // T700 mit Schlitzapparat (1.679.0) ebenso nicht
     if (gruppe === "seite" || gruppe === "k3s") return l.filter((p) => !swFrontVon(w).includes(Number(p)) && !(Number(p) === 700 && swSchlitzVon(w)));
@@ -213,7 +213,7 @@ export function montiert(gruppe, w) {
 }
 export function nichtMontiert(b, w) {
   const p = String(b.platz ?? ""), t = t34Von(w);
-  if (istSw()) return ["front", "k3f", "k3ff", "seite", "k3s"].includes(b.art) && !b.frei && !montiert(b.art, w).includes(p);
+  if (istSw()) return ["front", "k1f", "k3f", "k3ff", "seite", "k3s"].includes(b.art) && !b.frei && !montiert(b.art, w).includes(p);
   return (p === "3400" && t !== "3400") || (/^342[1-3]$/.test(p) && t === "3400");
 }
 // Die SB-20RG hat nur vier Hochdruck-Stufen (Patrick 7. November 2026: „es gibt nur 4 nicht 6“).
@@ -278,9 +278,9 @@ export function blockFehler(b, w = {}) {
   if (b.frei) return f;
   b = wirksamB(b); w = wirksamW(w);
   // Kanal 3 SW-20 (1.666.0)
-  if (b.art === "k3f" || b.art === "k3d" || b.art === "k3ff") {
+  if (b.art === "k3f" || b.art === "k1f" || b.art === "k3d" || b.art === "k3ff") {
     if (!/^\d+$/.test(String(b.S).trim()) || Number(b.S) <= 0) f.S = "ganze Zahl";
-    const pflicht = b.art === "k3f" ? ["X", "anZ", "zuZ", "wegZ"] : b.art === "k3ff" ? ["vorX", "anZ", "nZ", "wegZ"] : ["vorX", "anZ", "nZ"];
+    const pflicht = b.art === "k3f" || b.art === "k1f" ? ["X", "anZ", "zuZ", "wegZ"] : b.art === "k3ff" ? ["vorX", "anZ", "nZ", "wegZ"] : ["vorX", "anZ", "nZ"];
     for (const n of pflicht) if (zahl(b[n]) == null) f[n] = "Zahl fehlt";
     for (const n of ["Y", "C"]) if (String(b[n] ?? "").trim() !== "" && zahl(b[n]) == null) f[n] = "Zahl oder leer";
     return f;
@@ -398,7 +398,7 @@ function blockWerte(b, w, marke) {
   // Drehrichtung je Art: stehend M3 / M4, angetrieben M36 / M37
   const dreh = art === "k2" ? (b.dreh === "3" ? 3 : 4)
     : art === "k2a" ? (istSw() ? (b.dreh === "57" ? 57 : 56) : b.dreh === "36" ? 36 : 37)
-    : art === "seite" || art === "k3s" || art === "quer" || art === "querGegen" || art === "k3f" ? (b.dreh === "37" ? 37 : 36)
+    : art === "seite" || art === "k3s" || art === "quer" || art === "querGegen" || art === "k3f" || art === "k1f" ? (b.dreh === "37" ? 37 : 36)
     : (b.dreh === "4" ? 4 : 3);
   const mk = marke || (anGegenspindel(b) ? STANDARD_MARKEN[b.art] : null) || {};
   const g = (n) => zahl(b[n]) ?? String(b[n] ?? "");

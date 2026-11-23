@@ -562,6 +562,22 @@ export function simAufbauen(wRoh) {
     if (k3) {
       k3Schritt(s, b, zeilen, v, W, prog, wa);
       if (s.modus === "c") for (const p of s.punkte) if (p.vor) cZ = Math.max(cZ, p.t[0] + (num(bRoh.wz?.d) || 6) / 2 + 0.5);
+    } else if (sw && art === "k1f") {
+      // Seit 1.728.0: Frontbohrapparat angetrieben Kanal 1 (T500 / T600),
+      // gebaut wie der in Kanal 3: Teil 0.5 mm vor „Anfahren Z“, tiefer =
+      // grösseres Z, C dreht das Teil, Träger 1 nicht gespiegelt
+      const roh = bahnLesen(zeilen, { ...v });
+      s.zeilen = zeilen;
+      const erst = roh.find((p) => p.z != null);
+      const an = num(b.anZ) ?? (erst ? erst.z : 0);
+      s.dzVorne = -(an + 0.5);
+      s.punkte = roh.map((p) => {
+        const uM = (p.x || 0) / 2, wM = p.y || 0;
+        const { t } = imTeil(p, 1, uM, wM, p.z - an - 0.5, W);
+        return { z: t[0], r: Math.hypot(t[1], t[2]), phi: Math.atan2(t[2], t[1]), t, ax: [-1, 0, 0], vor: p.vor, nr: p.nr, mx: uM, my: wM, c: p.c || 0 };
+      });
+      s.achse = "laengs"; s.modus = wa === "fraes" ? "c" : null; if (wa === "dreh") s.status = "nurBahnA";
+      if (s.modus) for (const p of s.punkte) if (p.vor) cZ = Math.max(cZ, p.t[0] + (num(bRoh.wz?.d) || 6) / 2 + 0.5);
     } else if (sw && (art === "front" || art === "k2b") && zeilen.some((z) => g50Z(z) != null)) {
       // SW-20 Frontbohrapparat Kanal 1 (G50Z wie Patricks T600): Z nach
       // G50 ist die Lage im Teil, die Spitze steht Vorposition − Nullpunkt

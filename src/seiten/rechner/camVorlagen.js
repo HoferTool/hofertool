@@ -30,7 +30,7 @@ const rund = (n, s = 3) => String(Math.round(n * 10 ** s) / 10 ** s);
 // anderen Feldern, solange das Feld leer ist.
 // Bearbeitungsarten mit angetriebenem Werkzeug (Quer, Frontangetrieben,
 // Kanal 2 angetrieben, SW-20 Kanal 3); alle anderen stehen
-export const ANGETRIEBEN = ["seite", "quer", "querGegen", "k2a", "k3f", "k3s"];
+export const ANGETRIEBEN = ["seite", "quer", "querGegen", "k2a", "k3f", "k3s", "k1f"];
 
 export const VORLAGEN = [
   {
