@@ -186,11 +186,37 @@ function neuePositionAufSeite() {
   setTimeout(suchen, 120);
 }
 
+// Seit 1.735.0 übersichtlicher (Wunsch Patrick 23. November 2026:
+// „Bestellungen Feld besser machen“): drei Kacheln Offen / Bestellt /
+// Teilweise da, die gleich in den passenden Reiter führen, ein roter
+// Hinweis für Positionen über der Frist, darunter die nächsten Positionen
+// mit Artikel, Lieferant, Menge und Termin.
+const BK_STATUS = [
+  ["offen", "Offen", "offen"],
+  ["bestellt", "Bestellt", "bestellt"],
+  ["teilweise_geliefert", "Teilweise da", "bestellt"],
+];
+
+function reiterAufSeite(ansicht) {
+  if (alt.best) alt.best.ansicht = ansicht;
+  if (location.hash === "#/bestellungen" && alt.zeichneSeite) alt.zeichneSeite();
+  else location.hash = "#/bestellungen";
+}
+
+function bkKurzDatum(iso) {
+  const d = alt.ausIso ? alt.ausIso(iso) : new Date(iso);
+  if (!d || isNaN(d.getTime())) return "";
+  return String(d.getDate()).padStart(2, "0") + "." + String(d.getMonth() + 1).padStart(2, "0") + ".";
+}
+
 export function BestellKurz({ auffrischen }) {
   const { daten } = useDaten(() => abfrage(
-    alt.db.from("order_items").select("status, needed_by")
+    alt.db.from("order_items")
+      .select("id, status, needed_by, quantity, created_at, liefertermin, articles(article_number, name, unit, suppliers(name)), suppliers(name)")
       .in("status", ["offen", "bestellt", "teilweise_geliefert"]), 9000, "Bestellungen")
-    .catch(() => []), [auffrischen]);
+    .catch(() => abfrage(alt.db.from("order_items").select("id, status, needed_by, quantity, created_at")
+      .in("status", ["offen", "bestellt", "teilweise_geliefert"]), 9000, "Bestellungen").catch(() => [])),
+  [auffrischen]);
   if (!daten) return <div id="db-status" />;
   const heute = alt.isoDatum(new Date());
   const zaehler = { offen: 0, bestellt: 0, teilweise_geliefert: 0 };
@@ -200,24 +226,63 @@ export function BestellKurz({ auffrischen }) {
     if (z.needed_by && z.needed_by < heute) ueberfaellig++;
   });
   const gesamt = zaehler.offen + zaehler.bestellt + zaehler.teilweise_geliefert;
+  // Zuerst was drängt (Frist), dann das noch nicht Bestellte, neuste zuerst
+  const naechste = [...daten].sort((x, y) => {
+    const fx = x.needed_by || "9999", fy = y.needed_by || "9999";
+    if (fx !== fy) return fx < fy ? -1 : 1;
+    const ox = x.status === "offen" ? 0 : 1, oy = y.status === "offen" ? 0 : 1;
+    if (ox !== oy) return ox - oy;
+    return String(y.created_at || "").localeCompare(String(x.created_at || ""));
+  }).slice(0, 4);
+  const textVon = { offen: "offen", bestellt: "bestellt", teilweise_geliefert: "teilweise da" };
   return (
     <div id="db-status">
       <KlickKarte zu="bestellungen" className="karte bestellkurz">
-        <div className="karte__kopf"><h2>Bestellungen{gesamt > 0 && <> <span className="marke">{gesamt}</span></>}</h2>
+        <div className="karte__kopf"><h2>Bestellungen</h2>
           {alt.darfSchreiben() &&
             <button type="button" className="notizbuch-knopf" id="bestell-neu" aria-label="Neue Bestellposition"
               title="Neue Bestellposition" onClick={neuePositionAufSeite}><Symbol d="M12 5v14M5 12h14" /></button>}
         </div>
         {gesamt
-          ? <div className="heuteoffen__liste">
-              {[["offen", "offen"], ["bestellt", "bestellt"], ["teilweise_geliefert", "teilweise da"]]
-                .map(([st, text]) => (
-                  <span className="heuteoffen__maschine bestellkurz__zahl" key={st} data-bestellkurz={st}>
-                    <b>{zaehler[st]}</b><span className="klein">{text}</span></span>))}
+          ? <>
+              <div className="bk-kacheln">
+                {BK_STATUS.map(([st, text, reiter]) => (
+                  <button type="button" key={st} data-bestellkurz={st}
+                    className={"bk-kachel bk-kachel--" + st + (zaehler[st] ? "" : " bk-kachel--leer")}
+                    onClick={() => reiterAufSeite(reiter)}>
+                    <b>{zaehler[st]}</b><span>{text}</span>
+                  </button>))}
+              </div>
               {ueberfaellig > 0 &&
-                <span className="heuteoffen__maschine bestellkurz__zahl bestellkurz__frist" data-bestellkurz="frist">
-                  <b>{ueberfaellig}</b><span className="klein">über der Frist</span></span>}
-            </div>
+                <button type="button" className="bk-frist" data-bestellkurz="frist" onClick={() => reiterAufSeite("bestellt")}>
+                  <span className="bk-frist__zeichen" aria-hidden="true">!</span>
+                  {ueberfaellig === 1 ? "1 Position über der Frist" : ueberfaellig + " Positionen über der Frist"}
+                </button>}
+              {naechste.some((z) => z.articles) &&
+                <ul className="bk-liste">
+                  {naechste.map((z) => {
+                    const a = z.articles || {};
+                    const lief = (z.suppliers && z.suppliers.name) || (a.suppliers && a.suppliers.name) || "";
+                    const spaet = z.needed_by && z.needed_by < heute;
+                    return (
+                      <li key={z.id} className="bk-pos" data-bestellkurz-pos={z.id}>
+                        <span className={"bk-pos__punkt bk-pos__punkt--" + z.status} title={textVon[z.status]} aria-hidden="true" />
+                        <span className="bk-pos__was">
+                          <b>{a.name || a.article_number || "Artikel"}</b>
+                          <span className="klein">{[a.article_number && a.name ? a.article_number : "", lief].filter(Boolean).join(" · ")}</span>
+                        </span>
+                        <span className="bk-pos__menge">
+                          {z.quantity != null && <b>{alt.zahlText ? alt.zahlText(z.quantity) : z.quantity} {a.unit || ""}</b>}
+                          <span className={"klein" + (spaet ? " bk-pos__spaet" : "")}>
+                            {z.needed_by ? (spaet ? "seit " : "bis ") + bkKurzDatum(z.needed_by) : (z.liefertermin || textVon[z.status])}
+                          </span>
+                        </span>
+                      </li>);
+                  })}
+                </ul>}
+              {gesamt > naechste.length &&
+                <p className="bk-mehr">Alle {gesamt} Positionen ansehen →</p>}
+            </>
           : <p className="hinweis">Keine offenen Bestellungen.</p>}
       </KlickKarte>
     </div>

@@ -16047,3 +16047,56 @@ body.dunkel .sn2-stempel--gehen { background: #2a5bb0; }
 .sn2-stempel--gehen .sn2-stempel__punkt { background: #5ee08f; box-shadow: 0 0 0 3px rgba(94,224,143,.3); }
 .sn2-stempel__seit { font-weight: 500; font-size: .85rem; opacity: .85; font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) { .sn2-stempel { transition: none; } }
+
+/* 1.735.0: Karte Bestellungen auf Start übersichtlicher, Kommen / Gehen am
+   Handy mittig (Wunsch Patrick 23. November 2026) */
+.bk-kacheln { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.bk-kachel { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 64px;
+  padding: 10px 12px; border-radius: 12px; border: 0; cursor: pointer; text-align: left;
+  background: rgba(0, 56, 132, .05); box-shadow: inset 3px 0 0 var(--bk-farbe, #0057b8);
+  transition: background-color .15s, scale .15s; font: inherit; color: inherit; }
+.bk-kachel:hover { background: rgba(0, 56, 132, .09); }
+.bk-kachel:active { scale: .96; }
+.bk-kachel b { font-size: 1.6rem; line-height: 1.1; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--bk-farbe, #0057b8); }
+.bk-kachel span { font-size: .82rem; opacity: .75; }
+.bk-kachel--offen { --bk-farbe: #d97706; }
+.bk-kachel--bestellt { --bk-farbe: #0057b8; }
+.bk-kachel--teilweise_geliefert { --bk-farbe: #1f9d55; }
+.bk-kachel--leer b { color: inherit; opacity: .35; }
+body.dunkel .bk-kachel { background: rgba(255, 255, 255, .06); }
+body.dunkel .bk-kachel:hover { background: rgba(255, 255, 255, .1); }
+body.dunkel .bk-kachel--offen b { color: #fbbf24 !important; }
+body.dunkel .bk-kachel--bestellt b { color: #8ec5ff !important; }
+body.dunkel .bk-kachel--teilweise_geliefert b { color: #6ee7a0 !important; }
+.bk-frist { display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 8px; padding: 8px 12px;
+  border: 0; border-radius: 10px; background: #fdecec; color: #b71c1c; font: inherit; font-weight: 600;
+  font-size: .9rem; cursor: pointer; text-align: left; }
+.bk-frist__zeichen { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%;
+  background: #c62828; color: #fff !important; font-size: .8rem; font-weight: 800; flex: none; }
+body.dunkel .bk-frist { background: rgba(255, 82, 82, .15); }
+body.dunkel .bk-frist, body.dunkel .bk-frist * { color: #ff8a80 !important; }
+body.dunkel .bk-frist .bk-frist__zeichen { background: #c62828; color: #fff !important; }
+.bk-liste { list-style: none; margin: 10px 0 0; padding: 0; }
+.bk-pos { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid rgba(0, 0, 0, .07); }
+body.dunkel .bk-pos { border-top-color: rgba(255, 255, 255, .1); }
+.bk-pos__punkt { width: 8px; height: 8px; border-radius: 50%; flex: none; background: #0057b8; }
+.bk-pos__punkt--offen { background: #d97706; }
+.bk-pos__punkt--teilweise_geliefert { background: #1f9d55; }
+.bk-pos__was { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.bk-pos__was b, .bk-pos__was .klein { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bk-pos__was b { font-weight: 600; font-size: .92rem; }
+.bk-pos__menge { display: flex; flex-direction: column; align-items: flex-end; flex: none; text-align: right; }
+.bk-pos__menge b { font-weight: 600; font-size: .9rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bk-pos__menge .klein { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bk-pos__spaet { color: #c62828 !important; font-weight: 600; }
+body.dunkel .bk-pos__spaet { color: #ff8a80 !important; }
+.bk-mehr { margin: 6px 0 0; font-size: .85rem; font-weight: 600; color: #0057b8; }
+body.dunkel .bk-mehr { color: #8ec5ff !important; }
+@media (max-width: 779px) {
+  .sn2-links { flex-direction: column; align-items: stretch; width: 100%; gap: 14px; }
+  .sn2-stempel { align-self: center; width: 100%; max-width: 340px; justify-content: center;
+    min-height: 54px; padding: 10px 20px; font-size: 1.15rem; }
+  .sn2-kopf { justify-content: center; }
+  .sn2-kopf .gruss { text-align: center; }
+}
+@media (prefers-reduced-motion: reduce) { .bk-kachel { transition: none; } }
