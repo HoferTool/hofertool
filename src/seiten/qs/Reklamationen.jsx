@@ -12,11 +12,12 @@
 //  „zeichnungen“ unter reklamationen/<id>/. Nicht für Externe (die
 //  sehen die Qualitätssicherung nicht, die Datenbank sperrt sie auch).
 // =================================================================
-import { useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { passtWoerter } from "../../teile/Suchfeld.jsx";
 import { useSeitenSuche } from "../../teile/seitenSuche.js";
+import { achtdVorschau } from "./achtdBlatt.js";
 
 export const ARTEN = [
   ["kunde", "Kundenreklamation"],
@@ -41,29 +42,46 @@ const STAND_KURZ = { offen: "Offen", bearbeitung: "In Bearbeitung", abgeschlosse
 // dazu das freie Feld „Anderes / Ergänzung“ (Spalte in `text`).
 // Die geplanten Massnahmen haben je ein Gegenstück für „eingeführt“
 // (MASSNAHMEN), damit „Wie geplant“ Abschnitt 7 in einem Zug ankreuzt.
+// Dritter Wert: Gruppe zum Ankreuzen (seit 1.749.0, Patrick: „besser kategorisiert“)
 export const MASSNAHMEN = [
-  ["Teile müssen an der Maschine besser überwacht werden", "Teile werden in Zukunft besser überwacht"],
-  ["Endkontrolle verschärfen", "Endkontrolle wurde angepasst"],
-  ["Dokumente anpassen", "Dokumente wurden angepasst"],
-  ["Prüfintervall verkürzen", "Prüfintervall wurde verkürzt"],
-  ["Prüfplan ergänzen", "Prüfplan wurde ergänzt"],
-  ["NC-Programm korrigieren", "NC-Programm wurde korrigiert"],
-  ["Werkzeug / Standzeit anpassen", "Werkzeug / Standzeit wurde angepasst"],
-  ["Einrichtblatt ergänzen", "Einrichtblatt wurde ergänzt"],
-  ["Messmittel ersetzen / kalibrieren", "Messmittel wurde ersetzt / kalibriert"],
-  ["Maschine reparieren / einstellen", "Maschine wurde repariert / eingestellt"],
-  ["Verpackung anpassen", "Verpackung wurde angepasst"],
-  ["Mitarbeiter informieren", "Alle nötigen Mitarbeiter wurden informiert"],
+  ["Teile müssen an der Maschine besser überwacht werden", "Teile werden in Zukunft besser überwacht", "Überwachung und Prüfung"],
+  ["Endkontrolle verschärfen", "Endkontrolle wurde angepasst", "Überwachung und Prüfung"],
+  ["Prüfintervall verkürzen", "Prüfintervall wurde verkürzt", "Überwachung und Prüfung"],
+  ["Prüfplan ergänzen", "Prüfplan wurde ergänzt", "Überwachung und Prüfung"],
+  ["Messmittel ersetzen / kalibrieren", "Messmittel wurde ersetzt / kalibriert", "Überwachung und Prüfung"],
+  ["NC-Programm korrigieren", "NC-Programm wurde korrigiert", "Prozess und Maschine"],
+  ["Werkzeug / Standzeit anpassen", "Werkzeug / Standzeit wurde angepasst", "Prozess und Maschine"],
+  ["Maschine reparieren / einstellen", "Maschine wurde repariert / eingestellt", "Prozess und Maschine"],
+  ["Dokumente anpassen", "Dokumente wurden angepasst", "Dokumente"],
+  ["Einrichtblatt ergänzen", "Einrichtblatt wurde ergänzt", "Dokumente"],
+  ["Verpackung anpassen", "Verpackung wurde angepasst", "Verpackung und Information"],
+  ["Mitarbeiter informieren", "Alle nötigen Mitarbeiter wurden informiert", "Verpackung und Information"],
 ];
+const massnahmenGruppen = (i) => {
+  const g = [];
+  for (const m of MASSNAHMEN) {
+    let x = g.find((y) => y[0] === m[2]);
+    if (!x) { x = [m[2], []]; g.push(x); }
+    x[1].push(m[i]);
+  }
+  return g;
+};
+// Je Schritt die Frage wie in einem Fragebogen (seit 1.749.0) und die Punkte
+// in Gruppen; im Bericht stehen Gruppen nur bei den Ursachen (pdfGruppen)
 export const ACHT_D = [
-  { s: "fa", nr: 2, titel: "Fehlerart / Fehler", text: "fehlerart", gruppen: [["", [
-    "Massfehler", "Form- / Lagefehler", "Oberflächenfehler / Kratzer / Schläge", "Grat", "Gewindefehler",
-    "Falsches Material", "Teile vermischt / falsches Teil", "Mengenfehler", "Verschmutzung / Späne / Öl",
-    "Verpackungs- / Transportschaden", "Dokumente / Zeugnis fehlen"]]] },
-  { s: "ort", nr: 3, titel: "Fehlerort", text: "fehlerort", gruppen: [["", [
-    "Decolletage", "Nachbearbeitung", "Waschen / Reinigen", "Endkontrolle", "Verpackung / Versand", "Lager",
-    "Externe Bearbeitung (Härten, Beschichten …)", "Rohmaterial / Lieferant", "Transport"]]] },
-  { s: "d4", nr: 4, titel: "Fehlerursache(n)", text: "ursache", gruppen: [
+  { s: "fa", nr: 2, titel: "Fehlerart / Fehler", kurz: "Fehlerart", text: "fehlerart",
+    frage: "Was für ein Fehler ist es?", gruppen: [
+    ["Mass und Form", ["Massfehler", "Form- / Lagefehler", "Gewindefehler"]],
+    ["Oberfläche", ["Oberflächenfehler / Kratzer / Schläge", "Grat", "Verschmutzung / Späne / Öl"]],
+    ["Teil und Menge", ["Falsches Material", "Teile vermischt / falsches Teil", "Mengenfehler"]],
+    ["Lieferung", ["Verpackungs- / Transportschaden", "Dokumente / Zeugnis fehlen"]]] },
+  { s: "ort", nr: 3, titel: "Fehlerort", kurz: "Fehlerort", text: "fehlerort",
+    frage: "Wo ist der Fehler entstanden?", gruppen: [
+    ["Fertigung", ["Decolletage", "Nachbearbeitung", "Waschen / Reinigen"]],
+    ["Prüfung und Versand", ["Endkontrolle", "Verpackung / Versand", "Lager", "Transport"]],
+    ["Ausser Haus", ["Externe Bearbeitung (Härten, Beschichten …)", "Rohmaterial / Lieferant"]]] },
+  { s: "d4", nr: 4, titel: "Fehlerursache(n)", kurz: "Ursache", text: "ursache", pdfGruppen: true,
+    frage: "Warum ist der Fehler entstanden, und warum wurde er nicht entdeckt?", gruppen: [
     ["Maschine / Prozess", ["Drehfehler am Rohteil", "Werkzeugverschleiss", "Werkzeugbruch", "Spannzange / Führungsbüchse",
       "Maschine ungenau / Warmlauf", "Abstechen / Länge ungenau"]],
     ["Mensch", ["Falsch eingestellt / korrigiert", "Unachtsamkeit", "Fehlende Einweisung"]],
@@ -72,14 +90,32 @@ export const ACHT_D = [
     ["Umfeld", ["Späne / Verschmutzung", "Teile vermischt", "Verpackung ungeeignet"]],
     ["Nicht entdeckt", ["Überwachungsfehler an der Maschine", "Merkmal nicht im Prüfplan", "Prüfintervall zu gross",
       "Stichprobe zu klein", "Messmittel ungeeignet / Messfehler", "Endkontrolle ungenügend"]]] },
-  { s: "d3", nr: 5, titel: "Sofortmassnahme(n)", text: "sofort", gruppen: [["", [
-    "Schlechtteil zur Gegenprüfung erhalten", "Fehler erkannt", "Ursachenanalyse", "Absprache im Team",
-    "Verbesserungsmassnahmen definieren", "Lagerbestand gesperrt und geprüft", "Laufende Produktion geprüft",
-    "Teile beim Kunden sortiert", "Teile zurückgenommen", "Ersatzlieferung", "Kunde informiert"]]] },
-  { s: "d5", nr: 6, titel: "Geplante Abstellmassnahme(n)", text: "korrektur", gruppen: [["", MASSNAHMEN.map((m) => m[0])]] },
-  { s: "d7", nr: 7, titel: "Eingeführte Abstellmassnahme(n)", text: "vorbeugung", gruppen: [["",
-    MASSNAHMEN.map((m) => m[1]).concat("Wirksamkeit bei der nächsten Lieferung geprüft")]] },
+  { s: "d3", nr: 5, titel: "Sofortmassnahme(n)", kurz: "Sofort", text: "sofort",
+    frage: "Was wurde sofort gemacht?", gruppen: [
+    ["Abklären", ["Schlechtteil zur Gegenprüfung erhalten", "Fehler erkannt", "Ursachenanalyse", "Absprache im Team",
+      "Verbesserungsmassnahmen definieren"]],
+    ["Teile sichern", ["Lagerbestand gesperrt und geprüft", "Laufende Produktion geprüft", "Teile beim Kunden sortiert",
+      "Teile zurückgenommen", "Ersatzlieferung"]],
+    ["Informieren", ["Kunde informiert"]]] },
+  { s: "d5", nr: 6, titel: "Geplante Abstellmassnahme(n)", kurz: "Geplant", text: "korrektur",
+    frage: "Was soll den Fehler künftig verhindern?", gruppen: massnahmenGruppen(0) },
+  { s: "d7", nr: 7, titel: "Eingeführte Abstellmassnahme(n)", kurz: "Eingeführt", text: "vorbeugung",
+    frage: "Was ist schon umgesetzt?", gruppen: massnahmenGruppen(1)
+      .concat([["Wirksamkeit", ["Wirksamkeit bei der nächsten Lieferung geprüft"]]]) },
 ];
+// Die Schritte des Fensters, einer nach dem anderen wie ein Fragebogen
+// (seit 1.749.0, Patrick: „nicht alles auf einmal, sondern nacheinander“)
+const SCHRITTE = [
+  { id: "kopf", kurz: "Beanstandung", frage: "Wer reklamiert, und wer bearbeitet es bei uns?" },
+  { id: "artikel", kurz: "Teil und Mengen", frage: "Um welches Teil geht es, und wie viele sind betroffen?" },
+  { id: "d1", kurz: "Problem", frage: "Was genau ist das Problem?" },
+  ...ACHT_D.map((d) => ({ id: d.s, kurz: d.kurz, frage: d.frage })),
+  { id: "bem", kurz: "Bemerkung", frage: "Gibt es noch etwas zu sagen?" },
+  { id: "abschluss", kurz: "Abschluss", frage: "Stand, Termin, Fotos und Dokumente. Das steht nicht im Bericht." },
+];
+// Welcher Teil der Vorschau zum Schritt gehört
+const VORSCHAU_TEIL = { kopf: "kopf", artikel: "artikel", d1: "d1", bem: "bem",
+  ...Object.fromEntries(ACHT_D.map((d) => [d.s, d.s])) };
 // Kopf wie im Bericht, gespeichert in reklamationen.kopf
 const KOPF = ["bearbeiter", "tel", "mail", "adresse", "berichtsdatum", "zeichnung", "index", "kunden_art",
   "bestellt", "retour", "gut", "lieferschein", "lieferdatum", "auftrag"];
@@ -259,6 +295,40 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
   const [speichert, setSpeichert] = useState(false);
   const [hinweis, setHinweis] = useState("");
   const feld = useRef(null);
+  const [schritt, setSchritt] = useState("kopf");
+  const nr = Math.max(0, SCHRITTE.findIndex((x) => x.id === schritt));
+  const [zeigVorschau, setZeigVorschau] = useState(false);
+  const [zoomV, setZoomV] = useState(0.6);
+  const linksRef = useRef(null);
+  const vorschauRef = useRef(null);
+  // Schritt wechseln, optional mit Fokus auf ein Feld darin
+  const gehe = (id, fokus) => {
+    setSchritt(id);
+    setZeigVorschau(false);
+    setTimeout(() => {
+      if (linksRef.current) linksRef.current.scrollTop = 0;
+      // Bei Schritten mit Text gleich ins erste Feld, bei den Häkchen nicht
+      const f = fokus ? document.getElementById(fokus) : ["kopf", "artikel", "d1", "bem"].includes(id) && linksRef.current
+        && linksRef.current.querySelector(".rk-abschnitt input:not([disabled]):not([type=date]), .rk-abschnitt textarea:not([disabled])");
+      if (f && (fokus || !window.matchMedia("(pointer: coarse)").matches)) f.focus({ preventScroll: true });
+    }, 30);
+  };
+  // A4 (794 Punkte) auf die Breite der Vorschau verkleinern
+  useLayoutEffect(() => {
+    const el = vorschauRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(() => { const b = el.clientWidth - 28; if (b > 50) setZoomV(Math.min(1, b / 794)); });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  // Vorschau rollt zum Teil des offenen Schritts
+  useEffect(() => {
+    const el = vorschauRef.current;
+    const t = el && el.querySelector('section[data-s="' + (VORSCHAU_TEIL[schritt] || "") + '"]');
+    if (!t) return;
+    const oben = t.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop - 40;
+    el.scrollTo({ top: Math.max(0, oben), behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  }, [schritt, zoomV]);
   const setze = (n, v) => setW((x) => ({ ...x, [n]: v }));
   const setzeKopf = (n, v) => setW((x) => ({ ...x, kopf: { ...(x.kopf || {}), [n]: v } }));
   // Punkt im 8D an- oder abkreuzen
@@ -340,10 +410,10 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
   };
 
   const speichern = async (schliessen = true) => {
-    if (leer(w.fehler)) { alt.meldung("Bitte den Fehler beschreiben.", "warn"); document.getElementById("rk-f-fehler").focus(); return null; }
+    if (leer(w.fehler)) { alt.meldung("Bitte das Problem beschreiben.", "warn"); gehe("d1", "rk-f-fehler"); return null; }
     if (w.art !== "intern" && leer(w.partner)) {
       alt.meldung(w.art === "kunde" ? "Bitte den Kunden angeben." : "Bitte den Lieferanten angeben.", "warn");
-      document.getElementById("rk-f-partner").focus(); return null;
+      gehe("kopf", "rk-f-partner"); return null;
     }
     setSpeichert(true);
     try {
@@ -474,18 +544,41 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
     return { ...y, achtd: a };
   });
   const wer = r && r.erstellt_von && personen[r.erstellt_von];
+  // Häkchen in der Schrittleiste: dort ist schon etwas eingetragen
+  const gefuellt = (id) => {
+    if (id === "kopf") return w.art === "intern" || !leer(w.partner);
+    if (id === "artikel") return !leer(w.hoco_nr) || !leer(w.teil);
+    if (id === "d1") return !leer(w.fehler);
+    if (id === "bem") return !leer(w.bemerkung);
+    if (id === "abschluss") return w.status !== "offen" || !leer(w.verantwortlich) || !leer(w.termin);
+    const d = ACHT_D.find((x) => x.s === id);
+    return !!d && (angekreuzt(w, id).length > 0 || !leer(w[d.text]));
+  };
 
   return (
-    <div className="dialog dialog--breit rk-fenster" role="dialog" aria-modal="true" id="rk-fenster">
+    <div className={"dialog dialog--breit rk-fenster" + (zeigVorschau ? " rk-fenster--vorschau-auf" : "")} role="dialog" aria-modal="true" id="rk-fenster">
       <div className="blatt__kopf">
         <h2>{r ? "Reklamation " + r.nr : "Neue Reklamation"}</h2>
+        <button className="knopf knopf--still rk-vorschau-knopf" id="rk-vorschau-knopf" type="button"
+          onClick={() => setZeigVorschau((v) => !v)}>{zeigVorschau ? "Zum Formular" : "Vorschau"}</button>
         <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button>
       </div>
+      <div className="rk-links" ref={linksRef}>
       {r && <p className="klein rk-wer">Erfasst {datum(r.erstellt_am)}{wer ? " von " + wer : ""}
         {r.geaendert_am ? " · zuletzt geändert " + datum(r.geaendert_am) + (personen[r.geaendert_von] ? " von " + personen[r.geaendert_von] : "") : ""}
         {r.abgeschlossen_am ? " · abgeschlossen " + datum(r.abgeschlossen_am) : ""}</p>}
             <datalist id="rk-personen">{namen.map((f) => <option key={f} value={f} />)}</datalist>
 
+      <nav className="rk-schritte" aria-label="Schritte">
+        {SCHRITTE.map((s, i) => (
+          <button key={s.id} type="button" data-rkschritt={s.id}
+            className={"rk-schritt-knopf" + (s.id === schritt ? " aktiv" : "") + (gefuellt(s.id) ? " fertig" : "")}
+            aria-current={s.id === schritt ? "step" : undefined} onClick={() => gehe(s.id)}>
+            <b>{gefuellt(s.id) && s.id !== schritt ? "✓" : i + 1}</b><span>{s.kurz}</span></button>))}
+      </nav>
+      <p className="rk-frage" id="rk-frage"><small>Schritt {nr + 1} von {SCHRITTE.length}</small>{SCHRITTE[nr].frage}</p>
+
+      {schritt === "kopf" && <>
       <div className="rk-art-wahl">
         {ARTEN.map(([a, t]) => (
           <button key={a} type="button" className={"rk-chip" + (w.art === a ? " aktiv" : "")} data-rkfart={a}
@@ -509,7 +602,9 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
           {K("berichtsdatum", "Berichtsdatum", { typ: "date" })}
         </div>
       </section>
+      </>}
 
+      {schritt === "artikel" && <>
       <section className="rk-abschnitt">
         <h3>Artikel und Mengen</h3>
         <div className="rk-raster">
@@ -528,7 +623,6 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
           {K("auftrag", "Auftrags Nr.")}
           {T("fa_nr", "Fabrikationsauftrag")}
         </div>
-        {hinweis && <p className="feldhinweis" id="rk-hinweis">{hinweis}</p>}
         {!!frueher.length && <div className="rk-frueher" id="rk-frueher">
           <span>Schon reklamiert:</span>
           {frueher.map((x) => <span key={x.id} className="rk-frueher__eintrag">
@@ -538,13 +632,16 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
           </span>)}
         </div>}
       </section>
+      </>}
 
+      {schritt === "d1" && <>
       <section className="rk-abschnitt">
         <h3>1 · Problembeschreibung *</h3>
         {T("fehler", "", { zeilen: 4, breit: true, ph: "Was hat der Kunde gefunden? Mass, Stelle, wie viele …" })}
       </section>
+      </>}
 
-      {ACHT_D.map((d) => (
+      {ACHT_D.filter((d) => d.s === schritt).map((d) => (
         <section key={d.s} className="rk-abschnitt rk-8d" data-rk8d={d.s}>
           <h3>{d.nr} · {d.titel}{angekreuzt(w, d.s).length ? <small className="rk-8d-zahl"> · {angekreuzt(w, d.s).length} angekreuzt</small> : null}
             {d.s === "d7" && darf && <button type="button" className="knopf knopf--klein rk-wiegeplant" id="rk-wiegeplant"
@@ -564,11 +661,14 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
           {d.text && T(d.text, "Anderes / Ergänzung", { zeilen: 2, breit: true })}
         </section>))}
 
+      {schritt === "bem" && <>
       <section className="rk-abschnitt">
         <h3>8 · Bemerkung</h3>
         {T("bemerkung", "", { zeilen: 2, breit: true })}
       </section>
+      </>}
 
+      {schritt === "abschluss" && <>
       <section className="rk-abschnitt">
         <h3>Bearbeitung (intern, nicht im Bericht)</h3>
         <div className="rk-raster">
@@ -611,6 +711,16 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
         </div>
         {!!neueDateien.length && <p className="feldhinweis">Neue Dateien werden beim Speichern hochgeladen.</p>}
       </section>
+      </>}
+
+      {hinweis && (schritt === "kopf" || schritt === "artikel") && <p className="feldhinweis" id="rk-hinweis">{hinweis}</p>}
+
+      <div className="rk-weiter">
+        <button type="button" className="knopf" id="rk-zurueck" disabled={nr === 0}
+          onClick={() => gehe(SCHRITTE[nr - 1].id)}>← Zurück</button>
+        {nr < SCHRITTE.length - 1 && <button type="button" className="knopf knopf--haupt" id="rk-weiter"
+          onClick={() => gehe(SCHRITTE[nr + 1].id)}>Weiter: {SCHRITTE[nr + 1].kurz} →</button>}
+      </div>
 
       <div className="dialog__knoepfe rk-knoepfe">
         {darf && <button className="knopf knopf--haupt" id="rk-speichern" disabled={speichert}
@@ -618,6 +728,12 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
         <button className="knopf" id="rk-bericht" disabled={speichert || (!r && !darf)} onClick={bericht}>8D-Report (PDF)</button>
         {darf && r && <button className="knopf knopf--gefahr" id="rk-loeschen" onClick={loeschen}>Löschen</button>}
       </div>
+      </div>
+      <aside className="rk-vorschau hell-bleibt" id="rk-vorschau" ref={vorschauRef} aria-label="Vorschau 8D-Report">
+        <div className="rk-vorschau__titel">Vorschau 8D-Report <small>so sieht der Bericht aus</small></div>
+        <div className="rk-vorschau__blatt" style={{ zoom: zoomV }}
+          dangerouslySetInnerHTML={{ __html: achtdVorschau({ ...w, nr: (r && r.nr) || w.nr || "neu" }, VORSCHAU_TEIL[schritt] || "") }} />
+      </aside>
     </div>
   );
 }
