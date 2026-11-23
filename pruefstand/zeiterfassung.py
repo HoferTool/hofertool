@@ -313,6 +313,17 @@ with sync_playwright() as p:
     pg.wait_for_selector("[data-ze-panel]")
     pruefe(pg.locator("[data-ze-panel]").count() == 2 and pg.locator(".ze-panel__kachel--da").count() == 1, "Panel: zwei Personen, eine da")
     pg.screenshot(path=BILD + "/zeit-panel.png")
+    # 1.744.0: viele Personen passen ohne Rollen, quer und hoch
+    viele = [{"id": "v%d" % i, "full_name": "Person Nummer %d" % i, "bild_url": None, "da": i % 3 == 0, "seit": None} for i in range(28)]
+    for b, h in ((1180, 820), (820, 1180)):
+        br2, pg2, pf2 = start(p, "mitarbeiter", "index.html?app=hofertime",
+            "Object.assign(TEST.daten.profiles.find(x => x.id === 'u1'), {nur_zeit: true, zeit_terminal: true, andere_nutzer: true});"
+            "TEST.rpc.zeit_panel_personen = () => %s;" % json.dumps(viele), b, h)
+        pg2.wait_for_selector("[data-ze-panel='v27']"); pg2.wait_for_timeout(500)
+        r = pg2.evaluate("() => ({ s: document.scrollingElement.scrollHeight, h: innerHeight, u: document.querySelector(\"[data-ze-panel='v27']\").getBoundingClientRect().bottom })")
+        pruefe(r["s"] <= r["h"] + 1 and r["u"] <= r["h"], "28 Personen ohne Rollen %dx%d: %s" % (b, h, r))
+        pg2.screenshot(path=BILD + "/zeit-panel-viele-%d.png" % b)
+        br2.close()
     pg.click("[data-ze-panel='u2']"); pg.wait_for_selector("#ze-panel-knopf")
     pruefe(pg.inner_text("#ze-panel-knopf") == "Gehen", "Anna ist da → Knopf Gehen")
     pg.click("#ze-panel-weg"); pg.click("[data-ze-panel='u1']"); pg.wait_for_selector("#ze-panel-knopf")
