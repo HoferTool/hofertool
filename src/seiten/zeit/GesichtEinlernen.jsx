@@ -51,8 +51,28 @@ function Fenster({ zu, personId, name }) {
     let weg = false;
     let timer = null;
     if (!kameraMoeglich()) { setKamera("Dieses Gerät hat keine Kamera für den Browser."); return undefined; }
-    kameraStarten(video.current).then((s) => { if (weg) s(); else stopp.current = s; },
-      (f) => setKamera("Kamera nicht erlaubt: " + (f && f.message ? f.message : f)));
+    // Wächter wie am Stempel-Panel (seit 1.721.0): geht die Kamera aus oder
+    // steht das Bild, startet sie neu.
+    let startet = false;
+    let haenger = 0;
+    const starten = () => {
+      if (weg || startet) return;
+      startet = true;
+      if (stopp.current) { stopp.current(); stopp.current = null; }
+      kameraStarten(video.current).then((s) => { startet = false; haenger = 0; if (weg) s(); else stopp.current = s; },
+        (f) => { startet = false; setKamera("Kamera nicht erlaubt: " + (f && f.message ? f.message : f)); });
+    };
+    starten();
+    const waechter = setInterval(() => {
+      if (weg || startet || document.hidden) return;
+      const v = video.current;
+      const st = v && v.srcObject;
+      const spur = st && st.getVideoTracks ? st.getVideoTracks()[0] : null;
+      if (!spur || spur.readyState === "ended") { starten(); return; }
+      if (v.paused) v.play().catch(() => {});
+      if (spur.muted || v.readyState < 2) haenger++; else haenger = 0;
+      if (haenger >= 3) starten();
+    }, 3000);
     // Dauernd prüfen, ob das Gesicht gut zu sehen ist
     const runde = async () => {
       if (weg) return;
@@ -73,7 +93,7 @@ function Fenster({ zu, personId, name }) {
       if (!weg) timer = setTimeout(runde, 300);
     };
     runde();
-    return () => { weg = true; clearTimeout(timer); if (stopp.current) stopp.current(); };
+    return () => { weg = true; clearTimeout(timer); clearInterval(waechter); if (stopp.current) stopp.current(); };
   }, []);
 
   function foto() {

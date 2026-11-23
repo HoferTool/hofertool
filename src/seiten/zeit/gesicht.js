@@ -140,10 +140,62 @@ export function personFinden(muster, gesichter) {
   return erst;
 }
 
+// Seit 1.721.0 (Patrick 23. November 2026: „es war nicht die Frontkamera“):
+// facingMode "user" ist nur ein Wunsch, Safari am iPad nahm mit 1280 × 720
+// teils die Rückkamera. Darum zuerst die Frontkamera als Pflicht, dann prüfen,
+// was wirklich läuft, und sonst die Kamera mit „Front“/„Vorder“ im Namen
+// genau wählen. Die gefundene merkt das Gerät.
+const FRONT_KEY = "hofer.zeit.frontkamera";
+const FRONT_RE = /front|vorder|user|facetime|frontal/i;
+const HINTEN_RE = /back|rück|rueck|environment|rear|arrière/i;
+
+function istFront(s) {
+  const t = s && s.getVideoTracks ? s.getVideoTracks()[0] : null;
+  if (!t) return false;
+  const st = t.getSettings ? t.getSettings() : {};
+  if (st.facingMode) return st.facingMode === "user";
+  if (HINTEN_RE.test(t.label || "")) return false;
+  return true;
+}
+
+async function frontHolen() {
+  const mass = { width: { ideal: 1280 }, height: { ideal: 720 } };
+  let gemerkt = null;
+  try { gemerkt = localStorage.getItem(FRONT_KEY); } catch { /* egal */ }
+  if (gemerkt) {
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: gemerkt }, ...mass }, audio: false });
+      if (istFront(s)) return s;
+      s.getTracks().forEach((t) => t.stop());
+    } catch { /* gemerkte gibt es nicht mehr */ }
+  }
+  let s = null;
+  try {
+    s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "user" }, ...mass }, audio: false });
+  } catch {
+    s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+  }
+  if (istFront(s)) { merken(s); return s; }
+  // Falsche Kamera: nach Namen suchen (Namen gibt es erst nach der Erlaubnis)
+  let geraete = [];
+  try { geraete = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "videoinput"); } catch { /* egal */ }
+  const vorne = geraete.find((d) => FRONT_RE.test(d.label || "")) || geraete.find((d) => d.label && !HINTEN_RE.test(d.label));
+  if (vorne) {
+    s.getTracks().forEach((t) => t.stop());
+    s = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: vorne.deviceId }, ...mass }, audio: false });
+    merken(s);
+  }
+  return s;
+}
+
+function merken(s) {
+  const t = s.getVideoTracks()[0];
+  const id = t && t.getSettings ? t.getSettings().deviceId : null;
+  if (id) { try { localStorage.setItem(FRONT_KEY, id); } catch { /* egal */ } }
+}
+
 export async function kameraStarten(video) {
-  const s = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false,
-  });
+  const s = await frontHolen();
   video.srcObject = s;
   video.setAttribute("playsinline", "");
   video.muted = true;
