@@ -8,7 +8,7 @@
 // =================================================================
 import { useEffect, useRef, useState } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
-import { Probleme, problemeLaden, EinkaufKurz, Bestellstand, Geburtstage,
+import { Probleme, problemeLaden, EinkaufKurz, Bestellstand, BestellKurz, Geburtstage,
   geburtstageLaden, geburtstageAufbereiten } from "./start/Karten.jsx";
 import { GeburtstagMitte, Konfetti } from "./start/Geburtstag.jsx";
 import Notizen from "./start/Notizen.jsx";
@@ -56,10 +56,13 @@ export default function Start({ auffrischen, module }) {
           <p className="gruss">{alt.begruessung()}{name ? ", " + name : ""}</p>
           <div className="sn2-ecke"><Uhr /><Wetter /></div>
         </div>
-        {fest && <section className="kopfkarte kopfkarte--geburtstag"><Konfetti /><GeburtstagMitte kinder={kinder} /></section>}
+        {/* Oben Solaranlage und Geburtstage (seit 1.717.0, Wunsch Patrick
+            23. November 2026); hat jemand Geburtstag, füllt das Fest die ganze Karte */}
         <div className="sn2-oben">
           <Solaranlage />
-          <Bestellstand auffrischen={auffrischen} />
+          {fest
+            ? <section className="kopfkarte kopfkarte--geburtstag sn2-fest" id="db-geburtstage"><Konfetti /><GeburtstagMitte kinder={kinder} /></section>
+            : <Geburtstage leute={geb.daten} fehler={geb.fehler} />}
         </div>
         {admin && <Systemzustand auffrischen={auffrischen} />}
         <NeuesTutorial />
@@ -70,11 +73,11 @@ export default function Start({ auffrischen, module }) {
             <Jubilaeen auffrischen={auffrischen} />
             <Batterien auffrischen={auffrischen} />
             <Notizen auffrischen={auffrischen} />
-            <Geburtstage leute={geb.daten} fehler={geb.fehler} />
           </div>
           <div className="sn2-spalte">
             <KalenderKarte auffrischen={auffrischen} />
             <HeuteOffen auffrischen={auffrischen} />
+            <BestellKurz auffrischen={auffrischen} />
             <Materialausgabe auffrischen={auffrischen} />
             <Umfragen auffrischen={auffrischen} />
             <EinkaufKurz auffrischen={auffrischen} />

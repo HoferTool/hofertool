@@ -15943,3 +15943,19 @@ body.dunkel .sn2-ecke { background: #1e293b; box-shadow: 0 0 0 1px #334155; }
   .sn2-spalten { grid-template-columns: minmax(0, 1fr); }
   .sn2-ecke .kopfkarte__datum { display: none; }
 }
+
+/* 1.717.0: neuer Look, oben Solaranlage und Geburtstage, Bestellungen klein
+   in der rechten Spalte (Wunsch Patrick 23. November 2026) */
+.sn2-oben #db-geburtstage, .sn2-oben #db-geburtstage > .karte { height: 100%; margin: 0 !important; box-sizing: border-box; }
+.sn2-oben .sn2-fest { margin: 0 !important; min-height: 100%; display: flex; align-items: center; justify-content: center;
+  position: relative; overflow: hidden; }
+.bestellkurz .karte__kopf { margin-bottom: 8px; }
+.bestellkurz .karte__kopf h2 { margin: 0; }
+.bestellkurz__zahl { flex-direction: row !important; align-items: baseline !important; gap: 6px !important; cursor: inherit; }
+.bestellkurz__zahl b { font-variant-numeric: tabular-nums; }
+.bestellkurz__frist { border-color: #c62828 !important; color: #c62828; }
+body.dunkel .bestellkurz__frist { color: #ff8a80 !important; border-color: #ff8a80 !important; }
+.sn2-fest .geb-mitte { padding: 16px; box-sizing: border-box; max-width: 100%; }
+.sn2-fest .geb-bild { width: clamp(90px, 11vw, 170px) !important; height: clamp(90px, 11vw, 170px) !important;
+  font-size: clamp(2.6rem, 4vw, 4.4rem) !important; }
+.sn2-fest .geb-name { overflow-wrap: anywhere; }

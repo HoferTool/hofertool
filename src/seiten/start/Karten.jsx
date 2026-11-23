@@ -9,6 +9,7 @@ import { alt, useDaten } from "../../bruecke.jsx";
 import { PRIO } from "../../daten/einkauf.js";
 import { KlickKarte } from "./Karte.jsx";
 import { einkaufOeffnen } from "../Einkauf.jsx";
+import { Symbol } from "../../teile/zeichnen.jsx";
 
 async function abfrage(anfrage, ms, name) {
   const { data, error } = await alt.zeitlimit(anfrage, ms, name);
@@ -166,6 +167,64 @@ export function Bestellstand({ auffrischen }) {
     </div>
   );
 }
+
+// ---------- Bestellungen kompakt (neuer Look, seit 1.717.0) ----------
+// Wunsch Patrick 23. November 2026: „unten gleich wie Heute noch offen,
+// aber nicht so gross … Knopf für neuen Eintrag, soll zuerst zur Seite
+// wechseln und dann die Maske aufgehen“. Kleine Schilder statt der
+// grossen Kacheln; das Plus geht zu Bestellungen → Offen und drückt
+// dort „Neue Position“, damit die Liste nach dem Speichern neu lädt.
+function neuePositionAufSeite() {
+  if (alt.best) alt.best.ansicht = "offen";
+  location.hash = "#/bestellungen";
+  const bis = Date.now() + 6000;
+  const suchen = () => {
+    const k = document.getElementById("b-neu");
+    if (k) { k.click(); return; }
+    if (Date.now() < bis) setTimeout(suchen, 120);
+  };
+  setTimeout(suchen, 120);
+}
+
+export function BestellKurz({ auffrischen }) {
+  const { daten } = useDaten(() => abfrage(
+    alt.db.from("order_items").select("status, needed_by")
+      .in("status", ["offen", "bestellt", "teilweise_geliefert"]), 9000, "Bestellungen")
+    .catch(() => []), [auffrischen]);
+  if (!daten) return <div id="db-status" />;
+  const heute = alt.isoDatum(new Date());
+  const zaehler = { offen: 0, bestellt: 0, teilweise_geliefert: 0 };
+  let ueberfaellig = 0;
+  daten.forEach((z) => {
+    if (zaehler[z.status] !== undefined) zaehler[z.status]++;
+    if (z.needed_by && z.needed_by < heute) ueberfaellig++;
+  });
+  const gesamt = zaehler.offen + zaehler.bestellt + zaehler.teilweise_geliefert;
+  return (
+    <div id="db-status">
+      <KlickKarte zu="bestellungen" className="karte bestellkurz">
+        <div className="karte__kopf"><h2>Bestellungen{gesamt > 0 && <> <span className="marke">{gesamt}</span></>}</h2>
+          {alt.darfSchreiben() &&
+            <button type="button" className="notizbuch-knopf" id="bestell-neu" aria-label="Neue Bestellposition"
+              title="Neue Bestellposition" onClick={neuePositionAufSeite}><Symbol d="M12 5v14M5 12h14" /></button>}
+        </div>
+        {gesamt
+          ? <div className="heuteoffen__liste">
+              {[["offen", "offen"], ["bestellt", "bestellt"], ["teilweise_geliefert", "teilweise da"]]
+                .map(([st, text]) => (
+                  <span className="heuteoffen__maschine bestellkurz__zahl" key={st} data-bestellkurz={st}>
+                    <b>{zaehler[st]}</b><span className="klein">{text}</span></span>))}
+              {ueberfaellig > 0 &&
+                <span className="heuteoffen__maschine bestellkurz__zahl bestellkurz__frist" data-bestellkurz="frist">
+                  <b>{ueberfaellig}</b><span className="klein">über der Frist</span></span>}
+            </div>
+          : <p className="hinweis">Keine offenen Bestellungen.</p>}
+      </KlickKarte>
+    </div>
+  );
+}
+
+// ---------- Geburtstage oben (neuer Look, seit 1.717.0) ----------
 
 // ---------- Geburtstage ----------
 
