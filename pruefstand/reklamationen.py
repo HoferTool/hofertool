@@ -24,7 +24,7 @@ with sync_playwright() as p:
     # Eine frühere Reklamation derselben HOCO Nr.
     pg.evaluate("""() => { TEST.daten.reklamationen = [{ id: 'rk1', nr: 'RK26-001', art: 'kunde', partner: 'Kunde A',
         eingang: '2026-10-02', hoco_nr: '10000-0301', fehler: 'Durchmesser zu gross', fehlerart: 'Mass ausser Toleranz',
-        status: 'abgeschlossen', dateien: [], achtd: { d4: ['Werkzeugverschleiss'], d5: ['Endkontrolle verschärfen'] } }];
+        status: 'abgeschlossen', kontakt: 'Herr Alt', kopf: { adresse: 'Gasse 5\\n4500 Solothurn', kunden_art: 'KA-77', index: 'C' }, dateien: [], achtd: { d4: ['Werkzeugverschleiss'], d5: ['Endkontrolle verschärfen'] } }];
         TEST.daten.erp_partner = [{ id: 'p1', art: 'kunde', nr: '10000', name: 'Muster AG', aktiv: true,
           daten: { adresse: { strasse: 'Weg 1', plz: '3000', ort: 'Bern', land: 'CH' }, kontakte: [{ name: 'Frau Test' }] } }];}""")
     pg.evaluate("location.hash='#/qs'"); pg.wait_for_timeout(1200)
@@ -47,9 +47,17 @@ with sync_playwright() as p:
     if pg.locator("[data-rk8d]").count(): fehler.append("Fragebogen zeigt schon die 8D-Schritte")
     pg.fill("#rk-f-partner", "Kunde B")
     if "Kunde B" not in pg.inner_text("#rk-vorschau"): fehler.append("Vorschau nicht live")
+    # Früherer Kunde ohne Stammdaten: Kontakt und Adresse aus der letzten Reklamation (1.752.0)
+    pg.fill("#rk-f-kontakt", ""); pg.fill("#rk-k-adresse", "")
+    pg.fill("#rk-f-partner", "Kunde A"); pg.locator("#rk-f-partner").blur(); pg.wait_for_timeout(300)
+    if pg.input_value("#rk-f-kontakt") != "Herr Alt": fehler.append("Kontakt nicht aus früherer Reklamation")
+    if "Solothurn" not in pg.input_value("#rk-k-adresse"): fehler.append("Adresse nicht aus früherer Reklamation")
+    if not pg.locator("#rk-stamm option[value='Kunde A']").count(): fehler.append("Früherer Kunde fehlt in Vorschlägen")
+    pg.fill("#rk-f-partner", "Kunde B")
     pg.click("#rk-weiter"); pg.wait_for_selector("#rk-f-hoco_nr")
     pg.fill("#rk-f-hoco_nr", "10000-0301"); pg.locator("#rk-f-hoco_nr").blur(); pg.wait_for_timeout(600)
     if not pg.locator("#rk-frueher [data-rkuebernehmen='RK26-001']").count(): fehler.append("Frühere Reklamation nicht angezeigt")
+    if pg.locator("#rk-k-kunden_art").count() and pg.input_value("#rk-k-kunden_art") != "KA-77": fehler.append("Kunden Art. Nr. nicht vorgeschlagen")
     pg.click("[data-rkuebernehmen='RK26-001']"); pg.wait_for_timeout(300)
     pg.click("[data-rkschritt='d4']"); pg.wait_for_selector("[data-rk8d='d4']")
     if "Werkzeugverschleiss" not in pg.inner_text("#rk-vorschau section[data-s='d4']"): fehler.append("Vorschau ohne Ursache")
