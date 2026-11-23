@@ -758,19 +758,38 @@ export function synchronisieren(...listen) {
   const kan = listen.map((z, k) => (Array.isArray(z) ? k : -1)).filter((k) => k >= 0);
   const zl = (k) => listen[k];
   // gemeinsame Folge: [{ m, at: {k: i} }]
-  let folge = [];
-  for (const k of kan) {
-    const mk = [];
-    zl(k).forEach((z, i) => { const m = markeVon(z); if (m) mk.push({ i, m }); });
-    const paare = lcsPaare(folge.map((e) => e.m), mk.map((x) => x.m));
-    const neu = [];
-    let a = 0, b = 0;
-    for (const [pa, pb] of [...paare, [folge.length, mk.length]]) {
-      while (a < pa) neu.push(folge[a++]);
-      while (b < pb) { neu.push({ m: mk[b].m, at: { [k]: mk[b].i } }); b++; }
-      if (pa < folge.length) { neu.push({ ...folge[pa], at: { ...folge[pa].at, [k]: mk[pb].i } }); a = pa + 1; b = pb + 1; }
+  const marken = {};
+  kan.forEach((k) => { marken[k] = []; zl(k).forEach((z, i) => { const m = markeVon(z); if (m) marken[k].push({ i, m }); }); });
+  const folgeFuer = (reihe) => {
+    let folge = [];
+    for (const k of reihe) {
+      const mk = marken[k];
+      const paare = lcsPaare(folge.map((e) => e.m), mk.map((x) => x.m));
+      const neu = [];
+      let a = 0, b = 0;
+      for (const [pa, pb] of [...paare, [folge.length, mk.length]]) {
+        while (a < pa) neu.push(folge[a++]);
+        while (b < pb) { neu.push({ m: mk[b].m, at: { [k]: mk[b].i } }); b++; }
+        if (pa < folge.length) { neu.push({ ...folge[pa], at: { ...folge[pa].at, [k]: mk[pb].i } }); a = pa + 1; b = pb + 1; }
+      }
+      folge = neu;
     }
-    folge = neu;
+    return folge;
+  };
+  // Seit 1.733.2 (Patrick 23. November 2026: „warum siehst du M299P23 nicht
+  // als Wartemarke zwischen Kanal 2 und 3?“): die Reihenfolge, in der die
+  // Kanäle zusammengelegt werden, legt Marken fest, die nur zwei Kanäle
+  // betreffen (M299P23 kam aus Kanal 2 vor M131/M133 von Kanal 1 und 3 zu
+  // liegen und fand in Kanal 3 kein Gegenstück mehr). Darum jede
+  // Reihenfolge probieren und die nehmen, die am meisten Marken paart.
+  const reihen0 = [];
+  const permut = (rest, bis) => { if (!rest.length) reihen0.push(bis); rest.forEach((k, j) => permut(rest.filter((_, x) => x !== j), [...bis, k])); };
+  permut(kan, []);
+  let folge = null, best = -1;
+  for (const r of reihen0) {
+    const f = folgeFuer(r);
+    const wert = f.reduce((s, e) => { const n = Object.keys(e.at).length; return s + (n >= 2 ? n : 0); }, 0);
+    if (wert > best) { best = wert; folge = f; }
   }
   const anker = folge.filter((e) => Object.keys(e.at).length >= 2);
   const gepaart = {};
