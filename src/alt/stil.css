@@ -16411,3 +16411,47 @@ body.dunkel .solfenster__tabelle th, body.dunkel .solfenster__tabelle td { borde
 .solfenster .sol-spanne__knopf { color: var(--marke); font-size: .85rem; padding: 4px 12px; text-transform: none; letter-spacing: 0; }
 .solfenster .sol-spanne__knopf.aktiv { background: var(--marke); color: #fff; }
 body.dunkel .solfenster .sol-spanne__knopf { color: #fff; }
+
+/* 1.749.0 Reklamation als Fragebogen mit Vorschau (Wunsch Patrick 23. November 2026):
+   links ein Schritt nach dem anderen, rechts der 8D-Bericht live */
+.rk-huelle .rk-fenster { width: min(1600px, calc(100vw - 32px)); height: calc(100vh - 32px); max-height: none;
+  overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) minmax(360px, 42%); grid-template-rows: auto minmax(0, 1fr);
+  column-gap: 18px; padding-bottom: 12px; }
+.rk-huelle .rk-fenster > .blatt__kopf { grid-column: 1 / -1; }
+.rk-huelle .rk-fenster > .blatt__kopf .rk-vorschau-knopf { margin-left: auto; display: none; }
+.rk-links { overflow-y: auto; min-height: 0; padding-right: 4px; display: flex; flex-direction: column; }
+.rk-schritte { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 14px; }
+.rk-schritt-knopf { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px 5px 5px; border: 1px solid var(--linie);
+  border-radius: 999px; background: var(--flaeche, #fff); font: inherit; font-size: .85rem; cursor: pointer; color: inherit; }
+.rk-schritt-knopf b { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%;
+  background: #e3e8ef; color: #33405a; font-size: .78rem; }
+.rk-schritt-knopf.fertig b { background: #1e6b34; color: #fff; }
+.rk-schritt-knopf.aktiv { border-color: #003884; background: #003884; color: #fff; }
+.rk-schritt-knopf.aktiv b { background: #fff; color: #003884; }
+body.dunkel .rk-schritt-knopf.aktiv b { color: #003884 !important; -webkit-text-fill-color: #003884; }
+.rk-frage { margin: 0 0 12px; font-size: 1.25rem; font-weight: 700; color: #003884; line-height: 1.3; }
+.rk-frage small { display: block; font-size: .75rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; opacity: .6; color: inherit; }
+body.dunkel .rk-frage { color: #9cc3ff !important; }
+.rk-gruppe__name { flex-basis: 130px; }
+.rk-8d .rk-gruppe { padding: 8px 0; border-top: 1px solid var(--linie); margin: 0; }
+.rk-8d .rk-gruppe:first-of-type { border-top: 0; }
+.rk-weiter { display: flex; justify-content: space-between; gap: 10px; margin: 6px 0 4px; }
+.rk-links .rk-knoepfe { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--linie); }
+.rk-vorschau { overflow-y: auto; min-height: 0; background: #e4e8ee; border-radius: 12px; padding: 0 14px 14px; }
+.rk-vorschau__titel { position: sticky; top: 0; z-index: 1; background: #e4e8ee; padding: 10px 0 8px; font-weight: 700; color: #33405a; font-size: .9rem; }
+.rk-vorschau__titel small { font-weight: 500; opacity: .7; margin-left: 6px; }
+.rk-vorschau__blatt { width: 794px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.18); }
+.rk-vorschau__blatt section { transition: background .25s; }
+@media (max-width: 1100px) {
+  .rk-huelle .rk-fenster { grid-template-columns: minmax(0, 1fr); }
+  .rk-huelle .rk-fenster > .blatt__kopf .rk-vorschau-knopf { display: inline-flex; }
+  .rk-vorschau { display: none; }
+  .rk-fenster--vorschau-auf .rk-links { display: none; }
+  .rk-fenster--vorschau-auf .rk-vorschau { display: block; }
+}
+@media (max-width: 600px) {
+  .rk-gruppe { flex-direction: column; gap: 4px; }
+  .rk-gruppe__name { flex-basis: auto; padding-top: 0; }
+  .rk-schritt-knopf span { display: none; }
+  .rk-schritt-knopf.aktiv span { display: inline; }
+}
