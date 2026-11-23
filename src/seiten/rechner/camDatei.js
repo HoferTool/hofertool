@@ -152,3 +152,63 @@ export async function dateiNeuWaehlen(k, fenster) {
   await ablegen();
   return true;
 }
+
+// ----------------------------------------------------------------------------
+// Seit 1.733.0 (Patrick 23. November 2026: „ich will, dass es 2066 und 3066
+// selber holt … es ist ja im selben Ordner“): Der Browser gibt aus der
+// Dateiwahl nur die gewählte Datei, nie ihren Ordner. Darum gibt man den
+// Ordner einmal frei (showDirectoryPicker, startet im Ordner der Datei);
+// danach sucht die App dort die Dateien der anderen Kanäle selbst. Die
+// freigegebenen Ordner liegen nur im IndexedDB dieses Geräts.
+const ORDNER = "hofercam:ordner";
+let ordnerHier = null;   // auch ohne IndexedDB (privates Fenster) bis zum Neuladen
+async function ordnerListe() {
+  if (ordnerHier) return ordnerHier;
+  try { return (await idbTun("get", ORDNER)) || []; } catch (f) { return []; }
+}
+export const ordnerMoeglich = (fenster) => !!(fenster || window).showDirectoryPicker;
+
+// Ordner, in dem der Griff liegt (nur freigegebene); {ordner, pfad} oder null.
+// mitFragen: darf die Freigabe neu erbitten (nur direkt nach einem Klick)
+export async function ordnerVon(griff, mitFragen) {
+  let ohneRecht = false;
+  for (const o of await ordnerListe()) {
+    try {
+      let recht = await o.queryPermission({ mode: "read" });
+      if (recht !== "granted" && mitFragen) recht = await o.requestPermission({ mode: "read" });
+      if (recht !== "granted") { ohneRecht = true; continue; }
+      const pfad = await o.resolve(griff);
+      if (pfad && pfad.length) return { ordner: o, pfad };
+    } catch (f) { /* Ordner nicht mehr da */ }
+  }
+  return ohneRecht ? { ohneRecht: true } : null;
+}
+
+export async function ordnerFreigeben(fenster, griff) {
+  const o = await (fenster || window).showDirectoryPicker({ mode: "read", id: "hofercam-ordner", ...(griff ? { startIn: griff } : {}) });
+  const liste = await ordnerListe();
+  const neu = [o];
+  for (const x of liste) { try { if (!(await x.isSameEntry(o))) neu.push(x); } catch (f) { /* weg */ } }
+  ordnerHier = neu.slice(0, 10);
+  try { await idbTun("put", ordnerHier, ORDNER); } catch (f) { /* privates Fenster */ }
+  return o;
+}
+
+// Dateien mit anderer Nummer im selben Ordner wie die gewählte: aus „1066.nc“
+// wird „2066.nc“ (gleiche Schreibweise, auch O2066 / ohne Endung)
+export async function nachbarHolen(ort, nummern) {
+  let ordner = ort.ordner;
+  for (const t of ort.pfad.slice(0, -1)) ordner = await ordner.getDirectoryHandle(t);
+  const name = ort.pfad[ort.pfad.length - 1];
+  const m = name.match(/^(\D*?)(\d{1,4})(\D*)$/);
+  if (!m) return [];
+  const raus = [];
+  for (const n of nummern) {
+    const z = String(n).padStart(m[2].length, "0");
+    const kandidaten = [m[1] + z + m[3], "O" + String(n).padStart(4, "0") + m[3], String(n).padStart(4, "0") + m[3], m[1] + z];
+    for (const k of [...new Set(kandidaten)]) {
+      try { const griff = await ordner.getFileHandle(k); raus.push({ datei: await griff.getFile(), griff, n }); break; } catch (f) { /* nicht da */ }
+    }
+  }
+  return raus;
+}

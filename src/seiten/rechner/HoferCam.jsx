@@ -13,7 +13,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { useEntwurfZurueck } from "../../teile/lokalZurueck.js";
 import { NcAblage, NcStand } from "./NcAblage.jsx";
-import { dateiBeobachten, dateiFehler, dateiNeuWaehlen, dateienFuerName, dateienLaden, dateienSchreiben, dateienWaehlen, dateiMerken, dateiVergessen, dateiVon, kannSchreiben, schreibrechtHolen } from "./camDatei.js";
+import { dateienWaehlen, dateiVergessen, kannSchreiben, nachbarHolen, ordnerFreigeben, ordnerMoeglich, ordnerVon } from "./camDatei.js";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
 import { ModulWahl, modulEmpfaenger, modulZustandAblage } from "./modulTab.jsx";
@@ -28,7 +28,7 @@ import { protokollAusApp, protokollText, protokollZuordnen } from "./camProtokol
 import { simulationOeffnen } from "./CamSim3D.jsx";
 import { optimierungOeffnen } from "./CamOptimierung.jsx";
 import { WERKSTOFFE, werkstoffAusBez } from "./camWerkstoff.js";
-import { VORLAGEN, feldOptionen, feldSichtbar, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen } from "./camVorlagen.js";
+import { VORLAGEN, feldOptionen, feldSichtbar, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen, vorlageBeiMarke, vorlageErsetzen, vorlagenAufraeumen } from "./camVorlagen.js";
 import AbstecherBild from "./AbstecherBild.jsx";
 import SchnabelBild from "./SchnabelBild.jsx";
 import { hofercamTutorialOeffnen } from "../start/NeuesTutorial.jsx";
@@ -41,11 +41,13 @@ import { bereichLage, zLang, feldFuerTyp, SW20_BILD, SW20_FRONT_BILD, SW20_SCHLI
 // Bearbeitung“): Vorlage wählen, Werte tippen, „Einfügen“ setzt die
 // Zeilen nach der Zeile mit der Schreibmarke im NC-Code ein (ohne Marke
 // ans Ende). Rechnen in camVorlagen.js.
-function VorlageFeld({ code, pos, einsetzen, zu, art, kanal = 1, sw = false }) {
+function VorlageFeld({ code, pos, einsetzen, zu, art, kanal = 1, sw = false, start = null }) {
   // Seit 1.693.0 zuerst ein Auswahlbild mit Erklärungsgrafik je Vorlage
-  // statt einer Liste (Wunsch Patrick 22. November 2026); null = Auswahl
-  const [id, setId] = useState(null);
-  const [werte, setWerte] = useState({});
+  // statt einer Liste (Wunsch Patrick 22. November 2026); null = Auswahl.
+  // Seit 1.732.0 mit start = {id, w}: eine schon eingefügte Vorlage wieder
+  // öffnen, „Ersetzen“ tauscht nur ihre Zeilen aus.
+  const [id, setId] = useState(start ? start.id : null);
+  const [werte, setWerte] = useState(start ? { [start.id]: start.w } : {});
   if (!id) return (
     <div className="cam-vorlage" data-camvorlage>
       <div className="cam-vorlage__kopf">
@@ -73,8 +75,8 @@ function VorlageFeld({ code, pos, einsetzen, zu, art, kanal = 1, sw = false }) {
   return (
     <div className="cam-vorlage" data-camvorlage>
       <div className="cam-vorlage__kopf">
-        <button className="knopf knopf--klein" data-camvorlage-zurueck title="Andere Vorlage wählen" onClick={() => setId(null)}>← Auswahl</button>
-        <b>{v.name}</b>
+        {!start && <button className="knopf knopf--klein" data-camvorlage-zurueck title="Andere Vorlage wählen" onClick={() => setId(null)}>← Auswahl</button>}
+        <b>{start ? "Vorlage ändern: " : ""}{v.name}</b>
         <button className="knopf knopf--klein" title="Schliessen" onClick={zu}>✕</button>
       </div>
       {!v.grafik && <div className="cam-vorlage__erkl"><VorlageBild id={id} w={Object.fromEntries(v.felder.map((x) => [x.name, feldWert(v, w, x)]))} /><span className="klein">{VORLAGE_TEXT[id] || ""}</span></div>}
@@ -111,7 +113,7 @@ function VorlageFeld({ code, pos, einsetzen, zu, art, kanal = 1, sw = false }) {
           ? <span className="cam-vorlage__fehler klein">{erg.fehler}</span>
           : <code className="cam-vorlage__vorschau" data-camvorlage-vorschau>{erg.zeilen.join("\n")}</code>}
         <button className="knopf knopf--klein knopf--primaer" data-camvorlage-einfuegen disabled={!!erg.fehler}
-          onClick={() => { einsetzen(zeilenEinsetzen(code, erg.zeilen, pos)); zu(); }}>Einfügen</button>
+          onClick={() => { const { _kanal, ...ohne } = w; einsetzen({ id, w: ohne, z: erg.zeilen }); zu(); }}>{start ? "Ersetzen" : "Einfügen"}</button>
       </div>
     </div>
   );
@@ -299,18 +301,79 @@ function ImFenster() {
 // Browsers, damit „Speichern“ die Datei später wieder beschreiben kann
 // (camDatei.js); sonst wie bisher das Dateifeld. Hineinziehen geht weiter
 // über das Dateifeld, dann ohne Zurückschreiben.
-function EinlesenKnopf({ id, kanal, merkmal, einlesen, title, children }) {
+// Fehlende Kanäle aus dem Ordner der gewählten Datei holen (1.733.0)
+async function nachbarnErgaenzen(f, liste, kanaele, nummern) {
+  const gelesen = [];
+  for (const x of liste) { try { const r = programmLesen(await x.datei.text()); if (!r.fehler) gelesen.push({ x, r }); } catch (y) { /* unlesbar */ } }
+  const da = new Set(gelesen.map((g) => g.r.kanal));
+  const fehlt = [];
+  for (let k = 1; k <= kanaele; k++) if (!da.has(k)) fehlt.push(k);
+  const mitGriff = gelesen.find((g) => g.x.griff);
+  if (!fehlt.length || !mitGriff) return liste;
+  const { x, r } = mitGriff;
+  let ort = await ordnerVon(x.griff);
+  if (ort && ort.ohneRecht) {
+    const ja = await alt.nachfragen({ titel: "Ordner wieder freigeben?", text: "Damit die App die Dateien für Kanal " + fehlt.join(" und ") + " selbst holt, braucht sie nochmals die Erlaubnis für den Ordner.", bestaetigen: "Erlauben", abbrechen: "Nein" });
+    if (!ja) return liste;
+    ort = await ordnerVon(x.griff, true);
+  }
+  if (!ort || ort.ohneRecht) {
+    if (!ordnerMoeglich(f)) return liste;
+    const ja = await alt.nachfragen({ titel: "Kanal " + fehlt.join(" und ") + " selbst holen?",
+      text: "Der Browser gibt aus der Dateiwahl nur die angeklickte Datei. Gib den Ordner, in dem „" + x.datei.name + "“ liegt, einmal frei (im nächsten Fenster gleich „Ordner auswählen“ und dann „Zulassen“ drücken). Danach holt die App die Dateien der anderen Kanäle dort immer selbst.",
+      bestaetigen: "Ordner freigeben", abbrechen: "Nein" });
+    if (!ja) return liste;
+    try { await ordnerFreigeben(f, x.griff); } catch (y) { if (y && y.name === "AbortError") return liste; throw y; }
+    ort = await ordnerVon(x.griff);
+    if (!ort || ort.ohneRecht) { alt.meldung("Die Datei liegt nicht im gewählten Ordner. Bitte genau den Ordner der Datei wählen.", "warn"); return liste; }
+  }
+  // Nur holen, nie schreiben (Patrick 23. November 2026: „du darfst dort
+  // aber nie schreiben, nur holen“): Ordner nur mit Leserecht, dazugeholte
+  // Dateien ohne Griff, also beim Speichern kein Zurückschreiben
+  const neu = await nachbarHolen(ort, fehlt.map((k) => nummern[k - 1] + Number(r.nr)));
+  if (neu.length) alt.meldung("Aus dem Ordner dazugeholt: " + neu.map((n) => n.datei.name).join(", "), "gut");
+  return [...liste, ...neu.filter((m) => !liste.some((y) => y.datei.name === m.datei.name)).map(({ datei }) => ({ datei }))];
+}
+function EinlesenKnopf({ id, kanal, kanaele, nummern, merkmal, einlesen, title, children }) {
   return (
     <label className="knopf knopf--klein" id={id} {...merkmal} title={title}
       onClick={(e) => {
         const f = e.currentTarget.ownerDocument.defaultView || window;
         if (!kannSchreiben(f) || e.target.tagName === "INPUT") return;
         e.preventDefault();
-        dateienWaehlen(f, !kanal).then((liste) => liste.length && einlesen(liste, kanal))
-          .catch((x) => alt.meldung("Datei öffnen ging nicht: " + (x && x.message ? x.message : x), "fehler"));
+        dateienWaehlen(f, !kanal).then(async (liste) => {
+          // Seit 1.732.1 (Patrick 23. November 2026: „wenn ich im Ordner
+          // O1066 anwähle … 3066 aber mit falschem Inhalt“): wer beim
+          // Einlesen für alle Kanäle nur eine Datei wählt, bekommt die
+          // übrigen Kanäle sonst nur als Standard. Darum fragen und die
+          // Dateiwahl gleich nochmals öffnen (Klick im Fenster = erlaubt)
+          // Seit 1.733.0 (Patrick 23. November 2026: „ich will, dass es 2066
+          // und 3066 selber holt … es ist ja im selben Ordner“): fehlen
+          // Kanäle, sucht die App sie im freigegebenen Ordner der gewählten
+          // Datei; ist er noch nicht freigegeben, einmal fragen
+          if (!kanal && kanaele && nummern && liste.length) {
+            try { liste = await nachbarnErgaenzen(f, liste, kanaele, nummern); } catch (y) { alt.fehlerMerken && alt.fehlerMerken("HOFERCAM Nachbarn holen", String(y && y.message || y)); }
+          }
+          while (!kanal && kanaele && liste.length) {
+            const da = new Set();
+            for (const x of liste) { try { const r = programmLesen(await x.datei.text()); if (!r.fehler) da.add(r.kanal); } catch (y) { /* unlesbar */ } }
+            const fehlt = [];
+            for (let k = 1; k <= kanaele; k++) if (!da.has(k)) fehlt.push(k);
+            if (!fehlt.length || !da.size) break;
+            const nochmal = await alt.nachfragen({ titel: "Weitere Kanäle einlesen?",
+              text: "Gewählt: Kanal " + [...da].sort().join(", ") + ". Für Kanal " + fehlt.join(" und ")
+                + " wurde keine Datei gewählt, dort stünde sonst nur der Standard. Tipp: im Fenster mit Strg alle Dateien zusammen anklicken.",
+              bestaetigen: "Datei für Kanal " + fehlt.join(" und ") + " wählen", abbrechen: "Nur diese einlesen" });
+            if (!nochmal) break;
+            const mehr = await dateienWaehlen(f, true);
+            if (!mehr.length) break;
+            liste = [...liste, ...mehr.filter((m) => !liste.some((x) => x.datei.name === m.datei.name))];
+          }
+          if (liste.length) einlesen(liste, kanal);
+        }).catch((x) => alt.meldung("Datei öffnen ging nicht: " + (x && x.message ? x.message : x), "fehler"));
       }}>
       {children}
-      <input type="file" multiple={!kanal} hidden data-ablegen="direkt" onChange={(e) => { einlesen(e.target.files, kanal); e.target.value = ""; }} />
+      <input type="file" multiple={!kanal} hidden data-ablegen="direkt" data-ablegen-viele={kanal ? "[data-cam-einlesen-alle] input[type=file]" : undefined} onChange={(e) => { einlesen(e.target.files, kanal); e.target.value = ""; }} />
     </label>
   );
 }
@@ -405,37 +468,8 @@ function ProtokollFeld({ w, bloecke, setzeBloecke }) {
   </div>);
 }
 
-// Welche Datei „Speichern“ für diesen Kanal aktualisiert
-function DateiSchild({ k }) {
-  const [, neu] = useState(0);
-  useEffect(() => { dateienLaden(); return dateiBeobachten(() => neu((n) => n + 1)); }, []);
-  const d = dateiVon(k);
-  if (!d) return null;
-  const grund = dateiFehler(k);
-  // Seit 1.565.1: ging das Schreiben schief, steht der Grund hier, und
-  // „Jetzt schreiben“ versucht es mit einem frischen Klick nochmals
-  const jetzt = async () => {
-    const recht = await schreibrechtHolen();
-    const { gut, fehler } = await dateienSchreiben(programmeMitHand(gemerkt), null, recht);
-    if (gut.length) alt.meldung("Datei aktualisiert: " + gut.join(", ") + ".", "gut");
-    if (fehler.length && alt.fehlerMerken) alt.fehlerMerken("HOFERCAM Datei schreiben", fehler.join("; "), navigator.userAgent);
-  };
-  return (<>
-    <span className={"cam-datei" + (grund ? " cam-datei--fehler" : "")} data-cam-datei={k} title={"„Speichern“ schreibt Kanal " + k + " auch in die Datei " + d.name + ", aus der er eingelesen wurde"}>
-      ↻ {d.name}
-      <button className="linkknopf" data-cam-datei-weg={k} title="Datei nicht mehr aktualisieren" onClick={() => dateiVergessen(k)}>✕</button>
-    </span>
-    {grund && <span className="cam-datei-grund" data-cam-datei-grund={k}>Nicht aktualisiert: {grund}
-      {" "}<button className="knopf knopf--klein" data-cam-datei-jetzt={k} onClick={jetzt}>Jetzt in Datei schreiben</button>
-      {" "}<button className="knopf knopf--klein" data-cam-datei-neu={k} title="Speichern-Fenster des Browsers: dieselbe Datei wählen und Ersetzen bestätigen"
-        onClick={async (e) => {
-          try { if (await dateiNeuWaehlen(k, e.currentTarget.ownerDocument.defaultView)) await jetzt(); }
-          catch (x) { alt.meldung("Speichern-Fenster ging nicht: " + (x && x.message ? x.message : x), "fehler"); }
-        }}>Datei neu wählen und schreiben</button></span>}
-  </>);
-}
-
-// 3D-Simulation und Programm einlesen, im Reiter und im eigenen Fenster
+// DateiSchild (Zurückschreiben in die Datei, seit 1.562.0) ist seit 1.733.1
+// vorläufig entfernt, im Git-Verlauf noch vorhanden.
 function FensterKnoepfe({ w, einlesen, eigen }) {
   // Seit 1.669.0 auch die SW-20 (Kanal 1 und 3 an der Hauptspindel)
   const sb = typInfo(w && w.typ).kanaele === 2;
@@ -448,7 +482,7 @@ function FensterKnoepfe({ w, einlesen, eigen }) {
     <button className="knopf knopf--klein" id={eigen ? "cam-opt-auf" : "cam-opt-auf-fenster"} data-cam-opt-auf="1"
       title="Programm prüfen: Schnittwerte, Vorschub, Bohrtiefe, Leerwege, Laufzeit. Fragt zuerst nach dem Material."
       onClick={() => optimierungOeffnen(w)}>💡 Optimierung</button>
-    <EinlesenKnopf id={eigen ? "cam-einlesen" : "cam-einlesen-fenster"} merkmal={{ "data-cam-einlesen-alle": "1" }} einlesen={einlesen}
+    <EinlesenKnopf id={eigen ? "cam-einlesen" : "cam-einlesen-fenster"} merkmal={{ "data-cam-einlesen-alle": "1" }} einlesen={einlesen} kanaele={sb ? 2 : 3} nummern={sb ? [0, 1000] : [1000, 2000, 3000]}
       title={"Bestehendes Programm (" + (sb ? "Kanal 1 und / oder Kanal 2" : "eine bis drei Dateien, Kanal 1 bis 3") + ") einlesen, Abweichungen zum Standard violett"}>📂 Programm einlesen</EinlesenKnopf>
   </>);
 }
@@ -801,7 +835,6 @@ function Kanaele({ prog, sync, fehler, bereich, bereich2, bereich3, w, handSetze
               {/* Seit 1.542.0: jeder Kanal für sich, die Dateien liegen oft in verschiedenen Ordnern */}
               {einlesen && <EinlesenKnopf kanal={k} merkmal={{ "data-cam-einlesen": String(k) }} einlesen={einlesen}
                 title={"Programm für Kanal " + k + " aus einer Datei einlesen, die anderen Kanäle bleiben"}>📂 Einlesen</EinlesenKnopf>}
-              <DateiSchild k={k} />
             </span>
           </div>))}
         {sync.reihen.map((r, i) => (
@@ -956,6 +989,23 @@ export default function HoferCam() {
     if (s.some((b, i) => b !== bloecke[i])) setzeBloecke(s);
   }, [bloecke]);
   const blockAendern = (id, feld, wert) => setzeBloecke(bloecke.map((b) => (b.id === id ? { ...b, [feld]: wert } : b)));
+  // Seit 1.732.0 (Wunsch Patrick 23. November 2026): eingefügte Vorlagen
+  // merken sich am Block unter vorlagen [{k, id, w, z}] Werte und Zeilen,
+  // gespeichert mit dem Programm. Steht die Schreibmarke darin, öffnet
+  // „✎ … ändern“ genau diese Vorlage wieder (vorlageBeiMarke).
+  const [vorlageHier, setVorlageHier] = useState({});
+  const vorlageHierPruefen = (b, code, pos) => {
+    const t = vorlageBeiMarke(code, b.vorlagen, pos);
+    const k = t ? t.e.k + ":" + t.von : null;
+    setVorlageHier((alt) => ((alt[b.id] || null) === k ? alt : { ...alt, [b.id]: k }));
+  };
+  const vorlageUebernehmen = (b, x, ziel) => {
+    const code = ziel ? vorlageErsetzen(b.code, ziel.von, ziel.bis, x.z) : zeilenEinsetzen(b.code, x.z, marke.current[b.id]);
+    const k = ziel ? ziel.e.k : Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const alt = vorlagenAufraeumen(b.code, b.vorlagen).filter((e) => e.k !== k);
+    setzeBloecke(bloecke.map((y) => (y.id === b.id ? { ...y, code, vorlagen: [...alt, { k, id: x.id, w: x.w, z: x.z }] } : y)));
+    if (ziel) setVorlageHier((a) => ({ ...a, [b.id]: k + ":" + ziel.von }));
+  };
   const blockSchieben = (i, um) => {
     const j = i + um;
     if (j < 0 || j >= bloecke.length) return;
@@ -1010,7 +1060,8 @@ export default function HoferCam() {
       gelesen.push(r);
     }
     if (!gelesen.length) return;
-    for (const r of gelesen) await dateiMerken(r.kanal, r.griff, r.roh, r.o);
+    // Seit 1.733.1 (Patrick 23. November 2026: „bitte überall im Moment nur
+    // Leserechte“): die App merkt sich keine Datei mehr zum Zurückschreiben.
     gelesen.sort((a, b) => a.kanal - b.kanal);
     // Seit 1.542.0 (Wunsch Patrick 14. November 2026: „es soll die Kopf-
     // und Enddaten der Bearbeitungen sowie die Werkzeuge auch erkennen“):
@@ -1065,8 +1116,7 @@ export default function HoferCam() {
     alt.meldung("Eingelesen: " + gelesen.map((r) => "Kanal " + r.kanal + " (O" + String(r.o).padStart(4, "0") + ")").join(", ")
       + (sb ? ", " + (bloecke.length === 1 ? "1 Bearbeitung" : bloecke.length + " Bearbeitungen") + " erkannt" : "")
       + (unklar.length ? ", nicht erkannt: " + unklar.join(", ") + " (stehen nur im Programm)" : "")
-      + ". Violett = anders als der Standard."
-      + (gelesen.some((r) => r.griff) ? " „Speichern“ aktualisiert auch die Datei." : ""), unklar.length ? "warn" : "gut");
+      + ". Violett = anders als der Standard.", unklar.length ? "warn" : "gut");
   };
   einlesenJetzt = einlesen;
 
@@ -1093,16 +1143,7 @@ export default function HoferCam() {
         <button className="knopf knopf--klein" id="cam-tutorial" title="Tutorial-Video zu HOFERCAM anschauen" onClick={() => hofercamTutorialOeffnen(w.typ)}>▶ Tutorial</button>
         <NcAblage art="cam" kurz="camab" wort="HOFERCAM" daten={w} nc={ncBeide} laden={laden}
           gespeichert={gespeichert} setGespeichert={setGespeichert}
-          vorSpeichern={schreibrechtHolen} nachSpeichern={async (name, recht) => {
-            // Seit 1.562.0: auch die eingelesenen Dateien aktualisieren
-            const { gut, fehler: nicht } = await dateienSchreiben(programmeMitHand(gemerkt), name, recht);
-            if (gut.length) alt.meldung("Datei aktualisiert: " + gut.join(", ") + ".", "gut");
-            if (nicht.length) {
-              alt.meldung("Nicht aktualisiert: " + nicht.join(", ") + ".", "warn");
-              if (alt.fehlerMerken) alt.fehlerMerken("HOFERCAM Datei schreiben", nicht.join("; "), navigator.userAgent);
-            }
-          }}
-          nachOeffnen={(z) => dateienFuerName(z.name)} />
+          />
         {/* Seit 1.577.0 (Wunsch Patrick 16. November 2026: „einen Button
             Schliessen, damit das aktuelle geschlossen wird und die
             Grundmaske wieder erscheint“): leert alles wie beim ersten
@@ -1351,6 +1392,7 @@ export default function HoferCam() {
           // Kanal-2-Blöcke verhalten sich wie die Gegenspindel: NC-Code in
           // Kanal 2, Markenpaare geben ein Feld für Kanal 1
           const gegen = ((quer || front) && b.spindel === "gegen") || k2;
+          const hier = vorlageHier[b.id] ? vorlageBeiMarke(b.code, b.vorlagen, marke.current[b.id]) : null;
           // Seit 1.450.0: im Maschinentyp deaktivierte Felder fehlen hier
           const aus = (name) => feldAus(b.art, name);
           const be = wirksamB(b);
@@ -1577,6 +1619,9 @@ export default function HoferCam() {
                     <button className="knopf knopf--klein" data-camvorlage-auf={i}
                       title="Gewindestrählen, Tieflochbohren … aus einer Liste in den NC-Code einfügen"
                       onClick={() => setVorlageBei(vorlageBei === b.id ? null : b.id)}>+ Vorlage</button>
+                    {hier && <button className="knopf knopf--klein knopf--primaer" data-camvorlage-aendern={i}
+                      title="Die Vorlage, in der die Schreibmarke steht, mit ihren Werten wieder öffnen und ändern"
+                      onClick={() => setVorlageBei(vorlageBei === "v" + b.id ? null : "v" + b.id)}>✎ {vorlageVon(hier.e.id).name} ändern</button>}
                     <button className="knopf knopf--klein" data-cammodul-auf={i}
                       title="Den aktuellen NC-Code aus Bohren / Fräsen, Entgraten, C-Achse, Gravur oder DXF übernehmen"
                       onClick={() => setVorlageBei(vorlageBei === "m" + b.id ? null : "m" + b.id)}>+ Aus Modul</button>
@@ -1595,12 +1640,14 @@ export default function HoferCam() {
                   </div>
                   {vorlageBei === "w" + b.id && <WerkzeugFeld b={b} setze={(wz) => blockAendern(b.id, "wz", wz)} zu={() => setVorlageBei(null)} />}
                   {vorlageBei === b.id && <VorlageFeld code={b.code} pos={marke.current[b.id]} art={b.art} kanal={eigenerKanal(b)} sw={kanalZahl() > 2}
-                    einsetzen={(t) => blockAendern(b.id, "code", t)} zu={() => setVorlageBei(null)} />}
+                    einsetzen={(x) => vorlageUebernehmen(b, x, null)} zu={() => setVorlageBei(null)} />}
+                  {vorlageBei === "v" + b.id && hier && <VorlageFeld key={hier.e.k} code={b.code} art={b.art} kanal={eigenerKanal(b)} sw={kanalZahl() > 2}
+                    start={{ id: hier.e.id, w: hier.e.w }} einsetzen={(x) => vorlageUebernehmen(b, x, hier)} zu={() => setVorlageBei(null)} />}
                   {vorlageBei === "m" + b.id && <ModulWahl blockId={b.id} pos={() => marke.current[b.id]} zu={() => setVorlageBei(null)} />}
                   <CodeFeld data-camblock="code" min={4}
-                    onSelect={(e) => { marke.current[b.id] = e.target.selectionStart; }}
+                    onSelect={(e) => { marke.current[b.id] = e.target.selectionStart; vorlageHierPruefen(b, e.target.value, e.target.selectionStart); }}
                     placeholder={gegen ? "NC-Code für Kanal 2 (zwei Marken direkt nacheinander, z.B. M350 und M360, geben Platz für Kanal 1)" : "NC-Code der Bearbeitung hier einfügen (aus Kontur, Bohren / Fräsen …; zwei Marken direkt nacheinander geben Platz für Kanal 2)"}
-                    value={b.code} onChange={(e) => { marke.current[b.id] = e.target.selectionStart; blockAendern(b.id, "code", e.target.value); }} />
+                    value={b.code} onChange={(e) => { marke.current[b.id] = e.target.selectionStart; vorlageHierPruefen(b, e.target.value, e.target.selectionStart); blockAendern(b.id, "code", e.target.value); }} />
                 </>}
               {!b.zu && markenPaare(b).flatMap(([x, y, ziele, xt, yt, sync]) => ziele.map((ander) => {
                 // Seit 1.416.0: an der Gegenspindel ist der NC-Code Kanal 2

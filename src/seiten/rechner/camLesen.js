@@ -141,7 +141,15 @@ const mitte = (zeilen, kanal) => {
   // der Kopf ist so lang wie seine Vorlage, das Ende beginnt bei der
   // ersten festen Zeile der Ende-Vorlage
   const v = typ().vorlagen, zahl = (t) => String(t || "").split(/\r?\n/).filter((z) => z.trim() && !/^\s*\[/.test(z)).length;
-  const n = zahl(v["k" + kanal + "kopf"]);
+  let n = zahl(v["k" + kanal + "kopf"]);
+  // Seit 1.731.1 (Patrick 23. November 2026, 10789-0034): ist der Kopf im
+  // Programm kürzer als die Vorlage, endet er spätestens beim ersten
+  // Werkzeug bzw. M75, das nicht selbst im Kopf der Vorlage steht (sonst
+  // fehlte der erste T2200 in Kanal 2)
+  const kopfZ = new Set(String(v["k" + kanal + "kopf"] || "").split(/\r?\n/).map((z) => z.trim().toUpperCase()));
+  const start = kanal === 2 ? (z) => /^M75$/i.test(z) : (z) => /^T\d{3,4}(\(|$)/i.test(z) && !/^T0+(\(|$)/.test(z);
+  const k0 = zeilen.findIndex((z, k) => k > 0 && start(z) && !kopfZ.has(z.toUpperCase()));
+  if (k0 >= 0 && k0 < n) n = k0;
   const erste = String(v["k" + kanal + "ende"] || "").split(/\r?\n/).map((z) => z.trim()).find(Boolean) || "";
   const fest = erste && !/[{[]/.test(erste) ? erste.toUpperCase() : null;
   let e = fest ? zeilen.findIndex((z, k) => k >= n && z.toUpperCase() === fest) : -1;
@@ -242,6 +250,16 @@ function besteVorlage(arten, zeilen, kanal) {
   return best;
 }
 const zuSchlecht = (best, s) => !best || best.r.fehl > Math.max(8, s.length / 2);
+// Seit 1.731.1: ein Stück ohne jede Bewegung im Vorschub (G1/G2/G3,
+// Bohrzyklus) ist keine Bearbeitung, nur Werkzeug holen oder vorstellen
+// (T200(OR-POS.), T1200, „M75 /T2100 M76“, „M75 /M1011 M76“); es bleibt
+// im eingelesenen Text. Passt eine Vorlage genau, zählt es trotzdem.
+const ohneVorschub = (best, s) => (!best || best.r.fehl > 0) && !s.some((z) => /^\/?(?:N\d+)?G0*[123](?!\d)|^\/?G(?:7[1-6]|8[1-9])(?!\d)/i.test(z.replace(/\s/g, "")));
+// Angetriebene Spindel (M36/M37, Kanal 2 SW-20 M56/M57): dann nie eine
+// Vorlage für feste Werkzeuge (T1300 FRAESEN-SCHLITZ wurde „fest“)
+const FEST_ARTEN = ["k3ff"];
+const angetrieben = (s) => s.some((z) => /^\/?M(?:3[67]|5[67])S/i.test(z.replace(/\s/g, "")));
+const ohneFest = (arten, s) => (angetrieben(s) ? arten.filter((a) => !FEST_ARTEN.includes(a)) : arten);
 
 // Seit 1.561.0 (Patrick 16. November 2026, O0014/O1014 von 2016: „du
 // erkennst viele Bearbeitungen nicht, warum?“): ältere Programme sind
@@ -288,6 +306,7 @@ export function bloeckeLesen(k1, k2, k3) {
     // die besser passende Vorlage gilt
     const arten = (typ().kanaele || 2) > 2 && gr === "front" && plaetzeVon("seite").includes(String(platz)) ? ["front", ...((typ().arten || []).includes("k1f") ? ["k1f"] : []), "seite"] : K1_ARTEN[gr];
     const best = arten && besteVorlage(arten, s, 1);
+    if (ohneVorschub(best, s)) return;
     if (zuSchlecht(best, s)) {
       if (istEnde1(s)) return;
       if (arten && gr !== "k2") { liste.push({ b: freiBlock(gr, s, platz), p1: i, p2: null }); return; }
@@ -307,6 +326,7 @@ export function bloeckeLesen(k1, k2, k3) {
     const pl2 = (werkzeug(s).match(/^T(\d{3,4})/i) || [])[1];
     const gp = pl2 && typ().plaetze.k2b ? gruppeVon(pl2) : null;
     const best = besteVorlage(gp && gp.startsWith("k2") ? [gp] : ["k2", "k2a", "k2b"], s, 2);
+    if (ohneVorschub(best, s)) return;
     if (zuSchlecht(best, s)) {
       if (istEnde2(s)) return;
       const platz = (werkzeug(s).match(/^T(\d{3,4})/i) || [])[1];
@@ -352,12 +372,14 @@ export function bloeckeLesen(k1, k2, k3) {
       const platz = s[0].match(/^T(\d{3,4})/i)[1];
       // Seit 1.676.0 teilen sich Frontbohrapparat angetrieben (k3f) und
       // fest (k3ff) die Plätze T1300–T1500: die besser passende Vorlage gilt
-      const arten = arten3.filter((a) => plaetzeVon(a).includes(platz));
+      const arten = ohneFest(arten3.filter((a) => plaetzeVon(a).includes(platz)), s);
       if (!arten.length) return;
       const best = besteVorlage(arten, s, 3);
       // Seit 1.677.0: ein blosser Werkzeugaufruf ohne Spindel (T1100 in
       // Kopf und Ende von O3272, Platten T1100 / T1200) ist keine Bearbeitung
-      if (zuSchlecht(best, s) && !s.some((z) => /M\d+S\d/i.test(String(z).replace(/\s/g, "")))) return;
+      // Seit 1.731.1 zählt dafür die Bewegung im Vorschub, nicht die Spindel
+      // (zweiter T1700 in O3066 bohrt ohne eigenes M3S)
+      if (ohneVorschub(best, s)) return;
       if (zuSchlecht(best, s)) { liste.push({ b: freiBlock(arten[0], s, platz), p1: Infinity, p3: pos }); return; }
       const b = blockAus(best.art, null, best.r);
       b.code = (best.r.liste || []).join("\n");
