@@ -448,6 +448,12 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
 // Jeder Punkt ist der Stand am Ende des Tages, antippen springt zum Tag.
 function GleitzeitVerlauf({ verlauf, liste, heute, zumTag, titel }) {
   const tage = liste.filter((d) => verlauf.has(d));
+  // Am Montag hat die Woche erst einen Tag: dann den letzten Stand davor
+  // dazunehmen, sonst fehlte die Grafik am Wochenanfang (seit 1.734.1).
+  if (tage.length === 1) {
+    const vorher = [...verlauf.keys()].filter((d) => d < tage[0]).sort();
+    if (vorher.length) tage.unshift(vorher[vorher.length - 1]);
+  }
   if (tage.length < 2) return null;
   const werte = tage.map((d) => verlauf.get(d));
   const B = 720, H = 160, RL = 56, RR = 12, RO = 12, RU = 22;
