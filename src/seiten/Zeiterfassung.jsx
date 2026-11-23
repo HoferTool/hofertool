@@ -573,7 +573,7 @@ function wiederholTage(von, alle, bis, wochentag, ohneFerien) {
 async function abwesendEintragen(wer, tag, neu, selbst) {
   const w = await alt.dialogFelder({
     titel: selbst ? "Abwesend eintragen" : "Abwesend " + wer,
-    text: "Erscheint auch auf der Planwand, ausser ungeplante Krankheit: die zählt nur hier und lässt sich hier wieder löschen. Schule mit Wiederholen lässt die Schulferien Solothurn (Berufsfachschulen) aus.",
+    text: "Erscheint auch auf der Planwand, ausser Schule und ungeplante Krankheit: die zählen nur hier und lassen sich hier wieder löschen. Schule mit Wiederholen lässt die Schulferien Solothurn (Berufsfachschulen) aus.",
     felder: [
       { name: "art", label: "Art", wert: "krankheit", auswahl: ABWESENHEITEN.map((a) => [a.id, a.name]) },
       { name: "von", label: "Erster Tag", typ: "date", wert: tag, pflicht: true },
@@ -622,7 +622,7 @@ async function abwesendEintragen(wer, tag, neu, selbst) {
     return;
   }
   // Ungeplante Krankheit nicht auf die Planwand (seit 1.641.0)
-  const aufPlanwand = w.art !== "krankheit" || !!w.geplant;
+  const aufPlanwand = w.art !== "schule" && (w.art !== "krankheit" || !!w.geplant);
   const ids = [];
   for (const von of termine) {
     const zeile = aufPlanwand ? await freieZeile(von, tage) : 1;
@@ -652,7 +652,7 @@ async function abwesenheitAendern(personId, f, neu, selbst) {
   const art = f.abwesenheit || "ferien";
   const w = await alt.dialogFelder({
     titel: "Abwesenheit ändern",
-    text: "Gilt auch für die Planwand. Ungeplante Krankheit steht nicht auf der Planwand.",
+    text: "Gilt auch für die Planwand. Schule und ungeplante Krankheit stehen nicht auf der Planwand.",
     felder: [
       { name: "art", label: "Art", wert: art, auswahl: ABWESENHEITEN.map((a) => [a.id, a.name]) },
       { name: "von", label: "Erster Tag", typ: "date", wert: f.von, pflicht: true },
