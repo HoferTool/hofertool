@@ -16296,47 +16296,6 @@ body.dunkel .rk-art--lieferant { background: #1f3a63; }
 body.dunkel .rk-art--intern, body.dunkel .rk-stand--bearbeitung { background: #554410; }
 body.dunkel .rk-stand--abgeschlossen { background: #1f4a2b; }
 body.dunkel .rk-stand--abgelehnt { background: #3a3f46; }
-/* 1.736.0 (Wunsch Patrick 23. November 2026: „wenn man das Menü einfährt, soll
-   der aktuelle Reiter offen bleiben mit allen Unterreitern, der Rest soll
-   verschwinden mit cooler Animation“). Nur neuer Look: im Todo-Modus bleibt
-   der aktive Punkt samt Unterpunkten stehen, die anderen falten sich nach
-   links weg (schieben, kippen, verblassen, Höhe zu), die Todos rücken mit
-   der Höhe nach. Beim Ausfahren kommen sie umgekehrt wieder. */
-@media (min-width: 780px) {
-  html.ohne-kopf body.nav--todos .nav > .nav__punkt.aktiv { display: flex; }
-  html.ohne-kopf body.nav--todos .nav > .nav__punkt.aktiv + .nav__unter:not(.nav__unter--zu) { display: grid; }
-  html.ohne-kopf body.nav--todos:not(.nav--schmal) .reiter--seite { display: none; }
-  html.ohne-kopf body.nav--todos .nav-todo { margin-top: 12px; }
-  html.ohne-kopf body:is(.nav--menue-weg, .nav--zum-menue) .nav > .nav__punkt.aktiv :is(.nav__text, .nav__zeichen),
-  html.ohne-kopf body:is(.nav--menue-weg, .nav--zum-menue) .nav > .nav__punkt.aktiv + .nav__unter { animation: none !important; }
-  html.ohne-kopf body.nav--menue-weg .nav > .nav__punkt:not(.aktiv) :is(.nav__text, .nav__zeichen) { animation: none; }
-  html.ohne-kopf body.nav--menue-weg .nav > .nav__punkt:not(.aktiv) {
-    overflow: hidden; transform-origin: left center;
-    animation: nav-punkt-weg .4s cubic-bezier(.55, 0, .35, 1) both;
-    animation-delay: calc(var(--n, 0) * 7ms); }
-  html.ohne-kopf body.nav--menue-weg .nav > .nav__punkt:not(.aktiv) + .nav__unter {
-    overflow: hidden; animation: nav-punkt-weg .3s ease-in both; }
-  html.ohne-kopf body.nav--zum-menue .nav > .nav__punkt:not(.aktiv) {
-    overflow: hidden; transform-origin: left center;
-    animation: nav-punkt-her .55s cubic-bezier(.16, 1, .3, 1) backwards;
-    animation-delay: calc(var(--n, 0) * 30ms); }
-  @keyframes nav-punkt-weg {
-    0% { max-height: 56px; opacity: 1; transform: none; filter: none; }
-    55% { opacity: 0; transform: translateX(-40px) perspective(300px) rotateY(35deg) scale(.92); filter: blur(5px);
-      max-height: 56px; }
-    100% { opacity: 0; transform: translateX(-60px) perspective(300px) rotateY(50deg) scale(.85); filter: blur(8px);
-      max-height: 0; padding-block: 0; margin-block: 0; }
-  }
-  @keyframes nav-punkt-her {
-    0% { opacity: 0; transform: translateX(-50px) perspective(300px) rotateY(45deg) scale(.88); filter: blur(7px);
-      max-height: 0; padding-block: 0; margin-block: 0; }
-    45% { max-height: 56px; }
-    100% { opacity: 1; transform: none; filter: none; max-height: 56px; }
-  }
-}
-@media (min-width: 780px) and (prefers-reduced-motion: reduce) {
-  html.ohne-kopf body:is(.nav--menue-weg, .nav--zum-menue) .nav > .nav__punkt { animation: none !important; }
-}
 /* 1.744.0: Namensliste am Stempel-Pad ohne Rollen, Kacheln so gross wie der
    Platz zulässt (Wunsch Patrick 23. November 2026). Mass aus useKachelMass. */
 .ze-panel__kacheln--passt .ze-panel__kachel { min-height: 0; height: var(--zp-h); padding: 6px; gap: 4px; overflow: hidden; }
