@@ -16398,3 +16398,17 @@ body.dunkel .solfenster__tabelle th, body.dunkel .solfenster__tabelle td { borde
 .solfenster .sol-spanne__knopf { color: var(--marke); font-size: .85rem; padding: 4px 12px; text-transform: none; letter-spacing: 0; }
 .solfenster .sol-spanne__knopf.aktiv { background: var(--marke); color: #fff; }
 body.dunkel .solfenster .sol-spanne__knopf { color: #fff; }
+
+/* Zeichen Ø und ± bei Farben und Fett (seit 1.749.0, Wunsch Patrick
+   23. November 2026: Ø nicht mehr über jedem Feld, sondern unter
+   „Zeichen“ in der Formatleiste, dazu ±) */
+.schreibleiste__zeichengruppe { display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; padding-left: 6px;
+  border-left: 1px solid rgba(20, 40, 80, .18); }
+.schreibleiste__titel { font: 600 12px/1 system-ui, sans-serif; color: #50607a; }
+body.dunkel .schreibleiste__zeichengruppe { border-color: rgba(255, 255, 255, .18); }
+.schreibleiste .schreibleiste__zeichen { font-size: 20px; min-width: 36px; }
+.eba-pf-zeichen { display: inline-flex; gap: 4px; align-items: center; font-size: .9rem; }
+.eba-pf-zeichen > span { margin-right: 2px; }
+.eba-pf-zeichen button { height: 32px; min-width: 40px; padding: 0 8px; border: 2px solid var(--linie-stark); border-radius: 6px;
+  background: #fff; color: #223; font-size: 18px; font-weight: 700; cursor: pointer; }
+body.dunkel .eba-pf-zeichen button { background: #1d2733; }

@@ -173,6 +173,27 @@ export function feldAusrichten(a, feld) {
   return true;
 }
 
+// Zeichen wie Ø oder ± an der Schreibmarke im zuletzt angetippten Feld
+// einsetzen (seit 1.749.0, unter „Zeichen“ in der MarkierLeiste)
+export function zeichenEinsetzen(z, feld) {
+  const g = gemerkt;
+  if (!g || !g.el.isConnected || (feld && g.el !== feld)) return false;
+  if (g.el.hasAttribute("data-nur-lesen") || !g.el.contains(g.range.commonAncestorContainer)) return false;
+  g.el.focus({ preventScroll: true });
+  const sel = document.getSelection();
+  sel.removeAllRanges(); sel.addRange(g.range);
+  let ok = false;
+  try { ok = document.execCommand("insertText", false, z); } catch (f) { ok = false; }
+  if (!ok) {
+    const r = g.range; r.deleteContents();
+    const t = document.createTextNode(z); r.insertNode(t);
+    r.setStartAfter(t); r.collapse(true);
+    sel.removeAllRanges(); sel.addRange(r);
+    g.el.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  return true;
+}
+
 // Grösse an der Markierung in Punkten, für − und +
 export function markierteGroesse(feld, start = 12) {
   const g = markierung(feld);
@@ -336,6 +357,12 @@ export function MarkierLeiste({ ohneMarkierung, hinweis, feld, start = 12, min =
       <span className="eba-pf-ausr" data-pf-ausr="">
         {AUSR_KNOEPFE.map(([a, titel]) => <button key={a} type="button" title={titel} aria-label={titel}
           data-pf-ausr-knopf={a} onMouseDown={behalten} onClick={() => ausrichten(a)}><AusrZeichen a={a} /></button>)}
+      </span>
+      <span className="eba-pf-zeichen" data-pf-zeichen="">
+        <span>Zeichen</span>
+        {[["Ø", "Durchmesserzeichen Ø einfügen"], ["±", "Plus/Minus ± einfügen"]].map(([z, titel]) => <button key={z} type="button"
+          title={titel} aria-label={titel} data-pf-zeichen-knopf={z} onMouseDown={behalten}
+          onClick={() => { if (!zeichenEinsetzen(z, feld)) alt.meldung("Zuerst ins Feld tippen, dann das Zeichen wählen.", "warn"); }}>{z}</button>)}
       </span>
     </span>
   );

@@ -28,14 +28,8 @@ with sync_playwright() as p:
     ta = pg.locator(".dialog textarea").first
     ta.click(); pg.keyboard.press("End"); pg.keyboard.type(" Bohrung ")
     pg.wait_for_timeout(200)
-    pruefe(leiste.is_visible(), "Leiste erscheint bei Textfeld")
-    lb = leiste.bounding_box(); tb = ta.bounding_box()
-    pruefe(lb["y"] + lb["height"] <= tb["y"] + 1, "Leiste steht über dem Feld")
-    pruefe(not pg.locator(".schreibleiste__format").is_visible(), "reines Textfeld: nur Ø, keine Farben")
-    pg.locator(".schreibleiste__zeichen").tap(); pg.keyboard.type("12")
-    v = ta.input_value()
-    pruefe(v.endswith(" Bohrung Ø12"), "Ø an der Schreibmarke: " + repr(v[-20:]))
-    pruefe(pg.evaluate("document.activeElement.tagName") == "TEXTAREA", "Fokus bleibt im Feld")
+    # seit 1.749.0: reine Textfelder ohne Leiste (kein Ø mehr über jedem Feld)
+    pruefe(not leiste.is_visible() if leiste.count() else True, "reines Textfeld: keine Leiste")
     pg.screenshot(path="s_schreibleiste_auftrag.png")
     # Zahlenfeld: keine Leiste
     zahl = pg.locator(".dialog input[type=number]").first
@@ -46,7 +40,7 @@ with sync_playwright() as p:
     pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
     # 2) Pad: Info an der Maschine mit Format
     pg.evaluate("location.hash='#dashboard'"); pg.wait_for_timeout(1200)
-    pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_timeout(1000)
+    pg.locator("button:has-text('Pad Mode'):visible").first.click(); pg.wait_for_timeout(1000)
     pg.locator("#pad [data-padwo='parks']").click(); pg.wait_for_timeout(900)
     pg.locator("#pad .pad-kachel").first.click(); pg.wait_for_timeout(900)
     pg.locator("#pad .pad-kachel").first.click(); pg.wait_for_timeout(1500)
@@ -63,7 +57,9 @@ with sync_playwright() as p:
     # ans Ende und Ø
     fe.evaluate("""e => { const r = document.createRange(); r.selectNodeContents(e); r.collapse(false);
        const s = getSelection(); s.removeAllRanges(); s.addRange(r); }""")
-    pg.locator(".schreibleiste__zeichen").tap(); pg.keyboard.type("8")
+    pruefe(pg.locator(".schreibleiste__zeichengruppe").is_visible(), "Zeichen Ø und ± bei den Farben")
+    pg.locator(".schreibleiste__zeichen[title^=Plus]").tap(); pg.keyboard.type("1 ")
+    pg.locator(".schreibleiste__zeichen[title^=Durch]").tap(); pg.keyboard.type("8")
     pg.screenshot(path="s_schreibleiste_pad.png")
     pg.locator(".dialog [data-ja]").click(); pg.wait_for_timeout(1200)
     gesp = [x for x in pg.evaluate("() => TEST.daten.hoco_type_data.map(x => x.pad_info)") if x and "Ø8" in x]
@@ -71,7 +67,7 @@ with sync_playwright() as p:
     g = gesp[0] if gesp else ""
     pruefe("color:#e03030" in g.replace(" ", "") or "rgb(224,48,48)" in g.replace(" ", ""), "Farbe gespeichert")
     pruefe("font-size" in g and "<b>" in g, "Grösse und Fett gespeichert")
-    pruefe(g.endswith("Ø8"), "Ø gespeichert")
+    pruefe(g.endswith("±1 Ø8"), "± und Ø gespeichert")
     sp = pg.locator("#pad .pad-info span[style]")
     pruefe(sp.count() > 0 and "Spannzange" in sp.first.inner_text(), "Pad zeigt Farbe")
     pruefe(pg.locator("#pad .pad-info strong").count() > 0, "Pad zeigt Fett")
