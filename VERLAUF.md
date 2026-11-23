@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.740.0 (23. November 2026)
+
+- HOFERCAM: Die Knöpfe „+ …“ der Bearbeitungen stehen je Kanal in einer Zeile, kleiner und gleich hoch, Beschriftung nur „Kanal 1“ usw., Plätze kurz (T1300–T1500), gesperrte ohne „(Bestückung)“ (Wunsch Patrick 23. November 2026: „bau es homogener“, „für jeden kanal nur 1 zeile, kannst auch kleiner machen“).
+
 ## 1.739.0 (23. November 2026)
 
 - HOFERCAM Einlesen: Stücke, die zu keiner Vorlage passen, werden normale Bearbeitungen mit Kopf und Ende aus der Vorlage, nur der NC-Code kommt aus dem Programm; Abweichungen bleiben violett, kein „Wie eingelesen“ mehr. Prüfstand `cam_einlesen.py` (Wunsch Patrick 23. November 2026).

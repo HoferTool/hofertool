@@ -986,7 +986,10 @@ export default function HoferCam() {
   // Bearbeitungen immer als letztes sein“): Bearbeitungen nur in Kanal 2
   // stehen in der Liste immer hinter allen anderen, unter sich in ihrer
   // Reihenfolge; an der Gegenspindel (Kanal 1 und 2) bleiben, wo sie sind
-  const k2Ende = (l) => [...l.filter((b) => !K2_ARTEN.includes(b.art)), ...l.filter((b) => K2_ARTEN.includes(b.art))];
+  // Seit 1.740.0: Plätze kurz, T1300–T1500 statt T1300, T1400, T1500,
+// leer ohne Text (der Knopf ist dann grau und erklärt es beim Darüberfahren)
+const tListe = (l) => (!l.length ? "" : l.length > 2 ? "T" + l[0] + "–T" + l[l.length - 1] : l.map((p) => "T" + p).join(", "));
+const k2Ende = (l) => [...l.filter((b) => !K2_ARTEN.includes(b.art)), ...l.filter((b) => K2_ARTEN.includes(b.art))];
   const setzeBloecke = (neu) => setze("bloecke", k2Ende(neu));
   // auch bei geöffneten oder eingelesenen Programmen
   useEffect(() => {
@@ -1294,7 +1297,7 @@ export default function HoferCam() {
       })()}
       <div className="cam-bearb" id="cam-bearb">
         <div className="cam-bearb__kopf">
-          <b>Bearbeitungen Kanal 1</b>
+          <b title="Bearbeitungen Kanal 1">Kanal 1</b>
           {/* Seit 1.665.0 SW-20: Drehwerkzeug T100–T400 und Frontbohrapparat
               nach Patricks T200 und T600 (20. November 2026) */}
           {!sb && <>
@@ -1303,18 +1306,18 @@ export default function HoferCam() {
           <button className="knopf knopf--klein" id="cam-neu-front" disabled={!montiert("front", w).length}
             title={montiert("front", w).length ? "" : "Zuerst unter Bestückung T500 oder T600 mit Frontbohrapparat fest wählen"}
             {...swMaus("swfront", montiert("front", w).map(Number), "Frontbohrapparat Kanal 1")}
-            onClick={() => { const nb = neuerBlock(bloecke, "front", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Frontbohrapparat fest {montiert("front", w).map((p) => "T" + p).join(", ") || "(Bestückung)"}</button>
+            onClick={() => { const nb = neuerBlock(bloecke, "front", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Frontbohrapp. fest {tListe(montiert("front", w))}</button>
           {/* Seit 1.728.0 angetriebener Frontbohrapparat T500/T600 wie T1300 in
               Kanal 3 (Patrick 23. November 2026, Entscheid „Wie Kanal 3 (T1300)“) */}
           <button className="knopf knopf--klein" id="cam-neu-k1f" disabled={!montiert("k1f", w).length}
             title={montiert("k1f", w).length ? "" : "Zuerst unter Bestückung T500 oder T600 mit Frontbohrapparat angetrieben wählen"}
             {...swMaus("swk1f", montiert("k1f", w).map(Number), "Frontbohrapparat angetrieben Kanal 1")}
-            onClick={() => { const nb = neuerBlock(bloecke, "k1f", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Frontbohrapparat angetrieben {montiert("k1f", w).map((p) => "T" + p).join(", ") || "(Bestückung)"}</button>
+            onClick={() => { const nb = neuerBlock(bloecke, "k1f", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Frontbohrapp. angetr. {tListe(montiert("k1f", w))}</button>
           {/* Seit 1.678.0 Querangetrieben T500–T700 nach der Vorlage der SB-20RG (Patrick 21. November 2026) */}
           <button className="knopf knopf--klein" id="cam-neu-seite" disabled={!montiert("seite", w).length}
             title={montiert("seite", w).length ? "" : "Alle Plätze T500–T700 haben einen Frontbohrapparat"}
             {...swMaus("swseite", montiert("seite", w).map(Number), "Querangetrieben Kanal 1")}
-            onClick={() => { const nb = neuerBlock(bloecke, "seite", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Querangetrieben {montiert("seite", w).map((p) => "T" + p).join(", ") || "(Bestückung)"}</button>
+            onClick={() => { const nb = neuerBlock(bloecke, "seite", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Querangetrieben {tListe(montiert("seite", w))}</button>
           </>}
           {sb && <>
           <button className="knopf knopf--klein" id="cam-neu-dreh" {...knopfMaus("dreh", "Drehwerkzeug")}
@@ -1332,28 +1335,28 @@ export default function HoferCam() {
         {/* Seit 1.666.0 SW-20: Kanal 3 (Rückseitenblock) nach Patricks T1300
             und T1600 aus O3272 (20. November 2026) */}
         {!sb && <div className="cam-bearb__kopf">
-          <b>Bearbeitungen Kanal 3</b>
+          <b title="Bearbeitungen Kanal 3">Kanal 3</b>
           <button className="knopf knopf--klein" id="cam-neu-k3dr" {...swMaus("swk3dr", plaetzeVon("k3dr").map(Number), "Drehwerkzeug Kanal 3")}
             onClick={() => { const nb = neuerBlock(bloecke, "k3dr", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Drehwerkzeug {spanne("k3dr")}</button>
           <button className="knopf knopf--klein" id="cam-neu-k3s" disabled={!montiert("k3s", w).length}
             title={montiert("k3s", w).length ? "" : "Alle Plätze T1300–T1500 haben einen Frontbohrapparat"}
             {...swMaus("swk3s", montiert("k3s", w).map(Number), "Querangetrieben Kanal 3")}
-            onClick={() => { const nb = neuerBlock(bloecke, "k3s", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Querangetrieben {montiert("k3s", w).map((p) => "T" + p).join(", ") || "(Bestückung)"}</button>
+            onClick={() => { const nb = neuerBlock(bloecke, "k3s", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Querangetrieben {tListe(montiert("k3s", w))}</button>
           <button className="knopf knopf--klein" id="cam-neu-k3f" disabled={!montiert("k3f", w).length}
             title={montiert("k3f", w).length ? "" : "Zuerst unter Bestückung T1300, T1400 oder T1500 mit Frontbohrapparat angetrieben wählen"}
             {...swMaus("swk3f", montiert("k3f", w).map(Number), "Frontbohrapparat Kanal 3")}
-            onClick={() => { const nb = neuerBlock(bloecke, "k3f", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Frontbohrapparat angetrieben {montiert("k3f", w).map((p) => "T" + p).join(", ") || "(Bestückung)"}</button>
+            onClick={() => { const nb = neuerBlock(bloecke, "k3f", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Frontbohrapp. angetr. {tListe(montiert("k3f", w))}</button>
           {/* Seit 1.676.0 nach Patricks T1400 / T1500 aus O3272 (21. November 2026) */}
           <button className="knopf knopf--klein" id="cam-neu-k3ff" disabled={!montiert("k3ff", w).length}
             title={montiert("k3ff", w).length ? "" : "Zuerst unter Bestückung T1300, T1400 oder T1500 mit Frontbohrapparat fest wählen"}
             {...swMaus("swk3ff", montiert("k3ff", w).map(Number), "Frontbohrhalter fest Kanal 3")}
-            onClick={() => { const nb = neuerBlock(bloecke, "k3ff", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Frontbohrhalter fest {montiert("k3ff", w).map((p) => "T" + p).join(", ") || "(Bestückung)"}</button>
+            onClick={() => { const nb = neuerBlock(bloecke, "k3ff", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Frontbohrh. fest {tListe(montiert("k3ff", w))}</button>
           <button className="knopf knopf--klein" id="cam-neu-k3d" {...swMaus("swk3d", plaetzeVon("k3d").map(Number), "Feste Werkzeuge Kanal 3")}
-            onClick={() => { const nb = neuerBlock(bloecke, "k3d", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Feste Werkzeuge {spanne("k3d")}</button>
+            onClick={() => { const nb = neuerBlock(bloecke, "k3d", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Fest {spanne("k3d")}</button>
         </div>}
         {/* Seit 1.667.0 SW-20: Kanal 2 nach Patricks T2100, T2700 und T2600 */}
         {!sb && <div className="cam-bearb__kopf">
-          <b>Bearbeitungen Kanal 2</b>
+          <b title="Bearbeitungen Kanal 2">Kanal 2</b>
           {[["k2", "Drehen"], ["k2b", "Bohren stehend"], ["k2a", "Angetrieben"]].map(([a, t]) => (
             <button key={a} className="knopf knopf--klein" id={"cam-neu-" + a} {...swMaus("sw" + a, plaetzeVon(a).map(Number), t + " Kanal 2")}
               onClick={() => { const nb = neuerBlock(bloecke, a, w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ {t} {spanne(a)}</button>))}
@@ -1361,7 +1364,7 @@ export default function HoferCam() {
         {/* Seit 1.425.3 (Wunsch Patrick 5. November 2026): Kanal 2 in einer
             eigenen Zeile darunter */}
         {sb && <div className="cam-bearb__kopf">
-          <b>Bearbeitungen Kanal 2</b>
+          <b title="Bearbeitungen Kanal 2">Kanal 2</b>
           {/* Seit 1.420.0: Drehwerkzeug nur in Kanal 2 */}
           <button className="knopf knopf--klein" id="cam-neu-k2" {...knopfMaus("k2", "Stehende Werkzeuge")}
             onClick={() => { const nb = neuerBlock(bloecke, "k2", w); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); neuFokus = nb.id; setTimeout(() => { neuFokus = null; }, 800); }}>+ Stehende Werkzeuge {spanne("k2")}</button>

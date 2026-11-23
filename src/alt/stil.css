@@ -16100,3 +16100,11 @@ body.dunkel .bk-mehr { color: #8ec5ff !important; }
   .sn2-kopf .gruss { text-align: center; }
 }
 @media (prefers-reduced-motion: reduce) { .bk-kachel { transition: none; } }
+
+/* 1.740.0 (Patrick 23. November 2026: „das sieht kaccke aus … bau es
+   homogener“, „für jeden kanal nur 1 zeile, kannst auch kleiner machen“):
+   je Kanal eine Zeile, Beschriftung gleich breit, Knöpfe klein, gleich hoch,
+   ohne Umbruch. Erst wenn der Platz fehlt, rollt die Zeile seitlich. */
+.cam-bearb__kopf { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; margin-bottom: 5px; overflow-x: auto; scrollbar-width: thin; }
+.cam-bearb__kopf > b { flex: 0 0 4.2em; min-width: 0; white-space: nowrap; font-size: 0.9em; }
+.cam-bearb__kopf > .knopf, .cam .cam-bearb__kopf > .knopf.knopf--klein { flex: 0 0 auto; white-space: nowrap; font-size: 12px; padding: 3px 6px; min-height: 0; line-height: 1.3; margin: 0; }
