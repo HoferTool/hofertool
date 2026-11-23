@@ -6,6 +6,7 @@
 //  nur aus, was sich wirklich geändert hat. Uhr, Wetter und Solar-
 //  anlage bleiben dabei stehen. Die Seite flackert nicht.
 // =================================================================
+import KommenGehen from "./start/KommenGehen.jsx";
 import { useEffect, useRef, useState } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
 import { Probleme, problemeLaden, EinkaufKurz, Bestellstand, BestellKurz, Geburtstage,
@@ -114,7 +115,10 @@ export default function Start({ auffrischen, module }) {
     return (
       <div className="sn2">
         <div className="sn2-kopf">
-          <p className="gruss">{alt.begruessung()}{name ? ", " + name : ""}</p>
+          <div className="sn2-links">
+            <p className="gruss">{alt.begruessung()}{name ? ", " + name : ""}</p>
+            <KommenGehen />
+          </div>
           <div className="sn2-ecke"><Uhr /><Wetter /></div>
         </div>
         {/* Oben Solaranlage und Geburtstage (seit 1.721.0, Wunsch Patrick
