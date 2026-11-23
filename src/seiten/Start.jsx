@@ -136,9 +136,9 @@ export default function Start({ auffrischen, module }) {
             aufteilen“), statt fester linker und rechter Spalte */}
         <SpaltenFluss>
           {probSehen && <Probleme liste={prob.daten} fehler={prob.fehler} neu={prob.neu} />}
+          <KalenderKarte auffrischen={auffrischen} />
           <Materialausgabe auffrischen={auffrischen} />
           <HeuteOffen auffrischen={auffrischen} />
-          <KalenderKarte auffrischen={auffrischen} />
           <BestellKurz auffrischen={auffrischen} />
           <OhneWbg auffrischen={auffrischen} />
           <Batterien auffrischen={auffrischen} />
