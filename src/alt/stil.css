@@ -16316,9 +16316,8 @@ html.ohne-kopf body:not(.dunkel) { background: color-mix(in srgb, var(--marke) 7
 html.ohne-kopf body:not(.dunkel) main, html.ohne-kopf body:not(.dunkel) .inhalt { background: transparent; }
 /* Seit 1.749.0 wieder ohne Farbe im Menü (Patrick: „mit Themenfarbe meinte ich
    nicht Menü einfärben“). */
-html.ohne-kopf body:not(.rolle-extern) #nav-pad, html.ohne-kopf body:not(.rolle-extern) #kopf-pad {
-  background: var(--marke) !important; color: #fff !important; border-color: var(--marke-dunkel) !important; }
-html.ohne-kopf body:not(.rolle-extern) :is(#nav-pad, #kopf-pad) * { color: #fff !important; }
+/* Seit 1.752.2 auch Pad Mode wieder ohne Themenfarbe (Patrick: „das padmode
+   nicht in themenfarbe“). */
 /* Karten der Startseite: Kopfband in der Themenfarbe, Titel farbig */
 html.ohne-kopf .sn2 :is(.sn2-spalten, .sn2-oben) .karte:not(.sn2-fest):not(.heuteoffen) {
   border-top: 4px solid var(--marke); border-color: color-mix(in srgb, var(--marke) 18%, var(--linie)); border-top-color: var(--marke); }
