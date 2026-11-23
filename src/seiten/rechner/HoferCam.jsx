@@ -27,7 +27,7 @@ import { WerkzeugFeld } from "./CamWerkzeugBild.jsx";
 import { protokollAusApp, protokollText, protokollZuordnen } from "./camProtokoll.js";
 import { simulationOeffnen } from "./CamSim3D.jsx";
 import { optimierungOeffnen } from "./CamOptimierung.jsx";
-import { VORLAGEN, feldSichtbar, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen } from "./camVorlagen.js";
+import { VORLAGEN, feldOptionen, feldSichtbar, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen } from "./camVorlagen.js";
 import AbstecherBild from "./AbstecherBild.jsx";
 import SchnabelBild from "./SchnabelBild.jsx";
 import { hofercamTutorialOeffnen } from "../start/NeuesTutorial.jsx";
@@ -40,7 +40,7 @@ import { bereichLage, zLang, feldFuerTyp, SW20_BILD, SW20_FRONT_BILD, SW20_SCHLI
 // Bearbeitung“): Vorlage wählen, Werte tippen, „Einfügen“ setzt die
 // Zeilen nach der Zeile mit der Schreibmarke im NC-Code ein (ohne Marke
 // ans Ende). Rechnen in camVorlagen.js.
-function VorlageFeld({ code, pos, einsetzen, zu, art }) {
+function VorlageFeld({ code, pos, einsetzen, zu, art, kanal = 1, sw = false }) {
   // Seit 1.693.0 zuerst ein Auswahlbild mit Erklärungsgrafik je Vorlage
   // statt einer Liste (Wunsch Patrick 22. November 2026); null = Auswahl
   const [id, setId] = useState(null);
@@ -52,9 +52,9 @@ function VorlageFeld({ code, pos, einsetzen, zu, art }) {
         <button className="knopf knopf--klein" title="Schliessen" onClick={zu}>✕</button>
       </div>
       <div className="cam-vwahl" data-camvorlage-auswahl>
-        {VORLAGEN.map((x) => (
+        {VORLAGEN.filter((x) => !x.nurSw || (sw && kanal !== 2)).map((x) => (
           <button key={x.id} type="button" className="cam-vwahl__karte" data-camvorlage-bild={x.id}
-            onClick={() => { setId(x.id); if (!werte[x.id]) setWerte({ ...werte, [x.id]: vorlageStart(x.id) }); }}>
+            onClick={() => { setId(x.id); if (!werte[x.id]) setWerte({ ...werte, [x.id]: vorlageStart(x.id, kanal) }); }}>
             <VorlageBild id={x.id} />
             <b>{x.name}</b>
             <span className="klein">{VORLAGE_TEXT[x.id] || ""}</span>
@@ -63,10 +63,10 @@ function VorlageFeld({ code, pos, einsetzen, zu, art }) {
     </div>
   );
   const v = vorlageVon(id);
-  const roh = werte[id] || vorlageStart(id);
+  const roh = werte[id] || vorlageStart(id, kanal);
   // Felder mit ausArt nimmt die Vorlage aus der Bearbeitung statt zu fragen
   const fest = Object.fromEntries(v.felder.filter((f) => f.ausArt && f.ausArt(art)).map((f) => [f.name, f.ausArt(art)]));
-  const w = { ...roh, ...fest };
+  const w = { ...roh, ...fest, _kanal: kanal };
   const setze = (n, x) => setWerte({ ...werte, [id]: { ...w, [n]: x } });
   const erg = vorlageZeilen(id, w);
   return (
@@ -81,17 +81,23 @@ function VorlageFeld({ code, pos, einsetzen, zu, art }) {
       <div className="cam-vorlage__felder">
         {v.felder.filter((f) => f.ausArt && fest[f.name]).map((f) => (
           <span key={f.name} className="cam-feld klein" data-camvorlage-fest={f.name + ":" + fest[f.name]}>
-            {f.text}: <b>{(f.optionen.find((o) => o[0] === fest[f.name]) || [, fest[f.name]])[1]}</b> (aus der Bearbeitung)</span>))}
+            {f.text}: <b>{(feldOptionen(f, w).find((o) => o[0] === fest[f.name]) || [, fest[f.name]])[1]}</b> (aus der Bearbeitung)</span>))}
         {v.felder.filter((f) => !fest[f.name] && feldSichtbar(f, Object.fromEntries(v.felder.map((x) => [x.name, feldWert(v, w, x)])))).map((f) => f.typ === "wahl"
           ? <div key={f.name} className="cam-feld cam-feld--wahl" title={f.lang} role="group" aria-label={f.text}>
               <span>{f.text}</span>
-              {f.optionen.map(([o, t]) => <button key={o} type="button" data-camvorlage-wahl={f.name + ":" + o}
+              {feldOptionen(f, w).map(([o, t]) => <button key={o} type="button" data-camvorlage-wahl={f.name + ":" + o}
                 className={"knopf knopf--klein" + (feldWert(v, w, f) === o ? " aktiv" : "")} onClick={() => setze(f.name, o)}>{t}</button>)}
             </div>
           : f.typ === "haken"
           ? <label key={f.name} className="cam-feld cam-feld--haken" title={f.lang}>
               <input type="checkbox" data-camvorlage-feld={f.name} checked={feldWert(v, w, f)} onChange={(e) => setze(f.name, e.target.checked)} />
               <span>{f.text}</span></label>
+          : f.typ === "code"
+          ? <label key={f.name} className="cam-feld cam-feld--code" title={f.lang}>
+              <span>{f.text}</span>
+              <textarea data-camvorlage-feld={f.name} rows={4} value={w[f.name] ?? ""} placeholder={f.lang}
+                onChange={(e) => setze(f.name, e.target.value)} />
+            </label>
           : <label key={f.name} className="cam-feld" title={f.lang}>
               {/* Seit 1.542.0 mit Einheit wie bei den Kopfdaten (Wunsch Patrick 14. November 2026) */}
               <span>{f.text}{f.einheit && <small className="cam-einheit"> [{f.einheit}]</small>}</span>
@@ -1546,7 +1552,7 @@ export default function HoferCam() {
                       {frei.length ? "frei ab " + frei[0] + " · noch " + frei.length : "keine Marke mehr frei"}</span>}
                   </div>
                   {vorlageBei === "w" + b.id && <WerkzeugFeld b={b} setze={(wz) => blockAendern(b.id, "wz", wz)} zu={() => setVorlageBei(null)} />}
-                  {vorlageBei === b.id && <VorlageFeld code={b.code} pos={marke.current[b.id]} art={b.art}
+                  {vorlageBei === b.id && <VorlageFeld code={b.code} pos={marke.current[b.id]} art={b.art} kanal={eigenerKanal(b)} sw={kanalZahl() > 2}
                     einsetzen={(t) => blockAendern(b.id, "code", t)} zu={() => setVorlageBei(null)} />}
                   {vorlageBei === "m" + b.id && <ModulWahl blockId={b.id} pos={() => marke.current[b.id]} zu={() => setVorlageBei(null)} />}
                   <CodeFeld data-camblock="code" min={4}
@@ -1554,11 +1560,29 @@ export default function HoferCam() {
                     placeholder={gegen ? "NC-Code für Kanal 2 (zwei Marken direkt nacheinander, z.B. M350 und M360, geben Platz für Kanal 1)" : "NC-Code der Bearbeitung hier einfügen (aus Kontur, Bohren / Fräsen …; zwei Marken direkt nacheinander geben Platz für Kanal 2)"}
                     value={b.code} onChange={(e) => { marke.current[b.id] = e.target.selectionStart; blockAendern(b.id, "code", e.target.value); }} />
                 </>}
-              {!b.zu && markenPaare(b).flatMap(([x, y, ziele, xt, yt]) => ziele.map((ander) => {
+              {!b.zu && markenPaare(b).flatMap(([x, y, ziele, xt, yt, sync]) => ziele.map((ander) => {
                 // Seit 1.416.0: an der Gegenspindel ist der NC-Code Kanal 2
                 // und das Feld Kanal 1, sonst umgekehrt; seit 1.668.0 je
                 // Kanal aus dem P der Marke (M300P13 → Feld für Kanal 3)
                 const fk = "k" + ander, eigen = eigenerKanal(b);
+                // Seit 1.726.0: M50/M51 und M142/M143 stehen in beiden
+                // Kanälen; der andere Kanal bekommt davor, dazwischen und
+                // danach je ein Feld (Werkzeug holen, mitfahren, wegfahren)
+                if (sync) {
+                  const feld = (k, text, ph) => (
+                    <label key={k} className="cam-k1" data-camk1={k} data-camk-kanal={ander}>
+                      <span className="klein">{text}</span>
+                      <CodeFeld min={2} placeholder={ph} value={(b[fk] || {})[k] || ""}
+                        onChange={(e) => blockAendern(b.id, fk, { ...(b[fk] || {}), [k]: e.target.value })} />
+                    </label>);
+                  const s = x + "-" + y;
+                  return (
+                  <div key={s + "-" + ander} className="cam-sync" data-camsync={sync}>
+                    {feld(s + ":vor", "Kanal " + ander + " vor " + xt + " (Werkzeug holen, anfahren)", "z.B. T1100 / G0X11.T1 / G141 / G1X3.6Z-0.5F0.2")}
+                    {feld(s, "Kanal " + ander + " zwischen " + xt + " und " + yt + (sync === "m50" ? " (meist leer, kein X/Y)" : " (Wege mit Z3, überlagert)"),
+                      sync === "m50" ? "leer: Kanal " + ander + " fährt die Wege von Kanal " + eigen + " mit" : "z.B. G0X0Z-0.5 / G1Z8.F0.03 / G0Z-0.5")}
+                    {feld(s + ":nach", "Kanal " + ander + " nach " + yt + " (wegfahren)", "z.B. G0T0 / G28U0 / G28W0" + (sync === "m50" ? " / G140" : ""))}
+                  </div>); }
                 return (
                 <label key={x + "-" + y + "-" + ander} className="cam-k1" data-camk1={x + "-" + y} data-camk-kanal={ander}>
                   <span className="klein">Kanal {ander} zwischen {xt} und {yt}</span>

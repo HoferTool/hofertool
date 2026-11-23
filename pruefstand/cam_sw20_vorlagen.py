@@ -31,7 +31,9 @@ with sync_playwright() as p:
         pg.click(knopf); pg.wait_for_timeout(250)
         i = pg.locator("[data-camvorlage-auf]").count() - 1
         pg.click(f"[data-camvorlage-auf='{i}']")
-        pruefe(f"{art}: Auswahlbild mit 4 Vorlagen", pg.locator("[data-camvorlage-bild]").count() == 4)
+        # seit 1.726.0 dazu M50 und M142, nur Kanal 1 und 3
+        soll_n = 4 if art.startswith("k2") else 6
+        pruefe(f"{art}: Auswahlbild mit {soll_n} Vorlagen", pg.locator("[data-camvorlage-bild]").count() == soll_n)
         pg.click("[data-camvorlage-bild='g83']")
         pruefe(f"{art}: G83 {soll} aus der Bearbeitung", pg.locator(f"[data-camvorlage-fest='art:{soll}']").count() == 1
                and pg.locator("[data-camvorlage-wahl^='art:']").count() == 0)

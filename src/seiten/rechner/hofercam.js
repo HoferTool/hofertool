@@ -17,6 +17,10 @@ const MARKEN_EINZELN = new Set([20, 40, 41, 82, 83]);
 // auf PATH1 bzw. PATH3) und M142 / M143 (Superposition Z1-Z3) lassen PATH1
 // und PATH3 aufeinander warten; „(1)“ dahinter ist nur ein Kommentar
 const MARKEN_K13 = new Set([131, 133, 142, 143]);
+// Seit 1.726.0 (Handbuch 8-11): auch M50 / M51 (X-Y Synchronsteuerung)
+// lassen PATH1 und PATH3 aufeinander warten, nur an Maschinen mit drei
+// Kanälen (die SB-20RG kennt M50 so nicht)
+const k13 = (n) => MARKEN_K13.has(n) || ((n === 50 || n === 51) && kanalZahl() > 2);
 export function istMarkeNr(n) { return MARKEN_EINZELN.has(n) || (n >= 200 && n <= 999); }
 
 // Marke einer Zeile oder null; Kommentare in Klammern zählen nicht
@@ -26,7 +30,7 @@ export function markeVon(zeile) {
   let m;
   while ((m = re.exec(ohne))) {
     const n = Number(m[1]);
-    if (m[1].length <= 3 && (istMarkeNr(n) || MARKEN_K13.has(n))) return "M" + n;
+    if (m[1].length <= 3 && (istMarkeNr(n) || k13(n))) return "M" + n;
   }
   return null;
 }
@@ -484,27 +488,62 @@ export function markeMitP(zeile) {
   let m;
   while ((m = re.exec(ohne))) {
     const n = Number(m[1]);
-    if (m[1].length <= 3 && (istMarkeNr(n) || MARKEN_K13.has(n))) return { m: "M" + n, p: m[2] ? m[2].slice(1) : "" };
+    if (m[1].length <= 3 && (istMarkeNr(n) || k13(n))) return { m: "M" + n, p: m[2] ? m[2].slice(1) : "" };
   }
   return null;
 }
+// Seit 1.726.0 (Vorlagen Synchronsteuerung und Superposition, Wunsch
+// Patrick 23. November 2026): M50 … M51 und M142 … M143 im NC-Code einer
+// Bearbeitung in Kanal 1 oder 3 der SW-20 sind ein Synchron-Paar, auch mit
+// Code dazwischen. Der andere Kanal (1 ↔ 3) bekommt dieselben Befehle,
+// davor den Code aus „…:vor“ (Werkzeug holen, anfahren), dazwischen aus
+// dem Feld des Paars und danach aus „…:nach“ (wegfahren). Sechster Wert
+// des Paars: "m50" bzw. "m142".
+const SYNC_AN = { 50: [51, "m50"], 142: [143, "m142"] };
+export function syncPaare(b) {
+  if (kanalZahl() < 3) return [];
+  const eigen = eigenerKanal(b);
+  if (eigen === 2) return [];
+  const z = String(b.code || "").split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+  const r = [], zahl = {};
+  for (let i = 0; i < z.length; i++) {
+    const m = markeMitP(z[i]);
+    const an = m && SYNC_AN[Number(m.m.slice(1))];
+    if (!an) continue;
+    const j = z.findIndex((t, k) => k > i && (markeMitP(t) || {}).m === "M" + an[0]);
+    if (j < 0) continue;
+    const n = (zahl[m.m] = (zahl[m.m] || 0) + 1);
+    const x = m.m + (n > 1 ? "#" + n : "");
+    // die Zeile mit M50 nimmt ihre Achsen mit (M50X[13]Y[13]), ohne Kommentar
+    const xt = z[i].replace(/\([^)]*\)?/g, "").replace(/\s+/g, "").toUpperCase();
+    r.push({ i, j, paar: [x, "M" + an[0], [eigen === 1 ? 3 : 1], xt, "M" + an[0], an[1]] });
+    i = j;
+  }
+  return r;
+}
 export function markenPaare(b) {
-  const m = String(b.code || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean).map(markeMitP);
+  const zeilen = String(b.code || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
+  const sync = syncPaare(b);
+  const belegt = new Set(sync.flatMap((s) => [s.i, s.j]));
+  const m = zeilen.map((z, i) => (belegt.has(i) ? null : markeMitP(z)));
   const eigen = eigenerKanal(b);
   const ziele = (x) => {
     if (!x.p) return [eigen === 1 ? 2 : 1];
     return [...new Set(x.p.split("").map(Number))].filter((k) => k !== eigen && k <= kanalZahl()).sort();
   };
-  const paare = [];
+  const paare = sync.map((s) => [s.i, s.paar]);
   for (let i = 0; i + 1 < m.length; i++) if (m[i] && m[i + 1] && m[i].m !== m[i + 1].m) {
-    paare.push([m[i].m, m[i + 1].m, ziele(m[i]), m[i].m + (m[i].p ? "P" + m[i].p : ""), m[i + 1].m + (m[i + 1].p ? "P" + m[i + 1].p : "")]);
+    paare.push([i, [m[i].m, m[i + 1].m, ziele(m[i]), m[i].m + (m[i].p ? "P" + m[i].p : ""), m[i + 1].m + (m[i + 1].p ? "P" + m[i + 1].p : "")]]);
     i++;
   }
-  return paare;
+  return paare.sort((a, c) => a[0] - c[0]).map((p) => p[1]);
 }
 // Zeilen für Kanal k aus den Paaren: Marke, Code aus dem Feld, Marke
+// (Synchron-Paare mit Code davor und danach)
 export const paarZeilen = (b, k) => markenPaare(b).filter((p) => p[2].includes(k))
-  .flatMap(([x, y, , xt, yt]) => [xt, ...k1Zeilen(b, x, y, "k" + k), yt]);
+  .flatMap(([x, y, , xt, yt, sync]) => sync
+    ? [...k1Zeilen(b, x, y + ":vor", "k" + k), xt, ...k1Zeilen(b, x, y, "k" + k), yt, ...k1Zeilen(b, x, y + ":nach", "k" + k)]
+    : [xt, ...k1Zeilen(b, x, y, "k" + k), yt]);
 export const k1Zeilen = (b, x, y, feld = "k1") =>
   String((b[feld] || {})[x + "-" + y] || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
 export const anGegenspindel = (b) => (b.art === "front" || b.art === "quer") && b.spindel === "gegen";

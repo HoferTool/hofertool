@@ -137,12 +137,71 @@ function Einstich() {
   );
 }
 
-const BILDER = { g83: G83, g87: G87, g76: G76, einstich: Einstich };
+// X-Y Synchronsteuerung M50 (seit 1.726.0, Handbuch SW-20 8-14-19):
+// oben Träger 1 mit dem führenden Werkzeug, unten Träger 3 mit dem
+// folgenden; beide fahren in X denselben Weg, etwa beim Ausgleichsdrehen
+function M50() {
+  return (
+    <svg viewBox="0 0 220 130">
+      <Defs />
+      <line x1="6" y1="65" x2="214" y2="65" className="cam-vbild__achse" />
+      <rect x="14" y="47" width="116" height="36" className="cam-vbild__teil" />
+      {/* Träger 1 oben, Träger 3 unten */}
+      <rect x="66" y="6" width="44" height="18" rx="2" className="cam-vbild__t1" />
+      <path d="M82 24 L94 24 L88 40 Z" className="cam-vbild__wz" />
+      <rect x="66" y="106" width="44" height="18" rx="2" className="cam-vbild__t3" />
+      <path d="M82 106 L94 106 L88 90 Z" className="cam-vbild__wz" />
+      <Text x="70" y="19" anker="start" cls="cam-vbild__klein cam-vbild__hell">Kanal 1</Text>
+      <Text x="70" y="119" anker="start" cls="cam-vbild__klein cam-vbild__hell">Kanal 3</Text>
+      {/* gleicher Weg in X */}
+      <Pfeil x1="120" y1="12" x2="120" y2="34" cls="cam-vbild__weg" />
+      <Pfeil x1="120" y1="118" x2="120" y2="96" cls="cam-vbild__weg" />
+      <Text x="126" y="27" anker="start">X1 führt</Text>
+      <Text x="126" y="111" anker="start">X3 folgt</Text>
+      <Text x="150" y="58" anker="start" cls="cam-vbild__klein">M50 X[13]</Text>
+      <Text x="150" y="70" anker="start" cls="cam-vbild__klein">… gleicher Weg …</Text>
+      <Text x="150" y="82" anker="start" cls="cam-vbild__klein">M51 aus</Text>
+    </svg>
+  );
+}
+
+// Superposition Z1-Z3 M142 (seit 1.726.0, Handbuch SW-20 8-14-22): das
+// Material fährt in Z1 für das Drehwerkzeug, der Bohrer von Träger 3 an der
+// Stirn fährt Z3 überlagert dazu, beide arbeiten gleichzeitig
+function M142() {
+  return (
+    <svg viewBox="0 0 220 130">
+      <Defs />
+      <line x1="6" y1="62" x2="214" y2="62" className="cam-vbild__achse" />
+      <rect x="14" y="44" width="106" height="36" className="cam-vbild__teil" />
+      <rect x="96" y="56" width="24" height="12" className="cam-vbild__loch" />
+      {/* Drehwerkzeug Kanal 1 von oben */}
+      <rect x="60" y="6" width="34" height="16" rx="2" className="cam-vbild__t1" />
+      <path d="M72 22 L84 22 L78 40 Z" className="cam-vbild__wz" />
+      {/* Bohrer Kanal 3 an der Stirn */}
+      <path d="M100 58 L106 58 L106 66 L100 66 L96 62 Z" className="cam-vbild__wz" />
+      <rect x="106" y="58" width="44" height="8" className="cam-vbild__wz" />
+      <rect x="150" y="50" width="40" height="24" rx="2" className="cam-vbild__t3" />
+      <Text x="154" y="65" anker="start" cls="cam-vbild__klein cam-vbild__hell">Kanal 3</Text>
+      <Text x="64" y="17" anker="start" cls="cam-vbild__klein cam-vbild__hell">Kanal 1</Text>
+      {/* Wege */}
+      <Pfeil x1="30" y1="96" x2="70" y2="96" cls="cam-vbild__weg" />
+      <Text x="50" y="108">Z1 Material</Text>
+      <Pfeil x1="200" y1="96" x2="150" y2="96" cls="cam-vbild__weg" />
+      <Text x="176" y="108">Z3 + Z1</Text>
+      <Text x="110" y="124" cls="cam-vbild__klein">M142 … M143: beide arbeiten gleichzeitig</Text>
+    </svg>
+  );
+}
+
+const BILDER = { g83: G83, g87: G87, g76: G76, einstich: Einstich, m50: M50, m142: M142 };
 export const VORLAGE_TEXT = {
   g83: "Bohren in Schritten mit Rückzug zum Spänebrechen, in der Mitte oder angetrieben auf Lochkreis oder X/Y",
   g87: "Bohrungen quer über den Umfang, gleich oder frei verteilt, wahlweise mit Z je Bohrung",
   g76: "Gewinde in mehreren Durchgängen an der Flanke",
   einstich: "Nut am Mantel, innen in der Bohrung oder an der Front, mit Fasen und Radien",
+  m50: "X oder Y des anderen Trägers fährt den gleichen Weg mit, z. B. Ausgleichsdrehen mit Kanal 1 und 3 (nur SW-20)",
+  m142: "Bohrer von Kanal 3 fährt in Z3 überlagert zum Material Z1, beide arbeiten gleichzeitig (nur SW-20, mit M131)",
 };
 
 export function VorlageBild({ id }) {

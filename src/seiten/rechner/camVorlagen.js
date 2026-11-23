@@ -106,15 +106,43 @@ export const VORLAGEN = [
   },  // Seit 1.603.0: Einstich am Mantel und an der Front, eingegeben in einer
   // Skizze (CamEinstichBild.jsx), gerechnet in camEinstich.js
   { id: "einstich", name: "Einstich Mantel / Innen / Front", grafik: true, felder: [] },
+  // Seit 1.726.0 (Wunsch Patrick 23. November 2026, Handbuch SW-20 8-11 und
+  // 8-14-19): X-Y Synchronsteuerung. Die Vorlage kommt in die führende
+  // Bearbeitung (Kanal 1 oder 3); M50 und M51 kommen von selbst auch in den
+  // anderen Kanal, dort mit den Feldern davor, dazwischen und danach.
+  {
+    id: "m50", name: "Synchronsteuerung M50 / M51", nurSw: true,
+    felder: [
+      { name: "achse", text: "Achsen", typ: "wahl", start: (w) => (w._kanal === 3 ? "X[31]" : "X[13]"),
+        optionen: (w) => (w._kanal === 3
+          ? [["X[31]", "X[31] X1 folgt X3"]]
+          : [["X[13]", "X[13] X3 folgt X1"], ["Y[13]", "Y[13] Y3 folgt Y1"], ["Y[-13]", "Y[-13] Y3 gegenläufig"],
+             ["X[13]Y[13]", "X[13]Y[13]"], ["X[13]Y[-13]", "X[13]Y[-13]"]]),
+        lang: "Welche Achse des anderen Kanals mitfährt. Die erste Zahl ist der führende Kanal, die zweite der folgende; -13 = Y gegenläufig" },
+      { name: "wege", text: "Wege", typ: "code", lang: "Die Wege dieses Kanals zwischen M50 und M51 (G1X… usw.), leer = später im NC-Code eintragen" },
+    ],
+  },
+  // Seit 1.726.0 (Wunsch Patrick 23. November 2026, Handbuch SW-20 8-14-22):
+  // Superposition Z1-Z3, beide Kanäle arbeiten gleichzeitig, Z3 fährt
+  // überlagert zu Z1
+  {
+    id: "m142", name: "Superposition Z1-Z3 M142 / M143", nurSw: true,
+    felder: [
+      { name: "wege", text: "Wege", typ: "code", lang: "Die Wege dieses Kanals zwischen M142 und M143, leer = später im NC-Code eintragen" },
+    ],
+  },
 ];
+// Optionen einer Wahl (fest oder je nach Kanal der Bearbeitung, w._kanal)
+export const feldOptionen = (f, w) => (typeof f.optionen === "function" ? f.optionen(w || {}) : f.optionen || []);
+const startVon = (f, w) => (typeof f.start === "function" ? f.start(w || {}) : f.start);
 
 export const vorlageVon = (id) => VORLAGEN.find((v) => v.id === id) || VORLAGEN[0];
 
 // Startwerte einer Vorlage
-export function vorlageStart(id) {
+export function vorlageStart(id, kanal) {
   if (id === "einstich") return { ...EINSTICH_START };
-  const w = {};
-  for (const f of vorlageVon(id).felder) if (f.start !== undefined) w[f.name] = f.start;
+  const w = { _kanal: kanal };
+  for (const f of vorlageVon(id).felder) if (f.start !== undefined) w[f.name] = startVon(f, w);
   return w;
 }
 
@@ -122,7 +150,11 @@ export function vorlageStart(id) {
 export function feldWert(v, w, f) {
   const t = w[f.name];
   if (f.typ === "haken") return t === undefined ? !!f.start : !!t;
-  if (f.typ === "wahl") return t === undefined || t === "" ? f.start : t;
+  if (f.typ === "wahl") {
+    const o = feldOptionen(f, w);
+    const x = t === undefined || t === "" ? startVon(f, w) : t;
+    return o.length && !o.some((p) => p[0] === x) ? o[0][0] : x;
+  }
   if (t !== undefined && String(t).trim() !== "") return String(t).trim();
   return f.vorgabe ? f.vorgabe(w) : "";
 }
@@ -144,8 +176,13 @@ export function vorlageZeilen(id, w = {}) {
   for (const f of v.felder) g[f.name] = feldWert(v, w, f);
   const sicht = v.felder.filter((f) => feldSichtbar(f, g));
   const fehlt = sicht.filter((f) => (f.pflicht === true || (typeof f.pflicht === "function" && f.pflicht(g)))
-    && (g[f.name] === "" || (f.typ !== "text" && num(g[f.name]) == null))).map((f) => f.text);
+    && (g[f.name] === "" || (f.typ !== "text" && f.typ !== "code" && num(g[f.name]) == null))).map((f) => f.text);
   if (fehlt.length) return { fehler: "Fehlt: " + fehlt.join(", ") };
+  if (v.id === "m50" || v.id === "m142") {
+    const wege = String(w.wege || "").split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+    const an = v.id === "m50" ? "M50" + g.achse : "M142", aus = v.id === "m50" ? "M51" : "M143";
+    return { zeilen: [an, ...(wege.length ? wege : ["(WEGE " + (v.id === "m50" ? "DIESES KANALS" : "UEBERLAGERT") + " HIER)"]), aus] };
+  }
   if (v.id === "g83") {
     const p = num(g.P) != null && num(g.P) > 0 ? "P" + Math.round(num(g.P)) : "";
     const zyk = "G83W" + zahl(g.W) + "Q" + um(g.Q) + p + "F" + zahl(g.F);

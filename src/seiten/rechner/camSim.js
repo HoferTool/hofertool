@@ -508,9 +508,12 @@ function m50Folgen(zeilen, v, prog, mitG50, mitZ) {
   const vor = bahnLesen(zeilen.slice(0, i50 + 1), { ...v }, { mitG50 });
   const p0 = vor[vor.length - 1];
   const k1 = prog.k1 || [], S1 = k1.map(sauber);
-  const j = marke ? S1.findIndex((t) => t.startsWith(marke)) : -1;
+  // Seit 1.726.0 (Vorlage Synchronsteuerung): ohne Wartemarke davor steht
+  // M50 in beiden Kanälen, die Wege von Kanal 1 laufen bis M51
+  let j = marke ? S1.findIndex((t) => t.startsWith(marke)) : -1;
+  if (j < 0) j = S1.findIndex((t) => /^M50(?!\d)/.test(t));
   if (!p0 || j < 0) return bahnLesen(zeilen, { ...v }, { mitG50 });
-  let j2 = S1.findIndex((t, k) => k > j && /^M\d{3}(?!\d)/.test(t) && /^M[2-9]\d\d/.test(t));
+  let j2 = S1.findIndex((t, k) => k > j && ((/^M\d{3}(?!\d)/.test(t) && /^M[2-9]\d\d/.test(t)) || /^M51(?!\d)/.test(t)));
   if (j2 < 0) j2 = S1.length;
   const vorher = bahnLesen(k1.slice(0, j + 1), { ...v });
   const s1 = vorher[vorher.length - 1] || null;

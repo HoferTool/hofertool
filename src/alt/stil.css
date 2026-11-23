@@ -16000,3 +16000,10 @@ body.dunkel .bestellkurz__frist { color: #ff8a80 !important; border-color: #ff8a
 @keyframes sn2-herein { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 .sn2-kopf .gruss { background: linear-gradient(90deg, var(--tinte, #1e293b), #0057b8 70%); -webkit-background-clip: text; background-clip: text; color: transparent !important; -webkit-text-fill-color: transparent; }
 body.dunkel .sn2-kopf .gruss { background-image: linear-gradient(90deg, #fff, #8ec5ff 75%); color: transparent !important; -webkit-text-fill-color: transparent !important; }
+/* HOFERCAM: Vorlagen Synchronsteuerung M50 und Superposition M142 (seit 1.726.0) */
+.cam-vbild__t1 { fill: #3d6fb8; stroke: #1d3f73; stroke-width: 1.2; }
+.cam-vbild__t3 { fill: #a8653a; stroke: #5e3418; stroke-width: 1.2; }
+.cam-vbild__hell { fill: #fff !important; font-weight: 600; }
+.cam-feld--code { flex: 1 1 100%; display: flex; flex-direction: column; gap: 3px; }
+.cam-feld--code textarea { width: 100%; min-height: 70px; font: 12px ui-monospace, Consolas, monospace; resize: vertical; }
+.cam-sync { display: flex; flex-direction: column; gap: 4px; border-left: 3px solid #a8653a; padding-left: 8px; margin-top: 4px; }
