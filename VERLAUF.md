@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.741.0 (23. November 2026)
+
+- HOFERCAM moderner: ruhige Fläche, weisse Karten mit weichem Schatten und runden Ecken, Gruppentitel als kleine Überschrift statt blauer Schilder, helle Felder mit blauem Fokusring, Knöpfe als runde Chips, Kanäle mit schmaler Farbkante oben bzw. links, kleinere Knöpfe im Kopf der Kanäle; hell und dunkel, auch im eigenen Fenster. Nur Aussehen, Block „1.741.0“ am Ende von `stil.css` (Wunsch Patrick 23. November 2026: „gaeht der ganze stile vom hofercam auch etwas moderner?“).
+
 ## 1.740.0 (23. November 2026)
 
 - HOFERCAM: Die Knöpfe „+ …“ der Bearbeitungen stehen je Kanal in einer Zeile, kleiner und gleich hoch, Beschriftung nur „Kanal 1“ usw., Plätze kurz (T1300–T1500), gesperrte ohne „(Bestückung)“ (Wunsch Patrick 23. November 2026: „bau es homogener“, „für jeden kanal nur 1 zeile, kannst auch kleiner machen“).
