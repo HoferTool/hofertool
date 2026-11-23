@@ -115,12 +115,17 @@ with sync_playwright() as p:
     open(ORDNER + "/O1077.NC", "w").write("\r\n".join(alt2) + "\r\n")
     pg.click("[data-cam-verwerfen='1']"); pg.click("[data-cam-verwerfen='2']") if pg.locator("[data-cam-verwerfen='2']").count() else None
     pg.set_input_files("#cam-einlesen input", [ORDNER + "/O0077.NC", ORDNER + "/O1077.NC"]); pg.wait_for_timeout(600)
-    pruefe("Altes Programm: 3 Bearbeitungen wie eingelesen", pg.locator("[data-camblock-frei]").count() == 3 and pg.locator(".cam-block").count() == 3)
+    # Seit 1.739.0: keine Bearbeitung „wie eingelesen“ mehr, nur der NC-Code
+    # kommt in die Bearbeitung, Kopf und Ende aus der Vorlage, Abweichungen violett
+    pruefe("Altes Programm: 3 normale Bearbeitungen", pg.locator("[data-camblock-frei]").count() == 0 and pg.locator(".cam-block").count() == 3)
     t1 = [z.strip() for z in lies(1) if z.strip()]
-    pruefe("Wie eingelesen: Code unverändert im Programm", "G0X9.0Y-10.0Z6.0" in t1 and "M36S3500" in t1)
+    pruefe("Eingelesener Text bleibt im Programm", "G0X9.0Y-10.0Z6.0" in t1 and "M36S3500" in t1)
+    pruefe("Abweichungen violett", pg.locator(".cam-zeile--ein").count() > 0)
     pruefe("Ende und T2900 nicht als Bearbeitung", "Werkzeug" not in (pg.text_content("#cam-ein-stand") or "") or "T2000" not in (pg.text_content("#cam-ein-stand") or ""))
-    pg.click("[data-camblock-standard='0']")
-    pruefe("Mit Vorlage aufbauen: Felder wieder da", pg.locator("[data-camblock-frei]").count() == 2 and pg.locator(".cam-block[data-block='0'] [data-camblock='anZ']").count() == 1)
+    pg.click("#cam-alle-auf"); pg.wait_for_timeout(200)
+    code0 = pg.input_value(".cam-block[data-block='0'] textarea")
+    pruefe("Nur NC-Code in der Bearbeitung", "G1X-0.5F0.05" in code0 and "T200" not in code0 and "T0" not in code0.split("\n"))
+    pruefe("Felder der Vorlage da", pg.locator(".cam-block[data-block='0'] [data-camblock='anZ']").count() == 1)
     # Seit 1.733.1: Einlesen über die Dateiwahl des Browsers, aber nur lesen,
     # Speichern schreibt nie in die Datei und fragt nie nach Schreibrecht
     pg.evaluate("""(txt) => { window.__geschrieben = {}; window.__gefragt = 0;

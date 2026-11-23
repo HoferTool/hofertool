@@ -297,8 +297,18 @@ export function freiTeilen(s) {
 }
 function freiBlock(art, s, platz) {
   const t3 = freiTeilen(s);
-  const b = { ...neuerBlock([], art), platz: String(platz), frei: true, freiKopf: t3.kopf.join("\n"), code: t3.code.join("\n"), freiEnde: t3.ende.join("\n") };
+  // Seit 1.739.0 (Patrick 23. November 2026: „du kannst doch nur den nc
+  // code in die bearbeitung nehmen und kopf und ende wie die anderen“,
+  // „du kannst ja immer noch violett anzeigen, was zum standard nicht
+  // übereinstimmt“): eine normale Bearbeitung mit Kopf und Ende aus der
+  // Vorlage, nur der NC-Code kommt aus dem Programm. Der eingelesene Text
+  // bleibt im Programmfenster, was von der Vorlage abweicht, ist violett.
+  const k2art = /^k2/.test(art);
+  const code = t3.code.map((z) => (k2art ? z.replace(/^\//, "") : z));
+  const b = { ...neuerBlock([], art), platz: String(platz), code: code.join("\n") };
   delete b.id;
+  const hd = s.map((z) => z.replace(/^\//, "").replace(/\s/g, "").match(/^M188(\d)D(\d)/i)).find(Boolean);
+  if (hd) { b.hdN = hd[1]; b.hd = hd[2]; b.hdAn = !s.some((z) => /M189/i.test(z)); }
   const t = s.find((z) => /^\/?T\d{3,4}/i.test(z)) || "";
   b.bez = (t.match(/\(([^)]*)\)/) || [])[1]?.trim().toUpperCase() || "";
   const S = zahlIn(s, /^(?:G9[67])?M(?:0?[34]|3[67])S(\d+)/i);
