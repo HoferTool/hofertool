@@ -530,53 +530,115 @@ function planName(einst, konto, name) {
 // selbst, auch mit reinem HOFERTIME-Konto: dann über die Funktion
 // zeit_abwesend_eintragen in der Datenbank (sql/hofertime-4.sql), die nur
 // für die angemeldete Person schreibt; ändern und löschen bleibt beim Admin.
+// Wiederholen (seit 1.714.0, Wunsch Patrick 23. November 2026: „eine
+// Option, dass man auch Wiederholungen machen kann, bsp für Schule“):
+// jede Woche oder alle 2 Wochen bis zu einem Datum; jede Wiederholung
+// wird ein eigener Eintrag wie von Hand (ändern und löschen einzeln),
+// höchstens 60 Wiederholungen. Fällt ein Termin aufs Wochenende, rückt
+// er auf den nächsten Arbeitstag.
+const WIEDERHOLEN = [["nie", "Nicht wiederholen"], ["1", "Jede Woche"], ["2", "Alle 2 Wochen"], ["4", "Alle 4 Wochen"]];
+
+// Schulferien der kantonalen Berufsfach- und Mittelschulen Solothurn
+// (Ferienpläne des Amts für Berufsbildung, so.ch, gelesen am 23. November
+// 2026). Bei Art Schule fallen Wiederholungen in diesen Ferien weg
+// (Wunsch Patrick 23. November 2026: „nach Solothurn Schulferien
+// erkennt und nur Schultage abrechnet, in Ferien nix“). Neue Schuljahre
+// hier nachtragen, sobald der Kanton sie veröffentlicht.
+const SCHULFERIEN_SO = [
+  ["2026-09-28", "2026-10-16"], ["2026-12-21", "2027-01-01"], ["2027-02-08", "2027-02-19"],
+  ["2027-04-12", "2027-04-23"], ["2027-07-12", "2027-08-13"],
+  ["2027-10-04", "2027-10-22"], ["2027-12-27", "2028-01-07"], ["2028-02-07", "2028-02-18"],
+  ["2028-04-10", "2028-04-21"], ["2028-07-10", "2028-08-11"],
+];
+const SCHULFERIEN_BIS = "2028-08-11";
+const inSchulferien = (d) => SCHULFERIEN_SO.some(([a, b]) => d >= a && d <= b);
+const WOCHENTAGE = [["", "Wie erster Tag"], ["1", "Montag"], ["2", "Dienstag"], ["3", "Mittwoch"], ["4", "Donnerstag"], ["5", "Freitag"]];
+
+function wiederholTage(von, alle, bis, wochentag, ohneFerien) {
+  if (!alle) return [von];
+  let d = von;
+  if (wochentag) {
+    const wt = (x) => new Date(x + "T12:00:00").getDay();
+    while (wt(d) !== wochentag) d = alt.plusTage(d, 1);
+  }
+  const liste = [];
+  for (; d <= bis && liste.length < 60; d = alt.plusTage(d, 7 * alle)) {
+    if (ohneFerien && inSchulferien(d)) continue;
+    const t = alt.naechsterArbeitstag(d);
+    if (t <= bis && !liste.includes(t)) liste.push(t);
+  }
+  return liste;
+}
+
 async function abwesendEintragen(wer, tag, neu, selbst) {
   const w = await alt.dialogFelder({
     titel: selbst ? "Abwesend eintragen" : "Abwesend " + wer,
-    text: "Erscheint auch auf der Planwand, ausser ungeplante Krankheit: die zählt nur hier und lässt sich hier wieder löschen.",
+    text: "Erscheint auch auf der Planwand, ausser ungeplante Krankheit: die zählt nur hier und lässt sich hier wieder löschen. Schule mit Wiederholen lässt die Schulferien Solothurn (Berufsfachschulen) aus.",
     felder: [
       { name: "art", label: "Art", wert: "krankheit", auswahl: ABWESENHEITEN.map((a) => [a.id, a.name]) },
       { name: "von", label: "Erster Tag", typ: "date", wert: tag, pflicht: true },
       { name: "tage", label: "Anzahl Arbeitstage", wert: "1", ziffern: true, pflicht: true },
       { name: "notiz", label: "Notiz (freiwillig)", wert: "" },
+      { name: "wdh", label: "Wiederholen (z. B. Schule)", wert: "nie", auswahl: WIEDERHOLEN },
+      { name: "wt", label: "Am Wochentag (nur mit Wiederholen)", wert: "", auswahl: WOCHENTAGE },
+      { name: "bis", label: "Wiederholen bis (nur mit Wiederholen)", typ: "date", wert: "" },
       { name: "geplant", label: "Krankheit geplant (z. B. Operation): auch auf der Planwand zeigen", typ: "haken", wert: false },
     ],
     bestaetigen: "Eintragen" });
   if (!w) return;
   const tage = Math.round(Number(String(w.tage).replace(",", ".")));
   if (!w.von || !(tage >= 1 && tage <= 260)) { alt.meldung("Erster Tag und Anzahl Tage prüfen.", "warn"); return; }
-  const von = alt.naechsterArbeitstag(w.von);
+  const alle = w.wdh && w.wdh !== "nie" ? Number(w.wdh) : 0;
+  if (alle && (!w.bis || w.bis < w.von)) { alt.meldung("Bei Wiederholen bitte „Wiederholen bis“ eintragen (nach dem ersten Tag).", "warn"); return; }
+  if (alle && tage > 7 * alle) { alt.meldung("Die Abwesenheit ist länger als der Abstand der Wiederholung.", "warn"); return; }
+  const schule = alle && w.art === "schule";
+  const termine = wiederholTage(alle ? w.von : alt.naechsterArbeitstag(w.von), alle, w.bis, Number(w.wt) || 0, schule);
+  if (schule && w.bis > SCHULFERIEN_BIS)
+    alt.meldung("Schulferien Solothurn sind erst bis " + alt.kurzDatum(SCHULFERIEN_BIS) + " bekannt, danach wird jede Woche eingetragen.", "warn");
+  if (!termine.length) { alt.meldung("Kein Arbeitstag bis zum Enddatum.", "warn"); return; }
   const artName = (ABWESENHEITEN.find((a) => a.id === w.art) || {}).name || w.art;
+  const notiz = String(w.notiz || "").trim() || null;
+  const fertig = (n) => {
+    alt.meldung(n > 1 ? artName + " " + n + "-mal eingetragen." : artName + " eingetragen.", "gut");
+    neu();
+  };
   if (selbst) {
     if (tage > 60) { alt.meldung("Höchstens 60 Tage auf einmal.", "warn"); return; }
-    const notiz = String(w.notiz || "").trim() || null;
-    let r = await alt.db.rpc("zeit_abwesend_neu", { p_von: von, p_tage: tage, p_art: w.art, p_notiz: notiz, p_geplant: !!w.geplant });
-    if (r.error && /zeit_abwesend_neu|schema cache/i.test(r.error.message || ""))
-      r = await alt.db.rpc("zeit_abwesend_eintragen", { p_von: von, p_tage: tage, p_art: w.art, p_notiz: notiz });
-    if (r.error) {
-      const fehlt = /zeit_abwesend_eintragen|function|schema cache/i.test(r.error.message || "");
-      alt.meldung(fehlt ? "Selbst eintragen ist noch nicht eingerichtet. Bitte einem Admin melden." : "Nicht eingetragen: " + alt.fehlertext(r.error), "fehler");
-      return;
+    let n = 0;
+    for (const von of termine) {
+      let r = await alt.db.rpc("zeit_abwesend_neu", { p_von: von, p_tage: tage, p_art: w.art, p_notiz: notiz, p_geplant: !!w.geplant });
+      if (r.error && /zeit_abwesend_neu|schema cache/i.test(r.error.message || ""))
+        r = await alt.db.rpc("zeit_abwesend_eintragen", { p_von: von, p_tage: tage, p_art: w.art, p_notiz: notiz });
+      if (r.error) {
+        const fehlt = /zeit_abwesend_eintragen|function|schema cache/i.test(r.error.message || "");
+        alt.meldung(fehlt ? "Selbst eintragen ist noch nicht eingerichtet. Bitte einem Admin melden."
+          : "Nicht eingetragen" + (n ? " ab " + alt.kurzDatum(von) + " (" + n + " schon eingetragen)" : "") + ": " + alt.fehlertext(r.error), "fehler");
+        if (n) neu();
+        return;
+      }
+      n++;
     }
-    alt.meldung(artName + " eingetragen.", "gut");
-    neu();
+    fertig(n);
     return;
   }
   // Ungeplante Krankheit nicht auf die Planwand (seit 1.641.0)
   const aufPlanwand = w.art !== "krankheit" || !!w.geplant;
-  const zeile = aufPlanwand ? await freieZeile(von, tage) : 1;
-  const zeileDaten = { person: wer, von, tage, zeile, note: String(w.notiz || "").trim() || null, abwesenheit: w.art, genehmigt: true };
-  let r = await alt.db.from("vacations").insert({ ...zeileDaten, planwand: aufPlanwand }).select("id");
-  if (r.error && /planwand/i.test(r.error.message || "")) {
-    if (!aufPlanwand) { alt.meldung("Krankheit ohne Planwand ist in der Datenbank noch nicht eingerichtet (sql/hofertime-8-krank-planwand.sql).", "fehler"); return; }
-    r = await alt.db.from("vacations").insert(zeileDaten).select("id");
+  const ids = [];
+  for (const von of termine) {
+    const zeile = aufPlanwand ? await freieZeile(von, tage) : 1;
+    const zeileDaten = { person: wer, von, tage, zeile, note: notiz, abwesenheit: w.art, genehmigt: true };
+    let r = await alt.db.from("vacations").insert({ ...zeileDaten, planwand: aufPlanwand }).select("id");
+    if (r.error && /planwand/i.test(r.error.message || "")) {
+      if (!aufPlanwand) { alt.meldung("Krankheit ohne Planwand ist in der Datenbank noch nicht eingerichtet (sql/hofertime-8-krank-planwand.sql).", "fehler"); break; }
+      r = await alt.db.from("vacations").insert(zeileDaten).select("id");
+    }
+    if (r.error) { alt.meldung("Nicht eingetragen ab " + alt.kurzDatum(von) + ": " + alt.fehlertext(r.error), "fehler"); break; }
+    const id = r.data && r.data[0] && r.data[0].id;
+    if (id) ids.push(id);
   }
-  if (r.error) { alt.meldung("Nicht eingetragen: " + alt.fehlertext(r.error), "fehler"); return; }
-  const id = r.data && r.data[0] && r.data[0].id;
-  const art = (ABWESENHEITEN.find((a) => a.id === w.art) || {}).name || w.art;
-  if (id) alt.merkeSchritt(art + " von " + wer, alt.rueckWeg("vacations", { id }));
-  alt.meldung(art + " eingetragen.", "gut");
-  neu();
+  if (ids.length) alt.merkeSchritt(artName + " von " + wer, ids.map((id) => alt.rueckWeg("vacations", { id })));
+  if (ids.length === termine.length) fertig(ids.length);
+  else if (ids.length) neu();
 }
 
 // Eingetragene Abwesenheiten ändern und löschen, auch nachträglich

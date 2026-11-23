@@ -3,6 +3,14 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.715.0 (23. November 2026)
+
+- Einrichtblatt aus der Planwand: „Ansehen“ zeigt es, „Bearbeiten“ führt in die Produktion → Infos zum Richten und öffnet es dort zum Bearbeiten; Blatt und Auftragsfenster gehen dabei zu (Wunsch Patrick 23. November 2026). Prüfstand `eb_planwand_bearbeiten.py`.
+
+## 1.713.1 (23. November 2026)
+
+- Zahlensprint am Handy hochkant: das Menü stand nur rund 5 Punkte vor dem Rollen, mit der Schrift auf GitHub rollte es, darum schlug der Prüfstand `reihen.py` dort jeden Tag fehl. Abstände im Menü etwas enger (`.rr-menue` gap 10, `.rr-wahl` Polster), jetzt rund 15 Punkte Luft.
+
 ## 1.702.0 (22. November 2026)
 
 - Prüfmittel entfernt (Wunsch Patrick 22. November 2026: „mach das raus aus der app“): kein Reiter Prüfmittel mehr in der Qualitätssicherung und in den Stammdaten des Test ERP, Seite, Daten und Prüfstand weg. Die Tabellen bleiben in der Datenbank, `#/pruefmittel` führt zur Qualitätssicherung.

@@ -15,14 +15,14 @@ import { alt } from "../bruecke.jsx";
 import { anmeldungAbbauen } from "./Anmeldung.jsx";
 import { GeraetMarke } from "../pad/geraet.jsx";
 import { UNTERREITER, reiterAktiv, reiterBeobachten, reiterWaehlen, menuePunkt } from "./unterreiter.js";
-import { planerSichtbar, istPlanerTab } from "../pad/planerTab.js";
+import { todosSichtbar, istPlanerTab } from "../pad/planerTab.js";
 
 // Todo des Planers unten in der Seitenleiste, nur für Admins (seit 1.536.0).
 // Erst nachgeladen, damit der Planer nicht im Startpaket steckt.
 function NavTodoPlatz() {
   const [Teil, setTeil] = useState(null);
   // Im Planer-Tab steht dieselbe Liste schon gross
-  const darf = planerSichtbar() && !(alt.istArchiv && alt.istArchiv()) && !istPlanerTab();
+  const darf = todosSichtbar() && !(alt.istArchiv && alt.istArchiv()) && !istPlanerTab();
   useEffect(() => {
     if (!darf) return;
     let weg = false;
@@ -30,6 +30,48 @@ function NavTodoPlatz() {
     return () => { weg = true; };
   }, [darf]);
   return darf && Teil ? <Teil /> : null;
+}
+
+// Am Handy im neuen Look (seit 1.713.0, Wunsch Patrick 23. November 2026:
+// „auch Hochformat Handy neuer Look, und es soll Sinn machen“): dort gibt es
+// keine Seitenleiste, darum oben ein Knopf, der die Todos als Blatt unter der
+// Kopfzeile öffnet. Geladen erst beim Öffnen, damit nichts doppelt läuft.
+function KopfTodos() {
+  const [auf, setAuf] = useState(false);
+  const [Teil, setTeil] = useState(null);
+  const darf = todosSichtbar() && !(alt.istArchiv && alt.istArchiv()) && !istPlanerTab();
+  useEffect(() => {
+    if (!auf || Teil) return;
+    import("../pad/Planer.jsx").then((m) => setTeil(() => m.NavTodos)).catch(() => {});
+  }, [auf, Teil]);
+  useEffect(() => {
+    if (!auf) return;
+    const zu = () => setAuf(false);
+    // Ein Todo führt zur Planwand: dann geht das Blatt zu
+    window.addEventListener("hashchange", zu);
+    const taste = (e) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      e.preventDefault(); e.stopPropagation(); zu();
+    };
+    document.addEventListener("keydown", taste, true);
+    return () => { window.removeEventListener("hashchange", zu); document.removeEventListener("keydown", taste, true); };
+  }, [auf]);
+  if (!darf) return null;
+  return <>
+    <button type="button" className={"kopf__todos" + (auf ? " kopf__todos--auf" : "")} id="kopf-todos"
+      title="Todos" aria-label="Todos" aria-expanded={auf} onClick={() => setAuf(!auf)}>
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9"
+        strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M4 6.5l1.6 1.6L8.5 5" /><path d="M4 12.5l1.6 1.6 2.9-3.1" /><path d="M4 18.5l1.6 1.6 2.9-3.1" />
+        <path d="M11.5 7h8.5" /><path d="M11.5 13h8.5" /><path d="M11.5 19h8.5" /></svg>
+    </button>
+    {auf && <>
+      <div className="kopf-todos__schleier" onClick={() => setAuf(false)} />
+      <div className="kopf-todos" role="dialog" aria-label="Todos">
+        {Teil ? <Teil id="kopf-todo-liste" /> : <p className="kopf-todos__laden">Todos werden geladen …</p>}
+      </div>
+    </>}
+  </>;
 }
 
 // Admins: Seitenleiste zeigt die Todos, der Knopf ☰ holt das Menü für
@@ -44,7 +86,7 @@ function todoModusDarf() {
   // Im Prüfstand nur, wenn ein Test es will (nav_todo.py): sonst wären
   // die Menüpunkte für alle Tests mit Admin verborgen.
   if (window.TEST && !window.TEST.navTodos) return false;
-  return planerSichtbar() && !(alt.istArchiv && alt.istArchiv()) && !istPlanerTab();
+  return todosSichtbar() && !(alt.istArchiv && alt.istArchiv()) && !istPlanerTab();
 }
 // Wahl je Person (seit 1.644.0, Wunsch Patrick 19. November 2026: „dass
 // bei mir der Leistenbereich nicht verschwindet und die Todos hoch rücken
@@ -54,7 +96,13 @@ function todoModusDarf() {
 export function menueFest() {
   return alt.einstellung && alt.einstellung("navmenuefest");
 }
+// Seit 1.717.0 (Wunsch Patrick 23. November 2026: „wenn man Menü immer an
+// hat, soll man per Schalter ausfahren oder einfahren, ohne Zeit“): mit
+// „Menü immer zeigen“ wechselt ☰ trotzdem zwischen Menü und Todos, aber
+// ohne Uhr; eingefahren bleibt es, bis man ☰ wieder drückt (je Tab).
+let festZu = false;
 export function menueFestAnwenden() {
+  festZu = false;
   if (todoModusDarf()) menueZeigen(menueFest() || document.body.classList.contains("nav--zeigt-menue"));
 }
 let menueUhr = 0, wechselUhr = 0;
@@ -67,7 +115,7 @@ function menueZeigen(an) {
   if (!todoModusDarf()) { b.classList.remove("nav--todos", "nav--zeigt-menue", ...WECHSEL); return; }
   b.classList.remove("nav--schmal", "nav--klappt-auf", "nav--klappt-zu");
   const fest = menueFest();
-  an = !!an || fest;
+  an = !!an || (fest && !festZu);
   const setzen = () => {
     b.classList.toggle("nav--todos", !an);
     b.classList.toggle("nav--zeigt-menue", an);
@@ -287,10 +335,12 @@ function Geruest() {
       document.body.classList.remove("nav--todos", "nav--zeigt-menue"); };
   }, []);
   const klappen = () => {
-    // Admins klappen nicht ein: der Knopf wechselt zwischen Todos und Menü
+    // Mit Todos klappt die Leiste nie ein: der Knopf wechselt zwischen Todos
+    // und Menü (seit 1.711.0 für alle ausser Externen)
     if (todoModus) {
-      if (menueFest()) { alt.meldung("Das Menü bleibt immer stehen (Einstellungen → Allgemein → „Menü immer zeigen“)."); return; }
-      menueZeigen(!document.body.classList.contains("nav--zeigt-menue")); return;
+      const auf = !document.body.classList.contains("nav--zeigt-menue");
+      if (menueFest()) festZu = !auf;
+      menueZeigen(auf); return;
     }
     const b = document.body;
     const schmal = !b.classList.contains("nav--schmal") || b.classList.contains("nav--klappt-zu");
@@ -320,7 +370,10 @@ function Geruest() {
             Weg, eine hängende Ansicht aufzufrischen. Der Link auf hoferco.ch
             (111.42.0) ist wieder weg (Wunsch 5. Oktober 2026 abends). */}
         <button className="kopf__logolink" id="kopf-neuladen" title="Seite neu laden"
-          onClick={() => location.reload()}><Logo /></button>
+          onClick={() => location.reload()}><Logo />
+          {/* Am Handy im neuen Look das Logo wie oben in der Leiste am Computer */}
+          <img className="kopf__logobild kopf__logobild--hell" src="logo-empfang.png" alt="" />
+          <img className="kopf__logobild kopf__logobild--dunkel" src="logo-weiss.svg" alt="" /></button>
         {/* Gesperrt und freigegeben wird er von knopfRueckgaengigZeigen im
             alten Programm. Kein disabled hier: React würde Klicks sonst
             auch nach dem Freigeben verschlucken. */}
@@ -342,6 +395,14 @@ function Geruest() {
           <span>Suchen</span><kbd>Strg F</kbd>
         </button>
         {/* Das Bild ganz rechts führt in die Einstellungen */}
+        {/* Nur am Handy im neuen Look sichtbar (statt „Pad Mode“ als Schild) */}
+        <KopfTodos />
+        <button type="button" className="kopf__pad" id="kopf-pad" title="Pad Mode" aria-label="Pad Mode"
+          onClick={() => alt.padOeffnen()}>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9"
+            strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="4" y="2.5" width="16" height="19" rx="2.5" /><path d="M11 18.5h2" /></svg>
+        </button>
         <span className="kopf__benutzer" data-benutzername="">{anzeige}</span>
         <button className="kopf__ich" id="kopf-einstellungen" title="Einstellungen"
           onClick={() => alt.einstellungenOeffnen()}>
@@ -353,6 +414,39 @@ function Geruest() {
       <div className="rahmen">
         <nav className="nav" aria-label="Hauptnavigation"
           onPointerMove={menueNochDa} onPointerDown={menueNochDa} onWheel={menueNochDa} onKeyDown={menueNochDa}>
+          {/* Am Computer auf allen Seiten oben in der Leiste: Logo, darunter ☰
+              (wechselt zwischen Menü und Todos), Pad Mode und das Bild für die
+              Einstellungen (seit 1.711.0, Wunsch Patrick 22. November 2026:
+              „links überhalb vom Menü Hoferlogo, darunter der Button für Menü
+              hoch und runterfahren wegen Todos“); die Kopfzeile ist dort weg */}
+          <div className="nav__oben">
+            <button type="button" className="nav__logo" title="Seite neu laden" onClick={() => location.reload()}>
+              <img className="nav__logo--hell" src="logo-empfang.png" alt="Hofer + Co." />
+              <img className="nav__logo--dunkel" src="logo-weiss.svg" alt="Hofer + Co." />
+            </button>
+            <div className="nav__knoepfe">
+              <button type="button" className={"nav__klapp" + (todoModus && menueAuf ? " nav__klapp--auf" : "")} id="nav-klapp2"
+                title={todoModus ? (menueAuf ? "Zurück zu den Todos" : "Menü zeigen") : "Menü"} aria-label="Menü oder Todos zeigen"
+                onClick={klappen}>
+                <svg viewBox="0 0 18 14" width="18" height="14" aria-hidden="true">
+                  <rect y="0" width="18" height="2" rx="1" /><rect y="6" width="18" height="2" rx="1" /><rect y="12" width="18" height="2" rx="1" />
+                </svg>
+              </button>
+              <button type="button" className="nav__pad" id="nav-pad" title="Pad Mode" aria-label="Pad Mode"
+                onClick={() => alt.padOeffnen()}>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9"
+                  strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <rect x="4" y="2.5" width="16" height="19" rx="2.5" /><path d="M11 18.5h2" /></svg>
+                <span>Pad Mode</span>
+              </button>
+              <button type="button" className="nav__ich" id="nav-ich" title="Einstellungen"
+                aria-label="Einstellungen" onClick={() => alt.einstellungenOeffnen()}>
+                {profil && profil.bild_url
+                  ? <img className="kopf__bild" src={profil.bild_url} alt="" />
+                  : <span className="kopf__bild kopf__bild--leer">{(anzeige || "?").charAt(0).toUpperCase()}</span>}
+              </button>
+            </div>
+          </div>
           {navSeiten.map((s, i) => (
             <Fragment key={s.pfad}>
               <a className={"nav__punkt" + (aktiv === s.pfad ? " aktiv" : "")}

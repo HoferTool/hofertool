@@ -98,6 +98,15 @@ with sync_playwright() as p:
     pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(900)
     v = pg.evaluate("() => TEST.daten.vacations")
     pruefe(len(v) == 1 and v[0]["abwesenheit"] == "kompensieren" and v[0]["von"] == tag_fehlt and v[0]["tage"] == 1 and v[0]["zeile"] == 1, "Abwesend eingetragen: %s" % v)
+    # Wiederholen für Schule, nur Freitage, ohne Schulferien Solothurn (1.714.0)
+    pg.click("[data-ze-abwesend]"); pg.wait_for_selector(".dialog-huelle select")
+    sel = pg.locator(".dialog-huelle select")
+    sel.nth(0).select_option("schule"); sel.nth(1).select_option("1"); sel.nth(2).select_option("5")
+    dat = pg.locator(".dialog-huelle input[type=date]")
+    dat.nth(0).fill("2026-12-01"); dat.nth(1).fill("2027-01-31")
+    pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(2500)
+    v = [x["von"] for x in pg.evaluate("() => TEST.daten.vacations") if x["abwesenheit"] == "schule"]
+    pruefe(v == ["2026-12-04", "2026-12-11", "2026-12-18", "2027-01-08", "2027-01-15", "2027-01-22", "2027-01-29"], "Schule jeden Freitag ohne Weihnachtsferien: %s" % v)
     pruefe(not pf, "keine Fehler im Browser: %s" % pf)
     br.close()
 

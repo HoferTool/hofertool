@@ -16,7 +16,7 @@ with sync_playwright() as p:
         pg = br.new_context(viewport={"width": breite, "height": hoehe}).new_page()
         pg.on("pageerror", lambda e: fehler.append("SEITENFEHLER: " + str(e)[:160]))
         # Heute hat jemand Geburtstag: Zeile unter dem Gruss (Bild für Patrick)
-        GEB = FAKE + "\n;(() => { const d = new Date(); const t = '1990-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); const l = (TEST.daten && TEST.daten.profiles) || []; if (l[1]) l[1].geburtstag = t; TEST.ohneKopf = true; })();"
+        GEB = FAKE + "\n;(() => { const d = new Date(); const t = '1990-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); const l = (TEST.daten && TEST.daten.profiles) || []; if (l[1]) l[1].geburtstag = t; TEST.ohneKopf = true; if (l[0]) l[0].einstellungen = Object.assign({}, l[0].einstellungen || {}, { neuerLook: true }); })();"
         pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=GEB))
         for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
             pg.route(u, lambda r: r.abort())
@@ -44,7 +44,11 @@ with sync_playwright() as p:
             pruefe(name + ": Menü links sichtbar", pg.locator(".nav").is_visible())
         pruefe(name + ": keine Kopfzeile der App", not pg.locator("header.kopf").is_visible())
         pruefe(name + ": kein Planwand-Knopf, kein Kachel-Knopf", pg.locator("[data-db2-planwand]").count() == 0 and pg.locator("#db2-menueknopf").count() == 0)
-        pruefe(name + ": Bild statt Zahnrad (seit 1.708.0)", pg.locator("[data-db2-einstellungen]:visible .kopf__bild").count() == 1 and pg.locator("[data-db2-einstellungen]:visible svg").count() == 0)
+        if name == "handy":
+            pruefe(name + ": Bild statt Zahnrad (seit 1.708.0)", pg.locator("[data-db2-einstellungen]:visible .kopf__bild").count() == 1 and pg.locator("[data-db2-einstellungen]:visible svg").count() == 0)
+        else:
+            # Admins ohne Kopfzeile: Bild steht oben in der Leiste, nicht beim Gruss (seit 1.712.0)
+            pruefe(name + ": kein Bild beim Gruss (seit 1.712.0)", pg.locator(".db3-gruss__rechts [data-db2-einstellungen]:visible").count() == 0)
         pruefe(name + ": Geburtstag unter dem Gruss", pg.locator("#db3-geburtstag").is_visible())
         if name == "pc":
             # Zeit, Wetter und Bild rechts auf der Höhe des Grusses (seit 1.708.0)

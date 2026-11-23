@@ -1077,7 +1077,7 @@ function entwurfVon(b) {
   return b.bemerkung && ohneFa(b.bemerkung) !== b.bemerkung ? Object.assign({}, b, { bemerkung: ohneFa(b.bemerkung) || null }) : b;
 }
 
-function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbeiten, auftrag }) {
+function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbeiten, auftrag, bearbeitenAnders }) {
   const [daten, setDaten] = useState(start);
   const darf = !nurLesen && alt.darfSchreiben() && !alt.istExtern();
   const [bearbeiten, setBearbeiten] = useState(darf && (!start.blatt || !!gleichBearbeiten));
@@ -1555,7 +1555,11 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
                 <button className="knopf knopf--klein knopf--haupt" data-eba-speichern="" disabled={laeuft} onClick={speichern}>Speichern</button>
               </>
             : <>
-                {darf && <button className="knopf knopf--klein" data-eba-bearbeiten="" onClick={() => { anfangen(daten); setBearbeiten(true); vorlesen(daten); }}>Bearbeiten</button>}
+                {darf && <button className="knopf knopf--klein" data-eba-bearbeiten="" onClick={() => {
+                  // Von der Planwand aus: bearbeitet wird in der Produktion
+                  // (seit 1.715.0, Wunsch Patrick 23. November 2026)
+                  if (bearbeitenAnders) { zu(); bearbeitenAnders(); return; }
+                  anfangen(daten); setBearbeiten(true); vorlesen(daten); }}>Bearbeiten</button>}
                 {bildKnopf}
                 {excel && !nurLesen && <button className="knopf knopf--klein" data-eba-excel="" onClick={() => dokZeigen({ art: "einrichtblatt", titel: "Excel " + hocoNr, adresse: excel })}>Excel ansehen</button>}
                 {darf && daten.blatt && !daten.blatt.gut_am && <button className="knopf knopf--klein" data-eba-gut="" disabled={laeuft} onClick={gut}>EB OK</button>}
@@ -1631,13 +1635,38 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
 // darin aus. { nurLesen } ohne Schreibrecht, { bearbeiten } gleich zum Ändern
 // (Produktion → Infos zum Richten)
 // { auftrag } beim Blatt je Materialgrösse: die HOCO Nr. des Auftrags
-export async function einrichtblattAppOeffnen(hocoNr, typId, { nurLesen, bearbeiten, auftrag } = {}) {
+// { bearbeitenAnders } ersetzt „Bearbeiten“ (Planwand: weiter in die Produktion)
+export async function einrichtblattAppOeffnen(hocoNr, typId, { nurLesen, bearbeiten, auftrag, bearbeitenAnders } = {}) {
   let daten;
   try { daten = await blattLaden(hocoNr, typId); }
   catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return; }
   fensterOeffnen((zu) => <BlattFenster hocoNr={hocoNr} typId={typId} daten={daten} zu={zu}
-    nurLesen={!!nurLesen} gleichBearbeiten={!!bearbeiten} auftrag={auftrag} />,
+    nurLesen={!!nurLesen} gleichBearbeiten={!!bearbeiten} auftrag={auftrag}
+    bearbeitenAnders={bearbeitenAnders && daten.blatt ? () => bearbeitenAnders(hocoNr, typId, auftrag) : null} />,
     null, "betrachter-huelle eba-huelle");
+}
+
+// Von der Planwand aus wird ein Einrichtblatt nur angesehen; „Bearbeiten“
+// führt in die Produktion → Infos zum Richten und öffnet es dort zum
+// Bearbeiten (Wunsch Patrick 23. November 2026: „wenn man bei planwand
+// einrichtblatt ansehen drück soll man es sehen können, aber wenn man
+// bearbeiten drück soll es zu produktion und dort bearbeitung öffnen“)
+export function blattInProduktionBearbeiten(hocoNr, typId, auftrag) {
+  // Das Hauptfenster der App, auch wenn das Auftragsfenster in einem
+  // eigenen Browserfenster stand
+  const haupt = window;
+  alt.prod.ansicht = "richten";
+  if (haupt.location.hash.replace(/^#\/?/, "").split("/")[0] === "produktion") alt.zeichneSeite();
+  else haupt.location.hash = "#/produktion";
+  try { haupt.focus(); } catch (f) { /* egal */ }
+  // Warten, bis der Reiter dasteht, dann das Blatt zum Bearbeiten öffnen
+  const start = Date.now();
+  const warten = () => {
+    if (document.querySelector("[data-richten]") || Date.now() - start > 5000)
+      einrichtblattAppOeffnen(hocoNr, typId, { bearbeiten: true, auftrag });
+    else setTimeout(warten, 80);
+  };
+  setTimeout(warten, 50);
 }
 
 // Nur das Werkzeugblatt, eingepasst in den Platz darum (Bildschirmschoner

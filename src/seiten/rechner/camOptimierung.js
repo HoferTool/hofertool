@@ -89,7 +89,7 @@ const STUFEN = { wichtig: 0, empfehlung: 1, tipp: 2 };
 
 export function analysieren(w, werkstoff) {
   const sim = simAufbauen(w);
-  // Seit 1.711.0: je Bahnpunkt, ob er wirklich Material wegnimmt
+  // Seit 1.718.0: je Bahnpunkt, ob er wirklich Material wegnimmt
   let schnitt = [];
   try { schnitt = schnittJePunkt(sim); } catch (e) { schnitt = []; }
   const v = sim.vars || {};
@@ -131,7 +131,7 @@ export function analysieren(w, werkstoff) {
       if (vf > 0) zeit += l / vf * 60;
       if (l < 1e-6) continue;
       // Vorschub ohne Material (G1 statt G0, Wegfahren im Vorschub) zählt
-      // nicht für Schnittwerte, er schneidet ja nichts. Seit 1.711.0 aus
+      // nicht für Schnittwerte, er schneidet ja nichts. Seit 1.718.0 aus
       // dem Materialstand der Simulation; nur wo der nicht bekannt ist
       // (kein Werkzeug) wie früher geschätzt am Rohmaterial.
       const sch = schneidet(k);

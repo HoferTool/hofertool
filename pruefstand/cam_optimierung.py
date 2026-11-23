@@ -48,7 +48,7 @@ with sync_playwright() as p:
     pruefe("Alu: Drehzahl erhöhen", "erhöhen" in txt)
     pruefe("Rautiefe", "Rz" in txt)
     pruefe("Leerweg im Vorschub als Tipp", "wo kein Material mehr ist" in txt)
-    pruefe("Wegfahren G1Z0.F2. ist kein Bohrvorschub (1.711.0)", "Bohrvorschub 2 " not in txt)
+    pruefe("Wegfahren G1Z0.F2. ist kein Bohrvorschub (1.718.0)", "Bohrvorschub 2 " not in txt)
     pruefe("Bohrung ohne Entspänen wichtig", "ohne Entspänen" in txt and pg.locator("[data-cam-opt-stufe='wichtig']").count() >= 1)
     pruefe("Doppelte Zeile", "zweimal hintereinander" in txt)
     pruefe("Verweilzeit", "Verweilzeit 1 s" in txt)

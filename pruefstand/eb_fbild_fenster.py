@@ -39,7 +39,8 @@ with sync_playwright() as p:
     w.click("#pl-blattreihe button"); w.wait_for_timeout(1500)
     def bild(): return w.evaluate("(() => { const r = document.querySelector('[data-eba-fbild=b1]').getBoundingClientRect(); return [r.left, r.top, r.width]; })()")
     def gespeichert(): return pg.evaluate("JSON.stringify((TEST.daten.einrichtblatt_app[0].kopf || {}).bilder)")
-    for modus in ["ansehen", "bearbeiten"]:
+    # Bearbeiten führt seit 1.715.0 in die Produktion, im eigenen Fenster nur Ansehen
+    for modus in ["ansehen"]:
         if modus == "bearbeiten":
             if w.locator("[data-eba-bearbeiten]").count(): w.click("[data-eba-bearbeiten]"); w.wait_for_timeout(800)
         x, y, b = bild()

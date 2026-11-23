@@ -34,6 +34,7 @@ import { mahnBilder } from "../daten/mahnbilder.js";
 import { inEigenesFenster, eigeneFensterZu } from "../teile/eigenesFenster.js";
 import { vorbereitenOeffnen } from "./Vorbereiten.jsx";
 import { problemArchivOeffnen, fruehereProblemeZahl } from "./ProblemArchiv.jsx";
+import { blattInProduktionBearbeiten } from "../einrichtblatt/Blatt.jsx";
 
 // Hinweis auf erledigte Probleme dieser HOCO Nr. (seit 1.634.0, Wunsch
 // Patrick 18. November 2026); nur wenn es welche gibt, nie für Externe
@@ -939,7 +940,9 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                   <button type="button" className="knopf knopf--klein pdflink"
                     title="Einrichtblatt für den Typ der gewählten Maschine" onClick={() => {
                     const m = maschinen.find((x) => x.id === w.maschine);
-                    alt.einrichtblattPdfOeffnen(auftrag.job_number, m && m.type_id, auftrag.job_number);
+                    alt.einrichtblattPdfOeffnen(auftrag.job_number, m && m.type_id, auftrag.job_number, {
+                      // Bearbeiten geht in der Produktion (seit 1.715.0)
+                      bearbeitenAnders: (h, t, a) => { zu(); blattInProduktionBearbeiten(h, t, a); } });
                   }}>Ansehen</button></div>
                 <span className="feldhinweis">für den Typ der gewählten Maschine</span></div></div>}
 

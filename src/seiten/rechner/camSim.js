@@ -765,7 +765,7 @@ export function ringeSchneiden(st, k, lo, hi) {
     if (hi < b - 1e-6) neu.push([hi, b]);
   }
   // Wie viel weg ist (mm je Zelle): daran erkennt die Optimierung, ob eine
-  // Vorschubzeile wirklich schneidet (seit 1.711.0)
+  // Vorschubzeile wirklich schneidet (seit 1.718.0)
   if (weg > 0) st.weg = (st.weg || 0) + weg;
   neu.sort((x, y) => y[1] - x[1]);
   // Seit 1.690.2 (Patrick 21. November 2026, 10844-0049: „komische
@@ -1000,7 +1000,7 @@ function punktAbtragen(lauf, st, s, i, h) {
   else abtragen(st, s, s.punkte[i - s.von], h);
 }
 
-// Seit 1.711.0 (Patrick 23. November 2026: „du müsstest wissen, wo noch
+// Seit 1.718.0 (Patrick 23. November 2026: „du müsstest wissen, wo noch
 // Rohmaterial vorhanden ist … manchmal fährt man anstelle von G0 mit G1,
 // heisst aber nicht, dass dort bearbeitet wird“): rechnet das Material
 // wie die 3D-Simulation durch und sagt je Bahnpunkt, ob er Material

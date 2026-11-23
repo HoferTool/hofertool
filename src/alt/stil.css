@@ -15620,13 +15620,6 @@ body.db2-modus.db2-nav .nav { background: var(--db2-karte); }
   border-radius: 22px !important; padding: 16px 18px 14px; color: var(--db2-text);
   box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 8px 24px -12px rgba(15, 23, 42, .12) !important; }
 .db3 .karte:not(.karte--warnung):not(.heuteoffen):not(.neues-tutorial) { background: var(--db2-karte); }
-/* Auf dieser Seite gibt es keine Kopfzeile mit ☰: das Menü steht darum
-   auch bei Admins immer da, die Todos darunter */
-@media (min-width: 780px) {
-  body.db2-nav.nav--todos .nav > .nav__punkt { display: flex; }
-  body.db2-nav.nav--todos .nav > .nav__unter { display: grid; }
-  body.db2-nav.nav--todos .nav-todo { margin-top: 14px; border-top: 1px solid var(--linie-stark); padding-top: 12px; }
-}
 .db3 .karte h2 { font-size: 16px; font-weight: 750; letter-spacing: -.01em; text-wrap: balance; }
 .db3 .karte--warnung { box-shadow: 0 0 0 2px rgba(220, 38, 38, .25), 0 8px 24px -12px rgba(220, 38, 38, .25) !important; }
 .db3 .db2-gruss { margin-bottom: 18px; }
@@ -15768,3 +15761,185 @@ body.dunkel .cam-wzg__flaeche { background: radial-gradient(circle at 40% 35%, #
 body.dunkel .cam-wzg__mass { background: rgba(28,36,46,0.95); border-color: #b86a20; }
 body.dunkel .cam-wzg__mass b { color: #ffa24a !important; }
 @media (max-width: 640px) { .cam-wzg.dialog { height: calc(100vh - 16px); width: calc(100vw - 12px); padding: 10px; } }
+
+/* ---------- HOFERTIME: Anmeldung mit grösseren Bildern ----------
+   Wunsch Patrick 22. November 2026: „Mach alle Bilder grösser, kannst
+   Hofer-Logo nach oben schieben“. Nur in der App …/hofertime/ (Klasse
+   login--zeit), die Anmeldung des HoferTools bleibt, wie sie ist. */
+.login--zeit { place-items: start center; padding-top: 8px; }
+.login--zeit .login__karte { padding-top: 8px; }
+.login--zeit .login__marke { margin-bottom: 16px; padding-bottom: 10px; }
+.login--zeit .login__band { margin-top: 0; aspect-ratio: auto; padding: 18px 0; }
+.login--zeit .login__logo-svg { width: min(260px, 60vw); max-width: 260px; }
+/* Grösse rechnet Anmeldung.jsx (--zk), damit alle ohne Rollen Platz haben */
+.login--zeit .login__kacheln--reihen .login__kachel {
+  flex: 0 0 var(--zk, 120px) !important; width: var(--zk, 120px) !important;
+  max-width: var(--zk, 120px) !important; min-width: 0 !important; }
+.login--zeit .login__kacheln--reihen .login__kachel img,
+.login--zeit .login__kacheln--reihen .login__kachel-buchstabe { width: 100%; max-width: 100%; border-radius: 14px; }
+.login--zeit .login__kachel-name { font-size: .9rem; max-width: 100%; overflow: hidden;
+                                   text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 600px) {
+  .login--zeit { padding: 6px 8px 16px; }
+  .login--zeit .login__karte { padding: 6px 12px 18px; }
+  .login--zeit .login__reihe, .login--zeit .login__kacheln--reihen { gap: 10px !important; }
+  .login--zeit .login__kachel-name { font-size: .82rem; }
+}
+
+/* 1.711.0: Look der Startseite auf allen Seiten (Wunsch Patrick 22. November
+   2026: „so wie Start aussieht soll es immer bleiben“): am Computer keine
+   Kopfzeile, oben in der Leiste das Logo, darunter ☰ (Menü ↔ Todos), Pad Mode
+   und das Bild für die Einstellungen. Die Leiste klappt nicht mehr ein.
+   Suchen mit Strg + F, Rückgängig mit Strg + Z. Externe behalten die Kopfzeile. */
+.nav__oben { display: none; }
+@media (min-width: 780px) {
+  html.ohne-kopf body:not(.rolle-extern) { --kopfhoehe: 0px; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf:not(.db2-kopf) { display: none !important; }
+  html.ohne-kopf body:not(.rolle-extern) .rahmen { padding-top: 0 !important; }
+  /* Bild beim Gruss fällt weg, es steht oben in der Leiste */
+  html.ohne-kopf body:not(.rolle-extern) .db3-gruss__rechts [data-db2-einstellungen] { display: none !important; }
+  html.ohne-kopf body:not(.rolle-extern) .nav__oben { display: block; padding: 10px 14px 12px; }
+  html.ohne-kopf body:not(.rolle-extern) .nav { background: var(--karte, #fff); }
+  html.ohne-kopf body.dunkel:not(.rolle-extern) .nav { background: #141d2e; }
+  html.ohne-kopf body:not(.rolle-extern) #pad-knopf { display: none !important; }
+  body.db2-nav .db2-kopf .db2-logo { display: none; }
+  .nav__logo { display: block; width: 100%; padding: 2px 0 10px; border: 0; background: none; cursor: pointer; }
+  .nav__logo img { display: block; width: 100%; max-width: 180px; height: auto; margin: 0 auto; }
+  .nav__logo--dunkel { display: none !important; }
+  body.dunkel .nav__logo--hell { display: none !important; }
+  body.dunkel .nav__logo--dunkel { display: block !important; }
+  .nav__knoepfe { display: flex; gap: 8px; align-items: center; }
+  .nav__klapp, .nav__pad, .nav__ich { display: grid; place-items: center; flex: none; width: 40px; height: 40px;
+    padding: 0; border: 0; border-radius: 10px; cursor: pointer; font: inherit;
+    transition-property: background-color, filter, scale; transition-duration: .15s; transition-timing-function: ease-out; }
+  .nav__klapp, .nav__pad { background: var(--karte, #fff); color: var(--tinte, #1e293b);
+    box-shadow: 0 0 0 1px var(--rand, #d6dde6), 0 1px 2px rgba(15, 23, 42, .06); }
+  .nav__klapp svg { fill: currentColor; display: block; transition: rotate .25s ease-out; }
+  .nav__klapp--auf { background: var(--marke) !important; color: #fff !important; }
+  .nav__klapp--auf svg { rotate: 90deg; }
+  .nav__klapp:hover, .nav__pad:hover { background: color-mix(in srgb, var(--marke) 10%, var(--karte, #fff)); }
+  .nav__klapp:active, .nav__pad:active, .nav__ich:active { scale: .96; }
+  body.dunkel .nav__klapp:not(.nav__klapp--auf), body.dunkel .nav__pad { background: #1e293b; box-shadow: 0 0 0 1px #334155; }
+  .nav__ich { margin-left: auto; background: none; }
+  .nav__ich .kopf__bild { width: 40px; height: 40px; border-radius: 10px; font-size: 17px; object-fit: cover; }
+}
+body.rolle-extern .nav__oben, body.pw-vollbild .nav__oben { display: none !important; }
+
+/* 1.713.0: neuer Look auch am Handy hochkant (Wunsch Patrick 23. November
+   2026: „auch Hochformat Handy neuer Look, und es soll Sinn machen“). Ohne
+   Seitenleiste bleibt oben eine schlanke Kopfleiste im Stil der Leiste am
+   Computer: Logo links, rechts runde Quadrate für Rückgängig, Suchen, Todos,
+   Pad Mode und das Bild für die Einstellungen. Die Todos öffnen sich als
+   Blatt unter der Kopfleiste. Nur mit html.ohne-kopf (Vermerk neuerLook). */
+.kopf__todos, .kopf__pad { display: none; }
+.kopf-todos, .kopf-todos__schleier { display: none; }
+@media (max-width: 779px) {
+  html.ohne-kopf body:not(.rolle-extern) { --kopfhoehe: calc(60px + env(safe-area-inset-top, 0px)); }
+  html.ohne-kopf body:not(.rolle-extern) .kopf { gap: 8px; padding: 0 12px; border-bottom: 0;
+    background: var(--karte, #fff); box-shadow: 0 1px 0 var(--rand, #d6dde6), 0 4px 14px rgba(15, 23, 42, .06); }
+  html.ohne-kopf body.dunkel:not(.rolle-extern) .kopf { background: #141d2e; box-shadow: 0 1px 0 #26334a; }
+  html.ohne-kopf body:not(.rolle-extern) #pad-knopf,
+  html.ohne-kopf body:not(.rolle-extern) .kopf__klapp,
+  html.ohne-kopf body:not(.rolle-extern) .kopf__benutzer { display: none !important; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf__logolink { order: 0; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf__logo { height: 34px; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf__luecke { order: 1; flex: 1; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf__rueck { order: 2; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf__suche { order: 3; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf__todos { order: 4; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf__pad { order: 5; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf__ich { order: 6; margin-left: 0; padding: 0; }
+  html.ohne-kopf body:not(.rolle-extern) :is(.kopf__rueck, .kopf__suche, .kopf__todos, .kopf__pad) {
+    display: grid !important; place-items: center; flex: none; width: 40px; height: 40px; min-width: 0;
+    padding: 0; border: 0; border-radius: 10px; cursor: pointer; font: inherit;
+    background: var(--karte, #fff); color: var(--tinte, #1e293b);
+    box-shadow: 0 0 0 1px var(--rand, #d6dde6), 0 1px 2px rgba(15, 23, 42, .06);
+    transition-property: background-color, scale; transition-duration: .15s; transition-timing-function: ease-out; }
+  html.ohne-kopf body:not(.rolle-extern) :is(.kopf__rueck, .kopf__suche) :is(b, span, kbd) { display: none; }
+  html.ohne-kopf body:not(.rolle-extern) :is(.kopf__rueck, .kopf__suche) svg { width: 19px; height: 19px; color: var(--marke); }
+  html.ohne-kopf body:not(.rolle-extern) :is(.kopf__rueck, .kopf__suche, .kopf__todos, .kopf__pad, .kopf__ich):active { scale: .96; }
+  html.ohne-kopf body.dunkel:not(.rolle-extern) :is(.kopf__rueck, .kopf__suche, .kopf__todos, .kopf__pad) {
+    background: #1e293b; box-shadow: 0 0 0 1px #334155; }
+  html.ohne-kopf body.dunkel:not(.rolle-extern) :is(.kopf__rueck, .kopf__suche) svg { color: inherit; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf__todos--auf { background: var(--marke) !important; color: #fff !important; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf__ich .kopf__bild { width: 40px; height: 40px; border-radius: 10px; font-size: 17px; object-fit: cover; }
+  /* Blatt mit den Todos unter der Kopfleiste */
+  html.ohne-kopf body:not(.rolle-extern) .kopf-todos__schleier { display: block; position: fixed; inset: var(--kopfhoehe) 0 0;
+    background: rgba(15, 23, 42, .35); animation: kopf-todos-schleier .18s ease-out; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf-todos { display: block; position: fixed; top: calc(var(--kopfhoehe) + 8px);
+    left: 10px; right: 10px; max-height: calc(100dvh - var(--kopfhoehe) - 96px); overflow-y: auto; overscroll-behavior: contain;
+    padding: 12px; border-radius: 16px; background: var(--karte, #fff);
+    box-shadow: 0 0 0 1px var(--rand, #d6dde6), 0 18px 40px rgba(15, 23, 42, .22);
+    animation: kopf-todos-auf .2s ease-out; }
+  html.ohne-kopf body.dunkel:not(.rolle-extern) .kopf-todos { background: #141d2e; box-shadow: 0 0 0 1px #334155, 0 18px 40px rgba(0, 0, 0, .5); }
+  html.ohne-kopf body:not(.rolle-extern) .kopf-todos .nav-todo { display: block; margin: 0; padding: 0; border: 0; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf-todos .pl-todo__eintrag { padding: 9px 8px; font-size: .92rem; }
+  .kopf-todos__laden { margin: 6px 2px; color: #6a7c96; }
+}
+@keyframes kopf-todos-auf { from { opacity: 0; translate: 0 -6px; } }
+@keyframes kopf-todos-schleier { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .kopf-todos, .kopf-todos__schleier { animation: none !important; } }
+.kopf__logobild { display: none; }
+@media (max-width: 779px) {
+  html.ohne-kopf body:not(.rolle-extern) .kopf__logolink .kopf__logo { display: none; }
+  html.ohne-kopf body:not(.rolle-extern) .kopf__logobild--hell { display: block; height: 38px; width: auto; }
+  html.ohne-kopf body.dunkel:not(.rolle-extern) .kopf__logobild--hell { display: none; }
+  html.ohne-kopf body.dunkel:not(.rolle-extern) .kopf__logobild--dunkel { display: block; height: 30px; width: auto; }
+}
+@media (max-width: 779px) {
+  /* Die farbige Linie unter der alten Kopfzeile passt nicht zur hellen Leiste */
+  html.ohne-kopf body:not(.rolle-extern) .kopf::after,
+  html.ohne-kopf body:not(.rolle-extern) .kopf::before { display: none; }
+  html.ohne-kopf body:not(.rolle-extern) :is(.kopf__rueck, .kopf__suche) { margin: 0; }
+}
+
+/* 1.716.0: Pad Mode in der Leiste breiter, mit Namen (Wunsch Patrick
+   23. November 2026: „Padmode Button soll breiter werden“) */
+.nav__pad span { display: none; }
+@media (min-width: 780px) {
+  html.ohne-kopf body:not(.rolle-extern) .nav__pad { flex: 1 1 auto; width: auto; display: flex; gap: 8px;
+    justify-content: center; align-items: center; padding: 0 12px; font-weight: 600; font-size: 14px; white-space: nowrap; }
+  html.ohne-kopf body:not(.rolle-extern) .nav__pad span { display: inline; }
+  html.ohne-kopf body:not(.rolle-extern) .nav__ich { margin-left: 0; }
+}
+@media (max-width: 779px) {
+  html.ohne-kopf body:not(.rolle-extern) .kopf__pad { width: 56px !important; }
+}
+
+/* 1.716.0: Startseite im neuen Look (nur mit Vermerk neuerLook, Wunsch
+   Patrick 23. November 2026): Gruss links, Uhr und Wetter oben rechts in
+   der Ecke, kein Logo-Band; Solaranlage und Bestellungen teilen sich die
+   erste Reihe, darunter zwei gleich breite Spalten */
+.sn2 { display: flex; flex-direction: column; gap: 16px; }
+.sn2 > * { margin: 0 !important; }
+.sn2-kopf { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.sn2-kopf .gruss { margin: 0; font-size: 1.35rem; font-weight: 600; text-wrap: balance; }
+.sn2-ecke { display: flex; align-items: center; gap: 18px; padding: 8px 16px; border-radius: 14px;
+  background: var(--karte, #fff); box-shadow: 0 0 0 1px var(--rand, #d6dde6), 0 1px 2px rgba(15, 23, 42, .06); }
+.sn2-ecke .kopfkarte__zeit { display: flex; align-items: baseline; gap: 10px; }
+.sn2-ecke .uhr { font-size: 1.9rem; font-weight: 500; color: var(--tinte, #1e293b); font-variant-numeric: tabular-nums; }
+.sn2-ecke .kopfkarte__datum { font-size: .85rem; color: var(--grau, #64748b); }
+.sn2-ecke .kopfkarte__wetter { display: flex; align-items: baseline; gap: 8px; text-align: left;
+  padding-left: 18px; border-left: 1px solid var(--rand, #d6dde6); }
+.sn2-ecke .wetter__grad { font-size: 1.9rem; font-weight: 500; line-height: 1; color: var(--tinte, #1e293b); }
+.sn2-ecke .wetter__text { font-size: .9rem; color: var(--tinte, #1e293b); }
+.sn2-ecke :is(.wetter__rand, .wetter__feiertag) { display: none; }
+.sn2-ecke .kopfkarte__wetter .klein { color: var(--grau, #64748b); font-size: .85rem; }
+body.dunkel .sn2-ecke { background: #1e293b; box-shadow: 0 0 0 1px #334155; }
+.sn2-oben { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; align-items: stretch; }
+.sn2-oben > * { margin: 0 !important; min-width: 0; }
+.sn2-oben #db-status, .sn2-oben #db-status > * { height: 100%; margin: 0 !important; box-sizing: border-box; }
+.sn2-oben #db-status > * { display: flex; flex-direction: column; }
+.sn2-oben .db-bestellzahlen { flex: 1; }
+.sn2-oben .db-bestellzahl { display: flex; flex-direction: column; justify-content: center; align-items: center; }
+.sn2-spalten { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.sn2-spalte { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.sn2-spalte > *, .sn2-spalte > * > .karte { margin: 0 !important; }
+.sn2-spalte > :empty { display: none; }
+@media (max-width: 1100px) {
+  .sn2-oben { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 900px) {
+  .sn2-spalten { grid-template-columns: minmax(0, 1fr); }
+  .sn2-ecke .kopfkarte__datum { display: none; }
+}

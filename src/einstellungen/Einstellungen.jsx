@@ -30,7 +30,7 @@ import { adressenAus, verteilerLaden, verteilerSpeichern } from "../teile/ferien
 import { Gruppe, Zeile, SchalterZeile, ReiterZeichen } from "./teile.jsx";
 import { Mailkonto } from "./Mailkonto.jsx";
 import { menueFestAnwenden } from "../huelle/Geruest.jsx";
-import { planerSichtbar } from "../pad/planerTab.js";
+import { todosSichtbar } from "../pad/planerTab.js";
 
 // Wer nicht Admin ist, sieht nur „Allgemein“ (Wunsch Patrick,
 // 7. Oktober 2026: „für alle nicht Admins nur Allgemein sichtbar“).
@@ -353,8 +353,8 @@ function Darstellung() {
       </Zeile>
       <Schalter id="e-dunkel" name="dunkel" titel="Dunkler Modus"
         beiAenderung={(an) => { document.body.classList.toggle("dunkel", an); alt.fensterleisteFaerben(); }} />
-      {planerSichtbar() && <Schalter id="e-menuefest" name="navmenuefest" titel="Menü immer zeigen"
-        text="Die Menüpunkte bleiben in der Seitenleiste stehen, die Todos stehen darunter. Ohne wechselt die Leiste nach 3 Minuten zu den Todos."
+      {todosSichtbar() && <Schalter id="e-menuefest" name="navmenuefest" titel="Menü immer zeigen"
+        text="Die Menüpunkte bleiben in der Seitenleiste stehen, die Todos stehen darunter. Mit ☰ fährst du das Menü ein und aus, ohne Zeit. Ohne wechselt die Leiste nach 3 Minuten zu den Todos."
         beiAenderung={() => menueFestAnwenden()} />}
       <Schalter id="e-wochestart" name="wochestart" titel="Erfassung mit der Woche öffnen"
         text="Sonst öffnet die Erfassung mit dem Tag." />
