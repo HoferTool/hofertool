@@ -16337,3 +16337,43 @@ body.dunkel .rk-stand--abgelehnt { background: #3a3f46; }
 .ze-panel__kacheln--passt .ze-panel__name { font-size: calc(var(--zp-schrift) * 1.25); }
 .ze-panel__kacheln--passt .klein { font-size: var(--zp-schrift); }
 .ze-panel-rahmen:has(.ze-panel__kacheln--passt) .ze-panel { padding-bottom: 0; }
+
+
+/* 1.745.0 (Patrick 23. November 2026: „etwas mehr Farbe, Themenfarbe mehr
+   einbringen, so schwach“). Nur neuer Look: Leiste leicht in der Themenfarbe
+   getönt, aktiver Menüpunkt voll in der Themenfarbe, Pad Mode als farbiger
+   Knopf, Grund der Seite getönt, Karten der Startseite mit farbigem Kopfband
+   und Titel in der Themenfarbe. Alles über --marke, folgt also dem Thema. */
+html.ohne-kopf body:not(.dunkel) { background: color-mix(in srgb, var(--marke) 7%, #f4f6f9); }
+html.ohne-kopf body:not(.dunkel) main, html.ohne-kopf body:not(.dunkel) .inhalt { background: transparent; }
+@media (min-width: 780px) {
+  html.ohne-kopf body:not(.dunkel):not(.rolle-extern) .nav {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--marke) 9%, #fff) 0, color-mix(in srgb, var(--marke) 4%, #fff) 100%);
+    border-right-color: color-mix(in srgb, var(--marke) 22%, #dfe4ec); }
+  html.ohne-kopf body.dunkel:not(.rolle-extern) .nav {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--marke) 30%, #0d1522) 0, color-mix(in srgb, var(--marke) 12%, #0d1522) 100%); }
+  html.ohne-kopf body:not(.rolle-extern) .nav > .nav__punkt.aktiv {
+    background: var(--marke); color: #fff; border-left-color: var(--marke-dunkel);
+    border-radius: 10px; margin-inline: 8px; box-shadow: 0 4px 12px color-mix(in srgb, var(--marke) 35%, transparent); }
+  html.ohne-kopf body:not(.rolle-extern) .nav > .nav__punkt.aktiv :is(.nav__text, .nav__zeichen, svg) { color: #fff !important; }
+  html.ohne-kopf body:not(.rolle-extern) .nav > .nav__punkt:not(.aktiv) .nav__zeichen { color: var(--marke); }
+  html.ohne-kopf body.dunkel:not(.rolle-extern) .nav > .nav__punkt:not(.aktiv) .nav__zeichen { color: color-mix(in srgb, var(--marke) 45%, #fff); }
+  html.ohne-kopf body:not(.rolle-extern) .nav__unterpunkt.aktiv::before { box-shadow: 0 0 0 3px color-mix(in srgb, var(--marke) 25%, transparent); }
+  html.ohne-kopf body:not(.rolle-extern) .nav__oben { border-bottom-color: color-mix(in srgb, var(--marke) 35%, #c3ccd8) !important; }
+}
+html.ohne-kopf body:not(.rolle-extern) #nav-pad, html.ohne-kopf body:not(.rolle-extern) #kopf-pad {
+  background: var(--marke) !important; color: #fff !important; border-color: var(--marke-dunkel) !important; }
+html.ohne-kopf body:not(.rolle-extern) :is(#nav-pad, #kopf-pad) * { color: #fff !important; }
+/* Karten der Startseite: Kopfband in der Themenfarbe, Titel farbig */
+html.ohne-kopf .sn2 :is(.sn2-spalten, .sn2-oben) .karte:not(.sn2-fest):not(.heuteoffen) {
+  border-top: 4px solid var(--marke); border-color: color-mix(in srgb, var(--marke) 18%, var(--linie)); border-top-color: var(--marke); }
+html.ohne-kopf .sn2 :is(.sn2-spalten, .sn2-oben) .karte:not(.heuteoffen) > h2:first-child,
+html.ohne-kopf .sn2 :is(.sn2-spalten, .sn2-oben) .karte:not(.heuteoffen) > :first-child h2 { color: var(--marke); }
+html.ohne-kopf body.dunkel .sn2 :is(.sn2-spalten, .sn2-oben) .karte:not(.heuteoffen) > h2:first-child,
+html.ohne-kopf body.dunkel .sn2 :is(.sn2-spalten, .sn2-oben) .karte:not(.heuteoffen) > :first-child h2 { color: color-mix(in srgb, var(--marke) 45%, #fff) !important; }
+/* 1.745.0 (Patrick: „etwas mittiger positionieren“): Punkt und Schrift im
+   Knopf Kommen / Gehen genau in der Mitte, Abstand links und rechts gleich */
+.sn2-stempel { line-height: 1; padding: 0 20px; justify-content: center; }
+.sn2-stempel > span { display: block; line-height: 1; }
+.sn2-stempel__text { padding-top: 1px; }
+.sn2-kopf .sn2-stempel { align-self: center; }
