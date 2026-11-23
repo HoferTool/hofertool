@@ -174,7 +174,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.753.1";
+const APP_VERSION = "1.753.2";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1185,7 +1185,7 @@ async function gemerktAnmelden(email) {
       fehler = error || new Error("keine Sitzung");
     } catch (f) { fehler = f; }
     // Nur vergessen, wenn der Server den Schlüssel wirklich ablehnt
-    // (1.753.1, Patrick 23. November 2026: „angemeldet bleiben geht nicht
+    // (1.753.2, Patrick 23. November 2026: „angemeldet bleiben geht nicht
     // immer“). Vorher fiel er auch weg, wenn das Netz kurz fehlte: Safari
     // meldet dann „Load failed“, das erkannte die Prüfung nicht, und nach
     // dem Aufwachen des iPads oder Handys kam wieder die PIN.

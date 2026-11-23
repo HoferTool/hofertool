@@ -377,7 +377,7 @@ function Darstellung() {
             beiAenderung={async (an) => {
               if (window.untaetigNeuStarten) window.untaetigNeuStarten();
               // Angemeldet bleiben heisst auch: das Gerät merkt sich die
-              // Anmeldung, sonst ist sie weg, wenn der Tab zugeht (1.753.1)
+              // Anmeldung, sonst ist sie weg, wenn der Tab zugeht (1.753.2)
               const p = alt.profil || {};
               if (an && p.email && !alt.sitzungGemerkt(p.email)) {
                 const s = await alt.sitzung();
