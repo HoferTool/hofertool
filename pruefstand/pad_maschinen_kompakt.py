@@ -1,4 +1,4 @@
-# Pad Mode, Liste der Maschinen eines Parks (1.741.0, Wunsch Patrick
+# Pad Mode, Liste der Maschinen eines Parks (1.742.0, Wunsch Patrick
 # 23. November 2026: „Felder etwas kleiner, dass man alle auf einmal
 # sehen kann“): mit 14 Maschinen am iPad quer und hoch ohne Rollen.
 import os, sys, time
