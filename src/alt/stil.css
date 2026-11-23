@@ -16127,6 +16127,15 @@ body.dunkel .bk-mehr { color: #8ec5ff !important; }
   html #pad .pad__wahl .pad__kacheln--maschinen {
     grid-template-columns: repeat(var(--pad-spalten-quer, 4), minmax(0, 180px)); }
 }
+/* 1.746.1: auch an niedrigen PC-Fenstern (bis 760 hoch, z.B. 1280 × 600)
+   ohne Rollen (Wunsch Patrick 23. November 2026: „soll auch für PC gelten“):
+   Logo, Abstände und Kacheln noch etwas kleiner. */
+@media (min-width: 641px) and (min-height: 501px) and (max-height: 760px) {
+  html #pad .pad__wahl:has(.pad__kacheln--maschinen) { gap: 10px; }
+  html #pad .pad__wahl:has(.pad__kacheln--maschinen) .pad__wahllogo { height: 44px; }
+  html #pad .pad__wahl .pad__kacheln--maschinen { gap: 10px; }
+  html #pad .pad__kacheln--maschinen .pad-kachel { min-height: 82px; padding: 8px 6px; font-size: 1.05rem; }
+}
 
 /* 1.743.0 (Wunsch Patrick 23. November 2026): Linie zwischen den Knöpfen
    oben in der Leiste und den Todos; Solaranlage oben so hoch wie die
