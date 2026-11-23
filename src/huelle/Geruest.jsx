@@ -96,7 +96,13 @@ function todoModusDarf() {
 export function menueFest() {
   return alt.einstellung && alt.einstellung("navmenuefest");
 }
+// Seit 1.717.0 (Wunsch Patrick 23. November 2026: „wenn man Menü immer an
+// hat, soll man per Schalter ausfahren oder einfahren, ohne Zeit“): mit
+// „Menü immer zeigen“ wechselt ☰ trotzdem zwischen Menü und Todos, aber
+// ohne Uhr; eingefahren bleibt es, bis man ☰ wieder drückt (je Tab).
+let festZu = false;
 export function menueFestAnwenden() {
+  festZu = false;
   if (todoModusDarf()) menueZeigen(menueFest() || document.body.classList.contains("nav--zeigt-menue"));
 }
 let menueUhr = 0, wechselUhr = 0;
@@ -109,7 +115,7 @@ function menueZeigen(an) {
   if (!todoModusDarf()) { b.classList.remove("nav--todos", "nav--zeigt-menue", ...WECHSEL); return; }
   b.classList.remove("nav--schmal", "nav--klappt-auf", "nav--klappt-zu");
   const fest = menueFest();
-  an = !!an || fest;
+  an = !!an || (fest && !festZu);
   const setzen = () => {
     b.classList.toggle("nav--todos", !an);
     b.classList.toggle("nav--zeigt-menue", an);
@@ -332,8 +338,9 @@ function Geruest() {
     // Mit Todos klappt die Leiste nie ein: der Knopf wechselt zwischen Todos
     // und Menü (seit 1.711.0 für alle ausser Externen)
     if (todoModus) {
-      if (menueFest()) { alt.meldung("Das Menü bleibt immer stehen (Einstellungen → Allgemein → „Menü immer zeigen“)."); return; }
-      menueZeigen(!document.body.classList.contains("nav--zeigt-menue")); return;
+      const auf = !document.body.classList.contains("nav--zeigt-menue");
+      if (menueFest()) festZu = !auf;
+      menueZeigen(auf); return;
     }
     const b = document.body;
     const schmal = !b.classList.contains("nav--schmal") || b.classList.contains("nav--klappt-zu");
