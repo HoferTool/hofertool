@@ -429,9 +429,9 @@ function blockWerte(b, w, marke) {
   blockEigene(b, w, werte, bed);
   const listen = {
     CODE: codeZeilen(b),
-    PAARE: paarZeilen(b, 1),
-    PAARE2: paarZeilen(b, 2),
-    PAARE3: paarZeilen(b, 3),
+    PAARE: paarZeilen(b, 1, w),
+    PAARE2: paarZeilen(b, 2, w),
+    PAARE3: paarZeilen(b, 3, w),
   };
   return { art, werte, bed, listen };
 }
@@ -549,10 +549,29 @@ export function markenPaare(b) {
 }
 // Zeilen für Kanal k aus den Paaren: Marke, Code aus dem Feld, Marke
 // (Synchron-Paare mit Code davor und danach)
-export const paarZeilen = (b, k) => markenPaare(b).filter((p) => p[2].includes(k))
-  .flatMap(([x, y, , xt, yt, sync]) => sync
-    ? [...k1Zeilen(b, x, y + ":vor", "k" + k), xt, ...k1Zeilen(b, x, y, "k" + k), yt, ...k1Zeilen(b, x, y + ":nach", "k" + k)]
-    : [xt, ...k1Zeilen(b, x, y, "k" + k), yt]);
+// Seit 1.737.0 (Wunsch Patrick 23. November 2026: „bei M50 und M142 in
+// Kanal 3 für den Bereich vor und nach den Codes eine Bearbeitung
+// auswählen … Kopf vor der Aktivierung vom M-Code, Ende nach der
+// Deaktivierung“, „dasselbe bei normalen Wartemarken“): im Feld für den
+// anderen Kanal lässt sich eine Bearbeitung dieses Kanals starten, gespeichert
+// am Block unter `unter["<Kanal>:<x>-<y>"]` mit Art und Feldern. Ihr NC-Code
+// ist Marke, Code des Felds, Marke; Kopf und Ende kommen aus ihrer Vorlage.
+export const UNTER_ARTEN = { 1: ["dreh", "front", "k1f", "seite", "quer"], 2: ["k2", "k2b", "k2a"], 3: ["k3dr", "k3s", "k3f", "k3ff", "k3d"] };
+export const unterArten = (k, w) => (UNTER_ARTEN[k] || []).filter((a) => typ().arten.includes(a) && (w ? montiert(platzGruppe(a), w) : plaetzeVon(platzGruppe(a))).length);
+export const unterSchluessel = (k, x, y) => k + ":" + x + "-" + y;
+export const unterVon = (b, k, x, y) => { const u = (b.unter || {})[unterSchluessel(k, x, y)]; return u && u.art ? u : null; };
+export function unterBlock(b, k, x, y, code) {
+  const u = unterVon(b, k, x, y);
+  return u ? { ...u, id: b.id + "~" + unterSchluessel(k, x, y), code: code.join("\n"), k1: {}, k2: {}, k3: {}, unter: null, frei: false, spindel: "haupt" } : null;
+}
+export const paarZeilen = (b, k, w = {}) => markenPaare(b).filter((p) => p[2].includes(k))
+  .flatMap(([x, y, , xt, yt, sync]) => {
+    const u = unterBlock(b, k, x, y, [xt, ...k1Zeilen(b, x, y, "k" + k), yt]);
+    if (u) return blockZeilenK(u, k, w);
+    return sync
+      ? [...k1Zeilen(b, x, y + ":vor", "k" + k), xt, ...k1Zeilen(b, x, y, "k" + k), yt, ...k1Zeilen(b, x, y + ":nach", "k" + k)]
+      : [xt, ...k1Zeilen(b, x, y, "k" + k), yt];
+  });
 export const k1Zeilen = (b, x, y, feld = "k1") =>
   String((b[feld] || {})[x + "-" + y] || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
 export const anGegenspindel = (b) => (b.art === "front" || b.art === "quer") && b.spindel === "gegen";
@@ -657,6 +676,12 @@ export function markenOrdnen(w) {
     if (b.k1) r.k1 = felder(b.k1);
     if (b.k2) r.k2 = felder(b.k2);
     if (b.k3) r.k3 = felder(b.k3);
+    // Seit 1.737.0: Schlüssel der Bearbeitungen in den Feldern mitziehen
+    if (b.unter) r.unter = Object.fromEntries(Object.entries(b.unter).map(([k, u]) => {
+      const [kn, xy] = k.split(":");
+      const [x, y] = xy.split("-");
+      return [kn + ":" + (x ? zu(x) : x) + "-" + (y ? zu(y) : y), u];
+    }));
     if (gegen) { if (b.art === "quer") r.m3 = slot(b.m3); else r.m2 = slot(b.m2); }
     return r;
   });
