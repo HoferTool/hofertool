@@ -20,6 +20,44 @@ import { terminalSetzen } from "./app.js";
 import { stempelBildHolen, StempelBild } from "./stempelBild.jsx";
 import { gesichtLesen, personFinden, kameraStarten, kameraMoeglich, lichtHinweis } from "./gesicht.js";
 
+// 1.744.0: Namensliste passt ohne Rollen auf den Bildschirm (Wunsch Patrick
+// 23. November 2026: „die Felder alle so gross, dass alle Platz haben auf
+// einer Seite, ohne scrollen“). Spalten und Grösse der Kacheln gerechnet aus
+// dem Platz vom oberen Rand der Liste bis unten, möglichst gross.
+const KACHEL_LUECKE = 10;
+function useKachelMass(anzahl) {
+  const ref = useRef(null);
+  const [mass, setMass] = useState(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !anzahl) { setMass(null); return; }
+    const rechnen = () => {
+      const r = el.getBoundingClientRect();
+      const W = r.width, H = window.innerHeight - r.top - 16;
+      if (W < 50 || H < 50) return;
+      let best = null;
+      for (let sp = 1; sp <= anzahl; sp++) {
+        const reihen = Math.ceil(anzahl / sp);
+        const b = (W - KACHEL_LUECKE * (sp - 1)) / sp;
+        const h = (H - KACHEL_LUECKE * (reihen - 1)) / reihen;
+        // Kachel etwa 1 breit zu 1.15 hoch, Mass k = Grösse der Kachel
+        const k = Math.min(b, h / 1.15);
+        if (!best || k > best.k) best = { k, sp, h };
+      }
+      const k = Math.min(best.k, 320);
+      setMass({ sp: best.sp, h: Math.floor(Math.min(best.h, k * 1.3)), bild: Math.round(Math.min(k * 0.55, 180)), schrift: Math.max(11, Math.round(k * 0.085)) });
+    };
+    rechnen();
+    window.addEventListener("resize", rechnen);
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(rechnen) : null;
+    ro?.observe(el); if (el.parentElement) ro?.observe(el.parentElement);
+    return () => { window.removeEventListener("resize", rechnen); ro?.disconnect(); };
+  }, [anzahl]);
+  const stil = mass ? { gridTemplateColumns: `repeat(${mass.sp}, 1fr)`, gap: KACHEL_LUECKE + "px",
+    "--zp-h": mass.h + "px", "--zp-bild": mass.bild + "px", "--zp-schrift": mass.schrift + "px" } : undefined;
+  return [ref, stil, !!mass];
+}
+
 // Kamera am Panel je Gerät ein oder aus (Vorgabe ein)
 const KAMERA_KEY = "hofer.zeit.kamera";
 function kameraAn() { try { return localStorage.getItem(KAMERA_KEY) !== "aus"; } catch { return true; } }
@@ -313,6 +351,10 @@ export default function Panel() {
   }
 
   const zeit = String(uhr.getHours()).padStart(2, "0") + ":" + String(uhr.getMinutes()).padStart(2, "0");
+  const listeSicht = !fertig && !saldo && !wahl && !kameraZuerst;
+  const sucheKlein = suche.trim().toLowerCase();
+  const listeAlle = (leute || []).filter((p) => !sucheKlein || String(p.full_name || "").toLowerCase().includes(sucheKlein));
+  const [kachelRef, kachelStil, kachelPasst] = useKachelMass(listeSicht ? listeAlle.length : 0);
   let inhalt;
   if (fertig) {
     inhalt = (
@@ -383,8 +425,7 @@ export default function Panel() {
         <button className="ze-pablo__ohne" id="ze-panel-ohne" onClick={() => setNamen(true)}>Nicht mit Gesichtserkennung</button>
       </section>);
   } else {
-  const s = suche.trim().toLowerCase();
-  const liste = (leute || []).filter((p) => !s || String(p.full_name || "").toLowerCase().includes(s));
+  const liste = listeAlle;
   inhalt = (
     <section className="ze-panel">
       <div className="ze-panel__kopf">
@@ -400,7 +441,7 @@ export default function Panel() {
       {erk.stand && <p className="klein" id="ze-panel-kamera-stand">{erk.stand}</p>}
       {fehler && <div className="karte karte--fehler"><p>{fehler}</p></div>}
       {!leute && !fehler && <div className="laedt">Wird geladen …</div>}
-      <div className="ze-panel__kacheln">
+      <div className={"ze-panel__kacheln" + (kachelPasst ? " ze-panel__kacheln--passt" : "")} ref={kachelRef} style={kachelStil}>
         {liste.map((p) => (
           <button key={p.id} className={"ze-panel__kachel" + (p.da ? " ze-panel__kachel--da" : "")} data-ze-panel={p.id}
             onClick={() => { setPerGesicht(false); setWahl(p); }}>
