@@ -63,6 +63,9 @@ with sync_playwright() as p:
         haupt.click("#pw-planer")
     pg = tab.value
     pg.wait_for_selector("#pad-planer", timeout=20000); pg.wait_for_timeout(800)
+    # Die Beispieldaten liegen je nach Wochentag bis gut drei Wochen voraus (11SMnPb30 am
+    # 23. November 2026 am 8. Dezember), darum mit 4 Wochen statt der Vorgabe 2 prüfen
+    pg.locator("[data-plzeit]", has_text="4 Wochen").click(); pg.wait_for_timeout(600)
     pruefe("#/planer" in pg.url, "Planer im eigenen Tab #/planer")
     pruefe(pg.locator("#pw-planer").count() == 0, "im Planer kein Planer-Knopf")
     # Seit 1.648.0: HOCO Nr. zeigt den Auftrag auf der normalen Planwand im Haupt-Tab
@@ -225,7 +228,7 @@ with sync_playwright() as p:
     haupt.wait_for_timeout(800)
     pruefe(pg.is_closed(), "Enter schliesst den Planer-Tab")
     # Im Pad gibt es keine Kachel Planer mehr
-    haupt.locator("button:has-text('Pad Mode')").first.click(); haupt.wait_for_selector("#pad [data-padwo='qs']")
+    haupt.locator("button:has-text('Pad Mode'):visible, #kopf-pad:visible").first.click(); haupt.wait_for_selector("#pad [data-padwo='qs']")
     pruefe(haupt.locator("#pad [data-padwo='planer']").count() == 0, "keine Kachel Planer im Pad")
     pruefe(not pf, "keine Fehler im Browser " + str(pf[:2]))
     br.close()

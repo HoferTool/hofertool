@@ -55,7 +55,7 @@ with sync_playwright() as p:
 
     # Knopf im QS Check des Pads
     pg.evaluate("location.hash='#planwand'"); pg.wait_for_timeout(500)
-    pg.click("#kopf-pad, [data-pad-oeffnen], button:has-text('Pad Mode')"); pg.wait_for_selector("#pad")
+    pg.locator("#kopf-pad:visible, [data-pad-oeffnen]:visible, button:has-text('Pad Mode'):visible").first.click(); pg.wait_for_selector("#pad")
     pg.wait_for_timeout(500)
     pg.locator("#pad button:has-text('QS Check')").first.click(); pg.wait_for_selector("[data-padkeyence]")
     pg.click("[data-padkeyence]"); pg.wait_for_selector("#keyence-fenster [data-keyence-hoco]"); pg.wait_for_timeout(500)
