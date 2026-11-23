@@ -47,6 +47,8 @@ function useErkennung({ an, aktiv, leute, waehlen }) {
   leuteRef.current = leute;
   const waehlenRef = useRef(waehlen);
   waehlenRef.current = waehlen;
+  const gesichterRef = useRef(gesichter);
+  gesichterRef.current = gesichter;
 
   useEffect(() => {
     if (!an) return undefined;
@@ -56,7 +58,7 @@ function useErkennung({ an, aktiv, leute, waehlen }) {
     return () => clearInterval(t);
   }, [an]);
 
-  const bereit = an && gesichter && gesichter.length > 0 && kameraMoeglich();
+  const bereit = !!(an && gesichter && gesichter.length > 0 && kameraMoeglich());
   useEffect(() => {
     if (!bereit) return undefined;
     let weg = false;
@@ -71,7 +73,7 @@ function useErkennung({ an, aktiv, leute, waehlen }) {
           // Seit 1.658.0 kleiner und unsicherer erlaubt (iPad am Eingang,
           // Leute stehen weiter weg), dafür 2 von 3 Bildern dieselbe Person
           const gut = g && g.gross >= 0.08 && g.sicher >= 0.5;
-          const p = gut ? personFinden(g.muster, gesichter) : null;
+          const p = gut ? personFinden(g.muster, gesichterRef.current || []) : null;
           const r = letzte.current;
           r.push(p ? { id: p.id, d: p.d, muster: g.muster } : null);
           while (r.length > 3) r.shift();
@@ -103,14 +105,53 @@ function useErkennung({ an, aktiv, leute, waehlen }) {
       } else if (letzte.current.length) { letzte.current = []; setHinweis(""); }
       if (!weg) timer = setTimeout(runde, 450);
     };
-    kameraStarten(video.current).then((s) => {
-      if (weg) { s(); return; }
-      stopp = s;
-      setStand("");
-      runde();
-    }, (f) => { setStand("Kamera nicht erlaubt: " + (f && f.message ? f.message : f)); setFehler(true); });
-    return () => { weg = true; clearTimeout(timer); if (stopp) stopp(); };
-  }, [bereit, gesichter]);
+    // Seit 1.719.0 (Patrick 23. November 2026: „nach der Anmeldung
+    // verschwindet das Kamerazeichen nach 10–20 Sekunden“): Safari am iPad
+    // hält die Kamera an, wenn sie das Bild für unsichtbar hält, oder wenn
+    // die Seite kurz im Hintergrund war. Darum schaut ein Wächter alle
+    // 3 Sekunden nach: steht das Bild, läuft es weiter; ist die Kamera aus,
+    // startet sie neu. Die Gesichter kommen über eine Ref in die Runde,
+    // damit das Nachladen alle 5 Minuten die Kamera nicht neu startet.
+    let stream = null;
+    let startet = false;
+    let haenger = 0;
+    const starten = () => {
+      if (weg || startet) return;
+      startet = true;
+      if (stopp) { stopp(); stopp = null; }
+      kameraStarten(video.current).then((s) => {
+        startet = false;
+        if (weg) { s(); return; }
+        stopp = s;
+        stream = video.current && video.current.srcObject;
+        haenger = 0;
+        setStand(""); setFehler(false);
+        if (!timer) runde();
+      }, (f) => {
+        startet = false;
+        setStand("Kamera nicht erlaubt: " + (f && f.message ? f.message : f)); setFehler(true);
+      });
+    };
+    const waechter = setInterval(() => {
+      if (weg || startet || document.hidden) return;
+      const v = video.current;
+      if (!v) return;
+      const spur = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
+      const aus = !spur || spur.readyState === "ended" || v.srcObject !== stream;
+      if (aus) { starten(); return; }
+      if (v.paused) v.play().catch(() => {});
+      if (spur.muted || v.readyState < 2) haenger++; else haenger = 0;
+      if (haenger >= 3) starten();
+    }, 3000);
+    const sichtbar = () => { if (!document.hidden && !weg) { const v = video.current; if (v && v.paused) v.play().catch(() => {}); } };
+    document.addEventListener("visibilitychange", sichtbar);
+    starten();
+    return () => {
+      weg = true; clearTimeout(timer); clearInterval(waechter);
+      document.removeEventListener("visibilitychange", sichtbar);
+      if (stopp) stopp();
+    };
+  }, [bereit]);
 
   // Nachlernen (seit 1.658.0): hat die Kamera die Person sicher gewählt
   // (Abstand unter 0.42) und sie stempelt, kommt das Muster aus dem Bild
