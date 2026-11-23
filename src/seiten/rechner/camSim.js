@@ -19,7 +19,7 @@
 //  Programm je Bearbeitung (ohne Handänderungen im Programmfenster).
 // =================================================================
 
-import { blockZeilen, blockZeilen2, blockZeilen3, kanalZahl, swFrontVon, swFrontArt, bereichMitHand, bereichLage, k1Zeilen, markenPaare, markenVergeben, programme, programmeMitHand, zahl, abVersatz, t34Von } from "./hofercam.js";
+import { blockZeilen, blockZeilen2, blockZeilen3, kanalZahl, swFrontVon, swFrontArt, bereichMitHand, bereichLage, k1Zeilen, markenPaare, markenVergeben, unterBlock, blockZeilenK, programme, programmeMitHand, zahl, abVersatz, t34Von } from "./hofercam.js";
 import { wirksamB, wirksamW } from "./camTyp.js";
 import { fraeserUmriss, plattenForm, plattenGross, plattenUmriss, wzArt, wzVollstaendig } from "./camWerkzeug.js";
 import { SPITZEN } from "./kontur.js";
@@ -540,7 +540,12 @@ export function simAufbauen(wRoh) {
   const sw = kanalZahl() > 2;
   const schritte = [];
   let cZ = -Infinity, hatGew = false;
-  (w.bloecke || []).forEach((bRoh, i) => {
+  // Seit 1.738.0 (Patrick 23. November 2026: „die Bearbeitung in Kanal 3
+  // soll auch ein eigenes Werkzeug für die Simulation haben“): eine
+  // Bearbeitung im Feld für den anderen Kanal (b.unter) wird ein eigener
+  // Schritt gleich nach ihrer Bearbeitung, mit ihrem Werkzeug und den
+  // Zeilen aus Kopf, Marke, Code, Marke, Ende ihrer Vorlage
+  const bauen = (bRoh, i, fest) => {
     const b = wirksamB(bRoh);
     const platz = "T" + (b.platz || "");
     const titel = platz + (b.bez ? " " + b.bez : "");
@@ -552,10 +557,10 @@ export function simAufbauen(wRoh) {
     const kanal = art === "k2" || art === "k2a" || art === "k2b" || gegen ? 2 : 1;
     const wzOk = wzVollstaendig(bRoh);
     const wa = wzOk ? wzArt(bRoh) : null;
-    const s = { i, id: b.id, kanal, pfad: k3 ? 3 : kanal, titel, platz: Number(b.platz) || 0, art, gegen, wz: wzOk ? bRoh.wz : null, wzArt: wa, punkte: [], modus: null, status: "" };
-    let zeilen = k3 ? blockZeilen3(b, w, marken[b.id]) : kanal === 2 ? blockZeilen2(b, marken[b.id], w) : blockZeilen(b, w, marken[b.id]);
+    const s = { i, id: b.id, unter: !!fest, block: bRoh, kanal, pfad: k3 ? 3 : kanal, titel, platz: Number(b.platz) || 0, art, gegen, wz: wzOk ? bRoh.wz : null, wzArt: wa, punkte: [], modus: null, status: "" };
+    let zeilen = fest || (k3 ? blockZeilen3(b, w, marken[b.id]) : kanal === 2 ? blockZeilen2(b, marken[b.id], w) : blockZeilen(b, w, marken[b.id]));
     // Seit 1.618.1: genau so, wie es im Programmfenster steht (mit Handänderungen)
-    const mitHand = k3 ? bereichMitHand(prog.auto3, prog.k3, prog.bereiche3[b.id])
+    const mitHand = fest ? null : k3 ? bereichMitHand(prog.auto3, prog.k3, prog.bereiche3[b.id])
       : kanal === 2 ? bereichMitHand(prog.auto2, prog.k2, prog.bereiche2[b.id]) : bereichMitHand(prog.auto1, prog.k1, prog.bereiche[b.id]);
     if (mitHand) zeilen = mitHand;
     if (sw && kanal === 1 && !k3) { const l = bereichLage(prog.auto1, prog.k1, prog.bereiche[b.id]); s.zeile1 = l ? l[0] : Infinity; }
@@ -688,6 +693,14 @@ export function simAufbauen(wRoh) {
     if (!wzOk) s.status = "fehlt";
     if (!s.punkte.length && !s.status) s.status = "leer";
     schritte.push(s);
+  };
+  (w.bloecke || []).forEach((bRoh, i) => {
+    bauen(bRoh, i);
+    if (!bRoh.unter) return;
+    for (const [x, y, ziele, xt, yt] of markenPaare(bRoh)) for (const k of ziele) {
+      const u = unterBlock(bRoh, k, x, y, [xt, ...k1Zeilen(bRoh, x, y, "k" + k), yt]);
+      if (u) bauen(u, i, blockZeilenK(wirksamB(u), k, w));
+    }
   });
   // Seit 1.558.3 (Patrick 16. November 2026: „beim Abstechen und Übergabe
   // sehe ich dann, dass das Werkstück vom Rest der 3 m langen Stange

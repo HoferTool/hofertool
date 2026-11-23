@@ -429,15 +429,17 @@ function blockWerte(b, w, marke) {
   blockEigene(b, w, werte, bed);
   const listen = {
     CODE: codeZeilen(b),
-    PAARE: paarZeilen(b, 1),
-    PAARE2: paarZeilen(b, 2),
-    PAARE3: paarZeilen(b, 3),
+    PAARE: paarZeilen(b, 1, w),
+    PAARE2: paarZeilen(b, 2, w),
+    PAARE3: paarZeilen(b, 3, w),
   };
   return { art, werte, bed, listen };
 }
 // Bearbeitung „wie eingelesen“ (seit 1.561.0): der NC-Code steht
 // unverändert im Programm, ohne Vorlage, im Kanal ihrer Art
-const freiZeilen = (b) => String(b.code || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
+// Seit 1.736.0 mit Kopf (freiKopf) und Ende (freiEnde) wie eingelesen
+const teilZeilen = (t) => String(t || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
+const freiZeilen = (b) => [...teilZeilen(b.freiKopf), ...teilZeilen(b.code), ...teilZeilen(b.freiEnde)];
 const freiK2 = (b) => b.art === "k2" || b.art === "k2a" || b.art === "k2b";
 export function blockZeilen(b, w = {}, marke) {
   if (b.frei) return freiK2(b) || istK3(b) ? [] : freiZeilen(b);
@@ -547,10 +549,29 @@ export function markenPaare(b) {
 }
 // Zeilen für Kanal k aus den Paaren: Marke, Code aus dem Feld, Marke
 // (Synchron-Paare mit Code davor und danach)
-export const paarZeilen = (b, k) => markenPaare(b).filter((p) => p[2].includes(k))
-  .flatMap(([x, y, , xt, yt, sync]) => sync
-    ? [...k1Zeilen(b, x, y + ":vor", "k" + k), xt, ...k1Zeilen(b, x, y, "k" + k), yt, ...k1Zeilen(b, x, y + ":nach", "k" + k)]
-    : [xt, ...k1Zeilen(b, x, y, "k" + k), yt]);
+// Seit 1.737.0 (Wunsch Patrick 23. November 2026: „bei M50 und M142 in
+// Kanal 3 für den Bereich vor und nach den Codes eine Bearbeitung
+// auswählen … Kopf vor der Aktivierung vom M-Code, Ende nach der
+// Deaktivierung“, „dasselbe bei normalen Wartemarken“): im Feld für den
+// anderen Kanal lässt sich eine Bearbeitung dieses Kanals starten, gespeichert
+// am Block unter `unter["<Kanal>:<x>-<y>"]` mit Art und Feldern. Ihr NC-Code
+// ist Marke, Code des Felds, Marke; Kopf und Ende kommen aus ihrer Vorlage.
+export const UNTER_ARTEN = { 1: ["dreh", "front", "k1f", "seite", "quer"], 2: ["k2", "k2b", "k2a"], 3: ["k3dr", "k3s", "k3f", "k3ff", "k3d"] };
+export const unterArten = (k, w) => (UNTER_ARTEN[k] || []).filter((a) => typ().arten.includes(a) && (w ? montiert(platzGruppe(a), w) : plaetzeVon(platzGruppe(a))).length);
+export const unterSchluessel = (k, x, y) => k + ":" + x + "-" + y;
+export const unterVon = (b, k, x, y) => { const u = (b.unter || {})[unterSchluessel(k, x, y)]; return u && u.art ? u : null; };
+export function unterBlock(b, k, x, y, code) {
+  const u = unterVon(b, k, x, y);
+  return u ? { ...u, id: b.id + "~" + unterSchluessel(k, x, y), code: code.join("\n"), k1: {}, k2: {}, k3: {}, unter: null, frei: false, spindel: "haupt" } : null;
+}
+export const paarZeilen = (b, k, w = {}) => markenPaare(b).filter((p) => p[2].includes(k))
+  .flatMap(([x, y, , xt, yt, sync]) => {
+    const u = unterBlock(b, k, x, y, [xt, ...k1Zeilen(b, x, y, "k" + k), yt]);
+    if (u) return blockZeilenK(u, k, w);
+    return sync
+      ? [...k1Zeilen(b, x, y + ":vor", "k" + k), xt, ...k1Zeilen(b, x, y, "k" + k), yt, ...k1Zeilen(b, x, y + ":nach", "k" + k)]
+      : [xt, ...k1Zeilen(b, x, y, "k" + k), yt];
+  });
 export const k1Zeilen = (b, x, y, feld = "k1") =>
   String((b[feld] || {})[x + "-" + y] || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
 export const anGegenspindel = (b) => (b.art === "front" || b.art === "quer") && b.spindel === "gegen";
@@ -618,7 +639,7 @@ export function markenOrdnen(w) {
   const reserviert = new Set(kopfEnde);
   const sammeln = (t) => textMarken(t, (m) => { if (fest(m)) reserviert.add(m); return m; });
   bloecke.forEach((b) => {
-    if (b.frei) { sammeln(b.code); return; }
+    if (b.frei) { sammeln(b.code); sammeln(b.freiKopf); sammeln(b.freiEnde); return; }
     sammeln(b.code);
     [...Object.values(b.k1 || {}), ...Object.values(b.k2 || {}), ...Object.values(b.k3 || {})].forEach(sammeln);
     if (anGegenspindel(b)) [b.m1, b.m2, b.m3].map(markeNorm).filter((m) => m && fest(m)).forEach((m) => reserviert.add(m));
@@ -655,6 +676,12 @@ export function markenOrdnen(w) {
     if (b.k1) r.k1 = felder(b.k1);
     if (b.k2) r.k2 = felder(b.k2);
     if (b.k3) r.k3 = felder(b.k3);
+    // Seit 1.737.0: Schlüssel der Bearbeitungen in den Feldern mitziehen
+    if (b.unter) r.unter = Object.fromEntries(Object.entries(b.unter).map(([k, u]) => {
+      const [kn, xy] = k.split(":");
+      const [x, y] = xy.split("-");
+      return [kn + ":" + (x ? zu(x) : x) + "-" + (y ? zu(y) : y), u];
+    }));
     if (gegen) { if (b.art === "quer") r.m3 = slot(b.m3); else r.m2 = slot(b.m2); }
     return r;
   });
@@ -1059,7 +1086,11 @@ export function handZurueck(w, kanal, zeilen) {
 }
 // Wo im erzeugten Block der NC-Code steht: { k: erste Zeile, n: Anzahl, schraeg }
 function codeLage(b, gen, kanal, w, marke) {
-  if (b.frei) return gen.length ? { k: 0, n: gen.length, schraeg: false } : null;
+  if (b.frei) {
+    if (!gen.length) return null;
+    const k = teilZeilen(b.freiKopf).length;
+    return { k, n: Math.max(0, gen.length - k - teilZeilen(b.freiEnde).length), schraeg: false };
+  }
   const c = codeZeilen(b);
   if (!c.length) {
     const s = blockZeilenK({ ...b, code: "\u0001" }, kanal, w, marke);

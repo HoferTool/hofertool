@@ -268,9 +268,47 @@ const ohneFest = (arten, s) => (angetrieben(s) ? arten.filter((a) => !FEST_ARTEN
 // Platz und Art aus dem Werkzeugaufruf, der NC-Code ist das ganze Stück
 // vom Werkzeugaufruf bis M1, das Programm schreibt es unverändert.
 const zahlIn = (zeilen, re) => { for (const z of zeilen) { const m = z.replace(/^\//, "").match(re); if (m) return m[1]; } return null; };
+// Seit 1.736.0 (Patrick 23. November 2026: „nimm als Kopf der Bearbeitung
+// alles, was bis zur ersten G1-Bewegung kommt. Ende ab Ausschalten HD,
+// oder Deaktivierung eines Zyklus oder G0T0, Priorität in dieser
+// Reihenfolge. Auch für die SB-20“): das Stück wird in Kopf, NC-Code und
+// Ende geteilt. Ohne G1 zählt die erste andere Vorschubbewegung (G2/G3,
+// Bohrzyklus). Findet sich nichts Passendes, bleibt alles NC-Code.
+const ohneKommentar = (z) => z.replace(/\([^)]*\)?/g, "").replace(/\s/g, "").replace(/^\//, "").replace(/^N\d+/i, "");
+const G1_RE = /G0*1(?![\d.])/i;
+const VOR_RE = /G0*[23](?![\d.])|G(?:7[1-6]|8[1-9])(?!\d)/i;
+const ENDE_RE = [
+  /M189\d*/i, // HD aus (M1891–M1894, M189<Ausgang>)
+  /G80(?!\d)/i, // Zyklus aus
+  /^(?:G0*0)?T0+(?!\d)/i, // G0T0 bzw. T0
+];
+export function freiTeilen(s) {
+  const z = s.map(ohneKommentar);
+  let a = z.findIndex((x) => G1_RE.test(x));
+  if (a < 0) a = z.findIndex((x) => VOR_RE.test(x));
+  if (a < 0) return { kopf: [], code: s, ende: [] };
+  let e = -1;
+  for (const re of ENDE_RE) {
+    for (let i = z.length - 1; i > a; i--) if (re.test(z[i])) { e = i; break; }
+    if (e > 0) break;
+  }
+  if (e < 0) e = s.length;
+  return { kopf: s.slice(0, a), code: s.slice(a, e), ende: s.slice(e) };
+}
 function freiBlock(art, s, platz) {
-  const b = { ...neuerBlock([], art), platz: String(platz), frei: true, code: s.join("\n") };
+  const t3 = freiTeilen(s);
+  // Seit 1.739.0 (Patrick 23. November 2026: „du kannst doch nur den nc
+  // code in die bearbeitung nehmen und kopf und ende wie die anderen“,
+  // „du kannst ja immer noch violett anzeigen, was zum standard nicht
+  // übereinstimmt“): eine normale Bearbeitung mit Kopf und Ende aus der
+  // Vorlage, nur der NC-Code kommt aus dem Programm. Der eingelesene Text
+  // bleibt im Programmfenster, was von der Vorlage abweicht, ist violett.
+  const k2art = /^k2/.test(art);
+  const code = t3.code.map((z) => (k2art ? z.replace(/^\//, "") : z));
+  const b = { ...neuerBlock([], art), platz: String(platz), code: code.join("\n") };
   delete b.id;
+  const hd = s.map((z) => z.replace(/^\//, "").replace(/\s/g, "").match(/^M188(\d)D(\d)/i)).find(Boolean);
+  if (hd) { b.hdN = hd[1]; b.hd = hd[2]; b.hdAn = !s.some((z) => /M189/i.test(z)); }
   const t = s.find((z) => /^\/?T\d{3,4}/i.test(z)) || "";
   b.bez = (t.match(/\(([^)]*)\)/) || [])[1]?.trim().toUpperCase() || "";
   const S = zahlIn(s, /^(?:G9[67])?M(?:0?[34]|3[67])S(\d+)/i);

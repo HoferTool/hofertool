@@ -16101,7 +16101,119 @@ body.dunkel .bk-mehr { color: #8ec5ff !important; }
 }
 @media (prefers-reduced-motion: reduce) { .bk-kachel { transition: none; } }
 
-/* 1.736.0 (Wunsch Patrick 23. November 2026): Linie zwischen den Knöpfen
+/* 1.740.0 (Patrick 23. November 2026: „das sieht kaccke aus … bau es
+   homogener“, „für jeden kanal nur 1 zeile, kannst auch kleiner machen“):
+   je Kanal eine Zeile, Beschriftung gleich breit, Knöpfe klein, gleich hoch,
+   ohne Umbruch. Erst wenn der Platz fehlt, rollt die Zeile seitlich. */
+.cam-bearb__kopf { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; margin-bottom: 5px; overflow-x: auto; scrollbar-width: thin; }
+.cam-bearb__kopf > b { flex: 0 0 4.2em; min-width: 0; white-space: nowrap; font-size: 0.9em; }
+.cam-bearb__kopf > .knopf, .cam .cam-bearb__kopf > .knopf.knopf--klein { flex: 0 0 auto; white-space: nowrap; font-size: 12px; padding: 3px 6px; min-height: 0; line-height: 1.3; margin: 0; }
+/* 1.742.0: Pad, Liste der Maschinen kompakter, damit am iPad alle auf
+   einmal zu sehen sind (Wunsch Patrick 23. November 2026: „Felder etwas
+   kleiner, dass man alle auf einmal sehen kann“). Quer bis 6 je Reihe
+   (--pad-spalten-quer), hoch bis 4, Logo kleiner; das Raster selbst kommt
+   aus effekte.css, darum html davor. Handy hat eigene Regeln weiter oben. */
+@media (min-width: 641px) and (min-height: 501px) {
+  html #pad .pad__wahl:has(.pad__kacheln--maschinen) { gap: 16px; }
+  html #pad .pad__wahl:has(.pad__kacheln--maschinen) .pad__wahllogo { height: clamp(56px, 9vh, 100px); }
+  html #pad .pad__wahl .pad__kacheln--maschinen { gap: 12px;
+    grid-template-columns: repeat(var(--pad-spalten, 3), minmax(0, 180px)); }
+  html #pad .pad__kacheln--maschinen .pad-kachel { min-height: 96px; padding: 10px 8px;
+    gap: 3px; font-size: 1.15rem; }
+  html #pad .pad__kacheln--maschinen .pad-kachel__nr { font-size: .85rem; }
+  html #pad .pad__kacheln--maschinen .pad-kachel__auftrag { font-size: .9rem; }
+}
+@media (min-width: 641px) and (min-height: 501px) and (orientation: landscape) {
+  html #pad .pad__wahl .pad__kacheln--maschinen {
+    grid-template-columns: repeat(var(--pad-spalten-quer, 4), minmax(0, 180px)); }
+}
+
+/* 1.741.0 HOFERCAM moderner (Patrick 23. November 2026: „gaeht der ganze
+   stile vom hofercam auch etwas moderner?“): ruhige Fläche, weisse Karten
+   mit weichem Schatten und runden Ecken, Gruppentitel als kleine Überschrift
+   statt blauer Schilder, Felder hell mit feinem Rand und blauem Fokusring,
+   Knöpfe als runde Chips, Kanäle mit schmaler Farbkante. Nur Aussehen,
+   Aufbau und Klassen bleiben. Gilt in der Seite und im eigenen Fenster. */
+:is(.karte.cam, .cam-eigen) {
+  --cm-grund: #f3f5f8; --cm-karte: #ffffff; --cm-rand: #e1e6ec; --cm-rand2: #cfd7e1;
+  --cm-feld: #f8fafc; --cm-text: #16212c; --cm-leise: #5d6b79; --cm-akzent: #0b5cc2;
+  --cm-chip: #eef3f9; --cm-chip-rand: #d3dde9; --cm-chip-hover: #dde9f7; --cm-chip-hover-rand: #9fbde3; --cm-chip-text: #12365f;
+  --cm-schatten: 0 1px 2px rgba(16, 33, 52, .06), 0 4px 14px rgba(16, 33, 52, .06);
+  --cm-k1: #2f6fbe; --cm-k2: #17998a; --cm-k3: #7a55b5;
+}
+body.dunkel :is(.karte.cam, .cam-eigen) {
+  --cm-grund: #12161a; --cm-karte: #1a2026; --cm-rand: #2a333c; --cm-rand2: #36414c;
+  --cm-feld: #141a1f; --cm-text: #e8edf2; --cm-leise: #9aa7b4; --cm-akzent: #6aa8ff;
+  --cm-chip: #222b34; --cm-chip-rand: #34404c; --cm-chip-hover: #2a3a4d; --cm-chip-hover-rand: #4d6e96; --cm-chip-text: #d6e4f5;
+  --cm-schatten: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 18px rgba(0, 0, 0, .25);
+  --cm-k1: #5b95e0; --cm-k2: #33b5a5; --cm-k3: #9d7ad6;
+}
+body .karte.cam { background: var(--cm-grund); border: 1px solid var(--cm-rand); border-radius: 14px; padding: 14px 16px; }
+
+/* Gruppen der Kopfdaten */
+body :is(.karte.cam, .cam-eigen) .cam-gruppen { gap: 10px; }
+body :is(.karte.cam, .cam-eigen) .cam-gruppe { background: var(--cm-karte); border: 1px solid var(--cm-rand);
+  border-radius: 12px; box-shadow: var(--cm-schatten); padding: 26px 12px 10px; position: relative; }
+body :is(.karte.cam, .cam-eigen) .cam-gruppe legend { position: absolute; top: 8px; left: 12px; padding: 0;
+  background: none; color: var(--cm-leise); border-radius: 0; font-size: 11px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase; }
+body :is(.karte.cam, .cam-eigen) .cam-feld { gap: 8px; margin: 2px 0; }
+body :is(.karte.cam, .cam-eigen) .cam-feld span { color: var(--cm-leise); }
+
+/* Felder */
+body :is(.karte.cam, .cam-eigen) :is(input:not([type=checkbox]):not([type=radio]), select, textarea, .cam-wahl__knopf) {
+  background: var(--cm-feld); border: 1px solid var(--cm-rand2); border-radius: 7px; color: var(--cm-text);
+  transition: border-color .15s, box-shadow .15s, background .15s; }
+body :is(.karte.cam, .cam-eigen) :is(input:not([type=checkbox]):not([type=radio]), select, textarea, .cam-wahl__knopf):hover { border-color: #a9b6c5; }
+body :is(.karte.cam, .cam-eigen) :is(input:not([type=checkbox]):not([type=radio]), select, textarea, .cam-wahl__knopf):focus {
+  outline: none; border-color: var(--cm-akzent); background: var(--cm-karte);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cm-akzent) 22%, transparent); }
+body :is(.karte.cam, .cam-eigen) input[type=checkbox] { accent-color: var(--cm-akzent); }
+body :is(.karte.cam, .cam-eigen) .cam-feld--fehler input { border-color: #d33 !important; box-shadow: 0 0 0 3px rgba(221, 51, 51, .18) !important; }
+
+/* Knöpfe als Chips */
+body :is(.karte.cam, .cam-eigen) .knopf:not(.knopf--primaer):not(.cam-block__pfeil) {
+  background: var(--cm-chip); border: 1px solid var(--cm-chip-rand); color: var(--cm-chip-text);
+  border-radius: 999px; box-shadow: none; font-weight: 600; transition: background .15s, border-color .15s, transform .1s; }
+body :is(.karte.cam, .cam-eigen) .knopf:not(.knopf--primaer):not(.cam-block__pfeil):hover:not(:disabled) {
+  background-color: var(--cm-chip-hover); border-color: var(--cm-chip-hover-rand); color: var(--cm-chip-text); }
+body :is(.karte.cam, .cam-eigen) .knopf:not(.cam-block__pfeil):active:not(:disabled) { transform: translateY(1px); }
+body :is(.karte.cam, .cam-eigen) .knopf:disabled { opacity: .45; }
+body :is(.karte.cam, .cam-eigen) .knopf--primaer { border-radius: 999px; }
+body :is(.karte.cam, .cam-eigen) .cam-block__knoepfe .knopf { border-radius: 8px !important; width: 28px; padding: 0; justify-content: center; }
+body :is(.karte.cam, .cam-eigen) .cam-bearb__kopf > b { color: var(--cm-leise); font-size: 12px; flex-basis: 5em; }
+body :is(.karte.cam, .cam-eigen) .cam-spalte--kopf .knopf { min-height: 0; padding: 4px 10px; font-size: 12px; white-space: nowrap; line-height: 1.3; }
+
+/* Bearbeitungen */
+body :is(.karte.cam, .cam-eigen) .cam-block { background: var(--cm-karte); border: 1px solid var(--cm-rand);
+  border-left: 4px solid var(--cm-k1); border-radius: 12px; box-shadow: var(--cm-schatten); padding: 10px 12px 10px 10px;
+  margin-bottom: 10px; transition: box-shadow .2s, border-color .2s; }
+body :is(.karte.cam, .cam-eigen) .cam-block:hover { box-shadow: 0 2px 4px rgba(16, 33, 52, .08), 0 10px 24px rgba(16, 33, 52, .09); }
+body :is(.karte.cam, .cam-eigen) .cam-block--k2 { border-left-color: var(--cm-k2); }
+body :is(.karte.cam, .cam-eigen) .cam-block--k3 { border-left-color: var(--cm-k3); }
+body :is(.karte.cam, .cam-eigen) .cam-block--aktiv { border-color: #f08a24 !important; border-left-color: #f08a24 !important;
+  box-shadow: 0 0 0 3px rgba(240, 138, 36, .2), var(--cm-schatten) !important; }
+body :is(.karte.cam, .cam-eigen) .cam-block__code { background: var(--cm-feld); border: 1px solid var(--cm-rand2);
+  border-radius: 9px; padding: 8px 10px; line-height: 1.5; }
+body :is(.karte.cam, .cam-eigen) .cam-block__kanal { border-radius: 999px; padding: 2px 8px; letter-spacing: .03em; }
+
+/* Kanäle */
+body :is(.karte.cam, .cam-eigen) .cam-kanaele { background: var(--cm-karte); border: 1px solid var(--cm-rand);
+  border-radius: 14px; box-shadow: var(--cm-schatten); padding: 8px; }
+body :is(.karte.cam, .cam-eigen) .cam-spalte--kopf { background: color-mix(in srgb, var(--cm-k1) 9%, var(--cm-karte));
+  border: 1px solid color-mix(in srgb, var(--cm-k1) 25%, var(--cm-rand)); border-left: 1px solid color-mix(in srgb, var(--cm-k1) 25%, var(--cm-rand));
+  border-top: 3px solid var(--cm-k1); border-radius: 10px; color: var(--cm-text); padding: 6px 10px; }
+body :is(.karte.cam, .cam-eigen) .cam-spalte--kopf ~ .cam-spalte--kopf { background: color-mix(in srgb, var(--cm-k2) 9%, var(--cm-karte));
+  border-color: color-mix(in srgb, var(--cm-k2) 25%, var(--cm-rand)); border-top-color: var(--cm-k2); }
+body :is(.karte.cam, .cam-eigen) .cam-spalte--kopf.cam-spalte--k3 { background: color-mix(in srgb, var(--cm-k3) 9%, var(--cm-karte));
+  border-color: color-mix(in srgb, var(--cm-k3) 25%, var(--cm-rand)); border-top-color: var(--cm-k3); }
+body :is(.karte.cam, .cam-eigen) .cam-zeile { border-radius: 5px; }
+body :is(.karte.cam, .cam-eigen) .cam-nr { color: var(--cm-leise); opacity: .7; }
+body :is(.karte.cam, .cam-eigen) .cam-zeile:hover:not(.cam-zeile--leer) { background-color: color-mix(in srgb, var(--cm-akzent) 6%, transparent); }
+body :is(.karte.cam, .cam-eigen) .cam-zeile--leer { background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--cm-rand) 55%, transparent) 6px 7px); }
+@media (prefers-reduced-motion: reduce) { body :is(.karte.cam, .cam-eigen) * { transition: none !important; } }
+
+/* 1.743.0 (Wunsch Patrick 23. November 2026): Linie zwischen den Knöpfen
    oben in der Leiste und den Todos; Solaranlage oben so hoch wie die
    Geburtstage daneben, damit keine Lücke bleibt */
 @media (min-width: 780px) {

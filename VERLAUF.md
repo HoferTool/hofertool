@@ -3,6 +3,30 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.741.0 (23. November 2026)
+
+- HOFERCAM moderner: ruhige Fläche, weisse Karten mit weichem Schatten und runden Ecken, Gruppentitel als kleine Überschrift statt blauer Schilder, helle Felder mit blauem Fokusring, Knöpfe als runde Chips, Kanäle mit schmaler Farbkante oben bzw. links, kleinere Knöpfe im Kopf der Kanäle; hell und dunkel, auch im eigenen Fenster. Nur Aussehen, Block „1.741.0“ am Ende von `stil.css` (Wunsch Patrick 23. November 2026: „gaeht der ganze stile vom hofercam auch etwas moderner?“).
+
+## 1.740.0 (23. November 2026)
+
+- HOFERCAM: Die Knöpfe „+ …“ der Bearbeitungen stehen je Kanal in einer Zeile, kleiner und gleich hoch, Beschriftung nur „Kanal 1“ usw., Plätze kurz (T1300–T1500), gesperrte ohne „(Bestückung)“ (Wunsch Patrick 23. November 2026: „bau es homogener“, „für jeden kanal nur 1 zeile, kannst auch kleiner machen“).
+
+## 1.739.0 (23. November 2026)
+
+- HOFERCAM Einlesen: Stücke, die zu keiner Vorlage passen, werden normale Bearbeitungen mit Kopf und Ende aus der Vorlage, nur der NC-Code kommt aus dem Programm; Abweichungen bleiben violett, kein „Wie eingelesen“ mehr. Prüfstand `cam_einlesen.py` (Wunsch Patrick 23. November 2026).
+
+## 1.738.0 (23. November 2026)
+
+- HOFERCAM: Eine Bearbeitung im Feld für den anderen Kanal ist in der 3D-Simulation ein eigener Schritt mit ihrem eigenen Werkzeug, gleich nach ihrer Bearbeitung. Die Optimierung nimmt ebenfalls ihr Werkzeug. Prüfstand `cam_unter_bearb.py` (Wunsch Patrick 23. November 2026).
+
+## 1.737.0 (23. November 2026)
+
+- HOFERCAM: In den Feldern für den anderen Kanal (Wartemarken, M50/M51, M142/M143) lässt sich eine Bearbeitung starten (Wahl „Bearbeitung Kanal n“). Kopf der Bearbeitung vor der ersten Marke bzw. M50/M142, Ende nach der zweiten bzw. M51/M143, dazwischen der Code im Feld. Gespeichert in `b.unter`. Prüfstand `cam_unter_bearb.py` (Wunsch Patrick 23. November 2026).
+
+## 1.736.0 (23. November 2026)
+
+- HOFERCAM: Bearbeitungen „wie eingelesen“ haben Kopf, NC-Code und Ende. Kopf bis vor die erste G1-Bewegung, Ende ab HD aus, sonst ab G80, sonst ab G0T0, für SW-20 und SB-20RG (Wunsch Patrick 23. November 2026). Das Programm bleibt gleich.
+
 ## 1.725.0 (23. November 2026)
 
 - USM-Kugeln vom Infoboard entfernt (Wunsch Patrick 23. November 2026: „usm kugeln können wieder weg vom infoboard“): `UsmSchnee.jsx` und Prüfstand `infoboard_usm.py` weg, Schnee, Laub oder Blüten der Jahreszeit bleiben.

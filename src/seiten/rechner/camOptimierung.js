@@ -83,7 +83,7 @@ export function analysieren(w, werkstoff) {
 
   for (const s of sim.schritte) {
     if (s.art === "abstech") continue;
-    const b = (w.bloecke || [])[s.i] || {};
+    const b = s.block || (w.bloecke || [])[s.i] || {};
     const zeilen = s.zeilen || [];
     const zu = zustaende(zeilen, v);
     const punkte = s.punkte || [];
