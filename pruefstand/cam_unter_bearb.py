@@ -72,6 +72,21 @@ with sync_playwright() as p:
     except ValueError as x:
         pruefe("Kanal 3 Marken da " + str(x), False)
     pruefe("keine roten Marken", pg.locator(".cam-zeile--rot").count() == 0)
+    # Seit 1.738.0: die Bearbeitung im Feld hat ihr Werkzeug in der Simulation
+    pg.fill("[data-camunter='k3d'] [data-camblock='bez']", "UNTERBOHR")
+    pg.click("[data-camunter='k3d'] [data-camwz-auf]"); pg.wait_for_timeout(250)
+    pg.click("[data-camwz-form='bohrer']")
+    pg.fill("[data-camwz='d']", "3.2"); pg.fill("[data-camwz='winkel']", "140"); pg.fill("[data-camwz='laenge']", "20")
+    pg.wait_for_timeout(300)
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(200)
+    pruefe("Werkzeug am Feld", "3.2" in pg.text_content("[data-camunter='k3d'] [data-camwz-auf]"))
+    pg.click("#cam-sim-auf"); pg.wait_for_selector("#cam-sim-bild"); pg.wait_for_timeout(600)
+    namen = pg.eval_on_selector_all("[data-cam-sim-schritt]", "e => e.map(x => x.className + '|' + x.textContent)")
+    print(namen)
+    st = [n for n in namen if "UNTERBOHR" in n]
+    pruefe("eigener Schritt in der Simulation", len(st) == 1)
+    pruefe("mit Werkzeug (nicht rot)", bool(st) and "--fehlt" not in st[0])
+    pruefe("Kanal-3-Code im Schritt", bool(st) and "leer" not in st[0].split("|")[0])
     pg.screenshot(path="/tmp/claude-0/-home-user/e193e6f8-e4d3-5775-9ccb-4db292d1b235/scratchpad/unter.png", full_page=False)
     br.close()
 print("Fehler: " + (", ".join(fehler) if fehler else "keine"))

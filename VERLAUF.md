@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.738.0 (23. November 2026)
+
+- HOFERCAM: Eine Bearbeitung im Feld für den anderen Kanal ist in der 3D-Simulation ein eigener Schritt mit ihrem eigenen Werkzeug, gleich nach ihrer Bearbeitung. Die Optimierung nimmt ebenfalls ihr Werkzeug. Prüfstand `cam_unter_bearb.py` (Wunsch Patrick 23. November 2026).
+
 ## 1.737.0 (23. November 2026)
 
 - HOFERCAM: In den Feldern für den anderen Kanal (Wartemarken, M50/M51, M142/M143) lässt sich eine Bearbeitung starten (Wahl „Bearbeitung Kanal n“). Kopf der Bearbeitung vor der ersten Marke bzw. M50/M142, Ende nach der zweiten bzw. M51/M143, dazwischen der Code im Feld. Gespeichert in `b.unter`. Prüfstand `cam_unter_bearb.py` (Wunsch Patrick 23. November 2026).
