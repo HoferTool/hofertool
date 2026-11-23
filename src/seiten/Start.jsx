@@ -265,5 +265,13 @@ export function Solaranlage({ ohneId }) {
     }, 60000);
     return () => clearInterval(takt);
   }, []);
-  return <div id={ohneId ? undefined : "db-solar"} className="kopfkarte__solar" ref={ref} />;
+  // Auf der Startseite öffnet ein Tipp das Fenster mit mehr Infos (seit
+  // 1.747.0); Infoboard und Empfang (ohneId) bleiben reine Anzeige. Die
+  // Knöpfe Tag / Woche / Monat in der Karte schalten weiter nur um.
+  const antippen = ohneId ? undefined : (e) => {
+    if (e.target.closest("button, a, [data-solspanne]")) return;
+    import("./start/SolarFenster.jsx").then((m) => m.solarFensterOeffnen());
+  };
+  return <div id={ohneId ? undefined : "db-solar"} className="kopfkarte__solar" ref={ref}
+    onClick={antippen} title={ohneId ? undefined : "Antippen für mehr Infos"} />;
 }

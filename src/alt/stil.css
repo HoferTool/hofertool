@@ -16377,3 +16377,28 @@ html.ohne-kopf body.dunkel .sn2 :is(.sn2-spalten, .sn2-oben) .karte:not(.heuteof
 .sn2-stempel > span { display: block; line-height: 1; }
 .sn2-stempel__text { padding-top: 1px; }
 .sn2-kopf .sn2-stempel { align-self: center; }
+
+/* ---- 1.747.0: Solaranlage antippen, Fenster mit mehr Infos ---- */
+#db-solar { cursor: pointer; }
+#db-solar .sol-kopf__stand::after { content: " · Details ›"; color: var(--marke); font-weight: 600; }
+#db-solar:hover .solar { box-shadow: 0 0 0 2px color-mix(in srgb, var(--marke) 40%, transparent), 0 6px 18px rgba(0,0,0,.08); }
+.solfenster { max-width: 1040px; width: 100%; max-height: 92vh; overflow-y: auto; }
+.solfenster__block { margin: 0 0 18px; }
+.solfenster__block h3 { margin: 0 0 8px; font-size: 1.05rem; color: var(--marke); }
+.solfenster__block h3 .klein { color: var(--grau, #667); font-weight: 400; margin-left: 6px; }
+.solfenster__titelzeile { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.solfenster__titelzeile h3 { margin: 0; }
+.solfenster__zahlen { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-top: 8px; }
+.solfenster__zahlen .dg-kennzahl { font-variant-numeric: tabular-nums; }
+.solfenster__unter { margin: 16px 0 4px; font-size: .9rem; font-weight: 600; }
+.solfenster .sol-spanne__knopf { cursor: pointer; }
+.solfenster__tabelle { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.solfenster__tabelle th, .solfenster__tabelle td { text-align: right; padding: 6px 8px; border-bottom: 1px solid rgba(0,0,0,.08); }
+.solfenster__tabelle th:first-child, .solfenster__tabelle td:first-child { text-align: left; }
+body.dunkel .solfenster__tabelle th, body.dunkel .solfenster__tabelle td { border-bottom-color: rgba(255,255,255,.12); }
+.solfenster__fuss { margin-top: 8px; text-wrap: pretty; }
+@media (max-width: 640px) { .solfenster__zahlen { grid-template-columns: 1fr 1fr; } }
+.solfenster .sol-spanne { background: color-mix(in srgb, var(--marke) 10%, transparent); }
+.solfenster .sol-spanne__knopf { color: var(--marke); font-size: .85rem; padding: 4px 12px; text-transform: none; letter-spacing: 0; }
+.solfenster .sol-spanne__knopf.aktiv { background: var(--marke); color: #fff; }
+body.dunkel .solfenster .sol-spanne__knopf { color: #fff; }
