@@ -16204,7 +16204,7 @@ body :is(.karte.cam, .cam-eigen) .cam-zeile--leer { background: repeating-linear
 @media (prefers-reduced-motion: reduce) { body :is(.karte.cam, .cam-eigen) * { transition: none !important; } }
 
 /* ---------------------------------------------------------------
-   1.745.0 Reklamationsmanagement (Qualitätssicherung)
+   1.746.0 Reklamationsmanagement (Qualitätssicherung)
    --------------------------------------------------------------- */
 .rk-zahlen { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; margin-bottom: 14px; }
 .rk-zahl { display: flex; flex-direction: column; align-items: flex-start; min-width: 130px; padding: 10px 16px;
