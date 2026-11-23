@@ -132,8 +132,17 @@ export function inEigenesFenster(huelle, zu, { titel, lage, still } = {}) {
     if (!oben) return;
     e.preventDefault();
     if (oben === huelle) { zu(); return; }
+    // Wie die zentrale Behandlung im Hauptfenster: zuerst das eigene
+    // Schliessen des Fensters, dann sein Schliessknopf. Nur ein Klick
+    // daneben genügte nicht: Betrachter und Stammdaten blieben offen und
+    // deckten das Fenster zu (Patrick 23. November 2026: „ins Leere“).
+    if (typeof oben.__hoferZu === "function") { try { oben.__hoferZu(); return; } catch (f) { /* weiter */ } }
+    const knopf = oben.querySelector("[data-nein], [data-zu], [data-padzu], #pl-nein,"
+      + " .dialog__knoepfe .knopf--still");
+    if (knopf) { knopf.click(); return; }
     oben.dispatchEvent(new w.PointerEvent("pointerdown", { bubbles: true }));
     oben.dispatchEvent(new w.MouseEvent("click", { bubbles: true }));
+    if (oben.isConnected && oben.ownerDocument === d) oben.remove();
   });
 
   // Neue Fenster der App, während man hier arbeitet, kommen hierher.

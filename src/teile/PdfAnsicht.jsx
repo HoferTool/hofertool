@@ -224,7 +224,22 @@ export function PdfAnsicht({ daten, beiFehler }) {
     const el = buehne.current;
     // Beim Drucken aus der App ist der Betrachter kurz ausgeblendet
     // (Fläche 0): dann bleibt das letzte Mass stehen.
-    const messen = () => { if (el.clientWidth && el.clientHeight) setFlaeche({ b: el.clientWidth, h: el.clientHeight }); };
+    // Kommt durch das Einpassen eine Bildlaufleiste dazu, wird die Fläche
+    // schmaler, die Seite kleiner, die Leiste verschwindet wieder und alles
+    // fängt von vorne an: die Zeichnung zappelte (Patrick 23. November 2026,
+    // HOFER2DTO3D unter Windows). Springt das Mass innert einer Sekunde
+    // zurück auf das vorletzte, bleibt das jetzige stehen.
+    let letzte = [];
+    const messen = () => {
+      const b = el.clientWidth, h = el.clientHeight;
+      if (!b || !h) return;
+      const jetzt = Date.now();
+      const [a1, a2] = letzte;
+      if (a2 && a2.b === b && a2.h === h && a1 && jetzt - a1.t < 1000 &&
+          Math.abs(a1.b - b) <= 24 && Math.abs(a1.h - h) <= 24) return;
+      letzte = [{ b, h, t: jetzt }, a1];
+      setFlaeche({ b, h });
+    };
     messen();
     const ro = new ResizeObserver(messen);
     ro.observe(el);
@@ -235,7 +250,8 @@ export function PdfAnsicht({ daten, beiFehler }) {
   // wie möglich, dann mal Zoom
   const passend = (m) => {
     if (!flaeche) return 1;
-    return Math.min(flaeche.b / m.b, flaeche.h / m.h);
+    // 1 Punkt Luft, damit gerundete Masse nie eine Bildlaufleiste geben
+    return Math.min(Math.max(1, flaeche.b - 1) / m.b, Math.max(1, flaeche.h - 1) / m.h);
   };
 
   // Nach dem Zoom die Bildlaufposition so setzen, dass der Punkt unter
