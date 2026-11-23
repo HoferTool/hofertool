@@ -430,6 +430,7 @@ function Geruest() {
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9"
                   strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <rect x="4" y="2.5" width="16" height="19" rx="2.5" /><path d="M11 18.5h2" /></svg>
+                <span>Pad Mode</span>
               </button>
               <button type="button" className="nav__ich" id="nav-ich" title="Einstellungen"
                 aria-label="Einstellungen" onClick={() => alt.einstellungenOeffnen()}>

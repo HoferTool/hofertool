@@ -15892,3 +15892,54 @@ body.rolle-extern .nav__oben, body.pw-vollbild .nav__oben { display: none !impor
   html.ohne-kopf body:not(.rolle-extern) .kopf::before { display: none; }
   html.ohne-kopf body:not(.rolle-extern) :is(.kopf__rueck, .kopf__suche) { margin: 0; }
 }
+
+/* 1.716.0: Pad Mode in der Leiste breiter, mit Namen (Wunsch Patrick
+   23. November 2026: „Padmode Button soll breiter werden“) */
+.nav__pad span { display: none; }
+@media (min-width: 780px) {
+  html.ohne-kopf body:not(.rolle-extern) .nav__pad { flex: 1 1 auto; width: auto; display: flex; gap: 8px;
+    justify-content: center; align-items: center; padding: 0 12px; font-weight: 600; font-size: 14px; white-space: nowrap; }
+  html.ohne-kopf body:not(.rolle-extern) .nav__pad span { display: inline; }
+  html.ohne-kopf body:not(.rolle-extern) .nav__ich { margin-left: 0; }
+}
+@media (max-width: 779px) {
+  html.ohne-kopf body:not(.rolle-extern) .kopf__pad { width: 56px !important; }
+}
+
+/* 1.716.0: Startseite im neuen Look (nur mit Vermerk neuerLook, Wunsch
+   Patrick 23. November 2026): Gruss links, Uhr und Wetter oben rechts in
+   der Ecke, kein Logo-Band; Solaranlage und Bestellungen teilen sich die
+   erste Reihe, darunter zwei gleich breite Spalten */
+.sn2 { display: flex; flex-direction: column; gap: 16px; }
+.sn2 > * { margin: 0 !important; }
+.sn2-kopf { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.sn2-kopf .gruss { margin: 0; font-size: 1.35rem; font-weight: 600; text-wrap: balance; }
+.sn2-ecke { display: flex; align-items: center; gap: 18px; padding: 8px 16px; border-radius: 14px;
+  background: var(--karte, #fff); box-shadow: 0 0 0 1px var(--rand, #d6dde6), 0 1px 2px rgba(15, 23, 42, .06); }
+.sn2-ecke .kopfkarte__zeit { display: flex; align-items: baseline; gap: 10px; }
+.sn2-ecke .uhr { font-size: 1.9rem; font-weight: 500; color: var(--tinte, #1e293b); font-variant-numeric: tabular-nums; }
+.sn2-ecke .kopfkarte__datum { font-size: .85rem; color: var(--grau, #64748b); }
+.sn2-ecke .kopfkarte__wetter { display: flex; align-items: baseline; gap: 8px; text-align: left;
+  padding-left: 18px; border-left: 1px solid var(--rand, #d6dde6); }
+.sn2-ecke .wetter__grad { font-size: 1.9rem; font-weight: 500; line-height: 1; color: var(--tinte, #1e293b); }
+.sn2-ecke .wetter__text { font-size: .9rem; color: var(--tinte, #1e293b); }
+.sn2-ecke :is(.wetter__rand, .wetter__feiertag) { display: none; }
+.sn2-ecke .kopfkarte__wetter .klein { color: var(--grau, #64748b); font-size: .85rem; }
+body.dunkel .sn2-ecke { background: #1e293b; box-shadow: 0 0 0 1px #334155; }
+.sn2-oben { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; align-items: stretch; }
+.sn2-oben > * { margin: 0 !important; min-width: 0; }
+.sn2-oben #db-status, .sn2-oben #db-status > * { height: 100%; margin: 0 !important; box-sizing: border-box; }
+.sn2-oben #db-status > * { display: flex; flex-direction: column; }
+.sn2-oben .db-bestellzahlen { flex: 1; }
+.sn2-oben .db-bestellzahl { display: flex; flex-direction: column; justify-content: center; align-items: center; }
+.sn2-spalten { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.sn2-spalte { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.sn2-spalte > *, .sn2-spalte > * > .karte { margin: 0 !important; }
+.sn2-spalte > :empty { display: none; }
+@media (max-width: 1100px) {
+  .sn2-oben { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 900px) {
+  .sn2-spalten { grid-template-columns: minmax(0, 1fr); }
+  .sn2-ecke .kopfkarte__datum { display: none; }
+}

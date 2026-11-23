@@ -44,6 +44,45 @@ export default function Start({ auffrischen, module }) {
   const r = alt.meineRolle();
   const probSehen = r !== "extern" && r !== "dienst";
   const prob = useDaten(probSehen ? problemeLaden : keineProbleme, [auffrischen, probSehen]);
+  // Neuer Look (nur mit Vermerk neuerLook, seit 1.716.0, Wunsch Patrick
+  // 23. November 2026): oben Gruss mit Uhr und Wetter in der Ecke statt
+  // des blauen Bands mit Logo, darunter Solaranlage und Bestellungen
+  // nebeneinander, dann zwei Spalten: links die Probleme, rechts Kalender,
+  // Heute noch offen und Materialausgabe Extern
+  if (!module && document.documentElement.classList.contains("ohne-kopf")) {
+    return (
+      <div className="sn2">
+        <div className="sn2-kopf">
+          <p className="gruss">{alt.begruessung()}{name ? ", " + name : ""}</p>
+          <div className="sn2-ecke"><Uhr /><Wetter /></div>
+        </div>
+        {fest && <section className="kopfkarte kopfkarte--geburtstag"><Konfetti /><GeburtstagMitte kinder={kinder} /></section>}
+        <div className="sn2-oben">
+          <Solaranlage />
+          <Bestellstand auffrischen={auffrischen} />
+        </div>
+        {admin && <Systemzustand auffrischen={auffrischen} />}
+        <NeuesTutorial />
+        <div className="sn2-spalten">
+          <div className="sn2-spalte">
+            {probSehen && <Probleme liste={prob.daten} fehler={prob.fehler} neu={prob.neu} />}
+            <OhneWbg auffrischen={auffrischen} />
+            <Jubilaeen auffrischen={auffrischen} />
+            <Batterien auffrischen={auffrischen} />
+            <Notizen auffrischen={auffrischen} />
+            <Geburtstage leute={geb.daten} fehler={geb.fehler} />
+          </div>
+          <div className="sn2-spalte">
+            <KalenderKarte auffrischen={auffrischen} />
+            <HeuteOffen auffrischen={auffrischen} />
+            <Materialausgabe auffrischen={auffrischen} />
+            <Umfragen auffrischen={auffrischen} />
+            <EinkaufKurz auffrischen={auffrischen} />
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <>
       <section className={"kopfkarte" + (fest ? " kopfkarte--geburtstag" : "")}>
