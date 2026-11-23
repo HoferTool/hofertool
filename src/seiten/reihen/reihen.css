@@ -185,6 +185,9 @@ body.rr-offen { overflow: hidden; }
   .rr-raster__zeile { grid-template-columns: 38px repeat(10, 1fr); gap: 2px; }
   .rr-feld small { display: none; } .rr-feld b { font-size: 12px; } .rr-feld { min-height: 30px; }
   .rr-level__rest { min-width: 90px; }
+  /* Handy hochkant: das Menü stand nur 5 px vor dem Rollen, mit anderer Schrift (GitHub) rollte es */
+  .rr-menue { gap: 10px; }
+  .rr-wahl { padding: 10px 14px 12px; }
 }
 @media (prefers-reduced-motion: reduce) { .rr-los, .rr-rekord, .rr-levelup { animation: none; } }
 /* Ende: Karte links, damit man den jubelnden Fahrer daneben sieht */
