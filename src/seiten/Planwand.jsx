@@ -314,7 +314,7 @@ function Kopfleiste({ b, mobil }) {
         {/* Planer-Dashboard als eigener Tab (seit 1.521.0, Wunsch Patrick 13. November 2026:
             „als Button bei Planwand neben Symbole, soll immer als extra Tab aufgehen“);
             nur Admins, nie Externe, nicht im Archiv und nicht im Planer selbst */}
-        {planerSichtbar() && !(alt.istArchiv && alt.istArchiv()) && !istPlanerTab() && <button
+        {planerSichtbar() && !(alt.istArchiv && alt.istArchiv()) && !istPlanerTab() && !(alt.neuerLook && alt.neuerLook()) && <button
           className="knopf knopf--klein pw-eck pw-eck--plus" id="pw-planer"
           title="Planer (eigener Tab)" aria-label="Planer" onClick={planerTabOeffnen}>
           <svg viewBox="0 0 24 24" className="pw-ecksym" fill="none" stroke="currentColor"

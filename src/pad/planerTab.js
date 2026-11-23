@@ -18,9 +18,13 @@ export const todosSichtbar = () => {
   const r = alt.meineRolle && alt.meineRolle();
   return !!r && !alt.istExtern() && r !== "dienst" && !(alt.profil && alt.profil.nur_zeit);
 };
-export const istPlanerTab = () => /^#\/?planer(\/|$)/.test(location.hash);
+// Im neuen Look ist der Planer seit 1.736.0 eine normale Seite unter Planwand
+// (Wunsch Patrick 23. November 2026), ausser im gemeinsamen Tab (…/kombi)
+export const planerEingebettet = () => !!(alt.neuerLook && alt.neuerLook()) && !/\/kombi(\/|$)/.test(location.hash);
+export const istPlanerTab = () => /^#\/?planer(\/|$)/.test(location.hash) && !planerEingebettet();
 
 export function planerTabOeffnen() {
+  if (planerEingebettet()) { location.hash = "#/planer"; return; }
   const basis = location.href.split("#")[0].replace(/([?&])fassung=[^&]*&?/, "$1").replace(/[?&]$/, "");
   const w = window.open(basis + "#/planer", "hofer-planer");
   if (w) { try { w.focus(); } catch (f) { /* egal */ } }

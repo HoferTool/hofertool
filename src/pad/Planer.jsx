@@ -16,7 +16,7 @@ import { useEffect, useRef, useState } from "react";
 import { passtWoerter } from "../teile/Suchfeld.jsx";
 import { alt } from "../bruecke.jsx";
 import { padZurueck } from "./Pad.jsx";
-import { istPlanerTab, planerTabVerlassen, planerSichtbar, planerTabOeffnen, TODOS_FUER_ALLE } from "./planerTab.js";
+import { istPlanerTab, planerEingebettet, planerTabVerlassen, planerSichtbar, planerTabOeffnen, TODOS_FUER_ALLE } from "./planerTab.js";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { planwandFensterOeffnen } from "./PlanwandFenster.jsx";
 import { problemArchivOeffnen, problemArchivSichtbar } from "../planwand/ProblemArchiv.jsx";
@@ -92,14 +92,14 @@ const STAND = {
   fehlt: ["fehlt", "rot"], offen: ["offen", "rot"], teil: ["fehlen noch", "orange"], bestellt: ["bestellt", "blau"], da: ["da", "gruen"],
 };
 
-export default function Planer({ d, neu }) {
+export default function Planer({ d, neu, eingebettet = false }) {
   const e = einst();
   const um = (aendern) => { aendern(e); neu(); };
   useHell();
   useMaterialNeu(neu);
   return (
     <>
-      <Zurueck />
+      {!eingebettet && <Zurueck />}
       <Dashboard d={d} e={e} um={um} neu={neu} />
     </>
   );
@@ -332,7 +332,7 @@ function Abgeschlossen({ start, quitt: quittStart, zu, neu }) {
             (Wunsch Patrick 19. November 2026). Im Planer-Tab zum Balken über
             das Planwand-Fenster, sonst auf die Planwand. */}
         {problemArchivSichtbar() && <button className="knopf knopf--klein pl-abg__probleme" id="pl-abg-probleme"
-          onClick={() => { zu(); problemArchivOeffnen(null, istPlanerTab() ? (j) => planwandZeigen(j) : null); }}>
+          onClick={() => { zu(); problemArchivOeffnen(null, (istPlanerTab() || planerEingebettet()) ? (j) => planwandZeigen(j) : null); }}>
           ⚠ Erledigte Probleme</button>}
         <button className="dialog__schliessen-inline" title="Schliessen" onClick={zu}>✕</button></div>
       <div className="pl-abg__liste">
@@ -422,6 +422,12 @@ async function todoBearbeiten(t, neu) {
 function planwandZeigen(j) {
   // Im gemeinsamen Tab der Admins (seit 1.700.0) zur Planwand im selben Tab
   if (istKombi()) { kombiPlanwand(j.id); return; }
+  // Als Seite im neuen Look (seit 1.736.0): zur Planwand in diesem Tab
+  if (planerEingebettet() && /^#\/?planer(\/|$)/.test(location.hash)) {
+    location.hash = "#/planwand";
+    setTimeout(() => alt.balkenZeigen && alt.balkenZeigen(j.id), 400);
+    return;
+  }
   if (!istPlanerTab()) { planwandFensterOeffnen(j); return; }
   let w = null;
   try {

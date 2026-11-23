@@ -139,7 +139,9 @@ function menueZeigen(an) {
   const umstellen = () => {
     const vorher = todoOben();
     setzen();
-    todoGleiten(vorher, an ? 620 : 560);
+    // Im neuen Look (seit 1.736.0) rücken die Todos mit der Höhe der Punkte
+    // nach (CSS nav-punkt-weg / -her), ein Gleiten obendrauf wäre doppelt
+    if (!document.documentElement.classList.contains("ohne-kopf")) todoGleiten(vorher, an ? 620 : 560);
   };
   void b.offsetWidth;
   if (an) {

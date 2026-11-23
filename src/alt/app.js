@@ -28,6 +28,7 @@ import Hofer2dTo3d from "../seiten/Hofer2dTo3d.jsx";
 import MaschinenSeite, { maschinenZurueck } from "../seiten/Maschinen.jsx";
 import Bildschirme from "../seiten/Bildschirme.jsx";
 import Hilfsprogramme, { RechnerSeite, Wz508Seite } from "../seiten/Hilfsprogramme.jsx";
+import PlanerSeite from "../seiten/PlanerSeite.jsx";
 import Infoboard, { Empfang, Pausenraum, infoboardSichtbar, infoboardOeffnen, infoboardSchliessen, bildschirmDarfNeuLaden } from "../infoboard/Infoboard.jsx";
 import { bildschirmDiesesGeraets, TAFELN } from "../infoboard/daten.js";
 // Gleich beim Start lesen, ob die Adresse ?bildschirm=… trägt (App-Paket
@@ -173,7 +174,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.735.0";
+const APP_VERSION = "1.736.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3323,6 +3324,7 @@ function seiteSichtbar(pfad) {
   // Nur im neuen Look eigene Seiten (seit 1.731.0)
   if (pfad === "hilfsprogramme") return neuerLook() && SEITEN.some((s) => s.gruppe === "hilfsprogramme" && seiteSichtbar(s.pfad));
   if (pfad === "rechner") return neuerLook() && !istExtern();
+  if (pfad === "planer") return neuerLook() && istAdmin() && !istExtern();
   if (pfad === "wz508") return neuerLook() && !istExtern() && meineRolle() !== "dienst";
   if (pfad === "kalkulation") return kalkulationSehen(profil) && !istExtern();
   if (pfad === "erp") return erpSehen(profil) && !istExtern();
@@ -10859,6 +10861,9 @@ SYM.einkauf = svg('<circle cx="9.5" cy="19.5" r="1.5"/><circle cx="17.5" cy="19.
 // NC-Funktionen: Bildschirm mit Eingabezeichen
 SYM.nc = svg('<rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M7 9l3 3-3 3"/><path d="M12 15h5"/>');
 // Rechner: Winkelmesser mit Gradbogen
+// Planer: Klemmbrett mit Häkchen
+SYM.planer = svg('<rect x="5" y="4" width="14" height="17" rx="2.5"/><path d="M9 4V3h6v1"/>'
+  + '<path d="M8.5 10.5l1.5 1.5 2.5-2.5M8.5 16l1.5 1.5 2.5-2.5M14.5 11h1.5M14.5 16.5h1.5"/>');
 SYM.rechner = svg('<path d="M3 19.5h18"/><path d="M3 19.5L17 5"/>'
   + '<path d="M11 19.5a8 8 0 0 0-2.4-5.7"/><circle cx="3" cy="19.5" r="1.1"'
   + ' fill="currentColor" stroke="none"/>');
@@ -11085,6 +11090,8 @@ const SEITEN = [
   { pfad: "pausenraum",   titel: "Pausenraum",   gruppe: "bildschirme", zeichen: SYM.pausenraum, zeige: reactSeite(Pausenraum) },
   // Nur im neuen Look als eigene Seiten (sonst Reiter von NC-PRO, seit 1.731.0)
   { pfad: "rechner",      titel: "Rechner",      gruppe: "hilfsprogramme", zeichen: SYM.rechner, zeige: reactSeite(RechnerSeite) },
+  // Planer als Unterpunkt der Planwand, nur im neuen Look (seit 1.736.0)
+  { pfad: "planer",       titel: "Planer",       gruppe: "planwand", zeichen: SYM.planer, zeige: reactSeite(PlanerSeite) },
   { pfad: "wz508",        titel: "508 Werkzeuge", gruppe: "maschinen", zeichen: SYM.maschinen, zeige: reactSeite(Wz508Seite) },
 ];
 
@@ -11585,7 +11592,10 @@ function zeichneSeite() {
   // als Button bei Planwand neben Symbole, soll immer als extra Tab aufgehen“).
   // #/planer zeigt ihn über die ganze Fläche, wie bisher mit den Mitteln des
   // Pads (src/pad/Planer.jsx), nur Admins, nie Externe.
-  if (roh === "planer" && !ARCHIV) {
+  // Im neuen Look ist der Planer seit 1.736.0 eine normale Seite unter
+  // Planwand (Wunsch Patrick 23. November 2026), nur im gemeinsamen Tab
+  // (…/kombi) bleibt er wie bisher
+  if (roh === "planer" && !ARCHIV && !(neuerLook() && !/\/kombi(\/|$)/.test(location.hash))) {
     if (!profil) return;
     if (!istAdmin() || istExtern()) { location.hash = "#/planwand"; return; }
     document.title = "Planer · Hofer Tool";
