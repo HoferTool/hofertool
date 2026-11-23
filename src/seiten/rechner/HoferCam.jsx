@@ -13,7 +13,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { useEntwurfZurueck } from "../../teile/lokalZurueck.js";
 import { NcAblage, NcStand } from "./NcAblage.jsx";
-import { dateiBeobachten, dateiFehler, dateiNeuWaehlen, dateienFuerName, dateienLaden, dateienSchreiben, dateienWaehlen, dateiMerken, dateiVergessen, dateiVon, kannSchreiben, schreibrechtHolen, nachbarHolen, ordnerFreigeben, ordnerMoeglich, ordnerVon } from "./camDatei.js";
+import { dateienWaehlen, dateiVergessen, kannSchreiben, nachbarHolen, ordnerFreigeben, ordnerMoeglich, ordnerVon } from "./camDatei.js";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
 import { ModulWahl, modulEmpfaenger, modulZustandAblage } from "./modulTab.jsx";
@@ -468,37 +468,8 @@ function ProtokollFeld({ w, bloecke, setzeBloecke }) {
   </div>);
 }
 
-// Welche Datei „Speichern“ für diesen Kanal aktualisiert
-function DateiSchild({ k }) {
-  const [, neu] = useState(0);
-  useEffect(() => { dateienLaden(); return dateiBeobachten(() => neu((n) => n + 1)); }, []);
-  const d = dateiVon(k);
-  if (!d) return null;
-  const grund = dateiFehler(k);
-  // Seit 1.565.1: ging das Schreiben schief, steht der Grund hier, und
-  // „Jetzt schreiben“ versucht es mit einem frischen Klick nochmals
-  const jetzt = async () => {
-    const recht = await schreibrechtHolen();
-    const { gut, fehler } = await dateienSchreiben(programmeMitHand(gemerkt), null, recht);
-    if (gut.length) alt.meldung("Datei aktualisiert: " + gut.join(", ") + ".", "gut");
-    if (fehler.length && alt.fehlerMerken) alt.fehlerMerken("HOFERCAM Datei schreiben", fehler.join("; "), navigator.userAgent);
-  };
-  return (<>
-    <span className={"cam-datei" + (grund ? " cam-datei--fehler" : "")} data-cam-datei={k} title={"„Speichern“ schreibt Kanal " + k + " auch in die Datei " + d.name + ", aus der er eingelesen wurde"}>
-      ↻ {d.name}
-      <button className="linkknopf" data-cam-datei-weg={k} title="Datei nicht mehr aktualisieren" onClick={() => dateiVergessen(k)}>✕</button>
-    </span>
-    {grund && <span className="cam-datei-grund" data-cam-datei-grund={k}>Nicht aktualisiert: {grund}
-      {" "}<button className="knopf knopf--klein" data-cam-datei-jetzt={k} onClick={jetzt}>Jetzt in Datei schreiben</button>
-      {" "}<button className="knopf knopf--klein" data-cam-datei-neu={k} title="Speichern-Fenster des Browsers: dieselbe Datei wählen und Ersetzen bestätigen"
-        onClick={async (e) => {
-          try { if (await dateiNeuWaehlen(k, e.currentTarget.ownerDocument.defaultView)) await jetzt(); }
-          catch (x) { alt.meldung("Speichern-Fenster ging nicht: " + (x && x.message ? x.message : x), "fehler"); }
-        }}>Datei neu wählen und schreiben</button></span>}
-  </>);
-}
-
-// 3D-Simulation und Programm einlesen, im Reiter und im eigenen Fenster
+// DateiSchild (Zurückschreiben in die Datei, seit 1.562.0) ist seit 1.733.1
+// vorläufig entfernt, im Git-Verlauf noch vorhanden.
 function FensterKnoepfe({ w, einlesen, eigen }) {
   // Seit 1.669.0 auch die SW-20 (Kanal 1 und 3 an der Hauptspindel)
   const sb = typInfo(w && w.typ).kanaele === 2;
@@ -864,7 +835,6 @@ function Kanaele({ prog, sync, fehler, bereich, bereich2, bereich3, w, handSetze
               {/* Seit 1.542.0: jeder Kanal für sich, die Dateien liegen oft in verschiedenen Ordnern */}
               {einlesen && <EinlesenKnopf kanal={k} merkmal={{ "data-cam-einlesen": String(k) }} einlesen={einlesen}
                 title={"Programm für Kanal " + k + " aus einer Datei einlesen, die anderen Kanäle bleiben"}>📂 Einlesen</EinlesenKnopf>}
-              <DateiSchild k={k} />
             </span>
           </div>))}
         {sync.reihen.map((r, i) => (
@@ -1090,7 +1060,8 @@ export default function HoferCam() {
       gelesen.push(r);
     }
     if (!gelesen.length) return;
-    for (const r of gelesen) await dateiMerken(r.kanal, r.griff, r.roh, r.o);
+    // Seit 1.733.1 (Patrick 23. November 2026: „bitte überall im Moment nur
+    // Leserechte“): die App merkt sich keine Datei mehr zum Zurückschreiben.
     gelesen.sort((a, b) => a.kanal - b.kanal);
     // Seit 1.542.0 (Wunsch Patrick 14. November 2026: „es soll die Kopf-
     // und Enddaten der Bearbeitungen sowie die Werkzeuge auch erkennen“):
@@ -1145,8 +1116,7 @@ export default function HoferCam() {
     alt.meldung("Eingelesen: " + gelesen.map((r) => "Kanal " + r.kanal + " (O" + String(r.o).padStart(4, "0") + ")").join(", ")
       + (sb ? ", " + (bloecke.length === 1 ? "1 Bearbeitung" : bloecke.length + " Bearbeitungen") + " erkannt" : "")
       + (unklar.length ? ", nicht erkannt: " + unklar.join(", ") + " (stehen nur im Programm)" : "")
-      + ". Violett = anders als der Standard."
-      + (gelesen.some((r) => r.griff) ? " „Speichern“ aktualisiert auch die Datei." : ""), unklar.length ? "warn" : "gut");
+      + ". Violett = anders als der Standard.", unklar.length ? "warn" : "gut");
   };
   einlesenJetzt = einlesen;
 
@@ -1173,16 +1143,7 @@ export default function HoferCam() {
         <button className="knopf knopf--klein" id="cam-tutorial" title="Tutorial-Video zu HOFERCAM anschauen" onClick={() => hofercamTutorialOeffnen(w.typ)}>▶ Tutorial</button>
         <NcAblage art="cam" kurz="camab" wort="HOFERCAM" daten={w} nc={ncBeide} laden={laden}
           gespeichert={gespeichert} setGespeichert={setGespeichert}
-          vorSpeichern={schreibrechtHolen} nachSpeichern={async (name, recht) => {
-            // Seit 1.562.0: auch die eingelesenen Dateien aktualisieren
-            const { gut, fehler: nicht } = await dateienSchreiben(programmeMitHand(gemerkt), name, recht);
-            if (gut.length) alt.meldung("Datei aktualisiert: " + gut.join(", ") + ".", "gut");
-            if (nicht.length) {
-              alt.meldung("Nicht aktualisiert: " + nicht.join(", ") + ".", "warn");
-              if (alt.fehlerMerken) alt.fehlerMerken("HOFERCAM Datei schreiben", nicht.join("; "), navigator.userAgent);
-            }
-          }}
-          nachOeffnen={(z) => dateienFuerName(z.name)} />
+          />
         {/* Seit 1.577.0 (Wunsch Patrick 16. November 2026: „einen Button
             Schliessen, damit das aktuelle geschlossen wird und die
             Grundmaske wieder erscheint“): leert alles wie beim ersten

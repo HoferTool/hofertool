@@ -121,45 +121,21 @@ with sync_playwright() as p:
     pruefe("Ende und T2900 nicht als Bearbeitung", "Werkzeug" not in (pg.text_content("#cam-ein-stand") or "") or "T2000" not in (pg.text_content("#cam-ein-stand") or ""))
     pg.click("[data-camblock-standard='0']")
     pruefe("Mit Vorlage aufbauen: Felder wieder da", pg.locator("[data-camblock-frei]").count() == 2 and pg.locator(".cam-block[data-block='0'] [data-camblock='anZ']").count() == 1)
-    # Seit 1.562.0: Einlesen über die Dateiwahl des Browsers, Speichern schreibt in die Datei zurück
-    pg.evaluate("""(txt) => { window.__geschrieben = {};
+    # Seit 1.733.1: Einlesen über die Dateiwahl des Browsers, aber nur lesen,
+    # Speichern schreibt nie in die Datei und fragt nie nach Schreibrecht
+    pg.evaluate("""(txt) => { window.__geschrieben = {}; window.__gefragt = 0;
       window.showOpenFilePicker = async () => [{ name: 'O0077.NC',
         getFile: async () => new File([txt], 'O0077.NC'),
-        queryPermission: async () => 'prompt', requestPermission: async () => 'granted',
+        queryPermission: async () => { window.__gefragt++; return 'prompt'; }, requestPermission: async () => { window.__gefragt++; return 'granted'; },
         createWritable: async () => { let t = ''; return { write: async (x) => { t += x; }, close: async () => { window.__geschrieben['O0077.NC'] = t; } }; } }]; }""",
         "\r\n".join(alt1) + "\r\n")
-    pg.click("[data-cam-einlesen='1']"); pg.wait_for_selector("[data-cam-datei='1']")
-    pruefe("Schild: Kanal 1 gehört zu O0077.NC", "O0077.NC" in pg.text_content("[data-cam-datei='1']"))
+    pg.click("[data-cam-einlesen='1']"); pg.wait_for_timeout(600)
+    pruefe("Kein Schild Datei mehr", pg.locator("[data-cam-datei]").count() == 0)
     pg.click("#camab-speichern"); pg.wait_for_selector(".dialog input")
     pg.fill(".dialog input", "12345-0001"); pg.click(".dialog .knopf--haupt"); pg.wait_for_timeout(800)
     if pg.locator(".dialog .knopf--haupt").count(): pg.click(".dialog .knopf--haupt"); pg.wait_for_timeout(800)
-    gs = pg.evaluate("() => window.__geschrieben['O0077.NC'] || ''")
-    pruefe("Speichern schreibt die Datei (CRLF, wie angezeigt)", gs.endswith("\r\n") and gs.split("\r\n")[:-1] == lies(1))
-    # 1.565.1: Grund bleibt stehen, „Jetzt in Datei schreiben“ versucht es nochmals
-    pg.evaluate("() => { window.__nein = true; }")
-    pg.evaluate("""() => { const alt = window.showOpenFilePicker; window.showOpenFilePicker = async () => { const l = await alt();
-      l[0].requestPermission = async () => (window.__nein ? 'denied' : 'granted'); return l; }; }""")
-    pg.click("[data-cam-einlesen='1']"); pg.wait_for_selector("[data-cam-datei='1']")
-    pg.evaluate("() => { window.__geschrieben = {}; }")
-    pg.click("#camab-speichern"); pg.wait_for_selector(".dialog input")
-    pg.fill(".dialog input", "12345-0001"); pg.click(".dialog .knopf--haupt"); pg.wait_for_timeout(800)
-    if pg.locator(".dialog .knopf--haupt").count(): pg.click(".dialog .knopf--haupt"); pg.wait_for_timeout(800)
-    pruefe("Grund bleibt beim Kanal stehen", "nicht erlaubt" in (pg.text_content("[data-cam-datei-grund='1']") or ""))
-    pg.evaluate("() => { window.__nein = false; }")
-    pg.click("[data-cam-datei-jetzt='1']"); pg.wait_for_timeout(500)
-    pruefe("Jetzt in Datei schreiben", pg.evaluate("() => !!window.__geschrieben['O0077.NC']") and pg.locator("[data-cam-datei-grund]").count() == 0)
-    # 1.566.1: InvalidStateError (Netzlaufwerk) → zweiter Versuch
-    pg.evaluate("""() => { const alt = window.showOpenFilePicker; window.showOpenFilePicker = async () => { const l = await alt();
-      const cw = l[0].createWritable; let n = 0; l[0].createWritable = async (o) => { if (n++ === 0) { const e = new Error('state had changed'); e.name = 'InvalidStateError'; throw e; } return cw(o); };
-      l[0].requestPermission = async () => 'granted'; return l; }; }""")
-    pg.click("[data-cam-einlesen='1']"); pg.wait_for_timeout(300)
-    pg.evaluate("() => { window.__geschrieben = {}; }")
-    pg.click("#camab-speichern"); pg.wait_for_selector(".dialog input")
-    pg.fill(".dialog input", "12345-0001"); pg.click(".dialog .knopf--haupt"); pg.wait_for_timeout(800)
-    if pg.locator(".dialog .knopf--haupt").count(): pg.click(".dialog .knopf--haupt"); pg.wait_for_timeout(800)
-    pruefe("InvalidState (Netzlaufwerk): zweiter Versuch schreibt", pg.evaluate("() => !!window.__geschrieben['O0077.NC']") and pg.locator("[data-cam-datei-grund]").count() == 0)
-    pg.click("[data-cam-datei-weg='1']"); pg.wait_for_timeout(200)
-    pruefe("✕ löst die Datei", pg.locator("[data-cam-datei='1']").count() == 0)
+    pruefe("Speichern schreibt nie in die Datei", pg.evaluate("() => Object.keys(window.__geschrieben).length === 0"))
+    pruefe("Nie nach Schreibrecht gefragt", pg.evaluate("() => window.__gefragt") == 0)
     pg.evaluate("() => { delete window.showOpenFilePicker; }")
     # Seit 1.548.1: im eigenen Fenster auch 3D-Simulation und Einlesen
     pg.click("[data-cam-verwerfen='1']")
