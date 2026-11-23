@@ -172,7 +172,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.729.0";
+const APP_VERSION = "1.730.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -6340,14 +6340,14 @@ function ferienGriffe(b) {
     const balken = griff.closest("[data-ferien]");
     if (!balken) return;
 
-    let aktiv = false, startX = 0, breite = 0;
+    let aktiv = false, startX = 0, breite = 0, bewegt = false;
     let vonStart = 0, dauerStart = 0, vonJetzt = 0, dauerJetzt = 0;
 
     griff.addEventListener("pointerdown", (e) => {
       if (e.pointerType === "touch") return;   // mit dem Finger nichts verschieben
       e.stopPropagation();
       e.preventDefault();
-      aktiv = true;
+      aktiv = true; bewegt = false;
       startX = e.clientX;
       const spuren = balken.closest(".pw-spuren");
       breite = plan.spalte || 40;
@@ -6361,6 +6361,11 @@ function ferienGriffe(b) {
     griff.addEventListener("pointermove", (e) => {
       if (!aktiv) return;
       e.preventDefault();
+      // Ein Antippen (bei eintägigen Einträgen liegt fast der ganze Balken
+      // unter den Griffen) darf nichts verlängern: erst ab 8 Punkten Weg gilt
+      // es als Ziehen (Patrick 23. November 2026).
+      if (!bewegt && Math.abs(e.clientX - startX) < 8) return;
+      bewegt = true;
       const schritte = Math.round((e.clientX - startX) / breite);
 
       if (griff.dataset.fgriff === "rechts") {
@@ -6380,7 +6385,7 @@ function ferienGriffe(b) {
       aktiv = false;
       e.stopPropagation();
       balken.classList.remove("pw-balken--groesse");
-      if (vonJetzt === vonStart && dauerJetzt === dauerStart) { planAktualisieren(b); return; }
+      if (!bewegt || (vonJetzt === vonStart && dauerJetzt === dauerStart)) { planAktualisieren(b); return; }
 
       const f2 = (plan.ferien || []).find((x) => x.id === balken.dataset.ferien);
       if (!f2) return;
