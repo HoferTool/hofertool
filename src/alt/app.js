@@ -173,7 +173,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.741.0";
+const APP_VERSION = "1.741.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -10394,10 +10394,10 @@ function bestellungDrucken(lieferant, posten, optionen) {
     "          display: flex; align-items: center; justify-content: space-between; }",
     ".balken img { height: 21mm; width: auto; display: block; }",
     ".balken img.siegel { height: 22mm; width: 22mm; }",
-    ".balken .adresse, .balken .kontakt2 { font-size: 8.5pt; line-height: 1.5; white-space: nowrap; }",
+    ".balken .adresse, .balken .kontakt2 { font-size: 7.5pt; line-height: 1.5; white-space: nowrap; }",
     ".balken .kontakt2 { border-left: .6pt solid rgba(255,255,255,.55); padding-left: 5mm; }",
     ".balken .kontakt2 span { display: inline-block; width: 4mm; opacity: .7; }",
-    ".balken .firma { font-weight: 700; font-size: 9.5pt; }",
+    ".balken .firma { font-weight: 700; font-size: 8.5pt; }",
     ".balken .ort { font-weight: 700; }",
 
     ".inhalt { padding: 0 16mm; }",
