@@ -15,27 +15,9 @@
 import { simAufbauen, schnittJePunkt } from "./camSim.js";
 import { wzArt } from "./camWerkzeug.js";
 
-// Richtwerte Hartmetall: Vc [m/min] Drehen, Bohren, Fräsen; fB Vorschub
-// Bohren je Umdrehung als Anteil vom Bohrer-Ø
-export const WERKSTOFFE = [
-  { key: "stahl", name: "Automatenstahl / Stahl", dreh: [150, 260], bohr: [60, 110], fraes: [90, 160], fB: [0.012, 0.025] },
-  { key: "v2a", name: "Rostfrei V2A (1.4301, 1.4305)", dreh: [120, 200], bohr: [40, 70], fraes: [60, 110], fB: [0.01, 0.02], rostfrei: true },
-  { key: "v4a", name: "Rostfrei V4A (1.4404, 1.4571)", dreh: [100, 180], bohr: [35, 60], fraes: [50, 100], fB: [0.008, 0.018], rostfrei: true },
-  { key: "chrom", name: "Chromstahl (1.4104, 1.4542)", dreh: [100, 180], bohr: [35, 65], fraes: [50, 100], fB: [0.008, 0.018], rostfrei: true },
-  { key: "messing", name: "Messing", dreh: [200, 400], bohr: [80, 160], fraes: [150, 300], fB: [0.015, 0.035] },
-  { key: "neusilber", name: "Neusilber", dreh: [120, 250], bohr: [50, 100], fraes: [80, 180], fB: [0.012, 0.03] },
-  { key: "alu", name: "Aluminium", dreh: [250, 600], bohr: [100, 250], fraes: [200, 500], fB: [0.015, 0.04] },
-  { key: "titan", name: "Titan", dreh: [40, 90], bohr: [25, 45], fraes: [30, 60], fB: [0.008, 0.015], zaeh: true },
-  { key: "kunststoff", name: "Kunststoff", dreh: [150, 400], bohr: [80, 200], fraes: [150, 400], fB: [0.02, 0.05] },
-];
-const GRUPPE_ZU = { messing_ohne_pb: "messing" };
-// Werkstoffgruppe aus einer Bezeichnung (X14CrMoS17 rd 024, 1.4305, Messing …)
-export function werkstoffAusBez(bez, erkennen) {
-  if (!String(bez || "").trim() || !erkennen) return null;
-  const g = erkennen(bez);
-  const key = g ? GRUPPE_ZU[g.key] || g.key : null;
-  return WERKSTOFFE.find((x) => x.key === key) || null;
-}
+// Seit 1.729.0 in camWerkstoff.js (auch für die Vorschläge beim Anlegen)
+import { WERKSTOFFE, werkstoffAusBez } from "./camWerkstoff.js";
+export { WERKSTOFFE, werkstoffAusBez };
 
 const SPINDEL_MAX = 10000; // Höchstdrehzahl Haupt- und Gegenspindel, angenommen
 const EILGANG = 30000; // mm/min, angenommen für die Laufzeit

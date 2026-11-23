@@ -23,8 +23,10 @@ const STUFE_TEXT = { wichtig: "Wichtig", empfehlung: "Empfehlung", tipp: "Tipp" 
 const sek = (t) => (t >= 60 ? Math.floor(t / 60) + " min " + Math.round(t % 60) + " s" : (Math.round(t * 10) / 10) + " s");
 
 function Optimierung({ w, zu }) {
-  const [wahl, setWahl] = useState(gemerkt());
-  const [text, setText] = useState("");
+  // Seit 1.729.0 zuerst das Material aus den Kopfdaten
+  const kopfM = werkstoffAusBez(w.material, alt.werkstoffErkennen);
+  const [wahl, setWahl] = useState(kopfM ? kopfM.key : gemerkt());
+  const [text, setText] = useState(kopfM ? String(w.material).trim() : "");
   const [hinweis, setHinweis] = useState("");
   const [fertig, setFertig] = useState(null);
   const erkannt = useMemo(() => werkstoffAusBez(text, alt.werkstoffErkennen), [text]);
@@ -32,7 +34,7 @@ function Optimierung({ w, zu }) {
   // Material des jüngsten Auftrags dieser HOCO Nr. vorschlagen
   useEffect(() => {
     const hoco = String(w.hoco || "").trim();
-    if (!/^\d{4,6}-\d{3,4}$/.test(hoco) || !alt.db) return undefined;
+    if (kopfM || !/^\d{4,6}-\d{3,4}$/.test(hoco) || !alt.db) return undefined;
     let weg = false;
     (async () => {
       try {

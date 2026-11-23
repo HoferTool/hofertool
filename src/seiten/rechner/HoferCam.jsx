@@ -27,6 +27,7 @@ import { WerkzeugFeld } from "./CamWerkzeugBild.jsx";
 import { protokollAusApp, protokollText, protokollZuordnen } from "./camProtokoll.js";
 import { simulationOeffnen } from "./CamSim3D.jsx";
 import { optimierungOeffnen } from "./CamOptimierung.jsx";
+import { WERKSTOFFE, werkstoffAusBez } from "./camWerkstoff.js";
 import { VORLAGEN, feldOptionen, feldSichtbar, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen } from "./camVorlagen.js";
 import AbstecherBild from "./AbstecherBild.jsx";
 import SchnabelBild from "./SchnabelBild.jsx";
@@ -173,6 +174,38 @@ function datumIso(t) {
   const j = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
   return j + "-" + zwei2(m[2]) + "-" + zwei2(m[1]);
 }
+// Seit 1.729.0 (Patrick 23. November 2026): unter dem Feld Material der
+// erkannte Werkstoff mit den Richtwerten (Hartmetall); ist das Feld leer und
+// eine HOCO Nr. eingetragen, das Material des jüngsten Auftrags zum Übernehmen
+function MaterialHinweis({ w, setze }) {
+  const [auftrag, setAuftrag] = useState("");
+  const hoco = String(w.hoco || "").trim();
+  useEffect(() => {
+    setAuftrag("");
+    if (!/^\d{4,6}-\d{3,4}$/.test(hoco) || !alt.db) return undefined;
+    let weg = false;
+    (async () => {
+      try {
+        const r = await alt.db.from("jobs").select("material_bez, planned_from").eq("job_number", hoco)
+          .not("material_bez", "is", null).order("planned_from", { ascending: false }).limit(1);
+        const bez = r && !r.error && r.data && r.data[0] ? String(r.data[0].material_bez || "").trim() : "";
+        if (!weg && bez) setAuftrag(bez);
+      } catch (e) { /* ohne Verbindung kein Vorschlag */ }
+    })();
+    return () => { weg = true; };
+  }, [hoco]);
+  const text = String(w.material || "").trim();
+  const m = werkstoffAusBez(text);
+  return (<>
+    <datalist id="cam-werkstoffe">{WERKSTOFFE.map((x) => <option key={x.key} value={x.name} />)}</datalist>
+    {text ? <small className={"cam-mat-hinweis" + (m ? "" : " cam-fehltext")} data-cam-material-erkannt={m ? m.key : ""}
+      title={m ? "Neue Bearbeitungen bekommen diese Werte (Mitte des Bereichs) als Vorschlag; bei Bohren und Fräsen ist Ø 3 mm angenommen" : ""}>
+      {m ? m.name + " · Hartmetall Vc Drehen " + m.dreh.join("–") + ", Bohren " + m.bohr.join("–") + ", Fräsen " + m.fraes.join("–") + " m/min" : "nicht erkannt, z.B. 1.4305, V2A, Messing"}</small>
+      : auftrag ? <button type="button" className="linkknopf cam-mat-hinweis" data-cam-material-auftrag
+        onClick={() => setze("material", auftrag)}>Aus Auftrag {hoco}: {auftrag} übernehmen</button> : null}
+  </>);
+}
+
 function DatumFeld({ wert, setze }) {
   const kal = useRef(null);
   const oeffnen = () => {
@@ -1116,7 +1149,10 @@ export default function HoferCam() {
                 <span>{d.text}{d.einheit && /^[a-zA-Z/]+$/.test(d.einheit) && <small className="cam-einheit"> [{d.einheit}]</small>}</span>
                 {d.name === "datum" ? <DatumFeld wert={w.datum ?? ""} setze={(x) => setze("datum", x)} />
                   : <input data-cam={d.name} value={w[d.name] ?? ""} placeholder={d.einheit || ""} inputMode={d.art === "text" ? "text" : "decimal"}
+                  list={d.name === "material" ? "cam-werkstoffe" : undefined}
                   onChange={(e) => setze(d.name, d.ohneMinus ? e.target.value.replace(/-/g, "") : e.target.value)} />}
+                {/* Seit 1.729.0: erkannter Werkstoff, Vorschlag aus dem letzten Auftrag */}
+                {d.name === "material" && <MaterialHinweis w={w} setze={setze} />}
                 {/* Seit 1.640.0: Erklärungsbild wie beim Abstecher */}
                 {d.name === "schnabel" && (schnabelBild.maus || schnabelBild.fokus) && <div className="cam-ab__bild" data-cam-schnabelbild-feld>
                   <SchnabelBild b={w.schnabel} /></div>}

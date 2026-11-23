@@ -7,6 +7,7 @@
 //  in beiden Kanälen. Die Bearbeitungen dazwischen kommen später.
 // =================================================================
 
+import { schnittVorschlag } from "./camWerkstoff.js";
 import { typ, vorlageArt, vorlageFuellen, blockEigene, eigeneVorgaben, feldAus, kopfEigene, wirksamB, wirksamW } from "./camTyp.js";
 
 // Synchronisationsmarken der SB-20RG (Patrick 5. November 2026): M200
@@ -60,6 +61,8 @@ export const FELDER = [
     { name: "hoco", text: "HOCO Nr.", einheit: "z.B. 10007-0589", art: "text" },
     { name: "datum", text: "Datum", einheit: "TT.MM.JJ", lang: "Datum in G170", art: "text" },
     { name: "kuerzel", text: "Kürzel", einheit: "z.B. PR", lang: "Kürzel in G170", art: "text" },
+    // Seit 1.729.0: Material für die Vorschläge Vc / S neuer Bearbeitungen
+    { name: "material", text: "Material", einheit: "z.B. 1.4305 oder Messing", lang: "Werkstoff des Teils; neue Bearbeitungen bekommen Vc bzw. S als Vorschlag für Hartmetall", art: "text" },
   ] },
   { gruppe: "Grundvariablen G266", felder: [
     { name: "A", text: "A Material-Ø", einheit: "mm", lang: "A = #531 Materialdurchmesser" },
@@ -247,6 +250,10 @@ export function neuerBlock(bloecke = [], art = "dreh", w = null) {
   const nb = { id: neueId(), art, platz, bez: "", ...(typ().bloecke[art] || {}), eigen: eigeneVorgaben(art), code: "" };
   // Front- und frontangetriebene Werkzeuge zuerst an der Hauptspindel (1.417.0)
   if (art === "front" || art === "quer") nb.spindel = "haupt";
+  // Seit 1.729.0: mit Material in den Kopfdaten Vc bzw. S aus den
+  // Richtwerten für Hartmetall statt der festen Vorgabe (camWerkstoff.js)
+  const sv = w ? schnittVorschlag(nb, w) : null;
+  if (sv) Object.assign(nb, sv);
   return nb;
 }
 
