@@ -168,7 +168,7 @@ export function Bestellstand({ auffrischen }) {
   );
 }
 
-// ---------- Bestellungen kompakt (neuer Look, seit 1.717.0) ----------
+// ---------- Bestellungen kompakt (neuer Look, seit 1.721.0) ----------
 // Wunsch Patrick 23. November 2026: „unten gleich wie Heute noch offen,
 // aber nicht so gross … Knopf für neuen Eintrag, soll zuerst zur Seite
 // wechseln und dann die Maske aufgehen“. Kleine Schilder statt der
@@ -224,7 +224,7 @@ export function BestellKurz({ auffrischen }) {
   );
 }
 
-// ---------- Geburtstage oben (neuer Look, seit 1.717.0) ----------
+// ---------- Geburtstage oben (neuer Look, seit 1.721.0) ----------
 
 // ---------- Geburtstage ----------
 

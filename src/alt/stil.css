@@ -15944,7 +15944,12 @@ body.dunkel .sn2-ecke { background: #1e293b; box-shadow: 0 0 0 1px #334155; }
   .sn2-ecke .kopfkarte__datum { display: none; }
 }
 
-/* 1.717.0: neuer Look, oben Solaranlage und Geburtstage, Bestellungen klein
+/* 1.719.0: Safari am iPad hält eine Kamera an, deren Bild unsichtbar ist
+   (2 Punkte, ganz durchsichtig). Das Bild bleibt darum etwas grösser und
+   kaum sichtbar hinter allem, statt ganz weg. */
+.ze-panel__kamera { width: 96px; height: 72px; opacity: .01; z-index: -1; }
+
+/* 1.721.0: neuer Look, oben Solaranlage und Geburtstage, Bestellungen klein
    in der rechten Spalte (Wunsch Patrick 23. November 2026) */
 .sn2-oben #db-geburtstage, .sn2-oben #db-geburtstage > .karte { height: 100%; margin: 0 !important; box-sizing: border-box; }
 .sn2-oben .sn2-fest { margin: 0 !important; min-height: 100%; display: flex; align-items: center; justify-content: center;

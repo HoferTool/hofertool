@@ -354,7 +354,7 @@ function Darstellung() {
       <Schalter id="e-dunkel" name="dunkel" titel="Dunkler Modus"
         beiAenderung={(an) => { document.body.classList.toggle("dunkel", an); alt.fensterleisteFaerben(); }} />
       {todosSichtbar() && <Schalter id="e-menuefest" name="navmenuefest" titel="Menü immer zeigen"
-        text="Die Menüpunkte bleiben in der Seitenleiste stehen, die Todos stehen darunter. Ohne wechselt die Leiste nach 3 Minuten zu den Todos."
+        text="Die Menüpunkte bleiben in der Seitenleiste stehen, die Todos stehen darunter. Mit ☰ fährst du das Menü ein und aus, ohne Zeit. Ohne wechselt die Leiste nach 3 Minuten zu den Todos."
         beiAenderung={() => menueFestAnwenden()} />}
       <Schalter id="e-wochestart" name="wochestart" titel="Erfassung mit der Woche öffnen"
         text="Sonst öffnet die Erfassung mit dem Tag." />

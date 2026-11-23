@@ -56,7 +56,7 @@ export default function Start({ auffrischen, module }) {
           <p className="gruss">{alt.begruessung()}{name ? ", " + name : ""}</p>
           <div className="sn2-ecke"><Uhr /><Wetter /></div>
         </div>
-        {/* Oben Solaranlage und Geburtstage (seit 1.717.0, Wunsch Patrick
+        {/* Oben Solaranlage und Geburtstage (seit 1.721.0, Wunsch Patrick
             23. November 2026); hat jemand Geburtstag, füllt das Fest die ganze Karte */}
         <div className="sn2-oben">
           <Solaranlage />

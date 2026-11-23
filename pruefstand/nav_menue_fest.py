@@ -1,4 +1,4 @@
-# Seit 1.644.0: Schalter „Menü immer zeigen“ hält die Menüpunkte in der Seitenleiste stehen.
+# Seit 1.644.0 (1.717.0 mit ☰ ein/aus): Schalter „Menü immer zeigen“ hält die Menüpunkte in der Seitenleiste stehen.
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -35,9 +35,15 @@ with sync_playwright() as p:
     pruefe("nav--zeigt-menue" in cls() and "nav--todos" not in cls(), "Menü sofort sichtbar")
     pg.keyboard.press("Escape"); pg.wait_for_timeout(2500)
     pruefe("nav--zeigt-menue" in cls(), "nach Zeit immer noch Menü")
-    pg.click("#nav-klapp"); pg.wait_for_timeout(400)
-    pruefe("nav--zeigt-menue" in cls(), "☰ lässt Menü stehen")
     pruefe(pg.is_visible("#nav-todo"), "Todos darunter sichtbar")
+    pg.click("#nav-klapp"); pg.wait_for_timeout(400)
+    pruefe("nav--todos" in cls() and "nav--zeigt-menue" not in cls(), "☰ fährt Menü ein")
+    pg.wait_for_timeout(2500)
+    pruefe("nav--todos" in cls(), "eingefahren bleibt ohne Zeit")
+    pg.click("#nav-klapp"); pg.wait_for_timeout(400)
+    pruefe("nav--zeigt-menue" in cls(), "☰ fährt Menü wieder aus")
+    pg.wait_for_timeout(2500)
+    pruefe("nav--zeigt-menue" in cls(), "ausgefahren bleibt ohne Zeit")
     pg.screenshot(path="/tmp/claude-0/-home-user/66e3e86a-6ace-5606-8417-1d3e688fcfb8/scratchpad/fest.png")
     pg.reload(); pg.wait_for_selector("#nav-todo", timeout=20000); pg.wait_for_timeout(600)
     pruefe("nav--zeigt-menue" in cls(), "nach Neuladen Menü")
