@@ -174,6 +174,21 @@ function stammKontakt(p) {
   const k = ((p.daten && p.daten.kontakte) || [])[0];
   return k ? k.name || "" : "";
 }
+// Jüngste frühere Reklamation desselben Partners (Liste ist nach Eingang absteigend)
+const gleich = (a, b) => String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+function letzteVon(alle, art, partner, ohneId) {
+  if (leer(partner)) return null;
+  return (alle || []).find((x) => x.id !== ohneId && x.art === art && gleich(x.partner, partner)) || null;
+}
+// Vorschläge fürs Feld Kunde/Lieferant: Stammdaten und Namen aus früheren Reklamationen
+function partnerVorschlaege(art, alle) {
+  const raus = stamm.filter((p) => p.art === stammArt(art)).map((p) => ({ k: "s" + p.id, name: p.name, nr: p.nr }));
+  (alle || []).forEach((x) => {
+    if (x.art !== art || leer(x.partner) || raus.some((y) => gleich(y.name, x.partner))) return;
+    raus.push({ k: "r" + x.id, name: String(x.partner).trim(), nr: "frühere Reklamation" });
+  });
+  return raus;
+}
 // Telefon aus Einstellungen → Mein Konto, früher je Gerät unter rk_tel gemerkt
 const meinTelefon = () => String((alt.einstellungWert && (alt.einstellungWert("telefon", "") || alt.einstellungWert("rk_tel", ""))) || "");
 const fehlerKurz = (r) => [...angekreuzt(r, "fa"), r.fehlerart].filter((x) => !leer(x)).join(", ");
@@ -350,12 +365,30 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
     const kt = stammKontakt(p);
     if (kt && leer(n.kontakt)) { n.kontakt = kt; gefuellt.push("Kontaktperson"); }
   };
+  // Aus der jüngsten früheren Reklamation desselben Kunden (seit 1.752.0, Wunsch
+  // Patrick: „nicht immer neu ausfüllen“): Kontakt, Adresse, Beanstandungs-Nr. bleibt
+  const frueherEinsetzen = (n, gefuellt) => {
+    const v = letzteVon(alle, n.art, n.partner, r && r.id);
+    if (!v) return;
+    if (leer(n.kontakt) && !leer(v.kontakt)) { n.kontakt = v.kontakt; gefuellt.push("Kontaktperson"); }
+    const vk = v.kopf || {};
+    if (leer((n.kopf || {}).adresse) && !leer(vk.adresse)) { n.kopf = { ...(n.kopf || {}), adresse: vk.adresse }; gefuellt.push("Adresse"); }
+  };
   const partnerNachschlagen = (text) => {
     const p = stammFinden(w.art, text);
-    if (!p) return;
-    const gefuellt = [];
-    setW((x) => { const n = { ...x }; stammEinsetzen(n, p, gefuellt); return n; });
-    setTimeout(() => setHinweis(gefuellt.length ? "Aus den Stammdaten ausgefüllt: " + [...new Set(gefuellt)].join(", ") + "." : ""), 0);
+    const g1 = [], g2 = [];
+    setW((x) => {
+      const n = { ...x };
+      if (p) stammEinsetzen(n, p, g1);
+      frueherEinsetzen(n, g2);
+      return n;
+    });
+    setTimeout(() => {
+      const t = [];
+      if (g1.length) t.push("Aus den Stammdaten ausgefüllt: " + [...new Set(g1)].join(", ") + ".");
+      if (g2.length) t.push("Aus der letzten Reklamation übernommen: " + [...new Set(g2)].join(", ") + ".");
+      setHinweis(t.join(" "));
+    }, 0);
   };
   const hocoNachschlagen = async (nr) => {
     nr = String(nr || "").trim();
@@ -379,6 +412,16 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
           if (p) { stammEinsetzen(n, p, gefuellt); }
           else if (auftrag && auftrag.customer_number) { n.partner = String(auftrag.customer_number); gefuellt.push("Kunde"); }
         }
+        frueherEinsetzen(n, gefuellt);
+        // Kunden Art. Nr., Zeichnung und Index aus der letzten Reklamation dieser HOCO Nr.
+        const v = alle.find((y) => (!r || y.id !== r.id) && String(y.hoco_nr || "").trim() === nr);
+        if (v) {
+          const vk = v.kopf || {}, k = { ...(n.kopf || {}) };
+          [["kunden_art", "Kunden Art. Nr."], ["zeichnung", "Zeichnungs-Nr."], ["index", "Index"]].forEach(([f, t]) => {
+            if (leer(k[f]) && !leer(vk[f])) { k[f] = vk[f]; gefuellt.push(t); }
+          });
+          n.kopf = k;
+        }
         return n;
       });
       // Zeichnungs-Nr. wie im Auftragsfenster (aus Dateiname oder WBG)
@@ -386,11 +429,13 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
         try {
           const { zeichnungNrHolen } = await import("../../daten/zeichnungNr.js");
           const z = await zeichnungNrHolen(auftrag);
-          if (z) setW((x) => (leer((x.kopf || {}).zeichnung) ? { ...x, kopf: { ...(x.kopf || {}), zeichnung: z } } : x));
-          if (z) gefuellt.push("Zeichnungs-Nr.");
+          if (z && !gefuellt.includes("Zeichnungs-Nr.")) {
+            setW((x) => (leer((x.kopf || {}).zeichnung) ? { ...x, kopf: { ...(x.kopf || {}), zeichnung: z } } : x));
+            gefuellt.push("Zeichnungs-Nr.");
+          }
         } catch (f) { /* dann von Hand */ }
       }
-      setHinweis(gefuellt.length ? "Aus dem jüngsten Auftrag ausgefüllt: " + gefuellt.join(", ") + ". Bitte prüfen." : "");
+      setHinweis(gefuellt.length ? "Vorgeschlagen aus Auftrag und früheren Reklamationen: " + [...new Set(gefuellt)].join(", ") + ". Bitte prüfen." : "");
     } catch (f) { /* dann eben von Hand */ }
   };
 
@@ -589,7 +634,7 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
         <h3>Beanstandung</h3>
         <div className="rk-raster">
           {w.art !== "intern" && T("partner", w.art === "kunde" ? "Kunde *" : "Lieferant *", { fokus: !r, ph: w.art === "kunde" ? "Firma oder Kunden-Nr." : "Lieferant", liste: "rk-stamm", blur: (e) => partnerNachschlagen(e.target.value) })}
-          <datalist id="rk-stamm">{stamm.filter((p) => p.art === stammArt(w.art)).map((p) => <option key={p.id} value={p.name}>{p.nr}</option>)}</datalist>
+          <datalist id="rk-stamm">{partnerVorschlaege(w.art, alle).map((p) => <option key={p.k} value={p.name}>{p.nr}</option>)}</datalist>
           {w.art !== "intern" && T("kontakt", "Kontaktperson")}
           {w.art !== "intern" && T("ref_partner", w.art === "kunde" ? "Beanstand.-Nr. Kunde" : "Bestell-Nr. / Lieferschein")}
           {T("eingang", "Eröffnet am", { typ: "date" })}

@@ -23,8 +23,8 @@ with sync_playwright() as p:
         pg.locator("[data-bestellpdf]").first.click()
     bl = neu.value
     bl.wait_for_selector(".blatt .balken")
-    pruefe("Siegel im Briefkopf", bl.locator(".balken img.siegel").count() == 1
-           and bl.evaluate("document.querySelector('.balken img.siegel').naturalWidth") > 0)
+    pruefe("Siegel im Briefkopf", bl.locator(".balken img.briefsiegel").count() == 1
+           and bl.evaluate("document.querySelector('.balken img.briefsiegel').naturalWidth") > 0)
     t = bl.inner_text(".blatt")
     pruefe("Kontakt im Balken", "Tel:" not in t and "032 677 55 70" in bl.inner_text(".balken") and "www.hoferco.ch" in bl.inner_text(".balken"))
     pruefe("Firmenname über der Adresse", "Hofer + Co. Präzisionsdrehteile" in bl.locator(".balken .adresse").inner_text())

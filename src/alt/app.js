@@ -174,7 +174,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.752.2";
+const APP_VERSION = "1.753.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -10395,7 +10395,7 @@ function bestellungDrucken(lieferant, posten, optionen) {
     ".balken { background: #003884; color: #fff; height: 30mm; padding: 0 9mm;",
     "          display: flex; align-items: center; justify-content: space-between; }",
     ".balken img { height: 21mm; width: auto; display: block; }",
-    ".balken img.siegel { height: 22mm; width: 22mm; }",
+    ".balken img.briefsiegel { height: 22mm; width: 22mm; }",
     ".balken .adresse, .balken .kontakt2 { font-size: 7.5pt; line-height: 1.5; white-space: nowrap; }",
     ".balken .kontakt2 { border-left: .6pt solid rgba(255,255,255,.55); padding-left: 5mm; }",
     ".balken .kontakt2 span { display: inline-block; width: 4mm; opacity: .7; }",
@@ -10711,7 +10711,7 @@ function bestellungDrucken(lieferant, posten, optionen) {
     + 'Alte Bernstrasse 24<br><span class="ort">CH-4573 Lohn-Ammannsegg</span></div>'
     + '<div class="kontakt2"><span>T</span>032 677 55 77<br><span>F</span>032 677 55 70<br>'
     + 'admin@hoferco.ch<br>www.hoferco.ch</div>'
-    + '<img class="siegel" src="' + SIEGEL_BRIEF + '" alt="ISO 9001, Swiss Safety Center, certified system">'
+    + '<img class="briefsiegel" src="' + SIEGEL_BRIEF + '" alt="ISO 9001, Swiss Safety Center, certified system">'
     + '</div>'
 
     + '<div class="inhalt" style="padding-top:12mm">'
