@@ -310,7 +310,7 @@ function EinlesenKnopf({ id, kanal, merkmal, einlesen, title, children }) {
           .catch((x) => alt.meldung("Datei öffnen ging nicht: " + (x && x.message ? x.message : x), "fehler"));
       }}>
       {children}
-      <input type="file" multiple={!kanal} hidden data-ablegen="direkt" onChange={(e) => { einlesen(e.target.files, kanal); e.target.value = ""; }} />
+      <input type="file" multiple={!kanal} hidden data-ablegen="direkt" data-ablegen-viele={kanal ? "[data-cam-einlesen-alle] input[type=file]" : undefined} onChange={(e) => { einlesen(e.target.files, kanal); e.target.value = ""; }} />
     </label>
   );
 }
