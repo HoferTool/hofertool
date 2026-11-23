@@ -15964,3 +15964,10 @@ body.dunkel .bestellkurz__frist { color: #ff8a80 !important; border-color: #ff8a
 .sn2-fest .geb-bild { width: clamp(90px, 11vw, 170px) !important; height: clamp(90px, 11vw, 170px) !important;
   font-size: clamp(2.6rem, 4vw, 4.4rem) !important; }
 .sn2-fest .geb-name { overflow-wrap: anywhere; }
+
+/* 1.722.0: Profilbilder in der Namensliste des Stempel-Pads grösser, wie bei der Anmeldung
+   (Wunsch Patrick 23. November 2026). */
+.ze-panel__kacheln { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+.ze-panel__kachel img,
+.ze-panel__kachel .ze-panel__buchstabe { width: 96px; height: 96px; }
+.ze-panel__kachel .ze-panel__buchstabe { font-size: 40px; }
