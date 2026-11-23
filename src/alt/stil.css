@@ -16108,3 +16108,22 @@ body.dunkel .bk-mehr { color: #8ec5ff !important; }
 .cam-bearb__kopf { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; margin-bottom: 5px; overflow-x: auto; scrollbar-width: thin; }
 .cam-bearb__kopf > b { flex: 0 0 4.2em; min-width: 0; white-space: nowrap; font-size: 0.9em; }
 .cam-bearb__kopf > .knopf, .cam .cam-bearb__kopf > .knopf.knopf--klein { flex: 0 0 auto; white-space: nowrap; font-size: 12px; padding: 3px 6px; min-height: 0; line-height: 1.3; margin: 0; }
+/* 1.741.0: Pad, Liste der Maschinen kompakter, damit am iPad alle auf
+   einmal zu sehen sind (Wunsch Patrick 23. November 2026: „Felder etwas
+   kleiner, dass man alle auf einmal sehen kann“). Quer bis 6 je Reihe
+   (--pad-spalten-quer), hoch bis 4, Logo kleiner; das Raster selbst kommt
+   aus effekte.css, darum html davor. Handy hat eigene Regeln weiter oben. */
+@media (min-width: 641px) and (min-height: 501px) {
+  html #pad .pad__wahl:has(.pad__kacheln--maschinen) { gap: 16px; }
+  html #pad .pad__wahl:has(.pad__kacheln--maschinen) .pad__wahllogo { height: clamp(56px, 9vh, 100px); }
+  html #pad .pad__wahl .pad__kacheln--maschinen { gap: 12px;
+    grid-template-columns: repeat(var(--pad-spalten, 3), minmax(0, 180px)); }
+  html #pad .pad__kacheln--maschinen .pad-kachel { min-height: 96px; padding: 10px 8px;
+    gap: 3px; font-size: 1.15rem; }
+  html #pad .pad__kacheln--maschinen .pad-kachel__nr { font-size: .85rem; }
+  html #pad .pad__kacheln--maschinen .pad-kachel__auftrag { font-size: .9rem; }
+}
+@media (min-width: 641px) and (min-height: 501px) and (orientation: landscape) {
+  html #pad .pad__wahl .pad__kacheln--maschinen {
+    grid-template-columns: repeat(var(--pad-spalten-quer, 4), minmax(0, 180px)); }
+}
