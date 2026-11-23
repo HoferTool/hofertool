@@ -23,6 +23,67 @@ import KalenderKarte from "./start/Kalender.jsx";
 import Systemzustand from "./start/Systemzustand.jsx";
 import NeuesTutorial from "./start/NeuesTutorial.jsx";
 import Umfragen from "./start/Umfragen.jsx";
+import { Children } from "react";
+
+// Karten in zwei Spalten, die unten bündig aufhören (seit 1.731.0, Wunsch
+// Patrick 23. November 2026: „alle schön passen gleich gross und es soll je
+// nach dem die Seiten wechseln, wenn es unten nicht ganz aufgeht“). Jede
+// Karte steckt in einer Zelle eines Rasters mit 4 Punkte hohen Reihen; jede
+// kommt der Reihe nach in die kürzere Spalte, die letzte Karte der kürzeren
+// Spalte wird so viel höher, dass beide Spalten gleich lang sind. Die Karten
+// bleiben dabei im selben Eltern-Element, React baut nichts neu.
+const ZEILE = 4, LUECKE = 16;
+function SpaltenFluss({ children }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let bild = 0;
+    const ordnen = () => {
+      const zellen = [...el.children];
+      const zwei = getComputedStyle(el).gridTemplateColumns.split(" ").length > 1;
+      const hoehe = [0, 0], letzte = [null, null];
+      for (const z of zellen) {
+        const karte = z.querySelector(".karte") || z.firstElementChild;
+        if (z.firstElementChild && z.firstElementChild !== karte) z.firstElementChild.style.minHeight = "";
+        if (karte) karte.style.minHeight = "";
+        const h = z.offsetHeight;
+        if (!karte || !h) { z.style.gridColumn = ""; z.style.gridRow = ""; continue; }
+        const sp = zwei && hoehe[1] < hoehe[0] ? 1 : 0;
+        const reihen = Math.ceil((h + LUECKE) / ZEILE);
+        // Feste Startreihe: sonst setzt das Raster jede Karte hinter die
+        // vorige (auch in der anderen Spalte) und es entstehen Lücken
+        z.style.gridColumn = zwei ? String(sp + 1) : "";
+        z.style.gridRow = (hoehe[sp] / ZEILE + 1) + " / span " + reihen;
+        hoehe[sp] += reihen * ZEILE;
+        letzte[sp] = { z, karte, h, reihen };
+      }
+      // Kürzere Spalte unten auffüllen
+      if (zwei && letzte[0] && letzte[1]) {
+        const kurz = hoehe[0] < hoehe[1] ? 0 : 1, diff = Math.abs(hoehe[0] - hoehe[1]);
+        const l = letzte[kurz];
+        if (diff > 0) {
+          l.karte.style.minHeight = (l.reihen * ZEILE - LUECKE + diff) + "px";
+          l.z.style.gridRow = ((hoehe[kurz] - l.reihen * ZEILE) / ZEILE + 1) + " / span " + (l.reihen + diff / ZEILE);
+        }
+      }
+    };
+    const spaeter = () => { cancelAnimationFrame(bild); bild = requestAnimationFrame(ordnen); };
+    const ro = new ResizeObserver(spaeter);
+    const gesehen = new WeakSet();
+    const beobachten = () => [el, ...el.children].forEach((z) => { if (!gesehen.has(z)) { gesehen.add(z); ro.observe(z); } });
+    const mo = new MutationObserver(() => { beobachten(); spaeter(); });
+    beobachten();
+    mo.observe(el, { childList: true, subtree: true, characterData: true });
+    ordnen();
+    return () => { cancelAnimationFrame(bild); ro.disconnect(); mo.disconnect(); };
+  }, []);
+  return (
+    <div className="sn2-spalten" ref={ref}>
+      {Children.map(children, (k, i) => k ? <div className="sn2-zelle" key={i}>{k}</div> : null)}
+    </div>
+  );
+}
 
 // Externe und Dienst fragen gar nicht erst nach Problemen
 const keineProbleme = async () => [];
@@ -69,19 +130,19 @@ export default function Start({ auffrischen, module }) {
         {/* 1.723.0: alle Karten in einem Fluss mit zwei Spalten, die der
             Browser gleich hoch verteilt (Patrick 23. November 2026: „schön
             aufteilen“), statt fester linker und rechter Spalte */}
-        <div className="sn2-spalten">
+        <SpaltenFluss>
           {probSehen && <Probleme liste={prob.daten} fehler={prob.fehler} neu={prob.neu} />}
+          <Materialausgabe auffrischen={auffrischen} />
           <HeuteOffen auffrischen={auffrischen} />
           <KalenderKarte auffrischen={auffrischen} />
           <BestellKurz auffrischen={auffrischen} />
           <OhneWbg auffrischen={auffrischen} />
-          <Jubilaeen auffrischen={auffrischen} />
           <Batterien auffrischen={auffrischen} />
-          <Materialausgabe auffrischen={auffrischen} />
+          <Jubilaeen auffrischen={auffrischen} />
           <Notizen auffrischen={auffrischen} />
           <Umfragen auffrischen={auffrischen} />
           <EinkaufKurz auffrischen={auffrischen} />
-        </div>
+        </SpaltenFluss>
       </div>
     );
   }

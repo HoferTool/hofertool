@@ -56,7 +56,10 @@ export default function Bestellungen({ auffrischen, behaelter }) {
   return (
     <>
       <h1 className="seitentitel">Bestellungen</h1>
-      <Reiter reiter={REITER} aktiv={best.ansicht} waehlen={waehlen} merkmal="best" seite="bestellungen" />
+      {/* Im neuen Look steht Bestellungen unter Produktion; dann bleiben die
+          Reiter auf der Seite, weil die Leiste die Reiter der Produktion zeigt */}
+      <Reiter reiter={REITER} aktiv={best.ansicht} waehlen={waehlen} merkmal="best"
+        seite={alt.neuerLook && alt.neuerLook() ? undefined : "bestellungen"} />
       {!alt.darfSchreiben() &&
         <div className="nurlesen">Du kannst hier alles ansehen, aber nichts ändern.</div>}
       <Uebergang key={best.ansicht + "|" + sprung}>

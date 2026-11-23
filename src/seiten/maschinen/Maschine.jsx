@@ -49,7 +49,7 @@ export default function MaschineSeite({ m, typ, park }) {
         <div className="mseite-kopf__knoepfe">
           {/* Macodel: 508 Werkzeuge in NC-PRO (seit 1.501.0, Wunsch Patrick 12. November 2026) */}
           {wz508Sichtbar() && istMacodel(m, typ) && <button className="knopf" id="mseite-wz508"
-            onClick={() => { ncAnsicht("wz508"); location.hash = "#/nc"; }}>🔧 508 Werkzeuge</button>}
+            onClick={() => { if (alt.neuerLook && alt.neuerLook()) { location.hash = "#/wz508"; return; } ncAnsicht("wz508"); location.hash = "#/nc"; }}>🔧 508 Werkzeuge</button>}
           <button className="knopf knopf--haupt" id="mseite-pad" onClick={() => padZeigen(m)}>Pad Mode öffnen</button>
         </div>
       </div>

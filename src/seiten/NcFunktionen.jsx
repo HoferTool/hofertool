@@ -51,7 +51,10 @@ export const REITER = [
 
 // Hofer Cam sehen seit 1.432.0 alle ausser Externen (camSehen in app.js)
 export function ncReiter() {
-  return REITER.filter(([w]) => w !== "cam" || (alt.camSehen && alt.camSehen()));
+  // Im neuen Look stehen Rechner (Hilfsprogramme) und 508 Werkzeuge
+  // (Maschinen) nicht mehr hier (seit 1.731.0, Wunsch Patrick 23. November 2026)
+  const neu = alt.neuerLook && alt.neuerLook();
+  return REITER.filter(([w]) => (w !== "cam" || (alt.camSehen && alt.camSehen())) && !(neu && (w === "rechner" || w === "wz508")));
 }
 
 const INHALT = { bohren: BohrenFraesen, entgraten: Entgraten, cachse: CAchse, gravur: Gravur, dxf: Dxf, kontur: Kontur, cam: HoferCam, wz508: Werkzeuge508, rechner: Rechner };

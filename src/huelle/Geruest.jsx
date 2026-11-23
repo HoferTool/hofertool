@@ -14,7 +14,7 @@ import { createRoot } from "react-dom/client";
 import { alt } from "../bruecke.jsx";
 import { anmeldungAbbauen } from "./Anmeldung.jsx";
 import { GeraetMarke } from "../pad/geraet.jsx";
-import { UNTERREITER, reiterAktiv, reiterBeobachten, reiterWaehlen, menuePunkt } from "./unterreiter.js";
+import { UNTERREITER, reiterAktiv, reiterBeobachten, reiterWaehlen, menuePunkt, hatUnter } from "./unterreiter.js";
 import { todosSichtbar, istPlanerTab } from "../pad/planerTab.js";
 
 // Todo des Planers unten in der Seitenleiste, nur für Admins (seit 1.536.0).
@@ -455,8 +455,8 @@ function Geruest() {
                 <span className="nav__zeichen" aria-hidden="true" dangerouslySetInnerHTML={{ __html: s.zeichen }} />
                 <span className="nav__text">{s.titel}{s.unter && <small className="nav__zusatz">{s.unter}</small>}</span>
               </a>
-              {aktiv === s.pfad && UNTERREITER[s.pfad] && <Unterreiter key="offen" seite={s.pfad} />}
-              {zuklappend === s.pfad && aktiv !== s.pfad && <Unterreiter key="zu" seite={s.pfad} zu />}
+              {aktiv === s.pfad && hatUnter(s.pfad) && <Unterreiter key="offen" seite={s.pfad} />}
+              {zuklappend === s.pfad && aktiv !== s.pfad && hatUnter(s.pfad) && <Unterreiter key="zu" seite={s.pfad} zu />}
             </Fragment>
           ))}
           <NavTodoPlatz />
@@ -522,7 +522,9 @@ function HandyMenue({ aktiv }) {
     return () => document.removeEventListener("keydown", taste, true);
   }, [offen]);
 
-  const seiten = alt.SEITEN.filter((s) => !s.gruppe && alt.seiteSichtbar(s.pfad));
+  // imHandy: im neuen Look Unterpunkte (Material, Bestellungen), die am Handy
+  // keine Leiste haben und darum im Menü bleiben (seit 1.731.0)
+  const seiten = alt.SEITEN.filter((s) => (!s.gruppe || s.imHandy) && alt.seiteSichtbar(s.pfad));
   const punkte = [
     ...seiten.map((s) => ({ schluessel: s.pfad, titel: s.titel, unter: s.unter, href: "#/" + s.pfad,
       zeichen: <span className="handymenue__zeichen" aria-hidden="true" dangerouslySetInnerHTML={{ __html: s.zeichen }} /> })),
