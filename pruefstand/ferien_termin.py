@@ -76,14 +76,24 @@ with sync_playwright() as p:
     pg.wait_for_timeout(1200)
     pg.wait_for_selector("[data-ferien='f1'] [data-fgriff='rechts']")
 
-    # Griff ziehen: Aktualisierung von selbst, mit Vorher
+    # Griff nur antippen: nichts ändern, keine Outlook-Frage
     g = pg.locator("[data-ferien='f1'] [data-fgriff='rechts']").bounding_box()
     spalte = pg.evaluate("parseFloat(getComputedStyle(document.querySelector('.pw-tafel')).getPropertyValue('--spalte')) || 40")
+    tage_vor = pg.evaluate("TEST.daten.vacations.find(v => v.id === 'f1').tage")
+    pg.mouse.move(g["x"] + g["width"] / 2, g["y"] + g["height"] / 2); pg.mouse.down()
+    pg.mouse.move(g["x"] + g["width"] / 2 + 4, g["y"] + g["height"] / 2); pg.mouse.up()
+    pg.wait_for_timeout(800)
+    pruefe("Antippen am Griff ändert nichts", pg.evaluate("TEST.daten.vacations.find(v => v.id === 'f1').tage") == tage_vor
+           and pg.locator("text=Outlook-Termin").count() == 0)
+    g = pg.locator("[data-ferien='f1'] [data-fgriff='rechts']").bounding_box()
+
+    # Griff ziehen: erst fragen, dann Aktualisierung mit Vorher
     with pg.expect_download() as dl:
         pg.mouse.move(g["x"] + g["width"] / 2, g["y"] + g["height"] / 2); pg.mouse.down()
         for k in range(1, 11):
             pg.mouse.move(g["x"] + g["width"] / 2 + k * spalte * 2 / 10, g["y"] + g["height"] / 2); pg.wait_for_timeout(20)
         pg.mouse.up()
+        pg.wait_for_selector("text=Outlook-Termin", timeout=5000); pg.locator("[data-ja]").last.click()
     b, ics, mail = lesen(dl.value)
     pruefe("Griff: Geändert", b.startswith("Geändert: Ferien Ramona") and "UID:ferien-f1@" in ics)
     pruefe("Griff: Vorher im Text", "Vorher:" in mail)
@@ -98,6 +108,7 @@ with sync_playwright() as p:
         for k in range(1, 11):
             pg.mouse.move(x + k * spalte * 3 / 10, y); pg.wait_for_timeout(20)
         pg.mouse.up()
+        pg.wait_for_selector("text=Outlook-Termin", timeout=5000); pg.locator("[data-ja]").last.click()
     b, ics, mail = lesen(dl.value)
     von_neu = pg.evaluate("TEST.daten.vacations.find(v => v.id === 'f1').von")
     pruefe(f"Verschoben {von_alt} → {von_neu}: Geändert", von_neu != von_alt and b.startswith("Geändert: Ferien Ramona"))
@@ -109,6 +120,7 @@ with sync_playwright() as p:
     pg.locator("#fd-weg").click(); pg.wait_for_timeout(400)
     with pg.expect_download() as dl:
         pg.locator("[data-ja]").click()
+        pg.wait_for_selector("text=Outlook-Termin", timeout=5000); pg.locator("[data-ja]").last.click()
     b, ics, mail = lesen(dl.value)
     pruefe("Löschen: Abgesagt", b.startswith("Abgesagt: Ferien Ramona"))
     pruefe("Löschen: CANCEL", "METHOD:CANCEL" in ics and "STATUS:CANCELLED" in ics and "UID:ferien-f1@" in ics)

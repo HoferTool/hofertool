@@ -37,7 +37,7 @@ function passt(datei, accept) {
 
 // Feld bekommt die Dateien, als wären sie ausgewählt
 function fuellen(feld, dateien) {
-  // Seit 1.729.1: mehrere Dateien auf einem Feld für nur eine Datei gehen an
+  // Seit 1.731.1: mehrere Dateien auf einem Feld für nur eine Datei gehen an
   // das Feld, das data-ablegen-viele nennt (HOFERCAM: drei Kanäle auf den
   // Einlesen-Knopf eines Kanals gezogen → „Programm einlesen“ für alle)
   if (!feld.multiple && dateien.length > 1 && feld.dataset.ablegenViele) {

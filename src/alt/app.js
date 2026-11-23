@@ -27,6 +27,7 @@ import Einlagen from "../seiten/Einlagen.jsx";
 import Hofer2dTo3d from "../seiten/Hofer2dTo3d.jsx";
 import MaschinenSeite, { maschinenZurueck } from "../seiten/Maschinen.jsx";
 import Bildschirme from "../seiten/Bildschirme.jsx";
+import Hilfsprogramme, { RechnerSeite, Wz508Seite } from "../seiten/Hilfsprogramme.jsx";
 import Infoboard, { Empfang, Pausenraum, infoboardSichtbar, infoboardOeffnen, infoboardSchliessen, bildschirmDarfNeuLaden } from "../infoboard/Infoboard.jsx";
 import { bildschirmDiesesGeraets, TAFELN } from "../infoboard/daten.js";
 // Gleich beim Start lesen, ob die Adresse ?bildschirm=… trägt (App-Paket
@@ -172,7 +173,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.729.1";
+const APP_VERSION = "1.731.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3319,6 +3320,10 @@ function seiteSichtbar(pfad) {
   if (pfad === "infoboard" || pfad === "pausenraum") return infoboardSichtbar();
   if (pfad === "bildschirme") return SEITEN.some((s) => s.gruppe === "bildschirme" && seiteSichtbar(s.pfad));
   if (pfad === "startneu") return istAdmin() && !istExtern();
+  // Nur im neuen Look eigene Seiten (seit 1.731.0)
+  if (pfad === "hilfsprogramme") return neuerLook() && SEITEN.some((s) => s.gruppe === "hilfsprogramme" && seiteSichtbar(s.pfad));
+  if (pfad === "rechner") return neuerLook() && !istExtern();
+  if (pfad === "wz508") return neuerLook() && !istExtern() && meineRolle() !== "dienst";
   if (pfad === "kalkulation") return kalkulationSehen(profil) && !istExtern();
   if (pfad === "erp") return erpSehen(profil) && !istExtern();
   // Zeiterfassung (seit 1.626.0): alle Personen ausser Externen, Dienst und
@@ -6340,14 +6345,14 @@ function ferienGriffe(b) {
     const balken = griff.closest("[data-ferien]");
     if (!balken) return;
 
-    let aktiv = false, startX = 0, breite = 0;
+    let aktiv = false, startX = 0, breite = 0, bewegt = false;
     let vonStart = 0, dauerStart = 0, vonJetzt = 0, dauerJetzt = 0;
 
     griff.addEventListener("pointerdown", (e) => {
       if (e.pointerType === "touch") return;   // mit dem Finger nichts verschieben
       e.stopPropagation();
       e.preventDefault();
-      aktiv = true;
+      aktiv = true; bewegt = false;
       startX = e.clientX;
       const spuren = balken.closest(".pw-spuren");
       breite = plan.spalte || 40;
@@ -6361,6 +6366,11 @@ function ferienGriffe(b) {
     griff.addEventListener("pointermove", (e) => {
       if (!aktiv) return;
       e.preventDefault();
+      // Ein Antippen (bei eintägigen Einträgen liegt fast der ganze Balken
+      // unter den Griffen) darf nichts verlängern: erst ab 8 Punkten Weg gilt
+      // es als Ziehen (Patrick 23. November 2026).
+      if (!bewegt && Math.abs(e.clientX - startX) < 8) return;
+      bewegt = true;
       const schritte = Math.round((e.clientX - startX) / breite);
 
       if (griff.dataset.fgriff === "rechts") {
@@ -6380,7 +6390,7 @@ function ferienGriffe(b) {
       aktiv = false;
       e.stopPropagation();
       balken.classList.remove("pw-balken--groesse");
-      if (vonJetzt === vonStart && dauerJetzt === dauerStart) { planAktualisieren(b); return; }
+      if (!bewegt || (vonJetzt === vonStart && dauerJetzt === dauerStart)) { planAktualisieren(b); return; }
 
       const f2 = (plan.ferien || []).find((x) => x.id === balken.dataset.ferien);
       if (!f2) return;
@@ -10885,6 +10895,9 @@ SYM.empfang = svg('<rect x="2.5" y="4" width="19" height="12" rx="2"/><path d="M
 
 // Anzeigen: Bildschirm auf Fuss, auf den Wellen gesendet werden, wie beim
 // Übertragen auf einen Fernseher (seit 1.316.0, Wunsch Patrick: „besseres Icon“)
+// Hilfsprogramme (neuer Look): Werkzeugkoffer
+SYM.hilfsprogramme = svg('<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 5v2"/>'
+  + '<path d="M3 12.5h18"/><path d="M10.5 12.5v2h3v-2"/>');
 SYM.bildschirme = svg('<path d="M2.5 9V6a2 2 0 0 1 2-2h15a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-6"/>'
   + '<path d="M12 17v3.5"/><path d="M8.5 20.5h7"/>'
   + '<path d="M2.5 12.5a4.5 4.5 0 0 1 4.5 4.5"/><path d="M2.5 15.5a1.5 1.5 0 0 1 1.5 1.5"/><path d="M2.5 9.5a7.5 7.5 0 0 1 7.5 7.5"/>');
@@ -11050,6 +11063,9 @@ const SEITEN = [
   // als Karte auf der Startseite, ein Tipp öffnet das Fenster zum Verwalten
   // (Wunsch Patrick 30. Oktober 2026: „Reiter selber brauchts nicht“)
   // Werkzeug-Konturscanner für 3D-gedruckte Einlagen (Wunsch Patrick 30. Oktober 2026)
+  // Im neuen Look stehen 2D → 3D, Einlagen, Anzeigen und Rechner unter
+  // „Hilfsprogramme“ (seit 1.731.0, neuerLookMenue)
+  { pfad: "hilfsprogramme", titel: "Hilfsprogramme", zeichen: SYM.hilfsprogramme, zeige: reactSeite(Hilfsprogramme) },
   { pfad: "hofer2dto3d",  titel: "HOFER2DTO3D", zeichen: SYM.hofer2dto3d, zeige: reactSeite(Hofer2dTo3d) },
   { pfad: "einlagen",     titel: "Einlagen Generator", zeichen: SYM.einlagen, zeige: reactSeite(Einlagen) },
   // Reihen lernen als 3D-Snowboard-Spiel, nur für Patrick (seit 1.546.0)
@@ -11067,11 +11083,38 @@ const SEITEN = [
   { pfad: "empfang",      titel: "Empfang",      gruppe: "bildschirme", zeichen: SYM.empfang, zeige: reactSeite(Empfang) },
   // Bildschirm quer mit Touch im Pausenraum (Wunsch Patrick 30. Oktober 2026), Rechte wie Infoboard
   { pfad: "pausenraum",   titel: "Pausenraum",   gruppe: "bildschirme", zeichen: SYM.pausenraum, zeige: reactSeite(Pausenraum) },
+  // Nur im neuen Look als eigene Seiten (sonst Reiter von NC-PRO, seit 1.731.0)
+  { pfad: "rechner",      titel: "Rechner",      gruppe: "hilfsprogramme", zeichen: SYM.rechner, zeige: reactSeite(RechnerSeite) },
+  { pfad: "wz508",        titel: "508 Werkzeuge", gruppe: "maschinen", zeichen: SYM.maschinen, zeige: reactSeite(Wz508Seite) },
 ];
+
+// Menü im neuen Look (seit 1.731.0, Wunsch Patrick 23. November 2026):
+// 2D → 3D, Einlagen, Anzeigen und Rechner unter „Hilfsprogramme“, Material
+// unter Planwand, Bestellungen unter Produktion, 508 Werkzeuge nur über
+// Maschinen (Multitasking). Die Seiten behalten ihre Adressen; hier ändern
+// sich nur Gruppe und Name. imHandy: bleibt am Handy im Menü, weil es dort
+// keine Unterpunkte gibt.
+const NEUER_LOOK_MENUE = {
+  hofer2dto3d: { gruppe: "hilfsprogramme", titel: "2D → 3D" },
+  einlagen: { gruppe: "hilfsprogramme" },
+  bildschirme: { gruppe: "hilfsprogramme" },
+  material: { gruppe: "planwand", imHandy: true },
+  bestellungen: { gruppe: "produktion", imHandy: true },
+};
+const menueVorher = {};
+function neuerLookMenue(an) {
+  for (const s of SEITEN) {
+    const neu = NEUER_LOOK_MENUE[s.pfad];
+    if (!neu) continue;
+    if (!menueVorher[s.pfad]) menueVorher[s.pfad] = { gruppe: s.gruppe, titel: s.titel, imHandy: s.imHandy };
+    Object.assign(s, an ? { ...menueVorher[s.pfad], ...neu } : menueVorher[s.pfad]);
+  }
+}
+const neuerLook = () => document.documentElement.classList.contains("ohne-kopf");
 
 // Was die neu gebauten React-Seiten vom alten Programm brauchen
 Object.assign(alt, {
-  camSehen, SYM,
+  camSehen, SYM, neuerLook,
   meineProfilId, parkIstExtern, padParkVerborgen, leerlaufAktiv,
   zeitlimit, meldung, nachfragen, fehlertext, fehlerMerken, dialogFelder, auswahlDialog,
   merkeSchritt, rueckWeg, rueckRein, rueckSetz, rueckStand, rueckSichern, rueckLeeren, personName, zielPersonFinden, darfSchreiben,
@@ -11531,7 +11574,7 @@ function zeichneSeite() {
   }
 
   // Der Rechner ist seit 1.378.0 ein Reiter von HOFER-NC-PRO
-  if (roh === "rechner" && !ARCHIV) {
+  if (roh === "rechner" && !ARCHIV && !neuerLook()) {
     ncAnsicht("rechner");
     location.hash = "#/nc";
     return;
@@ -11624,6 +11667,7 @@ function zeichneGeruest() {
   // Prüfstände bedienen noch die Knöpfe der Kopfzeile, darum dort nur mit
   // TEST.ohneKopf.
   document.documentElement.classList.toggle("ohne-kopf", neuerLookSehen(profil) && !(window.TEST && !window.TEST.ohneKopf));
+  neuerLookMenue(neuerLook());
   themaAnwenden();
   // Administratoren sehen den Pad-Knopf auf jedem Gerät
   document.body.classList.toggle("ist-admin", istAdmin());

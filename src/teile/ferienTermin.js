@@ -217,6 +217,15 @@ export async function ferienTerminSenden(f, verteiler) {
 export async function ferienAktualisieren(eintrag, art, vorher) {
   const verteiler = await verteilerLaden();
   if (!adressenAus(verteiler).length) return;
+  // Vor jeder Outlook-Meldung zuerst fragen, damit ein versehentliches
+  // Ziehen oder Löschen nicht gleich an alle geht (Patrick 23. November 2026).
+  const ok = await alt.nachfragen({
+    titel: art === "abgesagt" ? "Outlook-Termin absagen?" : "Outlook-Termin ändern?",
+    text: art === "abgesagt"
+      ? "Soll der Termin von " + (eintrag.person || "") + " in Outlook abgesagt werden?"
+      : "Soll der Termin von " + (eintrag.person || "") + " in Outlook geändert werden?",
+    bestaetigen: art === "abgesagt" ? "Ja, absagen" : "Ja, ändern", abbrechen: "Nein, nicht senden" });
+  if (!ok) return;
   const tage = eintrag.tage || 1;
   const f = { id: eintrag.id, outlook_id: eintrag.outlook_id, person: eintrag.person, von: eintrag.von, tage,
     bis: alt.letzterArbeitstag(eintrag.von, tage), notiz: eintrag.note || "", art,

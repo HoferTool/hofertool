@@ -142,7 +142,7 @@ const mitte = (zeilen, kanal) => {
   // ersten festen Zeile der Ende-Vorlage
   const v = typ().vorlagen, zahl = (t) => String(t || "").split(/\r?\n/).filter((z) => z.trim() && !/^\s*\[/.test(z)).length;
   let n = zahl(v["k" + kanal + "kopf"]);
-  // Seit 1.729.1 (Patrick 23. November 2026, 10789-0034): ist der Kopf im
+  // Seit 1.731.1 (Patrick 23. November 2026, 10789-0034): ist der Kopf im
   // Programm kürzer als die Vorlage, endet er spätestens beim ersten
   // Werkzeug bzw. M75, das nicht selbst im Kopf der Vorlage steht (sonst
   // fehlte der erste T2200 in Kanal 2)
@@ -250,7 +250,7 @@ function besteVorlage(arten, zeilen, kanal) {
   return best;
 }
 const zuSchlecht = (best, s) => !best || best.r.fehl > Math.max(8, s.length / 2);
-// Seit 1.729.1: ein Stück ohne jede Bewegung im Vorschub (G1/G2/G3,
+// Seit 1.731.1: ein Stück ohne jede Bewegung im Vorschub (G1/G2/G3,
 // Bohrzyklus) ist keine Bearbeitung, nur Werkzeug holen oder vorstellen
 // (T200(OR-POS.), T1200, „M75 /T2100 M76“, „M75 /M1011 M76“); es bleibt
 // im eingelesenen Text. Passt eine Vorlage genau, zählt es trotzdem.
@@ -377,7 +377,7 @@ export function bloeckeLesen(k1, k2, k3) {
       const best = besteVorlage(arten, s, 3);
       // Seit 1.677.0: ein blosser Werkzeugaufruf ohne Spindel (T1100 in
       // Kopf und Ende von O3272, Platten T1100 / T1200) ist keine Bearbeitung
-      // Seit 1.729.1 zählt dafür die Bewegung im Vorschub, nicht die Spindel
+      // Seit 1.731.1 zählt dafür die Bewegung im Vorschub, nicht die Spindel
       // (zweiter T1700 in O3066 bohrt ohne eigenes M3S)
       if (ohneVorschub(best, s)) return;
       if (zuSchlecht(best, s)) { liste.push({ b: freiBlock(arten[0], s, platz), p1: Infinity, p3: pos }); return; }

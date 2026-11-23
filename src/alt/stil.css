@@ -15932,15 +15932,19 @@ body.dunkel .sn2-ecke { background: #1e293b; box-shadow: 0 0 0 1px #334155; }
 .sn2-oben #db-status > * { display: flex; flex-direction: column; }
 .sn2-oben .db-bestellzahlen { flex: 1; }
 .sn2-oben .db-bestellzahl { display: flex; flex-direction: column; justify-content: center; align-items: center; }
-.sn2-spalten { column-count: 2; column-gap: 16px; }
-.sn2-spalten > * { break-inside: avoid; display: block; margin: 0 0 16px !important; }
-.sn2-spalten > * > .karte { margin: 0 !important; }
+/* 1.731.0: Raster mit 4 Punkte hohen Reihen, SpaltenFluss in Start.jsx
+   verteilt die Karten und füllt die kürzere Spalte unten auf */
+.sn2-spalten { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 4px;
+  column-gap: 16px; row-gap: 0; align-items: start; }
+.sn2-spalten > * { display: block; margin: 0 !important; min-width: 0; }
+.sn2-spalten > * > .karte, .sn2-spalten > * > * > .karte { margin: 0 !important; box-sizing: border-box; }
+.sn2-spalten > * > :not(.karte) { margin: 0 !important; }
 .sn2-spalten > :empty { display: none; }
 @media (max-width: 1100px) {
   .sn2-oben { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 900px) {
-  .sn2-spalten { column-count: 1; }
+  .sn2-spalten { grid-template-columns: minmax(0, 1fr); }
   .sn2-ecke .kopfkarte__datum { display: none; }
 }
 
@@ -16010,3 +16014,17 @@ body.dunkel .sn2-kopf .gruss { background-image: linear-gradient(90deg, #fff, #8
 
 /* 1.729.0 HOFERCAM: Hinweis unter dem Feld Material */
 .cam-feld .cam-mat-hinweis { display: block; font-size: 11px; line-height: 1.3; max-width: 260px; white-space: normal; text-align: left; opacity: .85; }
+
+/* 1.731.0 (Wunsch Patrick 23. November 2026): Uhr und Wetter oben rechts ohne
+   Rahmen und grösser; mehr Luft unter dem Logo der Leiste; über den Todos
+   eine Linie, wenn das Menü darüber steht */
+.sn2-ecke { background: none !important; box-shadow: none !important; padding: 0 4px; gap: 22px; }
+.sn2-ecke .uhr, .sn2-ecke .wetter__grad { font-size: 2.6rem; }
+.sn2-ecke .kopfkarte__datum, .sn2-ecke .wetter__text { font-size: 1rem; }
+.sn2-ecke .kopfkarte__wetter { padding-left: 22px; }
+@media (min-width: 780px) {
+  html.ohne-kopf body:not(.rolle-extern) .nav__logo { padding-bottom: 22px; }
+  html.ohne-kopf body:not(.rolle-extern) .nav__oben { padding-bottom: 18px; }
+  html.ohne-kopf body.nav--todos.nav--zeigt-menue .nav-todo {
+    margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--linie-stark); }
+}
