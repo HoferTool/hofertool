@@ -14,6 +14,12 @@
 //      markierten Text wie im Einrichtblatt
 //  Reine Textfelder speichern keinen Format, darum dort nur Ø.
 //
+//  Seit 1.749.0 (Wunsch Patrick 23. November 2026: „das Durchmesserzeichen
+//  soll nicht mehr immer angezeigt werden … dort, wo die Farbpalette mit
+//  dick, dünn ist, als Zeichen, und dort auch Plus/Minus“): reine
+//  Textfelder bekommen keine Leiste mehr; in Feldern mit Format stehen
+//  Ø und ± unter „Zeichen“ bei den Farben.
+//
 //  Ohne React, damit sie auch in eigenen Browserfenstern geht
 //  (eigenesFenster.js bindet dort dasselbe an). Zahlen-, Passwort-,
 //  Datums- und Ziffernfelder bekommen keine Leiste, ebenso die
@@ -21,7 +27,7 @@
 // =================================================================
 import { alt } from "../bruecke.jsx";
 
-const ZEICHEN = "Ø";
+const ZEICHEN = [["Ø", "Durchmesserzeichen Ø einfügen"], ["±", "Plus/Minus ± einfügen"]];
 const TEXT_TYPEN = new Set(["text", "search", ""]);
 const FARBEN = [["Schwarz", null, "#000000"], ["Rot", "#e03030"], ["Blau", "#1f5fd6"], ["Grün", "#1a8f3c"], ["Orange", "#e07a00"]];
 // Flächen, deren Inhalt FettText.jsx mit Farbe und Grösse speichert
@@ -86,20 +92,20 @@ export function schreibleisteAnbinden(d) {
     sel.removeAllRanges(); sel.addRange(r);
   }
 
-  function zeichenEinfuegen() {
+  function zeichenEinfuegen(zeichen) {
     if (!feld) return;
     if (format || feld.isContentEditable) {
       if (d.activeElement !== feld && gemerkt) zurueck(gemerkt);
       else if (d.activeElement !== feld) feld.focus({ preventScroll: true });
     } else if (d.activeElement !== feld) feld.focus({ preventScroll: true });
     let ok = false;
-    try { ok = d.execCommand("insertText", false, ZEICHEN); } catch (f) { ok = false; }
+    try { ok = d.execCommand("insertText", false, zeichen); } catch (f) { ok = false; }
     if (!ok && (feld.tagName === "INPUT" || feld.tagName === "TEXTAREA")) {
       // Ersatz für Browser ohne insertText: React merkt die Änderung am
       // input-Ereignis, weil der Wert nicht mehr dem gemerkten entspricht
       const a = feld.selectionStart == null ? feld.value.length : feld.selectionStart;
       const b = feld.selectionEnd == null ? a : feld.selectionEnd;
-      feld.setRangeText(ZEICHEN, a, b, "end");
+      feld.setRangeText(zeichen, a, b, "end");
       feld.dispatchEvent(new w.Event("input", { bubbles: true }));
     }
   }
@@ -179,7 +185,6 @@ export function schreibleisteAnbinden(d) {
     leiste.setAttribute("role", "toolbar");
     leiste.setAttribute("aria-label", "Schreiben");
     leiste.setAttribute("data-schreibleiste", "");
-    leiste.appendChild(knopf(ZEICHEN, "Durchmesserzeichen Ø einfügen", zeichenEinfuegen, "schreibleiste__zeichen"));
     const fmt = d.createElement("span");
     fmt.className = "schreibleiste__format";
     FARBEN.forEach(([name, wert, zeige]) => {
@@ -200,6 +205,11 @@ export function schreibleisteAnbinden(d) {
     fmt.appendChild(knopf("A+", "Grösser", () => groesseAendern(2)));
     fmt.appendChild(knopf("Normal", "Grösse wieder normal", () => formatieren({ groesse: null })));
     AUSR.forEach(([a, titel, breiten]) => fmt.appendChild(knopf(ausrSvg(a, breiten), titel, () => ausrichten(a), "schreibleiste__ausr")));
+    const zg = d.createElement("span");
+    zg.className = "schreibleiste__zeichengruppe";
+    zg.innerHTML = '<span class="schreibleiste__titel">Zeichen</span>';
+    ZEICHEN.forEach(([z, titel]) => zg.appendChild(knopf(z, titel, () => zeichenEinfuegen(z), "schreibleiste__zeichen")));
+    fmt.appendChild(zg);
     leiste.appendChild(fmt);
     leiste.addEventListener("mousedown", (e) => { if (e.target.tagName !== "INPUT") e.preventDefault(); });
     d.body.appendChild(leiste);
@@ -253,16 +263,18 @@ export function schreibleisteAnbinden(d) {
     legen();
   }
 
+  // nur Felder mit Format bekommen die Leiste (seit 1.749.0)
+  const mitFormat = (f) => (f && f.isContentEditable && f.matches(MIT_FORMAT) ? f : null);
   d.addEventListener("focusin", (e) => {
     if (leiste && leiste.contains(e.target)) return;
-    zeigen(feldVon(e.target));
+    zeigen(mitFormat(feldVon(e.target)));
   });
   d.addEventListener("focusout", (e) => {
     if (leiste && e.relatedTarget && leiste.contains(e.relatedTarget)) return;
     setTimeout(() => {
       const a = d.activeElement;
       if (leiste && a && leiste.contains(a)) return;
-      if (!feldVon(a)) zeigen(null);
+      if (!mitFormat(feldVon(a))) zeigen(null);
     }, 0);
   });
   w.addEventListener("scroll", neuLegen, { capture: true, passive: true });
