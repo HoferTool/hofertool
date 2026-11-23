@@ -1,5 +1,5 @@
 -- =================================================================
---  REKLAMATIONSMANAGEMENT (Reiter der Qualitätssicherung, 1.742.0)
+--  REKLAMATIONSMANAGEMENT (Reiter der Qualitätssicherung, 1.744.0)
 --
 --  Wunsch Patrick 23. November 2026: „bei QS einen weiteren Reiter,
 --  Reklamationsmanagement“. Je Reklamation eine Zeile: von wem
@@ -94,7 +94,7 @@ select case when to_regclass('public.reklamationen') is not null
   and exists (select 1 from pg_trigger where tgname = 'reklamationen_nr')
   then 'ok' else 'FEHLT' end as probe;
 
--- Seit 1.742.0: angekreuzte Punkte des 8D-Berichts je Schritt
+-- Seit 1.744.0: angekreuzte Punkte des 8D-Berichts je Schritt
 -- (zum Beispiel {"d3": ["Ersatzlieferung"], "d4a": [...]}).
 alter table public.reklamationen add column if not exists achtd jsonb not null default '{}'::jsonb;
 notify pgrst, 'reload schema';

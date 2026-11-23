@@ -1,4 +1,4 @@
-# Reklamationsmanagement (1.742.0, Wunsch Patrick 23. November 2026):
+# Reklamationsmanagement (1.744.0, Wunsch Patrick 23. November 2026):
 # Reiter in der Qualitätssicherung, Reklamation zur HOCO Nr. erfassen,
 # 8D mit Häkchen, Häkchen einer früheren Reklamation derselben HOCO Nr.
 # übernehmen, 8D-Bericht als PDF.

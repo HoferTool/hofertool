@@ -1,6 +1,6 @@
 // =================================================================
 //  REKLAMATIONSMANAGEMENT, Reiter der Seite Qualitätssicherung
-//  (seit 1.742.0, Wunsch Patrick 23. November 2026: „bei QS einen
+//  (seit 1.744.0, Wunsch Patrick 23. November 2026: „bei QS einen
 //  weiteren Reiter, Reklamationsmanagement“).
 //  Je Reklamation: von wem (Kunde, an Lieferant, intern), HOCO Nr.,
 //  FA Nr., Teil, Mengen, Fehlerart und Beschreibung, Stand,

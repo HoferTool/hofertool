@@ -448,7 +448,7 @@ function Maschinen({ eigene, laufend }) {
       <PadKopf titel="Maschinen" zurueck />
       <div className="pad__wahl">
         <img className="pad__wahllogo" src={alt.LOGO_WEISS} alt="Hofer + Co." />
-        <div className="pad__kacheln pad__kacheln--maschinen" style={{ "--pad-spalten": spalten(eigene.length + (wz508Sichtbar() && eigene.some((m) => istMacodel(m)) ? 1 : 0)) }}>
+        <div className="pad__kacheln pad__kacheln--maschinen" style={{ "--pad-spalten": spalten(eigene.length + (wz508Sichtbar() && eigene.some((m) => istMacodel(m)) ? 1 : 0)), "--pad-spalten-quer": spalten(eigene.length + (wz508Sichtbar() && eigene.some((m) => istMacodel(m)) ? 1 : 0), 6) }}>
           {eigene.length
             ? eigene.map((m) => {
                 const j = laufend[m.id];

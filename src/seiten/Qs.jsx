@@ -4,7 +4,7 @@
 //  Unterreiter Ausschussmeldungen und dann Prüfmittel, wie damals“).
 //  Ausschussmeldungen ist die frühere Seite QS (1.77.0 bis 1.316.x),
 //  Prüfmittel (1.558.0 bis 1.701.x) ist seit 1.702.0 entfernt. Nicht für
-//  Externe und Dienst (seiteSichtbar „qs“). Seit 1.742.0 Reiter
+//  Externe und Dienst (seiteSichtbar „qs“). Seit 1.744.0 Reiter
 //  Reklamationsmanagement (qs/Reklamationen.jsx).
 // =================================================================
 import { useReducer } from "react";

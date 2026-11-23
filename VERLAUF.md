@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.743.1 (23. November 2026)
+
+- HOFERCAM sieht wieder aus wie vorher: der modernere Stil aus 1.741.0 (Block „1.741.0“ in `stil.css`) ist entfernt. Patrick: „Vorher war besser“.
+
 ## 1.741.0 (23. November 2026)
 
 - HOFERCAM moderner: ruhige Fläche, weisse Karten mit weichem Schatten und runden Ecken, Gruppentitel als kleine Überschrift statt blauer Schilder, helle Felder mit blauem Fokusring, Knöpfe als runde Chips, Kanäle mit schmaler Farbkante oben bzw. links, kleinere Knöpfe im Kopf der Kanäle; hell und dunkel, auch im eigenen Fenster. Nur Aussehen, Block „1.741.0“ am Ende von `stil.css` (Wunsch Patrick 23. November 2026: „gaeht der ganze stile vom hofercam auch etwas moderner?“).
