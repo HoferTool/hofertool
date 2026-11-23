@@ -76,7 +76,7 @@ function VorlageFeld({ code, pos, einsetzen, zu, art, kanal = 1, sw = false }) {
         <b>{v.name}</b>
         <button className="knopf knopf--klein" title="Schliessen" onClick={zu}>✕</button>
       </div>
-      {!v.grafik && <div className="cam-vorlage__erkl"><VorlageBild id={id} /><span className="klein">{VORLAGE_TEXT[id] || ""}</span></div>}
+      {!v.grafik && <div className="cam-vorlage__erkl"><VorlageBild id={id} w={Object.fromEntries(v.felder.map((x) => [x.name, feldWert(v, w, x)]))} /><span className="klein">{VORLAGE_TEXT[id] || ""}</span></div>}
       {v.grafik && <><EinstichSteuerung w={w} setze={setze} /><EinstichBild w={w} setze={setze} /></>}
       <div className="cam-vorlage__felder">
         {v.felder.filter((f) => f.ausArt && fest[f.name]).map((f) => (

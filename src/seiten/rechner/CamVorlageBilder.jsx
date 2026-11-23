@@ -83,12 +83,38 @@ function G87() {
 
 // Gewindestrählen: Gewindeprofil im Schnitt, Platte 60°, Zustellung an
 // der Flanke, Tiefe P, Steigung F
-function G76() {
+// Seit 1.727.0 innen und aussen: innen liegt das Material oben, die Zähne
+// zeigen zur Achse, X ist der Nenn-Ø und die Platte schneidet nach aussen.
+function G76({ w }) {
+  const innen = w?.lage === "innen";
   const zaehne = [];
   for (let i = 0; i < 6; i++) {
     const x = 20 + i * 26;
-    zaehne.push(`L${x + 13} 66 L${x + 26} 44`);
+    zaehne.push(innen ? `L${x + 13} 56 L${x + 26} 78` : `L${x + 13} 66 L${x + 26} 44`);
   }
+  if (innen) return (
+    <svg viewBox="0 0 220 130">
+      <Defs />
+      <path d={`M20 78 ${zaehne.join(" ")} L176 14 L20 14 Z`} className="cam-vbild__teil" />
+      <line x1="6" y1="122" x2="214" y2="122" className="cam-vbild__achse" />
+      <Text x="98" y="108" cls="cam-vbild__klein">Bohrung</Text>
+      {/* Platte im Gang, Spitze nach oben ins Material */}
+      <path d="M85 60 L72 82 L98 82 Z" className="cam-vbild__wz" transform="translate(0 6)" />
+      {[0, 1, 2, 3].map((k) => (
+        <path key={k} d={`M${73 + k * 2} ${86 - k * 5} L${85 + k * 1} 66`} className="cam-vbild__stufe" />
+      ))}
+      <Pfeil x1="112" y1="104" x2="96" y2="78" cls="cam-vbild__weg" />
+      <Text x="114" y="98" anker="start" cls="cam-vbild__klein">Zustellung nach aussen</Text>
+      <Pfeil x1="20" y1="90" x2="46" y2="90" beide />
+      <Text x="33" y="100">F</Text>
+      <Pfeil x1="190" y1="56" x2="190" y2="78" beide />
+      <line x1="176" y1="56" x2="196" y2="56" className="cam-vbild__hilf" />
+      <line x1="176" y1="78" x2="196" y2="78" className="cam-vbild__hilf" />
+      <Text x="200" y="71" anker="start">P</Text>
+      <Text x="140" y="34" cls="cam-vbild__klein">Nenn-Ø X</Text>
+      <Text x="60" y="34" cls="cam-vbild__klein">60°</Text>
+    </svg>
+  );
   return (
     <svg viewBox="0 0 220 130">
       <Defs />
@@ -198,13 +224,13 @@ const BILDER = { g83: G83, g87: G87, g76: G76, einstich: Einstich, m50: M50, m14
 export const VORLAGE_TEXT = {
   g83: "Bohren in Schritten mit Rückzug zum Spänebrechen, in der Mitte oder angetrieben auf Lochkreis oder X/Y",
   g87: "Bohrungen quer über den Umfang, gleich oder frei verteilt, wahlweise mit Z je Bohrung",
-  g76: "Gewinde in mehreren Durchgängen an der Flanke",
+  g76: "Aussen- oder Innengewinde in mehreren Durchgängen an der Flanke",
   einstich: "Nut am Mantel, innen in der Bohrung oder an der Front, mit Fasen und Radien",
   m50: "X oder Y des anderen Trägers fährt den gleichen Weg mit, z. B. Ausgleichsdrehen mit Kanal 1 und 3 (nur SW-20)",
   m142: "Bohrer von Kanal 3 fährt in Z3 überlagert zum Material Z1, beide arbeiten gleichzeitig (nur SW-20, mit M131)",
 };
 
-export function VorlageBild({ id }) {
+export function VorlageBild({ id, w }) {
   const B = BILDER[id];
-  return <div className="cam-vbild">{B ? <B /> : null}</div>;
+  return <div className="cam-vbild">{B ? <B w={w} /> : null}</div>;
 }

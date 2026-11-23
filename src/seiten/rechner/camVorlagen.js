@@ -89,10 +89,18 @@ export const VORLAGEN = [
   {
     id: "g76", name: "Gewindestrählen G76",
     felder: [
-      { name: "D", text: "Nenn-Ø", einheit: "mm", lang: "Nur für die Vorschläge Kern-Ø und Gewindetiefe (M9 → 9)" },
+      // Seit 1.727.0 (Wunsch Patrick 23. November 2026): Aussen- oder
+      // Innengewinde. Das Programm bleibt gleich gebaut, nur X ist innen der
+      // Nenn-Ø (grösser als die Bohrung), die Steuerung fährt dann nach aussen.
+      { name: "lage", text: "Gewinde", typ: "wahl", start: "aussen",
+        optionen: [["aussen", "Aussengewinde"], ["innen", "Innengewinde"]],
+        lang: "Aussen: X ist der Kern-Ø. Innen: X ist der Nenn-Ø, die Bohrung vorher auf Kern-Ø" },
+      { name: "D", text: "Nenn-Ø", einheit: "mm", lang: "Nur für die Vorschläge End-Ø und Gewindetiefe (M9 → 9)" },
       { name: "F", text: "Steigung F", einheit: "mm", lang: "Steigung in mm (F0.5)", pflicht: true },
-      { name: "X", text: "Kern-Ø X", einheit: "mm", lang: "Ø am Ende des Gewindes (G76X…), Vorschlag aussen Nenn-Ø − 1.4 × Steigung", pflicht: true,
-        vorgabe: (w) => (num(w.D) != null && num(w.F) != null ? rund(num(w.D) - 1.4 * num(w.F)) : "") },
+      { name: "X", text: "End-Ø X", einheit: "mm", pflicht: true,
+        lang: "Ø am Ende des Gewindes (G76X…). Aussen Kern-Ø, Vorschlag Nenn-Ø − 1.4 × Steigung. Innen Nenn-Ø, die Bohrung vorher auf Nenn-Ø − Steigung",
+        vorgabe: (w) => (num(w.D) == null ? "" : w.lage === "innen" ? rund(num(w.D))
+          : num(w.F) != null ? rund(num(w.D) - 1.4 * num(w.F)) : "") },
       { name: "Z", text: "Z Ende", einheit: "mm", lang: "Gewindeende Z (G76…Z…)", pflicht: true },
       { name: "P", text: "Gewindetiefe", einheit: "mm", lang: "Gewindetiefe in mm, im Programm in µm (0.33 → P330), Vorschlag 0.66 × Steigung", pflicht: true,
         vorgabe: (w) => (num(w.F) != null ? rund(0.66 * num(w.F), 2) : "") },
