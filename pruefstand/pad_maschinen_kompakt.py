@@ -19,7 +19,7 @@ zusatz = """
 K = FAKE + zusatz
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox","--disable-dev-shm-usage"])
-    for name, vp in [("quer", {"width":1180,"height":820}), ("hoch", {"width":820,"height":1180})]:
+    for name, vp in [("quer", {"width":1180,"height":820}), ("hoch", {"width":820,"height":1180}), ("pc1920", {"width":1920,"height":950}), ("pc1366", {"width":1366,"height":650}), ("pc1280", {"width":1280,"height":600}), ("pc1440", {"width":1440,"height":700}), ("pc1536", {"width":1536,"height":730})]:
         pg = br.new_context(viewport={"width":1400,"height":950}).new_page()
         pg.on("pageerror", lambda e: fehler.append("SEITENFEHLER: " + str(e)[:160]))
         pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=K))
