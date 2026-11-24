@@ -16436,36 +16436,8 @@ body.dunkel .pm-maschinenwahl .typwahl__knopf.aktiv { background: var(--marke-he
 .pm-zeile__was { min-width: 140px; }
 .pm-zeile .pm-schild { margin-left: auto; }
 
-/* ---- 1.757.0 (Patrick 24. November 2026: „Solar sticht so heraus, soll nicht
-   so heraustechen“, „im Dunkel nicht so schlimm, aber bei hell schon“):
-   Im neuen Look und hell ist die Solaranlage auf der Startseite eine helle
-   Karte wie die anderen (weiss, Kopfband in der Themenfarbe), Farben der
-   Werte und Kurven gedämpft. Dunkel bleibt sie wie bisher. */
-body:not(.dunkel) .sn2-oben #db-solar .solar {
-  background: #fff !important; color: var(--tinte, #1f2937);
-  border: 1px solid color-mix(in srgb, var(--marke) 18%, var(--linie, #e2e8f0)) !important;
-  border-top: 4px solid var(--marke) !important; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
-body:not(.dunkel) .sn2-oben #db-solar .solar::after { display: none; }
-body:not(.dunkel) .sn2-oben #db-solar {
-  --sol-erz: #65a30d; --sol-erz-hell: #4d7c0f; --sol-netz: #0891b2; --sol-netz-hell: #0e7490;
-  --sol-verb: color-mix(in srgb, var(--marke) 80%, #fff); --sol-verb-hell: var(--marke); }
-body:not(.dunkel) .sn2-oben #db-solar .sol-kopf__titel { color: var(--marke); }
-body:not(.dunkel) .sn2-oben #db-solar .sol-kopf__stand { color: #15803d; }
-body:not(.dunkel) .sn2-oben #db-solar :is(.sol-zahl__name, .sol-ring__unten, .solar-tag span, .sol-ring__mitte span) { color: #64748b; }
-body:not(.dunkel) .sn2-oben #db-solar .sol-zahl { border-left-color: #e2e8f0; }
-body:not(.dunkel) .sn2-oben #db-solar .sol-zahl__wert,
-body:not(.dunkel) .sn2-oben #db-solar .sol-kurve--prod,
-body:not(.dunkel) .sn2-oben #db-solar .sol-ring__voll { text-shadow: none; filter: none !important; }
-body:not(.dunkel) .sn2-oben #db-solar .sol-ring__spur { stroke: #e5e7eb; }
-body:not(.dunkel) .sn2-oben #db-solar :is(.sol-ring__mitte strong, .sol-ring__zahl) { color: var(--tinte, #1f2937); }
-body:not(.dunkel) .sn2-oben #db-solar .sol-gitter { stroke: rgba(0,0,0,.06); }
-body:not(.dunkel) .sn2-oben #db-solar .sol-flaeche { fill: rgba(101,163,13,.14); }
-body:not(.dunkel) .sn2-oben #db-solar .sol-verlauf__achse,
-body:not(.dunkel) .sn2-oben #db-solar .sol-verlauf__mitte { color: #94a3b8; }
-body:not(.dunkel) .sn2-oben #db-solar .sol-spanne { background: #f1f5f9; }
-body:not(.dunkel) .sn2-oben #db-solar .sol-spanne__knopf { color: #64748b; }
-body:not(.dunkel) .sn2-oben #db-solar .sol-spanne__knopf.aktiv { background: color-mix(in srgb, var(--marke) 14%, #fff); color: var(--marke); }
-body:not(.dunkel) .sn2-oben #db-solar .solar-tag div { background: #f1f5f9; color: var(--tinte, #1f2937); }
+/* 1.757.0 machte die Solaranlage im neuen Look hell zu einer weissen Karte;
+   seit 1.770.0 wieder weg (Patrick 24. November 2026: „Solar soll wie vorher“). */
 
 /* 1.757.0 (Patrick 24. November 2026: „soll Meine Todo's heissen, Abgeschlossen
    einen längeren Knopf, der die Zeile ausfüllt, neben Plus“) */
