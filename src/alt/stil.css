@@ -16531,3 +16531,6 @@ body:not(.dunkel) .sn2-oben #db-solar .solar-tag div { background: #f1f5f9; colo
   .sn2-oben { grid-template-columns: minmax(0, 1fr) fit-content(50%); }
   .sn2-oben > #db-geburtstage { min-width: 280px; }
 }
+
+/* 1.765.0 Prüfmittel: bald fällige Prüfung */
+.pm-bald { color: var(--warn, #b26b00); font-weight: 600; }

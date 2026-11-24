@@ -11,10 +11,30 @@ import { alt } from "../bruecke.jsx";
 
 export const ARTEN = [
   ["lehrdorn", "Grenzlehrdorn"], ["pruefstift", "Prüfstift"], ["gewindedorn", "Gewindelehrdorn"],
-  ["gewindering", "Gewindelehrring"], ["lehrring", "Lehrring"], ["radius", "Radius- / Formlehre"],
+  ["gewindering", "Gewindelehrring"], ["lehrring", "Lehrring"], ["kontrollring", "Kontrollring"], ["radius", "Radius- / Formlehre"],
   ["messschieber", "Messschieber"], ["mikrometer", "Bügelmessschraube"], ["messuhr", "Messuhr / Fühlhebel"],
   ["anderes", "Anderes"],
 ];
+// Gruppe aus der Art (Wunsch Patrick 24. November 2026): Lehren sind wichtig,
+// Prüfstifte sind einfache Stifte in vielen Massen, der Rest Messmittel.
+export const GRUPPEN = [["lehre", "Lehre"], ["stift", "Prüfstift"], ["messmittel", "Messmittel"]];
+const LEHREN = ["lehrdorn", "gewindedorn", "gewindering", "lehrring", "kontrollring", "radius"];
+export const gruppeVon = (p) => !p || !p.art ? "" : LEHREN.includes(p.art) ? "lehre"
+  : p.art === "pruefstift" ? "stift" : p.art === "anderes" ? "" : "messmittel";
+export const gruppeText = (g) => (GRUPPEN.find((x) => x[0] === g) || [0, ""])[1];
+
+// Wer prüft: selber (intern) oder auswärts kalibrieren (extern)
+export const PRUEFUNG_WO = [["intern", "Selber prüfen"], ["extern", "Extern kalibrieren"]];
+export const pruefWoText = (w) => (PRUEFUNG_WO.find((x) => x[0] === w) || [0, ""])[1];
+
+// Bald fällig: in den nächsten 30 Tagen
+export const baldFaellig = (p) => {
+  const n = naechstePruefung(p);
+  if (!n || p.status !== "aktiv") return false;
+  const heute = alt.isoDatum(new Date());
+  return n > heute && n <= alt.plusTage(heute, 30);
+};
+
 export const artText = (a) => (ARTEN.find((x) => x[0] === a) || [null, a || ""])[1];
 
 export const ORTE = [
@@ -83,12 +103,13 @@ export function ortText(p, maschinen) {
 }
 
 export function suchText(p, maschinen) {
-  return [p.nr, p.bezeichnung, artText(p.art), p.mass, p.hoco, p.notiz, ortText(p, maschinen)]
+  return [p.nr, p.bezeichnung, artText(p.art), gruppeText(gruppeVon(p)), pruefWoText(p.pruefung_wo),
+    p.mass, p.hoco, p.notiz, ortText(p, maschinen)]
     .filter(Boolean).join(" ").toLowerCase();
 }
 
 // Einfügen aus Gewatec oder Excel: eine Zeile je Prüfmittel,
-// Spalten mit Tab oder Semikolon: Nr; Bezeichnung; Mass; Art; Intervall Monate
+// Spalten mit Tab oder Semikolon: Nr; Bezeichnung; Mass; Art; Intervall Monate; intern/extern
 export function zeilenLesen(text) {
   return String(text || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean).map((z) => {
     const t = z.split(/\t|;/).map((x) => x.trim());
@@ -96,6 +117,7 @@ export function zeilenLesen(text) {
     const art = t[3] ? (ARTEN.find((a) => a[1].toLowerCase() === t[3].toLowerCase() || a[0] === t[3].toLowerCase()) || [null])[0] : null;
     return { ort_art: "schrank", status: "aktiv", nr: t[0] || null, bezeichnung: t[1] || t[0], mass: t[2] || null,
       art: art || (t[3] ? "anderes" : null), intervall_monate: Number(t[4]) || null,
+      pruefung_wo: /^ext/i.test(t[5] || "") ? "extern" : /^(int|selb)/i.test(t[5] || "") ? "intern" : null,
       notiz: !art && t[3] ? t[3] : null };
   }).filter((x) => x.bezeichnung);
 }
