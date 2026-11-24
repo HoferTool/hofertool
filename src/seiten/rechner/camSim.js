@@ -191,7 +191,7 @@ export function bahnLesen(zeilen, v, { mitG50 = false, start = null } = {}) {
     if (/^M5[01](?!\d)/.test(s) || /[XYZUW]3\s*=/.test(s)) continue;
     if (/G28/.test(s)) { if (/[HC]/.test(s.replace(/G28/, "")) && !polar) c = 0; continue; }
     if (/G80/.test(s)) { zyk = null; continue; }
-    // G10 (Korrektur setzen, etwa G10P03X0.15) fährt nicht, seit 1.757.1
+    // G10 (Korrektur setzen, etwa G10P03X0.15) fährt nicht, seit 1.757.2
     // (vorher fuhr G10P03X0. auf X0 und stach die Kugel bis zur Mitte ein)
     if (/^T\d/.test(s) || /G4(?!\d)|G04|G23|G22|G10(?!\d)/.test(s)) continue;
     const g = [...s.matchAll(/G(\d+)/g)].map((m) => Number(m[1]));
@@ -560,7 +560,7 @@ export function simAufbauen(wRoh) {
     const kanal = art === "k2" || art === "k2a" || art === "k2b" || gegen ? 2 : 1;
     const wzOk = wzVollstaendig(bRoh);
     const wa = wzOk ? wzArt(bRoh) : null;
-    // Seit 1.757.1 (Patrick 24. November 2026, 10789-0034): Variablen wie
+    // Seit 1.757.2 (Patrick 24. November 2026, 10789-0034): Variablen wie
     // #100=6.485 gelten im ganzen Kanal weiter wie an der Fanuc, nicht nur
     // in der Bearbeitung, in der sie stehen (vorher war R#100 in der
     // nächsten Bearbeitung 0 und die Kugel wurde eine Gerade)

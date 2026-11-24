@@ -3,7 +3,7 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
-## 1.757.1 (24. November 2026)
+## 1.757.2 (24. November 2026)
 
 - HOFERCAM 3D-Simulation (Patrick mit 10789-0034, „das Teil sollte so aussehen“): Variablen wie #100 gelten im ganzen Kanal weiter, so entsteht die Kugel R6.35; G10 fährt nicht mehr (vorher Einstich bis zur Mitte); „Vorstechen“ im Werkzeugprotokoll ist ein Aussenwerkzeug.
 
