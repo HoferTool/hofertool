@@ -164,6 +164,55 @@ async function punkteSpeichern(s, gruppen, text) {
   punkteAnwenden(alle);
 }
 
+// Stammdaten aus den Berichten (seit 1.776.0, Wunsch Patrick 24. November 2026:
+// „anhand dem Bericht die Stammdaten füttern … Kunde dann nur Name und der Rest
+// kommt von selber“): beim Speichern merkt die App je Kunde/Lieferant Kontakt
+// und Adresse, je HOCO Nr. Teil, Kunde, Kunden Art. Nr., Zeichnung und Index,
+// in app_config.rk_stamm {partner: {"kunde:name": {...}}, hoco: {"10841-0009": {...}}}
+const RK_STAMM = "rk_stamm";
+let rkStamm = { partner: {}, hoco: {} };
+const partnerSchluessel = (art, name) => art + ":" + String(name || "").trim().toLowerCase();
+async function rkStammLaden() {
+  try {
+    const r = await alt.zeitlimit(alt.db.from("app_config").select("wert").eq("schluessel", RK_STAMM).maybeSingle(), 8000, "Stammdaten Reklamationen");
+    if (r && !r.error) {
+      const v = r.data && r.data.wert ? JSON.parse(r.data.wert) : {};
+      rkStamm = { partner: (v && v.partner) || {}, hoco: (v && v.hoco) || {} };
+    }
+  } catch (f) { /* ohne gemerkte Stammdaten */ }
+  return rkStamm;
+}
+// Nur ausgefüllte Werte überschreiben, Leeres lässt das Gemerkte stehen
+async function rkStammMerken(d) {
+  const neuP = {}, neuH = {};
+  if (d.art !== "intern" && !leer(d.partner)) {
+    const k = d.kopf || {};
+    const e = { name: String(d.partner).trim() };
+    if (!leer(d.kontakt)) e.kontakt = d.kontakt;
+    if (!leer(k.adresse)) e.adresse = k.adresse;
+    neuP[partnerSchluessel(d.art, d.partner)] = e;
+  }
+  if (!leer(d.hoco_nr)) {
+    const k = d.kopf || {}, e = {};
+    if (!leer(d.teil)) e.teil = d.teil;
+    if (d.art !== "intern" && !leer(d.partner)) { e.partner = String(d.partner).trim(); e.art = d.art; }
+    ["kunden_art", "zeichnung", "index"].forEach((f) => { if (!leer(k[f])) e[f] = k[f]; });
+    if (Object.keys(e).length) neuH[String(d.hoco_nr).trim()] = e;
+  }
+  if (!Object.keys(neuP).length && !Object.keys(neuH).length) return;
+  try {
+    const st = await rkStammLaden();
+    const am = new Date().toISOString();
+    const partner = { ...st.partner }, hoco = { ...st.hoco };
+    for (const [s, e] of Object.entries(neuP)) partner[s] = { ...(partner[s] || {}), ...e, am };
+    for (const [s, e] of Object.entries(neuH)) hoco[s] = { ...(hoco[s] || {}), ...e, am };
+    const r = await alt.db.from("app_config").upsert([{ schluessel: RK_STAMM, wert: JSON.stringify({ partner, hoco }) }], { onConflict: "schluessel" });
+    if (r && !r.error) rkStamm = { partner, hoco };
+  } catch (f) { alt.fehlerMerken && alt.fehlerMerken("Stammdaten Reklamationen", alt.fehlertext(f)); }
+}
+const gemerktPartner = (art, name) => (leer(name) ? null : rkStamm.partner[partnerSchluessel(art, name)] || null);
+const gemerktHoco = (nr) => (leer(nr) ? null : rkStamm.hoco[String(nr).trim()] || null);
+
 // Zu einer festgelegten Massnahme (D5) das „eingeführt“ in D6: das bekannte
 // Paar, sonst der Punkt an derselben Stelle in D6, sonst derselbe Text
 function gegenstueckD6(pk) {
@@ -214,6 +263,7 @@ async function laden() {
       .order("nr", { ascending: false }), 10000, "Reklamationen"),
     alt.zeitlimit(alt.db.from("profiles").select("id, full_name, email").eq("is_active", true), 8000, "Personen"),
     punkteLaden(),
+    rkStammLaden(),
   ]);
   if (r.error) throw r.error;
   const personen = {};
@@ -258,6 +308,10 @@ function letzteVon(alle, art, partner, ohneId) {
 // Vorschläge fürs Feld Kunde/Lieferant: Stammdaten und Namen aus früheren Reklamationen
 function partnerVorschlaege(art, alle) {
   const raus = stamm.filter((p) => p.art === stammArt(art)).map((p) => ({ k: "s" + p.id, name: p.name, nr: p.nr }));
+  Object.entries(rkStamm.partner).forEach(([s, e]) => {
+    if (!s.startsWith(art + ":") || leer(e.name) || raus.some((y) => gleich(y.name, e.name))) return;
+    raus.push({ k: "g" + s, name: e.name, nr: "gemerkt" });
+  });
   (alle || []).forEach((x) => {
     if (x.art !== art || leer(x.partner) || raus.some((y) => gleich(y.name, x.partner))) return;
     raus.push({ k: "r" + x.id, name: String(x.partner).trim(), nr: "frühere Reklamation" });
@@ -554,6 +608,13 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
   // Aus der jüngsten früheren Reklamation desselben Kunden (seit 1.752.0, Wunsch
   // Patrick: „nicht immer neu ausfüllen“): Kontakt, Adresse, Beanstandungs-Nr. bleibt
   const frueherEinsetzen = (n, gefuellt) => {
+    // Zuerst das Gemerkte aus früheren Berichten (rk_stamm), dann die letzte Reklamation
+    const g = gemerktPartner(n.art, n.partner);
+    if (g) {
+      if (!leer(g.name) && String(g.name).trim() !== String(n.partner).trim()) n.partner = g.name;
+      if (leer(n.kontakt) && !leer(g.kontakt)) { n.kontakt = g.kontakt; gefuellt.push("Kontaktperson"); }
+      if (leer((n.kopf || {}).adresse) && !leer(g.adresse)) { n.kopf = { ...(n.kopf || {}), adresse: g.adresse }; gefuellt.push("Adresse"); }
+    }
     const v = letzteVon(alle, n.art, n.partner, r && r.id);
     if (!v) return;
     if (leer(n.kontakt) && !leer(v.kontakt)) { n.kontakt = v.kontakt; gefuellt.push("Kontaktperson"); }
@@ -591,7 +652,17 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
         const n = { ...x };
         if (leer(x.teil) && t.data && t.data.bezeichnung) { n.teil = t.data.bezeichnung; gefuellt.push("Teil"); }
         if (leer(x.fa_nr) && auftrag && auftrag.fa_nr) { n.fa_nr = auftrag.fa_nr; gefuellt.push("FA Nr."); }
-        if (leer(x.partner) && x.art === "kunde") {
+        const gh = gemerktHoco(nr);
+        if (gh) {
+          if (leer(n.teil) && !leer(gh.teil)) { n.teil = gh.teil; gefuellt.push("Teil"); }
+          if (leer(n.partner) && !leer(gh.partner) && (gh.art || "kunde") === x.art) { n.partner = gh.partner; gefuellt.push(x.art === "lieferant" ? "Lieferant" : "Kunde"); }
+          const k = { ...(n.kopf || {}) };
+          [["kunden_art", "Kunden Art. Nr."], ["zeichnung", "Zeichnungs-Nr."], ["index", "Index"]].forEach(([f, t]) => {
+            if (leer(k[f]) && !leer(gh[f])) { k[f] = gh[f]; gefuellt.push(t); }
+          });
+          n.kopf = k;
+        }
+        if (leer(n.partner) && x.art === "kunde") {
           // Kundennummer aus dem Auftrag, sonst vorne aus der HOCO Nr. (10841-0009 → 10841)
           const knr = (auftrag && auftrag.customer_number) ? String(auftrag.customer_number) : (nr.match(/^(\d{5})-/) || [])[1];
           const p = knr && stammFinden("kunde", knr);
@@ -683,6 +754,7 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
         setW((x) => ({ ...x, dateien: liste })); setNeue([]);
         alleDateien = liste;
       }
+      rkStammMerken(d);
       alt.meldung((r ? "Gespeichert: " : "Erfasst: ") + nr, "gut");
       if (nachher) nachher();
       if (schliessen) zu();

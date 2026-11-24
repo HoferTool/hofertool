@@ -108,6 +108,7 @@ with sync_playwright() as p:
     if not pg.locator("#rk-vorschau section[data-s='d7'] .dbilder img").count(): fehler.append("Bild D7 nicht in Vorschau")
     if pg.locator("#rk-vorschau section[data-s='d3'] .dbilder img").count(): fehler.append("Bild D7 bei D3")
     vt = pg.inner_text("#rk-vorschau")
+    if not pg.locator("#rk-vorschau ul.auf li").count(): fehler.append("Angekreuztes nicht als Aufzählung")
     for x in ("D1", "D8", "Team", "Abstellmassnahmen einführen"):
         if x not in vt: fehler.append("Vorschau ohne " + x)
     if BILDER: pg.screenshot(path=BILDER + "/rk-fenster.png", full_page=True)
@@ -128,6 +129,20 @@ with sync_playwright() as p:
         if len(dd) != 1 or dd[0].get("typ") != "bild": fehler.append("Bild D7 nicht gespeichert: " + str(z.get("dateien")))
         if (z.get("kopf") or {}).get("lieferschein") != "LS-1": fehler.append("Kopf nicht gespeichert: " + str(z.get("kopf")))
     pg.click("#rk-fenster [data-zu]"); pg.wait_for_timeout(500)
+    # Stammdaten aus dem Bericht (1.776.0): gemerkt in app_config.rk_stamm,
+    # beim nächsten Mal genügt der Name
+    st = pg.evaluate("() => (TEST.daten.app_config || []).find(x => x.schluessel === 'rk_stamm')")
+    if not st or "kunde:kunde b" not in st.get("wert", ""): fehler.append("Stammdaten nicht gemerkt: " + str(st))
+    pg.click("#rk-neu"); pg.wait_for_selector("#rk-fenster")
+    pg.evaluate("() => { TEST.daten.reklamationen = TEST.daten.reklamationen.filter(r => r.partner !== 'Kunde B'); }")
+    pg.fill("#rk-f-partner", "kunde b"); pg.locator("#rk-f-partner").blur(); pg.wait_for_timeout(300)
+    if pg.input_value("#rk-f-partner") != "Kunde B": fehler.append("Name nicht wie gemerkt: " + pg.input_value("#rk-f-partner"))
+    if pg.input_value("#rk-f-kontakt") != "Herr Alt": fehler.append("Kontakt nicht aus Gemerktem: " + pg.input_value("#rk-f-kontakt"))
+    if "Solothurn" not in pg.input_value("#rk-k-adresse"): fehler.append("Adresse nicht aus Gemerktem")
+    pg.click("#rk-fenster [data-zu]"); pg.wait_for_timeout(500)
+    if pg.locator(".dialog-huelle").count():
+        b = pg.locator(".dialog-huelle button:has-text('Verwerfen'), .dialog-huelle button:has-text('Schliessen')")
+        if b.count(): b.first.click(); pg.wait_for_timeout(300)
     # Interne Reklamation: kein „8D-Report“ im Titel, Kopf bleibt
     pg.click("#rk-neu"); pg.wait_for_selector("#rk-fenster")
     pg.click("[data-rkfart='intern']"); pg.wait_for_timeout(200)
