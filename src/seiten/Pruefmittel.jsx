@@ -16,16 +16,21 @@ import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { useSeitenSuche, hinzeigen } from "../teile/seitenSuche.js";
 import { pruefmittelLaden, verlaufLaden, ARTEN, artText, ORTE, STATUS, fehltTabelle,
   maschineText, naechstePruefung, istFaellig, ortText, suchText, zeilenLesen,
-  GRUPPEN, gruppeVon, gruppeText, PRUEFUNG_WO, pruefWoText, baldFaellig } from "../daten/pruefmittel.js";
+  GRUPPEN, gruppeVon, gruppeText, PRUEFUNG_WO, pruefWoText, baldFaellig, einsatzTage } from "../daten/pruefmittel.js";
 
-const gemerkt = { reiter: "wo", suche: "", filter: "" };
+const gemerkt = { reiter: "wo", suche: "", filter: "", alles: false, kurz: "" };
 const T = "pruefmittel";
 
 export default function Pruefmittel({ auffrischen, eingebettet }) {
   const [reiter, setReiter] = useState(gemerkt.reiter);
   const [suche, setSuche] = useState(gemerkt.suche);
   const [filter, setFilter] = useState(gemerkt.filter);
-  useGemerkt(gemerkt, { reiter, suche, filter });
+  // Erst nur zwei Zahlen (Wunsch Patrick 24. November 2026: „eigentlich gar
+  // nix, nur wie viele raus müssen für Prüfung und wie viele noch in der
+  // Rückgabekiste sind“); die ganze Verwaltung hinter „Alle Prüfmittel“.
+  const [alles, setAlles] = useState(gemerkt.alles);
+  const [kurz, setKurz] = useState(gemerkt.kurz);
+  useGemerkt(gemerkt, { reiter, suche, filter, alles, kurz });
   const { daten, fehler, neu } = useDaten(pruefmittelLaden, [auffrischen]);
 
   useSeitenSuche({
@@ -46,6 +51,11 @@ export default function Pruefmittel({ auffrischen, eingebettet }) {
   }
   if (!daten) return (<>{!eingebettet && <h1 className="seitentitel">Prüfmittel</h1>}<div className="laedt">Wird geladen …</div></>);
 
+  if (!alles) return (<>
+    {!eingebettet && <h1 className="seitentitel">Prüfmittel</h1>}
+    <Kurz d={daten} neu={neu} offen={kurz} setOffen={setKurz} alles={() => setAlles(true)} />
+  </>);
+
   const s = suche.trim().toLowerCase();
   const passt = (p) => (!s || s.split(/\s+/).every((w) => suchText(p, daten.maschinen).includes(w)))
     && (!filter || (filter === "faellig" ? istFaellig(p) : filter === "bald" ? baldFaellig(p)
@@ -63,6 +73,7 @@ export default function Pruefmittel({ auffrischen, eingebettet }) {
       {!eingebettet && <h1 className="seitentitel">Prüfmittel</h1>}
       <p className="klein pm-erklaerung">Provisorisch, nur für Admins. Jedes Prüfmittel mit Nr. und Mass, und wo es gerade ist:
         im Schrank, an einer Maschine, bei einer Person oder extern. Antippen öffnet es zum Austragen, Zurückgeben oder Ändern.</p>
+      <div className="mat-kopf"><button className="knopf knopf--still" id="pm-kurz" onClick={() => setAlles(false)}>← Zurück zur Übersicht</button></div>
       <div className="pm-kacheln">
         <Kachel wert="" text="Alle" zahl={aktive.length} filter={filter} setFilter={setFilter} />
         {ORTE.map(([o, text, z]) => <Kachel key={o} wert={o} text={z + " " + text} zahl={zahl(o)} filter={filter} setFilter={setFilter} />)}
@@ -87,6 +98,51 @@ export default function Pruefmittel({ auffrischen, eingebettet }) {
       </Uebergang>
     </>
   );
+}
+
+// ---------- Übersicht: nur Prüfung fällig und Rückgabekiste ----------
+
+export const fuerPruefung = (p) => p.status === "aktiv" && p.ort_art !== "extern" && istFaellig(p);
+
+function Kurz({ d, neu, offen, setOffen, alles }) {
+  const raus = d.liste.filter(fuerPruefung);
+  const kiste = d.liste.filter((p) => p.ort_art === "rueckgabe");
+  const liste = offen === "raus" ? raus : offen === "kiste" ? kiste : [];
+  return (
+    <div className="pm-kurz">
+      <div className="pm-kurz__zahlen">
+        <button className={"pm-kurz__zahl" + (raus.length ? " pm-kurz__zahl--warn" : "") + (offen === "raus" ? " aktiv" : "")}
+          id="pm-kurz-raus" onClick={() => setOffen(offen === "raus" ? "" : "raus")}>
+          <b>{raus.length}</b><span>Müssen zur Prüfung raus</span></button>
+        <button className={"pm-kurz__zahl" + (offen === "kiste" ? " aktiv" : "")}
+          id="pm-kurz-kiste" onClick={() => setOffen(offen === "kiste" ? "" : "kiste")}>
+          <b>{kiste.length}</b><span>In der Rückgabekiste</span></button>
+      </div>
+      {offen === "kiste" && kiste.length > 0 && <div className="pm-kurz__knopf">
+        <button className="knopf knopf--haupt" id="pm-quittieren" onClick={async () => {
+          if (await quittieren(kiste)) neu();
+        }}>✓ Alle {kiste.length} quittieren und einbuchen</button>
+        <span className="klein">Sie kommen in den Prüfmittelschrank, die Einsatztage zählen nicht mehr weiter.</span>
+      </div>}
+      {offen && (liste.length
+        ? <section className="karte" data-pmkurz={offen}>{liste.map((p) => <Zeile key={p.id} p={p} d={d} neu={neu} />)}</section>
+        : <div className="karte karte--hinweis"><p>{offen === "raus" ? "Nichts fällig." : "Die Rückgabekiste ist leer."}</p></div>)}
+      <div className="pm-kurz__alle"><button className="knopf knopf--still" id="pm-alle" onClick={alles}>Alle Prüfmittel verwalten</button></div>
+    </div>);
+}
+
+// Rückgabekiste quittieren: alles in den Schrank, Einsatztage bis jetzt festhalten
+async function quittieren(liste) {
+  const vorher = [];
+  for (const p of liste) vorher.push(...await alt.rueckSichern(T, { id: p.id }));
+  const fehler = (await Promise.all(liste.map((p) => alt.db.from(T).update({
+    ort_art: "schrank", machine_id: null, job_id: null, ort_text: null,
+    einsatz_tage: Math.round(einsatzTage(p) * 1000) / 1000, zaehlt_seit: null,
+  }).eq("id", p.id)))).find((r) => r.error);
+  if (vorher.length) alt.merkeSchritt("Rückgabekiste quittiert", [alt.rueckRein(T, vorher)].flat());
+  if (fehler) { alt.meldung(alt.fehlertext(fehler.error), "fehler"); return true; }
+  alt.meldung(liste.length + " Prüfmittel eingebucht.", "gut");
+  return true;
 }
 
 function Kachel({ wert, text, zahl, filter, setFilter, warn }) {
@@ -138,6 +194,7 @@ function WoIstWas({ liste, d, neu }) {
             </div>
           </div>))}
       </section>}
+      {von("rueckgabe").length > 0 && <Gruppe titel="📥 Rückgabekiste" ort="rueckgabe" liste={von("rueckgabe")} d={d} neu={neu} />}
       {von("schrank").length > 0 && <Gruppe titel="🗄️ Prüfmittelschrank" ort="schrank" liste={von("schrank")} d={d} neu={neu} />}
       {nachPerson.size > 0 && <section className="karte" data-pmort="person">
         <div className="karte__kopf"><h2>👤 Bei Personen</h2><span className="klein">{von("person").length}</span></div>
@@ -172,7 +229,8 @@ function Zeile({ p, d, neu, ohneOrt }) {
         <span className="klein">
           {[p.ort_text && (ohneOrt ? p.ort_art === "maschine" : p.ort_art !== "person") ? p.ort_text : null,
             p.hoco ? "für " + p.hoco : null,
-            p.ort_art !== "schrank" && p.seit ? "seit " + alt.kurzDatum(p.seit) : null].filter(Boolean).join(" · ")}
+            p.ort_art !== "schrank" && p.seit ? "seit " + alt.kurzDatum(p.seit) : null,
+            einsatzTage(p) >= 0.05 ? tageText(p) : null].filter(Boolean).join(" · ")}
         </span>
       </span>
       {faellig && <span className="pm-schild pm-schild--warn">{p.pruefung_wo === "extern" ? "Kalibrierung fällig" : "Prüfung fällig"}</span>}
@@ -181,6 +239,12 @@ function Zeile({ p, d, neu, ohneOrt }) {
       {p.status === "weg" && <span className="pm-schild">Ausgeschieden</span>}
     </button>);
 }
+
+const tageText = (p) => {
+  const t = einsatzTage(p);
+  return (t < 10 ? t.toFixed(1) : Math.round(t)) + (p.intervall_tage ? " / " + p.intervall_tage : "")
+    + " Einsatztage" + (p.zaehlt_seit ? " (läuft)" : "");
+};
 
 // ---------- Liste ----------
 
@@ -235,7 +299,8 @@ function PmFenster({ p, d, zu, neu }) {
           onClick={async () => { if (await ortSetzen(p, { ort_art: "schrank", machine_id: null, ort_text: null }, "Zurück in den Schrank")) fertig(); }}>
           Zurück in den Schrank</button>}
         <button className="knopf" id="pm-geprueft" onClick={async () => {
-          if (await aendern(p, { letzte_pruefung: alt.isoDatum(new Date()) }, "Prüfung " + p.bezeichnung)) fertig();
+          if (await aendern(p, { letzte_pruefung: alt.isoDatum(new Date()), einsatz_tage: 0,
+            zaehlt_seit: p.zaehlt_seit ? new Date().toISOString() : null }, "Prüfung " + p.bezeichnung)) fertig();
         }}>{p.pruefung_wo === "extern" ? "Heute kalibriert zurück" : "Heute geprüft"}</button>
         <button className="knopf" id="pm-bearbeiten" onClick={() => { zu(); bearbeiten(p, d, neu); }}>Bearbeiten</button>
         <button className="knopf knopf--gefahr" id="pm-loeschen" onClick={async () => { if (await loeschen(p)) fertig(); }}>Löschen</button>
@@ -245,6 +310,7 @@ function PmFenster({ p, d, zu, neu }) {
         <dt>Mass</dt><dd>{p.mass || "–"}</dd>
         <dt>Für HOCO Nr.</dt><dd>{p.hoco || "–"}</dd>
         <dt>Prüfintervall</dt><dd>{p.intervall_monate ? p.intervall_monate + " Monate" + (p.pruefung_wo ? " · " + pruefWoText(p.pruefung_wo) : "") : "–"}</dd>
+        <dt>Einsatztage</dt><dd>{tageText(p)}</dd>
         <dt>Zuletzt geprüft</dt><dd>{p.letzte_pruefung ? alt.langDatum(p.letzte_pruefung) : "–"}</dd>
         <dt>Nächste Prüfung</dt><dd className={istFaellig(p) ? "pm-rot" : ""}>{n ? alt.langDatum(n) : "–"}</dd>
         <dt>Status</dt><dd>{(STATUS.find((x) => x[0] === p.status) || [0, p.status])[1]}</dd>
@@ -351,6 +417,7 @@ async function bearbeiten(p, d, neu) {
       { name: "mass", label: "Mass", wert: p ? p.mass || "" : "", platzhalter: "Ø 4.000 H7, M6 6H …" },
       { name: "hoco", label: "Für HOCO Nr. (freiwillig)", wert: p ? p.hoco || "" : "", platzhalter: "10841-0009" },
       { name: "intervall", label: "Prüfintervall in Monaten (leer = keins)", typ: "number", wert: p && p.intervall_monate ? p.intervall_monate : "" },
+      { name: "tage", label: "Prüfen nach Einsatztagen (leer = nur Monate)", typ: "number", wert: p && p.intervall_tage ? p.intervall_tage : "" },
       { name: "wo", label: "Wer prüft", auswahl: [["", "–"], ...PRUEFUNG_WO], wert: p ? p.pruefung_wo || "" : "" },
       { name: "letzte", label: "Zuletzt geprüft", typ: "date", wert: p ? p.letzte_pruefung || "" : "" },
       { name: "status", label: "Status", auswahl: STATUS, wert: p ? p.status : "aktiv" },
@@ -363,6 +430,7 @@ async function bearbeiten(p, d, neu) {
     nr: (w.nr || "").trim() || null, bezeichnung: w.bezeichnung.trim(), art: w.art || null,
     mass: (w.mass || "").trim() || null, hoco: (w.hoco || "").trim() || null,
     intervall_monate: Number(w.intervall) > 0 ? Math.round(Number(w.intervall)) : null,
+    intervall_tage: Number(w.tage) > 0 ? Math.round(Number(w.tage)) : null,
     pruefung_wo: w.wo || null,
     letzte_pruefung: /^\d{4}-\d{2}-\d{2}$/.test(w.letzte || "") ? w.letzte : null,
     status: w.status || "aktiv", notiz: (w.notiz || "").trim() || null,

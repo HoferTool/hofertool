@@ -19,7 +19,7 @@ import { useSeitenSuche } from "../../teile/seitenSuche.js";
 import { STIL, briefkopf } from "./achtdBlatt.js";
 import {
   ARTEN, artVon, TEILE, AQL_WERTE, aqlPlan, fehltTabelle, protokolleLaden,
-  stammLaden, stammMitMassen, toleranz, toleranzText, istPruefen, lehrenAus,
+  stammLaden, stammMitMassen, toleranz, toleranzText, istPruefen, lehrenAus, pruefmittelFuer,
 } from "../../daten/pruefbericht.js";
 
 // Offenes Protokoll und Suche bleiben beim Reiterwechsel
@@ -390,7 +390,7 @@ function Protokoll({ p, zurueck }) {
   // Ältere Protokolle mit schon eingetragenen Werten brauchen sie nicht.
   const braucheCheck = art === "erstteil" && !zu && !(w.kopf.checkliste || {}).am && !(e.gut + e.schlecht);
   if (braucheCheck) return <Checkliste w={w} hoco={hoco} schreibt={schreibt} zurueck={zurueck}
-    quittieren={(c) => { const n = { ...w, kopf: { ...w.kopf, checkliste: c } }; setW(n); speichern(n); }} />;
+    quittieren={(c) => { const n = { ...w, kopf: { ...w.kopf, checkliste: c } }; setW(n); speichern(n); ausbuchen(w, hoco); }} />;
   return (
     <div className="pb pb-blattseite" data-pbprotokolloffen={w.id}>
       <div className="pb-kopfzeile pb-werkzeug">
@@ -454,6 +454,34 @@ function checkPunkte(kopf) {
     .concat(lehren.map((l, i) => ["l" + i, l.name + (l.mass ? " " + l.mass : ""), nr(l)]))
     .concat(messmittel.map((m, i) => ["m" + i, m.name, nr(m)]))
     .concat([["sauber", "Prüfmittel sauber, Prüfdatum gültig", ""]]);
+}
+
+// Nach der Checkliste die Lehren aus dem Schrank auf den Auftrag ausbuchen
+// (Wunsch Patrick 24. November 2026): sie zählen ab „läuft“ Einsatztage und
+// kommen bei „fertig“ in die Rückgabekiste (Auslöser in sql/pruefmittel-rueckgabe.sql).
+// Nur Admins dürfen Prüfmittel ändern; sonst bleibt es still.
+async function ausbuchen(w, hoco) {
+  try {
+    if (!w.job_id || !alt.istAdmin()) return;
+    const { lehren } = lehrenAus({ zeilen: masse(w.kopf.zeilen) });
+    if (!lehren.length) return;
+    const [{ data: pm }, { data: job }] = await Promise.all([
+      alt.db.from("pruefmittel").select("*").eq("ort_art", "schrank"),
+      alt.db.from("jobs").select("id, machine_id").eq("id", w.job_id).maybeSingle(),
+    ]);
+    if (!pm || !job || !job.machine_id) return;
+    const ids = new Set();
+    lehren.forEach((l) => { const x = pruefmittelFuer(l, pm.filter((p) => !ids.has(p.id)), hoco)[0]; if (x) ids.add(x.id); });
+    if (!ids.size) return;
+    const liste = [...ids];
+    const vorher = [];
+    for (const id of liste) vorher.push(...await alt.rueckSichern("pruefmittel", { id }));
+    const { error } = await alt.db.from("pruefmittel").update({ ort_art: "maschine", machine_id: job.machine_id, job_id: job.id })
+      .in("id", liste);
+    if (error) return;
+    alt.merkeSchritt(liste.length + " Prüfmittel ausgebucht", alt.rueckRein("pruefmittel", vorher));
+    alt.meldung(liste.length + " Prüfmittel auf den Auftrag ausgebucht.", "gut");
+  } catch (e) { /* still: ohne Prüfmittel geht es weiter */ }
 }
 
 function Checkliste({ w, hoco, schreibt, zurueck, quittieren }) {

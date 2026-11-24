@@ -45,7 +45,18 @@ export const ORTE = [
   ["maschine", "An Maschine", "⚙️"],
   ["person", "Bei Person", "👤"],
   ["extern", "Extern / Kalibrierung", "🚚"],
+  ["rueckgabe", "Rückgabekiste", "📥"],
 ];
+
+// Einsatztage seit der letzten Prüfung (Wunsch Patrick 24. November 2026):
+// gezählt, solange der Auftrag läuft (zaehlt_seit setzt die Datenbank), bis
+// zum Quittieren der Rückgabekiste.
+export function einsatzTage(p) {
+  let t = Number(p && p.einsatz_tage) || 0;
+  if (p && p.zaehlt_seit) t += Math.max(0, Date.now() - new Date(p.zaehlt_seit).getTime()) / 86400000;
+  return t;
+}
+const tageFaellig = (p) => !!Number(p.intervall_tage) && einsatzTage(p) >= Number(p.intervall_tage);
 
 export const STATUS = [["aktiv", "In Gebrauch"], ["gesperrt", "Gesperrt"], ["weg", "Ausgeschieden"]];
 
@@ -89,8 +100,10 @@ export function naechstePruefung(p) {
   return alt.isoDatum(d);
 }
 export const istFaellig = (p) => {
+  if (p.status !== "aktiv") return false;
+  if (tageFaellig(p)) return true;
   const n = naechstePruefung(p);
-  return !!n && p.status === "aktiv" && n <= alt.isoDatum(new Date());
+  return !!n && n <= alt.isoDatum(new Date());
 };
 
 // Wo es steht, als kurzer Text
@@ -102,6 +115,7 @@ export function ortText(p, maschinen) {
   }
   if (p.ort_art === "person") return "Bei " + (p.ort_text || "?");
   if (p.ort_art === "extern") return "Extern" + zus;
+  if (p.ort_art === "rueckgabe") return "Rückgabekiste";
   return "Prüfmittelschrank" + zus;
 }
 
