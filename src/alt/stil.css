@@ -16159,59 +16159,6 @@ body.pl-hell:not(.dunkel) .pl-seite { box-shadow: 0 0 0 1px #dfe5ee; }
 .pl-seite__laden { margin: auto; color: var(--pgedaempft); }
 @media (max-width: 779px) { .pl-seite { height: auto; min-height: 0; } .pl-seite .pl { display: flex; flex-direction: column; overflow: visible; } }
 
-/* Felder */
-body :is(.karte.cam, .cam-eigen) :is(input:not([type=checkbox]):not([type=radio]), select, textarea, .cam-wahl__knopf) {
-  background: var(--cm-feld); border: 1px solid var(--cm-rand2); border-radius: 7px; color: var(--cm-text);
-  transition: border-color .15s, box-shadow .15s, background .15s; }
-body :is(.karte.cam, .cam-eigen) :is(input:not([type=checkbox]):not([type=radio]), select, textarea, .cam-wahl__knopf):hover { border-color: #a9b6c5; }
-body :is(.karte.cam, .cam-eigen) :is(input:not([type=checkbox]):not([type=radio]), select, textarea, .cam-wahl__knopf):focus {
-  outline: none; border-color: var(--cm-akzent); background: var(--cm-karte);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cm-akzent) 22%, transparent); }
-body :is(.karte.cam, .cam-eigen) input[type=checkbox] { accent-color: var(--cm-akzent); }
-body :is(.karte.cam, .cam-eigen) .cam-feld--fehler input { border-color: #d33 !important; box-shadow: 0 0 0 3px rgba(221, 51, 51, .18) !important; }
-
-/* Knöpfe als Chips */
-body :is(.karte.cam, .cam-eigen) .knopf:not(.knopf--primaer):not(.cam-block__pfeil) {
-  background: var(--cm-chip); border: 1px solid var(--cm-chip-rand); color: var(--cm-chip-text);
-  border-radius: 999px; box-shadow: none; font-weight: 600; transition: background .15s, border-color .15s, transform .1s; }
-body :is(.karte.cam, .cam-eigen) .knopf:not(.knopf--primaer):not(.cam-block__pfeil):hover:not(:disabled) {
-  background-color: var(--cm-chip-hover); border-color: var(--cm-chip-hover-rand); color: var(--cm-chip-text); }
-body :is(.karte.cam, .cam-eigen) .knopf:not(.cam-block__pfeil):active:not(:disabled) { transform: translateY(1px); }
-body :is(.karte.cam, .cam-eigen) .knopf:disabled { opacity: .45; }
-body :is(.karte.cam, .cam-eigen) .knopf--primaer { border-radius: 999px; }
-body :is(.karte.cam, .cam-eigen) .cam-block__knoepfe .knopf { border-radius: 8px !important; width: 28px; padding: 0; justify-content: center; }
-body :is(.karte.cam, .cam-eigen) .cam-bearb__kopf > b { color: var(--cm-leise); font-size: 12px; flex-basis: 5em; }
-body :is(.karte.cam, .cam-eigen) .cam-spalte--kopf .knopf { min-height: 0; padding: 4px 10px; font-size: 12px; white-space: nowrap; line-height: 1.3; }
-
-/* Bearbeitungen */
-body :is(.karte.cam, .cam-eigen) .cam-block { background: var(--cm-karte); border: 1px solid var(--cm-rand);
-  border-left: 4px solid var(--cm-k1); border-radius: 12px; box-shadow: var(--cm-schatten); padding: 10px 12px 10px 10px;
-  margin-bottom: 10px; transition: box-shadow .2s, border-color .2s; }
-body :is(.karte.cam, .cam-eigen) .cam-block:hover { box-shadow: 0 2px 4px rgba(16, 33, 52, .08), 0 10px 24px rgba(16, 33, 52, .09); }
-body :is(.karte.cam, .cam-eigen) .cam-block--k2 { border-left-color: var(--cm-k2); }
-body :is(.karte.cam, .cam-eigen) .cam-block--k3 { border-left-color: var(--cm-k3); }
-body :is(.karte.cam, .cam-eigen) .cam-block--aktiv { border-color: #f08a24 !important; border-left-color: #f08a24 !important;
-  box-shadow: 0 0 0 3px rgba(240, 138, 36, .2), var(--cm-schatten) !important; }
-body :is(.karte.cam, .cam-eigen) .cam-block__code { background: var(--cm-feld); border: 1px solid var(--cm-rand2);
-  border-radius: 9px; padding: 8px 10px; line-height: 1.5; }
-body :is(.karte.cam, .cam-eigen) .cam-block__kanal { border-radius: 999px; padding: 2px 8px; letter-spacing: .03em; }
-
-/* Kanäle */
-body :is(.karte.cam, .cam-eigen) .cam-kanaele { background: var(--cm-karte); border: 1px solid var(--cm-rand);
-  border-radius: 14px; box-shadow: var(--cm-schatten); padding: 8px; }
-body :is(.karte.cam, .cam-eigen) .cam-spalte--kopf { background: color-mix(in srgb, var(--cm-k1) 9%, var(--cm-karte));
-  border: 1px solid color-mix(in srgb, var(--cm-k1) 25%, var(--cm-rand)); border-left: 1px solid color-mix(in srgb, var(--cm-k1) 25%, var(--cm-rand));
-  border-top: 3px solid var(--cm-k1); border-radius: 10px; color: var(--cm-text); padding: 6px 10px; }
-body :is(.karte.cam, .cam-eigen) .cam-spalte--kopf ~ .cam-spalte--kopf { background: color-mix(in srgb, var(--cm-k2) 9%, var(--cm-karte));
-  border-color: color-mix(in srgb, var(--cm-k2) 25%, var(--cm-rand)); border-top-color: var(--cm-k2); }
-body :is(.karte.cam, .cam-eigen) .cam-spalte--kopf.cam-spalte--k3 { background: color-mix(in srgb, var(--cm-k3) 9%, var(--cm-karte));
-  border-color: color-mix(in srgb, var(--cm-k3) 25%, var(--cm-rand)); border-top-color: var(--cm-k3); }
-body :is(.karte.cam, .cam-eigen) .cam-zeile { border-radius: 5px; }
-body :is(.karte.cam, .cam-eigen) .cam-nr { color: var(--cm-leise); opacity: .7; }
-body :is(.karte.cam, .cam-eigen) .cam-zeile:hover:not(.cam-zeile--leer) { background-color: color-mix(in srgb, var(--cm-akzent) 6%, transparent); }
-body :is(.karte.cam, .cam-eigen) .cam-zeile--leer { background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--cm-rand) 55%, transparent) 6px 7px); }
-@media (prefers-reduced-motion: reduce) { body :is(.karte.cam, .cam-eigen) * { transition: none !important; } }
-
 /* ---------------------------------------------------------------
    1.746.0 Reklamationsmanagement (Qualitätssicherung)
    --------------------------------------------------------------- */

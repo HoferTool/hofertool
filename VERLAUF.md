@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.755.2 (24. November 2026)
+
+- HOFERCAM wieder ganz wie vorher: ein Zusammenführen hatte einen Teil der Regeln des modernen Stils aus 1.741.0 ohne ihre Farbvariablen zurückgebracht (Felder, Knöpfe, Bearbeitungen, Kanäle sahen falsch aus). Entfernt; die eine Zeile je Kanal aus 1.740.0 bleibt. Patrick: „es sieht nicht aus wie vorher“.
+
 ## 1.753.5 (24. November 2026)
 
 - Zahlensprint am Handy hochkant: Menü oben 76 statt 90 px Abstand und 8 px zwischen den Teilen, damit es auch mit der Schrift auf GitHub nicht rollt.
