@@ -7,6 +7,59 @@
 import { useEffect, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 
+// Ton zur Animation (Wunsch Patrick 24. November 2026: „bei Renz Shotgun soll auch Sound sein“).
+// Gerechnet mit WebAudio, ohne Dateien; abgestimmt auf die Bilder (50 ms je Bild):
+// Pumpe zurück ab 0.8 s, vor bis 1.5 s, Hülse fällt um 1.7 s.
+let ctx = null;
+function audio() {
+  try {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === "suspended") ctx.resume();
+    return ctx;
+  } catch { return null; }
+}
+// Safari am iPad spielt nur, wenn der Ton bei einem Tipp freigegeben wurde. Die
+// Animation kommt erst nach der Antwort des Servers, darum schon beim Tipp freigeben.
+if (typeof document !== "undefined") {
+  const frei = () => { audio(); };
+  document.addEventListener("pointerdown", frei, { capture: true, passive: true });
+  document.addEventListener("keydown", frei, { capture: true });
+}
+function knall(c, t, { dauer = 0.06, frei = 2500, q = 1.5, laut = 0.8, art = "bandpass" } = {}) {
+  // Kurzes Rauschen durch einen Filter: klingt nach Metall auf Metall.
+  const n = Math.ceil(c.sampleRate * dauer);
+  const b = c.createBuffer(1, n, c.sampleRate);
+  const d = b.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3);
+  const q1 = c.createBufferSource(); q1.buffer = b;
+  const f = c.createBiquadFilter(); f.type = art; f.frequency.value = frei; f.Q.value = q;
+  const g = c.createGain(); g.gain.value = laut;
+  q1.connect(f); f.connect(g); g.connect(c.destination);
+  q1.start(t);
+}
+function klang(c, t, frei, dauer, laut) {
+  const o = c.createOscillator(); o.type = "triangle"; o.frequency.value = frei;
+  const g = c.createGain();
+  g.gain.setValueAtTime(laut, t); g.gain.exponentialRampToValueAtTime(0.001, t + dauer);
+  o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + dauer);
+}
+function flinte() {
+  const c = audio(); if (!c) return;
+  const t = c.currentTime;
+  // KLICK: Pumpe nach hinten
+  knall(c, t + 0.80, { frei: 1800, laut: 0.9, dauer: 0.05 });
+  knall(c, t + 0.86, { frei: 600, art: "lowpass", laut: 0.7, dauer: 0.12 });
+  knall(c, t + 1.12, { frei: 3200, laut: 0.6, dauer: 0.04 });
+  // KLACK: Pumpe nach vorne, Verschluss zu
+  knall(c, t + 1.42, { frei: 1400, laut: 1, dauer: 0.06 });
+  knall(c, t + 1.46, { frei: 400, art: "lowpass", laut: 0.9, dauer: 0.15 });
+  // Hülse fällt und springt auf dem Boden
+  [[1.70, 0.35], [1.84, 0.22], [1.93, 0.12]].forEach(([z, l]) => {
+    klang(c, t + z, 2900, 0.25, l * 0.5); klang(c, t + z, 4300, 0.18, l * 0.3);
+  });
+}
+const TOENE = { "renz-kommen": flinte };
+
 const fotos = new Map(); // "name-art" -> Promise<string|null>
 
 function fotoHolen(name, art) {
@@ -47,6 +100,8 @@ export function StempelBild({ name, art }) {
     fotoHolen(name, a).then((d) => { if (!weg) setSrc(d || datei); });
     return () => { weg = true; clearTimeout(t); };
   }, [name, a]);
+  const ton = TOENE[name + "-" + a];
+  useEffect(() => { if (src && ton) ton(); }, [!!src, ton]);
   if (!name || !src) return null;
   return <img className="ze-bestaetigt__bild" src={src} alt="" data-ze-stempelbild={name} />;
 }
