@@ -111,16 +111,31 @@ export default function Start({ auffrischen, module }) {
   // des blauen Bands mit Logo, darunter Solaranlage und Bestellungen
   // nebeneinander, dann zwei Spalten: links die Probleme, rechts Kalender,
   // Heute noch offen und Materialausgabe Extern
-  if (!module && document.documentElement.classList.contains("ohne-kopf")) {
+  const kopflos = document.documentElement.classList.contains("ohne-kopf");
+  if (!module && document.documentElement.classList.contains("neues-menue")) {
     return (
       <div className="sn2">
-        <div className="sn2-kopf">
+        {/* Seit 1.762.0 wieder das blaue Band wie früher, mit Kopfzeile
+            (Wunsch Patrick 24. November 2026), Karten darunter wie bisher */}
+        {!kopflos && <>
+          <section className="kopfkarte">
+            <Durchfahrt />
+            <Uhr />
+            <img className="kopfkarte__logo" src={alt.LOGO_WEISS} alt="Hofer + Co." />
+            <Wetter />
+          </section>
+          <div className="sn2-gruss">
+            <p className="gruss">{alt.begruessung()}{name ? ", " + name : ""}</p>
+            <KommenGehen />
+          </div>
+        </>}
+        {kopflos && <div className="sn2-kopf">
           <div className="sn2-links">
             <p className="gruss">{alt.begruessung()}{name ? ", " + name : ""}</p>
             <KommenGehen />
           </div>
           <div className="sn2-ecke"><Uhr /><Wetter /></div>
-        </div>
+        </div>}
         {/* Oben Solaranlage und Geburtstage (seit 1.721.0, Wunsch Patrick
             23. November 2026); hat jemand Geburtstag, füllt das Fest die ganze Karte */}
         <div className="sn2-oben">

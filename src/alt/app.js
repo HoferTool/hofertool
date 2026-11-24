@@ -174,7 +174,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.761.1";
+const APP_VERSION = "1.762.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -11177,7 +11177,7 @@ function neuerLookMenue(an) {
     Object.assign(s, an ? { ...menueVorher[s.pfad], ...neu } : menueVorher[s.pfad]);
   }
 }
-const neuerLook = () => document.documentElement.classList.contains("ohne-kopf");
+const neuerLook = () => document.documentElement.classList.contains("neues-menue");
 
 // Was die neu gebauten React-Seiten vom alten Programm brauchen
 Object.assign(alt, {
@@ -11738,7 +11738,12 @@ function zeichneGeruest() {
   // neuerLook (Saheesan), für alle erst, wenn Patrick es ausdrücklich sagt. Ältere
   // Prüfstände bedienen noch die Knöpfe der Kopfzeile, darum dort nur mit
   // TEST.ohneKopf.
-  document.documentElement.classList.toggle("ohne-kopf", neuerLookSehen(profil) && !(window.TEST && !window.TEST.ohneKopf));
+  // Seit 1.762.0 wieder mit Kopfzeile und altem Look (Wunsch Patrick 24. November
+  // 2026: „alles wie das alte … aber Reiter-Unterteilungen noch gleich“): der
+  // Vermerk neuerLook gibt nur noch das neue Menü und die Karten der
+  // Startseite (Klasse neues-menue); ohne Kopfzeile nur noch im Prüfstand.
+  document.documentElement.classList.toggle("neues-menue", neuerLookSehen(profil));
+  document.documentElement.classList.toggle("ohne-kopf", neuerLookSehen(profil) && !!(window.TEST && window.TEST.ohneKopf));
   neuerLookMenue(neuerLook());
   themaAnwenden();
   // Administratoren sehen den Pad-Knopf auf jedem Gerät
