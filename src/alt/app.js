@@ -20,7 +20,7 @@ import Erp from "../seiten/Erp.jsx";
 import StartModule from "../seiten/StartModule.jsx";
 import Lager from "../seiten/Lager.jsx";
 import Zeiterfassung from "../seiten/Zeiterfassung.jsx";
-import { zeitApp, istZeitAdresse, zeitHandy } from "../seiten/zeit/app.js";
+import { zeitApp, istZeitAdresse, zeitHandy, istTerminal } from "../seiten/zeit/app.js";
 import Reihen from "../seiten/Reihen.jsx";
 import QmAlternativ from "../seiten/QmAlternativ.jsx";
 import "../seiten/Kalender.jsx";
@@ -177,7 +177,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.792.0";
+const APP_VERSION = "1.792.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1992,6 +1992,15 @@ async function profilLaden(frisch) {
     // auch, wenn sie schon vor diesem Stand angemeldet waren: Der
     // Schlüssel wird aufgehoben, die Sitzung zieht in den localStorage.
     if (istAndererNutzer(profil) && s.refresh_token && !sitzungGemerkt(profil.email)) {
+      sitzungMerken(profil.email, s.refresh_token);
+    }
+    // Wer „Angemeldet bleiben“ am Konto eingeschaltet hat, dessen Gerät
+    // merkt sich die Anmeldung immer, auch wenn beim Anmelden das Häkchen
+    // „Auf diesem Gerät merken“ fehlte (1.792.1, Patrick 24. November 2026:
+    // „muss ich immer wieder neu anmelden“). Vorher lag die Sitzung dann
+    // im sessionStorage: Tab zu, Browser neu gestartet oder nach dem
+    // Abmelden wieder Passwort. Nie am Stempel-Terminal.
+    if (dauerhaftBleiben() && s.refresh_token && !sitzungGemerkt(profil.email)) {
       sitzungMerken(profil.email, s.refresh_token);
     }
     // Den Browser bitten, den Speicher nicht von selbst zu leeren
@@ -8759,7 +8768,7 @@ function zuletztSchreiben(sofort) {
 
 // Beim Start mit noch gültiger Sitzung: war die Person zu lange weg?
 function zuLangeWeg(p) {
-  if (!p || !p.id || istAndererNutzer(p) || handyBleibt(p)) return false;
+  if (!p || !p.id || istAndererNutzer(p) || handyBleibt(p) || dauerhaftBleiben()) return false;
   const zuletzt = zuletztLesen(p.id);
   return zuletzt > 0 && Date.now() - zuletzt >= LEERLAUF_MAX_MS;
 }
@@ -8769,6 +8778,17 @@ function zuLangeWeg(p) {
 function handyBleibt(p) {
   const k = p || profil;
   return zeitHandy() && !(k && k.zeit_terminal);
+}
+
+// „Angemeldet bleiben“ heisst seit 1.792.1 wirklich angemeldet bleiben:
+// keine Abmeldung nach 5 Minuten und auch nicht nach 4 Stunden ohne
+// Bedienung (Patrick 24. November 2026: „das angemeldet bleiben geht
+// irgendwie nicht wirklich, muss ich immer wieder neu anmelden“). Nie am
+// Stempel-Terminal von HOFERTIME.
+function dauerhaftBleiben() {
+  if (!profil) return false;
+  try { if (istTerminal()) return false; } catch (f) { /* weiter */ }
+  return einstellung("angemeldetbleiben");
 }
 
 function leerlaufAktiv() {
@@ -8821,7 +8841,7 @@ function leerlaufPruefen() {
   }
   // Obergrenze 4 Stunden vor allen Ausnahmen; nur Gerätekonten und ein
   // laufendes Hochladen im Temp-Ordner halten sie auf
-  if (!istAndererNutzer() && !document.querySelector(".temp__liste--laeuft")) {
+  if (!istAndererNutzer() && !dauerhaftBleiben() && !document.querySelector(".temp__liste--laeuft")) {
     const zuletzt = Math.max(leerlauf.echt, zuletztLesen(profil.id));
     if (Date.now() - zuletzt >= LEERLAUF_MAX_MS) {
       const abmelden = leerlauf.abmelden;
