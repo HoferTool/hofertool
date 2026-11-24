@@ -67,7 +67,7 @@ export function schreibleisteAnbinden(d) {
   if (!d || d.__schreibleiste) return;
   d.__schreibleiste = true;
   const w = d.defaultView;
-  let leiste = null, feld = null, format = false, gemerkt = null, plan = 0;
+  let leiste = null, feld = null, format = false, gemerkt = null, plan = 0, zahlFeld = null;
 
   const behalten = (e) => { e.preventDefault(); };
   const meldung = (t) => { if (alt.meldung) alt.meldung(t, "warn"); };
@@ -78,7 +78,15 @@ export function schreibleisteAnbinden(d) {
     const sel = d.getSelection();
     if (!sel || !sel.rangeCount) return;
     const r = sel.getRangeAt(0);
-    if (feld.contains(r.commonAncestorContainer)) gemerkt = r.cloneRange();
+    if (!feld.contains(r.commonAncestorContainer)) return;
+    gemerkt = r.cloneRange();
+    // Zahlenfeld zeigt die Grösse an der Markierung
+    if (zahlFeld && d.activeElement !== zahlFeld) {
+      let n = r.startContainer;
+      if (n.nodeType !== 1) n = n.parentElement;
+      const g = Math.round(parseFloat(w.getComputedStyle(n && feld.contains(n) ? n : feld).fontSize) || 0);
+      zahlFeld.value = g ? String(g) : "";
+    }
   });
 
   function markierung() {
@@ -203,6 +211,37 @@ export function schreibleisteAnbinden(d) {
     fmt.appendChild(knopf("<b>Fett</b>", "Fett", fett, "schreibleiste__fett"));
     fmt.appendChild(knopf("A−", "Kleiner", () => groesseAendern(-2)));
     fmt.appendChild(knopf("A+", "Grösser", () => groesseAendern(2)));
+    // Grösse auch als Zahl (seit 1.786.0, Wunsch Patrick 24. November 2026:
+    // „auch per Zahleingabe einstellen“): Enter oder Verlassen setzt sie,
+    // die gemerkte Markierung gilt weiter, auch wenn das Zahlenfeld den
+    // Fokus hat
+    const zahl = d.createElement("input");
+    zahl.type = "number"; zahl.min = String(GR_MIN); zahl.max = String(GR_MAX); zahl.step = "1";
+    zahl.inputMode = "numeric";
+    zahl.className = "schreibleiste__zahl";
+    zahl.title = "Schriftgrösse als Zahl (" + GR_MIN + " bis " + GR_MAX + "), Enter setzt sie";
+    zahl.setAttribute("aria-label", "Schriftgrösse als Zahl");
+    zahl.setAttribute("data-schreibleiste-zahl", "");
+    zahl.placeholder = "Gr.";
+    let zuletzt = "";
+    const zahlSetzen = () => {
+      const v = String(zahl.value || "").trim();
+      if (!v || v === zuletzt) return;
+      const n = Math.round(parseFloat(v.replace(",", ".")));
+      if (!isFinite(n)) return;
+      const g = Math.max(GR_MIN, Math.min(GR_MAX, n));
+      zahl.value = String(g);
+      zuletzt = String(g);
+      formatieren({ groesse: g });
+    };
+    zahl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); zuletzt = ""; zahlSetzen(); }
+      else if (e.key === "Escape") { e.preventDefault(); if (gemerkt) zurueck(gemerkt); }
+    });
+    zahl.addEventListener("change", zahlSetzen);
+    zahl.addEventListener("focus", () => { zuletzt = zahl.value; });
+    fmt.appendChild(zahl);
+    zahlFeld = zahl;
     fmt.appendChild(knopf("Normal", "Grösse wieder normal", () => formatieren({ groesse: null })));
     AUSR.forEach(([a, titel, breiten]) => fmt.appendChild(knopf(ausrSvg(a, breiten), titel, () => ausrichten(a), "schreibleiste__ausr")));
     const zg = d.createElement("span");

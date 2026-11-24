@@ -16,6 +16,7 @@ const BESCHREIBUNG = {
   hofer2dto3d: "Fertigungszeichnung als PDF, daneben das STEP in 3D",
   bildschirme: "Infoboard, Empfang und Pausenraum",
   rechner: "Drehzahl, Winkel und Fase",
+  reihen: "Reihen üben im Affenwald",
 };
 
 // Die Seiten unter „Hilfsprogramme“, die die Person sehen darf
