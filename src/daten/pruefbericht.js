@@ -370,8 +370,11 @@ export async function erstteilVorLaeuft(j) {
   if (!st || !(st.arten || []).includes("erstteil")) return;
   const r = await alt.db.from("pruefprotokolle").select("id, kopf, abgeschlossen_am").eq("job_id", j.id);
   if (r.error) return;
-  const fertig = (r.data || []).some((p) => (p.kopf || {}).art === "erstteil" && p.abgeschlossen_am);
+  const r2 = await alt.db.from("pruefprotokolle").select("id, kopf, abgeschlossen_am, entscheid").eq("job_id", j.id);
+  const liste = r2.error ? (r.data || []) : (r2.data || []);
+  // Seit 1.785.0 nur mit Freigabe
+  const fertig = liste.some((p) => (p.kopf || {}).art === "erstteil" && p.abgeschlossen_am && (r2.error || p.entscheid === "freigabe"));
   if (fertig) return;
   throw new Error(j.job_number + (j.fa_nr ? " (FA " + j.fa_nr + ")" : "") + " lässt sich noch nicht auf „läuft“ stellen: "
-    + "zuerst die Erstteilprüfung machen und abschliessen (Qualitätssicherung → Prüfberichte).");
+    + "zuerst die Erstteilprüfung machen und mit Freigabe abschliessen (Qualitätssicherung → Prüfberichte).");
 }

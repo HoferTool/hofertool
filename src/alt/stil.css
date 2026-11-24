@@ -16797,3 +16797,14 @@ body.dunkel .pb-blatt .pb-pm { color: #1a2530 !important; -webkit-text-fill-colo
 .statuswahl.statuswahl--liste .knopf { width: 100%; }
 .pb-unterschrift label { color: #1a2530; }
 .pb-unterschrift input { height: 32px; box-sizing: border-box; border: 1px solid #c5d2de; border-radius: 6px; min-width: 160px; }
+
+/* 1.785.0 Checkliste vor der Erstteilprüfung */
+.pb-check { max-width: 720px; width: 100%; box-sizing: border-box; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+.pb-check h2 { margin: 0; font-size: 20px; }
+.pb-check__liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.pb-check__liste label { display: flex; gap: 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--linie, #d6dee8); border-radius: 10px; cursor: pointer; }
+.pb-check__liste input { width: 22px; height: 22px; flex: none; }
+.pb-check__liste span { display: flex; flex-direction: column; }
+.pb-check__liste small { opacity: .7; }
+.pb-check__liste .pb-check--an { background: rgba(30, 150, 80, .1); border-color: rgba(30, 150, 80, .5); }
+.pb-check__fuss { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; border-top: 1px solid var(--linie, #d6dee8); padding-top: 12px; }
