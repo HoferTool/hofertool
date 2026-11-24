@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.795.0 (24. November 2026)
+
+- Menü am Handy (Patrick: „soll nur Hauptreiter anzeigen, wenn es Unterreiter hat, sollen die per Animation kommen“): nur noch Hauptpunkte; Punkte mit Unterreitern haben ›, Antippen schiebt die Unterreiter herein, „‹ Zurück“ oder Escape führt zum Menü zurück.
+
 ## 1.789.0 (24. November 2026)
 
 - Planer (Patrick: „zu gross die Schrift und so, und viel abgeschnitten“): kleinere Schrift überall; ist die Materialkarte schmal, rutschen Material und Stand je Zeile unter die HOCO Nr., nichts ragt mehr rechts hinaus; am iPad hochkant liegt die Todo-Liste nicht mehr unter der Materialkarte; Maschine und HOCO Nr. kleben nicht mehr aneinander.

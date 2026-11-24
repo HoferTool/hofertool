@@ -503,6 +503,7 @@ function HandyMenue({ aktiv }) {
   // zu → offen → schliesst (Ausblenden läuft) → zu
   const [zustand, setZustand] = useState("zu");
   const offen = zustand === "offen";
+  const ebeneRef = useRef(null), zurueckRef = useRef(() => {});
 
   const schliessen = () => setZustand((z) => (z === "offen" ? "schliesst" : z));
   useEffect(() => {
@@ -521,19 +522,40 @@ function HandyMenue({ aktiv }) {
     // Escape schliesst nur dieses Fenster, sonst nichts (wie überall)
     const taste = (e) => {
       if (e.key !== "Escape" || e.defaultPrevented) return;
-      e.preventDefault(); e.stopPropagation(); schliessen();
+      e.preventDefault(); e.stopPropagation();
+      // In den Unterpunkten zuerst zurück zum normalen Menü
+      if (ebeneRef.current) { zurueckRef.current(); return; }
+      schliessen();
     };
     document.addEventListener("keydown", taste, true);
     return () => document.removeEventListener("keydown", taste, true);
   }, [offen]);
 
-  // imHandy: im neuen Look Unterpunkte (Material, Bestellungen), die am Handy
-  // keine Leiste haben und darum im Menü bleiben (seit 1.731.0)
-  const seiten = alt.SEITEN.filter((s) => (!s.gruppe || s.imHandy) && alt.seiteSichtbar(s.pfad));
-  const punkte = [
-    ...seiten.map((s) => ({ schluessel: s.pfad, titel: s.titel, unter: s.unter, href: "#/" + s.pfad,
-      zeichen: <span className="handymenue__zeichen" aria-hidden="true" dangerouslySetInnerHTML={{ __html: s.zeichen }} /> })),
-  ];
+  // Nur Hauptpunkte (seit 1.795.0, Wunsch Patrick 24. November 2026: „soll nur
+  // Hauptreiter anzeigen, wenn es Unterreiter hat, sollen die per Animation
+  // kommen … oder Zurücktaste zum normalen Menü“). Vorher standen Material und
+  // Bestellungen (imHandy) zwischen den Hauptpunkten, andere Unterpunkte fehlten.
+  const seiten = alt.SEITEN.filter((s) => !s.gruppe && alt.seiteSichtbar(s.pfad));
+  const punkte = seiten.map((s) => ({ schluessel: s.pfad, titel: s.titel, unter: s.unter, href: "#/" + s.pfad,
+    mitUnter: hatUnter(s.pfad),
+    zeichen: <span className="handymenue__zeichen" aria-hidden="true" dangerouslySetInnerHTML={{ __html: s.zeichen }} /> }));
+
+  // Zweite Ebene: die Unterpunkte eines Hauptpunkts; "zurueck" läuft rückwärts herein
+  const [ebene, setEbene] = useState(null);
+  const [richtung, setRichtung] = useState("vor");
+  zurueckRef.current = () => { setRichtung("zurueck"); setEbene(null); };
+  useEffect(() => { if (zustand === "zu") { setEbene(null); setRichtung("vor"); } }, [zustand]);
+  ebeneRef.current = ebene;
+  const ebeneSeite = ebene && alt.SEITEN.find((s) => s.pfad === ebene);
+  let unterpunkte = [];
+  if (ebene && UNTERREITER[ebene]) {
+    unterpunkte = UNTERREITER[ebene].liste();
+    // Seiten, deren Unterpunkte andere Seiten sind (Hilfsprogramme, Anzeigen),
+    // bekommen ihre Übersicht als ersten Punkt
+    if (UNTERREITER[ebene].gehe && !unterpunkte.some(([w]) => w === ebene))
+      unterpunkte = [[ebene, "Übersicht"], ...unterpunkte];
+  }
+  const unterAktiv = ebene ? reiterAktiv(ebene) : null;
 
   // Zeilen aus der Verteilung bauen; die laufende Nummer steuert das
   // gestaffelte Einblenden
@@ -544,11 +566,22 @@ function HandyMenue({ aktiv }) {
     nr += anzahl;
   }
 
+  const huepfen = (k) => { k.classList.remove("handymenue__punkt--tipp"); void k.offsetWidth; k.classList.add("handymenue__punkt--tipp"); };
   const waehlen = (e, p) => {
+    if (p.mitUnter) {
+      // Hauptpunkt mit Unterpunkten: zweite Ebene statt Seitenwechsel
+      e.preventDefault();
+      setRichtung("vor"); setEbene(p.schluessel);
+      return;
+    }
     // Das Symbol hüpft kurz, dann geht das Fenster zu
-    const k = e.currentTarget;
-    k.classList.remove("handymenue__punkt--tipp"); void k.offsetWidth; k.classList.add("handymenue__punkt--tipp");
+    huepfen(e.currentTarget);
     setTimeout(schliessen, 120);
+  };
+  const unterWaehlen = (e, wert) => {
+    huepfen(e.currentTarget);
+    const seite = ebene;
+    setTimeout(() => { reiterWaehlen(seite, wert, aktiv === seite); schliessen(); }, 120);
   };
 
   return (
@@ -561,18 +594,43 @@ function HandyMenue({ aktiv }) {
             ihn das Beschneiden innen nicht wegnimmt. */}
         <div className="handymenue__fenster" role="dialog" aria-label="Menü">
           <div className="handymenue__flaeche" style={{ "--anzahl": punkte.length }}>
-          {zeilen.map((zeile, z) => (
-            <div key={z} className="handymenue__zeile">
-              {zeile.map((p) => (
-                <a key={p.schluessel} href={p.href} style={{ "--nr": p.nr }}
-                  className={"handymenue__punkt" + (p.schluessel === aktiv ? " aktiv" : "")}
-                  onClick={(e) => waehlen(e, p)}>
-                  {p.zeichen}
-                  <span className="handymenue__text">{trennbar(p.titel)}{p.unter && <small className="nav__zusatz">{p.unter}</small>}</span>
-                </a>
+          {!ebene ? (
+            <div key="haupt" className={"handymenue__ebene" + (richtung === "zurueck" ? " handymenue__ebene--zurueck" : "")}>
+              {zeilen.map((zeile, z) => (
+                <div key={z} className="handymenue__zeile">
+                  {zeile.map((p) => (
+                    <a key={p.schluessel} href={p.href} style={{ "--nr": p.nr }}
+                      className={"handymenue__punkt" + (p.schluessel === aktiv ? " aktiv" : "") + (p.mitUnter ? " handymenue__punkt--unter" : "")}
+                      data-handy-punkt={p.schluessel}
+                      onClick={(e) => waehlen(e, p)}>
+                      {p.zeichen}
+                      <span className="handymenue__text">{trennbar(p.titel)}{p.mitUnter && <span className="handymenue__weiter" aria-hidden="true"> ›</span>}{p.unter && <small className="nav__zusatz">{p.unter}</small>}</span>
+                    </a>
+                  ))}
+                </div>
               ))}
             </div>
-          ))}
+          ) : (
+            <div key={"unter-" + ebene} className="handymenue__ebene handymenue__ebene--unter" data-handy-ebene={ebene}>
+              <div className="handymenue__unterkopf">
+                <button type="button" className="handymenue__zurueck" data-handy-zurueck
+                  onClick={() => { setRichtung("zurueck"); setEbene(null); }}>‹ Zurück</button>
+                <span className="handymenue__untertitel">
+                  {ebeneSeite && <span className="handymenue__zeichen handymenue__zeichen--klein" aria-hidden="true" dangerouslySetInnerHTML={{ __html: ebeneSeite.zeichen }} />}
+                  {ebeneSeite ? ebeneSeite.titel : ebene}
+                </span>
+              </div>
+              <div className="handymenue__unterliste">
+                {unterpunkte.map(([wert, text], i) => (
+                  <button key={wert} type="button" style={{ "--nr": i }} data-handy-unter={wert}
+                    className={"handymenue__unterpunkt" + (aktiv === ebene && unterAktiv === wert ? " aktiv" : "")}
+                    onClick={(e) => unterWaehlen(e, wert)}>
+                    <span>{text}</span><span className="handymenue__weiter" aria-hidden="true">›</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <button type="button" className="handymenue__schliessen" onClick={schliessen}>
             <span className="handymenue__glanz" aria-hidden="true" />
             <span className="handymenue__schliessentext">Schliessen</span>
