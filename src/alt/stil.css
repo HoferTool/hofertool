@@ -16514,3 +16514,15 @@ html.ohne-kopf body:not(.dunkel) .sn2-oben #db-solar .solar-tag div { background
 .ib-umf__code svg { width: 100%; height: 100%; display: block; }
 .ib-umf__scan { font-size: 0.6em; font-weight: 700; color: #003884; text-align: center; max-width: 12em; }
 .ib-umf__leer { margin: auto; color: #5b6b80; }
+
+/* 1.763.0: Listen im 8D selbst bearbeiten (Reklamationen) */
+.rk-liste-knopf { margin-top: 8px; }
+.rk-liste { border: 1px solid var(--linie); border-radius: 10px; padding: 10px 12px; background: var(--flaeche, #f6f8fb); }
+body.dunkel .rk-liste { background: #1d2630; }
+.rk-liste__gruppe { padding: 6px 0; border-top: 1px solid var(--linie); }
+.rk-liste__gruppe:first-of-type { border-top: 0; }
+.rk-liste__kopf, .rk-liste__zeile { display: flex; gap: 6px; align-items: center; margin: 4px 0; }
+.rk-liste__kopf input { font-weight: 700; }
+.rk-liste__kopf input, .rk-liste__zeile input { flex: 1; min-width: 0; }
+.rk-liste__zeile { padding-left: 14px; }
+.rk-liste__knoepfe { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
