@@ -434,6 +434,38 @@ function vorG50(zeilen) {
 // steht in Z, das Material fährt (Patricks O3272: „M131(1) … G0Z0.0
 // M133(1)“). M142 (Überlagerung Z1–Z3) bewegt ebenfalls den Träger 3.
 // Träger 3 steht der Hauptspindel gegenüber (−X, gespiegelt).
+// Wartemarke zwischen Kanal 1 und 3: M…P mit 1 und 3, oder M133
+function markeK13(t) {
+  const m = t.match(/^M(\d{3})P(\d+)/);
+  if (m) return m[2].includes("1") && m[2].includes("3") ? "M" + m[1] + "P" + m[2] : null;
+  return /^M133(?!\d)/.test(t) ? "M133" : null;
+}
+// Zeile in Kanal 1, an der Kanal 3 vor seiner Zeile z3 zuletzt gewartet
+// hat (gleiche Marke, gleiches Vorkommen, Marken wie M340P13 kommen mehrmals)
+function k1ZeileFuerK3(prog, z3) {
+  const S3 = (prog.k3 || []).map(sauber), S1 = (prog.k1 || []).map(sauber);
+  let tok = null, n = 0;
+  for (let k = 0; k < z3 && k < S3.length; k++) { const t = markeK13(S3[k]); if (t) { if (t !== tok) { tok = t; } n = S3.slice(0, k + 1).filter((x) => markeK13(x) === t).length; } }
+  if (!tok) return null;
+  let c = 0;
+  for (let j = 0; j < S1.length; j++) if (markeK13(S1[j]) === tok && ++c === n) return j;
+  return null;
+}
+// C der Hauptspindel aus Kanal 1 bis zur Zeile j (C absolut, H dazu,
+// G28H0 auf 0): Kanal 1 dreht das Teil, während Kanal 3 wartet
+function cKanal1(prog, j) {
+  const S1 = (prog.k1 || []).map(sauber);
+  let c = 0;
+  for (let k = 0; k <= j && k < S1.length; k++) {
+    const t = S1[k].replace(/\(.*?\)/g, "");
+    if (/G28.*H0/.test(t)) { c = 0; continue; }
+    const mc = t.match(/(?:^|[^A-Z,#])C\s*([-+]?\d*\.?\d+)/), mh = t.match(/(?:^|[^A-Z,#])H\s*([-+]?\d*\.?\d+)/);
+    if (mc) c = Number(mc[1]);
+    if (mh) c += Number(mh[1]);
+  }
+  return c;
+}
+
 function k3Schritt(s, b, zeilen, v, W, prog, wa) {
   // Modus: zuletzt M131 oder M133 vor der Bearbeitung in Kanal 3
   let modus = "M131";
@@ -452,6 +484,20 @@ function k3Schritt(s, b, zeilen, v, W, prog, wa) {
   const mitG50 = zeilen.some((z) => g50Z(z) != null);
   let roh = m50Folgen(zeilen, v, prog, mitG50, !s.m133);
   s.zeilen = zeilen;
+  // Seit 1.757.3 (Patrick 24. November 2026, T1300 in 10789-0034): ohne
+  // eigenes C dreht Kanal 1 das Teil zwischen den Wartemarken (G0C0.,
+  // G0H180., G0C90. …); jede Lage nimmt das C von Kanal 1 an der Marke,
+  // auf die Kanal 3 zuletzt gewartet hat
+  const eigenesC = zeilen.some((z) => /(?:^|[^A-Z,#])[CH]\s*[-+]?\d/.test(sauber(z).replace(/\(.*?\)/g, "")));
+  if (!eigenesC && lage) {
+    const merk = new Map();
+    roh = roh.map((p) => {
+      const L = lage[0] + (p.nr || 0);
+      if (!merk.has(L)) { const j = k1ZeileFuerK3(prog, L); merk.set(L, j == null ? null : cKanal1(prog, j)); }
+      const c = merk.get(L);
+      return c == null ? p : { ...p, c };
+    });
+  }
   const dreht = s.art === "k3f";
   if (s.art === "k3s") {
     // Querangetrieben Kanal 3 (1.678.0): wie Querangetrieben Kanal 1,
@@ -475,8 +521,16 @@ function k3Schritt(s, b, zeilen, v, W, prog, wa) {
     const dz = vorG50(zeilen);
     s.dzVorne = dz == null ? -0.5 : -dz;
   } else {
+    // Seit 1.757.3 (Patrick 24. November 2026: „die Position von T1700
+    // stimmt auch nicht“): massgebend ist die Vorposition, das letzte Z im
+    // Eilgang vor dem ersten Vorschub (G0Z5.00 vor G1W13.), nicht das
+    // erste Z (G0Z0.00) und nicht ein eingelesenes „Anfahren Z“; 10789-0034
+    // passt so aufs Zehntel zum Modell (Ø4.5 Tiefe 15, Ø3.5 bis 58)
+    const k = roh.findIndex((p) => p.vor);
+    let vp = null;
+    for (let j = (k < 0 ? roh.length : k) - 1; j >= 0; j--) if (roh[j].z != null) { vp = roh[j].z; break; }
     const erst = roh.find((p) => p.z != null);
-    const an = num(b.anZ) ?? (erst ? erst.z : 0);
+    const an = vp ?? num(b.anZ) ?? (erst ? erst.z : 0);
     zT = (p) => p.z - an - 0.5;
     s.dzVorne = -(an + 0.5);
   }
@@ -572,6 +626,7 @@ export function simAufbauen(wRoh) {
       : kanal === 2 ? bereichMitHand(prog.auto2, prog.k2, prog.bereiche2[b.id]) : bereichMitHand(prog.auto1, prog.k1, prog.bereiche[b.id]);
     if (mitHand) zeilen = mitHand;
     if (sw && kanal === 1 && !k3) { const l = bereichLage(prog.auto1, prog.k1, prog.bereiche[b.id]); s.zeile1 = l ? l[0] : Infinity; }
+    if (k3 && !fest) { const l = bereichLage(prog.auto3 || [], prog.k3 || [], prog.bereiche3 && prog.bereiche3[b.id]); s.zeile3 = l ? l[0] : null; }
     if (k3) {
       k3Schritt(s, b, zeilen, v, W, prog, wa);
       if (s.modus === "c") for (const p of s.punkte) if (p.vor) cZ = Math.max(cZ, p.t[0] + (num(bRoh.wz?.d) || 6) / 2 + 0.5);
@@ -719,12 +774,26 @@ export function simAufbauen(wRoh) {
   // Kanal 1 zuerst, dann Abstechen, dann Kanal 2, je in der Reihenfolge der Bearbeitungen
   // SW-20: Kanal 3 dort, wo Kanal 1 mit M133 auf Kanal 3 wartet (O1272:
   // „M131(1) M133(1) … M131(2)“), ohne M133 nach Kanal 1
-  let vor1 = schritte.filter((s) => s.kanal === 1 && s.pfad !== 3), nach1 = [];
+  // Seit 1.757.3 (Patrick 24. November 2026, 10789-0034: „die
+  // Querbohrung kam vor dem Drehen“): jede Bearbeitung in Kanal 3 kommt
+  // nach der Wartemarke mit Kanal 1 (M…P13, M…P123, M133), die in Kanal 3
+  // vor ihr steht, an dieselbe Stelle in Kanal 1; vorher kam alles aus
+  // Kanal 3 an die Stelle von M133
+  const k1s = schritte.filter((s) => s.kanal === 1);
+  let sortiert1 = k1s;
   if (sw) {
     const i133 = (prog.k1 || []).findIndex((z) => /^M133(?!\d)/.test(sauber(z)));
-    if (i133 >= 0) { nach1 = vor1.filter((s) => s.zeile1 > i133); vor1 = vor1.filter((s) => !(s.zeile1 > i133)); }
+    let key = -1;
+    const mitKey = k1s.map((s, n) => {
+      let k = null;
+      if (s.pfad === 3) { const j = s.zeile3 != null ? k1ZeileFuerK3(prog, s.zeile3) : null; k = j != null ? j + 0.5 : i133 >= 0 ? i133 + 0.5 : null; if (k != null) k += (s.zeile3 || 0) * 1e-6; }
+      else if (Number.isFinite(s.zeile1)) k = s.zeile1;
+      if (k == null || s.unter) k = key; else key = k;
+      return { s, k, n };
+    });
+    sortiert1 = mitKey.sort((a, b) => (a.k - b.k) || (a.n - b.n)).map((x) => x.s);
   }
-  const sortiert = [...vor1, ...schritte.filter((s) => s.pfad === 3), ...nach1, ab1, ...schritte.filter((s) => s.kanal === 2)];
+  const sortiert = [...sortiert1, ab1, ...schritte.filter((s) => s.kanal === 2)];
   let ab = 0;
   sortiert.forEach((s) => { s.von = ab; ab += s.punkte.length; s.bis = ab; });
   const zMax = Math.min(300, Math.max(W + B + 3, ...sortiert.filter((s) => s.kanal === 1 && !s.achse).flatMap((s) => s.punkte.filter((p) => p.vor).map((p) => p.z + 1))));
