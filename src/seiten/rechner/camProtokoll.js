@@ -45,7 +45,8 @@ export const protokollText = (p) => [p.taetigkeit, p.mass, [p.hersteller, p.werk
 const BOHR_RE = /bohr|zentr|kernloch|gew(inde)?\.?\s*form|reib|senk|anbohr|pilot/i;
 const FRAES_RE = /fräs|fraes|nut\b|schlitz|tauch/i;
 const DREH_RE = /dreh|plan|schrupp|schlicht|stech|abstech|innen|aussen|ausdreh|gewinde(?!\s*form)|kopier|vorstech/i;
-const INNEN_RE = /innen|ausdreh|bohrstange|vorstech|bohrung\s*dreh/i;
+// „Vorstechen“ ist aussen (vor dem Abstechen), seit 1.757.1 nicht mehr innen
+const INNEN_RE = /innen|ausdreh|bohrstange|bohrung\s*dreh/i;
 
 // ISO-Code einer Wendeplatte: DCMT11T304, DCGT 11T301, VCGX 120302 …
 function isoPlatte(t) {
