@@ -81,7 +81,7 @@ export default function Umfragen({ auffrischen }) {
   const admin = alt.istAdmin();
   const offen = daten.filter((u) => u.offen);
   const zu = daten.filter((u) => !u.offen);
-  // Seit 1.773.0 legt jeder (ausser Externen und Dienst) Umfragen an
+  // Seit 1.774.0 legt jeder (ausser Externen und Dienst) Umfragen an
   // (Wunsch Patrick 24. November 2026: „Umfragen soll jeder erstellen
   // können auf Start“), darum steht die Karte mit dem Plus auch ohne
   // offene Umfrage für alle. Die eigene Umfrage ändern, schliessen und
@@ -451,7 +451,7 @@ function Bearbeiten({ u, zu, neu }) {
       </div>
       <label className="umf-b__haken"><input type="checkbox" id="umf-mehrfach" checked={mehrfach}
         onChange={(e) => setMehrfach(e.target.checked)} /> Mehrere Vorschläge wählbar</label>
-      {/* Seit 1.773.0 (Wunsch Patrick 24. November 2026: „sehen können, wer
+      {/* Seit 1.774.0 (Wunsch Patrick 24. November 2026: „sehen können, wer
           was gestimmt hat, als wählbar“): Namen bei jedem Vorschlag für alle */}
       <label className="umf-b__haken"><input type="checkbox" id="umf-namen" checked={namenZeigen}
         onChange={(e) => setNamenZeigen(e.target.checked)} /> Für alle sichtbar, wer was gestimmt hat</label>
