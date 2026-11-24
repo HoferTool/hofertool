@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.756.2 (24. November 2026)
+
+- HOFERCAM, Einlesen Kanal 2: ältere Programme mit mehreren Bearbeitungen in einem einzigen M75 … M76 (getrennt nur durch /N1(…), /N2(…)) wurden eine einzige Bearbeitung ohne Werkzeug. Jetzt beginnt ein zweites Werkzeug bzw. die N-Marke davor eine neue Bearbeitung, Bezeichnung aus der N-Marke. Patrick mit 10053-1116.
+
 ## 1.756.1 (24. November 2026)
 
 - HOFERCAM wieder ganz wie vorher: ein Zusammenführen hatte einen Teil der Regeln des modernen Stils aus 1.741.0 ohne ihre Farbvariablen zurückgebracht (Felder, Knöpfe, Bearbeitungen, Kanäle sahen falsch aus). Entfernt; die eine Zeile je Kanal aus 1.740.0 bleibt. Patrick: „es sieht nicht aus wie vorher“.

@@ -311,6 +311,8 @@ function freiBlock(art, s, platz) {
   if (hd) { b.hdN = hd[1]; b.hd = hd[2]; b.hdAn = !s.some((z) => /M189/i.test(z)); }
   const t = s.find((z) => /^\/?T\d{3,4}/i.test(z)) || "";
   b.bez = (t.match(/\(([^)]*)\)/) || [])[1]?.trim().toUpperCase() || "";
+  // ältere Programme: Bezeichnung in der N-Marke davor, /N1(QUER-BOHREN)
+  if (!b.bez) b.bez = (s.map((z) => z.match(/^\/?N\d+\s*\(([^)]*)\)/i)).find(Boolean) || [])[1]?.trim().toUpperCase() || "";
   const S = zahlIn(s, /^(?:G9[67])?M(?:0?[34]|3[67])S(\d+)/i);
   if (S) { b.sArt = "S"; b.S = S; b.g96 = false; }
   // Frontwerkzeuge: Anfahren = erstes G0Z, Zurück = letztes G0Z (für die Simulation)
@@ -355,7 +357,19 @@ export function bloeckeLesen(k1, k2, k3) {
   // Die Marke Ende der Frontangetriebenen an der Gegenspindel steht in
   // Kanal 2 nach dem M1
   const m3 = new Set(liste.filter((x) => x.best?.art === "querGegen").map((x) => String(x.best.r.werte.M3 || "").toUpperCase()));
-  const t2 = k2 ? abschnitteVon(mitte(k2, (typ().kanaele || 2) > 2 ? 2 : 0), (z) => /^M75$/i.test(z),
+  // Seit 1.756.2 (Patrick 24. November 2026, 10053-1116): ältere Programme
+  // haben mehrere Bearbeitungen in einem einzigen M75 … M76, getrennt nur
+  // durch /N1(…), /N2(…) bzw. ein weiteres Werkzeug. Ein zweites Werkzeug
+  // im selben Abschnitt (oder die N-Marke davor) beginnt darum einen neuen.
+  let mitWz = false;
+  const start2 = (z) => {
+    if (/^M75$/i.test(z)) { mitWz = false; return true; }
+    const n = /^\/?N\d+\s*\(/i.test(z), t = /^\/?T2\d{3}(?!\d)/i.test(z) && !istT2000(z) && !/^\/?T2000(?!\d)/i.test(z);
+    if (n) { if (mitWz) { mitWz = false; return true; } return false; }
+    if (t) { if (mitWz) return true; mitWz = true; }
+    return false;
+  };
+  const t2 = k2 ? abschnitteVon(mitte(k2, (typ().kanaele || 2) > 2 ? 2 : 0), start2,
     (z, s) => /^M0?5$/i.test(z) || (s.some(istT2000) && m3.has(markeVon(z)))) : { ab: [], zwischen: [] };
   const gegen2 = [];
   t2.ab.forEach((s, pos) => {
@@ -371,7 +385,9 @@ export function bloeckeLesen(k1, k2, k3) {
       const gr2 = platz && gruppeVon(platz);
       if (gr2 && gr2.startsWith("k2")) {
         // angetrieben, wenn M36/M37 (SW-20: M56/M57) eingeschaltet wird
-        const art = gr2 !== "k2" ? gr2 : s.some((z) => /^\/?M[35][67]S/i.test(z)) ? "k2a" : "k2";
+        // (auch hinter dem Werkzeug wie /T2300M56S4500)
+        const an = s.some((z) => /^\/?(?:T\d+)?M[35][67]S/i.test(z.replace(/\s/g, "")));
+        const art = gr2 !== "k2" ? gr2 : an && plaetzeVon("k2a").includes(String(platz)) ? "k2a" : "k2";
         liste.push({ b: freiBlock(art, s, platz), p1: null, p2: pos }); return;
       }
       unklar.push(werkzeug(s)); return;
