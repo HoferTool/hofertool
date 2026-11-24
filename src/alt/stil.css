@@ -16809,7 +16809,7 @@ body.dunkel .pb-blatt .pb-pm { color: #1a2530 !important; -webkit-text-fill-colo
 .pb-check__liste .pb-check--an { background: rgba(30, 150, 80, .1); border-color: rgba(30, 150, 80, .5); }
 .pb-check__fuss { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; border-top: 1px solid var(--linie, #d6dee8); padding-top: 12px; }
 
-/* 1.786.0: Schriftgrösse als Zahl in der Schreibleiste und in der
+/* 1.787.0: Schriftgrösse als Zahl in der Schreibleiste und in der
    MarkierLeiste (Einrichtblatt, Wartung mit Text) */
 .schreibleiste__zahl { width: 54px; height: 34px; padding: 0 4px; border-radius: 8px; border: 1px solid rgba(20, 40, 80, .3);
   background: #fff; color: #14233a; font: inherit; font-size: 14px; text-align: center; box-sizing: border-box; }

@@ -1,4 +1,4 @@
-# 1.786.0: Schriftgrösse als Zahl in der Leiste mit Farben (Einrichtblatt und Schreibleiste)
+# 1.787.0: Schriftgrösse als Zahl in der Leiste mit Farben (Einrichtblatt und Schreibleiste)
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
