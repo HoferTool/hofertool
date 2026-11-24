@@ -11,7 +11,7 @@ def pruefe(ok, text):
     print(("ok   " if ok else "FEHLT") + " " + text)
     if not ok: fehler.append(text)
 
-STAMM = {"hoco_nr": "99999-0001", "arten": ["erstteil", "aql", "ll"], "aql": 1.0, "niveau": "II",
+STAMM = {"hoco_nr": "99999-0001", "arten": ["erstteil", "endkontrolle", "aql", "ll"], "aql": 1.0, "niveau": "II",
          "kopf": {"bezeichnung": "Testwelle", "zeichnung": "Z-123", "index": "B"},
          "zeilen": [{"id": "n1", "nr": "1", "soll": "Ø5.5 ±0.05", "pm": "Grenzlehrdorn Ø5.5", "ll": True},
                     {"id": "n2", "nr": "2", "soll": "12.0 +0.1/-0", "pm": "Messschieber"},
@@ -37,7 +37,9 @@ with sync_playwright() as p:
     pruefe(pg.locator("[data-pbtodo=erstteil] [data-pbtodoauftrag=jpb1]").count() == 1, "Erstteil steht an")
     pruefe(pg.locator("[data-pbtodo=aql] [data-pbtodoauftrag=jpb1]").count() == 1, "AQL steht an")
     pruefe(pg.locator("[data-pbtodo=ll] [data-pbtodoauftrag=jpb1]").count() == 1, "LL steht an")
+    pruefe(pg.locator("[data-pbtodo=endkontrolle] [data-pbtodoauftrag=jpb1]").count() == 1, "Endkontrolle steht an")
     pruefe(pg.locator("#pb-hochladen").count() == 0, "kein Excel-Hochladen im Reiter")
+    pruefe(pg.locator("#pb-neu").count() == 0, "kein Knopf + Protokoll")
     # Erstteil aus dem Todo
     pg.click("[data-pbtodo=erstteil] [data-pbtodoauftrag=jpb1]"); pg.wait_for_selector("#pb-blatt"); pg.wait_for_timeout(300)
     bb = pg.evaluate("() => { const r = document.querySelector('#pb-blatt').getBoundingClientRect(); return [r.width, r.height]; }")
@@ -57,13 +59,8 @@ with sync_playwright() as p:
     pg.locator("button:has-text('← Prüfberichte')").click(); pg.wait_for_selector("#pb-todo"); pg.wait_for_timeout(600)
     pruefe(pg.locator("[data-pbtodo=erstteil] [data-pbtodoauftrag=jpb1]").count() == 0, "Erstteil nicht mehr offen")
     pruefe(pg.locator("#pb-liste [data-pbprotokoll]").count() == 1, "in der Liste zuletzt bearbeitet")
-    # + Protokoll: Art wählen, HOCO, FA
-    pg.click("#pb-neu"); pg.wait_for_selector(".dialog-huelle [data-w]")
-    arten = pg.inner_text(".dialog-huelle")
-    pruefe("AQL" in arten and "Endkontrolle" in arten, "Menü mit Arten")
-    pg.click(".dialog-huelle [data-w=ll]"); pg.wait_for_selector(".dialog-huelle input")
-    pg.fill(".dialog-huelle input", "99999-0001"); pg.keyboard.press("Enter")
-    pg.wait_for_selector(".dialog-huelle [data-w=jpb2]"); pg.click(".dialog-huelle [data-w=jpb2]")
+    # LL aus dem Todo
+    pg.click("[data-pbtodo=ll] [data-pbtodoauftrag=jpb1]")
     pg.wait_for_selector("#pb-ll-probe"); pg.wait_for_timeout(300)
     pruefe(pg.locator("#pb-tabelle tbody tr").count() == 3, "LL mit den zwei LL-Massen aus den Stammdaten")
     pg.click("#pb-ll-probe"); pg.wait_for_timeout(1300)
@@ -81,10 +78,7 @@ with sync_playwright() as p:
     pg.wait_for_selector("#pb-todo"); pg.wait_for_timeout(400)
     pg.screenshot(path="/tmp/pb_uebersicht.png")
     # Stammdaten: Karte Prüfung mit Masse-Blatt
-    pg.click("#pb-neu"); pg.wait_for_selector(".dialog-huelle [data-w]")
-    pg.click(".dialog-huelle [data-w=erstteil]"); pg.wait_for_selector(".dialog-huelle input")
-    pg.fill(".dialog-huelle input", "99999-0001"); pg.keyboard.press("Enter")
-    pg.wait_for_selector(".dialog-huelle [data-w=jpb2]"); pg.click(".dialog-huelle [data-w=jpb2]")
+    pg.locator("#pb-liste [data-pbprotokoll]").first.click()
     pg.wait_for_selector("#pb-blatt"); pg.wait_for_timeout(300)
     pg.locator("button:has-text('Stammdaten 99999-0001')").click()
     pg.wait_for_selector("#pst-blatt-auf", timeout=8000); pg.click("#pst-blatt-auf")
