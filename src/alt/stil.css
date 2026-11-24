@@ -16727,3 +16727,8 @@ body.dunkel .pst-abschnitt td { background: #24364a; }
   :is(.start-paar, .start-umf) .umf-karte .umf__titel { max-width: 440px; }
   :is(.start-paar, .start-umf) .umf-karte .umf__admin { gap: 8px; }
 }
+/* 1.779.1 (Patrick 24. November 2026: „was ist das für eine Lücke … oben der
+   Balken wie letzte Woche, da alles schön zusammen ist“): im neuen Look
+   schob der Abstand von .sn2 (gap 16px) Band und Solaranlage auseinander */
+.sn2 > .kopfkarte + .kopfkarte__solar { margin-top: -16px !important; }
+.sn2 > .kopfkarte:has(+ .kopfkarte__solar:not(:empty)) { border-radius: var(--radius) var(--radius) 0 0 !important; }
