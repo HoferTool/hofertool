@@ -1,33 +1,21 @@
-# Prüfberichte (1.771.0, Wunsch Patrick 24. November 2026): Reiter in der
-# Qualitätssicherung, Excel-Bericht lesen, Lehren aus der letzten Spalte,
-# Protokolle Erstteil (5 Teile), AQL und LL anlegen und ausfüllen.
-# Nur erfundene Daten: das Excel baut der Test selbst.
-import time, os, io, json
+# Prüfberichte (seit 1.779.0, Wunsch Patrick 24. November 2026): was nötig ist
+# und die Masse stehen in den Stammdaten der HOCO Nr. (pruef_stamm); im Reiter
+# Todos Erstteil / AQL / LL, Liste der zuletzt bearbeiteten, „+ Protokoll“ mit
+# Wahl der Art, Protokoll als A4-Blatt, drucken, löschen. Nur erfundene Daten.
+import time, json
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
-from openpyxl import Workbook
 server_starten(); time.sleep(0.4)
 fehler = []
 def pruefe(ok, text):
     print(("ok   " if ok else "FEHLT") + " " + text)
     if not ok: fehler.append(text)
 
-def excel():
-    wb = Workbook(); ws = wb.active
-    ws["A1"] = "Teileprüfbericht"; ws["H1"] = "Seite 1 / 1"
-    ws["A2"] = "FA-Nummer"; ws["C2"] = "FA-TEST-1"; ws["I2"] = "Index"; ws["I3"] = "B"
-    ws["A3"] = "Artikel-Bez."; ws["C3"] = "Testwelle"
-    ws["A4"] = "Ho+Co Nr."; ws["C4"] = "99999-0001"
-    ws["A5"] = "Zeichnung"; ws["C5"] = "Z-123"
-    r = 8
-    for i, t in enumerate(["Nr.", "Soll", "Ist 1", "Ist 2", "Ist 3", "Ist 4", "Ist 5", "Bemerkungen / spez. Prüfmittel"]):
-        ws.cell(row=r, column=i + 1, value=t)
-    zeilen = [("1", "Ø5.5 ±0.05", "Grenzlehrdorn Ø5.5"), ("2", "12.0 +0.1/-0", "Messschieber"), ("3", "M6", "Gewindelehrdorn M6 6H")]
-    for j, (a, b, c) in enumerate(zeilen):
-        ws.cell(row=r + 1 + j, column=1, value=a); ws.cell(row=r + 1 + j, column=2, value=b); ws.cell(row=r + 1 + j, column=8, value=c)
-    ws.cell(row=r + 5, column=1, value="Prüf-Entscheid")
-    b = io.BytesIO(); wb.save(b); return b.getvalue()
-XLSX = excel()
+STAMM = {"hoco_nr": "99999-0001", "arten": ["erstteil", "aql", "ll"], "aql": 1.0, "niveau": "II",
+         "kopf": {"bezeichnung": "Testwelle", "zeichnung": "Z-123", "index": "B"},
+         "zeilen": [{"id": "n1", "nr": "1", "soll": "Ø5.5 ±0.05", "pm": "Grenzlehrdorn Ø5.5", "ll": True},
+                    {"id": "n2", "nr": "2", "soll": "12.0 +0.1/-0", "pm": "Messschieber"},
+                    {"id": "n3", "nr": "3", "soll": "M6", "pm": "Gewindelehrdorn M6 6H", "ll": True}]}
 
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
@@ -35,67 +23,64 @@ with sync_playwright() as p:
     pg = ctx.new_page()
     pf = []; pg.on("pageerror", lambda e: pf.append(str(e)[:200]))
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FAKE))
-    pg.route("**/testdatei/bericht.xlsx", lambda r: r.fulfill(status=200, content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", body=XLSX))
     for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
         pg.route(u, lambda r: r.abort())
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
-    url = f"http://127.0.0.1:{PORT}/testdatei/bericht.xlsx"
-    pg.evaluate("""u => { TEST.daten.pruefbericht_dateien = [{ id: 'd1', hoco_nr: '99999-0001', name: 'Bericht 99999-0001.xlsx', url: u, ablage: 'x', seite: 1, quelle: 'ordner' }];
-                          TEST.daten.pruefprotokolle = TEST.daten.pruefprotokolle || [];
-                          TEST.daten.jobs.push({ id: 'jpb1', job_number: '99999-0001', fa_nr: '2026000111', plan_status: 'laeuft', planned_from: '2026-11-20', target_quantity: 800 },
-                                               { id: 'jpb2', job_number: '99999-0001', fa_nr: '2025000999', plan_status: 'fertig', planned_from: '2025-05-01', target_quantity: 500 }); }""", url)
+    pg.evaluate("""s => { TEST.daten.pruef_stamm = [s]; TEST.daten.pruefbericht_dateien = []; TEST.daten.pruefprotokolle = [];
+        const m = (TEST.daten.machines || [])[0];
+        TEST.daten.jobs.push({ id: 'jpb1', job_number: '99999-0001', fa_nr: '2026000111', plan_status: 'laeuft', planned_from: '2026-11-20', target_quantity: 800, machine_id: m && m.id },
+                             { id: 'jpb2', job_number: '99999-0001', fa_nr: '2025000999', plan_status: 'fertig', planned_from: '2025-05-01', target_quantity: 500 }); }""", STAMM)
     pg.evaluate("location.hash='#/qs'"); pg.wait_for_timeout(800)
-    pruefe("Prüfberichte" in pg.inner_text(".reiter"), "Reiter Prüfberichte da")
-    pg.evaluate("() => { const b = [...document.querySelectorAll('[data-qs=pruefberichte], .nav a, .nav button')].find(x => x.offsetParent && /Prüfberichte/.test(x.textContent)) || document.querySelector('[data-qs=pruefberichte]'); b.click(); }"); pg.wait_for_selector("#pb-liste"); pg.wait_for_timeout(500)
-    pruefe(pg.locator("[data-pbhoco='99999-0001']").count() == 1, "HOCO Nr. in der Liste")
-    pg.click("[data-pbhoco='99999-0001']"); pg.wait_for_selector("#pb-lehren", timeout=10000); pg.wait_for_timeout(500)
-    leh = pg.inner_text("#pb-lehren")
-    pruefe("Grenzlehrdorn" in leh and "Gewindelehrdorn" in leh, "Lehren erkannt: " + leh.replace("\n", " | ")[:200])
-    # Erstteil
-    pg.click("[data-pbneu=erstteil]"); pg.wait_for_selector(".dialog-huelle [data-w]")
-    wahl = pg.inner_text(".dialog-huelle")
-    pruefe("FA 2026000111" in wahl and wahl.index("2026000111") < wahl.index("2025000999"), "FA-Wahl, laufende zuerst: " + wahl.replace("\n", " | ")[:160])
-    pg.click(".dialog-huelle [data-w=jpb1]"); pg.wait_for_selector("#pb-tabelle"); pg.wait_for_timeout(300)
+    pg.evaluate("() => { const b = [...document.querySelectorAll('[data-qs=pruefberichte], .nav a, .nav button, .reiter button, .reiter a')].find(x => x.offsetParent && /Prüfberichte/.test(x.textContent)); b && b.click(); }")
+    pg.wait_for_selector("#pb-todo"); pg.wait_for_timeout(500)
+    pruefe(pg.locator("[data-pbtodo=erstteil] [data-pbtodoauftrag=jpb1]").count() == 1, "Erstteil steht an")
+    pruefe(pg.locator("[data-pbtodo=aql] [data-pbtodoauftrag=jpb1]").count() == 1, "AQL steht an")
+    pruefe(pg.locator("[data-pbtodo=ll] [data-pbtodoauftrag=jpb1]").count() == 1, "LL steht an")
+    pruefe(pg.locator("#pb-hochladen").count() == 0, "kein Excel-Hochladen im Reiter")
+    # Erstteil aus dem Todo
+    pg.click("[data-pbtodo=erstteil] [data-pbtodoauftrag=jpb1]"); pg.wait_for_selector("#pb-blatt"); pg.wait_for_timeout(300)
+    bb = pg.evaluate("() => { const r = document.querySelector('#pb-blatt').getBoundingClientRect(); return [r.width, r.height]; }")
+    pruefe(780 < bb[0] < 810 and bb[1] > 1000, "A4-Blatt: %s" % bb)
     pg.fill("[data-pbist='n1-0']", "5.52"); pg.fill("[data-pbist='n1-1']", "5.60"); pg.mouse.move(5, 5); pg.wait_for_timeout(300)
     k0 = pg.get_attribute("[data-pbist='n1-0']", "class"); k1 = pg.get_attribute("[data-pbist='n1-1']", "class")
-    pruefe("pb-ist--gut" in k0 and "pb-ist--schlecht" in k1, "gut/schlecht: %s / %s" % (k0, k1))
-    pg.wait_for_timeout(1500)
+    pruefe("pb-ist--gut" in k0 and "pb-ist--schlecht" in k1, "gut/schlecht")
+    pg.wait_for_timeout(1300)
     pp = pg.evaluate("() => TEST.daten.pruefprotokolle")
-    pruefe(len(pp) == 1 and (pp[0].get("werte") or {}).get("n1", [None])[0] == "5.52", "Werte gespeichert: %s" % json.dumps((pp[0] if pp else {}).get("werte"))[:120])
-    pg.locator("input[name=pb-entscheid]").first.check(); pg.locator(".pb-felder label:has-text('Visum') input, label:has-text('Visum') input").last.fill("TE")
+    pruefe(len(pp) == 1 and pp[0].get("fa_nr") == "2026000111" and pp[0].get("job_id") == "jpb1", "Erstteil mit FA und Auftrag")
+    pg.locator("input[name=pb-entscheid]").first.check(); pg.locator("label:has-text('Visum') input").last.fill("TE"); pg.wait_for_timeout(200)
     pg.click("#pb-abschliessen"); pg.wait_for_timeout(600)
     if pg.locator(".dialog-huelle").count():
-        pg.locator(".dialog-huelle .knopf--haupt, .dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(1200)
+        pg.locator(".dialog-huelle .knopf--haupt, .dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(1000)
     pp = pg.evaluate("() => TEST.daten.pruefprotokolle")
     pruefe(pp and pp[0].get("abgeschlossen_am"), "abgeschlossen")
-    # AQL
-    pg.locator("button:has-text('← 99999-0001')").first.click(); pg.wait_for_selector("#pb-neu")
-    pg.click("[data-pbneu=aql]"); pg.wait_for_selector(".dialog-huelle [data-w]"); pg.click(".dialog-huelle [data-w=jpb2]"); pg.wait_for_selector("#pb-aql"); pg.wait_for_timeout(300)
-    pg.locator(".pb-felder label:has-text('Losgrösse') input").fill("500"); pg.wait_for_timeout(300)
-    aql = pg.inner_text("#pb-aql")
-    pruefe("Stichprobe" in aql, "AQL-Plan: " + aql.replace("\n", " ")[:120])
-    pg.fill("[data-pbnio='n1']", "3"); pg.wait_for_timeout(300)
-    pruefe("Zurückweisen" in pg.inner_text("#pb-aql") or "pb-ist--schlecht" in pg.get_attribute("[data-pbnio='n1']", "class"), "AQL n.i.O. erkannt")
-    pg.wait_for_timeout(1200)
-    # LL
-    pg.locator("button:has-text('← 99999-0001')").first.click(); pg.wait_for_selector("#pb-neu")
-    pg.click("[data-pbneu=ll]"); pg.wait_for_selector(".dialog-huelle [data-w]"); pg.click(".dialog-huelle [data-w=_hand]")
-    pg.wait_for_selector(".dialog-huelle input"); pg.fill(".dialog-huelle input", "2026777777"); pg.keyboard.press("Enter"); pg.wait_for_selector("#pb-ll-wahl"); pg.wait_for_timeout(300)
-    pg.click("[data-pbll='n1']"); pg.click("[data-pbll='n2']"); pg.click("#pb-ll-fertig"); pg.wait_for_selector("#pb-ll-probe")
-    pg.click("#pb-ll-probe"); pg.wait_for_timeout(300)
-    f = pg.locator("[data-pbist^='n2-']").first
-    f.fill("12.05"); pg.wait_for_timeout(1500)
-    pruefe(pg.locator("#pb-tabelle tbody tr").count() == 3, "LL zwei Masse und Visum")
+    pg.locator("button:has-text('← Prüfberichte')").click(); pg.wait_for_selector("#pb-todo"); pg.wait_for_timeout(600)
+    pruefe(pg.locator("[data-pbtodo=erstteil] [data-pbtodoauftrag=jpb1]").count() == 0, "Erstteil nicht mehr offen")
+    pruefe(pg.locator("#pb-liste [data-pbprotokoll]").count() == 1, "in der Liste zuletzt bearbeitet")
+    # + Protokoll: Art wählen, HOCO, FA
+    pg.click("#pb-neu"); pg.wait_for_selector(".dialog-huelle [data-w]")
+    arten = pg.inner_text(".dialog-huelle")
+    pruefe("AQL" in arten and "Endkontrolle" in arten, "Menü mit Arten")
+    pg.click(".dialog-huelle [data-w=ll]"); pg.wait_for_selector(".dialog-huelle input")
+    pg.fill(".dialog-huelle input", "99999-0001"); pg.keyboard.press("Enter")
+    pg.wait_for_selector(".dialog-huelle [data-w=jpb2]"); pg.click(".dialog-huelle [data-w=jpb2]")
+    pg.wait_for_selector("#pb-ll-probe"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("#pb-tabelle tbody tr").count() == 3, "LL mit den zwei LL-Massen aus den Stammdaten")
+    pg.click("#pb-ll-probe"); pg.wait_for_timeout(1300)
     pp = pg.evaluate("() => TEST.daten.pruefprotokolle")
     ll = [x for x in pp if (x.get("kopf") or {}).get("art") == "ll"]
     pruefe(ll and len((ll[0].get("werte") or {}).get("proben") or []) == 1, "LL Stichprobe gespeichert")
-    pruefe(len(pp) == 3, "drei Protokolle: %d" % len(pp))
-    fas = sorted(str(x.get("fa_nr")) for x in pp)
-    pruefe(fas == ["2025000999", "2026000111", "2026777777"], "je FA gespeichert: %s" % fas)
-    pruefe([x.get("job_id") for x in pp if x.get("fa_nr") == "2026000111"] == ["jpb1"], "Auftrag verknüpft")
-    pg.locator("button:has-text('← 99999-0001')").first.click(); pg.wait_for_selector("#pb-neu"); pg.wait_for_timeout(500)
-    pruefe(pg.locator("[data-pbfa]").count() == 3, "Liste nach FA gruppiert: %d" % pg.locator("[data-pbfa]").count())
+    # Drucken öffnet den Betrachter
+    pg.click("#pb-drucken"); pg.wait_for_timeout(4000)
+    pruefe(pg.locator(".betrachter, .bt, [class*=betrachter]").count() > 0 or pg.locator("canvas").count() > 0, "Drucken zeigt das PDF")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
+    # Löschen
+    pg.click("#pb-loeschen"); pg.wait_for_selector(".dialog-huelle"); pg.locator(".dialog-huelle .knopf--haupt, .dialog-huelle .knopf--gefahr, .dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(800)
+    pp = pg.evaluate("() => TEST.daten.pruefprotokolle")
+    pruefe(len(pp) == 1, "LL gelöscht: %d" % len(pp))
+    pg.wait_for_selector("#pb-todo"); pg.wait_for_timeout(400)
+    pg.screenshot(path="/tmp/pb_uebersicht.png")
+    # Stammdaten: Karte Prüfung
     pruefe(not pf, "keine Seitenfehler: %s" % pf)
     br.close()
 print("Fehler:", "keine" if not fehler else fehler)
