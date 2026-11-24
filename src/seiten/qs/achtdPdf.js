@@ -14,7 +14,7 @@ const BREITE = 210, HOEHE = 297, OBEN = 12, UNTEN = 14;
 function trennstellen(blatt) {
   const oben = blatt.getBoundingClientRect().top;
   const s = new Set();
-  blatt.querySelectorAll("p, li, ul, .zwei, .kacheln, .ablauf, .titel, .fakten > div, .karte, .wirk, .dbilder figure, .unterschrift").forEach((x) => {
+  blatt.querySelectorAll("p, li, ul, tr, .pbp-kf, .pbp-fuss, .zwei, .kacheln, .ablauf, .titel, .fakten > div, .karte, .wirk, .dbilder figure, .unterschrift").forEach((x) => {
     const q = x.getBoundingClientRect();
     if (q.height) s.add(Math.ceil(q.bottom - oben) + 1);
   });
@@ -22,7 +22,13 @@ function trennstellen(blatt) {
   return [...s].filter((x) => x > 0).sort((a, b) => a - b);
 }
 
-export async function achtdPdf(w, fuss) {
+export function achtdPdf(w, fuss) {
+  return blattPdf("<style>" + STIL + "</style>" + achtdHtml(w), fuss);
+}
+
+// Ein Blatt mit dem Briefkopf über die ganze Breite (Hofer-Briefpapier),
+// in A4-Seiten zerlegt. Auch für die Prüfprotokolle.
+export async function blattPdf(html, fuss) {
   const breite = BREITE * MM;
   const huelle = document.createElement("div");
   huelle.setAttribute("aria-hidden", "true");
@@ -31,7 +37,7 @@ export async function achtdPdf(w, fuss) {
   const blatt = document.createElement("div");
   blatt.className = "rkpdf";
   blatt.style.cssText = "width:" + breite + "px";
-  blatt.innerHTML = "<style>" + STIL + "</style>" + achtdHtml(w);
+  blatt.innerHTML = html;
   huelle.appendChild(blatt);
   document.body.appendChild(huelle);
   try {

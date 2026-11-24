@@ -16671,8 +16671,8 @@ body.dunkel .pb-fagruppe__titel small { color: #aab; }
 .pb-todo__eintrag span { font-size: 13px; color: #3b5a75; overflow-wrap: anywhere; }
 .pb-todo__eintrag small { font-size: 12px; color: #8a5a00; }
 .pb-todo__erkl { margin: 8px 0 0; color: #667; }
-.pb-liste tbody tr { cursor: pointer; }
-.pb-liste tbody tr:hover td { background: #eef4fa; }
+.pb-zuletzt tbody tr { cursor: pointer; }
+.pb-zuletzt tbody tr:hover td { background: #eef4fa; }
 .pb-werkzeug { flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
 .pst-platz { flex: 1; }
 .pb-blattseite { display: flex; flex-direction: column; align-items: center; }
@@ -16702,7 +16702,7 @@ body.dunkel .pb-blatt .pb-rot { color: #c62828 !important; -webkit-text-fill-col
 body.dunkel .pb-blatt .pb-gruen { color: #2e7d32 !important; -webkit-text-fill-color: #2e7d32; }
 body.dunkel .pb-todo__spalte, body.dunkel .pb-todo__eintrag { background: #1c2733; border-color: #34465a; }
 body.dunkel .pb-todo__eintrag { border-left-color: #e08a00; }
-body.dunkel .pb-liste tbody tr:hover td { background: #24364a; }
+body.dunkel .pb-zuletzt tbody tr:hover td { background: #24364a; }
 @media (max-width: 700px) { .pb-blatt { padding: 0 4mm 8mm; min-height: 0; } .pb-brief { margin: 0 -4mm; padding: 8px 4mm; grid-template-columns: auto 1fr; } .pb-brief__siegel { display: none; } }
 
 .pst-arten { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0 10px; }
@@ -16726,4 +16726,13 @@ body.dunkel .pst-abschnitt td { background: #24364a; }
   :is(.start-paar, .start-umf) .umf-karte .umf__text,
   :is(.start-paar, .start-umf) .umf-karte .umf__titel { max-width: 440px; }
   :is(.start-paar, .start-umf) .umf-karte .umf__admin { gap: 8px; }
+}
+
+/* 1.779.2: Prüfprotokoll mit dem Briefkopf nach Hofer-Briefpapier, über die ganze Breite des Blatts */
+.pb-blatt .pb-briefkopf { margin: 0 -12mm 6mm; background: transparent; }
+.pb-blatt .pb-briefkopf .balken, .pb-blatt .pb-briefkopf .balken * { color: #fff !important; -webkit-text-fill-color: #fff; }
+@media (max-width: 700px) {
+  .pb-blatt .pb-briefkopf .balken { height: auto; min-height: 20mm; padding: 3mm 4mm; gap: 3mm; }
+  .pb-blatt .pb-briefkopf .balken img { height: 12mm; }
+  .pb-blatt .pb-briefkopf .balken img.briefsiegel, .pb-blatt .pb-briefkopf .kontakt2 { display: none; }
 }

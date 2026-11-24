@@ -16,6 +16,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
 import { passtWoerter } from "../../teile/Suchfeld.jsx";
 import { useSeitenSuche } from "../../teile/seitenSuche.js";
+import { STIL, briefkopf } from "./achtdBlatt.js";
 import {
   ARTEN, artVon, TEILE, AQL_WERTE, aqlPlan, fehltTabelle, protokolleLaden,
   stammLaden, stammMitMassen, toleranz, toleranzText, istPruefen,
@@ -277,7 +278,7 @@ function Uebersicht({ daten, neu, oeffnen }) {
             onChange={(e) => { setSuche(e.target.value); pbZustand.suche = e.target.value; }} />
         </div>
         {!zeigen.length ? <p className="klein">{daten.protokolle.length ? "Nichts gefunden." : "Noch kein Protokoll."}</p> : (
-          <table className="tabelle pb-liste" id="pb-liste">
+          <table className="tabelle pb-zuletzt" id="pb-liste">
             <thead><tr><th>Art</th><th>HOCO Nr.</th><th>FA Nr.</th><th>Datum</th><th>Ergebnis</th><th>Stand</th><th>Geändert</th><th /></tr></thead>
             <tbody>
               {zeigen.map((p) => {
@@ -367,8 +368,8 @@ function Protokoll({ p, zurueck }) {
   };
   const dateiName = () => ("Prüfprotokoll " + hoco + " " + artVon(art).kurz + (w.fa_nr ? " FA " + w.fa_nr : "") + " " + (w.datum || "") + ".pdf").replace(/[\\/:*?"<>|]/g, "");
   const pdfMachen = async () => {
-    const { pdfAusHtml } = await import("../qmAlt/checklistePdf.js");
-    return pdfAusHtml(protokollHtml(w, hoco), "Prüfprotokoll " + hoco + " · " + artVon(art).name);
+    const { blattPdf } = await import("./achtdPdf.js");
+    return blattPdf("<style>" + STIL + "</style>" + protokollHtml(w, hoco), "Prüfprotokoll " + hoco + " · " + artVon(art).name);
   };
   // Drucken: PDF im Betrachter der App, dort mit seinem Knopf Drucken
   const drucken = async () => {
@@ -406,11 +407,7 @@ function Protokoll({ p, zurueck }) {
       </div>
 
       <div className="pb-blatt hell-bleibt" id="pb-blatt">
-        <div className="pb-brief">
-          {alt.LOGO_BRIEF ? <img src={alt.LOGO_BRIEF} alt="Hofer + Co" /> : <b>Hofer + Co</b>}
-          <div><b>Hofer + Co. Präzisionsdrehteile</b><br />Lohn-Ammannsegg</div>
-          {alt.SIEGEL_BRIEF ? <img className="pb-brief__siegel" src={alt.SIEGEL_BRIEF} alt="ISO 9001" /> : <span />}
-        </div>
+        <div className="rkpdf pb-briefkopf" dangerouslySetInnerHTML={{ __html: "<style>" + STIL + "</style>" + briefkopf() }} />
         <h2 className="pb-blatt__titel">Prüfprotokoll · {artVon(art).name}</h2>
         <KopfRaster kopf={w.kopf.vorlage || {}} w={w} hoco={hoco} />
         <div className="pb-felder">
@@ -655,17 +652,15 @@ function protokollHtml(w, hoco) {
     .concat(plan ? [["Losgrösse", alt.zahlText(Number(k.los))], ["AQL / Niveau", k.aql + " / " + (k.niveau || "II")], ["Stichprobe", plan.n + " Stk, Ac " + plan.ac + " / Re " + plan.re]] : []);
   const e = auswerten(w);
   return "<style>"
-    + ".pbp{font-family:Arial,sans-serif;color:#111;font-size:9pt}.pbp .brief{background:#003884;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:10px 16px;height:30mm;box-sizing:border-box}"
-    + ".pbp .brief img{height:16mm}.pbp .brief .sg{height:18mm}.pbp .brief div{font-size:7.5pt;line-height:1.35}.pbp .brief b{font-size:8.5pt}"
-    + ".pbp h1{font-size:15pt;margin:10px 0 6px}.pbp .kf{display:grid;grid-template-columns:repeat(4,1fr);gap:3px 12px;margin-bottom:8px}.pbp .kf small{color:#666;display:block;font-size:7pt}"
+    + ".pbp{font-family:Arial,sans-serif;color:#111;font-size:9pt}"
+    + ".pbp h1{font-size:15pt;margin:0 0 6px;color:#003884}.pbp .pbp-kf{display:grid;grid-template-columns:repeat(4,1fr);gap:3px 12px;margin-bottom:8px}.pbp .pbp-kf small{color:#666;display:block;font-size:7pt}"
     + ".pbp table{width:100%;border-collapse:collapse}.pbp th,.pbp td{border:1px solid #999;padding:2px 4px;text-align:left;font-size:8pt}.pbp th{background:#e8eef6}.pbp tr.ab td{background:#f3f3f3;font-weight:700}"
-    + ".pbp .fuss{display:flex;gap:24px;margin-top:10px}.pbp .fuss div{flex:1}</style>"
-    + "<div class='pbp'><div class='brief'>" + (alt.LOGO_BRIEF ? "<img src='" + alt.LOGO_BRIEF + "'>" : "")
-    + "<div><b>Hofer + Co. Präzisionsdrehteile</b><br>Lohn-Ammannsegg</div>" + (alt.SIEGEL_BRIEF ? "<img class='sg' src='" + alt.SIEGEL_BRIEF + "'>" : "") + "</div>"
+    + ".pbp .pbp-fuss{display:flex;gap:24px;margin-top:10px}.pbp .pbp-fuss div{flex:1}</style>"
+    + briefkopf() + "<div class='inhalt pbp'>"
     + "<h1>Prüfprotokoll · " + h(artVon(art).name) + "</h1>"
-    + "<div class='kf'>" + felder.filter(([, x]) => x).map(([n, x]) => "<div><small>" + h(n) + "</small>" + h(x) + "</div>").join("") + "</div>"
+    + "<div class='pbp-kf'>" + felder.filter(([, x]) => x).map(([n, x]) => "<div><small>" + h(n) + "</small>" + h(x) + "</div>").join("") + "</div>"
     + "<table><thead><tr><th>Nr.</th><th>Soll</th><th>Toleranz</th>" + kopfZ + "<th>Prüfmittel</th></tr></thead><tbody>" + koerper + "</tbody></table>"
-    + "<div class='fuss'><div><b>Ergebnis:</b> " + e.gut + " i.O." + (e.schlecht ? ", " + e.schlecht + " n.i.O." : "") + "</div>"
+    + "<div class='pbp-fuss'><div><b>Ergebnis:</b> " + e.gut + " i.O." + (e.schlecht ? ", " + e.schlecht + " n.i.O." : "") + "</div>"
     + "<div><b>Prüf-Entscheid:</b> " + h(entscheidText(w.entscheid)) + "</div><div><b>Visum:</b> " + h(w.visum) + "</div></div>"
     + (w.bemerkung ? "<p><b>Bemerkung:</b> " + h(w.bemerkung) + "</p>" : "") + "</div>";
 }

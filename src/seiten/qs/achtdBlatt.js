@@ -97,7 +97,8 @@ export const STIL = `
 .rkpdf .unterschrift div { border-top: .6pt solid #33405a; padding-top: 1mm; font-size: 7.5pt; color: #6b7890; }
 `;
 
-function briefkopf() {
+// Briefkopf nach Hofer-Briefpapier (CLAUDE.md), auch für die Prüfprotokolle
+export function briefkopf() {
   return '<div class="balken">'
     + '<img src="' + (alt.LOGO_BRIEF || "./logo-weiss.svg") + '" alt="Hofer + Co.">'
     + '<div class="adresse"><span class="firma">Hofer + Co. Präzisionsdrehteile</span><br>'
