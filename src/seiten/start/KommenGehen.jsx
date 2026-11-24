@@ -38,7 +38,7 @@ export default function KommenGehen() {
   }, [darf]);
   useEffect(() => {
     if (!bild) return;
-    const t = setTimeout(() => setBild(null), 3500);
+    const t = setTimeout(() => setBild(null), 9000);
     return () => clearTimeout(t);
   }, [bild]);
 

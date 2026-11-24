@@ -101,7 +101,13 @@ export function StempelBild({ name, art }) {
     return () => { weg = true; clearTimeout(t); };
   }, [name, a]);
   const ton = TOENE[name + "-" + a];
-  useEffect(() => { if (src && ton) ton(); }, [!!src, ton]);
+  // Die Animation läuft alle 3 s im Kreis: der Ton läuft im selben Takt mit, solange sie zu sehen ist
+  useEffect(() => {
+    if (!src || !ton) return undefined;
+    ton();
+    const t = setInterval(ton, 3000);
+    return () => clearInterval(t);
+  }, [!!src, ton]);
   if (!name || !src) return null;
   return <img className="ze-bestaetigt__bild" src={src} alt="" data-ze-stempelbild={name} />;
 }
