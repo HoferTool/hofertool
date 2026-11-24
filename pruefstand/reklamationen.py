@@ -100,7 +100,15 @@ with sync_playwright() as p:
     if not cfg or "Eigener Punkt Test" not in cfg.get("wert", ""): fehler.append("Liste nicht gespeichert: " + str(cfg))
     pg.click("[data-rk8d='d7'] [data-rkhaken='Eigener Punkt Test']")
     if "Eigener Punkt Test" not in pg.inner_text("#rk-vorschau section[data-s='d7']"): fehler.append("Eigener Punkt nicht in Vorschau")
+    # Bild zu einem D-Punkt (1.767.0): erscheint gleich in der Vorschau unter D7
+    png = bytes.fromhex("89504e470d0a1a0a0000000d4948445200000001000000010806000000"
+        "1f15c4890000000d4944415478da63f8cfc0f01f0005000201e2a6f1e90000000049454e44ae426082")
+    pg.set_input_files("[data-rkdfeld='d7']", files=[{"name": "massnahme.png", "mimeType": "image/png", "buffer": png}])
+    pg.wait_for_timeout(300)
+    if not pg.locator("#rk-vorschau section[data-s='d7'] .dbilder img").count(): fehler.append("Bild D7 nicht in Vorschau")
+    if pg.locator("#rk-vorschau section[data-s='d3'] .dbilder img").count(): fehler.append("Bild D7 bei D3")
     vt = pg.inner_text("#rk-vorschau")
+    if not pg.locator("#rk-vorschau ul.auf li").count(): fehler.append("Angekreuztes nicht als Aufzählung")
     for x in ("D1", "D8", "Team", "Abstellmassnahmen einführen"):
         if x not in vt: fehler.append("Vorschau ohne " + x)
     if BILDER: pg.screenshot(path=BILDER + "/rk-fenster.png", full_page=True)
@@ -117,7 +125,32 @@ with sync_playwright() as p:
         if "Qualität" not in (z.get("achtd") or {}).get("d1", []): fehler.append("D1 nicht gespeichert")
         if "Eigener Punkt Test" not in (z.get("achtd") or {}).get("d7", []): fehler.append("Eigener Punkt nicht gespeichert")
         if z.get("nr") != "RK26-002": fehler.append("Nummer: " + str(z.get("nr")))
+        dd = [x for x in (z.get("dateien") or []) if x.get("d") == "d7"]
+        if len(dd) != 1 or dd[0].get("typ") != "bild": fehler.append("Bild D7 nicht gespeichert: " + str(z.get("dateien")))
         if (z.get("kopf") or {}).get("lieferschein") != "LS-1": fehler.append("Kopf nicht gespeichert: " + str(z.get("kopf")))
+    pg.click("#rk-fenster [data-zu]"); pg.wait_for_timeout(500)
+    # Stammdaten aus dem Bericht (1.776.0): gemerkt in app_config.rk_stamm,
+    # beim nächsten Mal genügt der Name
+    st = pg.evaluate("() => (TEST.daten.app_config || []).find(x => x.schluessel === 'rk_stamm')")
+    if not st or "kunde:kunde b" not in st.get("wert", ""): fehler.append("Stammdaten nicht gemerkt: " + str(st))
+    pg.click("#rk-neu"); pg.wait_for_selector("#rk-fenster")
+    pg.evaluate("() => { TEST.daten.reklamationen = TEST.daten.reklamationen.filter(r => r.partner !== 'Kunde B'); }")
+    pg.fill("#rk-f-partner", "kunde b"); pg.locator("#rk-f-partner").blur(); pg.wait_for_timeout(300)
+    if pg.input_value("#rk-f-partner") != "Kunde B": fehler.append("Name nicht wie gemerkt: " + pg.input_value("#rk-f-partner"))
+    if pg.input_value("#rk-f-kontakt") != "Herr Alt": fehler.append("Kontakt nicht aus Gemerktem: " + pg.input_value("#rk-f-kontakt"))
+    if "Solothurn" not in pg.input_value("#rk-k-adresse"): fehler.append("Adresse nicht aus Gemerktem")
+    pg.click("#rk-fenster [data-zu]"); pg.wait_for_timeout(500)
+    if pg.locator(".dialog-huelle").count():
+        b = pg.locator(".dialog-huelle button:has-text('Verwerfen'), .dialog-huelle button:has-text('Schliessen')")
+        if b.count(): b.first.click(); pg.wait_for_timeout(300)
+    # Interne Reklamation: kein „8D-Report“ im Titel, Kopf bleibt
+    pg.click("#rk-neu"); pg.wait_for_selector("#rk-fenster")
+    pg.click("[data-rkfart='intern']"); pg.wait_for_timeout(200)
+    h1 = pg.inner_text("#rk-vorschau h1")
+    if "Interne Reklamation" not in h1 or "8D" in h1: fehler.append("Titel intern: " + h1)
+    if not pg.locator("#rk-vorschau .kacheln").count(): fehler.append("Kopf intern fehlt")
+    if "8D" in pg.inner_text("#rk-bericht"): fehler.append("Knopf intern: " + pg.inner_text("#rk-bericht"))
+    if BILDER: pg.screenshot(path=BILDER + "/rk-intern.png")
     pg.click("#rk-fenster [data-zu]"); pg.wait_for_timeout(500)
     # Dunkel
     pg.evaluate("document.body.classList.add('dunkel')")

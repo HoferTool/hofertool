@@ -3,7 +3,7 @@
 //  24. November 2026: „alle Berichte per Pfad hochladen und daraus ein
 //  Prüfprotokoll machen, das per Tool läuft und ähnlich aufgebaut ist“,
 //  „soll unter QS als weiterer Reiter kommen“).
-//  Seit 1.774.0 (Patrick 24. November 2026: „die Excel sollen nie mehr
+//  Seit 1.779.0 (Patrick 24. November 2026: „die Excel sollen nie mehr
 //  angezeigt werden“, „was wo gemacht werden muss, wird bei Stammdaten
 //  definiert“): welche Prüfungen und welche Masse gelten, steht in den
 //  Stammdaten der HOCO Nr. (src/hoco/Pruefung.jsx, Tabelle pruef_stamm).

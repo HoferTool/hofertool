@@ -14,7 +14,7 @@ const BREITE = 210, HOEHE = 297, OBEN = 12, UNTEN = 14;
 function trennstellen(blatt) {
   const oben = blatt.getBoundingClientRect().top;
   const s = new Set();
-  blatt.querySelectorAll("p, li, ul, .zwei, .kacheln, .ablauf, .titel, .fakten > div, .karte, .wirk, .unterschrift").forEach((x) => {
+  blatt.querySelectorAll("p, li, ul, .zwei, .kacheln, .ablauf, .titel, .fakten > div, .karte, .wirk, .dbilder figure, .unterschrift").forEach((x) => {
     const q = x.getBoundingClientRect();
     if (q.height) s.add(Math.ceil(q.bottom - oben) + 1);
   });
@@ -58,7 +58,7 @@ export async function achtdPdf(w, fuss) {
       const h = Math.max(1, bis - von);
       huelle.style.height = h + "px";
       blatt.style.marginTop = -von + "px";
-      const bild = await html2canvas(huelle, { scale: 2, backgroundColor: "#ffffff", logging: false,
+      const bild = await html2canvas(huelle, { scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false,
         width: breite, height: h, windowWidth: Math.ceil(breite) + 40 });
       if (n) pdf.addPage("a4", "portrait");
       pdf.addImage(bild.toDataURL("image/jpeg", 0.9), "JPEG", 0, n ? OBEN : 0, BREITE, h / MM);

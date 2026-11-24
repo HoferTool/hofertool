@@ -1,5 +1,5 @@
 // =================================================================
-//  PRÜFUNG IN DEN STAMMDATEN EINER HOCO NR. (seit 1.774.0, Wunsch Patrick
+//  PRÜFUNG IN DEN STAMMDATEN EINER HOCO NR. (seit 1.779.0, Wunsch Patrick
 //  24. November 2026: „was wo gemacht werden muss, wird bei Stammdaten
 //  definiert“, „Excel hochladen nur per Stammdaten, neue sollen dort
 //  gleich ausgefüllt werden“).

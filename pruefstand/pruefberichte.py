@@ -1,4 +1,4 @@
-# Prüfberichte (seit 1.774.0, Wunsch Patrick 24. November 2026): was nötig ist
+# Prüfberichte (seit 1.779.0, Wunsch Patrick 24. November 2026): was nötig ist
 # und die Masse stehen in den Stammdaten der HOCO Nr. (pruef_stamm); im Reiter
 # Todos Erstteil / AQL / LL, Liste der zuletzt bearbeiteten, „+ Protokoll“ mit
 # Wahl der Art, Protokoll als A4-Blatt, drucken, löschen. Nur erfundene Daten.

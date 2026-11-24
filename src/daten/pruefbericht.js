@@ -248,7 +248,7 @@ export async function dateiHochladen(datei) {
   return { zeile: data, ersetzt: gleich, bericht: b };
 }
 
-// ---------- Prüfung in den Stammdaten (seit 1.774.0, Wunsch Patrick
+// ---------- Prüfung in den Stammdaten (seit 1.779.0, Wunsch Patrick
 // 24. November 2026: „was wo gemacht werden muss, wird bei Stammdaten
 // definiert“, „Excel hochladen nur per Stammdaten, neue sollen dort gleich
 // ausgefüllt werden“). Tabelle pruef_stamm aus sql/pruef-stamm.sql:
@@ -263,7 +263,7 @@ export async function stammLaden(hoco) {
 }
 
 // Stamm einer HOCO Nr. mit Masse: gespeicherte, sonst still aus den
-// früher abgelegten Excel-Vorlagen (Ordner oder von Hand vor 1.774.0)
+// früher abgelegten Excel-Vorlagen (Ordner oder von Hand vor 1.779.0)
 export async function stammMitMassen(hoco) {
   const st = await stammLaden(hoco).catch((f) => { if (fehltTabelle(f)) return null; throw f; });
   if (st && (st.zeilen || []).length) return { ...st, aus: "stamm" };

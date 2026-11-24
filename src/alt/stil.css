@@ -16539,6 +16539,9 @@ body.dunkel .rk-liste { background: #1d2630; }
 .rk-liste__zeile .knopf, .rk-liste__kopf .knopf { min-height: 0; height: 32px; padding: 0 10px; }
 .rk-liste__zeile, .rk-liste__kopf { margin: 3px 0; }
 
+/* 1.767.0: Bilder und Dateien je D-Punkt in der Reklamation */
+.rk-danhang { margin-top: 10px; }
+.rk-danhang .lk-dateien { margin-top: 4px; }
 /* 1.768.0: Startseite im normalen Look, Umfrage kompakter und am PC mit dem
    Kalender nebeneinander (Wunsch Patrick 24. November 2026) */
 .start-paar > :empty { display: none; }
@@ -16657,7 +16660,7 @@ body.dunkel .pb-gruen { color: #81c784 !important; }
 body.dunkel .pb-fagruppe__titel small { color: #aab; }
 .pb-pflicht input { border-color: #c00 !important; box-shadow: 0 0 0 1px #c00; }
 
-/* ===== 1.774.0 Prüfberichte: Todos, Liste, A4-Blatt; Prüfung in den Stammdaten ===== */
+/* ===== 1.779.0 Prüfberichte: Todos, Liste, A4-Blatt; Prüfung in den Stammdaten ===== */
 .pb-todo { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin: 10px 0 14px; }
 .pb-todo__spalte { background: #fff; border: 1px solid #d6dee8; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; min-width: 0; }
 .pb-todo__spalte h3 { margin: 0 0 8px; font-size: 15px; display: flex; gap: 8px; align-items: center; color: var(--marke, #003884); }
@@ -16715,3 +16718,12 @@ body.dunkel .pb-liste tbody tr:hover td { background: #24364a; }
 .pst-knoepfe { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
 body.dunkel .pst-zeile input, body.dunkel .pst-zeile select, body.dunkel .pst-tabelle input { background: #13202c; border-color: #34465a; }
 body.dunkel .pst-abschnitt td { background: #24364a; }
+/* 1.778.0: Umfrage auf der Startseite schmaler (Patrick 24. November 2026:
+   „braucht zu viel Platz für nichts“): Knöpfe unter dem Titel statt daneben,
+   Titel und Text höchstens 440 breit, so schrumpft die Karte auf die Vorschläge */
+@media (min-width: 1000px) {
+  :is(.start-paar, .start-umf) .umf-karte .umf__kopf { flex-direction: column; align-items: flex-start; gap: 6px; }
+  :is(.start-paar, .start-umf) .umf-karte .umf__text,
+  :is(.start-paar, .start-umf) .umf-karte .umf__titel { max-width: 440px; }
+  :is(.start-paar, .start-umf) .umf-karte .umf__admin { gap: 8px; }
+}
