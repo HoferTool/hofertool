@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.789.0 (24. November 2026)
+
+- Planer (Patrick: „zu gross die Schrift und so, und viel abgeschnitten“): kleinere Schrift überall; ist die Materialkarte schmal, rutschen Material und Stand je Zeile unter die HOCO Nr., nichts ragt mehr rechts hinaus; am iPad hochkant liegt die Todo-Liste nicht mehr unter der Materialkarte; Maschine und HOCO Nr. kleben nicht mehr aneinander.
+
 ## 1.767.0 (24. November 2026)
 
 - HOFERCAM: neue Vorlage „Tieflochbohren mit Pilot und Eilgang“ nach Patricks Block (Eilgang mit G10L52 N1420 senken, anbohren, Pilot mit wenig HD, G83 mit viel HD, zurück). Neue Vorlage „Zähler (Schleife), verschachtelt“ mit WHILE / DO bis 3 Ebenen und Grafik. Simulation übergeht G10L52 … G11. HD-Stufen der SW-20 bis 7.
