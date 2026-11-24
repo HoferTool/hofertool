@@ -1,5 +1,5 @@
 // =================================================================
-//  PRÜFBERICHTE (seit 1.770.0, Wunsch Patrick 24. November 2026:
+//  PRÜFBERICHTE (seit 1.771.0, Wunsch Patrick 24. November 2026:
 //  „alle Berichte per Pfad hochladen und daraus ein Prüfprotokoll machen,
 //  das per Tool läuft und ähnlich aufgebaut ist“)
 //  Die Excel-Prüfberichte (Kopf A1:I7, Tabelle ab der Zeile „Nr. | Soll
@@ -248,7 +248,7 @@ export async function dateiHochladen(datei) {
   return { zeile: data, ersetzt: gleich, bericht: b };
 }
 
-// ---------- Arten von Berichten (seit 1.770.0, Wunsch Patrick 24. November 2026:
+// ---------- Arten von Berichten (seit 1.771.0, Wunsch Patrick 24. November 2026:
 // „Teileprüfbericht, wo man 5 Teile für Erstteilprüfung oder Endkontrolle
 // braucht … AQL … und LL Langläufer, wichtige Masse auf eine Liste und dann
 // täglich stichprobenmässig kontrolliert“) ----------

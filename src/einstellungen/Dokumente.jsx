@@ -519,7 +519,7 @@ function EbFormular({ werte, typen }) {
   );
 }
 
-// ---------- Prüfbericht-Ordner (nur lesen, seit 1.770.0) ----------
+// ---------- Prüfbericht-Ordner (nur lesen, seit 1.771.0) ----------
 //  pruefberichte.ps1 lädt aus diesen Ordnern alle Excel-Prüfberichte mit
 //  HOCO Nr. im Namen oder im Namen eines Ordners darüber hoch; die App
 //  zeigt sie unter Qualitätssicherung → Prüfberichte (Wunsch Patrick

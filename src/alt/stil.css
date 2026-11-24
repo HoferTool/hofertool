@@ -16612,7 +16612,7 @@ body.dunkel .rk-liste { background: #1d2630; }
 /* 1.769.0 Prüfmittel: bald fällige Prüfung */
 .pm-bald { color: var(--warn, #b26b00); font-weight: 600; }
 
-/* ---------- 1.770.0 Prüfberichte (QS) ---------- */
+/* ---------- 1.771.0 Prüfberichte (QS) ---------- */
 .pb { display: flex; flex-direction: column; gap: 14px; }
 .pb-kopfzeile { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .pb-suche { flex: 1 1 240px; min-width: 0; padding: 9px 12px; border: 1px solid #c8d3df; border-radius: 10px; font-size: 15px; }

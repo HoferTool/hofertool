@@ -1,4 +1,4 @@
-# Prüfberichte (1.770.0, Wunsch Patrick 24. November 2026): Reiter in der
+# Prüfberichte (1.771.0, Wunsch Patrick 24. November 2026): Reiter in der
 # Qualitätssicherung, Excel-Bericht lesen, Lehren aus der letzten Spalte,
 # Protokolle Erstteil (5 Teile), AQL und LL anlegen und ausfüllen.
 # Nur erfundene Daten: das Excel baut der Test selbst.

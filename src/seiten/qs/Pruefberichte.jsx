@@ -1,5 +1,5 @@
 // =================================================================
-//  QUALITÄTSSICHERUNG → PRÜFBERICHTE (seit 1.770.0, Wunsch Patrick
+//  QUALITÄTSSICHERUNG → PRÜFBERICHTE (seit 1.771.0, Wunsch Patrick
 //  24. November 2026: „alle Berichte per Pfad hochladen und daraus ein
 //  Prüfprotokoll machen, das per Tool läuft und ähnlich aufgebaut ist“,
 //  „soll unter QS als weiterer Reiter kommen“).

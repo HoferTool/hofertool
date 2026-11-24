@@ -21,7 +21,7 @@ export const qsZustand = { ansicht: "ausschuss" };
 
 export function qsReiter() {
   const r = [["ausschuss", "Ausschussmeldungen"]];
-  // Prüfberichte seit 1.770.0 für alle, die QS sehen (Wunsch Patrick 24. November 2026)
+  // Prüfberichte seit 1.771.0 für alle, die QS sehen (Wunsch Patrick 24. November 2026)
   r.push(["pruefberichte", "Prüfberichte"]);
   // Reklamationsmanagement nur für Admins (seit 1.748.0, Wunsch Patrick 23. November 2026)
   if (alt.istAdmin()) r.push(["reklamationen", "Reklamationsmanagement"]);
