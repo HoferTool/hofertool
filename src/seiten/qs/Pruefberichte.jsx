@@ -19,7 +19,7 @@ import { useSeitenSuche } from "../../teile/seitenSuche.js";
 import { STIL, briefkopf } from "./achtdBlatt.js";
 import {
   ARTEN, artVon, TEILE, AQL_WERTE, aqlPlan, fehltTabelle, protokolleLaden,
-  stammLaden, stammMitMassen, toleranz, toleranzText, istPruefen,
+  stammLaden, stammMitMassen, toleranz, toleranzText, istPruefen, lehrenAus,
 } from "../../daten/pruefbericht.js";
 
 // Offenes Protokoll und Suche bleiben beim Reiterwechsel
@@ -90,7 +90,8 @@ export function anstehend(jobs, stamm, protokolle) {
     const meine = (protokolle || []).filter((p) => gehoertZu(p, j));
     const von = (art) => meine.filter((p) => (p.kopf || {}).art === art);
     const offenes = (art) => von(art).find((p) => !p.abgeschlossen_am) || null;
-    const fertig = (art) => von(art).some((p) => p.abgeschlossen_am);
+    // Erstteil gilt erst mit Freigabe als erledigt (seit 1.785.0)
+    const fertig = (art) => von(art).some((p) => p.abgeschlossen_am && (art !== "erstteil" || p.entscheid === "freigabe"));
     if (arten.includes("erstteil") && !fertig("erstteil")) aus.erstteil.push({ j, art: "erstteil", p: offenes("erstteil") });
     if (j.plan_status !== "laeuft") continue;
     if (arten.includes("endkontrolle") && !fertig("endkontrolle")) aus.endkontrolle.push({ j, art: "endkontrolle", p: offenes("endkontrolle") });
@@ -323,7 +324,21 @@ function Protokoll({ p, zurueck }) {
     }
     clearTimeout(timer.current); timer.current = null;
     const n = { ...w, abgeschlossen_am: new Date().toISOString() };
-    if (await speichern(n)) { setW(n); alt.meldung("Protokoll abgeschlossen", "gut"); }
+    if (!(await speichern(n))) return;
+    setW(n);
+    // Erstteil mit Freigabe stellt den Auftrag auf „läuft“ (seit 1.785.0,
+    // Wunsch Patrick 24. November 2026), nur den Auftrag dieses Protokolls
+    if (art === "erstteil" && n.entscheid === "freigabe" && n.job_id) {
+      try {
+        const { data: j } = await alt.db.from("jobs").select("*").eq("id", n.job_id).maybeSingle();
+        if (j && j.plan_status !== "laeuft" && j.plan_status !== "fertig" && !j.ended_at) {
+          const r = await alt.zustandSetzen(j, "laeuft");
+          alt.meldung("Erstteil freigegeben, " + j.job_number + " läuft." + (r && r.hinweis ? " " + r.hinweis : ""), "gut");
+          return;
+        }
+      } catch (f) { alt.meldung("Protokoll abgeschlossen, aber „läuft“ ging nicht: " + fehlerText(f), "warn"); return; }
+    }
+    alt.meldung("Protokoll abgeschlossen", "gut");
   };
   const wiederOeffnen = async () => {
     const n = { ...w, abgeschlossen_am: null };
@@ -361,6 +376,11 @@ function Protokoll({ p, zurueck }) {
   };
 
   const e = auswerten(w);
+  // Erstteil: zuerst die Checkliste quittieren, dann das Protokoll (seit 1.785.0).
+  // Ältere Protokolle mit schon eingetragenen Werten brauchen sie nicht.
+  const braucheCheck = art === "erstteil" && !zu && !(w.kopf.checkliste || {}).am && !(e.gut + e.schlecht);
+  if (braucheCheck) return <Checkliste w={w} hoco={hoco} schreibt={schreibt} zurueck={zurueck}
+    quittieren={(c) => { const n = { ...w, kopf: { ...w.kopf, checkliste: c } }; setW(n); speichern(n); }} />;
   return (
     <div className="pb pb-blattseite" data-pbprotokolloffen={w.id}>
       <div className="pb-kopfzeile pb-werkzeug">
@@ -419,6 +439,56 @@ function Protokoll({ p, zurueck }) {
 }
 
 // Ein Ist-Feld mit Farbe gut/schlecht
+// ---------- Checkliste vor der Erstteilprüfung ----------
+// Sind die richtigen Sachen hervorgenommen? Punkte aus den Stammdaten
+// (Zeichnung mit Index, Lehren und Messmittel der Masse), unten quittieren.
+function checkPunkte(kopf) {
+  const v = kopf.vorlage || {};
+  const { lehren, messmittel } = lehrenAus({ zeilen: masse(kopf.zeilen) });
+  const nr = (x) => "Nr. " + x.nr.join(", ");
+  return [["zeichnung", "Zeichnung" + (v.zeichnung ? " " + v.zeichnung : "") + (v.index ? ", Index " + v.index : ""), "richtige Fassung bereit"]]
+    .concat(lehren.map((l, i) => ["l" + i, l.name + (l.mass ? " " + l.mass : ""), nr(l)]))
+    .concat(messmittel.map((m, i) => ["m" + i, m.name, nr(m)]))
+    .concat([["sauber", "Prüfmittel sauber, Prüfdatum gültig", ""]]);
+}
+
+function Checkliste({ w, hoco, schreibt, zurueck, quittieren }) {
+  const punkte = useMemo(() => checkPunkte(w.kopf), [w.kopf]);
+  const [haken, setHaken] = useState({});
+  const alle = punkte.every(([id]) => haken[id]);
+  return (
+    <div className="pb pb-blattseite" data-pbcheckliste={w.id}>
+      <div className="pb-kopfzeile pb-werkzeug">
+        <button type="button" className="knopf knopf--klein" onClick={zurueck}>← Prüfberichte</button>
+        <span className="pst-platz" />
+        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(hoco)}>Stammdaten {hoco}</button>
+      </div>
+      <div className="pb-check karte">
+        <h2>Erstteilprüfung {hoco}{w.fa_nr ? " · FA " + w.fa_nr : ""}</h2>
+        <p className="klein">Zuerst prüfen, ob alles Richtige hervorgenommen ist. Danach kommt das Protokoll.</p>
+        <ul className="pb-check__liste">
+          {punkte.map(([id, text, unter]) => (
+            <li key={id}>
+              <label className={haken[id] ? "pb-check--an" : ""}>
+                <input type="checkbox" data-pbcheck={id} checked={!!haken[id]} disabled={!schreibt}
+                  onChange={(x) => setHaken((h) => ({ ...h, [id]: x.target.checked }))} />
+                <span><b>{text}</b>{unter ? <small>{unter}</small> : null}</span>
+              </label>
+            </li>
+          ))}
+        </ul>
+        {schreibt ? (
+          <div className="pb-check__fuss">
+            <button type="button" className="knopf" onClick={() => setHaken(Object.fromEntries(punkte.map(([id]) => [id, true])))}>Alle abhaken</button>
+            <button type="button" className="knopf knopf--haupt" id="pb-check-quittieren" disabled={!alle}
+              onClick={() => quittieren({ am: new Date().toISOString(), punkte: punkte.map(([id, t]) => t) })}>✓ Quittieren, weiter zum Protokoll</button>
+          </div>
+        ) : <p className="klein">Nur mit Schreibrecht.</p>}
+      </div>
+    </div>
+  );
+}
+
 function IstFeld({ wert, t, an, setzen, name }) {
   const e = istPruefen(wert, t);
   return <input className={"pb-ist" + (e ? " pb-ist--" + e : "")} value={wert || ""} disabled={!an} data-pbist={name}
