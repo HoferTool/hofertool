@@ -18,19 +18,18 @@ import { pruefmittelLaden, verlaufLaden, ARTEN, artText, ORTE, STATUS, fehltTabe
   maschineText, naechstePruefung, istFaellig, ortText, suchText, zeilenLesen,
   GRUPPEN, gruppeVon, gruppeText, PRUEFUNG_WO, pruefWoText, baldFaellig, einsatzTage } from "../daten/pruefmittel.js";
 
-const gemerkt = { reiter: "wo", suche: "", filter: "", alles: false, kurz: "" };
+const gemerkt = { reiter: "wo", suche: "", alles: false, kurz: "" };
 const T = "pruefmittel";
 
 export default function Pruefmittel({ auffrischen, eingebettet }) {
   const [reiter, setReiter] = useState(gemerkt.reiter);
   const [suche, setSuche] = useState(gemerkt.suche);
-  const [filter, setFilter] = useState(gemerkt.filter);
   // Erst nur zwei Zahlen (Wunsch Patrick 24. November 2026: „eigentlich gar
   // nix, nur wie viele raus müssen für Prüfung und wie viele noch in der
   // Rückgabekiste sind“); die ganze Verwaltung hinter „Alle Prüfmittel“.
   const [alles, setAlles] = useState(gemerkt.alles);
   const [kurz, setKurz] = useState(gemerkt.kurz);
-  useGemerkt(gemerkt, { reiter, suche, filter, alles, kurz });
+  useGemerkt(gemerkt, { reiter, suche, alles, kurz });
   const { daten, fehler, neu } = useDaten(pruefmittelLaden, [auffrischen]);
 
   useSeitenSuche({
@@ -58,29 +57,17 @@ export default function Pruefmittel({ auffrischen, eingebettet }) {
 
   const s = suche.trim().toLowerCase();
   const passt = (p) => (!s || s.split(/\s+/).every((w) => suchText(p, daten.maschinen).includes(w)))
-    && (!filter || (filter === "faellig" ? istFaellig(p) : filter === "bald" ? baldFaellig(p)
-      : filter.startsWith("g:") ? gruppeVon(p) === filter.slice(2) : p.ort_art === filter))
-    && (filter || p.status !== "weg");
+    // Zahlen-Kacheln sind seit 1.793.1 weg (Patrick: „bringt niemandem etwas“), Ausgemusterte bleiben verborgen
+    && p.status !== "weg";
   // Fällige und bald fällige zuoberst, dann nach nächster Prüfung, dann wie geladen
   const rang = (p) => istFaellig(p) ? 0 : baldFaellig(p) ? 1 : 2;
   const liste = daten.liste.filter(passt).map((p, i) => [p, i]).sort((a, b) => rang(a[0]) - rang(b[0])
     || (rang(a[0]) < 2 ? String(naechstePruefung(a[0])).localeCompare(String(naechstePruefung(b[0]))) : 0) || a[1] - b[1]).map((x) => x[0]);
-  const aktive = daten.liste.filter((p) => p.status !== "weg");
-  const zahl = (o) => aktive.filter((p) => p.ort_art === o).length;
 
   return (
     <>
       {!eingebettet && <h1 className="seitentitel">Prüfmittel</h1>}
-      <p className="klein pm-erklaerung">Provisorisch, nur für Admins. Jedes Prüfmittel mit Nr. und Mass, und wo es gerade ist:
-        im Schrank, an einer Maschine, bei einer Person oder extern. Antippen öffnet es zum Austragen, Zurückgeben oder Ändern.</p>
       <div className="mat-kopf"><button className="knopf knopf--still" id="pm-kurz" onClick={() => setAlles(false)}>← Zurück zur Übersicht</button></div>
-      <div className="pm-kacheln">
-        <Kachel wert="" text="Alle" zahl={aktive.length} filter={filter} setFilter={setFilter} />
-        {ORTE.map(([o, text, z]) => <Kachel key={o} wert={o} text={z + " " + text} zahl={zahl(o)} filter={filter} setFilter={setFilter} />)}
-        <Kachel wert="faellig" text="⏰ Prüfung fällig" zahl={aktive.filter(istFaellig).length} filter={filter} setFilter={setFilter} warn />
-        <Kachel wert="bald" text="📅 In 30 Tagen fällig" zahl={aktive.filter(baldFaellig).length} filter={filter} setFilter={setFilter} />
-        {GRUPPEN.map(([g, t]) => <Kachel key={g} wert={"g:" + g} text={t} zahl={aktive.filter((p) => gruppeVon(p) === g).length} filter={filter} setFilter={setFilter} />)}
-      </div>
       <div className="mat-kopf">
         <button className="knopf knopf--haupt" id="pm-neu" onClick={() => bearbeiten(null, daten, neu)}>+ Prüfmittel</button>
         <input className="mat-sucheingabe" id="pm-suche" type="search" value={suche}
@@ -143,14 +130,6 @@ async function quittieren(liste) {
   if (fehler) { alt.meldung(alt.fehlertext(fehler.error), "fehler"); return true; }
   alt.meldung(liste.length + " Prüfmittel eingebucht.", "gut");
   return true;
-}
-
-function Kachel({ wert, text, zahl, filter, setFilter, warn }) {
-  return (
-    <button className={"pm-kachel" + (filter === wert ? " aktiv" : "") + (warn && zahl ? " pm-kachel--warn" : "")}
-      data-pmfilter={wert || "alle"} onClick={() => setFilter(filter === wert ? "" : wert)}>
-      <b>{zahl}</b><span>{text}</span>
-    </button>);
 }
 
 // ---------- Wo ist was ----------

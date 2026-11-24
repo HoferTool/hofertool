@@ -68,11 +68,8 @@ with sync_playwright() as p:
     pg.click('[data-pm="%s"]' % p3); pg.wait_for_selector("#pm-fenster"); pg.click("#pm-austragen")
     pg.click("[data-pmortwahl='person']"); pg.fill("#pm-orttext", "Tristan Ecker"); pg.click("#pm-austragen-ok"); pg.wait_for_timeout(800)
     pruefe("Tristan Ecker" in pg.locator("[data-pmort='person']").inner_text(), "bei Person")
-    # Kachel-Filter
-    pg.click("[data-pmfilter='maschine']"); pg.wait_for_timeout(300)
-    pruefe(pg.locator(".pm-zeile").count() == 1, "Filter An Maschine zeigt 1")
-    pg.screenshot(path=BILD + "/pm-filter.png")
-    pg.click("[data-pmfilter='maschine']"); pg.wait_for_timeout(300)
+    # 1.793.1: keine Zahlen-Kacheln mehr
+    pruefe(pg.locator(".pm-kachel, .pm-kacheln").count() == 0, "keine Zahlen-Kacheln")
     pg.screenshot(path=BILD + "/pm-wo.png", full_page=True)
     # Zurück in den Schrank
     pg.click('[data-pm="%s"]' % pid); pg.wait_for_selector("#pm-fenster")
@@ -85,12 +82,9 @@ with sync_playwright() as p:
     pruefe(pg.locator(".pm-tabelle tbody tr").count() == 4, "Liste mit 4")
     # 1.765.0: fällige zuoberst, extern als Kalibrierung, Gruppen
     pg.evaluate("() => { TEST.daten.pruefmittel.find(x => x.nr === 'PM-002').letzte_pruefung = '2024-01-01'; }")
-    pg.click("[data-pmfilter='faellig']"); pg.wait_for_timeout(300); pg.click("[data-pmfilter='faellig']"); pg.wait_for_timeout(300)
+    pg.fill("#pm-suche", "PM"); pg.wait_for_timeout(300); pg.fill("#pm-suche", ""); pg.wait_for_timeout(300)
     erste = pg.locator(".pm-tabelle tbody tr").first.inner_text()
     pruefe("PM-002" in erste and "Extern kalibrieren" in erste, "fällige zuoberst mit extern: %s" % erste)
-    pg.click("[data-pmfilter='g:lehre']"); pg.wait_for_timeout(300)
-    pruefe(pg.locator(".pm-tabelle tbody tr").count() == 2, "Filter Lehre zeigt Grenz- und Gewindelehrdorn")
-    pg.click("[data-pmfilter='g:lehre']"); pg.wait_for_timeout(300)
     pg.screenshot(path=BILD + "/pm-liste.png")
     # 1.793.0 Rückgabekiste: zwei in die Kiste, eines zählt noch, alles quittieren
     pg.evaluate("""() => { const l = TEST.daten.pruefmittel;

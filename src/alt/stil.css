@@ -16364,15 +16364,6 @@ body.dunkel .eba-pf-zeichen button { background: #1d2733; }
 /* ---- Prüfmittel wieder da (1.755.0, Wunsch Patrick 24. November 2026) ---- */
 /* ---------- Prüfmittel (provisorisch, seit 1.557.0) ---------- */
 .pm-erklaerung { margin: -4px 0 12px; color: var(--gedaempft); max-width: 900px; }
-.pm-kacheln { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; }
-.pm-kachel { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 14px;
-  border: 1px solid var(--linie); border-radius: var(--radius); background: var(--flaeche); color: var(--tinte);
-  font: inherit; cursor: pointer; text-align: left; transition: border-color .15s, box-shadow .15s; }
-.pm-kachel b { font-size: 1.6rem; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--marke); }
-.pm-kachel span { font-size: .85rem; color: var(--gedaempft); }
-.pm-kachel:hover { border-color: var(--marke); }
-.pm-kachel.aktiv { border-color: var(--marke); box-shadow: inset 0 0 0 2px var(--marke); }
-.pm-kachel--warn b { color: var(--warnung); }
 .pm-wo .karte__kopf h2 { font-size: 1.05rem; }
 .pm-park + .pm-park { margin-top: 12px; }
 .pm-park__titel { margin: 6px 0 8px; font-size: .85rem; font-weight: 650; color: var(--gedaempft);
