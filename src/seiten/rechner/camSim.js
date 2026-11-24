@@ -168,7 +168,7 @@ export function bahnLesen(zeilen, v, { mitG50 = false, start = null } = {}) {
     pc++;
     if (!s || s === "%") continue;
     // G10L52 … G11 (Parameter setzen, etwa Eilgang N1420P5R15000000) fährt
-    // nicht, auch die Zeilen dazwischen nicht, seit 1.764.0
+    // nicht, auch die Zeilen dazwischen nicht, seit 1.767.0
     if (/G10\s*L52/.test(s)) { param = !/G11(?!\d)/.test(s); continue; }
     if (param) { if (/G11(?!\d)/.test(s)) param = false; continue; }
     if (/^G11(?!\d)/.test(s)) continue;

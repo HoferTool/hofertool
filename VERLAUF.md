@@ -3,7 +3,7 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
-## 1.764.0 (24. November 2026)
+## 1.767.0 (24. November 2026)
 
 - HOFERCAM: neue Vorlage „Tieflochbohren mit Pilot und Eilgang“ nach Patricks Block (Eilgang mit G10L52 N1420 senken, anbohren, Pilot mit wenig HD, G83 mit viel HD, zurück). Neue Vorlage „Zähler (Schleife), verschachtelt“ mit WHILE / DO bis 3 Ebenen und Grafik. Simulation übergeht G10L52 … G11. HD-Stufen der SW-20 bis 7.
 

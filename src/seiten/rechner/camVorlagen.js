@@ -67,7 +67,7 @@ export const VORLAGEN = [
     ],
   },
   {
-    // Seit 1.764.0 (Patrick 24. November 2026, nach seinem Block mit
+    // Seit 1.767.0 (Patrick 24. November 2026, nach seinem Block mit
     // „EILGANG AUF 15M“: „mach mir eine vorlage dafür“): Anbohren, in die
     // Pilotbohrung fahren mit wenig Hochdruck, dann G83 mit viel Hochdruck,
     // der Eilgang der Achse ist für den Zyklus mit G10L52 / N1420 gesenkt
@@ -97,7 +97,7 @@ export const VORLAGEN = [
     ],
   },
   {
-    // Seit 1.764.0 (Patrick 24. November 2026: „Vorlage für die
+    // Seit 1.767.0 (Patrick 24. November 2026: „Vorlage für die
     // Zählerfunktion … auch verschachtelt, also Zähler innerhalb eines
     // Zählers … mit Grafik“): WHILE … DO / END bis drei Ebenen, Zähler
     // zählen von 0 aufwärts, damit man sie im Code für Lagen braucht

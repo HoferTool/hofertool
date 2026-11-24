@@ -220,7 +220,7 @@ function M142() {
   );
 }
 
-// Tieflochbohren mit Pilot (seit 1.764.0): anbohren, in die Pilotbohrung
+// Tieflochbohren mit Pilot (seit 1.767.0): anbohren, in die Pilotbohrung
 // mit wenig Hochdruck, dann G83 mit viel Hochdruck, Eilgang gesenkt
 function TiefPilot() {
   return (
@@ -244,7 +244,7 @@ function TiefPilot() {
   );
 }
 
-// Zähler (seit 1.764.0): Kästen ineinander, je Ebene Anzahl und Zähler,
+// Zähler (seit 1.767.0): Kästen ineinander, je Ebene Anzahl und Zähler,
 // zeichnet sich nach den Feldern
 function Zaehler({ w = {} }) {
   const n = Math.max(1, Math.min(3, Number(w.EB) || 1));
