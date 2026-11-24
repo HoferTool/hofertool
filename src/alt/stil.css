@@ -16909,3 +16909,15 @@ body.dunkel .rk-fertigung { background: #2c2716; border-color: #a77a00; }
 body.dunkel .rk-nachweis { background: #183224; border-color: #2e6a44; }
 .dialog.qs-quitt, .dialog.qs-quitt .qs-quitt__text, .dialog.qs-quitt .qs-quitt__punkt { color: #1a2330; }
 body.dunkel .dialog.qs-quitt, body.dunkel .dialog.qs-quitt .qs-quitt__text, body.dunkel .dialog.qs-quitt .qs-quitt__punkt { color: #fff; }
+/* 1.790.0: Stimmen im Fenster „Umfrage bearbeiten“ */
+.umf-st { margin-top: 6px; border-top: 1px solid var(--linie); padding-top: 4px; }
+.umf-st__liste { display: grid; gap: 4px; margin-bottom: 8px; }
+.umf-st__zeile { display: grid; grid-template-columns: minmax(80px, auto) 1fr auto; gap: 10px; align-items: center;
+  padding: 6px 10px; border: 1px solid var(--linie); border-radius: 8px; }
+.umf-st__zeile span { overflow-wrap: anywhere; }
+.umf-st__neu { display: grid; gap: 8px; padding: 10px; border: 1px dashed var(--linie-stark); border-radius: 8px; }
+.umf-st__neu input[type="text"] { padding: 8px 10px; font: inherit; border: 1px solid var(--linie-stark); border-radius: 6px; }
+.umf-st__wahl { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.umf-st__wahl.fehlt { outline: 2px solid var(--rot, #c62828); outline-offset: 3px; border-radius: 4px; }
+.umf-st__wahl label { display: flex; gap: 6px; align-items: center; }
+.umf-st__neu .knopf { justify-self: start; }

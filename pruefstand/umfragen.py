@@ -90,11 +90,12 @@ with sync_playwright() as p:
             vorher = reihe()
             pruefe("drei Umfragen mit Griff", len(vorher) == 3 and pg.locator("#umf-liste-offen .ziehliste__griff").count() == 3)
             letzte = pg.locator("#umf-liste-offen > li").nth(2).locator(".ziehliste__griff")
+            pg.evaluate("document.querySelector('#umf-liste-offen').scrollIntoView({block: 'end'})"); pg.wait_for_timeout(200)
             erste = pg.locator("#umf-liste-offen > li").nth(0).bounding_box()
             b = letzte.bounding_box()
             pg.mouse.move(b["x"] + b["width"] / 2, b["y"] + b["height"] / 2); pg.mouse.down()
             for i in range(1, 16):
-                pg.mouse.move(b["x"] + b["width"] / 2, b["y"] + (erste["y"] - 150 - b["y"]) * i / 15)
+                pg.mouse.move(b["x"] + b["width"] / 2, b["y"] + (max(erste["y"] - 150, 2) - b["y"]) * i / 15)
                 pg.wait_for_timeout(20)
             pg.mouse.up(); pg.wait_for_timeout(1200)
             nachher = reihe()
@@ -110,7 +111,7 @@ with sync_playwright() as p:
     # Seit 1.774.0: auch Mitarbeiter legen Umfragen an, Namen sichtbar mit Häkchen
     pg = br.new_context(viewport={"width": 1440, "height": 900}).new_page()
     pg.on("pageerror", lambda e: fehler.append("SEITENFEHLER: " + str(e)[:160]))
-    MA = DAZU + "TEST.daten.profiles[0].role = 'mitarbeiter'; TEST.daten.umfragen[0].namen_zeigen = true; TEST.daten.umfragen[0].erstellt_von = 'u9';"
+    MA = DAZU + "TEST.daten.profiles[0].role = 'mitarbeiter'; TEST.daten.umfragen[0].namen_zeigen = true; TEST.daten.umfragen[0].erstellt_von = 'u9'; TEST.daten.umfragen.push({ id: 'u-9', titel: 'Grillfest?', mehrfach: false, offen: true, erstellt_von: 'u1', sort: 5, umfrage_vorschlaege: [{ id: 'v-91', umfrage_id: 'u-9', text: 'Ja', sort: 0 }, { id: 'v-92', umfrage_id: 'u-9', text: 'Nein', sort: 1 }], umfrage_stimmen: [{ id: 's-91', vorschlag_id: 'v-91', name: 'Lea' }] });"
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FAKE + MA))
     for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
         pg.route(u, lambda r: r.abort())
@@ -126,6 +127,21 @@ with sync_playwright() as p:
     neu = pg.evaluate("TEST.daten.umfragen.find(u => u.titel === 'Kaffee oder Tee?')")
     pruefe("Mitarbeiter: Umfrage angelegt mit Ersteller", bool(neu) and neu.get("erstellt_von") == "u1")
     pruefe("Mitarbeiter: eigene verwalten", pg.locator(f"[data-umfbearb='{neu['id'] if neu else ''}']").count() == 1)
+    # Seit 1.790.0: Stimmen im Fenster Bearbeiten eintragen und löschen
+    if True:
+        neu = {"id": "u-9"}
+        pg.click("[data-umfbearb='u-9']"); pg.wait_for_selector("#umf-stimmen")
+        pg.fill("#umf-st-name", "Max"); pg.click("#umf-st-dazu"); pg.wait_for_timeout(300)
+        pruefe("Stimme ohne Wahl abgewiesen", pg.locator(".umf-st__wahl.fehlt").count() == 1)
+        pg.locator("[data-umfstwahl]").first.check(); pg.click("#umf-st-dazu"); pg.wait_for_timeout(700)
+        st = pg.evaluate(f"TEST.daten.umfrage_stimmen.filter(s => s.umfrage_id === '{neu['id']}' && s.name === 'Max').length")
+        pruefe("Stimme eingetragen", st == 1 and pg.locator("[data-umfst='Max']").count() == 1)
+        pg.locator("#umf-stimmen").screenshot(path=SP + "umfrage_stimmen.png")
+        pg.click("[data-umfstweg='Max']"); pg.wait_for_timeout(700)
+        st = pg.evaluate(f"TEST.daten.umfrage_stimmen.filter(s => s.umfrage_id === '{neu['id']}' && s.name === 'Max').length")
+        pruefe("Stimme gelöscht", st == 0 and pg.locator("[data-umfst='Max']").count() == 0)
+        pg.click("[data-umfstweg='Lea']"); pg.wait_for_timeout(500)
+        pruefe("alte Stimme gelöscht", pg.locator("[data-umfst='Lea']").count() == 0)
     pg.context.close()
     br.close()
 print("Fehler:", ", ".join(fehler) if fehler else "keine")
