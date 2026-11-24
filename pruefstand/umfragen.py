@@ -44,6 +44,17 @@ with sync_playwright() as p:
                 a = pg.locator("#db-umfragen").bounding_box(); k = pg.locator("#db-kalender").bounding_box()
                 pruefe("Kalender neben der Umfrage", abs(a["y"] - k["y"]) < 4 and k["x"] > a["x"] + a["width"] - 4)
             pg.screenshot(path=SP + "umfrage_start_pc.png", full_page=True)
+            # 1.769.0: Karte nur so breit wie nötig
+            w = pg.locator(".umf-karte").bounding_box()["width"]
+            pruefe("Umfrage nicht volle Breite", w < 900)
+            # auch im neuen Look (Klasse neues-menue)
+            pg.evaluate("document.documentElement.classList.add('neues-menue'); location.hash = '#/material'")
+            pg.wait_for_timeout(500); pg.evaluate("location.hash = '#/dashboard'"); pg.wait_for_timeout(1200)
+            pruefe("neuer Look: Umfrage schmal", pg.locator(".sn2 .start-umf .umf-karte").count() == 1
+                   and pg.locator(".sn2 .umf-karte").bounding_box()["width"] < 900)
+            pg.screenshot(path=SP + "umfrage_start_neu.png", full_page=True)
+            pg.evaluate("document.documentElement.classList.remove('neues-menue'); location.hash = '#/material'")
+            pg.wait_for_timeout(500); pg.evaluate("location.hash = '#/dashboard'"); pg.wait_for_timeout(1200)
             pg.click("[data-umfabstimmen]"); pg.wait_for_timeout(100)
             pruefe("ohne Wahl Hinweis", pg.locator(".umf .feld-fehler").count() == 1)
             pg.click("[data-umfvorschlag='v-1']")
