@@ -14,11 +14,11 @@ const BREITE = 210, HOEHE = 297, OBEN = 12, UNTEN = 14;
 function trennstellen(blatt) {
   const oben = blatt.getBoundingClientRect().top;
   const s = new Set();
-  blatt.querySelectorAll("tr, p, li, .zwei").forEach((x) => {
+  blatt.querySelectorAll("p, li, ul, .zwei, .kacheln, .ablauf, .titel, .fakten > div, .karte, .wirk, .unterschrift").forEach((x) => {
     const q = x.getBoundingClientRect();
     if (q.height) s.add(Math.ceil(q.bottom - oben) + 1);
   });
-  blatt.querySelectorAll("h2").forEach((x) => s.add(Math.floor(x.getBoundingClientRect().top - oben) - 2));
+  blatt.querySelectorAll(".sk").forEach((x) => s.add(Math.floor(x.getBoundingClientRect().top - oben) - 2));
   return [...s].filter((x) => x > 0).sort((a, b) => a - b);
 }
 
