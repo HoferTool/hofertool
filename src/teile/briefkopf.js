@@ -1,5 +1,5 @@
 // =================================================================
-//  Hofer-Briefpapier für alle PDF, die die App erzeugt (seit 1.781.0,
+//  Hofer-Briefpapier für alle PDF, die die App erzeugt (seit 1.782.0,
 //  Wunsch Patrick 24. November 2026: „das Hoferpapier soll überall, wo
 //  man PDFs erstellt, als Hintergrund, also Vorlage“). Derselbe Kopf wie
 //  die Bestellung (bestellungDrucken in app.js) und der 8D-Bericht:
