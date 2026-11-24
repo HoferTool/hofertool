@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.753.4 (24. November 2026)
+
+- Prüfstand: seit 1.716.0 steht in der Leiste ein verborgener Knopf „Pad Mode“ (nur im neuen Look sichtbar). 51 Prüfstände klickten mit `button:has-text('Pad Mode')` diesen statt des sichtbaren und liefen ins Zeitlimit; jetzt `:visible`. An der App ändert sich nichts.
+
 ## 1.743.1 (23. November 2026)
 
 - HOFERCAM sieht wieder aus wie vorher: der modernere Stil aus 1.741.0 (Block „1.741.0“ in `stil.css`) ist entfernt. Patrick: „Vorher war besser“.

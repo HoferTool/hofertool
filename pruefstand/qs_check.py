@@ -55,7 +55,7 @@ def seite(br, b, h, mobil=False):
     # lud sie sie vor den Daten oben, blieb bei stehender Uhr die alte Liste
     pg.clock.set_fixed_time("2026-10-13T14:01:00+02:00")
     pg.evaluate("location.hash='#dashboard'"); pg.wait_for_timeout(800)
-    pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad [data-padwo='qs']")
+    pg.locator("button:has-text('Pad Mode'):visible").first.click(); pg.wait_for_selector("#pad [data-padwo='qs']")
     return pg
 
 def zustand(pg, i):

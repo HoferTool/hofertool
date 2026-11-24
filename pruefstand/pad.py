@@ -19,7 +19,7 @@ with sync_playwright() as p:
         pg.route(u, lambda r: r.abort())
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1500)
-    pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad [data-padwo='parks']")
+    pg.locator("button:has-text('Pad Mode'):visible").first.click(); pg.wait_for_selector("#pad [data-padwo='parks']")
     pg.click("#pad [data-padwo='parks']"); pg.wait_for_selector("#pad [data-park]")
     pg.locator("#pad [data-park]").first.click(); pg.wait_for_timeout(800)
     if pg.locator("#pad [data-padtyp]").count(): pg.locator("#pad [data-padtyp]").first.click(); pg.wait_for_timeout(800)
@@ -67,7 +67,7 @@ with sync_playwright() as p:
     if pg.locator("#pad").count(): fehler.append("Pad bleibt offen")
     if not pg.locator("#inhalt h1, #inhalt .karte").count(): fehler.append("Seite darunter leer")
     # Nochmals öffnen: frisch auf dem Start
-    pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad [data-padwo='parks']")
+    pg.locator("button:has-text('Pad Mode'):visible").first.click(); pg.wait_for_selector("#pad [data-padwo='parks']")
     pg.click("#pad [data-padzu]"); pg.wait_for_timeout(800)
     br.close()
 print("Pad | Fehler: " + ("keine" if not fehler else " | ".join(fehler)))

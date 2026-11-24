@@ -52,7 +52,7 @@ with sync_playwright() as p:
     fehler += f; pg.close()
     # Pad: Zeichnung, dann Zurück
     pg, f = seite(br, True, 1180, 820)
-    pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_timeout(1200)
+    pg.locator("button:has-text('Pad Mode'):visible").first.click(); pg.wait_for_timeout(1200)
     pg.locator("#pad >> text=Maschinen").first.click(); pg.wait_for_timeout(1000)
     pg.locator("#pad .pad-kachel").first.click(); pg.wait_for_timeout(1000)
     pg.locator("#pad .pad-kachel").first.click(); pg.wait_for_timeout(1500)

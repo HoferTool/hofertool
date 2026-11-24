@@ -13,7 +13,7 @@ AN = "if (typeof window !== \"undefined\") window.TEST = TEST;"
 AN_NEU = "TEST.neuHinweis = true;\n" + AN
 
 def dashboard(pg):
-    pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad [data-padwo='parks']")
+    pg.locator("button:has-text('Pad Mode'):visible").first.click(); pg.wait_for_selector("#pad [data-padwo='parks']")
     pg.click("#pad [data-padwo='parks']"); pg.wait_for_selector("#pad [data-park]")
     pg.locator("#pad [data-park]").filter(has_text="Lang").first.click(); pg.wait_for_timeout(800)
     if pg.locator("#pad [data-padtyp]").count(): pg.locator("#pad [data-padtyp]").first.click(); pg.wait_for_timeout(800)
@@ -45,7 +45,7 @@ with sync_playwright() as p:
     pruefe("gemerkt am Gerät", pg.evaluate("!!localStorage.getItem('hofer.pad.neu.eb-front34')"))
     pg.reload(wait_until="domcontentloaded"); pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(2500)
     if pg.locator("#pad .pad-stk-zahl").count() == 0:
-        pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_timeout(1500)
+        pg.locator("button:has-text('Pad Mode'):visible").first.click(); pg.wait_for_timeout(1500)
     pruefe("kommt danach nicht mehr", pg.locator("[data-pad-neu]").count() == 0)
     pruefe("keine Fehler", not f); ctx.close()
 

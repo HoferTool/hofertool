@@ -56,7 +56,7 @@ with sync_playwright() as pw:
     pg = seite(br, viewport={"width": 1180, "height": 820}, has_touch=True)
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded"); pg.wait_for_timeout(2200)
     pg.evaluate("location.hash='#dashboard'"); pg.wait_for_timeout(1200)
-    pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_timeout(1000)
+    pg.locator("button:has-text('Pad Mode'):visible").first.click(); pg.wait_for_timeout(1000)
     pg.locator("#pad [data-padwo='parks']").click(); pg.wait_for_timeout(900)
     pg.locator("#pad .pad-kachel").first.click(); pg.wait_for_timeout(900)
     pg.locator("#pad .pad-kachel").first.click(); pg.wait_for_timeout(1500)

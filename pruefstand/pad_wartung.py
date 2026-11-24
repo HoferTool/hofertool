@@ -34,7 +34,7 @@ with sync_playwright() as p:
     pg.clock.install()
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1500)
-    pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad [data-padwo='parks']")
+    pg.locator("button:has-text('Pad Mode'):visible").first.click(); pg.wait_for_selector("#pad [data-padwo='parks']")
     pg.click("#pad [data-padwo='parks']"); pg.wait_for_selector("#pad [data-park]")
     pg.locator("#pad [data-park]").filter(has_text="Lang").first.click(); pg.wait_for_timeout(800)
     if pg.locator("#pad [data-padtyp]").count(): pg.locator("#pad [data-padtyp]").first.click(); pg.wait_for_timeout(800)
@@ -231,7 +231,7 @@ with sync_playwright() as p:
     if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-park.png"))
     pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
     # Im Pad der ersten Maschine: Typ und Park gelten, „Nur hier“ (andere Maschine) nicht
-    pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad [data-padwo='parks']")
+    pg.locator("button:has-text('Pad Mode'):visible").first.click(); pg.wait_for_selector("#pad [data-padwo='parks']")
     pg.click("#pad [data-padwo='parks']"); pg.wait_for_selector("#pad [data-park]")
     pg.locator("#pad [data-park]").filter(has_text="Lang").first.click(); pg.wait_for_timeout(800)
     if pg.locator("#pad [data-padtyp]").count(): pg.locator("#pad [data-padtyp]").first.click(); pg.wait_for_timeout(800)

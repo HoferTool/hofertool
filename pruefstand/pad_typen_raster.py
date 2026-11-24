@@ -31,7 +31,7 @@ with sync_playwright() as p:
             pg.route(u, lambda r: r.abort())
         pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
         pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1500)
-        pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad [data-padwo='parks']")
+        pg.locator("button:has-text('Pad Mode'):visible").first.click(); pg.wait_for_selector("#pad [data-padwo='parks']")
         pg.click("#pad [data-padwo='parks']"); pg.wait_for_selector("#pad [data-park]")
         park = pg.evaluate("() => TEST.daten.machine_parks[0].id")
         pg.click(f"#pad [data-park='{park}']"); pg.wait_for_selector("#pad [data-padtyp]", timeout=8000)

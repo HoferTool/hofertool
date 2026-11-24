@@ -228,7 +228,7 @@ with sync_playwright() as p:
 
     # Beenden im Pad fragt nach dem Rest
     pg.evaluate("location.hash='#dashboard'"); pg.wait_for_timeout(800)
-    pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad [data-padwo='parks']")
+    pg.locator("button:has-text('Pad Mode'):visible").first.click(); pg.wait_for_selector("#pad [data-padwo='parks']")
     pg.click("#pad [data-padwo='parks']"); pg.wait_for_selector("#pad [data-park]")
     pg.click("#pad [data-park='p-kurz']"); pg.wait_for_timeout(800)
     if pg.locator("#pad [data-padtyp]").count(): pg.locator("#pad [data-padtyp]").first.click(); pg.wait_for_timeout(800)

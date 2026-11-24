@@ -47,7 +47,7 @@ with sync_playwright() as p:
     pg.close()
     # Pad: alle Bereiche
     pg, f2 = seite(br, 1180, 820)
-    pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_timeout(1300)
+    pg.locator("button:has-text('Pad Mode'):visible").first.click(); pg.wait_for_timeout(1300)
     print("Pad-Kacheln:", pg.evaluate("[...document.querySelectorAll('#pad .pad-kachel')].map(k => k.innerText.trim())"),
           "| Seite darunter leer:", pg.evaluate("document.getElementById('inhalt').innerHTML === ''"))
     # Seit 111.8.2 zeigt die Pad-Startseite nur noch "Maschinen":

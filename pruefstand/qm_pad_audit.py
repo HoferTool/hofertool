@@ -40,11 +40,11 @@ with sync_playwright() as p:
         pg.route(u, lambda r: r.abort())
     # ohne Vermerk keine Kachel Audit
     laden("")
-    pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad [data-padwo='qs']")
+    pg.locator("button:has-text('Pad Mode'):visible").first.click(); pg.wait_for_selector("#pad [data-padwo='qs']")
     pruefe(pg.locator("#pad [data-padwo='audit']").count() == 0, "ohne qmSehen keine Kachel Audit")
     pg.evaluate("sessionStorage.clear()")
     laden(VERMERK + "; TEST.diktat = true;")
-    if pg.locator("#pad").count() == 0: pg.locator("button:has-text('Pad Mode')").first.click()
+    if pg.locator("#pad").count() == 0: pg.locator("button:has-text('Pad Mode'):visible").first.click()
     pg.wait_for_selector("#pad [data-padwo='audit']")
     pg.screenshot(path=BILD + "/pad-start-audit.png")
     pg.click("#pad [data-padwo='audit']"); pg.wait_for_selector("#pad-audit")

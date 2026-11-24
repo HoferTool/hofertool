@@ -56,7 +56,7 @@ with sync_playwright() as p:
     pg.evaluate("location.hash='#dashboard'"); pg.wait_for_selector("#db-notizen .karte")
 
     # Pad Mode öffnen und schliessen
-    pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_timeout(1300)
+    pg.locator("button:has-text('Pad Mode'):visible").first.click(); pg.wait_for_timeout(1300)
     pg.locator("#pad [data-padzu]").click(); pg.wait_for_timeout(1300)
     if not pg.locator("#db-notizen .karte").count(): fehler.append("Startseite nach dem Pad nicht zurück")
     br.close()

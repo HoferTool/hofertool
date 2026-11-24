@@ -20,7 +20,7 @@ with sync_playwright() as p:
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1500)
     wo = lambda: pg.evaluate("document.getElementById('pad') ? (document.querySelector('#pad .pad__titel')||{}).textContent || 'pad' : 'zu'")
     esc = lambda: (pg.mouse.move(5, 5), pg.keyboard.press("Escape"), pg.wait_for_timeout(500))
-    pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad [data-padwo='parks']")
+    pg.locator("button:has-text('Pad Mode'):visible").first.click(); pg.wait_for_selector("#pad [data-padwo='parks']")
     pg.click("#pad [data-padwo='parks']"); pg.wait_for_selector("#pad [data-park]")
     pg.locator("#pad [data-park]").filter(has_text="Lang").first.click(); pg.wait_for_timeout(800)
     typ = pg.locator("#pad [data-padtyp]").count() > 0

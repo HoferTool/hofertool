@@ -355,7 +355,7 @@ with sync_playwright() as p:
         planned_days: 3, target_quantity: 1000, planned_from: new Date().toISOString().slice(0, 10) });
     }""")
     pg.evaluate("location.hash='#dashboard'"); pg.wait_for_timeout(800)
-    pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad [data-padwo='parks']")
+    pg.locator("button:has-text('Pad Mode'):visible").first.click(); pg.wait_for_selector("#pad [data-padwo='parks']")
     pg.click("#pad [data-padwo='parks']"); pg.wait_for_selector("#pad [data-park]")
     pg.click("#pad [data-park='p-kurz']"); pg.wait_for_timeout(800)
     if pg.locator("#pad [data-padtyp]").count():

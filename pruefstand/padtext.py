@@ -17,7 +17,7 @@ def lauf(br, info, notiz, name):
     for u in ["**://fonts.googleapis.com/**","**://fonts.gstatic.com/**","**://esm.sh/**","**://*.supabase.co/**","**://api.open-meteo.com/**"]:
         pg.route(u, lambda r: r.abort())
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded"); pg.wait_for_timeout(2200)
-    pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_timeout(1000)
+    pg.locator("button:has-text('Pad Mode'):visible").first.click(); pg.wait_for_timeout(1000)
     pg.locator("#pad [data-padwo='parks']").click(); pg.wait_for_timeout(900)
     pg.locator("#pad .pad-kachel").first.click(); pg.wait_for_timeout(900)
     pg.locator("#pad .pad-kachel").first.click(); pg.wait_for_timeout(1500)

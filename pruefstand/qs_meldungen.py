@@ -27,7 +27,7 @@ def seite(br, b, h, mobil=False):
 
 def zumPad(pg):
     pg.evaluate("location.hash='#dashboard'"); pg.wait_for_timeout(700)
-    pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad [data-padwo='parks']")
+    pg.locator("button:has-text('Pad Mode'):visible").first.click(); pg.wait_for_selector("#pad [data-padwo='parks']")
     pg.click("#pad [data-padwo='parks']"); pg.wait_for_selector("#pad [data-park]")
     pg.locator("#pad [data-park]").first.click(); pg.wait_for_timeout(800)
     if pg.locator("#pad [data-padtyp]").count(): pg.locator("#pad [data-padtyp]").first.click(); pg.wait_for_timeout(800)
@@ -39,7 +39,7 @@ def zumPad(pg):
 def zuQsCheck(pg):
     if pg.locator("#pad").count(): pg.click("#pad [data-padzu]"); pg.wait_for_timeout(500)
     pg.evaluate("location.hash='#dashboard'"); pg.wait_for_timeout(700)
-    pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad [data-padwo='qs']")
+    pg.locator("button:has-text('Pad Mode'):visible").first.click(); pg.wait_for_selector("#pad [data-padwo='qs']")
     pg.click("#pad [data-padwo='qs']"); pg.wait_for_selector("#pad [data-qsfort]")
 
 def melden(pg, mid, stk, notiz):
@@ -129,7 +129,7 @@ with sync_playwright() as p:
 
     # Pad, QS Check: der Fortschritt ist ein Knopf und öffnet das grosse Fenster (1.78.0)
     pg.evaluate("location.hash='#dashboard'"); pg.wait_for_timeout(700)
-    pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad [data-padwo='qs']")
+    pg.locator("button:has-text('Pad Mode'):visible").first.click(); pg.wait_for_selector("#pad [data-padwo='qs']")
     pg.click("#pad [data-padwo='qs']"); pg.wait_for_selector(f"#pad [data-qsfort='{mid}']")
     pg.click(f"#pad [data-qsfort='{mid}']"); pg.wait_for_selector("#qs-fenster")
     t = pg.inner_text("#qs-fenster")

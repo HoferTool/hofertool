@@ -28,7 +28,7 @@ with sync_playwright() as p:
         if m["oben"] != 0 or round(m["hoehe"]) != 54 or m["rahmen"] != "54px": fehler.append(art+" Mass "+str(m))
         if "rgba" in m["grund"] or m["glas"] not in ("none", ""): fehler.append(art+" durchsichtig "+str(m))
         pg.screenshot(path=f"kopf-{art}.png")
-        pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad .pad__kopf")
+        pg.locator("button:has-text('Pad Mode'):visible").first.click(); pg.wait_for_selector("#pad .pad__kopf")
         pg.wait_for_timeout(600)
         k = pg.evaluate("""() => { const s=getComputedStyle(document.querySelector('#pad .pad__kopf'));
           return {grund:s.backgroundColor, glas:s.backdropFilter, oben:s.paddingTop}; }""")

@@ -117,7 +117,7 @@ with sync_playwright() as p:
         # Pad Mode
         try:
             pg.evaluate("location.hash='#/dashboard'"); pg.wait_for_timeout(900)
-            pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad [data-padwo='parks']")
+            pg.locator("button:has-text('Pad Mode'):visible").first.click(); pg.wait_for_selector("#pad [data-padwo='parks']")
             sammeln("Pad Start")
             for wo in pg.locator("#pad [data-padwo]").all()[1:3]:
                 pass

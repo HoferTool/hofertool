@@ -38,7 +38,7 @@ with sync_playwright() as p:
     if v != soll: fehler.append(f"Schnellvorschau {v} statt {soll}")
 
     pg.evaluate("location.hash='#dashboard'"); pg.wait_for_timeout(800)
-    pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad [data-padwo='qs']")
+    pg.locator("button:has-text('Pad Mode'):visible").first.click(); pg.wait_for_selector("#pad [data-padwo='qs']")
     pg.click("#pad [data-padwo='qs']"); pg.wait_for_selector("#pad .pad-ak__karte[style*='--ak-grund']")
     pg.wait_for_timeout(500)
     v = hg("#pad .pad-ak__karte[style*='--ak-grund']")
