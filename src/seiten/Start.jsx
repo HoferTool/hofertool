@@ -116,7 +116,7 @@ export default function Start({ auffrischen, module }) {
       <div className="sn2">
         {/* Seit 1.763.0 wieder das blaue Band wie früher, mit Kopfzeile
             (Wunsch Patrick 24. November 2026), Karten darunter wie bisher */}
-        {/* 1.777.0: Band und Solaranlage wieder zusammen wie im alten Look,
+        {/* 1.778.0: Band und Solaranlage wieder zusammen wie im alten Look,
             am Geburtstag das Fest im Band (Patrick 24. November 2026: „Solar
             wie früher, mit dem oberen Balken zusammen“); kein Kommen / Gehen
             mehr, das geht nur noch über HOFERTIME */}
@@ -151,7 +151,7 @@ export default function Start({ auffrischen, module }) {
         {/* Umfragen zuoberst direkt nach der Solaranlage (seit 1.758.0,
             Wunsch Patrick 24. November 2026); seit 1.770.0 kompakt und nur so
             breit wie nötig (Patrick: „soll nur so gross wie nötig“) */}
-        {/* 1.777.0: daneben der Kalender, damit neben der schmalen Umfrage
+        {/* 1.778.0: daneben der Kalender, damit neben der schmalen Umfrage
             kein leerer Platz bleibt (Patrick 24. November 2026: „neben dran
             ist nichts reingeschoben worden“); ohne Umfrage nimmt er die Breite */}
         <div className="start-paar start-umf">
