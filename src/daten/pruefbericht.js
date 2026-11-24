@@ -356,3 +356,22 @@ export function aqlPlan(los, aql, niveau = "II") {
   }
   return null;
 }
+
+// Sperre vor „läuft“ (seit 1.783.0, Wunsch Patrick 24. November 2026:
+// „zuerst der Bericht, ist mässig eine Sperre“): verlangen die Stammdaten
+// der HOCO Nr. eine Erstteilprüfung, lässt sich der Auftrag erst auf
+// „läuft“ stellen, wenn für genau diesen Auftrag (job_id, nicht nur dieselbe
+// FA Nr.) eine abgeschlossen ist. Gestellt wird nie von selbst, nur von Hand.
+// Fehlen Tabelle oder Leserecht (Externe), hält nichts auf.
+export async function erstteilVorLaeuft(j) {
+  if (!j || !j.id || !j.job_number || j.plan_status === "laeuft") return;
+  let st = null;
+  try { st = await stammLaden(j.job_number); } catch (f) { return; }
+  if (!st || !(st.arten || []).includes("erstteil")) return;
+  const r = await alt.db.from("pruefprotokolle").select("id, kopf, abgeschlossen_am").eq("job_id", j.id);
+  if (r.error) return;
+  const fertig = (r.data || []).some((p) => (p.kopf || {}).art === "erstteil" && p.abgeschlossen_am);
+  if (fertig) return;
+  throw new Error(j.job_number + (j.fa_nr ? " (FA " + j.fa_nr + ")" : "") + " lässt sich noch nicht auf „läuft“ stellen: "
+    + "zuerst die Erstteilprüfung machen und abschliessen (Qualitätssicherung → Prüfberichte).");
+}

@@ -82,7 +82,7 @@ const gehoertZu = (p, j) => (p.job_id && p.job_id === j.id)
 export function anstehend(jobs, stamm, protokolle) {
   const st = new Map((stamm || []).map((s) => [s.hoco_nr, s]));
   const t = heute();
-  const aus = { erstteil: [], aql: [], ll: [] };
+  const aus = { erstteil: [], endkontrolle: [], aql: [], ll: [] };
   for (const j of jobs || []) {
     const s = st.get(j.job_number);
     if (!s) continue;
@@ -93,6 +93,7 @@ export function anstehend(jobs, stamm, protokolle) {
     const fertig = (art) => von(art).some((p) => p.abgeschlossen_am);
     if (arten.includes("erstteil") && !fertig("erstteil")) aus.erstteil.push({ j, art: "erstteil", p: offenes("erstteil") });
     if (j.plan_status !== "laeuft") continue;
+    if (arten.includes("endkontrolle") && !fertig("endkontrolle")) aus.endkontrolle.push({ j, art: "endkontrolle", p: offenes("endkontrolle") });
     if (arten.includes("aql") && !fertig("aql")) aus.aql.push({ j, art: "aql", p: offenes("aql") });
     if (arten.includes("ll")) {
       const ll = von("ll").find((p) => !p.abgeschlossen_am) || null;
@@ -101,25 +102,6 @@ export function anstehend(jobs, stamm, protokolle) {
     }
   }
   return aus;
-}
-
-// ---------- FA Nr. wählen ----------
-async function faWaehlen(hoco) {
-  const { data } = await alt.db.from("jobs").select("id, fa_nr, job_number, target_quantity, plan_status, planned_from, machine_id")
-    .eq("job_number", hoco).order("planned_from", { ascending: false, nullsFirst: false }).limit(30);
-  const rang = (x) => ({ laeuft: 0, ruesten: 1, geplant: 2 }[x.plan_status] ?? 3);
-  const auftraege = (data || []).filter((x) => x.fa_nr).sort((a, b) => rang(a) - rang(b)).slice(0, 8);
-  const opt = auftraege.map((x) => ({ wert: x.id, text: "FA " + x.fa_nr + " · " + (STAND[x.plan_status] || x.plan_status || "")
-    + (x.planned_from ? " · ab " + datumText(x.planned_from) : "") + (x.target_quantity ? " · " + alt.zahlText(x.target_quantity) + " Stk" : "") }));
-  opt.push({ wert: "_hand", text: "Andere FA Nr. eintippen …" });
-  const w = await alt.auswahlDialog("Für welche FA Nr.?", opt, "Das Protokoll wird mit dieser FA Nr. gespeichert. Jede FA hat ihre eigenen Protokolle.");
-  if (!w) return null;
-  if (w !== "_hand") return auftraege.find((x) => x.id === w);
-  const e = await alt.dialogFelder({ titel: "FA Nr. eintippen", felder: [{ name: "fa", label: "FA Nr.", pflicht: true }], bestaetigen: "Weiter" });
-  const fa = e && String(e.fa || "").trim();
-  if (!fa) return null;
-  const da = (data || []).find((x) => String(x.fa_nr || "").trim() === fa);
-  return da || { fa_nr: fa };
 }
 
 // ---------- Neues Protokoll ----------
@@ -215,19 +197,8 @@ function Uebersicht({ daten, neu, oeffnen }) {
     finally { setLegt(false); }
   };
 
-  // „+ Protokoll“: zuerst die Art, dann HOCO Nr. und FA Nr.
-  const neuesProtokoll = async () => {
-    const art = await alt.auswahlDialog("Welches Protokoll?", ARTEN.map((a) => ({ wert: a.id, text: a.kurz === "AQL" ? "AQL" : a.kurz === "LL" ? "LL" : a.name })), null, true);
-    if (!art) return;
-    const e = await alt.dialogFelder({ titel: artVon(art).name, felder: [{ name: "hoco", label: "HOCO Nr.", pflicht: true }], bestaetigen: "Weiter" });
-    const hoco = e && String(e.hoco || "").trim();
-    if (!hoco) return;
-    const j = await faWaehlen(hoco);
-    if (!j) return;
-    if (j.machine_id) j.maschine = ((daten.jobs.find((x) => x.id === j.id)) || {}).maschine || "";
-    anlegen(hoco, art, j);
-  };
-
+  // Seit 1.784.0 kein „+ Protokoll“ mehr: Protokolle entstehen nur aus dem, was
+  // die Stammdaten verlangen und hier ansteht (Wunsch Patrick 24. November 2026).
   const todoTippen = (t) => { if (t.p) oeffnen(t.p); else anlegen(t.j.job_number, t.art, t.j); };
 
   const liste = [...daten.protokolle]
@@ -239,16 +210,12 @@ function Uebersicht({ daten, neu, oeffnen }) {
 
   const SPALTEN = [
     ["erstteil", "Erstteilprüfung", "Aufträge in Rüsten oder läuft ohne abgeschlossene Erstteilprüfung"],
+    ["endkontrolle", "Endkontrolle", "Laufende Aufträge ohne abgeschlossene Endkontrolle"],
     ["aql", "AQL", "Laufende Aufträge ohne abgeschlossene AQL-Stichprobe"],
     ["ll", "LL Langläufer", "Laufende Aufträge ohne Stichprobe von heute"],
   ];
   return (
     <div className="pb">
-      <div className="pb-kopfzeile">
-        {darf() ? <button type="button" className="knopf knopf--haupt" id="pb-neu" disabled={legt} onClick={neuesProtokoll}>+ Protokoll</button> : null}
-        <span className="klein">Welche Prüfungen nötig sind und welche Masse gelten, steht in den Stammdaten der HOCO Nr. unter „Prüfung“.</span>
-      </div>
-
       <div className="pb-todo" id="pb-todo">
         {SPALTEN.map(([id, titel, erkl]) => (
           <section key={id} className="pb-todo__spalte" data-pbtodo={id}>
