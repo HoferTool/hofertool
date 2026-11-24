@@ -5,13 +5,15 @@
 //  Ausschussmeldungen ist die frühere Seite QS (1.77.0 bis 1.316.x),
 //  Prüfmittel (1.558.0 bis 1.701.x) ist seit 1.702.0 entfernt. Nicht für
 //  Externe und Dienst (seiteSichtbar „qs“). Seit 1.744.0 Reiter
-//  Reklamationsmanagement (qs/Reklamationen.jsx).
+//  Reklamationsmanagement (qs/Reklamationen.jsx), seit 1.755.0 wieder
+//  Prüfmittelverwaltung (Pruefmittel.jsx, nur Admins).
 // =================================================================
 import { useReducer } from "react";
 import { alt } from "../bruecke.jsx";
 import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import Ausschuss from "./qs/Ausschuss.jsx";
 import Reklamationen from "./qs/Reklamationen.jsx";
+import Pruefmittel from "./Pruefmittel.jsx";
 
 // Gewählter Reiter; bleibt beim Seitenwechsel
 export const qsZustand = { ansicht: "ausschuss" };
@@ -20,7 +22,9 @@ export function qsReiter() {
   const r = [["ausschuss", "Ausschussmeldungen"]];
   // Reklamationsmanagement nur für Admins (seit 1.748.0, Wunsch Patrick 23. November 2026)
   if (alt.istAdmin()) r.push(["reklamationen", "Reklamationsmanagement"]);
-  // Den Reiter Prüfmittel gibt es seit 1.702.0 nicht mehr (Wunsch Patrick 22. November 2026)
+  // Prüfmittelverwaltung wieder da seit 1.755.0, nur Admins (Wunsch Patrick 24. November 2026:
+  // „Bei QS soll noch als Unterreiter Prüfmittelverwaltung hinein“; 1.702.0 bis 1.754.x entfernt)
+  if (alt.seiteSichtbar("pruefmittel")) r.push(["pruefmittel", "Prüfmittelverwaltung"]);
   return r;
 }
 
@@ -36,6 +40,7 @@ export default function Qs({ auffrischen, behaelter }) {
       <Uebergang key={qsZustand.ansicht}>
         <div id="qs-inhalt">
           {qsZustand.ansicht === "reklamationen" ? <Reklamationen />
+            : qsZustand.ansicht === "pruefmittel" ? <Pruefmittel auffrischen={auffrischen} behaelter={behaelter} eingebettet />
             : <Ausschuss auffrischen={auffrischen} behaelter={behaelter} />}
         </div>
       </Uebergang>

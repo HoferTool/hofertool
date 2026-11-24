@@ -174,7 +174,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.754.0";
+const APP_VERSION = "1.755.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3363,6 +3363,7 @@ function seiteSichtbar(pfad) {
   if (pfad === "zeit") return istAdmin() || (!istExtern() && meineRolle() !== "dienst" && !(profil && profil.andere_nutzer));
   if (pfad === "reihen") return reihenSehen(profil) && !istExtern();
   // Prüfmittel vorerst nur für Admins (provisorisch, Wunsch Patrick 15. November 2026)
+  if (pfad === "pruefmittel") return istAdmin() && !istExtern();
   // QMS (bis 1.473.x „QM alternativ“): nur mit Vermerk qmSehen, nie Externe
   if (pfad === "qmalt") return qmSehen(profil) && !istExtern();
   // Den Bereich Empfang sehen nur Personen mit dem Vermerk empfangSehen am
@@ -11654,6 +11655,7 @@ function zeichneSeite() {
   // Prüfmittel gibt es seit 1.702.0 nicht mehr (Wunsch Patrick 22. November
   // 2026); alte Verweise führen zur Qualitätssicherung
   if (roh === "pruefmittel" && !ARCHIV) {
+    if (seiteSichtbar("pruefmittel")) qsZustand.ansicht = "pruefmittel";
     location.hash = "#/qs";
     return;
   }
