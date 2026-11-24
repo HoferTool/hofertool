@@ -19,8 +19,11 @@ export const ARTEN = [
 // Prüfstifte sind einfache Stifte in vielen Massen, der Rest Messmittel.
 export const GRUPPEN = [["lehre", "Lehre"], ["stift", "Prüfstift"], ["messmittel", "Messmittel"]];
 const LEHREN = ["lehrdorn", "gewindedorn", "gewindering", "lehrring", "kontrollring", "radius"];
-export const gruppeVon = (p) => !p || !p.art ? "" : LEHREN.includes(p.art) ? "lehre"
-  : p.art === "pruefstift" ? "stift" : p.art === "anderes" ? "" : "messmittel";
+// Ohne Art aus der Bezeichnung geschätzt (Einfügen aus Listen hat oft keine Art)
+const gruppeAusName = (b) => /lehr|gewindering|kontrollring|radius/i.test(b || "") ? "lehre"
+  : /stift/i.test(b || "") ? "stift" : "";
+export const gruppeVon = (p) => !p ? "" : !p.art || p.art === "anderes" ? gruppeAusName(p.bezeichnung)
+  : LEHREN.includes(p.art) ? "lehre" : p.art === "pruefstift" ? "stift" : "messmittel";
 export const gruppeText = (g) => (GRUPPEN.find((x) => x[0] === g) || [0, ""])[1];
 
 // Wer prüft: selber (intern) oder auswärts kalibrieren (extern)
