@@ -16566,3 +16566,7 @@ body.dunkel .rk-liste { background: #1d2630; }
 .rk-liste input[type=text] { padding: 4px 8px; min-height: 0; height: 32px; font-size: .9rem; }
 .rk-liste__zeile .knopf, .rk-liste__kopf .knopf { min-height: 0; height: 32px; padding: 0 10px; }
 .rk-liste__zeile, .rk-liste__kopf { margin: 3px 0; }
+
+/* 1.767.0: Bilder und Dateien je D-Punkt in der Reklamation */
+.rk-danhang { margin-top: 10px; }
+.rk-danhang .lk-dateien { margin-top: 4px; }

@@ -12,7 +12,7 @@
 //  „zeichnungen“ unter reklamationen/<id>/. Nicht für Externe (die
 //  sehen die Qualitätssicherung nicht, die Datenbank sperrt sie auch).
 // =================================================================
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { passtWoerter } from "../../teile/Suchfeld.jsx";
@@ -380,6 +380,46 @@ function ausserListe(w, d) {
 
 // Feld mit allen Punkten eines Schritts: umbenennen, löschen, eigene
 // dazu, Gruppen dazu; gilt nach „Speichern“ für alle Reklamationen
+// Bilder und Dateien zu einem einzelnen D-Punkt (seit 1.767.0, Wunsch Patrick
+// 24. November 2026: „bei jedem D-Punkt eigene Notiz oder Bilder anfügen“).
+// Sie liegen in derselben Liste `dateien` wie die übrigen, mit `d` = Punkt.
+function DAnhang({ s, dateien, neu, darf, weg, dazu, neuWeg }) {
+  const feld = useRef(null);
+  const da = dateien.filter((x) => x.d === s);
+  const offen = neu.filter((x) => x._d === s);
+  if (!darf && !da.length) return null;
+  return (
+    <div className="rk-danhang" data-rkdanhang={s}>
+      <span className="rk-gruppe__name">Bilder / Dateien zu diesem Punkt</span>
+      <div className="lk-dateien">
+        {da.map((d) => (
+          <div key={d.pfad || d.url} className="lk-datei" data-rkdatei={d.name}>
+            <button type="button" className="lk-datei__knopf" title={d.name}
+              onClick={() => alt.betrachter(d.url, d.name, d.typ === "pdf")}>
+              {d.typ === "bild" ? <img src={d.url} alt={d.name} loading="lazy" />
+                : <span className="lk-datei__pdf"><small>{d.typ === "pdf" ? "PDF" : "Datei"}</small></span>}
+              <span className="lk-datei__name">{d.name}</span>
+            </button>
+            {darf && <button type="button" className="lk-datei__weg" title="Löschen" onClick={() => weg(d)}>✕</button>}
+          </div>))}
+        {offen.map((d, i) => (
+          <div key={"n" + i} className="lk-datei rk-datei--neu">
+            <span className="lk-datei__knopf"><span className="lk-datei__pdf"><small>neu</small></span>
+              <span className="lk-datei__name">{d.name}</span></span>
+            <button type="button" className="lk-datei__weg" title="Weg" onClick={() => neuWeg(d)}>✕</button>
+          </div>))}
+        {darf && <>
+          <button type="button" className="lk-datei lk-datei--neu" data-rkdneu={s}
+            onClick={() => feld.current && feld.current.click()}><span className="klein">+ Bild / PDF</span></button>
+          <input ref={feld} type="file" accept="application/pdf,.pdf,image/*" multiple hidden data-ablegen="direkt" data-rkdfeld={s}
+            onChange={(e) => { const l0 = Array.from(e.target.files || []); e.target.value = ""; if (l0.length) dazu(l0); }} />
+        </>}
+      </div>
+      {!!offen.length && <p className="feldhinweis">Wird beim Speichern hochgeladen.</p>}
+    </div>
+  );
+}
+
 function ListeBearbeiten({ d, fertig }) {
   const [g, setG] = useState(() => JSON.parse(JSON.stringify(d.gruppen)).map(([n, p]) => [n, p.concat("")]));
   const [speichert, setSpeichert] = useState(false);
@@ -458,6 +498,10 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
   const [zoomV, setZoomV] = useState(0.6);
   const linksRef = useRef(null);
   const vorschauRef = useRef(null);
+  // Noch nicht gespeicherte Bilder eines D-Punkts zeigt die Vorschau schon (seit 1.767.0)
+  const neuVorschau = useMemo(() => neueDateien.filter((f) => f._d).map((f) => ({ name: f.name, d: f._d,
+    typ: /^image\//.test(f.type) ? "bild" : "datei", url: /^image\//.test(f.type) ? URL.createObjectURL(f) : "" })), [neueDateien]);
+  useEffect(() => () => neuVorschau.forEach((x) => x.url && URL.revokeObjectURL(x.url)), [neuVorschau]);
   // Schritt wechseln, optional mit Fokus auf ein Feld darin
   const gehe = (id, fokus) => {
     setSchritt(id);
@@ -591,7 +635,7 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
         { contentType: d.type || (pdf ? "application/pdf" : "application/octet-stream"), upsert: false });
       if (up.error) throw up.error;
       raus.push({ name: d.name || ("Datei." + endung), url: alt.db.storage.from("zeichnungen").getPublicUrl(pfad).data.publicUrl,
-        pfad, typ: pdf ? "pdf" : /^image\//.test(d.type) ? "bild" : "datei" });
+        pfad, typ: pdf ? "pdf" : /^image\//.test(d.type) ? "bild" : "datei", ...(d._d ? { d: d._d } : {}) });
     }
     return raus;
   };
@@ -617,6 +661,7 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
       const zu0 = d.status === "abgeschlossen" || d.status === "abgelehnt";
       d.abgeschlossen_am = zu0 ? (r && r.abgeschlossen_am) || new Date().toISOString() : null;
       let id = r && r.id, nr = r && r.nr;
+      let alleDateien = dateien;
       if (r) {
         d.geaendert_am = new Date().toISOString();
         d.geaendert_von = (await alt.db.auth.getUser()).data.user?.id || null;
@@ -636,11 +681,12 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
         const { error } = await alt.db.from("reklamationen").update({ dateien: liste }).eq("id", id);
         if (error) throw error;
         setW((x) => ({ ...x, dateien: liste })); setNeue([]);
+        alleDateien = liste;
       }
       alt.meldung((r ? "Gespeichert: " : "Erfasst: ") + nr, "gut");
       if (nachher) nachher();
       if (schliessen) zu();
-      return { id, nr };
+      return { id, nr, dateien: alleDateien };
     } catch (f) {
       alt.meldung(fehlerText(f), "fehler");
       return null;
@@ -675,14 +721,15 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
 
   const bericht = async () => {
     // Zuerst speichern, damit der Bericht zeigt, was im Fenster steht
-    const s = darf ? await speichern(false) : { nr: w.nr };
+    const s = darf ? await speichern(false) : { nr: w.nr, dateien };
     if (!s) return;
     try {
       const { achtdPdf } = await import("./achtdPdf.js");
-      const blob = await achtdPdf({ ...w, nr: s.nr }, "8D-Report " + s.nr);
+      const intern = w.art === "intern";
+      const blob = await achtdPdf({ ...w, nr: s.nr, dateien: s.dateien || dateien }, (intern ? "Interne Reklamation " : "8D-Report ") + s.nr);
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = "8D-Bericht " + s.nr + ".pdf";
+      a.download = (intern ? "Interne Reklamation " : "8D-Bericht ") + s.nr + ".pdf";
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 60000);
     } catch (f) { alt.meldung("Bericht ging nicht: " + alt.fehlertext(f), "fehler"); }
@@ -844,8 +891,11 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
           {darf && <button type="button" className="knopf knopf--klein rk-liste-knopf" data-rkliste={d.s}
             onClick={() => setListeAuf(d.s)}>✎ Liste bearbeiten</button>}
             </>}
-          {d.text && T(d.text, "Anderes / Ergänzung", { zeilen: 2, breit: true })}
-          {d.kopfText && K(d.kopfText, d.s === "d1" ? "Namen / Ergänzung" : "Anderes / Ergänzung", { zeilen: 2, breit: true })}
+          {d.text && T(d.text, "Eigene Notiz", { zeilen: 2, breit: true, ph: "Was nicht in der Liste steht …" })}
+          {d.kopfText && K(d.kopfText, d.s === "d1" ? "Namen / eigene Notiz" : "Eigene Notiz", { zeilen: 2, breit: true })}
+          <DAnhang s={d.s} dateien={dateien} neu={neueDateien} darf={darf} weg={dateiWeg}
+            dazu={(l0) => setNeue((l) => l.concat(l0.map((f) => { f._d = d.s; return f; })))}
+            neuWeg={(f) => setNeue((l) => l.filter((x) => x !== f))} />
           {d.s === "d8" && !leer(w.bemerkung) && T("bemerkung", "Bemerkung", { zeilen: 2, breit: true })}
         </section>))}
 
@@ -866,7 +916,7 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
       <section className="rk-abschnitt">
         <h3>Fotos und Dokumente</h3>
         <div className="lk-dateien" id="rk-dateien">
-          {dateien.map((d) => (
+          {dateien.filter((d) => !d.d).map((d) => (
             <div key={d.pfad || d.url} className="lk-datei" data-rkdatei={d.name}>
               <button type="button" className="lk-datei__knopf" title={d.name}
                 onClick={() => alt.betrachter(d.url, d.name, d.typ === "pdf")}>
@@ -876,7 +926,7 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
               </button>
               {darf && <button type="button" className="lk-datei__weg" title="Löschen" onClick={() => dateiWeg(d)}>✕</button>}
             </div>))}
-          {neueDateien.map((d, i) => (
+          {neueDateien.map((d, i) => d._d ? null : (
             <div key={"n" + i} className="lk-datei rk-datei--neu">
               <span className="lk-datei__knopf"><span className="lk-datei__pdf"><small>neu</small></span>
                 <span className="lk-datei__name">{d.name}</span></span>
@@ -890,7 +940,7 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
               onChange={(e) => { const l0 = Array.from(e.target.files || []); e.target.value = ""; if (l0.length) setNeue((l) => l.concat(l0)); }} />
           </>}
         </div>
-        {!!neueDateien.length && <p className="feldhinweis">Neue Dateien werden beim Speichern hochgeladen.</p>}
+        {neueDateien.some((d) => !d._d) && <p className="feldhinweis">Neue Dateien werden beim Speichern hochgeladen.</p>}
       </section>
       </>}
 
@@ -906,14 +956,14 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
       <div className="dialog__knoepfe rk-knoepfe">
         {darf && <button className="knopf knopf--haupt" id="rk-speichern" disabled={speichert}
           onClick={() => speichern(true)}>{speichert ? "Wird gespeichert …" : "Speichern"}</button>}
-        <button className="knopf" id="rk-bericht" disabled={speichert || (!r && !darf)} onClick={bericht}>8D-Report (PDF)</button>
+        <button className="knopf" id="rk-bericht" disabled={speichert || (!r && !darf)} onClick={bericht}>{w.art === "intern" ? "Bericht (PDF)" : "8D-Report (PDF)"}</button>
         {darf && r && <button className="knopf knopf--gefahr" id="rk-loeschen" onClick={loeschen}>Löschen</button>}
       </div>
       </div>
-      <aside className="rk-vorschau hell-bleibt" id="rk-vorschau" ref={vorschauRef} aria-label="Vorschau 8D-Report">
-        <div className="rk-vorschau__titel">Vorschau 8D-Report <small>so sieht der Bericht aus</small></div>
+      <aside className="rk-vorschau hell-bleibt" id="rk-vorschau" ref={vorschauRef} aria-label="Vorschau Bericht">
+        <div className="rk-vorschau__titel">Vorschau {w.art === "intern" ? "Bericht" : "8D-Report"} <small>so sieht der Bericht aus</small></div>
         <div className="rk-vorschau__blatt" style={{ zoom: zoomV }}
-          dangerouslySetInnerHTML={{ __html: achtdVorschau({ ...w, nr: (r && r.nr) || w.nr || "neu" }, VORSCHAU_TEIL[schritt] || "") }} />
+          dangerouslySetInnerHTML={{ __html: achtdVorschau({ ...w, nr: (r && r.nr) || w.nr || "neu", dateien: dateien.concat(neuVorschau) }, VORSCHAU_TEIL[schritt] || "") }} />
       </aside>
     </div>
   );

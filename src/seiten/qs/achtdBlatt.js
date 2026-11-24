@@ -79,6 +79,11 @@ export const STIL = `
 .rkpdf i.ok { flex: none; width: 3.8mm; height: 3.8mm; border-radius: 1mm; background: #003884; color: #fff; font-style: normal;
   font-size: 7pt; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-top: .4mm; }
 .rkpdf .frei { white-space: normal; }
+.rkpdf .dbilder { display: flex; flex-wrap: wrap; gap: 2.5mm; margin-top: 2mm; }
+.rkpdf .dbilder figure { margin: 0; width: 52mm; }
+.rkpdf .dbilder img { display: block; width: 52mm; max-height: 42mm; object-fit: contain; background: #fff; border: .5pt solid #d6deea; border-radius: 1.5mm; }
+.rkpdf .dbilder figcaption { font-size: 6.5pt; color: #6b7a90; margin-top: .6mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rkpdf .danh { font-size: 8pt; color: #4a5a72; margin-top: 1.5mm; }
 .rkpdf ul + .frei, .rkpdf .gruppe ~ .frei { margin-top: 1.8mm; padding-top: 1.8mm; border-top: .5pt dashed #c8d2e2; }
 .rkpdf .nichts { color: #8a93a3; font-style: italic; margin: 0; }
 .rkpdf .wirk { display: flex; gap: 3mm; align-items: center; margin-top: 2mm; }
@@ -120,6 +125,13 @@ function abschnitt(w, a) {
   if (rest.length) h += "<ul>" + rest.map(haken).join("") + "</ul>";
   const frei = a.text ? w[a.text] : (w.kopf || {})[a.kopfText];
   if (!leer(frei)) h += '<p class="frei">' + zl(frei) + "</p>";
+  // Bilder und Dateien, die zu diesem Punkt angehängt sind (seit 1.767.0)
+  const anh = (Array.isArray(w.dateien) ? w.dateien : []).filter((x) => x && x.d === a.s);
+  const bilder = anh.filter((x) => x.typ === "bild" && x.url);
+  const andere = anh.filter((x) => !(x.typ === "bild" && x.url));
+  if (bilder.length) h += '<div class="dbilder">' + bilder.map((x) => '<figure><img src="' + esc(x.url) + '" crossorigin="anonymous" alt=""><figcaption>'
+    + esc(x.name || "") + "</figcaption></figure>").join("") + "</div>";
+  if (andere.length) h += '<p class="danh">Beilage: ' + andere.map((x) => esc(x.name || "Datei")).join(", ") + "</p>";
   if (a.s === "d8" && !leer(w.bemerkung)) h += '<p class="frei"><b>Bemerkung:</b> ' + zl(w.bemerkung) + "</p>";
   if (a.s === "d8" && l.includes(WIRKSAM)) h += '<div class="wirk"><span class="stempel">✓ WIRKSAM</span><span>' + esc(WIRKSAM) + "</span></div>";
   return sek(a.s, "D" + a.nr, a.titel, h || '<p class="nichts">–</p>', a.s === "d4" ? "ursache" : "");
@@ -130,17 +142,19 @@ function ausgefuellt(w, nr) {
   const a = ACHT_D.find((x) => x.nr === nr);
   if (!a) return false;
   if (a.oben && !leer(w[a.oben])) return true;
-  return angekreuzt(w, a.s).length > 0 || !leer(a.text ? w[a.text] : (w.kopf || {})[a.kopfText]);
+  return angekreuzt(w, a.s).length > 0 || !leer(a.text ? w[a.text] : (w.kopf || {})[a.kopfText])
+    || (Array.isArray(w.dateien) ? w.dateien : []).some((x) => x && x.d === a.s);
 }
 
 export function achtdHtml(w) {
   const k = w.kopf || {};
   const kunde = w.art !== "lieferant";
-  const hofer = '<div class="t">' + (kunde ? "Lieferant" : "Kunde") + '</div><p class="name">Hofer + Co. Präzisionsdrehteile</p>'
+  const intern = w.art === "intern";
+  const hofer = '<div class="t">' + (intern ? "Firma" : kunde ? "Lieferant" : "Kunde") + '</div><p class="name">Hofer + Co. Präzisionsdrehteile</p>'
     + "<p>Alte Bernstrasse 24, CH-4573 Lohn-Ammannsegg</p>"
     + ([k.bearbeiter, k.tel].some((x) => !leer(x)) ? "<p>" + [k.bearbeiter, k.tel].filter((x) => !leer(x)).map(esc).join(" · ") + "</p>" : "")
     + (leer(k.mail) ? "" : "<p>" + esc(k.mail) + "</p>");
-  const andere = '<div class="t">' + (kunde ? "Kunde" : "Lieferant") + '</div><p class="name">'
+  const andere = '<div class="t">' + (intern ? "Bereich" : kunde ? "Kunde" : "Lieferant") + '</div><p class="name">'
     + esc(w.partner || (w.art === "intern" ? "Intern" : "–")) + "</p>"
     + (leer(k.adresse) ? "" : "<p>" + zl(k.adresse) + "</p>")
     + (leer(w.kontakt) ? "" : "<p>" + esc(w.kontakt) + "</p>");
@@ -158,7 +172,7 @@ export function achtdHtml(w) {
       + (i < l.length - 1 ? '<div class="l' + (ausgefuellt(w, n) && ausgefuellt(w, l[i + 1][0]) ? " voll" : "") + '"></div>' : "")).join("");
   const ref = (leer(w.nr) ? "" : esc(w.nr)) + (leer(w.ref_partner) ? "" : " · " + (kunde ? "Kunde" : "Lieferant") + ": " + esc(w.ref_partner));
   let h = briefkopf() + '<div class="inhalt">'
-    + '<section data-s="kopf"><div class="titel"><div><div class="klein">Reklamation ' + esc(w.nr || "") + '</div><h1>8D-Report<b>.</b></h1>'
+    + '<section data-s="kopf"><div class="titel"><div><div class="klein">Reklamation ' + esc(w.nr || "") + '</div><h1>' + (w.art === "intern" ? "Interne Reklamation" : "8D-Report") + '<b>.</b></h1>'
     + (unter ? '<div class="unter">' + unter + "</div>" : "") + "</div>"
     + '<div><div class="chips">' + chips + '</div><div class="datum">Berichtsdatum ' + datum(k.berichtsdatum || alt.isoDatum(new Date()))
     + (leer(k.bearbeiter) ? "" : " · Bearbeiter " + esc(k.bearbeiter)) + "</div></div></div>"
