@@ -172,6 +172,7 @@ function Umfrage({ u, neu, admin }) {
       <div className="umf__kopf">
         <h3 className="umf__titel">{u.titel}</h3>
         {admin && <div className="umf__admin">
+          {u.offen && <button className="linkknopf" data-umfqr={u.id} onClick={() => qrOeffnen(u, neu)}>QR-Code</button>}
           <button className="linkknopf" data-umfbearb={u.id} onClick={() => bearbeitenOeffnen(u, neu)}>Bearbeiten</button>
           <button className="linkknopf" data-umfoffen={u.id} onClick={() => offenSetzen(u, !u.offen, neu)}>
             {u.offen ? "Schliessen" : "Wieder öffnen"}</button>
@@ -229,6 +230,69 @@ function Umfrage({ u, neu, admin }) {
           <button className="linkknopf" onClick={() => { setNochmals(true); setName(gemerkt); }}>Meine Stimme ändern</button>
         </p>)}
     </article>
+  );
+}
+
+// ---------- QR-Code zum Abstimmen mit dem Handy ----------
+// Seit 1.761.0 (Wunsch Patrick 24. November 2026: „einen QR-Code
+// generieren, damit man direkt mit dem Smartphone abstimmen kann“,
+// Entscheid „Ohne Anmeldung“). Der Code führt auf die kleine Seite
+// public/abstimmen/ ausserhalb der App; erreichbar ist die Umfrage dort
+// erst, wenn ein Admin hier den QR-Code öffnet (umfragen.qr).
+export function abstimmAdresse(id) {
+  return new URL("abstimmen/?u=" + id, document.baseURI).href;
+}
+
+async function qrOeffnen(u, neu) {
+  if (!u.qr) {
+    const { error } = await alt.db.from("umfragen").update({ qr: true }).eq("id", u.id);
+    if (error) {
+      alt.meldung(/qr/i.test(String(error.message)) ? "Für den QR-Code fehlt noch sql/umfrage-qr.sql in der Datenbank."
+        : alt.fehlertext(error), "fehler");
+      return;
+    }
+    neu();
+  }
+  const { default: qrcode } = await import("qrcode-generator");
+  const adresse = abstimmAdresse(u.id);
+  const qr = qrcode(0, "M");
+  qr.addData(adresse);
+  qr.make();
+  const svg = qr.createSvgTag({ cellSize: 8, margin: 2, scalable: true });
+  fensterOeffnen((zu) => <QrFenster u={u} adresse={adresse} svg={svg} zu={zu} />);
+}
+
+function QrFenster({ u, adresse, svg, zu }) {
+  const kopieren = async () => {
+    try { await navigator.clipboard.writeText(adresse); alt.meldung("Link kopiert.", "gut"); }
+    catch (f) { alt.meldung("Kopieren ging nicht. Link: " + adresse, "warn"); }
+  };
+  // Druckblatt im eigenen Fenster: gross der Code, darüber die Frage
+  const drucken = () => {
+    const w = window.open("", "_blank");
+    if (!w) { alt.meldung("Der Browser hat das Fenster gesperrt.", "warn"); return; }
+    w.document.write("<!doctype html><meta charset='utf-8'><title>" + alt.esc(u.titel) + "</title>"
+      + "<style>body{font-family:system-ui,sans-serif;text-align:center;margin:40px;color:#13233a}"
+      + "h1{font-size:32px;margin:0 0 8px}p{font-size:20px;margin:0 0 24px}svg{width:120mm;height:120mm}"
+      + "small{display:block;margin-top:18px;font-size:13px;color:#5b6b80;word-break:break-all}</style>"
+      + "<h1>" + alt.esc(u.titel) + "</h1><p>Mit dem Handy scannen und abstimmen</p>" + svg
+      + "<small>" + alt.esc(adresse) + "</small><script>onload=function(){print()}<\/script>");
+    w.document.close();
+  };
+  return (
+    <div className="dialog umf-qr" role="dialog" aria-label="QR-Code" data-umf-qrfenster={u.id}>
+      <h2>QR-Code zum Abstimmen</h2>
+      <p className="umf-qr__titel">{u.titel}</p>
+      <div className="umf-qr__bild" dangerouslySetInnerHTML={{ __html: svg }} />
+      <p className="hinweis klein">Mit der Kamera des Handys scannen, Vorschlag antippen, Namen eintragen. Ohne Anmeldung,
+        solange die Umfrage offen ist. Die Namen sieht nur ihr hier im HoferTool.</p>
+      <p className="umf-qr__link klein"><a href={adresse} target="_blank" rel="noopener">{adresse}</a></p>
+      <div className="dialog__knoepfe">
+        <button type="button" className="knopf knopf--still" onClick={zu}>Schliessen</button>
+        <button type="button" className="knopf" onClick={kopieren}>Link kopieren</button>
+        <button type="button" className="knopf knopf--haupt" onClick={drucken}>Drucken</button>
+      </div>
+    </div>
   );
 }
 

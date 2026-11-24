@@ -97,6 +97,9 @@ self.addEventListener("fetch", (e) => {
   // der Live-App abgelegt und ohne Netz statt der Live-App erscheinen.
   // Dasselbe für die Test-Fassung unter .../test/.
   if (url.pathname.includes("/vorschau/") || url.pathname.includes("/test/")) return;
+  // Die Abstimmseite für den QR-Code (public/abstimmen/) läuft ohne App
+  // und ohne Anmeldung, immer frisch aus dem Netz.
+  if (url.pathname.includes("/abstimmen/")) return;
 
   // Einlagen Gen ist eine eigene Seite im Rahmen (public/einlagen/). Sie
   // darf nie als Seite der App abgelegt werden, sonst startet ohne Netz
