@@ -129,6 +129,9 @@ export default function Start({ auffrischen, module }) {
             ? <section className="kopfkarte kopfkarte--geburtstag sn2-fest" id="db-geburtstage"><Konfetti /><GeburtstagMitte kinder={kinder} /></section>
             : <Geburtstage leute={geb.daten} fehler={geb.fehler} />}
         </div>
+        {/* Umfragen zuoberst direkt nach der Solaranlage (seit 1.758.0,
+            Wunsch Patrick 24. November 2026) */}
+        <Umfragen auffrischen={auffrischen} />
         {admin && <Systemzustand auffrischen={auffrischen} />}
         <NeuesTutorial />
         {/* 1.723.0: alle Karten in einem Fluss mit zwei Spalten, die der
@@ -144,7 +147,6 @@ export default function Start({ auffrischen, module }) {
           <Batterien auffrischen={auffrischen} />
           <Jubilaeen auffrischen={auffrischen} />
           <Notizen auffrischen={auffrischen} />
-          <Umfragen auffrischen={auffrischen} />
           <EinkaufKurz auffrischen={auffrischen} />
         </SpaltenFluss>
       </div>
@@ -163,6 +165,9 @@ export default function Start({ auffrischen, module }) {
       {/* Mit Modulen (Vorschau #/startneu, seit 1.670.0) stehen Gruss und
           Module gleich unter dem Kopf, die Solaranlage danach */}
       {!module && <Solaranlage />}
+      {/* Umfragen mit Abstimmen per Name (Wunsch Patrick 17. November 2026),
+          seit 1.758.0 direkt nach der Solaranlage (Wunsch Patrick 24. November 2026) */}
+      {!module && <Umfragen auffrischen={auffrischen} />}
       <p className="gruss">{alt.begruessung()}{name ? ", " + name : ""}</p>
       {module}
       {module && <h2 className="sm-heute">Heute</h2>}
@@ -177,8 +182,6 @@ export default function Start({ auffrischen, module }) {
       <KalenderKarte auffrischen={auffrischen} />
       {/* Dienstjubiläen alle 5 Jahre, nur Admins (Wunsch Patrick 18. November 2026) */}
       <Jubilaeen auffrischen={auffrischen} />
-      {/* Umfragen mit Abstimmen per Name (Wunsch Patrick 17. November 2026) */}
-      <Umfragen auffrischen={auffrischen} />
       {/* Maschinen ohne Stückzahl von heute oder ohne Stückzeit
           (Wunsch Patrick 26. Oktober 2026) */}
       <HeuteOffen auffrischen={auffrischen} />
@@ -195,6 +198,7 @@ export default function Start({ auffrischen, module }) {
       <EinkaufKurz auffrischen={auffrischen} />
       <Geburtstage leute={geb.daten} fehler={geb.fehler} />
       {module && <Solaranlage />}
+      {module && <Umfragen auffrischen={auffrischen} />}
     </>
   );
 }
