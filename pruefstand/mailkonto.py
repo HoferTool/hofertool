@@ -63,7 +63,11 @@ with sync_playwright() as p:
     el = pg.locator(f"[data-ferien='{fid}']")
     if el.count():
         el.first.click(); pg.wait_for_selector("#fd-weg"); pg.click("#fd-weg"); pg.wait_for_timeout(300)
-        pg.locator(".dialog-huelle button:has-text('Löschen')").last.click(); pg.wait_for_timeout(1200)
+        pg.locator(".dialog-huelle button:has-text('Löschen')").last.click(); pg.wait_for_timeout(600)
+        # Seit 1.730.0 fragt die App vor der Absage in Outlook nach
+        ja = pg.locator(".dialog-huelle button:has-text('Ja, absagen')")
+        if ja.count(): ja.last.click()
+        pg.wait_for_timeout(1200)
         ab = [x for x in pg.evaluate("TEST.gesendet") if x.get("art") == "ferien_absagen"]
         pruefe("Absage mit Outlook-Kennung: " + str(ab), len(ab) == 1 and ab[0]["outlook_id"] == "EV1")
     else:

@@ -100,7 +100,7 @@ with sync_playwright() as p:
     # Feld weg statt nur blur(): das stille Neuzeichnen der Startseite gibt
     # einem Feld mit derselben id den Fokus zurück (je nach Zeitpunkt)
     pg.evaluate("(() => { const i = document.getElementById('test-feld'); i.blur(); i.remove(); })()")
-    pg.mouse.click(700, 500); pg.wait_for_timeout(200)   # Berührung: ab jetzt 30 Sekunden Ruhe nötig
+    pg.evaluate("document.body.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}))"); pg.wait_for_timeout(200)   # Berührung ohne Klick (an 700/500 steht seit 1.731.0 die Solar-Karte), Berührung: ab jetzt 30 Sekunden Ruhe nötig
     pg.clock.fast_forward(90 * 1000); pg.wait_for_timeout(2500)
     pruefe("nach Ruhe neu geladen", neu_geladen(pg))
     fehler += f; pg.close()

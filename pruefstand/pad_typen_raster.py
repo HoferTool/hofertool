@@ -45,7 +45,8 @@ with sync_playwright() as p:
         # Grosses Logo über Typen, Maschinen und Parks
         def logo(wo):
             h = pg.evaluate("() => { const l = document.querySelector('#pad .pad__wahllogo'); return l ? l.getBoundingClientRect().height : 0; }")
-            if h < 80: fehler.append(f"{breite}px {wo}: Logo fehlt oder klein ({h:.0f}px)")
+            # Seit 1.746.1 ist das Logo über den Maschinen bewusst kleiner (clamp 56–100 px)
+            if h < (56 if wo == "Maschinen" else 80): fehler.append(f"{breite}px {wo}: Logo fehlt oder klein ({h:.0f}px)")
         logo("Typen")
         if bild: pg.screenshot(path=f"{bild}-{breite}.png")
         pg.locator("#pad [data-padtyp]").first.click(); pg.wait_for_selector("#pad .pad-kachel--maschine")

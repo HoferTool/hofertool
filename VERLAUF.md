@@ -3,6 +3,11 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.753.5 (24. November 2026)
+
+- Zahlensprint am Handy hochkant: Menü oben 76 statt 90 px Abstand und 8 px zwischen den Teilen, damit es auch mit der Schrift auf GitHub nicht rollt.
+- Prüfstände an die Neuerungen vom 23. November angepasst: `mailkonto` beantwortet die Rückfrage „Outlook-Termin absagen?“ (seit 1.730.0), `pad_typen_raster` lässt über den Maschinen das kleinere Logo zu (seit 1.746.1), `stuendlich_neuladen` tippt nicht mehr auf 700/500, wo seit 1.731.0 die Solar-Karte steht und ein Fenster öffnete.
+
 ## 1.753.4 (24. November 2026)
 
 - Prüfstand: seit 1.716.0 steht in der Leiste ein verborgener Knopf „Pad Mode“ (nur im neuen Look sichtbar). 51 Prüfstände klickten mit `button:has-text('Pad Mode')` diesen statt des sichtbaren und liefen ins Zeitlimit; jetzt `:visible`. An der App ändert sich nichts.
