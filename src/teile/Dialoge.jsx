@@ -47,11 +47,11 @@ export function nachfragen(o) {
   ));
 }
 
-export function auswahlDialog(titel, optionen, text) {
+export function auswahlDialog(titel, optionen, text, untereinander) {
   return fensterMitWert(null, (fertig) => (
     <div className="dialog"><h2>{titel}</h2>
       {text && <p className="dialog__text">{text}</p>}
-      <div className="statuswahl">
+      <div className={"statuswahl" + (untereinander ? " statuswahl--liste" : "")}>
         {optionen.map((o) => (
           <button key={o.wert} className="knopf" data-w={o.wert} onClick={() => fertig(String(o.wert))}>
             {o.text}</button>

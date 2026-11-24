@@ -217,7 +217,7 @@ function Uebersicht({ daten, neu, oeffnen }) {
 
   // „+ Protokoll“: zuerst die Art, dann HOCO Nr. und FA Nr.
   const neuesProtokoll = async () => {
-    const art = await alt.auswahlDialog("Welches Protokoll?", ARTEN.map((a) => ({ wert: a.id, text: a.name + " · " + a.text })));
+    const art = await alt.auswahlDialog("Welches Protokoll?", ARTEN.map((a) => ({ wert: a.id, text: a.kurz === "AQL" ? "AQL" : a.kurz === "LL" ? "LL" : a.name })), null, true);
     if (!art) return;
     const e = await alt.dialogFelder({ titel: artVon(art).name, felder: [{ name: "hoco", label: "HOCO Nr.", pflicht: true }], bestaetigen: "Weiter" });
     const hoco = e && String(e.hoco || "").trim();
@@ -412,9 +412,8 @@ function Protokoll({ p, zurueck }) {
         <KopfRaster kopf={w.kopf.vorlage || {}} w={w} hoco={hoco} />
         <div className="pb-felder">
           <label className={!String(w.fa_nr || "").trim() ? "pb-pflicht" : ""}>FA Nr.<input value={w.fa_nr || ""} disabled={!schreibt} onChange={(x) => setzen("fa_nr", x.target.value)} /></label>
-          <label>Datum<input type="date" value={w.datum || ""} disabled={!schreibt} onChange={(x) => setzen("datum", x.target.value)} /></label>
-          <label>Maschine<input value={w.kopf.maschine || ""} disabled={!schreibt} onChange={(x) => kopfSetzen("maschine", x.target.value)} /></label>
           {art === "aql" ? <AqlKopf k={w.kopf} schreibt={schreibt} setzen={kopfSetzen} werte={w.werte} /> : null}
+          <label className="pb-felder__rechts">Maschine<input value={w.kopf.maschine || ""} disabled={!schreibt} onChange={(x) => kopfSetzen("maschine", x.target.value)} /></label>
         </div>
 
         {art === "aql" ? <AqlTabelle zeilen={zeilen} w={w} schreibt={schreibt} aendern={aendern} />
@@ -438,7 +437,10 @@ function Protokoll({ p, zurueck }) {
           <label className="pb-bemerkung">Bemerkung
             <textarea rows={2} value={w.bemerkung || ""} disabled={!schreibt} onChange={(x) => setzen("bemerkung", x.target.value)} />
           </label>
-          <label>Visum<input value={w.visum || ""} maxLength={6} disabled={!schreibt} onChange={(x) => setzen("visum", x.target.value.toUpperCase())} /></label>
+          <div className="pb-unterschrift">
+            <label>Datum<input type="date" value={w.datum || ""} disabled={!schreibt} onChange={(x) => setzen("datum", x.target.value)} /></label>
+            <label>Visum<input value={w.visum || ""} maxLength={6} disabled={!schreibt} onChange={(x) => setzen("visum", x.target.value.toUpperCase())} /></label>
+          </div>
           {darf() ? (zu
             ? <button type="button" className="knopf" onClick={wiederOeffnen}>Wieder bearbeiten</button>
             : <button type="button" className="knopf knopf--haupt" id="pb-abschliessen" onClick={abschliessen}>Abschliessen</button>) : null}
@@ -458,7 +460,7 @@ function IstFeld({ wert, t, an, setzen, name }) {
 
 function SollZelle({ z }) {
   const t = toleranz(z.soll);
-  return <><td className="pb-nr">{z.nr}</td><td className="pb-soll">{z.soll}</td><td className="pb-tol">{t ? toleranzText(t) : ""}</td></>;
+  return <><td className="pb-nr">{z.nr}</td><td className="pb-soll" title={t ? "Toleranz " + toleranzText(t) : ""}>{z.soll}</td></>;
 }
 
 // Erstteilprüfung / Endkontrolle: 5 Teile, alle Masse
@@ -469,11 +471,12 @@ function TeileTabelle({ zeilen, w, schreibt, aendern }) {
   });
   return (
     <div className="pb-tabelle-huelle">
-      <table className="pb-tabelle" id="pb-tabelle">
-        <thead><tr><th>Nr.</th><th>Soll</th><th>Toleranz</th>{[...Array(TEILE)].map((_, i) => <th key={i}>Teil {i + 1}</th>)}<th>Prüfmittel</th></tr></thead>
+      <table className="pb-tabelle pb-tabelle--fest" id="pb-tabelle">
+        <colgroup><col className="pb-c-nr" /><col className="pb-c-soll" />{[...Array(TEILE)].map((_, i) => <col key={i} />)}<col className="pb-c-pm" /></colgroup>
+        <thead><tr><th>Nr.</th><th>Soll</th>{[...Array(TEILE)].map((_, i) => <th key={i}>Teil {i + 1}</th>)}<th>Prüfmittel</th></tr></thead>
         <tbody>
           {zeilen.map((z) => z.abschnitt
-            ? <tr key={z.id} className="pb-abschnitt"><td colSpan={TEILE + 4}>{z.abschnitt}</td></tr>
+            ? <tr key={z.id} className="pb-abschnitt"><td colSpan={TEILE + 3}>{z.abschnitt}</td></tr>
             : (
               <tr key={z.id}>
                 <SollZelle z={z} />
@@ -513,11 +516,12 @@ function AqlTabelle({ zeilen, w, schreibt, aendern }) {
   const setze = (id, n, v) => aendern((x) => ({ ...x, werte: { ...x.werte, [id]: { ...(x.werte[id] || {}), [n]: v } } }));
   return (
     <div className="pb-tabelle-huelle">
-      <table className="pb-tabelle" id="pb-tabelle">
-        <thead><tr><th>Nr.</th><th>Soll</th><th>Toleranz</th><th>Geprüft</th><th>davon n.i.O.</th><th>Min. gemessen</th><th>Max. gemessen</th><th>Prüfmittel</th></tr></thead>
+      <table className="pb-tabelle pb-tabelle--fest" id="pb-tabelle">
+        <colgroup><col className="pb-c-nr" /><col className="pb-c-soll" /><col /><col /><col /><col /><col className="pb-c-pm" /></colgroup>
+        <thead><tr><th>Nr.</th><th>Soll</th><th>Geprüft</th><th>davon n.i.O.</th><th>Min. gemessen</th><th>Max. gemessen</th><th>Prüfmittel</th></tr></thead>
         <tbody>
           {zeilen.map((z) => {
-            if (z.abschnitt) return <tr key={z.id} className="pb-abschnitt"><td colSpan={8}>{z.abschnitt}</td></tr>;
+            if (z.abschnitt) return <tr key={z.id} className="pb-abschnitt"><td colSpan={7}>{z.abschnitt}</td></tr>;
             const v = w.werte[z.id] || {}, t = toleranz(z.soll);
             const nio = Number(v.nio) || 0;
             return (
@@ -585,7 +589,7 @@ function LlTabelle({ zeilen, w, schreibt, aendern }) {
       </div>
       <table className="pb-tabelle" id="pb-tabelle">
         <thead>
-          <tr><th>Nr.</th><th>Soll</th><th>Toleranz</th>
+          <tr><th>Nr.</th><th>Soll</th>
             {proben.map((pr) => (
               <th key={pr.id} className="pb-probe">
                 <input type="date" value={pr.datum} disabled={!schreibt} onChange={(x) => probeSetzen(pr.id, (p) => ({ ...p, datum: x.target.value }))} />
@@ -604,7 +608,7 @@ function LlTabelle({ zeilen, w, schreibt, aendern }) {
               <td className="pb-pm">{z.pm}</td>
             </tr>
           ))}
-          <tr className="pb-visum"><td colSpan={3}>Visum</td>
+          <tr className="pb-visum"><td colSpan={2}>Visum</td>
             {proben.map((pr) => <td key={pr.id}><input className="pb-ist" value={pr.visum || ""} maxLength={6} disabled={!schreibt}
               onChange={(x) => probeSetzen(pr.id, (p) => ({ ...p, visum: x.target.value.toUpperCase() }))} /></td>)}<td /></tr>
         </tbody>
@@ -624,9 +628,9 @@ function protokollHtml(w, hoco) {
     const plan = aqlPlan(k.los, k.aql, k.niveau);
     kopfZ = "<th>Geprüft</th><th>n.i.O.</th><th>Min.</th><th>Max.</th>";
     koerper = zeilen.map((z) => {
-      if (z.abschnitt) return "<tr class='ab'><td colspan='8'>" + h(z.abschnitt) + "</td></tr>";
+      if (z.abschnitt) return "<tr class='ab'><td colspan='7'>" + h(z.abschnitt) + "</td></tr>";
       const x = w.werte[z.id] || {}, t = toleranz(z.soll);
-      return "<tr><td>" + h(z.nr) + "</td><td>" + h(z.soll) + "</td><td>" + h(t ? toleranzText(t) : "") + "</td><td>" + h(x.geprueft || (plan ? plan.n : "")) + "</td><td"
+      return "<tr><td>" + h(z.nr) + "</td><td>" + h(z.soll) + "</td><td>" + h(x.geprueft || (plan ? plan.n : "")) + "</td><td"
         + (Number(x.nio) > 0 ? " style='color:#c00;font-weight:700'" : "") + ">" + h(x.nio) + "</td><td" + farbe(x.min, t) + ">" + h(x.min) + "</td><td" + farbe(x.max, t) + ">" + h(x.max) + "</td><td>" + h(z.pm) + "</td></tr>";
     }).join("");
   } else if (art === "ll") {
@@ -634,21 +638,21 @@ function protokollHtml(w, hoco) {
     kopfZ = proben.map((p) => "<th>" + h(datumText(p.datum)) + "<br>" + h(p.zeit) + "</th>").join("");
     koerper = zeilen.filter((z) => !z.abschnitt && aus.has(z.id)).map((z) => {
       const t = toleranz(z.soll);
-      return "<tr><td>" + h(z.nr) + "</td><td>" + h(z.soll) + "</td><td>" + h(t ? toleranzText(t) : "") + "</td>"
+      return "<tr><td>" + h(z.nr) + "</td><td>" + h(z.soll) + "</td>"
         + proben.map((p) => "<td" + farbe((p.w || {})[z.id], t) + ">" + h((p.w || {})[z.id]) + "</td>").join("") + "<td>" + h(z.pm) + "</td></tr>";
-    }).join("") + "<tr><td colspan='3'>Visum</td>" + proben.map((p) => "<td>" + h(p.visum) + "</td>").join("") + "<td></td></tr>";
+    }).join("") + "<tr><td colspan='2'>Visum</td>" + proben.map((p) => "<td>" + h(p.visum) + "</td>").join("") + "<td></td></tr>";
   } else {
     kopfZ = [...Array(TEILE)].map((_, i) => "<th>Teil " + (i + 1) + "</th>").join("");
     koerper = zeilen.map((z) => {
-      if (z.abschnitt) return "<tr class='ab'><td colspan='" + (TEILE + 4) + "'>" + h(z.abschnitt) + "</td></tr>";
+      if (z.abschnitt) return "<tr class='ab'><td colspan='" + (TEILE + 3) + "'>" + h(z.abschnitt) + "</td></tr>";
       const t = toleranz(z.soll), a = w.werte[z.id] || [];
-      return "<tr><td>" + h(z.nr) + "</td><td>" + h(z.soll) + "</td><td>" + h(t ? toleranzText(t) : "") + "</td>"
+      return "<tr><td>" + h(z.nr) + "</td><td>" + h(z.soll) + "</td>"
         + [...Array(TEILE)].map((_, i) => "<td" + farbe(a[i], t) + ">" + h(a[i]) + "</td>").join("") + "<td>" + h(z.pm) + "</td></tr>";
     }).join("");
   }
   const plan = art === "aql" ? aqlPlan(k.los, k.aql, k.niveau) : null;
   const felder = [["HOCO Nr.", hoco], ["FA Nr.", w.fa_nr], ["Artikel", v.bezeichnung], ["Zeichnung", v.zeichnung], ["Index", v.index],
-    ["Maschine", k.maschine || v.maschine], ["Automat", v.typ], ["Datum", datumText(w.datum)], ["Allg. Toleranz", v.alltol]]
+    ["Allg. Toleranz", v.alltol], ["Automat", v.typ], ["Maschine", k.maschine || v.maschine]]
     .concat(plan ? [["Losgrösse", alt.zahlText(Number(k.los))], ["AQL / Niveau", k.aql + " / " + (k.niveau || "II")], ["Stichprobe", plan.n + " Stk, Ac " + plan.ac + " / Re " + plan.re]] : []);
   const e = auswerten(w);
   return "<style>"
@@ -659,8 +663,8 @@ function protokollHtml(w, hoco) {
     + briefkopf() + "<div class='inhalt pbp'>"
     + "<h1>Prüfprotokoll · " + h(artVon(art).name) + "</h1>"
     + "<div class='pbp-kf'>" + felder.filter(([, x]) => x).map(([n, x]) => "<div><small>" + h(n) + "</small>" + h(x) + "</div>").join("") + "</div>"
-    + "<table><thead><tr><th>Nr.</th><th>Soll</th><th>Toleranz</th>" + kopfZ + "<th>Prüfmittel</th></tr></thead><tbody>" + koerper + "</tbody></table>"
+    + "<table><thead><tr><th>Nr.</th><th>Soll</th>" + kopfZ + "<th>Prüfmittel</th></tr></thead><tbody>" + koerper + "</tbody></table>"
     + "<div class='pbp-fuss'><div><b>Ergebnis:</b> " + e.gut + " i.O." + (e.schlecht ? ", " + e.schlecht + " n.i.O." : "") + "</div>"
-    + "<div><b>Prüf-Entscheid:</b> " + h(entscheidText(w.entscheid)) + "</div><div><b>Visum:</b> " + h(w.visum) + "</div></div>"
+    + "<div><b>Prüf-Entscheid:</b> " + h(entscheidText(w.entscheid)) + "</div><div><b>Datum:</b> " + h(datumText(w.datum)) + "</div><div><b>Visum:</b> " + h(w.visum) + "</div></div>"
     + (w.bemerkung ? "<p><b>Bemerkung:</b> " + h(w.bemerkung) + "</p>" : "") + "</div>";
 }

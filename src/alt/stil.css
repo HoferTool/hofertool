@@ -16768,3 +16768,32 @@ body.dunkel .pst-blattleiste { background: #16222e; }
 body.dunkel .pst-a4 .pst-a4-tabelle td, body.dunkel .pst-a4 .pst-a4-tabelle th, body.dunkel .pst-a4 .pst-a4-tabelle input, body.dunkel .pst-a4 p, body.dunkel .pst-a4 h2 { color: #1a2a3a !important; -webkit-text-fill-color: #1a2a3a; }
 body.dunkel .pst-a4 .pst-a4-tabelle .pst-abschnitt input { color: #003884 !important; -webkit-text-fill-color: #003884; }
 @media (max-width: 800px) { .pst-a4 { min-height: 0; } .pst-c-kn { width: auto; } }
+
+/* 1.781.1 Prüfprotokoll ruhiger: Kopf mit Beschriftung über dem Wert,
+   kleinere Felder, feste Spalten (Prüfmittel ganz rechts lesbar),
+   Datum unten neben Visum. Wunsch Patrick 24. November 2026. */
+.pb-blatt .pb-kopf { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 14px; font-size: 13px; }
+.pb-blatt .pb-kopf > div { min-width: 0; }
+.pb-blatt .pb-kopf small { display: block; font-size: 10px; color: #6b7b8a; text-transform: uppercase; letter-spacing: .03em; margin-bottom: 1px; }
+.pb-blatt .pb-kopf b { display: block; font-weight: 600; overflow-wrap: anywhere; }
+.pb-blatt .pb-felder { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: flex-end; }
+.pb-blatt .pb-felder label { font-size: 11px; }
+.pb-blatt .pb-felder input, .pb-blatt .pb-felder select { padding: 4px 7px; font-size: 13px; }
+.pb-blatt .pb-felder__rechts { margin-left: auto; }
+.pb-tabelle--fest { table-layout: fixed; width: 100%; }
+.pb-tabelle--fest col.pb-c-nr { width: 30px; }
+.pb-tabelle--fest col.pb-c-soll { width: 20%; }
+.pb-tabelle--fest col.pb-c-pm { width: 26%; }
+.pb-tabelle--fest .pb-ist, .pb-blatt .pb-tabelle--fest .pb-ist { width: 100%; box-sizing: border-box; min-width: 0; }
+.pb-blatt .pb-pm { white-space: normal; overflow-wrap: anywhere; color: #1a2530; min-width: 0; font-size: 12px; }
+.pb-blatt .pb-soll { white-space: normal; overflow-wrap: anywhere; }
+.pb-unterschrift { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.pb-unterschrift label { display: flex; flex-direction: column; font-size: 11px; gap: 2px; }
+.pb-unterschrift input { padding: 4px 7px; font-size: 13px; }
+body.dunkel .pb-blatt .pb-kopf small { color: #6b7b8a !important; -webkit-text-fill-color: #6b7b8a; }
+body.dunkel .pb-blatt .pb-pm { color: #1a2530 !important; -webkit-text-fill-color: #1a2530; }
+/* 1.781.1 Auswahl untereinander, eine Spalte (Prüfprotokoll-Arten) */
+.statuswahl.statuswahl--liste { display: flex; flex-direction: column; gap: 8px; }
+.statuswahl.statuswahl--liste .knopf { width: 100%; }
+.pb-unterschrift label { color: #1a2530; }
+.pb-unterschrift input { height: 32px; box-sizing: border-box; border: 1px solid #c5d2de; border-radius: 6px; min-width: 160px; }
