@@ -3,26 +3,29 @@
 //  24. November 2026: „alle Berichte per Pfad hochladen und daraus ein
 //  Prüfprotokoll machen, das per Tool läuft und ähnlich aufgebaut ist“,
 //  „soll unter QS als weiterer Reiter kommen“).
-//  Die Excel-Prüfberichte je HOCO Nr. (vom Pool-Rechner aus dem Ordner
-//  oder von Hand hochgeladen) sind nur die Vorlage. Ausgefüllt wird in
-//  der App, je Protokoll eine Art: Erstteilprüfung und Endkontrolle mit
-//  5 Teilen, AQL-Stichprobe, LL Langläufer mit ausgewählten Massen.
-//  Daten in src/daten/pruefbericht.js, Tabellen aus sql/pruefberichte.sql.
+//  Seit 1.774.0 (Patrick 24. November 2026: „die Excel sollen nie mehr
+//  angezeigt werden“, „was wo gemacht werden muss, wird bei Stammdaten
+//  definiert“): welche Prüfungen und welche Masse gelten, steht in den
+//  Stammdaten der HOCO Nr. (src/hoco/Pruefung.jsx, Tabelle pruef_stamm).
+//  Hier oben drei Spalten mit dem, was ansteht (Erstteilprüfung, AQL, LL),
+//  darunter die zuletzt bearbeiteten Protokolle als Liste, „+ Protokoll“
+//  mit der Wahl der Art. Ein Protokoll sieht aus wie ein A4-Blatt und
+//  lässt sich drucken und löschen.
 // =================================================================
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
 import { passtWoerter } from "../../teile/Suchfeld.jsx";
 import { useSeitenSuche } from "../../teile/seitenSuche.js";
 import {
-  ARTEN, artVon, TEILE, AQL_WERTE, aqlPlan, fehltTabelle, dateienLaden, protokolleLaden,
-  vorlageLaden, dateiHochladen, lehrenAus, toleranz, toleranzText, istPruefen, pruefmittelFuer,
+  ARTEN, artVon, TEILE, AQL_WERTE, aqlPlan, fehltTabelle, protokolleLaden,
+  stammLaden, stammMitMassen, toleranz, toleranzText, istPruefen,
 } from "../../daten/pruefbericht.js";
 
-// Gewählte HOCO Nr. und offenes Protokoll bleiben beim Reiterwechsel
-const pbZustand = { suche: "", hoco: null, protokoll: null };
+// Offenes Protokoll und Suche bleiben beim Reiterwechsel
+const pbZustand = { suche: "", protokoll: null, frisch: null };
 
 const fehlerText = (f) => fehltTabelle(f)
-  ? "Die Datenbank kennt die Prüfberichte noch nicht (sql/pruefberichte.sql fehlt)."
+  ? "Die Datenbank kennt die Prüfberichte noch nicht (sql/pruefberichte.sql oder sql/pruef-stamm.sql fehlt)."
   : alt.fehlertext ? alt.fehlertext(f) : String((f && f.message) || f);
 const heute = () => alt.isoDatum(new Date());
 const datumText = (d) => (d ? String(d).slice(0, 10).split("-").reverse().join(".") : "");
@@ -35,7 +38,7 @@ const entscheidText = (e) => (ENTSCHEIDE.find((x) => x[0] === e) || [])[1] || ""
 // Zeilen, die geprüft werden (ohne Abschnitte)
 const masse = (zeilen) => (zeilen || []).filter((z) => !z.abschnitt);
 
-// Ergebnis eines Protokolls: { gut, schlecht, offen, fertig }
+// Ergebnis eines Protokolls: { gut, schlecht, offen }
 export function auswerten(p) {
   const k = p.kopf || {}, w = p.werte || {};
   const zeilen = masse(k.zeilen);
@@ -60,150 +63,48 @@ function aqlStand(k, w) {
   return { plan, ueber };
 }
 
-// =================================================================
-export default function Pruefberichte() {
-  const [, setF] = useState(0);
-  const neuZeichnen = () => setF((x) => x + 1);
-  const laden = async () => {
-    const [dateien, protokolle] = await Promise.all([dateienLaden(), protokolleLaden()]);
-    return { dateien, protokolle };
-  };
-  const { daten, fehler, neu } = useDaten(laden, []);
+const STAND = { laeuft: "läuft", ruesten: "Rüsten", geplant: "geplant", fertig: "fertig" };
 
-  const gruppen = useMemo(() => {
-    const m = new Map();
-    for (const d of (daten && daten.dateien) || []) {
-      if (!m.has(d.hoco_nr)) m.set(d.hoco_nr, { hoco: d.hoco_nr, dateien: [], protokolle: [] });
-      m.get(d.hoco_nr).dateien.push(d);
+// Stammdaten der HOCO Nr. öffnen (Fenster HOCO Nr. beim Teil)
+function stammdatenOeffnen(nr) {
+  alt.prod.hocoOffen = nr;
+  alt.prod.hocoSuche = nr;
+  alt.hocoFenster();
+}
+
+// Gehört ein Protokoll zu diesem Auftrag? Über die Kennung, sonst die FA Nr.
+const gehoertZu = (p, j) => (p.job_id && p.job_id === j.id)
+  || (p.hoco_nr === j.job_number && j.fa_nr && String(p.fa_nr || "").trim() === String(j.fa_nr).trim());
+
+// Was steht an? Nur Aufträge an der Maschine (Rüsten, läuft) und nur, was
+// die Stammdaten der HOCO Nr. verlangen.
+export function anstehend(jobs, stamm, protokolle) {
+  const st = new Map((stamm || []).map((s) => [s.hoco_nr, s]));
+  const t = heute();
+  const aus = { erstteil: [], aql: [], ll: [] };
+  for (const j of jobs || []) {
+    const s = st.get(j.job_number);
+    if (!s) continue;
+    const arten = s.arten || [];
+    const meine = (protokolle || []).filter((p) => gehoertZu(p, j));
+    const von = (art) => meine.filter((p) => (p.kopf || {}).art === art);
+    const offenes = (art) => von(art).find((p) => !p.abgeschlossen_am) || null;
+    const fertig = (art) => von(art).some((p) => p.abgeschlossen_am);
+    if (arten.includes("erstteil") && !fertig("erstteil")) aus.erstteil.push({ j, art: "erstteil", p: offenes("erstteil") });
+    if (j.plan_status !== "laeuft") continue;
+    if (arten.includes("aql") && !fertig("aql")) aus.aql.push({ j, art: "aql", p: offenes("aql") });
+    if (arten.includes("ll")) {
+      const ll = von("ll").find((p) => !p.abgeschlossen_am) || null;
+      const heuteDa = ll && ((ll.werte || {}).proben || []).some((pr) => pr.datum === t);
+      if (!heuteDa) aus.ll.push({ j, art: "ll", p: ll });
     }
-    for (const p of (daten && daten.protokolle) || []) {
-      if (!m.has(p.hoco_nr)) m.set(p.hoco_nr, { hoco: p.hoco_nr, dateien: [], protokolle: [] });
-      m.get(p.hoco_nr).protokolle.push(p);
-    }
-    return [...m.values()].sort((a, b) => a.hoco.localeCompare(b.hoco));
-  }, [daten]);
-
-  useSeitenSuche({
-    name: "Prüfberichte", platzhalter: "HOCO Nr., FA Nr. …",
-    eintraege: () => gruppen.map((g) => ({
-      gruppe: "Prüfberichte", zeichen: "📏", titel: g.hoco,
-      zeile: g.dateien.length + " Vorlage(n) · " + g.protokolle.length + " Protokoll(e)",
-      such: g.protokolle.map((p) => p.fa_nr).join(" "), g })),
-    springen: (x) => { pbZustand.hoco = x.g.hoco; pbZustand.protokoll = null; neuZeichnen(); },
-  });
-
-  if (!daten) return <p className="klein">{fehler ? fehlerText(fehler) : "Wird geladen …"}</p>;
-
-  const g = pbZustand.hoco && gruppen.find((x) => x.hoco === pbZustand.hoco);
-  const zurueck = () => { pbZustand.hoco = null; pbZustand.protokoll = null; neuZeichnen(); };
-  if (g && pbZustand.protokoll) {
-    // Ein eben angelegtes Protokoll ist erst nach dem Neuladen in der Liste
-    const f = pbZustand.frisch;
-    const p = g.protokolle.find((x) => x.id === pbZustand.protokoll) || (f && f.id === pbZustand.protokoll ? f : null);
-    if (p) return <Protokoll key={p.id} p={p} g={g} zurueck={() => { pbZustand.protokoll = null; neu(); neuZeichnen(); }} neu={neu} />;
-    pbZustand.protokoll = null;
   }
-  if (g) return <HocoAnsicht g={g} zurueck={zurueck} neu={neu} oeffnen={(id, frisch) => { pbZustand.protokoll = id; pbZustand.frisch = frisch || null; neu(); neuZeichnen(); }} />;
-  return <Liste gruppen={gruppen} neu={neu} waehlen={(h) => { pbZustand.hoco = h; neuZeichnen(); }} />;
-}
-
-// ---------- Hochladen von Hand ----------
-function HochladenKnopf({ nachher }) {
-  const ref = useRef(null);
-  const [laeuft, setLaeuft] = useState(false);
-  if (!darf()) return null;
-  const los = async (liste) => {
-    setLaeuft(true);
-    let gut = 0; const fehl = [];
-    for (const d of liste) {
-      try { await dateiHochladen(d); gut++; } catch (f) { fehl.push(d.name + ": " + fehlerText(f)); }
-    }
-    setLaeuft(false);
-    if (gut) alt.meldung(gut + " Prüfbericht(e) hochgeladen", "gut");
-    if (fehl.length) alt.meldung(fehl.join(" · "), "fehler");
-    if (nachher) nachher();
-  };
-  return (
-    <>
-      <button type="button" className="knopf" id="pb-hochladen" disabled={laeuft} onClick={() => ref.current && ref.current.click()}>
-        {laeuft ? "Wird hochgeladen …" : "+ Excel-Prüfberichte hochladen"}
-      </button>
-      <input ref={ref} type="file" multiple accept=".xlsx,.xlsm,.xls" hidden data-ablegen="direkt"
-        onChange={(e) => { const l = [...e.target.files]; e.target.value = ""; if (l.length) los(l); }} />
-    </>
-  );
-}
-
-// ---------- Übersicht ----------
-function Liste({ gruppen, neu, waehlen }) {
-  const [suche, setSuche] = useState(pbZustand.suche);
-  const treffer = gruppen.filter((g) => passtWoerter(suche, [g.hoco, ...g.protokolle.map((p) => p.fa_nr), ...g.dateien.map((d) => d.name)]));
-  const offen = gruppen.reduce((s, g) => s + g.protokolle.filter((p) => !p.abgeschlossen_am).length, 0);
-  return (
-    <div className="pb">
-      <div className="pb-kopfzeile">
-        <input type="search" className="pb-suche" id="pb-suche" placeholder="HOCO Nr. oder FA Nr. suchen" value={suche}
-          onChange={(e) => { setSuche(e.target.value); pbZustand.suche = e.target.value; }} />
-        <HochladenKnopf nachher={neu} />
-      </div>
-      <p className="klein">{gruppen.length} HOCO Nummern mit Prüfbericht · {offen} Protokolle in Arbeit.
-        Die Vorlagen kommen vom Pool-Rechner aus dem Ordner unter Einstellungen → Dokumente → Prüfberichte oder werden hier hochgeladen.</p>
-      {!treffer.length ? <p className="klein">{gruppen.length ? "Nichts gefunden." : "Noch keine Prüfberichte."}</p> : (
-        <div className="pb-liste" id="pb-liste">
-          {treffer.map((g) => {
-            const letzt = g.protokolle[0];
-            const inArbeit = g.protokolle.filter((p) => !p.abgeschlossen_am).length;
-            return (
-              <button type="button" key={g.hoco} className="pb-liste__zeile" data-pbhoco={g.hoco} onClick={() => waehlen(g.hoco)}>
-                <b>{g.hoco}</b>
-                <span>{g.dateien.length ? g.dateien.length + (g.dateien.length === 1 ? " Seite" : " Seiten") : "keine Vorlage"}</span>
-                <span>{g.protokolle.length} Protokoll{g.protokolle.length === 1 ? "" : "e"}{inArbeit ? " · " + inArbeit + " in Arbeit" : ""}</span>
-                <span className="klein">{letzt ? artVon((letzt.kopf || {}).art).kurz + " " + datumText(letzt.datum || letzt.erstellt_am) : ""}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ---------- Vorlage laden ----------
-function useVorlage(dateien) {
-  const schluessel = dateien.map((d) => d.url).join("|");
-  const [st, setSt] = useState({ vorlage: null, fehler: null });
-  useEffect(() => {
-    let gueltig = true;
-    if (!dateien.length) { setSt({ vorlage: null, fehler: null }); return undefined; }
-    setSt({ vorlage: null, fehler: null });
-    vorlageLaden(dateien).then((v) => gueltig && setSt({ vorlage: v, fehler: null }),
-      (f) => gueltig && setSt({ vorlage: null, fehler: f }));
-    return () => { gueltig = false; };
-  }, [schluessel]);
-  return st;
-}
-
-function KopfRaster({ kopf }) {
-  const felder = [["FA Nr. (Vorlage)", kopf.fa_nr], ["Artikel", kopf.bezeichnung], ["HOCO Nr.", kopf.hoco], ["Index", kopf.index],
-    ["Zeichnung", kopf.zeichnung], ["Bestellte Menge", kopf.menge], ["Automat", kopf.typ], ["Maschine", kopf.maschine], ["Allg. Toleranz", kopf.alltol]];
-  return (
-    <div className="pb-kopf">
-      {felder.filter(([, v]) => v).map(([n, v]) => <div key={n}><small>{n}</small><b>{v}</b></div>)}
-    </div>
-  );
-}
-
-// Protokolle nach FA Nr., die jüngste FA zuerst (die Liste kommt neuste zuerst)
-function faGruppen(liste) {
-  const m = new Map();
-  for (const p of liste) { const k = String(p.fa_nr || "").trim() || "_"; if (!m.has(k)) m.set(k, []); m.get(k).push(p); }
-  return [...m.entries()].sort((x, y) => (x[0] === "_") - (y[0] === "_"));
+  return aus;
 }
 
 // ---------- FA Nr. wählen ----------
-const STAND = { laeuft: "läuft", ruesten: "Rüsten", geplant: "geplant", fertig: "fertig" };
 async function faWaehlen(hoco) {
-  const { data } = await alt.db.from("jobs").select("id, fa_nr, target_quantity, plan_status, planned_from")
+  const { data } = await alt.db.from("jobs").select("id, fa_nr, job_number, target_quantity, plan_status, planned_from, machine_id")
     .eq("job_number", hoco).order("planned_from", { ascending: false, nullsFirst: false }).limit(30);
   const rang = (x) => ({ laeuft: 0, ruesten: 1, geplant: 2 }[x.plan_status] ?? 3);
   const auftraege = (data || []).filter((x) => x.fa_nr).sort((a, b) => rang(a) - rang(b)).slice(0, 8);
@@ -220,119 +121,203 @@ async function faWaehlen(hoco) {
   return da || { fa_nr: fa };
 }
 
-// ---------- Eine HOCO Nr. ----------
-function HocoAnsicht({ g, zurueck, neu, oeffnen }) {
-  const { vorlage, fehler } = useVorlage(g.dateien);
-  const lehren = useMemo(() => (vorlage ? lehrenAus(vorlage) : null), [vorlage]);
-  const [pm, setPm] = useState(null);
-  useEffect(() => {
-    if (!alt.istAdmin()) return;
-    import("../../daten/pruefmittel.js").then((m) => (m.pruefmittelLaden ? m.pruefmittelLaden() : null))
-      .then((r) => setPm((r && (r.liste || r)) || null)).catch(() => {});
-  }, []);
-  const [legt, setLegt] = useState(false);
+// ---------- Neues Protokoll ----------
+// Masse und Vorgaben kommen aus den Stammdaten der HOCO Nr.
+async function protokollAnlegen(hoco, art, j, protokolle) {
+  const st = await stammMitMassen(hoco);
+  if (!st || !(st.zeilen || []).length) {
+    const ok = await alt.nachfragen({ titel: "Noch keine Masse", text: "Für " + hoco + " sind in den Stammdaten noch keine Masse erfasst. Dort unter „Prüfung“ eintragen oder einen Excel-Prüfbericht einlesen.", bestaetigen: "Stammdaten öffnen" });
+    if (ok) stammdatenOeffnen(hoco);
+    return null;
+  }
+  const kopf = { art, zeilen: st.zeilen, vorlage: st.kopf || {}, menge: j.target_quantity || "" };
+  if (j.maschine) kopf.maschine = j.maschine;
+  if (art === "aql") { kopf.los = j.target_quantity || ""; kopf.aql = st.aql ?? 1.0; kopf.niveau = st.niveau || "II"; }
+  if (art === "ll") {
+    // Masse mit Häkchen LL in den Stammdaten, sonst die Wahl vom letzten LL
+    const ids = new Set(st.zeilen.map((z) => z.id));
+    const ll = st.zeilen.filter((z) => !z.abschnitt && z.ll).map((z) => z.id);
+    const vor = (protokolle || []).find((p) => p.hoco_nr === hoco && (p.kopf || {}).art === "ll");
+    kopf.auswahl = ll.length ? ll : ((vor && vor.kopf.auswahl) || []).filter((x) => ids.has(x));
+  }
+  const { data, error } = await alt.db.from("pruefprotokolle").insert({
+    hoco_nr: hoco, fa_nr: j.fa_nr || null, job_id: j.id || null, kopf, werte: art === "ll" ? { proben: [] } : {}, datum: heute(),
+  }).select().single();
+  if (error) throw error;
+  alt.merkeSchritt("Neues Prüfprotokoll " + hoco, alt.rueckWeg("pruefprotokolle", { id: data.id }));
+  return data;
+}
 
-  const anlegen = async (art) => {
-    if (!vorlage) return;
+async function protokollLoeschen(p) {
+  const ok = await alt.nachfragen({ titel: "Protokoll löschen", text: artVon((p.kopf || {}).art).name + " " + p.hoco_nr + (p.fa_nr ? " · FA " + p.fa_nr : "") + " vom " + datumText(p.datum || p.erstellt_am) + " wird gelöscht.", bestaetigen: "Löschen", gefahr: true });
+  if (!ok) return false;
+  const vorher = await alt.rueckSichern("pruefprotokolle", { id: p.id });
+  const { error } = await alt.db.from("pruefprotokolle").delete().eq("id", p.id);
+  if (error) { alt.meldung(fehlerText(error), "fehler"); return false; }
+  alt.merkeSchritt("Löschen des Prüfprotokolls", alt.rueckRein("pruefprotokolle", vorher));
+  return true;
+}
+
+// =================================================================
+export default function Pruefberichte() {
+  const [, setF] = useState(0);
+  const neuZeichnen = () => setF((x) => x + 1);
+  const laden = async () => {
+    const [protokolle, stamm, jobsR] = await Promise.all([
+      protokolleLaden(),
+      stammLaden().catch((f) => { if (fehltTabelle(f)) return []; throw f; }),
+      alt.db.from("jobs").select("id, fa_nr, job_number, plan_status, target_quantity, machine_id, planned_from").in("plan_status", ["ruesten", "laeuft"]),
+    ]);
+    const jobs = jobsR.data || [];
+    const ids = [...new Set(jobs.map((j) => j.machine_id).filter(Boolean))];
+    const m = ids.length ? (await alt.db.from("machines").select("id, name").in("id", ids)).data || [] : [];
+    const name = new Map(m.map((x) => [x.id, x.name]));
+    for (const j of jobs) j.maschine = name.get(j.machine_id) || "";
+    return { protokolle, stamm, jobs };
+  };
+  const { daten, fehler, neu } = useDaten(laden, []);
+
+  useSeitenSuche({
+    name: "Prüfberichte", platzhalter: "HOCO Nr., FA Nr. …",
+    eintraege: () => ((daten && daten.protokolle) || []).map((p) => ({
+      gruppe: "Prüfprotokolle", zeichen: "📏", titel: p.hoco_nr + (p.fa_nr ? " · FA " + p.fa_nr : ""),
+      zeile: artVon((p.kopf || {}).art).name + " · " + datumText(p.datum || p.erstellt_am), p })),
+    springen: (x) => { pbZustand.protokoll = x.p.id; neuZeichnen(); },
+  });
+
+  if (!daten) return <p className="klein">{fehler ? fehlerText(fehler) : "Wird geladen …"}</p>;
+
+  const oeffnen = (p) => { pbZustand.protokoll = p.id; pbZustand.frisch = p; neuZeichnen(); };
+  if (pbZustand.protokoll) {
+    // Ein eben angelegtes Protokoll ist erst nach dem Neuladen in der Liste
+    const f = pbZustand.frisch;
+    const p = daten.protokolle.find((x) => x.id === pbZustand.protokoll) || (f && f.id === pbZustand.protokoll ? f : null);
+    if (p) return <Protokoll key={p.id} p={p} zurueck={() => { pbZustand.protokoll = null; pbZustand.frisch = null; neu(); neuZeichnen(); }} />;
+    pbZustand.protokoll = null;
+  }
+  return <Uebersicht daten={daten} neu={neu} oeffnen={oeffnen} />;
+}
+
+// ---------- Übersicht: was ansteht und die zuletzt bearbeiteten ----------
+function Uebersicht({ daten, neu, oeffnen }) {
+  const [suche, setSuche] = useState(pbZustand.suche);
+  const [legt, setLegt] = useState(false);
+  const todo = useMemo(() => anstehend(daten.jobs, daten.stamm, daten.protokolle), [daten]);
+
+  const anlegen = async (hoco, art, j) => {
+    if (!darf() || legt) return;
     setLegt(true);
     try {
-      // Jedes Protokoll gehört zu einer FA Nr., damit alte Prüfungen nicht
-      // überschrieben werden wie das Excel im Ordner (Patrick 24.11.2026)
-      const j = await faWaehlen(g.hoco);
-      if (!j) return;
-      const kopf = { art, zeilen: vorlage.zeilen, vorlage: vorlage.kopf, menge: j.target_quantity || "" };
-      if (art === "aql") { kopf.los = j.target_quantity || ""; kopf.aql = 1.0; kopf.niveau = "II"; }
-      if (art === "ll") {
-        // Auswahl vom letzten LL dieser HOCO Nr., sonst noch keine
-        const vor = g.protokolle.find((p) => (p.kopf || {}).art === "ll");
-        const ids = new Set(vorlage.zeilen.map((z) => z.id));
-        kopf.auswahl = ((vor && vor.kopf.auswahl) || []).filter((x) => ids.has(x));
-      }
-      const { data, error } = await alt.db.from("pruefprotokolle").insert({
-        hoco_nr: g.hoco, fa_nr: j.fa_nr, job_id: j.id || null, kopf, werte: art === "ll" ? { proben: [] } : {}, datum: heute(),
-      }).select().single();
-      if (error) throw error;
-      alt.merkeSchritt("Neues Prüfprotokoll " + g.hoco, alt.rueckWeg("pruefprotokolle", { id: data.id }));
-      oeffnen(data.id, data);
+      const p = await protokollAnlegen(hoco, art, j, daten.protokolle);
+      if (p) oeffnen(p);
     } catch (f) { alt.meldung(fehlerText(f), "fehler"); }
     finally { setLegt(false); }
   };
 
-  return (
-    <div className="pb" data-pbansicht={g.hoco}>
-      <div className="pb-kopfzeile">
-        <button type="button" className="knopf knopf--klein" onClick={zurueck}>← Alle Prüfberichte</button>
-        <h2 className="pb-titel">Prüfbericht {g.hoco}</h2>
-        <HochladenKnopf nachher={neu} />
-      </div>
-      <div className="pb-dateien">
-        {g.dateien.map((d) => (
-          <button type="button" key={d.id} className="knopf knopf--klein" onClick={() => alt.betrachter(d.url, d.name, false, "excel")}>
-            📄 {d.seite ? "Seite " + d.seite + " · " : ""}{d.name}
-          </button>
-        ))}
-        {!g.dateien.length ? <span className="klein">Keine Excel-Vorlage mehr da, die Protokolle bleiben.</span> : null}
-      </div>
-      {fehler ? <p className="rk-fehler">Vorlage nicht lesbar: {fehlerText(fehler)}</p> : null}
-      {g.dateien.length && !vorlage && !fehler ? <p className="klein">Vorlage wird gelesen …</p> : null}
-      {vorlage ? <KopfRaster kopf={vorlage.kopf} /> : null}
+  // „+ Protokoll“: zuerst die Art, dann HOCO Nr. und FA Nr.
+  const neuesProtokoll = async () => {
+    const art = await alt.auswahlDialog("Welches Protokoll?", ARTEN.map((a) => ({ wert: a.id, text: a.name + " · " + a.text })));
+    if (!art) return;
+    const e = await alt.dialogFelder({ titel: artVon(art).name, felder: [{ name: "hoco", label: "HOCO Nr.", pflicht: true }], bestaetigen: "Weiter" });
+    const hoco = e && String(e.hoco || "").trim();
+    if (!hoco) return;
+    const j = await faWaehlen(hoco);
+    if (!j) return;
+    if (j.machine_id) j.maschine = ((daten.jobs.find((x) => x.id === j.id)) || {}).maschine || "";
+    anlegen(hoco, art, j);
+  };
 
-      {lehren && (lehren.lehren.length || lehren.messmittel.length) ? (
-        <section className="pb-karte" id="pb-lehren">
-          <h3>Benötigte Lehren und Messmittel</h3>
-          <div className="pb-lehren">
-            {lehren.lehren.map((l, i) => {
-              const da = pm ? pruefmittelFuer(l, pm, g.hoco) : null;
-              return (
-                <div key={i} className={"pb-lehre" + (da && !da.length ? " pb-lehre--fehlt" : "")}>
-                  <b>{l.name}</b> <span>{l.mass}</span> <small>Nr. {l.nr.join(", ")}</small>
-                  {da ? <small className="pb-lehre__da">{da.length ? "✓ " + da.map((p) => p.nr || p.bezeichnung).join(", ") : "nicht in der Prüfmittelverwaltung"}</small> : null}
-                </div>
-              );
-            })}
-          </div>
-          {lehren.messmittel.length ? <p className="klein">Messmittel: {lehren.messmittel.map((m) => m.name).join(", ")}</p> : null}
-        </section>
-      ) : null}
+  const todoTippen = (t) => { if (t.p) oeffnen(t.p); else anlegen(t.j.job_number, t.art, t.j); };
+
+  const liste = [...daten.protokolle]
+    .sort((a, b) => String(b.geaendert_am || b.erstellt_am).localeCompare(String(a.geaendert_am || a.erstellt_am)))
+    .filter((p) => passtWoerter(suche, [p.hoco_nr, p.fa_nr, artVon((p.kopf || {}).art).name, p.visum, ((p.kopf || {}).vorlage || {}).bezeichnung]));
+  const zeigen = suche ? liste.slice(0, 200) : liste.slice(0, 30);
+
+  const loeschen = async (p) => { if (await protokollLoeschen(p)) neu(); };
+
+  const SPALTEN = [
+    ["erstteil", "Erstteilprüfung", "Aufträge in Rüsten oder läuft ohne abgeschlossene Erstteilprüfung"],
+    ["aql", "AQL", "Laufende Aufträge ohne abgeschlossene AQL-Stichprobe"],
+    ["ll", "LL Langläufer", "Laufende Aufträge ohne Stichprobe von heute"],
+  ];
+  return (
+    <div className="pb">
+      <div className="pb-kopfzeile">
+        {darf() ? <button type="button" className="knopf knopf--haupt" id="pb-neu" disabled={legt} onClick={neuesProtokoll}>+ Protokoll</button> : null}
+        <span className="klein">Welche Prüfungen nötig sind und welche Masse gelten, steht in den Stammdaten der HOCO Nr. unter „Prüfung“.</span>
+      </div>
+
+      <div className="pb-todo" id="pb-todo">
+        {SPALTEN.map(([id, titel, erkl]) => (
+          <section key={id} className="pb-todo__spalte" data-pbtodo={id}>
+            <h3>{titel} <span className={"marke" + (todo[id].length ? " pb-todo__zahl" : "")}>{todo[id].length}</span></h3>
+            {!todo[id].length ? <p className="klein">Nichts offen.</p> : (
+              <ul>
+                {todo[id].map((t) => (
+                  <li key={t.j.id}>
+                    <button type="button" className="pb-todo__eintrag" data-pbtodoauftrag={t.j.id} disabled={!darf() && !t.p} onClick={() => todoTippen(t)}>
+                      <b>{t.j.job_number}</b>
+                      <span>{t.j.fa_nr ? "FA " + t.j.fa_nr : "ohne FA"} · {t.j.maschine || "?"} · {STAND[t.j.plan_status] || ""}</span>
+                      <small>{t.p ? (t.art === "ll" ? "heute noch keine Stichprobe" : "in Arbeit, weiterführen") : "noch nicht angefangen"}</small>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="klein pb-todo__erkl">{erkl}</p>
+          </section>
+        ))}
+      </div>
 
       <section className="pb-karte">
-        <h3>Protokolle</h3>
-        {darf() && vorlage ? (
-          <div className="pb-neu" id="pb-neu">
-            {ARTEN.map((a) => (
-              <button type="button" key={a.id} className="pb-neu__knopf" data-pbneu={a.id} disabled={legt} onClick={() => anlegen(a.id)}>
-                <b>+ {a.name}</b><small>{a.text}</small>
-              </button>
-            ))}
-          </div>
-        ) : null}
-        {!g.protokolle.length ? <p className="klein">Noch kein Protokoll.</p> : (
-          <div className="pb-protokolle">
-            {faGruppen(g.protokolle).map(([fa, liste]) => (
-              <div key={fa} className="pb-fagruppe" data-pbfa={fa}>
-                <h4 className="pb-fagruppe__titel">{fa === "_" ? "Ohne FA Nr." : "FA " + fa}<small>{liste.length} Protokoll{liste.length === 1 ? "" : "e"}</small></h4>
-            {liste.map((p) => {
-              const e = auswerten(p);
-              return (
-                <button type="button" key={p.id} className="pb-protokolle__zeile" data-pbprotokoll={p.id} onClick={() => oeffnen(p.id)}>
-                  <span className={"pb-art pb-art--" + ((p.kopf || {}).art || "erstteil")}>{artVon((p.kopf || {}).art).kurz}</span>
-                  <span>{datumText(p.datum || p.erstellt_am)}{p.fa_nr ? " · FA " + p.fa_nr : ""}</span>
-                  <span className="klein">{e.schlecht ? <b className="pb-rot">{e.schlecht} n.i.O.</b> : null} {e.gut} i.O.</span>
-                  <span>{p.abgeschlossen_am ? "✓ " + (entscheidText(p.entscheid) || "abgeschlossen") : "in Arbeit"}</span>
-                </button>
-              );
-            })}
-              </div>
-            ))}
-          </div>
+        <div className="pb-kopfzeile">
+          <h3 className="pb-titel">Zuletzt bearbeitet</h3>
+          <input type="search" className="pb-suche" id="pb-suche" placeholder="HOCO Nr., FA Nr., Art suchen" value={suche}
+            onChange={(e) => { setSuche(e.target.value); pbZustand.suche = e.target.value; }} />
+        </div>
+        {!zeigen.length ? <p className="klein">{daten.protokolle.length ? "Nichts gefunden." : "Noch kein Protokoll."}</p> : (
+          <table className="tabelle pb-liste" id="pb-liste">
+            <thead><tr><th>Art</th><th>HOCO Nr.</th><th>FA Nr.</th><th>Datum</th><th>Ergebnis</th><th>Stand</th><th>Geändert</th><th /></tr></thead>
+            <tbody>
+              {zeigen.map((p) => {
+                const e = auswerten(p), art = (p.kopf || {}).art || "erstteil";
+                return (
+                  <tr key={p.id} data-pbprotokoll={p.id} onClick={() => oeffnen(p)}>
+                    <td><span className={"pb-art pb-art--" + art}>{artVon(art).kurz}</span></td>
+                    <td><b>{p.hoco_nr}</b></td>
+                    <td>{p.fa_nr || <span className="pb-rot">fehlt</span>}</td>
+                    <td>{datumText(p.datum || p.erstellt_am)}</td>
+                    <td className="nowrap">{e.schlecht ? <b className="pb-rot">{e.schlecht} n.i.O. </b> : null}<span className="klein">{e.gut} i.O.</span></td>
+                    <td>{p.abgeschlossen_am ? "✓ " + (entscheidText(p.entscheid) || "abgeschlossen") : "in Arbeit"}</td>
+                    <td className="klein nowrap">{zeitText(p.geaendert_am || p.erstellt_am)}</td>
+                    <td className="nowrap">{darf() ? <button type="button" className="knopf knopf--klein knopf--gefahr-leise" title="Protokoll löschen" data-pbweg={p.id}
+                      onClick={(x) => { x.stopPropagation(); loeschen(p); }}>✕</button> : null}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         )}
+        {!suche && liste.length > zeigen.length ? <p className="klein">Die letzten {zeigen.length} von {liste.length}. Ältere findest du mit der Suche.</p> : null}
       </section>
     </div>
   );
 }
 
-// ---------- Ein Protokoll ----------
-function Protokoll({ p, g, zurueck, neu }) {
+function KopfRaster({ kopf, w, hoco }) {
+  const felder = [["HOCO Nr.", hoco], ["Artikel", kopf.bezeichnung], ["Zeichnung", kopf.zeichnung], ["Index", kopf.index],
+    ["Bestellte Menge", w.kopf.menge ? alt.zahlText(Number(w.kopf.menge) || 0) : ""], ["Allg. Toleranz", kopf.alltol]];
+  return (
+    <div className="pb-kopf">
+      {felder.filter(([, v]) => v).map(([n, v]) => <div key={n}><small>{n}</small><b>{v}</b></div>)}
+    </div>
+  );
+}
+
+// ---------- Ein Protokoll, als A4-Blatt ----------
+function Protokoll({ p, zurueck }) {
+  const hoco = p.hoco_nr;
   const [w, setW] = useState(() => ({ ...p, kopf: { ...(p.kopf || {}) }, werte: { ...(p.werte || {}) } }));
   const [stand, setStand] = useState("");
   const zu = !!w.abgeschlossen_am;
@@ -377,23 +362,30 @@ function Protokoll({ p, g, zurueck, neu }) {
     if (await speichern(n)) setW(n);
   };
   const loeschen = async () => {
-    const ok = await alt.nachfragen({ titel: "Protokoll löschen", text: artVon(art).name + " vom " + datumText(w.datum) + " wird gelöscht.", bestaetigen: "Löschen", gefahr: true });
-    if (!ok) return;
     clearTimeout(timer.current); timer.current = null;
-    const vorher = await alt.rueckSichern("pruefprotokolle", { id: w.id });
-    const { error } = await alt.db.from("pruefprotokolle").delete().eq("id", w.id);
-    if (error) { alt.meldung(fehlerText(error), "fehler"); return; }
-    alt.merkeSchritt("Löschen des Prüfprotokolls", alt.rueckRein("pruefprotokolle", vorher));
-    zurueck();
+    if (await protokollLoeschen(w)) zurueck();
   };
+  const dateiName = () => ("Prüfprotokoll " + hoco + " " + artVon(art).kurz + (w.fa_nr ? " FA " + w.fa_nr : "") + " " + (w.datum || "") + ".pdf").replace(/[\\/:*?"<>|]/g, "");
+  const pdfMachen = async () => {
+    const { pdfAusHtml } = await import("../qmAlt/checklistePdf.js");
+    return pdfAusHtml(protokollHtml(w, hoco), "Prüfprotokoll " + hoco + " · " + artVon(art).name);
+  };
+  // Drucken: PDF im Betrachter der App, dort mit seinem Knopf Drucken
   const drucken = async () => {
     try {
+      setStand("Wird zum Drucken vorbereitet …");
+      const blob = await pdfMachen();
+      setStand("");
+      alt.betrachter(URL.createObjectURL(blob), dateiName(), true);
+    } catch (f) { setStand(""); alt.meldung("Drucken ging nicht: " + fehlerText(f), "fehler"); }
+  };
+  const herunterladen = async () => {
+    try {
       setStand("PDF wird erstellt …");
-      const { pdfAusHtml } = await import("../qmAlt/checklistePdf.js");
-      const blob = await pdfAusHtml(protokollHtml(w, g.hoco), "Prüfprotokoll " + g.hoco + " · " + artVon(art).name);
+      const blob = await pdfMachen();
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = ("Prüfprotokoll " + g.hoco + " " + artVon(art).kurz + " " + (w.datum || "") + ".pdf").replace(/[\\/:*?"<>|]/g, "");
+      a.download = dateiName();
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 60000);
       setStand("PDF heruntergeladen");
@@ -402,48 +394,59 @@ function Protokoll({ p, g, zurueck, neu }) {
 
   const e = auswerten(w);
   return (
-    <div className="pb" data-pbprotokolloffen={w.id}>
-      <div className="pb-kopfzeile">
-        <button type="button" className="knopf knopf--klein" onClick={zurueck}>← {g.hoco}</button>
-        <h2 className="pb-titel"><span className={"pb-art pb-art--" + art}>{artVon(art).kurz}</span> {artVon(art).name} {g.hoco}{w.fa_nr ? " · FA " + w.fa_nr : ""}</h2>
+    <div className="pb pb-blattseite" data-pbprotokolloffen={w.id}>
+      <div className="pb-kopfzeile pb-werkzeug">
+        <button type="button" className="knopf knopf--klein" onClick={zurueck}>← Prüfberichte</button>
         <span className="klein" id="pb-stand">{stand}</span>
-        <button type="button" className="knopf knopf--klein" onClick={drucken}>⬇ PDF</button>
-        {darf() ? <button type="button" className="knopf knopf--klein" onClick={loeschen}>Löschen</button> : null}
-      </div>
-      <KopfRaster kopf={w.kopf.vorlage || {}} />
-      <div className="pb-felder">
-        <label className={!String(w.fa_nr || "").trim() ? "pb-pflicht" : ""}>FA Nr.<input value={w.fa_nr || ""} disabled={!schreibt} onChange={(x) => setzen("fa_nr", x.target.value)} /></label>
-        <label>Datum<input type="date" value={w.datum || ""} disabled={!schreibt} onChange={(x) => setzen("datum", x.target.value)} /></label>
-        <label>Maschine<input value={w.kopf.maschine || ""} placeholder={(w.kopf.vorlage || {}).maschine || ""} disabled={!schreibt} onChange={(x) => kopfSetzen("maschine", x.target.value)} /></label>
-        {art === "aql" ? <AqlKopf k={w.kopf} schreibt={schreibt} setzen={kopfSetzen} werte={w.werte} /> : null}
+        <span className="pst-platz" />
+        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(hoco)}>Stammdaten {hoco}</button>
+        <button type="button" className="knopf knopf--klein" id="pb-drucken" onClick={drucken}>🖨 Drucken</button>
+        <button type="button" className="knopf knopf--klein" onClick={herunterladen}>⬇ PDF</button>
+        {darf() ? <button type="button" className="knopf knopf--klein knopf--gefahr-leise" id="pb-loeschen" onClick={loeschen}>Löschen</button> : null}
       </div>
 
-      {art === "aql" ? <AqlTabelle zeilen={zeilen} w={w} schreibt={schreibt} aendern={aendern} />
-        : art === "ll" ? <LlTabelle zeilen={zeilen} w={w} schreibt={schreibt} aendern={aendern} />
-        : <TeileTabelle zeilen={zeilen} w={w} schreibt={schreibt} aendern={aendern} />}
+      <div className="pb-blatt hell-bleibt" id="pb-blatt">
+        <div className="pb-brief">
+          {alt.LOGO_BRIEF ? <img src={alt.LOGO_BRIEF} alt="Hofer + Co" /> : <b>Hofer + Co</b>}
+          <div><b>Hofer + Co. Präzisionsdrehteile</b><br />Lohn-Ammannsegg</div>
+          {alt.SIEGEL_BRIEF ? <img className="pb-brief__siegel" src={alt.SIEGEL_BRIEF} alt="ISO 9001" /> : <span />}
+        </div>
+        <h2 className="pb-blatt__titel">Prüfprotokoll · {artVon(art).name}</h2>
+        <KopfRaster kopf={w.kopf.vorlage || {}} w={w} hoco={hoco} />
+        <div className="pb-felder">
+          <label className={!String(w.fa_nr || "").trim() ? "pb-pflicht" : ""}>FA Nr.<input value={w.fa_nr || ""} disabled={!schreibt} onChange={(x) => setzen("fa_nr", x.target.value)} /></label>
+          <label>Datum<input type="date" value={w.datum || ""} disabled={!schreibt} onChange={(x) => setzen("datum", x.target.value)} /></label>
+          <label>Maschine<input value={w.kopf.maschine || ""} disabled={!schreibt} onChange={(x) => kopfSetzen("maschine", x.target.value)} /></label>
+          {art === "aql" ? <AqlKopf k={w.kopf} schreibt={schreibt} setzen={kopfSetzen} werte={w.werte} /> : null}
+        </div>
 
-      <div className="pb-ende">
-        <div className="pb-ergebnis">
-          <span className="pb-gruen">{e.gut} i.O.</span>
-          {e.schlecht ? <span className="pb-rot">{e.schlecht} n.i.O.</span> : null}
-          {e.offen && art !== "ll" ? <span>{e.offen} leer</span> : null}
+        {art === "aql" ? <AqlTabelle zeilen={zeilen} w={w} schreibt={schreibt} aendern={aendern} />
+          : art === "ll" ? <LlTabelle zeilen={zeilen} w={w} schreibt={schreibt} aendern={aendern} />
+          : <TeileTabelle zeilen={zeilen} w={w} schreibt={schreibt} aendern={aendern} />}
+
+        <div className="pb-ende">
+          <div className="pb-ergebnis">
+            <span className="pb-gruen">{e.gut} i.O.</span>
+            {e.schlecht ? <span className="pb-rot">{e.schlecht} n.i.O.</span> : null}
+            {e.offen && art !== "ll" ? <span>{e.offen} leer</span> : null}
+          </div>
+          <div className="pb-entscheid">
+            <b>Prüf-Entscheid</b>
+            {ENTSCHEIDE.map(([id, n]) => (
+              <label key={id} className={"pb-wahl" + (w.entscheid === id ? " pb-wahl--an" : "")}>
+                <input type="radio" name="pb-entscheid" checked={w.entscheid === id} disabled={!schreibt} onChange={() => setzen("entscheid", id)} /> {n}
+              </label>
+            ))}
+          </div>
+          <label className="pb-bemerkung">Bemerkung
+            <textarea rows={2} value={w.bemerkung || ""} disabled={!schreibt} onChange={(x) => setzen("bemerkung", x.target.value)} />
+          </label>
+          <label>Visum<input value={w.visum || ""} maxLength={6} disabled={!schreibt} onChange={(x) => setzen("visum", x.target.value.toUpperCase())} /></label>
+          {darf() ? (zu
+            ? <button type="button" className="knopf" onClick={wiederOeffnen}>Wieder bearbeiten</button>
+            : <button type="button" className="knopf knopf--haupt" id="pb-abschliessen" onClick={abschliessen}>Abschliessen</button>) : null}
+          {zu ? <span className="klein">Abgeschlossen {zeitText(w.abgeschlossen_am)}</span> : null}
         </div>
-        <div className="pb-entscheid">
-          <b>Prüf-Entscheid</b>
-          {ENTSCHEIDE.map(([id, n]) => (
-            <label key={id} className={"pb-wahl" + (w.entscheid === id ? " pb-wahl--an" : "")}>
-              <input type="radio" name="pb-entscheid" checked={w.entscheid === id} disabled={!schreibt} onChange={() => setzen("entscheid", id)} /> {n}
-            </label>
-          ))}
-        </div>
-        <label className="pb-bemerkung">Bemerkung
-          <textarea rows={2} value={w.bemerkung || ""} disabled={!schreibt} onChange={(x) => setzen("bemerkung", x.target.value)} />
-        </label>
-        <label>Visum<input value={w.visum || ""} maxLength={6} disabled={!schreibt} onChange={(x) => setzen("visum", x.target.value.toUpperCase())} /></label>
-        {darf() ? (zu
-          ? <button type="button" className="knopf" onClick={wiederOeffnen}>Wieder bearbeiten</button>
-          : <button type="button" className="knopf knopf--haupt" id="pb-abschliessen" onClick={abschliessen}>Abschliessen</button>) : null}
-        {zu ? <span className="klein">Abgeschlossen {zeitText(w.abgeschlossen_am)}</span> : null}
       </div>
     </div>
   );

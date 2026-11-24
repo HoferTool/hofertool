@@ -13,7 +13,7 @@
 import { alt } from "../bruecke.jsx";
 
 export const fehltTabelle = (e) =>
-  /pruefbericht_dateien|pruefprotokolle|does not exist|schema cache/i.test(String((e && e.message) || e || ""));
+  /pruefbericht_dateien|pruefprotokolle|pruef_stamm|does not exist|schema cache/i.test(String((e && e.message) || e || ""));
 
 const zahl = (t) => {
   const m = /-?\d+(?:[.,]\d+)?/.exec(String(t ?? "").replace(/'/g, ""));
@@ -247,6 +247,60 @@ export async function dateiHochladen(datei) {
   if (gleich.length) await alt.db.from("pruefbericht_dateien").delete().in("id", gleich.map((v) => v.id));
   return { zeile: data, ersetzt: gleich, bericht: b };
 }
+
+// ---------- Prüfung in den Stammdaten (seit 1.774.0, Wunsch Patrick
+// 24. November 2026: „was wo gemacht werden muss, wird bei Stammdaten
+// definiert“, „Excel hochladen nur per Stammdaten, neue sollen dort gleich
+// ausgefüllt werden“). Tabelle pruef_stamm aus sql/pruef-stamm.sql:
+// je HOCO Nr. die nötigen Arten, AQL-Vorgabe, Masse und Kopf. Das Excel
+// zeigt die App nie, es füllt nur einmal die Masse. ----------
+export async function stammLaden(hoco) {
+  let q = alt.db.from("pruef_stamm").select("*");
+  if (hoco) q = q.eq("hoco_nr", hoco);
+  const { data, error } = await alt.zeitlimit(q, 15000, "Prüfung Stammdaten");
+  if (error) throw error;
+  return hoco ? (data || [])[0] || null : data || [];
+}
+
+// Stamm einer HOCO Nr. mit Masse: gespeicherte, sonst still aus den
+// früher abgelegten Excel-Vorlagen (Ordner oder von Hand vor 1.774.0)
+export async function stammMitMassen(hoco) {
+  const st = await stammLaden(hoco).catch((f) => { if (fehltTabelle(f)) return null; throw f; });
+  if (st && (st.zeilen || []).length) return { ...st, aus: "stamm" };
+  const dateien = await dateienLaden(hoco).catch(() => []);
+  if (!dateien.length) return st ? { ...st, aus: "stamm" } : null;
+  try {
+    const v = await vorlageLaden(dateien);
+    return { hoco_nr: hoco, arten: (st && st.arten) || [], aql: st && st.aql, niveau: st && st.niveau,
+      zeilen: v.zeilen, kopf: { ...(v.kopf || {}), ...((st && st.kopf) || {}) }, aus: "excel" };
+  } catch (_) { return st ? { ...st, aus: "stamm" } : null; }
+}
+
+export async function stammSpeichern(hoco, felder) {
+  const vorher = await alt.rueckSichern("pruef_stamm", { hoco_nr: hoco });
+  const zeile = { hoco_nr: hoco, ...felder };
+  const { error } = await alt.db.from("pruef_stamm").upsert(zeile, { onConflict: "hoco_nr" });
+  if (error) throw error;
+  alt.merkeSchritt("Prüfung " + hoco + " ändern",
+    vorher && vorher.length ? alt.rueckRein("pruef_stamm", vorher, "hoco_nr") : alt.rueckWeg("pruef_stamm", { hoco_nr: hoco }));
+}
+
+// Excel-Dateien (Seite 1/2, 2/2 …) im Gerät lesen: Masse und Kopf, ohne Ablage
+export async function excelMasse(dateien) {
+  const { excelRoh } = await import("../einrichtblatt/excelEinlesen.js");
+  const berichte = [];
+  for (const d of dateien) berichte.push(berichtAusExcel(await excelRoh(new Uint8Array(await d.arrayBuffer()))));
+  return vorlageAus(berichte);
+}
+
+// Neue Kennung für eine von Hand dazugefügte Zeile
+export const zeilenId = (zeilen, z) => {
+  const ids = new Set((zeilen || []).map((x) => x.id));
+  let id = z && z.nr ? "n" + z.nr : "x1";
+  let i = 1;
+  while (ids.has(id)) id = (z && z.nr ? "n" + z.nr + "_" : "x") + (++i);
+  return id;
+};
 
 // ---------- Arten von Berichten (seit 1.771.0, Wunsch Patrick 24. November 2026:
 // „Teileprüfbericht, wo man 5 Teile für Erstteilprüfung oder Endkontrolle
