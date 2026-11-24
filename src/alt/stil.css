@@ -10294,7 +10294,7 @@ body.dunkel .vb-mat--nichts { color: #9b1c15; }
   .auf-kopf__titel { flex: 1 1 0; min-width: 0; order: 0; }
   .auf-kopf__knoepfe { display: contents; }
   .auf-kopf__knoepfe .dialog__schliessen-inline { order: 1; flex: none; }
-  .auf-kopf__knoepfe #pl-problem-eigen, .auf-kopf__knoepfe #pl-vorbereiten { order: 3; flex: 1 1 0; min-height: 36px; }
+  .auf-kopf__knoepfe #pl-problem-eigen, .auf-kopf__knoepfe #pl-vorbereiten, .auf-kopf__knoepfe #pl-qs { order: 3; flex: 1 1 0; min-height: 36px; }
   .auf-kopf::after { content: ""; order: 2; flex-basis: 100%; height: 0; }
 }
 /* Werkzeug in drei Zeilen wie im Einrichtblatt (seit 1.272.1) */
@@ -16873,3 +16873,39 @@ body.dunkel .eba-pf-geozahl { background: #2b333d; color: #e6edf3 !important; -w
 @media (max-width: 1000px) {
   :is(#pad, .pl-seite) .pl-links, :is(#pad, .pl-seite) .pl-karte { min-height: auto; flex: none; }
 }
+
+/* 1.790.0 QS-Massnahmen aus Reklamationen: Knopf QS, Quittieren, D7/D8 */
+.qs-liste { list-style: none; margin: 4px 0 14px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.qs-massnahme, .qs-pm { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 8px 10px;
+  border: 1px solid #e3e8ee; border-radius: 8px; background: #fff; }
+.qs-massnahme { border-left: 4px solid #e0a100; background: #fff9e8; }
+.qs-massnahme b { flex: 1 1 100%; }
+.qs-quittiert { font-size: 12px; color: #1b7a3a; font-weight: 600; }
+.qs-pm__ok { font-size: 12px; color: #1b7a3a; }
+.qs-pm__fehlt { font-size: 12px; color: #b3261e; }
+
+.dialog.qs-quitt { width: min(560px, calc(100vw - 32px)); }
+.qs-quitt__kopf { display: flex; gap: 12px; align-items: center; background: #fff3cd; border: 1px solid #e0a100;
+  border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
+.qs-quitt__kopf h2 { margin: 0; font-size: 20px; }
+.qs-quitt__zeichen { font-size: 34px; line-height: 1; color: #c77700; }
+.qs-quitt__text { margin: 0 0 8px; }
+.qs-quitt__liste { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.qs-quitt__punkt { display: flex; gap: 10px; align-items: flex-start; width: 100%; text-align: left; padding: 12px;
+  border: 2px solid #d7dde4; border-radius: 10px; background: #fff; cursor: pointer; font: inherit; color: inherit; min-height: 52px; }
+.qs-quitt__punkt.an { border-color: #1b7a3a; background: #eaf6ee; }
+.qs-quitt__punkt small { display: block; color: #555; margin-top: 2px; }
+.qs-quitt__kuerzel input { font-size: 20px; letter-spacing: 2px; width: 120px; text-transform: uppercase; }
+.rk-fertigung { margin-top: 12px; padding: 10px; border: 1px dashed #e0a100; border-radius: 8px; background: #fffaf0;
+  display: flex; flex-direction: column; gap: 6px; }
+.rk-fertigung small { color: #666; }
+.rk-nachweis { margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: #eaf6ee; border: 1px solid #b9dfc6; }
+.rk-nachweis__zeile { font-size: 13px; margin-top: 3px; }
+body.dunkel .qs-massnahme, body.dunkel .qs-pm, body.dunkel .qs-quitt__punkt { background: #1f2630; border-color: #3a4552; }
+body.dunkel .qs-massnahme { border-left-color: #e0a100; background: #2c2716; }
+body.dunkel .qs-quitt__kopf { background: #3a2f12; border-color: #a77a00; }
+body.dunkel .qs-quitt__punkt.an { background: #183224; border-color: #2e9a55; }
+body.dunkel .rk-fertigung { background: #2c2716; border-color: #a77a00; }
+body.dunkel .rk-nachweis { background: #183224; border-color: #2e6a44; }
+.dialog.qs-quitt, .dialog.qs-quitt .qs-quitt__text, .dialog.qs-quitt .qs-quitt__punkt { color: #1a2330; }
+body.dunkel .dialog.qs-quitt, body.dunkel .dialog.qs-quitt .qs-quitt__text, body.dunkel .dialog.qs-quitt .qs-quitt__punkt { color: #fff; }

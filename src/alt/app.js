@@ -55,6 +55,7 @@ import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { einrichtblattAppOeffnen } from "../einrichtblatt/Blatt.jsx";
 import { blattSuchen as appBlattSuchen, roteWerkzeugeVorDemBeenden } from "../einrichtblatt/daten.js";
 import { erstteilVorLaeuft } from "../daten/pruefbericht.js";
+import { qsQuittierenFragen } from "../planwand/QsMassnahmen.jsx";
 import { materialBlattFuer } from "../einrichtblatt/jeMaterial.js";
 import { symboleLaden, symbolHtml, symbolInfoZeigen, symbolInfoSetzen, symbolInfoWeg,
   symbolInfoOffen, M_SYMBOL, symbolModusAktiv, symbolAnAuftrag, symbolAmBalkenKlick, symbolAnwendenEnde } from "../daten/symbole.js";
@@ -175,7 +176,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.789.0";
+const APP_VERSION = "1.790.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -7500,6 +7501,8 @@ async function zustandSetzen(j, neu) {
   if (beendet) await roteWerkzeugeVorDemBeenden(j);
   // Erst nach abgeschlossener Erstteilprüfung auf „läuft“ (seit 1.783.0)
   if (neu === "laeuft") await erstteilVorLaeuft(j);
+  // QS-Massnahmen aus Reklamationen beim Rüsten und Start quittieren (seit 1.790.0)
+  if ((neu === "laeuft" || neu === "ruesten") && j.plan_status !== neu) await qsQuittierenFragen(j, neu, true);
   if (beendet) await letzteStueckzahlFragen(j);
   if (beendet) await stueckzeitVorDemBeenden(j);
   // Was vom Material übrig bleibt, geht ins Lager (seit 1.67.0)
@@ -7562,6 +7565,8 @@ async function zustandSetzen(j, neu) {
       if (r2.error) throw r2.error;
       naechster.plan_status = "ruesten";
       hinweis = naechster.job_number + " steht jetzt auf Rüsten.";
+      // Rückt der nächste von selbst auf Rüsten: gleich fragen, sperrt aber nicht
+      await qsQuittierenFragen(naechster, "ruesten", false).catch(() => {});
     }
   }
   return { ok: true, hinweis: hinweis, naechster: naechster };

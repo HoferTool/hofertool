@@ -18,6 +18,7 @@ import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { passtWoerter } from "../../teile/Suchfeld.jsx";
 import { useSeitenSuche } from "../../teile/seitenSuche.js";
 import { achtdVorschau } from "./achtdBlatt.js";
+import { massnahmeVeroeffentlichen, quittungenFuerRk } from "../../planwand/QsMassnahmen.jsx";
 
 export const ARTEN = [
   ["kunde", "Kundenreklamation"],
@@ -241,7 +242,7 @@ const VORSCHAU_TEIL = { kopf: "kopf", artikel: "artikel",
   ...Object.fromEntries(ACHT_D.map((d) => [d.s, d.s])) };
 // Kopf wie im Bericht, gespeichert in reklamationen.kopf
 const KOPF = ["team", "umsetzung", "bearbeiter", "tel", "mail", "adresse", "berichtsdatum", "zeichnung", "index", "kunden_art",
-  "bestellt", "retour", "gut", "lieferschein", "lieferdatum", "auftrag"];
+  "bestellt", "retour", "gut", "lieferschein", "lieferdatum", "auftrag", "fertigung", "fertigung_text"];
 // Für Bericht und Suche: was in einem Schritt angekreuzt ist
 const angekreuzt = (w, s) => ((w.achtd && Array.isArray(w.achtd[s])) ? w.achtd[s] : []);
 
@@ -755,6 +756,9 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
         alleDateien = liste;
       }
       rkStammMerken(d);
+      // D7 „In die Fertigung übernehmen“: Massnahme für die Maschinen dieser HOCO Nr.
+      try { await massnahmeVeroeffentlichen({ id, nr, hoco_nr: d.hoco_nr, kopf: d.kopf, achtd: d.achtd }); }
+      catch (f) { alt.meldung("Massnahme für die Fertigung nicht gespeichert: " + fehlerText(f), "warn"); }
       alt.meldung((r ? "Gespeichert: " : "Erfasst: ") + nr, "gut");
       if (nachher) nachher();
       if (schliessen) zu();
@@ -968,6 +972,16 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
           <DAnhang s={d.s} dateien={dateien} neu={neueDateien} darf={darf} weg={dateiWeg}
             dazu={(l0) => setNeue((l) => l.concat(l0.map((f) => { f._d = d.s; return f; })))}
             neuWeg={(f) => setNeue((l) => l.filter((x) => x !== f))} />
+          {d.s === "d7" && <div className="rk-fertigung" id="rk-fertigung">
+            <button type="button" className={"rk-haken__punkt" + (w.kopf?.fertigung === "ja" ? " an" : "")} disabled={!darf || !w.hoco_nr}
+              id="rk-fertigung-haken" aria-pressed={w.kopf?.fertigung === "ja"}
+              onClick={() => setzeKopf("fertigung", w.kopf?.fertigung === "ja" ? "" : "ja")}>
+              <span className="rk-haken__box">{w.kopf?.fertigung === "ja" ? "✓" : ""}</span>In die Fertigung übernehmen</button>
+            <small>{w.hoco_nr ? "Erscheint im Auftragsfenster unter „QS“ und muss an der Maschine beim Rüsten und Start quittiert werden (HOCO Nr. " + w.hoco_nr + ")."
+              : "Zuerst eine HOCO Nr. eintragen."}</small>
+            {w.kopf?.fertigung === "ja" && K("fertigung_text", "Text für die Maschine *", { zeilen: 2, breit: true })}
+          </div>}
+          {d.s === "d8" && <RkNachweis id={r && r.id} />}
           {d.s === "d8" && !leer(w.bemerkung) && T("bemerkung", "Bemerkung", { zeilen: 2, breit: true })}
         </section>))}
 
@@ -1041,3 +1055,16 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
   );
 }
 
+
+// D8: Nachweis, wer die Massnahme an der Maschine quittiert hat
+function RkNachweis({ id }) {
+  const [l, setL] = useState(null);
+  useEffect(() => { let ok = true; quittungenFuerRk(id).then((x) => ok && setL(x)); return () => { ok = false; }; }, [id]);
+  if (!id || !l || !l.length) return null;
+  return <div className="rk-nachweis" id="rk-nachweis">
+    <span className="rk-gruppe__name">In der Fertigung umgesetzt</span>
+    {l.map((q) => <div key={q.id} className="rk-nachweis__zeile">
+      ✓ Umgesetzt am {alt.datumZeitKurz ? alt.datumZeitKurz(q.am) : new Date(q.am).toLocaleString("de-CH")} von <b>{q.kuerzel}</b>
+      {q.fa_nr ? " · FA " + q.fa_nr : ""}{q.maschine ? " · " + q.maschine : ""} ({q.anlass === "laeuft" ? "Start" : "Rüsten"})</div>)}
+  </div>;
+}
