@@ -466,6 +466,55 @@ function cKanal1(prog, j) {
   return c;
 }
 
+// Seit 1.761.1 (Patrick 24. November 2026, T1300 und T700 in 10789-0034:
+// „das X-Mass wurde wahrscheinlich an der Front des Fräsdornes
+// aufgenommen … die angefahrene X-Position liegt dort, wo der Schlitz sein
+// soll“, „merke dir das für Scheibenfräser“): beim Scheibenfräser als
+// Querwerkzeug zählt X nicht als Lage der Scheibe. Steht er im Vorschub
+// über die Drehmitte hinaus (X negativ, dort kann die Scheibe selbst nicht
+// sein), liegt der ganze Schlitz (alle Lagen samt Scheibenbreite) mittig
+// auf der Drehmitte; sonst liegt die Mitte der Scheibe auf X/2.
+// sg: Richtung vom Schneidenrand zum Schaft in u (u = Lage an der Maschine),
+// ux: u je X (k3s −1/2, seite +1/2)
+function scheibeLage(roh, wz, sg, ux) {
+  if (!wz || wz.form !== "scheibe") return roh;
+  const B = num(wz.breite) || 0;
+  // Lagen, auf denen die Scheibe schneidet: Vorschubzeilen, in denen X
+  // stehen bleibt (das Einfahren in X von der Vorposition zählt nicht)
+  const jeZeile = new Map();
+  for (const p of roh) {
+    if (!p.vor || p.x == null) continue;
+    const a = jeZeile.get(p.nr);
+    if (!a) jeZeile.set(p.nr, { lo: p.x, hi: p.x });
+    else { a.lo = Math.min(a.lo, p.x); a.hi = Math.max(a.hi, p.x); }
+  }
+  let xs = [...jeZeile.values()].filter((a) => a.hi - a.lo < 1e-6).map((a) => a.lo);
+  if (!xs.length) xs = roh.filter((p) => p.vor && p.x != null).map((p) => p.x);
+  if (!xs.length) return roh;
+  let du;
+  if (xs.every((x) => x < 0)) {
+    let lo = Infinity, hi = -Infinity;
+    for (const x of xs) { const u = x * ux; lo = Math.min(lo, u, u + sg * B); hi = Math.max(hi, u, u + sg * B); }
+    du = -(lo + hi) / 2;
+  } else du = -sg * B / 2;
+  const dx = du / ux;
+  // Stellt die Scheibe in Z zu (erste Vorschubzeile nur in Z, wie G1Z3.50
+  // bei T1300), ist Z die vordere Kante der Scheibe, nicht ihre Mitte:
+  // die Mitte liegt um den Radius dahinter (sonst wurde der Schlitz in
+  // 10789-0034 rund 16 statt 3.5 mm tief)
+  let dz = 0;
+  const R = (num(wz.d) || 0) / 2;
+  for (let k = 1; k < roh.length && R; k++) {
+    const a = roh[k - 1], p = roh[k];
+    if (!p.vor || a.z == null || p.z == null) continue;
+    const zz = p.z - a.z, yy = (p.y ?? 0) - (a.y ?? 0), xx = (p.x ?? 0) - (a.x ?? 0);
+    if (Math.abs(xx) > 1e-6) continue;
+    if (Math.abs(yy) > 1e-6) break;
+    if (Math.abs(zz) > 1e-6) { dz = -Math.sign(zz) * R; break; }
+  }
+  return roh.map((p) => ({ ...p, x: p.x == null ? p.x : p.x + dx, z: p.z == null ? p.z : p.z + dz }));
+}
+
 function k3Schritt(s, b, zeilen, v, W, prog, wa) {
   // Modus: zuletzt M131 oder M133 vor der Bearbeitung in Kanal 3
   let modus = "M131";
@@ -503,6 +552,7 @@ function k3Schritt(s, b, zeilen, v, W, prog, wa) {
     // Querangetrieben Kanal 3 (1.678.0): wie Querangetrieben Kanal 1,
     // Z = Lage im Teil, Träger 3 gespiegelt (−X, −Y)
     s.achse = "quer";
+    roh = scheibeLage(roh, b.wz, -1, -0.5);
     s.punkte = roh.map((p) => {
       const uM = -(p.x || 0) / 2, wM = -(p.y || 0);
       const { t, dreh } = imTeil(p, 1, uM, wM, p.z, W);
@@ -671,7 +721,8 @@ export function simAufbauen(wRoh) {
         zeilen = neu;
       }
       const start = art === "quer" && gegen ? { x: num(b.X) || 0, y: num(b.Y) || 0 } : art === "quer" ? { x: 0 } : art === "k2a" ? { x: 0 } : null;
-      const roh = bahnLesen(zeilen, vv, { start });
+      let roh = bahnLesen(zeilen, vv, { start });
+      if (art === "seite") roh = scheibeLage(roh, bRoh.wz, 1, 0.5);
       s.zeilen = zeilen;
       s.achse = art === "seite" ? "quer" : "laengs";
       // Lage in Z: Querwerkzeuge auf der programmierten Lage im Teil, die

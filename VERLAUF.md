@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.761.1 (24. November 2026)
+
+- HOFERCAM 3D-Simulation, Scheibenfräser als Querwerkzeug (Patrick mit 10789-0034): die angefahrene X-Position ist die Lage des Schlitzes, nicht der Scheibe; über die Drehmitte hinaus liegt der Schlitz mittig. Zustellung in Z: Z ist die vordere Kante der Scheibe. T1300 schneidet jetzt das Kreuz 1.25 × 3.5 wie im STEP (vorher daneben und rund 16 tief). T700 noch offen (Ø im Werkzeug).
+
 ## 1.759.1 (24. November 2026)
 
 - HOFERCAM 3D-Simulation SW-20 (Patrick mit 10789-0034): Kanal-3-Bearbeitungen laufen in der Reihenfolge der Wartemarken P13 / M133 in Kanal 1, die Querbohrung kommt so nach „Drehen 2“; Kanal 3 übernimmt das C von Kanal 1 (Säge T1300 auf C 0/180/90/270); Frontwerkzeuge Kanal 3 ohne G50 rechnen ab der Vorposition, Tiefen T1700/T1800/T1900 stimmen mit dem STEP.
