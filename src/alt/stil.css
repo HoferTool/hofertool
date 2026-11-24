@@ -16885,3 +16885,90 @@ body.dunkel .eba-pf-geozahl { background: #2b333d; color: #e6edf3 !important; -w
 .umf-st__wahl.fehlt { outline: 2px solid var(--rot, #c62828); outline-offset: 3px; border-radius: 4px; }
 .umf-st__wahl label { display: flex; gap: 6px; align-items: center; }
 .umf-st__neu .knopf { justify-self: start; }
+
+/* =================================================================
+   LAGER MIT LOGIK (seit 1.791.0, Wunsch Patrick 24. November 2026)
+   ================================================================= */
+.lager-reiter .lager-reiter--rot { color: #c0392b; font-weight: 600; }
+.lager-liste { padding: 0; overflow: hidden; }
+.lager-zeile {
+  display: grid; grid-template-columns: 9rem 1.4fr 7rem 1.4fr 8rem; gap: .6rem; align-items: center;
+  width: 100%; padding: .55rem .9rem; border: 0; border-top: 1px solid var(--linie, #e3e8ef);
+  background: none; text-align: left; font: inherit; color: inherit; cursor: pointer;
+}
+.lager-zeile:hover { background: rgba(0, 56, 132, .05); }
+.lager-zeile--kopf { cursor: default; border-top: 0; font-weight: 600; }
+.lager-zeile--kopf:hover { background: none; }
+.lager-zeile--leer { opacity: .55; }
+.lager-zeile--minus .lager-zahl { color: #c0392b; }
+.lager-zahl { text-align: right; white-space: nowrap; }
+.lager-schild {
+  display: inline-block; margin-left: .4rem; padding: .05rem .45rem; border-radius: 999px;
+  background: #e8f0fb; color: #003884; font-size: .78rem; font-weight: 600; white-space: nowrap;
+}
+.lager-schild--warn { background: #fdf0d5; color: #8a5a00; }
+.lager-rot { color: #c0392b; font-weight: 600; }
+.lager-offen { padding: .4rem .9rem .9rem 2rem; background: rgba(0, 56, 132, .03); border-top: 1px solid var(--linie, #e3e8ef); }
+.lager-kette { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin-bottom: .5rem; }
+.lager-linien { display: flex; flex-direction: column; gap: .3rem; }
+.lager-linie {
+  display: grid; grid-template-columns: 7rem 1.5fr 1fr 6rem auto; gap: .6rem; align-items: center;
+  padding: .4rem .6rem; border-radius: 8px; background: var(--flaeche, #fff); border: 1px solid var(--linie, #e3e8ef);
+}
+.lager-liste > .lager-linie { margin: .4rem .8rem; }
+.lager-linie--extern { border-style: dashed; background: #f7f9fc; }
+.lager-linie--gross { grid-template-columns: 8rem 1.4fr 1.4fr 7rem auto; }
+.lager-linie .klein { display: block; }
+.lager-ablauf__knoepfe { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .3rem; }
+.lager-erklaerung { margin: .6rem .9rem; }
+.lager-buchungen { display: flex; flex-direction: column; }
+.lager-buchung {
+  display: grid; grid-template-columns: 8rem 6rem 1fr auto; gap: .6rem; align-items: center;
+  padding: .45rem .9rem; border-top: 1px solid var(--linie, #e3e8ef);
+}
+.lager-buchung .lager-ein, .lager-zahl.lager-ein { color: #1e8449; }
+.lager-buchung .lager-aus, .lager-zahl.lager-aus { color: #c0392b; }
+.lager-karte { margin-bottom: 1rem; }
+.lager-karte__kopf { display: flex; justify-content: space-between; align-items: center; gap: .6rem; margin-bottom: .6rem; }
+.lager-karte__kopf h2 { margin: 0; }
+.lager-tabelle { display: flex; flex-direction: column; }
+.lager-reihe {
+  display: grid; grid-template-columns: 1.3fr 1.2fr 6rem 8rem 1.3fr auto; gap: .6rem; align-items: center;
+  padding: .45rem .3rem; border-top: 1px solid var(--linie, #e3e8ef);
+}
+.lager-reihe--kopf { border-top: 0; font-weight: 600; }
+.lager-reihe--knopf {
+  grid-template-columns: 9rem 1fr 2fr; width: 100%; background: none; border-left: 0; border-right: 0; border-bottom: 0;
+  text-align: left; font: inherit; color: inherit; cursor: pointer;
+}
+.lager-reihe--knopf:hover { background: rgba(0, 56, 132, .05); }
+.lager-dialog { width: min(560px, calc(100vw - 2rem)); max-width: min(560px, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow-y: auto; }
+.lager-dialog .feld select, .lager-dialog .feld input, .lager-dialog .feld textarea { width: 100%; box-sizing: border-box; }
+.lager-knoepfe { display: flex; flex-wrap: wrap; gap: .35rem; }
+.lager-zwei { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+.lager-zwei > select, .lager-zwei > input { flex: 1 1 12rem; min-width: 0; }
+.lager-ablauf { list-style: none; margin: .6rem 0; padding: 0; display: flex; flex-direction: column; gap: .3rem; }
+.lager-ablauf li {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; padding: .45rem .6rem;
+  border-radius: 8px; border: 1px solid var(--linie, #e3e8ef); background: var(--flaeche, #fff);
+}
+.lager-ablauf li .lager-ablauf__knoepfe { margin-left: auto; }
+.lager-ablauf__fest { background: #e8f0fb !important; color: #003884; font-weight: 600; }
+body.dunkel .lager-schild { background: #1d3557; }
+body.dunkel .lager-schild--warn { background: #5a4310; }
+body.dunkel .lager-ablauf__fest { background: #1d3557 !important; }
+body.dunkel .lager-linie--extern { background: rgba(255, 255, 255, .04); }
+body.dunkel .lager-rot, body.dunkel .lager-zeile--minus .lager-zahl, body.dunkel .lager-reiter--rot,
+body.dunkel .lager-buchung .lager-aus, body.dunkel .lager-zahl.lager-aus { color: #ff8a80 !important; }
+body.dunkel .lager-buchung .lager-ein, body.dunkel .lager-zahl.lager-ein { color: #6fdc8c !important; }
+@media (max-width: 700px) {
+  .lager-zeile { grid-template-columns: 1fr auto; }
+  .lager-zeile > :nth-child(2), .lager-zeile > :nth-child(4) { grid-column: 1 / -1; }
+  .lager-zeile--kopf { display: none; }
+  .lager-linie, .lager-linie--gross { grid-template-columns: 1fr auto; }
+  .lager-ablauf__knoepfe { grid-column: 1 / -1; justify-content: flex-start; }
+  .lager-offen { padding-left: .9rem; }
+  .lager-buchung { grid-template-columns: 1fr auto; }
+  .lager-reihe { grid-template-columns: 1fr 1fr; }
+  .lager-reihe--knopf { grid-template-columns: 1fr; }
+}
