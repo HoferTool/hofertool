@@ -4,6 +4,7 @@
 //  schlichtem Blatt, damit das Audit etwas in der Hand hat.
 // =================================================================
 import { alt } from "../../bruecke.jsx";
+import { briefDruckHtml } from "../../teile/briefkopf.js";
 
 const STIL = `
   body { font: 11pt/1.45 Arial, sans-serif; color: #111; margin: 18mm 16mm; }
@@ -18,7 +19,7 @@ export function blattDrucken(titel, html) {
   const w = window.open("", "_blank", "width=900,height=1000");
   if (!w) { alt.meldung("Der Browser hat das Fenster gesperrt. Pop-ups für diese Seite erlauben.", "warn"); return; }
   w.document.open();
-  w.document.write(`<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${alt.esc(titel)}</title><style>${STIL}</style></head><body>${html}</body></html>`);
+  w.document.write(`<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${alt.esc(titel)}</title><style>${STIL}</style></head><body>${briefDruckHtml(html)}</body></html>`);
   w.document.close();
   setTimeout(() => { try { w.focus(); w.print(); } catch { /* Fenster schon zu */ } }, 300);
 }

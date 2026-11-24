@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
+import { briefBlatt } from "../../teile/briefkopf.js";
 import { adresseText, chf, datumText, mengeText, terminText, belegSumme, BELEGTYP, artikelText, posPe, posBetrag, peKurz } from "../../daten/erp.js";
 
 // Felder eines Arbeitsgangs (Arbeitsplan beim Artikel und Fenster Arbeitsplan)
@@ -138,13 +139,12 @@ export function belegDrucken(d, b) {
       + "</td><td>" + esc(terminText(x)) + "</td>"
       + (mitPreis ? "<td class='r'>" + chf(x.preis) + (posPe(x) > 1 ? " " + peKurz(posPe(x)) : "") + "</td><td class='r'>" + chf(posBetrag(x)) + "</td>" : "") + "</tr>";
   }).join("");
-  const html = "<!doctype html><html><head><meta charset='utf-8'><title>" + esc(t.name + " " + b.nr) + "</title><style>"
+  const roh = "<!doctype html><html><head><meta charset='utf-8'><title>" + esc(t.name + " " + b.nr) + "</title><style>"
     + "body{font:11pt Arial,sans-serif;margin:18mm 16mm;color:#111}h1{font-size:16pt;margin:30px 0 4px}table{width:100%;border-collapse:collapse;margin-top:16px}"
     + "th,td{border-bottom:1px solid #ccc;padding:5px 4px;vertical-align:top;text-align:left}th{background:#eef2f7}.r{text-align:right}"
     + ".kopf{display:flex;justify-content:space-between}.adr{white-space:pre-line;margin-top:24px}.summe{margin-left:auto;width:260px;margin-top:10px}"
     + ".summe div{display:flex;justify-content:space-between}.test{color:#b00;font-weight:bold}small{color:#555}@media print{.test{display:none}}</style></head><body>"
-    + "<div class='kopf'><img src='" + new URL("logo-empfang.png", location.href.split("#")[0]).href + "' style='height:46px'>"
-    + "<div style='text-align:right'>Hofer + Co Präzisionsdrehteile<br>Lohn-Ammannsegg</div></div>"
+    + "<!--INHALT-->"
     + "<p class='test'>TESTVERSION ERP</p>"
     + "<div class='adr'>" + esc(adresseText(an)) + "</div>"
     + "<h1>" + esc(t.name) + " " + esc(b.nr) + "</h1>"
@@ -158,6 +158,7 @@ export function belegDrucken(d, b) {
     + "<p>" + esc([bed(b.daten && b.daten.liefer), bed(b.daten && b.daten.zahlung)].filter(Boolean).join(" · ")) + "</p>"
     + (b.daten && b.daten.text ? "<p style='white-space:pre-line'>" + esc(b.daten.text) + "</p>" : "")
     + "<script>setTimeout(()=>print(),300)</script></body></html>";
+  const html = briefBlatt(roh);
   const w = window.open("", "_blank");
   if (!w) { alt.meldung("Das Fenster wurde vom Browser blockiert.", "warn"); return; }
   w.document.write(html);

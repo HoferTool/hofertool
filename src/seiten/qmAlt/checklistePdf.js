@@ -6,6 +6,7 @@
 import html2canvas from "html2canvas-pro";
 import { jsPDF } from "jspdf";
 import { alt } from "../../bruecke.jsx";
+import { BRIEF_HOEHE, briefkopfAufSeite } from "../../teile/briefkopf.js";
 import { ckBewertung, checklisteAuswerten, auswahlText, vpBewertung } from "../../daten/qmAlt.js";
 
 const MM = 96 / 25.4;
@@ -97,11 +98,13 @@ export async function berichtPdf(audit, ck, fragen) {
 }
 
 // Auch für die Managementbewertung (seit 1.483.0): HTML mit dem Stil oben als A4 hoch
-const FIRMA = "<div class='ck-firma'><img class='ck-logo' src='./logo-empfang.png' alt='Hofer + Co'></div>";
+// Seit 1.781.0 steht oben auf jeder Seite das Hofer-Briefpapier (blauer
+// Balken), darum fällt das Logo oben rechts im Inhalt weg
+const OBEN = BRIEF_HOEHE + 8;
 
 export async function pdfAusHtml(html, fuss) {
   const breite = (BREITE - 2 * RAND) * MM;
-  const seite = (HOEHE - 2 * RAND - 6) * MM;
+  const seite = (HOEHE - OBEN - RAND - 6) * MM;
   const huelle = document.createElement("div");
   huelle.setAttribute("aria-hidden", "true");
   huelle.className = "hell-bleibt";
@@ -109,9 +112,8 @@ export async function pdfAusHtml(html, fuss) {
   const blatt = document.createElement("div");
   blatt.className = "ckpdf";
   blatt.style.cssText = "width:" + breite + "px";
-  // Seit 1.485.0 oben rechts das Hofer-Logo statt „Hofer + Co Präzisionsdrehteile“
-  // als Text, in allen PDF, die hier gezeichnet werden (Wunsch Patrick 11. November 2026)
-  blatt.innerHTML = "<style>" + STIL + "</style>" + String(html).replace(/<div class='ck-firma'>[^<]*<br>[^<]*<\/div>/g, FIRMA);
+  // Der Firmenname oben rechts im Inhalt entfällt, das Briefpapier trägt ihn
+  blatt.innerHTML = "<style>" + STIL + "</style>" + String(html).replace(/<div class='ck-firma'>[^<]*<br>[^<]*<\/div>/g, "");
   huelle.appendChild(blatt);
   document.body.appendChild(huelle);
   try {
@@ -145,7 +147,8 @@ export async function pdfAusHtml(html, fuss) {
       const bild = await html2canvas(huelle, { scale: 2, backgroundColor: "#ffffff", logging: false,
         width: breite, height: h, windowWidth: Math.ceil(breite) + 40 });
       if (n) pdf.addPage("a4", "portrait");
-      pdf.addImage(bild.toDataURL("image/jpeg", 0.9), "JPEG", RAND, RAND, BREITE - 2 * RAND, h / MM);
+      await briefkopfAufSeite(pdf, BREITE);
+      pdf.addImage(bild.toDataURL("image/jpeg", 0.9), "JPEG", RAND, OBEN, BREITE - 2 * RAND, h / MM);
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(8);
       pdf.setTextColor(130);

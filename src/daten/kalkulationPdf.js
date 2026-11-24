@@ -6,26 +6,16 @@
 //  wird, wenn jemand ein Angebot macht.
 // =================================================================
 import { jsPDF } from "jspdf";
-import { alt } from "../bruecke.jsx";
+import { briefkopfAufSeite } from "../teile/briefkopf.js";
 import { chf } from "./kalkulation.js";
 import { heuteText, datumText } from "../seiten/Kalkulation.jsx";
-
-const BLAU = [42, 123, 209];
 
 export async function angebotPdf(k, nr, rechnung) {
   const pdf = new jsPDF({ unit: "mm", format: "a4", compress: true });
   const L = 22, R = 188;
 
-  // Kopf: blaues Band mit weissem Logo und Adresse
-  pdf.setFillColor(...BLAU);
-  pdf.rect(0, 0, 210, 32, "F");
-  if (alt.LOGO_WEISS) {
-    try { pdf.addImage(alt.LOGO_WEISS, "PNG", L, 6, 52, 20, undefined, "FAST"); } catch (e) { /* ohne Logo weiter */ }
-  }
-  pdf.setTextColor(255, 255, 255);
-  pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(7.5);
-  pdf.text(["Hofer+Co Präzisionsdrehteile AG", "Alte Bernstrasse 24", "CH-4573 Lohn-Ammannsegg"], 110, 14);
+  // Kopf: seit 1.781.0 das Hofer-Briefpapier wie bei Bestellung und 8D
+  await briefkopfAufSeite(pdf, 210);
 
   pdf.setTextColor(0, 0, 0);
   let y = 52;

@@ -9,8 +9,11 @@
 import html2canvas from "html2canvas-pro";
 import { jsPDF } from "jspdf";
 import { sauber, RAND_MM, SEITE_INHALT_MM, STANDARD_PT } from "../infoboard/TextFeld.jsx";
+import { BRIEF_HOEHE, briefkopfAufSeite } from "./briefkopf.js";
 
 const MM = 96 / 25.4;
+// Seit 1.781.0 oben auf jeder Seite das Hofer-Briefpapier, der Text darunter
+const OBEN = BRIEF_HOEHE + 6;
 
 function bilderFertig(el) {
   const bilder = [...el.querySelectorAll("img")].filter((b) => !b.complete);
@@ -41,7 +44,7 @@ function trennstellen(blatt) {
 }
 
 export async function notizPdf(html, titel) {
-  const seite = SEITE_INHALT_MM * MM;
+  const seite = (SEITE_INHALT_MM - (OBEN - RAND_MM)) * MM;
   const breite = 210 * MM;
   const huelle = document.createElement("div");
   huelle.setAttribute("aria-hidden", "true");
@@ -84,7 +87,8 @@ export async function notizPdf(html, titel) {
       const bild = await html2canvas(huelle, { scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false,
         width: breite, height: h, windowWidth: Math.ceil(breite) + 40 });
       if (i) pdf.addPage("a4", "portrait");
-      pdf.addImage(bild.toDataURL("image/jpeg", 0.9), "JPEG", 0, RAND_MM, 210, h / MM);
+      await briefkopfAufSeite(pdf, 210);
+      pdf.addImage(bild.toDataURL("image/jpeg", 0.9), "JPEG", 0, OBEN, 210, h / MM);
       // Fuss: Titel und Seite, klein und grau
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(8);
