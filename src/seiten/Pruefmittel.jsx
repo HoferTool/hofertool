@@ -15,7 +15,8 @@ import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { useSeitenSuche, hinzeigen } from "../teile/seitenSuche.js";
 import { pruefmittelLaden, verlaufLaden, ARTEN, artText, ORTE, STATUS, fehltTabelle,
-  maschineText, naechstePruefung, istFaellig, ortText, suchText, zeilenLesen } from "../daten/pruefmittel.js";
+  maschineText, naechstePruefung, istFaellig, ortText, suchText, zeilenLesen,
+  GRUPPEN, gruppeVon, gruppeText, PRUEFUNG_WO, pruefWoText, baldFaellig } from "../daten/pruefmittel.js";
 
 const gemerkt = { reiter: "wo", suche: "", filter: "" };
 const T = "pruefmittel";
@@ -47,9 +48,13 @@ export default function Pruefmittel({ auffrischen, eingebettet }) {
 
   const s = suche.trim().toLowerCase();
   const passt = (p) => (!s || s.split(/\s+/).every((w) => suchText(p, daten.maschinen).includes(w)))
-    && (!filter || (filter === "faellig" ? istFaellig(p) : p.ort_art === filter))
+    && (!filter || (filter === "faellig" ? istFaellig(p) : filter === "bald" ? baldFaellig(p)
+      : filter.startsWith("g:") ? gruppeVon(p) === filter.slice(2) : p.ort_art === filter))
     && (filter || p.status !== "weg");
-  const liste = daten.liste.filter(passt);
+  // Fällige und bald fällige zuoberst, dann nach nächster Prüfung, dann wie geladen
+  const rang = (p) => istFaellig(p) ? 0 : baldFaellig(p) ? 1 : 2;
+  const liste = daten.liste.filter(passt).map((p, i) => [p, i]).sort((a, b) => rang(a[0]) - rang(b[0])
+    || (rang(a[0]) < 2 ? String(naechstePruefung(a[0])).localeCompare(String(naechstePruefung(b[0]))) : 0) || a[1] - b[1]).map((x) => x[0]);
   const aktive = daten.liste.filter((p) => p.status !== "weg");
   const zahl = (o) => aktive.filter((p) => p.ort_art === o).length;
 
@@ -62,6 +67,8 @@ export default function Pruefmittel({ auffrischen, eingebettet }) {
         <Kachel wert="" text="Alle" zahl={aktive.length} filter={filter} setFilter={setFilter} />
         {ORTE.map(([o, text, z]) => <Kachel key={o} wert={o} text={z + " " + text} zahl={zahl(o)} filter={filter} setFilter={setFilter} />)}
         <Kachel wert="faellig" text="⏰ Prüfung fällig" zahl={aktive.filter(istFaellig).length} filter={filter} setFilter={setFilter} warn />
+        <Kachel wert="bald" text="📅 In 30 Tagen fällig" zahl={aktive.filter(baldFaellig).length} filter={filter} setFilter={setFilter} />
+        {GRUPPEN.map(([g, t]) => <Kachel key={g} wert={"g:" + g} text={t} zahl={aktive.filter((p) => gruppeVon(p) === g).length} filter={filter} setFilter={setFilter} />)}
       </div>
       <div className="mat-kopf">
         <button className="knopf knopf--haupt" id="pm-neu" onClick={() => bearbeiten(null, daten, neu)}>+ Prüfmittel</button>
@@ -168,7 +175,8 @@ function Zeile({ p, d, neu, ohneOrt }) {
             p.ort_art !== "schrank" && p.seit ? "seit " + alt.kurzDatum(p.seit) : null].filter(Boolean).join(" · ")}
         </span>
       </span>
-      {faellig && <span className="pm-schild pm-schild--warn">Prüfung fällig</span>}
+      {faellig && <span className="pm-schild pm-schild--warn">{p.pruefung_wo === "extern" ? "Kalibrierung fällig" : "Prüfung fällig"}</span>}
+      {!faellig && baldFaellig(p) && <span className="pm-schild">fällig {alt.kurzDatum(naechstePruefung(p))}</span>}
       {p.status === "gesperrt" && <span className="pm-schild pm-schild--rot">Gesperrt</span>}
       {p.status === "weg" && <span className="pm-schild">Ausgeschieden</span>}
     </button>);
@@ -180,15 +188,17 @@ function Liste({ liste, d, neu }) {
   return (
     <div className="karte pm-tabelle-karte">
       <table className="pm-tabelle">
-        <thead><tr><th>Nr.</th><th>Bezeichnung</th><th>Art</th><th>Mass</th><th>Wo</th><th>Nächste Prüfung</th><th>Status</th></tr></thead>
+        <thead><tr><th>Nr.</th><th>Bezeichnung</th><th>Art</th><th>Mass</th><th>Wo</th><th>Prüfung</th><th>Nächste Prüfung</th><th>Status</th></tr></thead>
         <tbody>
           {liste.map((p) => {
             const n = naechstePruefung(p);
             return (
               <tr key={p.id} data-pm={p.id} onClick={() => pmFenster(p, d, neu)}>
                 <td>{p.nr || "–"}</td><td><b>{p.bezeichnung}</b>{p.hoco ? <div className="klein">für {p.hoco}</div> : null}</td>
-                <td>{artText(p.art)}</td><td>{p.mass || ""}</td><td>{ortText(p, d.maschinen)}</td>
-                <td className={istFaellig(p) ? "pm-rot" : ""}>{n ? alt.kurzDatum(n) : "–"}</td>
+                <td>{artText(p.art)}{gruppeVon(p) ? <div className="klein">{gruppeText(gruppeVon(p))}</div> : null}</td>
+                <td>{p.mass || ""}</td><td>{ortText(p, d.maschinen)}</td>
+                <td>{p.intervall_monate ? [pruefWoText(p.pruefung_wo), "alle " + p.intervall_monate + " Mt."].filter(Boolean).join(", ") : "–"}</td>
+                <td className={istFaellig(p) ? "pm-rot" : baldFaellig(p) ? "pm-bald" : ""}>{n ? alt.kurzDatum(n) : "–"}</td>
                 <td>{(STATUS.find((x) => x[0] === p.status) || [0, p.status])[1]}</td>
               </tr>);
           })}
@@ -226,15 +236,15 @@ function PmFenster({ p, d, zu, neu }) {
           Zurück in den Schrank</button>}
         <button className="knopf" id="pm-geprueft" onClick={async () => {
           if (await aendern(p, { letzte_pruefung: alt.isoDatum(new Date()) }, "Prüfung " + p.bezeichnung)) fertig();
-        }}>Heute geprüft</button>
+        }}>{p.pruefung_wo === "extern" ? "Heute kalibriert zurück" : "Heute geprüft"}</button>
         <button className="knopf" id="pm-bearbeiten" onClick={() => { zu(); bearbeiten(p, d, neu); }}>Bearbeiten</button>
         <button className="knopf knopf--gefahr" id="pm-loeschen" onClick={async () => { if (await loeschen(p)) fertig(); }}>Löschen</button>
       </div>
       <dl className="pm-angaben">
-        <dt>Art</dt><dd>{artText(p.art) || "–"}</dd>
+        <dt>Art</dt><dd>{[artText(p.art), gruppeText(gruppeVon(p))].filter(Boolean).join(" · ") || "–"}</dd>
         <dt>Mass</dt><dd>{p.mass || "–"}</dd>
         <dt>Für HOCO Nr.</dt><dd>{p.hoco || "–"}</dd>
-        <dt>Prüfintervall</dt><dd>{p.intervall_monate ? p.intervall_monate + " Monate" : "–"}</dd>
+        <dt>Prüfintervall</dt><dd>{p.intervall_monate ? p.intervall_monate + " Monate" + (p.pruefung_wo ? " · " + pruefWoText(p.pruefung_wo) : "") : "–"}</dd>
         <dt>Zuletzt geprüft</dt><dd>{p.letzte_pruefung ? alt.langDatum(p.letzte_pruefung) : "–"}</dd>
         <dt>Nächste Prüfung</dt><dd className={istFaellig(p) ? "pm-rot" : ""}>{n ? alt.langDatum(n) : "–"}</dd>
         <dt>Status</dt><dd>{(STATUS.find((x) => x[0] === p.status) || [0, p.status])[1]}</dd>
@@ -341,6 +351,7 @@ async function bearbeiten(p, d, neu) {
       { name: "mass", label: "Mass", wert: p ? p.mass || "" : "", platzhalter: "Ø 4.000 H7, M6 6H …" },
       { name: "hoco", label: "Für HOCO Nr. (freiwillig)", wert: p ? p.hoco || "" : "", platzhalter: "10841-0009" },
       { name: "intervall", label: "Prüfintervall in Monaten (leer = keins)", typ: "number", wert: p && p.intervall_monate ? p.intervall_monate : "" },
+      { name: "wo", label: "Wer prüft", auswahl: [["", "–"], ...PRUEFUNG_WO], wert: p ? p.pruefung_wo || "" : "" },
       { name: "letzte", label: "Zuletzt geprüft", typ: "date", wert: p ? p.letzte_pruefung || "" : "" },
       { name: "status", label: "Status", auswahl: STATUS, wert: p ? p.status : "aktiv" },
       { name: "notiz", label: "Notiz", typ: "textarea", wert: p ? p.notiz || "" : "" },
@@ -352,6 +363,7 @@ async function bearbeiten(p, d, neu) {
     nr: (w.nr || "").trim() || null, bezeichnung: w.bezeichnung.trim(), art: w.art || null,
     mass: (w.mass || "").trim() || null, hoco: (w.hoco || "").trim() || null,
     intervall_monate: Number(w.intervall) > 0 ? Math.round(Number(w.intervall)) : null,
+    pruefung_wo: w.wo || null,
     letzte_pruefung: /^\d{4}-\d{2}-\d{2}$/.test(w.letzte || "") ? w.letzte : null,
     status: w.status || "aktiv", notiz: (w.notiz || "").trim() || null,
   };
@@ -372,7 +384,7 @@ async function einfuegen(neu) {
   const w = await alt.dialogFelder({
     titel: "Prüfmittel einfügen",
     text: "Aus Gewatec oder Excel kopieren und hier einfügen. Eine Zeile je Prüfmittel, Spalten mit Tab oder Semikolon:"
-      + " Nr; Bezeichnung; Mass; Art; Intervall in Monaten. Nur die Bezeichnung ist Pflicht. Alle kommen in den Prüfmittelschrank.",
+      + " Nr; Bezeichnung; Mass; Art; Intervall in Monaten; intern oder extern. Nur die Bezeichnung ist Pflicht. Alle kommen in den Prüfmittelschrank.",
     felder: [{ name: "text", label: "Zeilen", typ: "textarea", wert: "", platzhalter: "PM-001\tGrenzlehrdorn\tØ 4.000 H7\tGrenzlehrdorn\t12" }],
     bestaetigen: "Einfügen",
   });

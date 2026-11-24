@@ -16592,7 +16592,7 @@ body.dunkel .rk-liste { background: #1d2630; }
 :is(.start-paar, .start-umf) .umf-karte .umf__name { padding: 7px 10px; }
 :is(.start-paar, .start-umf) .umf-karte .umf { padding-top: 10px; margin-top: 10px; }
 
-/* 1.769.0: Umfrage auf der Startseite nur so breit wie nötig, in beiden Looks
+/* 1.770.0: Umfrage auf der Startseite nur so breit wie nötig, in beiden Looks
    (Patrick 24. November 2026: „immer noch so breit, soll nur so gross wie nötig“):
    Vorschläge als feste Kärtchen nebeneinander, die Karte schrumpft auf ihren
    Inhalt, daneben bekommt der Kalender den Rest */
@@ -16608,3 +16608,6 @@ body.dunkel .rk-liste { background: #1d2630; }
   :is(.start-paar, .start-umf) .umf-karte .umf__titel { max-width: 640px; }
   :is(.start-paar, .start-umf) .umf-karte .umf__name { flex: 0 1 220px; }
 }
+
+/* 1.769.0 Prüfmittel: bald fällige Prüfung */
+.pm-bald { color: var(--warn, #b26b00); font-weight: 600; }

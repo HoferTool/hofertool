@@ -174,7 +174,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.769.0";
+const APP_VERSION = "1.770.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -9404,7 +9404,11 @@ function suchListe({ titel, eintraege, neuText, leerText }) {
     const neu = h.querySelector("[data-neu]");
     if (neu) neu.onclick = () => ende("__neu");
     h.querySelector("[data-nein]").onclick = () => ende(null);
-    h.onclick = (e) => { if (e.target === h) ende(null); };
+    // Nur zu, wenn Drücken und Loslassen beide daneben sind: wer im
+    // Fenster Text markiert und dabei hinausfährt, schliesst es nicht
+    let hRaus = false;
+    h.onpointerdown = (e) => { hRaus = (e.target === h); };
+    h.onclick = (e) => { if (e.target === h && hRaus) ende(null); hRaus = false; };
     setTimeout(() => feld.focus(), 50);
   });
 }
@@ -9856,7 +9860,10 @@ function bestStatusDialog(z, b) {
   document.body.appendChild(huelle);
 
   huelle.querySelector("[data-nein]").onclick = () => huelle.remove();
-  huelle.onclick = (e) => { if (e.target === huelle) huelle.remove(); };
+  // Nur zu, wenn Drücken und Loslassen beide daneben sind (Markieren)
+  let raus = false;
+  huelle.onpointerdown = (e) => { raus = (e.target === huelle); };
+  huelle.onclick = (e) => { if (e.target === huelle && raus) huelle.remove(); raus = false; };
 
   huelle.querySelectorAll("[data-neu]").forEach((k) => {
     k.onclick = async () => {

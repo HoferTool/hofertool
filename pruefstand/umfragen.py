@@ -44,7 +44,7 @@ with sync_playwright() as p:
                 a = pg.locator("#db-umfragen").bounding_box(); k = pg.locator("#db-kalender").bounding_box()
                 pruefe("Kalender neben der Umfrage", abs(a["y"] - k["y"]) < 4 and k["x"] > a["x"] + a["width"] - 4)
             pg.screenshot(path=SP + "umfrage_start_pc.png", full_page=True)
-            # 1.769.0: Karte nur so breit wie nötig
+            # 1.770.0: Karte nur so breit wie nötig
             w = pg.locator(".umf-karte").bounding_box()["width"]
             pruefe("Umfrage nicht volle Breite", w < 900)
             # auch im neuen Look (Klasse neues-menue)

@@ -39,12 +39,13 @@ with sync_playwright() as p:
     pruefe(len(l) == 1 and l[0]["bezeichnung"] == "Grenzlehrdorn" and l[0]["nr"] == "PM-001", "erfasst: %s" % l)
     # Einfügen aus Excel
     pg.click("#pm-einfuegen"); pg.wait_for_selector(".dialog-huelle textarea")
-    pg.locator(".dialog-huelle textarea").fill("PM-002\tPrüfstift\tØ 2.50\tPrüfstift\t12\nPM-003;Gewindelehrdorn;M6 6H;;24\nMessschieber 150")
+    pg.locator(".dialog-huelle textarea").fill("PM-002\tPrüfstift\tØ 2.50\tPrüfstift\t12\textern\nPM-003;Gewindelehrdorn;M6 6H;;24\nMessschieber 150")
     pg.locator(".dialog-huelle .knopf--haupt, .dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(800)
     l = pg.evaluate("() => TEST.daten.pruefmittel")
     pruefe(len(l) == 4, "eingefügt, jetzt %d" % len(l))
     p2 = [x for x in l if x.get("nr") == "PM-002"]
     pruefe(p2 and p2[0]["art"] == "pruefstift" and p2[0]["intervall_monate"] == 12 and p2[0]["mass"] == "Ø 2.50", "Spalten gelesen: %s" % p2)
+    pruefe(p2 and p2[0].get("pruefung_wo") == "extern", "extern gelesen (1.765.0)")
     pruefe(pg.locator("[data-pmort='schrank'] .pm-zeile").count() == 4, "alle im Prüfmittelschrank")
     # An Maschine austragen
     pid = p2[0]["id"]
@@ -79,6 +80,14 @@ with sync_playwright() as p:
     # Liste
     pg.evaluate("document.querySelector(\"[data-pmreiter='liste']\").click()"); pg.wait_for_timeout(400)
     pruefe(pg.locator(".pm-tabelle tbody tr").count() == 4, "Liste mit 4")
+    # 1.765.0: fällige zuoberst, extern als Kalibrierung, Gruppen
+    pg.evaluate("() => { TEST.daten.pruefmittel.find(x => x.nr === 'PM-002').letzte_pruefung = '2024-01-01'; }")
+    pg.click("[data-pmfilter='faellig']"); pg.wait_for_timeout(300); pg.click("[data-pmfilter='faellig']"); pg.wait_for_timeout(300)
+    erste = pg.locator(".pm-tabelle tbody tr").first.inner_text()
+    pruefe("PM-002" in erste and "Extern kalibrieren" in erste, "fällige zuoberst mit extern: %s" % erste)
+    pg.click("[data-pmfilter='g:lehre']"); pg.wait_for_timeout(300)
+    pruefe(pg.locator(".pm-tabelle tbody tr").count() == 2, "Filter Lehre zeigt Grenz- und Gewindelehrdorn")
+    pg.click("[data-pmfilter='g:lehre']"); pg.wait_for_timeout(300)
     pg.screenshot(path=BILD + "/pm-liste.png")
     pruefe(not pf, "keine Seitenfehler: %s" % pf)
     # Seitlich rollen?
