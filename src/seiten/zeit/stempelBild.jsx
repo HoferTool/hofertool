@@ -109,5 +109,7 @@ export function StempelBild({ name, art }) {
     return () => clearInterval(t);
   }, [!!src, ton]);
   if (!name || !src) return null;
-  return <img className="ze-bestaetigt__bild" src={src} alt="" data-ze-stempelbild={name} />;
+  // Gibt es für diese Art kein Bild (z. B. crossfit nur beim Gehen), steht der normale Haken.
+  if (src === "haken") return <div className="ze-bestaetigt__haken">✓</div>;
+  return <img className="ze-bestaetigt__bild" src={src} alt="" data-ze-stempelbild={name} onError={() => setSrc("haken")} />;
 }

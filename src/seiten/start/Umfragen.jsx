@@ -17,6 +17,7 @@ import { useRef, useState } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
 import { Symbol } from "../../teile/zeichnen.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
+import { ZiehListe } from "../../teile/ZiehListe.jsx";
 
 const ABLAGE = "zeichnungen";
 const PLUS = "M12 5v14M5 12h14";
@@ -43,7 +44,7 @@ export function umfrageSehen() {
 async function umfragenLaden() {
   const { data, error } = await alt.zeitlimit(alt.db.from("umfragen")
     .select("*, umfrage_vorschlaege(*), umfrage_stimmen(id, vorschlag_id, name)")
-    .order("erstellt_am", { ascending: false }).limit(40), 9000, "Umfragen");
+    .order("sort", { ascending: true }).order("erstellt_am", { ascending: false }).limit(40), 9000, "Umfragen");
   if (error) throw error;
   return (data || []).map((u) => ({ ...u,
     vorschlaege: (u.umfrage_vorschlaege || []).slice().sort((a, b) => (a.sort || 0) - (b.sort || 0)),
@@ -94,15 +95,39 @@ export default function Umfragen({ auffrischen }) {
           </div>}
         </div>
         {!offen.length && <p className="hinweis">Keine offene Umfrage. Mit + legst du eine an.</p>}
-        {offen.map((u) => <Umfrage key={u.id} u={u} neu={neu} admin={admin} />)}
+        <UmfrageListe liste={offen} neu={neu} admin={admin} id="umf-liste-offen" />
         {zu.length > 0 && (
           <details className="umf-zu" data-umf-zu="">
             <summary>Abgeschlossene Umfragen <span className="probleme-andere__zahl">{zu.length}</span></summary>
-            {zu.map((u) => <Umfrage key={u.id} u={u} neu={neu} admin={admin} />)}
+            <UmfrageListe liste={zu} neu={neu} admin={admin} id="umf-liste-zu" />
           </details>)}
       </section>
     </div>
   );
+}
+
+// Reihenfolge legen Admins selbst fest (seit 1.760.0, Wunsch Patrick
+// 24. November 2026: „ich will die Umfragen selber sortieren können“):
+// am Griff ⠿ ziehen, nur am Griff, damit Antippen zum Abstimmen bleibt.
+// Gespeichert als umfragen.sort, mit Rückgängig.
+function UmfrageListe({ liste, neu, admin, id }) {
+  if (!admin || liste.length < 2) return liste.map((u) => <Umfrage key={u.id} u={u} neu={neu} admin={admin} />);
+  const ordnen = async (keys) => {
+    const vorher = liste.map((u) => ({ id: u.id, sort: u.sort || 0 }));
+    const basis = Math.min(...vorher.map((v) => v.sort));
+    const aenderungen = keys.map((k, i) => ({ id: k, sort: basis + i }))
+      .filter((n) => (vorher.find((v) => v.id === n.id) || {}).sort !== n.sort);
+    if (!aenderungen.length) return;
+    for (const a of aenderungen) {
+      const { error } = await alt.db.from("umfragen").update({ sort: a.sort }).eq("id", a.id);
+      if (error) { alt.meldung(alt.fehlertext(error), "fehler"); neu(); return; }
+    }
+    alt.merkeSchritt("Umfragen sortieren", aenderungen.map((a) =>
+      alt.rueckSetz("umfragen", { sort: vorher.find((v) => v.id === a.id).sort }, { id: a.id })));
+    neu();
+  };
+  return <ZiehListe nurGriff darf id={id} className="umf-zieh" ordnen={ordnen}
+    eintraege={liste.map((u) => ({ key: u.id, inhalt: <Umfrage u={u} neu={neu} admin={admin} /> }))} />;
 }
 
 function Umfrage({ u, neu, admin }) {
@@ -147,6 +172,7 @@ function Umfrage({ u, neu, admin }) {
       <div className="umf__kopf">
         <h3 className="umf__titel">{u.titel}</h3>
         {admin && <div className="umf__admin">
+          {u.offen && <button className="linkknopf" data-umfqr={u.id} onClick={() => qrOeffnen(u, neu)}>QR-Code</button>}
           <button className="linkknopf" data-umfbearb={u.id} onClick={() => bearbeitenOeffnen(u, neu)}>Bearbeiten</button>
           <button className="linkknopf" data-umfoffen={u.id} onClick={() => offenSetzen(u, !u.offen, neu)}>
             {u.offen ? "Schliessen" : "Wieder öffnen"}</button>
@@ -204,6 +230,69 @@ function Umfrage({ u, neu, admin }) {
           <button className="linkknopf" onClick={() => { setNochmals(true); setName(gemerkt); }}>Meine Stimme ändern</button>
         </p>)}
     </article>
+  );
+}
+
+// ---------- QR-Code zum Abstimmen mit dem Handy ----------
+// Seit 1.761.0 (Wunsch Patrick 24. November 2026: „einen QR-Code
+// generieren, damit man direkt mit dem Smartphone abstimmen kann“,
+// Entscheid „Ohne Anmeldung“). Der Code führt auf die kleine Seite
+// public/abstimmen/ ausserhalb der App; erreichbar ist die Umfrage dort
+// erst, wenn ein Admin hier den QR-Code öffnet (umfragen.qr).
+export function abstimmAdresse(id) {
+  return new URL("abstimmen/?u=" + id, document.baseURI).href;
+}
+
+async function qrOeffnen(u, neu) {
+  if (!u.qr) {
+    const { error } = await alt.db.from("umfragen").update({ qr: true }).eq("id", u.id);
+    if (error) {
+      alt.meldung(/qr/i.test(String(error.message)) ? "Für den QR-Code fehlt noch sql/umfrage-qr.sql in der Datenbank."
+        : alt.fehlertext(error), "fehler");
+      return;
+    }
+    neu();
+  }
+  const { default: qrcode } = await import("qrcode-generator");
+  const adresse = abstimmAdresse(u.id);
+  const qr = qrcode(0, "M");
+  qr.addData(adresse);
+  qr.make();
+  const svg = qr.createSvgTag({ cellSize: 8, margin: 2, scalable: true });
+  fensterOeffnen((zu) => <QrFenster u={u} adresse={adresse} svg={svg} zu={zu} />);
+}
+
+function QrFenster({ u, adresse, svg, zu }) {
+  const kopieren = async () => {
+    try { await navigator.clipboard.writeText(adresse); alt.meldung("Link kopiert.", "gut"); }
+    catch (f) { alt.meldung("Kopieren ging nicht. Link: " + adresse, "warn"); }
+  };
+  // Druckblatt im eigenen Fenster: gross der Code, darüber die Frage
+  const drucken = () => {
+    const w = window.open("", "_blank");
+    if (!w) { alt.meldung("Der Browser hat das Fenster gesperrt.", "warn"); return; }
+    w.document.write("<!doctype html><meta charset='utf-8'><title>" + alt.esc(u.titel) + "</title>"
+      + "<style>body{font-family:system-ui,sans-serif;text-align:center;margin:40px;color:#13233a}"
+      + "h1{font-size:32px;margin:0 0 8px}p{font-size:20px;margin:0 0 24px}svg{width:120mm;height:120mm}"
+      + "small{display:block;margin-top:18px;font-size:13px;color:#5b6b80;word-break:break-all}</style>"
+      + "<h1>" + alt.esc(u.titel) + "</h1><p>Mit dem Handy scannen und abstimmen</p>" + svg
+      + "<small>" + alt.esc(adresse) + "</small><script>onload=function(){print()}<\/script>");
+    w.document.close();
+  };
+  return (
+    <div className="dialog umf-qr" role="dialog" aria-label="QR-Code" data-umf-qrfenster={u.id}>
+      <h2>QR-Code zum Abstimmen</h2>
+      <p className="umf-qr__titel">{u.titel}</p>
+      <div className="umf-qr__bild" dangerouslySetInnerHTML={{ __html: svg }} />
+      <p className="hinweis klein">Mit der Kamera des Handys scannen, Vorschlag antippen, Namen eintragen. Ohne Anmeldung,
+        solange die Umfrage offen ist. Die Namen sieht nur ihr hier im HoferTool.</p>
+      <p className="umf-qr__link klein"><a href={adresse} target="_blank" rel="noopener">{adresse}</a></p>
+      <div className="dialog__knoepfe">
+        <button type="button" className="knopf knopf--still" onClick={zu}>Schliessen</button>
+        <button type="button" className="knopf" onClick={kopieren}>Link kopieren</button>
+        <button type="button" className="knopf knopf--haupt" onClick={drucken}>Drucken</button>
+      </div>
+    </div>
   );
 }
 
@@ -291,7 +380,8 @@ function Bearbeiten({ u, zu, neu }) {
     const liste = vorschlaege.filter((v) => v.text.trim() || v.bild_url)
       .map((v, i) => ({ ...v, text: v.text.trim() || "Vorschlag " + (i + 1) }));
     if (!t) { setFehlt("titel"); document.getElementById("umf-titel").focus(); return; }
-    if (liste.length < 2) { setFehlt("vorschlaege"); return; }
+    // Ein einziger Vorschlag genügt (seit 1.760.0, Patrick 24. November 2026)
+    if (liste.length < 1) { setFehlt("vorschlaege"); return; }
     // Weggenommene Vorschläge mit Stimmen: einmal nachfragen
     const weg = u ? u.vorschlaege.filter((v) => !liste.some((x) => x.id === v.id)) : [];
     const wegStimmen = u ? u.stimmen.filter((s) => weg.some((v) => v.id === s.vorschlag_id)).length : 0;
@@ -306,7 +396,7 @@ function Bearbeiten({ u, zu, neu }) {
         const { error } = await alt.db.from("umfragen").update(kopf).eq("id", id);
         if (error) throw error;
       } else {
-        const { data, error } = await alt.db.from("umfragen").insert(kopf).select("id");
+        const { data, error } = await alt.db.from("umfragen").insert({ ...kopf, offen: true, sort: -Math.floor(Date.now() / 1000) }).select("id");
         if (error) throw error;
         id = data[0].id;
       }
@@ -353,7 +443,7 @@ function Bearbeiten({ u, zu, neu }) {
         onChange={(e) => setMehrfach(e.target.checked)} /> Mehrere Vorschläge wählbar</label>
 
       <h3 className="umf-b__titel">Vorschläge</h3>
-      {fehlt === "vorschlaege" && <p className="feld-fehler">Bitte mindestens zwei Vorschläge eintragen.</p>}
+      {fehlt === "vorschlaege" && <p className="feld-fehler">Bitte mindestens einen Vorschlag eintragen.</p>}
       <div className="umf-b__liste">
         {vorschlaege.map((v, i) => (
           <div key={v.k} className="umf-b__v" data-umfbv={i} {...ablage(v.k)}>

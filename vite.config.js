@@ -29,7 +29,7 @@ function offlineListe() {
       // Bilder für Meldungen beim Anmelden braucht das Tablet nicht offline
       const liste = alle.filter((d) => d !== "./sw.js" && !d.endsWith(".ico") && !d.startsWith("./meldungen/")
         // Erklärvideos sind gross und werden nur bei Bedarf geladen
-        && !d.startsWith("./hilfe/")
+        && !d.startsWith("./hilfe/") && !d.startsWith("./abstimmen/")
         // Stempel-Animationen von HOFERTIME nur bei Bedarf
         && !d.startsWith("./hofertime/stempel/")
         // Die Texterkennung (13 MB) holt das Gerät erst beim ersten Foto

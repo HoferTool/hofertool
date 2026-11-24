@@ -61,6 +61,31 @@ with sync_playwright() as p:
             pg.click("#umf-speichern"); pg.wait_for_timeout(700)
             n = pg.evaluate("TEST.daten.umfrage_vorschlaege ? TEST.daten.umfrage_vorschlaege.length : 0")
             pruefe("neue Umfrage mit 2 Vorschlägen", n == 2 and pg.evaluate("TEST.daten.umfragen.length") == 2)
+            # Seit 1.760.0: ein einziger Vorschlag genügt
+            pg.click("#umf-neu"); pg.wait_for_selector(".umf-bearbeiten")
+            pg.fill("#umf-titel", "Grillabend am Freitag?")
+            pg.locator(".umf-b__v input").nth(0).fill("Ich komme")
+            pg.click("#umf-speichern"); pg.wait_for_timeout(700)
+            pruefe("Umfrage mit nur einem Vorschlag gespeichert", pg.evaluate("TEST.daten.umfragen.length") == 3
+                   and pg.locator(".umf-bearbeiten").count() == 0)
+            # Seit 1.760.0: Admin sortiert die Umfragen am Griff
+            pg.wait_for_timeout(500)
+            reihe = lambda: pg.evaluate("[...document.querySelectorAll('#umf-liste-offen > li')].map(l => l.getAttribute('data-zieh'))")
+            vorher = reihe()
+            pruefe("drei Umfragen mit Griff", len(vorher) == 3 and pg.locator("#umf-liste-offen .ziehliste__griff").count() == 3)
+            letzte = pg.locator("#umf-liste-offen > li").nth(2).locator(".ziehliste__griff")
+            erste = pg.locator("#umf-liste-offen > li").nth(0).bounding_box()
+            b = letzte.bounding_box()
+            pg.mouse.move(b["x"] + b["width"] / 2, b["y"] + b["height"] / 2); pg.mouse.down()
+            for i in range(1, 16):
+                pg.mouse.move(b["x"] + b["width"] / 2, b["y"] + (erste["y"] - 150 - b["y"]) * i / 15)
+                pg.wait_for_timeout(20)
+            pg.mouse.up(); pg.wait_for_timeout(1200)
+            nachher = reihe()
+            pruefe("Reihenfolge geändert", len(nachher) == 3 and nachher[0] == vorher[2])
+            sorts = pg.evaluate("Object.fromEntries(TEST.daten.umfragen.map(u => [u.id, u.sort]))")
+            pruefe("Sortierung gespeichert", sorts[vorher[2]] < sorts[vorher[0]] < sorts[vorher[1]])
+            pg.locator("#db-umfragen").screenshot(path=SP + "umfrage_sortiert.png")
         else:
             pg.locator("#db-umfragen").screenshot(path=SP + "umfrage_handy.png")
             sw = pg.evaluate("document.documentElement.scrollWidth")
