@@ -153,6 +153,155 @@ svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stro
 .gross-bild{position:fixed;inset:0;background:#000e;z-index:70;display:flex;align-items:center;justify-content:center;padding:20px}
 .gross-bild img{max-width:100%;max-height:100%;border-radius:8px}
 .profil-bild{width:72px;height:72px;border-radius:50%;background:var(--pink-dunkel);color:var(--pink);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:600;margin:10px auto}
+
+/* ===== v4: Anmelden, Team, Einstellungen, Leiste, Animationen ===== */
+.ava{width:var(--g,40px);height:var(--g,40px);border-radius:50%;background:var(--f,var(--pink));color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:600;flex:none;box-shadow:0 0 0 2px #0004}
+.text-leise{color:var(--leise)}
+small.block{display:block;color:var(--leise);margin-top:3px}
+
+.anmelden{padding:calc(30px + env(safe-area-inset-top)) 20px 30px;display:flex;flex-direction:column;gap:12px;align-items:center;text-align:center;min-height:100vh}
+.an-logo{margin-bottom:10px;animation:ein-oben .5s both}
+.anmelden h1{font-size:24px;font-weight:600;animation:ein-oben .5s .05s both}
+.anmelden>p{animation:ein-oben .5s .1s both;max-width:380px}
+.an-raster{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;width:100%;max-width:760px;margin-top:12px}
+.an-kachel{background:var(--flaeche);border:1px solid var(--rand);border-radius:16px;padding:18px 10px;display:flex;flex-direction:column;align-items:center;gap:8px;transition:transform .25s,border-color .25s,opacity .35s,filter .35s;animation:ein-pop .45s calc(.15s + var(--i,0)*.05s) both}
+.an-kachel:hover{transform:translateY(-3px);border-color:var(--pink)}
+.an-kachel b{font-weight:600}.an-kachel small{color:var(--leise);font-size:12px;min-height:14px}
+.an-raster.gewaehlt-da .an-kachel:not(.gewaehlt){opacity:.15;transform:scale(.9);filter:blur(1px)}
+.an-kachel.gewaehlt{transform:scale(1.08);border-color:var(--pink);box-shadow:0 0 0 3px var(--pink-dunkel),0 10px 40px #e5175f40}
+.neu-zeile{display:flex;gap:8px;width:100%;max-width:460px;margin-top:16px}
+.neu-zeile input,.rein-zeile input{flex:1;min-width:0;background:var(--flaeche);border:1px solid var(--rand);border-radius:10px;padding:10px 12px}
+.knopf.klein{padding:8px 14px;font-size:14px;display:inline-flex;align-items:center;gap:6px;width:auto}
+.rein-zeile{display:flex;gap:8px;margin-top:10px}
+
+/* Karten und Kacheln */
+.karte{animation:ein-oben .4s calc(var(--i,0)*.04s) both}
+.still .karte{animation:none}
+.karte.neu-da{animation:ein-pop .5s both}
+.kacheln{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.kachel{background:var(--flaeche);border:1px solid var(--rand);border-radius:var(--radius);padding:14px;animation:ein-oben .4s calc(var(--i,0)*.05s) both}
+.kachel .zahl{font-size:28px;font-weight:700;display:block;font-variant-numeric:tabular-nums}
+.balken{height:8px;border-radius:4px;background:var(--flaeche2);overflow:hidden;margin-top:6px}
+.balken i{display:block;height:100%;width:var(--w,0);background:var(--pink);border-radius:4px;animation:wachsen .8s calc(.2s + var(--i,0)*.06s) both cubic-bezier(.2,.8,.2,1);transform-origin:left}
+.heute{color:var(--pink);font-weight:600}
+
+/* Team */
+.pers-raster{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.pers{background:var(--flaeche);border:1px solid var(--rand);border-radius:var(--radius);padding:12px 14px;display:flex;gap:12px;align-items:center;text-align:left;width:100%;transition:transform .2s,border-color .2s;animation:ein-oben .4s calc(var(--i,0)*.04s) both}
+.pers:hover{transform:translateY(-2px);border-color:var(--pink)}
+.pers>div{flex:1;min-width:0}.pers b{display:block}.pers small{color:var(--leise);font-size:12.5px}
+.offen-zahl{min-width:26px;height:26px;border-radius:13px;background:var(--pink);color:#fff;font-size:13px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;padding:0 7px}
+.offen-zahl.null{background:var(--flaeche2);color:var(--leise)}
+.geb{display:inline-flex;align-items:center;gap:4px;color:var(--orange)}
+.pers-kopf{display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 0}
+.pers-kopf .ava{animation:ein-pop .5s both}
+.farben{display:flex;gap:8px;flex-wrap:wrap}
+.farbe{width:30px;height:30px;border-radius:50%;background:var(--f);border:2px solid transparent;transition:transform .2s}
+.farben.gross .farbe{width:40px;height:40px}
+.farbe:hover{transform:scale(1.12)}
+.farbe.an{border-color:#fff;box-shadow:0 0 0 3px var(--f)}
+.haken-zeile{display:flex;align-items:center;gap:12px;padding:11px 4px;border-bottom:1px solid var(--rand);width:100%;text-align:left}
+.kasten{width:22px;height:22px;border-radius:6px;border:2px solid var(--rand);display:inline-flex;align-items:center;justify-content:center;transition:background .2s,border-color .2s;flex:none}
+.kasten svg{width:14px;height:14px;opacity:0;transform:scale(.4);transition:.25s}
+.kasten.an{background:var(--pink);border-color:var(--pink)}
+.kasten.an svg{opacity:1;transform:scale(1);color:#fff}
+.profil-karte{background:var(--flaeche);border:1px solid var(--rand);border-radius:16px;padding:20px;text-align:center;animation:ein-pop .45s both}
+.radio .rt b{display:block}.radio .rt small{color:var(--leise)}
+.feld select{width:100%;background:var(--flaeche2);border:1px solid var(--rand);border-radius:10px;padding:10px 12px;appearance:auto}
+select.gespeichert{animation:blitz .8s}
+
+/* Einstellungen */
+.einst section{margin-bottom:22px;animation:ein-oben .4s calc(var(--i,0)*.06s) both}
+.einst section h2{font-size:13px;text-transform:uppercase;letter-spacing:.1em;color:var(--leise);margin:0 0 10px;font-weight:600;display:flex;align-items:center;gap:8px}
+.eb-block{background:var(--flaeche);border:1px solid var(--rand);border-radius:var(--radius);padding:14px}
+.eb-block+.eb-block{margin-top:10px}
+.eb-titel{font-weight:600;margin-bottom:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--flaeche2);border:1px solid var(--rand);border-radius:16px;padding:5px 6px 5px 12px;font-size:13.5px;animation:ein-pop .3s both}
+.chip button{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:var(--leise)}
+.chip button:hover{background:var(--pink-dunkel);color:var(--pink)}
+.chip svg{width:14px;height:14px}
+.zuweisen{display:flex;flex-direction:column}
+.zw-zeile{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--rand)}
+.zw-zeile:last-child{border-bottom:0}
+.zw-zeile select{background:var(--flaeche2);border:1px solid var(--rand);border-radius:8px;padding:8px}
+.schalter-zeile{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;width:100%;text-align:left}
+.schalter-zeile small{display:block;color:var(--leise);font-size:12.5px}
+.schalter{width:46px;height:26px;border-radius:13px;background:var(--flaeche2);border:1px solid var(--rand);position:relative;transition:background .25s;flex:none}
+.schalter i{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#ccc;transition:transform .25s cubic-bezier(.3,1.4,.5,1),background .25s}
+.schalter.an{background:var(--pink);border-color:var(--pink)}
+.schalter.an i{transform:translateX(20px);background:#fff}
+
+/* Rückmeldungen */
+.schild.pop{animation:ein-pop .45s both}
+.meldung{animation:toast .35s cubic-bezier(.2,.9,.3,1.3) both}
+.meldung.weg{animation:toast-weg .3s both}
+.fehler{animation:wackeln .4s}
+
+/* Wechsel zwischen Ansichten */
+.ansicht{flex:1;display:flex;flex-direction:column}
+.r-vor{animation:von-rechts .32s cubic-bezier(.2,.8,.2,1) both}
+.r-zurueck{animation:von-links .32s cubic-bezier(.2,.8,.2,1) both}
+.r-reiter{animation:ein-oben .3s ease-out both}
+.r-rein{animation:ein-zoom .45s cubic-bezier(.2,.8,.2,1) both}
+.st1{animation:ein-pop .7s both}.st2{animation:ein-oben .6s .15s both}.st3{animation:ein-oben .6s .3s both}.st4{animation:strich .6s .45s both;transform-origin:center}.st5{animation:ein-oben .6s .55s both}
+@keyframes von-rechts{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:none}}
+@keyframes von-links{from{opacity:0;transform:translateX(-40px)}to{opacity:1;transform:none}}
+@keyframes ein-oben{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes ein-pop{0%{opacity:0;transform:scale(.85)}60%{opacity:1;transform:scale(1.04)}to{opacity:1;transform:none}}
+@keyframes ein-zoom{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
+@keyframes wachsen{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes strich{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes blitz{0%{box-shadow:0 0 0 0 var(--pink)}40%{box-shadow:0 0 0 3px var(--pink)}to{box-shadow:0 0 0 0 transparent}}
+@keyframes toast{from{opacity:0;transform:translate(-50%,20px)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes toast-weg{to{opacity:0;transform:translate(-50%,20px)}}
+@keyframes wackeln{0%,100%{transform:none}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
+@keyframes icon-pop{0%{transform:scale(1)}40%{transform:scale(1.3)}to{transform:scale(1)}}
+
+/* Leiste: Handy unten, immer da */
+body.mit-leiste #app{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+.unten{grid-template-columns:repeat(5,1fr)}
+.unten .nur-pc,.unten .lang{display:none}
+.unten button{position:relative;padding:2px 0;transition:color .2s}
+.unten button svg{transition:transform .2s}
+.unten button.an svg{animation:icon-pop .4s}
+.unten button.an::before{content:"";position:absolute;top:-8px;left:30%;right:30%;height:3px;border-radius:0 0 3px 3px;background:var(--pink)}
+
+@media (min-width:900px){
+  body.mit-leiste #app{padding:0 0 0 250px;max-width:none}
+  body.mit-leiste .ansicht{width:100%;max-width:900px;margin:0 auto}
+  body.mit-leiste .kopf.haupt{display:none}
+  .unten{top:0;bottom:0;right:auto;width:250px;max-width:none;margin:0;display:flex;flex-direction:column;gap:4px;padding:22px 14px;border-top:0;border-right:1px solid var(--rand)}
+  .unten .nur-pc{display:flex}
+  .unten .lang{display:inline}.unten .kurz{display:none}
+  .unten>button{flex-direction:row;gap:12px;font-size:14.5px;padding:11px 14px;border-radius:10px;color:#cfd2d6;justify-content:flex-start}
+  .unten>button:hover{background:var(--flaeche2)}
+  .unten>button.an{background:var(--pink-dunkel);color:#fff}
+  .unten>button.an::before{top:8px;bottom:8px;left:0;right:auto;width:3px;height:auto;border-radius:0 3px 3px 0}
+  .nav-marke{padding:0 6px 22px;border-bottom:1px solid var(--rand);margin-bottom:14px}
+  .nav-ich{margin-top:auto;align-items:center;gap:10px;padding:12px 6px 0;border-top:1px solid var(--rand)}
+  .nav-ich>div{flex:1;min-width:0}.nav-ich b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.nav-ich small{color:var(--leise);font-size:12px}
+  .nav-ich button{color:var(--leise);padding:6px;border-radius:8px}.nav-ich button:hover{color:var(--pink);background:var(--flaeche2)}
+  #karten{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .meldung{bottom:30px}
+  .r-vor{animation-name:von-rechts}
+}
+@media (min-width:900px){body:not(.mit-leiste) #app{max-width:none}}
+
+body.ohne-anim *,body.ohne-anim *::before{animation:none!important;transition:none!important}
+@media (prefers-reduced-motion:reduce){*,*::before{animation:none!important;transition:none!important}}
+.zw-zeile{grid-template-columns:auto 1fr 1fr;grid-template-areas:"a n n" "s1 s1 s2"}
+.zw-zeile>.ava,.zw-zeile>svg{grid-area:a}.zw-zeile>b{grid-area:n}
+.zw-zeile>select:nth-of-type(1){grid-area:s1;grid-column:1/3}.zw-zeile>select:nth-of-type(2){grid-area:s2}
+.zuweisen+.eb-titel{margin-top:16px}
+.zuweisen{background:var(--flaeche);border:1px solid var(--rand);border-radius:var(--radius);padding:4px 14px;margin-bottom:10px}
+.haken-zeile small{margin-left:auto;color:var(--leise);font-size:12px}
+@media (min-width:700px){.zw-zeile{grid-template-columns:32px 1.2fr 1fr 1fr;grid-template-areas:"a n s1 s2"}.zw-zeile>select:nth-of-type(1){grid-column:auto}}
+button.zeile-verw{width:100%;text-align:left}
+.zeile-verw span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.zeile-verw small{white-space:nowrap}
+.ava{aspect-ratio:1;min-width:var(--g,40px);min-height:var(--g,40px)}
+.zeile-verw span.ava{flex:none;overflow:visible}
 </style></head><body><div id="app"></div><script>
 // ---------- Symbole ----------
 const I = {
@@ -190,29 +339,61 @@ function logo(gr) {
   return `<svg width="${gr}" height="${gr}" viewBox="0 0 100 100" aria-hidden="true"><defs><clipPath id="${id}"><circle cx="50" cy="50" r="48"/></clipPath></defs><g clip-path="url(#${id})">${streifen}</g></svg>`;
 }
 const marke = (gr = 38) => `<div class="marke">${logo(gr)}<div class="wort"><b>SÜMI</b><small>SCHREINEREI</small></div></div>`;
-
-// ---------- SÜMI Schreinerei: Bestellungen (nach den Bildern) ----------
-// Alles in dieser einen Datei. Daten bleiben vorerst auf dem Gerät (localStorage).
-const SPEICHER = "suemi.app.v3";
+Object.assign(I, {
+  kuchen:'<path d="M4 21h16M5 21v-7a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v7"/><path d="M5 16c1.5 1 3 1 4.5 0s3-1 4.5 0 3 1 5 0M12 13V9M12 6.5c-.8-.8-.8-2 0-3 .8 1 .8 2.2 0 3z"/>',
+  grafik:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  ordner:'<path d="M3 7a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/>',
+  marke:'<path d="M20 13 13 20a1.5 1.5 0 0 1-2 0l-7-7V4h9l7 7a1.5 1.5 0 0 1 0 2z"/><circle cx="8.5" cy="8.5" r="1.5"/>',
+  haken:'<path d="m5 12 5 5 9-10"/>',
+  palette:'<path d="M12 3a9 9 0 0 0 0 18c1.2 0 2-.8 2-2 0-.6-.3-1-.6-1.4-.3-.4-.5-.8-.5-1.3 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4c0-4.2-4-7.5-9-7.5z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="14.5" cy="7" r="1"/>',
+  schloss:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+});
+// ---------- SÜMI Schreinerei: Bestellungen ----------
+// Alles in dieser einen Datei. Daten bleiben vorerst auf dem Gerät (localStorage),
+// damit der Umzug auf eine Datenbank später nur diese Lade- und Speicherstellen betrifft.
+const SPEICHER = "suemi.app.v4";
 const STATUS = { offen: "Offen", bearbeitung: "In Bearbeitung", erledigt: "Erledigt" };
+const AKZENTE = { pink: ["#e5175f", "#5a1027"], blau: ["#2f7de1", "#13294a"], gruen: ["#2fae5b", "#113a22"], orange: ["#f08a1c", "#4a2a08"], violett: ["#8b5cf6", "#2c1d4f"] };
+const FARBEN = ["#e5175f", "#f08a1c", "#2fae5b", "#2f7de1", "#8b5cf6", "#14b8a6", "#eab308", "#ec4899"];
 
 const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const neueId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const jetzt = () => new Date().toISOString();
-function datumZeit(iso) {
-  const d = new Date(iso); const z = (n) => String(n).padStart(2, "0");
-  return `${z(d.getDate())}.${z(d.getMonth() + 1)}.${d.getFullYear()}, ${z(d.getHours())}:${z(d.getMinutes())}`;
+const z2 = (n) => String(n).padStart(2, "0");
+function datumZeit(iso) { const d = new Date(iso); return `${z2(d.getDate())}.${z2(d.getMonth() + 1)}.${d.getFullYear()}, ${z2(d.getHours())}:${z2(d.getMinutes())}`; }
+function datum(iso) { if (!iso) return ""; const [j, m, t] = iso.split("-"); return `${t}.${m}.${j}`; }
+
+// Tage bis zum nächsten Geburtstag und das Alter dann
+function geburtstag(iso) {
+  if (!iso) return null;
+  const [j, m, t] = iso.split("-").map(Number);
+  const heute = new Date(); heute.setHours(0, 0, 0, 0);
+  let n = new Date(heute.getFullYear(), m - 1, t);
+  if (n < heute) n = new Date(heute.getFullYear() + 1, m - 1, t);
+  return { tage: Math.round((n - heute) / 86400000), alter: n.getFullYear() - j };
 }
+const gebText = (g) => !g ? "" : g.tage === 0 ? `Heute ${g.alter} Jahre 🎉` : g.tage === 1 ? `Morgen ${g.alter} Jahre` : `in ${g.tage} Tagen ${g.alter} Jahre`;
 
 function vorgabe() {
-  const leute = ["Tobias Mathys", "Ian Staubitzer", "Daniel Stalder", "Hansruedi Sommer", "Levin Neuenschwander"];
-  const kom = ["Montage", "Werkstatt", "Oberflächen", "Produktion"];
+  const p = (name, abteilung, funktion, geburtstag, i) => ({ id: neueId() + i, name, abteilung, funktion, geburtstag, farbe: FARBEN[i % FARBEN.length] });
+  const leute = [
+    p("Tobias Mathys", "Montage", "Monteur", "1988-03-14", 0),
+    p("Ian Staubitzer", "Oberflächen", "Maler", "1995-12-02", 1),
+    p("Daniel Stalder", "Werkstatt", "Schreiner EFZ", "1979-07-21", 2),
+    p("Hansruedi Sommer", "Büro", "Geschäftsführer", "1966-11-30", 3),
+    p("Levin Neuenschwander", "Werkstatt", "Lernender", "2007-05-09", 4),
+  ];
+  const k = (name, abteilung, verantwortlich) => ({ id: neueId() + name, name, abteilung, verantwortlich });
+  const kom = [k("Montage", "Montage", "Tobias Mathys"), k("Werkstatt", "Werkstatt", "Daniel Stalder"), k("Oberflächen", "Oberflächen", "Ian Staubitzer"), k("Produktion", "Werkstatt", "Levin Neuenschwander")];
   const b = (artikel, menge, material, kommission, person, status, minuten) => ({
-    id: neueId(), artikel, menge, material, kommission, person, status, bild: "",
+    id: neueId() + artikel, artikel, menge, material, kommission, person, status, bild: "",
     erstellt: new Date(Date.now() - minuten * 60000).toISOString(),
   });
   return {
     leute, kom, ich: "",
+    abteilungen: ["Werkstatt", "Montage", "Oberflächen", "Büro"],
+    funktionen: ["Geschäftsführer", "Schreiner EFZ", "Monteur", "Maler", "Lernender", "Disponent"],
+    einst: { firma: "SÜMI Schreinerei", spruch: "Gemeinsam\nmehr möglich machen.", akzent: "pink", animationen: true, verantwortlichVorschlagen: true },
     bestellungen: [
       b("Schrauben", "50 Stk.", "Holzbauschrauben 5x80 mm", "Montage", "Tobias Mathys", "offen", 30),
       b("Holzplatte", "4 Stk.", "Dreischichtplatte Fichte 27 mm, 2500 x 1250", "Werkstatt", "Daniel Stalder", "bearbeitung", 120),
@@ -223,50 +404,101 @@ function vorgabe() {
   };
 }
 
-let D;
-try { D = JSON.parse(localStorage.getItem(SPEICHER)) || vorgabe(); } catch { D = vorgabe(); }
+// Ältere Fassung (Namen als reine Texte) übernehmen, damit nichts verloren geht
+function laden() {
+  try {
+    const d = JSON.parse(localStorage.getItem(SPEICHER));
+    if (d) return Object.assign(vorgabe(), d, { einst: { ...vorgabe().einst, ...(d.einst || {}) } });
+    const alt = JSON.parse(localStorage.getItem("suemi.app.v3"));
+    if (alt) {
+      const v = vorgabe();
+      v.bestellungen = alt.bestellungen || [];
+      v.leute = (alt.leute || []).map((n, i) => v.leute.find((x) => x.name === n) || { id: neueId() + i, name: n, abteilung: "", funktion: "", geburtstag: "", farbe: FARBEN[i % FARBEN.length] });
+      v.kom = (alt.kom || []).map((n) => v.kom.find((x) => x.name === n) || { id: neueId() + n, name: n, abteilung: "", verantwortlich: "" });
+      return v;
+    }
+  } catch {}
+  return vorgabe();
+}
+let D = laden();
 function speichern() {
   try { localStorage.setItem(SPEICHER, JSON.stringify(D)); }
   catch { meldung("Speicher voll. Bitte ein kleineres Bild nehmen oder alte Bestellungen löschen."); }
 }
 
 // Zustand der Ansicht
-const S = { ansicht: "start", filter: "alle", suche: "", id: null, form: null, wahl: null, zurueck: [] };
+const S = { ansicht: "start", filter: "alle", suche: "", id: null, form: null, wahl: null, edit: null, zurueck: [], richtung: "rein" };
 const app = document.getElementById("app");
+const pc = () => matchMedia("(min-width: 900px)").matches;
 
 function gehe(ansicht, mehr = {}) {
   S.zurueck.push({ ansicht: S.ansicht, id: S.id });
-  Object.assign(S, { ansicht }, mehr);
+  Object.assign(S, { ansicht, richtung: "vor" }, mehr);
   zeichne(); window.scrollTo(0, 0);
 }
 function zurueck() {
   const v = S.zurueck.pop() || { ansicht: "liste" };
-  S.ansicht = v.ansicht; S.id = v.id; zeichne(); window.scrollTo(0, 0);
+  S.ansicht = v.ansicht; S.id = v.id; S.richtung = "zurueck"; zeichne(); window.scrollTo(0, 0);
+}
+// Ein Reiter der Leiste: neue Ebene ohne Zurück-Verlauf
+function reiter(ansicht) {
+  if (S.ansicht === ansicht && !S.zurueck.length) return;
+  S.zurueck = []; S.ansicht = ansicht; S.richtung = "reiter"; zeichne(); window.scrollTo(0, 0);
 }
 
 function meldung(t) {
   document.querySelectorAll(".meldung").forEach((m) => m.remove());
   const m = document.createElement("div"); m.className = "meldung"; m.textContent = t;
-  document.body.append(m); setTimeout(() => m.remove(), 2600);
+  document.body.append(m); setTimeout(() => m.classList.add("weg"), 2300); setTimeout(() => m.remove(), 2700);
 }
 
 // ---------- Bausteine ----------
-const kopf = () => `<header class="kopf">${marke()}<button data-a="menue" aria-label="Menü">${sym("menue", 26)}</button></header>`;
+const person = (name) => D.leute.find((p) => p.name === name);
+const initialen = (n) => String(n || "?").split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+const ava = (name, gr = 40) => { const p = person(name); const f = p?.farbe || "#555b63";
+  return `<span class="ava" style="--f:${f};width:${gr}px;height:${gr}px;font-size:${Math.round(gr * 0.38)}px">${esc(initialen(name))}</span>`; };
+const kopf = () => `<header class="kopf haupt">${marke()}<button data-a="menue" aria-label="Menü">${sym("menue", 26)}</button></header>`;
 const titel = (t, mitZurueck = true, rechts = "") =>
   `<div class="titelzeile">${mitZurueck ? `<button class="zurueck" data-a="zurueck" aria-label="Zurück">${sym("links", 24)}</button>` : ""}<h1>${esc(t)}</h1>${rechts}</div>`;
 const schild = (st) => `<span class="schild ${st}">${STATUS[st]}</span>`;
 const bildKlein = (b, gr) => b.bild ? `<img src="${b.bild}" alt="">` : sym("paket", gr || 26);
-const unten = (an) => `<nav class="unten">
-  <button data-a="liste" class="${an === "liste" ? "an" : ""}">${sym("haus", 22)}Übersicht</button>
-  <button data-a="neu" class="${an === "neu" ? "an" : ""}">${sym("plus", 22)}Neue Bestellung</button>
-  <button data-a="profil" class="${an === "profil" ? "an" : ""}">${sym("person", 22)}Profil</button></nav>`;
+const optionen = (liste, wert, leer = "– keine –") => `<option value="">${leer}</option>` +
+  [...new Set([...liste, ...(wert && !liste.includes(wert) ? [wert] : [])])].map((x) => `<option ${x === wert ? "selected" : ""}>${esc(x)}</option>`).join("");
+
+// Leiste: am Handy unten, am PC links als Reiter (gleiche Knöpfe, nur anders angeordnet)
+function leiste(an) {
+  const k = (a, icon, t, kurz, nurPc) => `<button data-a="${a}" class="${an === a ? "an" : ""} ${nurPc ? "nur-pc" : ""}">${sym(icon, 22)}<span class="lang">${t}</span><span class="kurz">${kurz || t}</span></button>`;
+  const ich = D.ich;
+  return `<nav class="unten">
+    <div class="nav-marke nur-pc">${marke(40)}</div>
+    ${k("liste", "haus", "Bestellungen", "Übersicht")}
+    ${k("neu", "plus", "Neue Bestellung", "Neu")}
+    ${k("uebersicht", "grafik", "Auswertung", "", true)}
+    ${k("kommissionen", "ordner", "Kommissionen", "", true)}
+    ${k("mitarbeitende", "leute", "Mitarbeitende", "Team")}
+    ${k("einstellungen", "zahnrad", "Einstellungen", "Einst.")}
+    ${k("profil", "person", "Profil")}
+    <div class="nav-ich nur-pc">${ich ? `${ava(ich, 34)}<div><b>${esc(ich)}</b><small>${esc(person(ich)?.funktion || "")}</small></div>` : ""}<button data-a="abmelden" aria-label="Abmelden" title="Abmelden">${sym("abmelden", 20)}</button></div>
+  </nav>`;
+}
 
 // ---------- Ansichten ----------
 function vStart() {
-  return `<div class="start">${logo(150)}
-    <div class="gross"><b>SÜMI</b><small>SCHREINEREI</small></div>
-    <p>Gemeinsam<br>mehr möglich machen.</p><div class="strich"></div>
-    <button class="knopf" data-a="liste">Zur Bestellung</button></div>`;
+  const [w1, ...rest] = (D.einst.firma || "SÜMI").split(" ");
+  return `<div class="start"><div class="st1">${logo(150)}</div>
+    <div class="gross st2"><b>${esc(w1)}</b><small>${esc(rest.join(" ").toUpperCase())}</small></div>
+    <p class="st3">${esc(D.einst.spruch).replace(/\n/g, "<br>")}</p><div class="strich st4"></div>
+    <button class="knopf st5" data-a="anmelden">Zur Bestellung</button></div>`;
+}
+
+// Anmelden ohne Passwort: nur Person antippen (für den Anfang)
+function vAnmelden() {
+  return `<div class="anmelden"><div class="an-logo">${marke(46)}</div>
+    <h1>Wer meldet sich an?</h1><p class="text-leise">Für den Anfang ohne Passwort: einfach deinen Namen antippen.</p>
+    <div class="an-raster">${D.leute.map((p, i) => `<button class="an-kachel" data-a="wer" data-w="${esc(p.name)}" style="--i:${i}">${ava(p.name, 64)}<b>${esc(p.name)}</b><small>${esc([p.funktion, p.abteilung].filter(Boolean).join(" · "))}</small></button>`).join("")
+      || `<div class="leer">Noch keine Mitarbeitenden. Unten zuerst eine Person anlegen.</div>`}</div>
+    <div class="neu-zeile"><input id="neuname" placeholder="Neue Person: Vor- und Nachname"><button class="knopf klein" data-a="dazu">${sym("plus", 18)}Anlegen</button></div>
+  </div>`;
 }
 
 function passt(b) {
@@ -275,25 +507,25 @@ function passt(b) {
   const text = [b.artikel, b.kommission, b.person, b.material, b.menge].join(" ").toLowerCase();
   return w.every((x) => text.includes(x));
 }
+const sortiert = () => D.bestellungen.filter(passt).sort((a, b) => b.erstellt.localeCompare(a.erstellt));
 
 function vListe() {
-  const liste = D.bestellungen.filter(passt).sort((a, b) => b.erstellt.localeCompare(a.erstellt));
   const f = (k, t) => `<button data-a="filter" data-w="${k}" class="${S.filter === k ? "an" : ""}">${t}</button>`;
   return `${kopf()}${titel("Bestellungen", false, `<button class="knopf klein" data-a="neu">${sym("plus", 18)}Neue Bestellung</button>`)}
   <main class="inhalt">
     <label class="suche">${sym("suche", 20)}<input id="suche" type="search" placeholder="Nach Artikel, Kommission oder Person suchen …" value="${esc(S.suche)}"></label>
     <div class="filter">${f("alle", "Alle")}${f("offen", "Offen")}${f("bearbeitung", "In Bearbeitung")}${f("erledigt", "Erledigt")}</div>
-    <div id="karten">${karten(liste)}</div>
-  </main>${unten("liste")}`;
+    <div id="karten" class="karten">${karten(sortiert())}</div>
+  </main>`;
 }
 function karten(liste) {
   if (!liste.length) return `<div class="leer">Keine Bestellungen gefunden.</div>`;
-  return liste.map((b) => `<button class="karte" data-a="detail" data-id="${b.id}">
+  return liste.map((b, i) => `<button class="karte" data-a="detail" data-id="${b.id}" style="--i:${i}">
     <div class="bild">${bildKlein(b)}</div>
     <div class="mitte"><h3><span>${esc(b.artikel)}</span>${schild(b.status)}</h3>
       <div class="zeile">Kommission: ${esc(b.kommission)}</div>
       <div class="zeile">Muss bestellt werden von:</div>
-      <div class="zeile"><b>${esc(b.person)}</b></div></div>
+      <div class="zeile wer">${ava(b.person, 20)}<b>${esc(b.person)}</b></div></div>
     ${sym("rechts", 20)}</button>`).join("");
 }
 
@@ -301,16 +533,17 @@ function vDetail() {
   const b = D.bestellungen.find((x) => x.id === S.id);
   if (!b) { S.ansicht = "liste"; return vListe(); }
   const sw = (k) => `<button data-a="status" data-w="${k}" class="${k} ${b.status === k ? "an" : ""}">${STATUS[k]}</button>`;
-  return `<div class="kopf">${titel("Bestelldetails").replace('class="titelzeile"', 'class="titelzeile" style="padding:0"')}${logo(34)}</div>
+  const p = person(b.person);
+  return `${kopf()}${titel("Bestelldetails")}
   <main class="inhalt">
     <div class="detail">
       <div class="oben"><div class="bild">${bildKlein(b, 34)}</div>
-        <div style="flex:1;min-width:0"><h2><span>${esc(b.artikel)}</span>${schild(b.status)}</h2>
+        <div style="flex:1;min-width:0"><h2><span>${esc(b.artikel)}</span><span id="schild">${schild(b.status)}</span></h2>
           <dl><dt>Kommission</dt><dd>${esc(b.kommission)}</dd>
           <dt>Menge</dt><dd>${esc(b.menge)}</dd>
           <dt>Material / Beschreibung</dt><dd>${esc(b.material)}</dd></dl></div></div>
       ${b.bild ? `<dl><dt>Bild</dt></dl><div class="foto"><img src="${b.bild}" alt="Bild" data-a="gross"></div>` : ""}
-      <div class="info">${sym("person", 24)}<div><small>Muss bestellt werden von:</small>${esc(b.person)}</div></div>
+      <div class="info">${ava(b.person, 28)}<div><small>Muss bestellt werden von:</small>${esc(b.person)}${p?.funktion ? ` <span class="text-leise">· ${esc(p.funktion)}</span>` : ""}</div></div>
       <div class="info">${sym("uhr", 24)}<div><small>Erstellt am</small>${datumZeit(b.erstellt)}</div></div>
     </div>
     <div class="status-wahl">${sw("offen")}${sw("bearbeitung")}${sw("erledigt")}</div>
@@ -321,11 +554,11 @@ function vDetail() {
 function formNeu(b) {
   S.form = b ? { ...b } : { id: null, artikel: "", menge: "", material: "", bild: "", kommission: "", person: D.ich || "", status: "offen" };
 }
+const wahlFeld = (art, icon, t, wert) => `<button class="feld wahl" data-a="wahl" data-w="${art}" id="f-${art}">${art === "person" && wert ? ava(wert, 26) : sym(icon, 24)}
+    <div class="fi"><label>${t} *</label><div class="wert ${wert ? "" : "leer2"}">${esc(wert || "Bitte wählen")}</div></div>${sym("runter", 22)}</button>`;
 function vForm() {
   const f = S.form, neu = !f.id;
-  const wahl = (art, icon, t, wert) => `<button class="feld wahl" data-a="wahl" data-w="${art}" id="f-${art}">${sym(icon, 24)}
-    <div class="fi"><label>${t} *</label><div class="wert ${wert ? "" : "leer2"}">${esc(wert || "Bitte wählen")}</div></div>${sym("runter", 22)}</button>`;
-  return `${kopf()}${titel(neu ? "Neue Bestellung" : "Bestellung bearbeiten")}
+  return `${kopf()}${titel(neu ? "Neue Bestellung" : "Bestellung bearbeiten", !!S.zurueck.length)}
   <main class="inhalt">
     <label class="feld" id="f-artikel">${sym("paket", 24)}<div class="fi"><label>Artikel *</label><input data-f="artikel" value="${esc(f.artikel)}" placeholder="z. B. Schrauben, Farbe, Werkzeug …"></div></label>
     <label class="feld" id="f-menge">${sym("raute", 24)}<div class="fi"><label>Menge *</label><input data-f="menge" value="${esc(f.menge)}" placeholder="z. B. 10 Stk."></div></label>
@@ -334,88 +567,182 @@ function vForm() {
       ${f.bild ? `<div class="vorschau"><img src="${f.bild}" alt=""><button data-a="bildweg">Entfernen</button></div>`
         : `<div class="ablage" id="ablage" data-a="bildwahl">${sym("kamera", 26)}<span>Bild auswählen oder<br>hier ablegen</span></div>`}
       <input type="file" id="datei" accept="image/*" hidden></div>
-    ${wahl("kommission", "leute", "Kommission", f.kommission)}
-    ${wahl("person", "leute", "Muss bestellt werden von:", f.person)}
+    ${wahlFeld("kommission", "ordner", "Kommission", f.kommission)}
+    ${wahlFeld("person", "person", "Muss bestellt werden von:", f.person)}
     ${neu ? "" : `<div class="gruppe-titel">Status</div><div class="status-wahl">${["offen", "bearbeitung", "erledigt"].map((k) => `<button data-a="fstatus" data-w="${k}" class="${k} ${f.status === k ? "an" : ""}">${STATUS[k]}</button>`).join("")}</div>`}
     <button class="knopf" data-a="senden" style="margin-top:12px">${sym(neu ? "senden" : "stift", 20)}${neu ? "Bestellung senden" : "Speichern"}</button>
     ${neu ? "" : `<button class="knopf grau" data-a="loeschen" style="margin-top:10px">${sym("muell", 20)}Bestellung löschen</button>`}
   </main>`;
 }
 
-// Auswahl Kommission oder Person, wie auf dem Bild unten rechts
+// Auswahl Kommission oder Person
 function vWahl() {
   const f = S.form, art = S.wahl;
-  const liste = art === "person" ? D.leute : D.kom;
-  const kopfFeld = (a, icon, t, w) => `<button class="feld wahl" data-a="wahl" data-w="${a}">${sym(icon, 24)}<div class="fi"><label>${t} *</label><div class="wert ${w ? "" : "leer2"}">${esc(w || "Bitte wählen")}</div></div>${sym("runter", 22)}</button>`;
+  const liste = art === "person" ? D.leute.map((p) => ({ n: p.name, u: [p.funktion, p.abteilung].filter(Boolean).join(" · ") }))
+    : D.kom.map((k) => ({ n: k.name, u: k.verantwortlich ? "Verantwortlich: " + k.verantwortlich : "" }));
   return `${titel(f.id ? "Bestellung bearbeiten" : "Neue Bestellung")}
   <main class="inhalt">
-    ${kopfFeld("kommission", "leute", "Kommission", f.kommission)}
-    ${kopfFeld("person", "person", "Muss bestellt werden von:", f.person)}
+    ${wahlFeld("kommission", "ordner", "Kommission", f.kommission)}
+    ${wahlFeld("person", "person", "Muss bestellt werden von:", f.person)}
     <div class="gruppe-titel">${art === "person" ? "Mitarbeitende" : "Kommissionen"}</div>
-    <div class="liste-kasten">${liste.length ? liste.map((n) => `<button class="radio ${f[art] === n ? "an" : ""}" data-a="waehle" data-w="${esc(n)}"><span class="kreis"></span>${esc(n)}</button>`).join("")
-      : `<div class="leer">Noch keine Einträge. Im Menü unter ${art === "person" ? "Mitarbeitende" : "Kommissionen"} hinzufügen.</div>`}</div>
+    <div class="liste-kasten">${liste.length ? liste.map((x, i) => `<button class="radio ${f[art] === x.n ? "an" : ""}" data-a="waehle" data-w="${esc(x.n)}" style="--i:${i}"><span class="kreis"></span>${art === "person" ? ava(x.n, 30) : ""}<span class="rt"><b>${esc(x.n)}</b>${x.u ? `<small>${esc(x.u)}</small>` : ""}</span></button>`).join("")
+      : `<div class="leer">Noch keine Einträge. Unter ${art === "person" ? "Mitarbeitende" : "Kommissionen"} hinzufügen.</div>`}</div>
   </main>`;
 }
 
 function vMenue() {
-  const p = (a, icon, t, an) => `<button data-a="${a}" class="${an ? "an" : ""}">${sym(icon, 24)}<span>${t}</span>${sym("rechts", 20)}</button>`;
+  const p = (a, icon, t) => `<button data-a="${a}" class="${S.zurueck.at(-1)?.ansicht === a ? "an" : ""}">${sym(icon, 24)}<span>${t}</span>${sym("rechts", 20)}</button>`;
   return `<div class="menue"><div class="marke-gross">${marke(56)}<button data-a="zu" aria-label="Schliessen">${sym("x", 26)}</button></div>
-    <nav>${p("liste", "paket", "Bestellungen", true)}${p("neu", "plus", "Neue Bestellung")}${p("uebersicht", "haus", "Übersicht")}
-    ${p("kommissionen", "leute", "Kommissionen")}${p("mitarbeitende", "person", "Mitarbeitende")}<hr>
+    <nav>${p("liste", "paket", "Bestellungen")}${p("neu", "plus", "Neue Bestellung")}${p("uebersicht", "grafik", "Auswertung")}
+    ${p("kommissionen", "ordner", "Kommissionen")}${p("mitarbeitende", "leute", "Mitarbeitende")}<hr>
     <button data-a="einstellungen">${sym("zahnrad", 24)}<span>Einstellungen</span></button>
     <button data-a="abmelden">${sym("abmelden", 24)}<span>Abmelden</span></button></nav></div>`;
 }
 
 function vUebersicht() {
   const z = (st) => D.bestellungen.filter((b) => b.status === st).length;
-  const kachel = (st) => `<button class="karte" data-a="filterliste" data-w="${st}" style="flex-direction:column;align-items:flex-start;gap:6px">${schild(st)}<b style="font-size:28px">${z(st)}</b></button>`;
-  const jeKom = D.kom.map((k) => {
-    const n = D.bestellungen.filter((b) => b.kommission === k && b.status !== "erledigt").length;
-    return `<button class="zeile-verw" data-a="suchliste" data-w="${esc(k)}" style="width:100%;text-align:left"><span>${esc(k)}</span><small>${n} offen</small>${sym("rechts", 18)}</button>`;
+  const kachel = (st, i) => `<button class="karte kachel" data-a="filterliste" data-w="${st}" style="--i:${i}">${schild(st)}<b data-zahl="${z(st)}">${z(st)}</b></button>`;
+  const jeKom = D.kom.map((k, i) => {
+    const n = D.bestellungen.filter((b) => b.kommission === k.name && b.status !== "erledigt").length;
+    const max = Math.max(1, ...D.kom.map((x) => D.bestellungen.filter((b) => b.kommission === x.name && b.status !== "erledigt").length));
+    return `<button class="zeile-verw" data-a="suchliste" data-w="${esc(k.name)}"><span>${esc(k.name)}<i class="balken" style="--w:${(n / max) * 100}%;--i:${i}"></i></span><small>${n} offen</small>${sym("rechts", 18)}</button>`;
   }).join("");
-  return `${kopf()}${titel("Übersicht")}<main class="inhalt">
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">${kachel("offen")}${kachel("bearbeitung")}${kachel("erledigt")}</div>
+  const geb = D.leute.map((p) => ({ p, g: geburtstag(p.geburtstag) })).filter((x) => x.g && x.g.tage <= 30).sort((a, b) => a.g.tage - b.g.tage);
+  return `${kopf()}${titel("Auswertung", false)}<main class="inhalt">
+    <div class="kacheln">${kachel("offen", 0)}${kachel("bearbeitung", 1)}${kachel("erledigt", 2)}</div>
     <div class="gruppe-titel">Offen je Kommission</div><div class="liste-kasten">${jeKom || `<div class="leer">Keine Kommissionen.</div>`}</div>
-  </main>${unten("")}`;
+    <div class="gruppe-titel">Geburtstage in den nächsten 30 Tagen</div>
+    <div class="liste-kasten">${geb.map(({ p, g }) => `<button class="zeile-verw" data-a="person" data-w="${p.id}">${ava(p.name, 30)}<span>${esc(p.name)}</span><small class="${g.tage === 0 ? "heute" : ""}">${sym("kuchen", 16)} ${gebText(g)}</small></button>`).join("") || `<div class="leer">Keine Geburtstage in nächster Zeit.</div>`}</div>
+  </main>`;
 }
 
-function vVerwalten(art) {
-  const istP = art === "mitarbeitende", liste = istP ? D.leute : D.kom;
-  const feld = istP ? "person" : "kommission";
-  return `${kopf()}${titel(istP ? "Mitarbeitende" : "Kommissionen")}<main class="inhalt">
-    <div class="liste-kasten">${liste.map((n, i) => {
-      const anz = D.bestellungen.filter((b) => b[feld] === n && b.status !== "erledigt").length;
-      return `<div class="zeile-verw">${sym(istP ? "person" : "leute", 20)}<span>${esc(n)}</span><small>${anz} offen</small><button data-a="weg" data-w="${i}" aria-label="Entfernen">${sym("muell", 18)}</button></div>`;
-    }).join("") || `<div class="leer">Noch keine Einträge.</div>`}</div>
-    <div class="neu-zeile"><input id="neuname" placeholder="${istP ? "Name eingeben" : "Kommission eingeben"}"><button class="knopf klein" data-a="dazu">${sym("plus", 18)}Hinzufügen</button></div>
-  </main>${unten("")}`;
+// Mitarbeitende: Karten mit Abteilung, Funktion und Geburtstag
+function vMitarbeitende() {
+  const gruppen = [...D.abteilungen, ""].map((a) => ({ a, leute: D.leute.filter((p) => (p.abteilung || "") === a || (a === "" && p.abteilung && !D.abteilungen.includes(p.abteilung))) })).filter((g) => g.leute.length);
+  let i = 0;
+  return `${kopf()}${titel("Mitarbeitende", false, `<button class="knopf klein" data-a="personneu">${sym("plus", 18)}Person</button>`)}<main class="inhalt">
+    ${gruppen.map((g) => `<div class="gruppe-titel">${esc(g.a || "Ohne Abteilung")} <i class="zahl">${g.leute.length}</i></div>
+      <div class="pers-raster">${g.leute.map((p) => {
+        const geb = geburtstag(p.geburtstag), anz = D.bestellungen.filter((b) => b.person === p.name && b.status !== "erledigt").length;
+        return `<button class="pers" data-a="person" data-w="${p.id}" style="--i:${i++}">${ava(p.name, 52)}<div class="mitte"><b>${esc(p.name)}</b>
+          <small>${esc(p.funktion || "Keine Funktion")}</small>
+          ${p.geburtstag ? `<small class="geb ${geb?.tage === 0 ? "heute" : ""}">${sym("kuchen", 14)} ${datum(p.geburtstag)}${geb && geb.tage <= 30 ? ` · ${gebText(geb)}` : ""}</small>` : ""}</div>
+          <span class="offen-zahl ${anz ? "" : "null"}">${anz}</span></button>`;
+      }).join("")}</div>`).join("") || `<div class="leer">Noch keine Mitarbeitenden.</div>`}
+  </main>`;
+}
+
+function vPerson() {
+  const p = S.edit, neu = !p.id;
+  const kom = D.kom.filter((k) => k.verantwortlich === p.altName && p.altName);
+  const farben = FARBEN.map((f) => `<button class="farbe ${p.farbe === f ? "an" : ""}" data-a="efarbe" data-w="${f}" style="--f:${f}" aria-label="Farbe"></button>`).join("");
+  return `${kopf()}${titel(neu ? "Neue Person" : "Person bearbeiten")}<main class="inhalt">
+    <div class="pers-kopf">${ava(p.name || "?", 76).replace(/--f:[^;]+/, "--f:" + p.farbe)}<div class="farben">${farben}</div></div>
+    <label class="feld" id="e-name">${sym("person", 24)}<div class="fi"><label>Name *</label><input data-e="name" value="${esc(p.name)}" placeholder="Vor- und Nachname"></div></label>
+    <label class="feld">${sym("ordner", 24)}<div class="fi"><label>Abteilung</label><select data-e="abteilung">${optionen(D.abteilungen, p.abteilung)}</select></div></label>
+    <label class="feld">${sym("marke", 24)}<div class="fi"><label>Funktion</label><input data-e="funktion" list="funktionen" value="${esc(p.funktion)}" placeholder="z. B. Schreiner EFZ"><datalist id="funktionen">${D.funktionen.map((f) => `<option>${esc(f)}</option>`).join("")}</datalist></div></label>
+    <label class="feld">${sym("kuchen", 24)}<div class="fi"><label>Geburtstag</label><input type="date" data-e="geburtstag" value="${esc(p.geburtstag)}"></div></label>
+    <label class="feld">${sym("datei", 24)}<div class="fi"><label>Notiz</label><textarea data-e="notiz" rows="1" placeholder="z. B. Telefon, Eintritt …">${esc(p.notiz || "")}</textarea></div></label>
+    ${neu ? "" : `<div class="gruppe-titel">Verantwortlich für Kommissionen</div>
+    <div class="liste-kasten">${D.kom.map((k) => `<button class="haken-zeile ${k.verantwortlich === p.altName ? "an" : ""}" data-a="ekom" data-w="${k.id}"><span class="kasten">${sym("haken", 14)}</span>${esc(k.name)}${k.verantwortlich && k.verantwortlich !== p.altName ? `<small>jetzt: ${esc(k.verantwortlich)}</small>` : ""}</button>`).join("") || `<div class="leer">Keine Kommissionen.</div>`}</div>`}
+    <button class="knopf" data-a="esichern" style="margin-top:14px">${sym("haken", 20)}Speichern</button>
+    ${neu ? "" : `<button class="knopf grau" data-a="eweg" style="margin-top:10px">${sym("muell", 20)}Person entfernen</button>`}
+  </main>`;
+}
+
+function vKommissionen() {
+  return `${kopf()}${titel("Kommissionen", false, `<button class="knopf klein" data-a="komneu">${sym("plus", 18)}Kommission</button>`)}<main class="inhalt">
+    <div class="liste-kasten">${D.kom.map((k, i) => {
+      const anz = D.bestellungen.filter((b) => b.kommission === k.name && b.status !== "erledigt").length;
+      return `<button class="zeile-verw rein-zeile" data-a="kom" data-w="${k.id}" style="--i:${i}">${sym("ordner", 20)}<span><b>${esc(k.name)}</b><small class="block">${esc([k.abteilung, k.verantwortlich && "Verantwortlich: " + k.verantwortlich].filter(Boolean).join(" · ") || "Noch nichts zugewiesen")}</small></span><small>${anz} offen</small>${sym("rechts", 18)}</button>`;
+    }).join("") || `<div class="leer">Noch keine Kommissionen.</div>`}</div>
+  </main>`;
+}
+function vKom() {
+  const k = S.edit, neu = !k.id;
+  return `${kopf()}${titel(neu ? "Neue Kommission" : "Kommission bearbeiten")}<main class="inhalt">
+    <label class="feld" id="e-name">${sym("ordner", 24)}<div class="fi"><label>Name *</label><input data-e="name" value="${esc(k.name)}" placeholder="z. B. Küche Meier"></div></label>
+    <label class="feld">${sym("leute", 24)}<div class="fi"><label>Abteilung</label><select data-e="abteilung">${optionen(D.abteilungen, k.abteilung)}</select></div></label>
+    <label class="feld">${sym("person", 24)}<div class="fi"><label>Verantwortlich (bestellt in der Regel)</label><select data-e="verantwortlich">${optionen(D.leute.map((p) => p.name), k.verantwortlich)}</select></div></label>
+    <p class="text-leise">Wählt man bei einer neuen Bestellung diese Kommission, steht die verantwortliche Person schon bei „Muss bestellt werden von“.</p>
+    <button class="knopf" data-a="ksichern" style="margin-top:14px">${sym("haken", 20)}Speichern</button>
+    ${neu ? "" : `<button class="knopf grau" data-a="kweg" style="margin-top:10px">${sym("muell", 20)}Kommission entfernen</button>`}
+  </main>`;
 }
 
 function vProfil() {
-  const ich = D.ich;
-  const meine = D.bestellungen.filter((b) => b.person === ich && b.status !== "erledigt");
+  const p = person(D.ich);
+  const meine = D.bestellungen.filter((b) => b.person === D.ich && b.status !== "erledigt");
+  const geb = geburtstag(p?.geburtstag);
   return `${kopf()}${titel("Profil", false)}<main class="inhalt">
-    <div class="profil-bild">${ich ? esc(ich.split(" ").map((w) => w[0]).join("").slice(0, 2)) : sym("person", 30)}</div>
-    <div class="gruppe-titel">Wer bin ich?</div>
-    <div class="liste-kasten">${D.leute.map((n) => `<button class="radio ${ich === n ? "an" : ""}" data-a="ich" data-w="${esc(n)}"><span class="kreis"></span>${esc(n)}</button>`).join("")}</div>
-    ${ich ? `<div class="gruppe-titel">Muss ich bestellen (${meine.length})</div>${karten(meine)}` : `<p class="text-leise" style="margin-top:12px">Wähle deinen Namen. Neue Bestellungen schlagen dich dann vor.</p>`}
-  </main>${unten("profil")}`;
+    <div class="profil-karte">${ava(D.ich, 84)}<h2>${esc(D.ich || "Nicht angemeldet")}</h2>
+      <p>${esc([p?.funktion, p?.abteilung].filter(Boolean).join(" · ") || "Funktion und Abteilung noch leer")}</p>
+      ${p?.geburtstag ? `<p class="text-leise">${sym("kuchen", 14)} ${datum(p.geburtstag)} · ${gebText(geb)}</p>` : ""}
+      <div class="zweiknopf">${p ? `<button class="knopf grau" data-a="person" data-w="${p.id}">${sym("stift", 18)}Bearbeiten</button>` : ""}<button class="knopf grau" data-a="abmelden">${sym("abmelden", 18)}Abmelden</button></div></div>
+    <div class="gruppe-titel">Muss ich bestellen <i class="zahl">${meine.length}</i></div><div class="karten">${karten(meine)}</div>
+  </main>`;
 }
 
+// Einstellungen: alles an einem Ort, auch Zuweisungen
 function vEinstellungen() {
-  return `${kopf()}${titel("Einstellungen")}<main class="inhalt">
-    <p class="text-leise">Die Bestellungen sind im Moment nur auf diesem Gerät gespeichert. Für gemeinsame Daten auf allen Geräten kommt später eine Datenbank dazu.</p>
-    <div class="gruppe-titel">Daten</div>
-    <button class="knopf grau" data-a="beispiel">Beispieldaten wiederherstellen</button>
-    <button class="knopf grau" data-a="allesweg" style="margin-top:10px">${sym("muell", 20)}Alle Bestellungen löschen</button>
-  </main>${unten("")}`;
+  const e = D.einst;
+  const schalter = (k, t, u) => `<button class="schalter-zeile" data-a="schalter" data-w="${k}"><span><b>${t}</b>${u ? `<small>${u}</small>` : ""}</span><span class="schalter ${e[k] ? "an" : ""}"><i></i></span></button>`;
+  const liste = (art, t, werte) => `<div class="eb-block"><div class="eb-titel">${t} <i class="zahl">${werte.length}</i></div>
+    <div class="chips">${werte.map((w, i) => `<span class="chip">${esc(w)}<button data-a="lweg" data-l="${art}" data-w="${i}" aria-label="Entfernen">${sym("x", 14)}</button></span>`).join("")}</div>
+    <div class="neu-zeile"><input id="neu-${art}" data-neu="${art}" placeholder="Neu hinzufügen"><button class="knopf klein" data-a="ldazu" data-l="${art}">${sym("plus", 18)}</button></div></div>`;
+  return `${kopf()}${titel("Einstellungen", false)}<main class="inhalt einst">
+    <section><h2>${sym("haus", 20)}Firma</h2>
+      <label class="feld"><div class="fi"><label>Name</label><input data-s="firma" value="${esc(e.firma)}"></div></label>
+      <label class="feld"><div class="fi"><label>Spruch auf der Startseite</label><textarea data-s="spruch" rows="2">${esc(e.spruch)}</textarea></div></label></section>
+
+    <section><h2>${sym("palette", 20)}Darstellung</h2>
+      <div class="eb-titel">Akzentfarbe</div>
+      <div class="farben gross">${Object.entries(AKZENTE).map(([k, [f]]) => `<button class="farbe ${e.akzent === k ? "an" : ""}" data-a="akzent" data-w="${k}" style="--f:${f}" aria-label="${k}"></button>`).join("")}</div>
+      ${schalter("animationen", "Animationen", "Weiche Übergänge beim Wechseln")}</section>
+
+    <section><h2>${sym("schloss", 20)}Anmeldung</h2>
+      <div class="schalter-zeile fest"><span><b>Ohne Passwort</b><small>Für den Anfang: Person antippen genügt. Passwörter kommen mit der Datenbank.</small></span><span class="schalter an"><i></i></span></div></section>
+
+    <section><h2>${sym("leute", 20)}Abteilungen und Funktionen</h2>
+      ${liste("abteilungen", "Abteilungen", D.abteilungen)}${liste("funktionen", "Funktionen", D.funktionen)}</section>
+
+    <section><h2>${sym("marke", 20)}Zuweisen</h2>
+      <div class="eb-titel">Mitarbeitende → Abteilung und Funktion</div>
+      <div class="zuweisen">${D.leute.map((p) => `<div class="zw-zeile">${ava(p.name, 30)}<b>${esc(p.name)}</b>
+        <select data-zp="${p.id}" data-k="abteilung">${optionen(D.abteilungen, p.abteilung, "Abteilung …")}</select>
+        <select data-zp="${p.id}" data-k="funktion">${optionen(D.funktionen, p.funktion, "Funktion …")}</select></div>`).join("") || `<div class="leer">Keine Mitarbeitenden.</div>`}</div>
+      <div class="eb-titel">Kommissionen → verantwortliche Person</div>
+      <div class="zuweisen">${D.kom.map((k) => `<div class="zw-zeile">${sym("ordner", 22)}<b>${esc(k.name)}</b>
+        <select data-zk="${k.id}" data-k="verantwortlich">${optionen(D.leute.map((p) => p.name), k.verantwortlich, "Verantwortlich …")}</select>
+        <select data-zk="${k.id}" data-k="abteilung">${optionen(D.abteilungen, k.abteilung, "Abteilung …")}</select></div>`).join("") || `<div class="leer">Keine Kommissionen.</div>`}</div>
+      ${schalter("verantwortlichVorschlagen", "Verantwortliche Person vorschlagen", "Bei neuer Bestellung nach Wahl der Kommission")}</section>
+
+    <section><h2>${sym("datei", 20)}Daten</h2>
+      <p class="text-leise">Die Daten sind im Moment nur auf diesem Gerät gespeichert. Für gemeinsame Daten auf allen Geräten kommt später eine Datenbank dazu.</p>
+      <div class="zweiknopf"><button class="knopf grau" data-a="beispiel">Beispieldaten laden</button>
+      <button class="knopf grau" data-a="allesweg">${sym("muell", 20)}Bestellungen löschen</button></div></section>
+  </main>`;
 }
+
+const ANSICHTEN = { start: vStart, anmelden: vAnmelden, liste: vListe, detail: vDetail, form: vForm, wahl: vWahl, menue: vMenue, uebersicht: vUebersicht,
+  kommissionen: vKommissionen, kom: vKom, mitarbeitende: vMitarbeitende, person: vPerson, profil: vProfil, einstellungen: vEinstellungen };
+// Welcher Reiter der Leiste gehört zu welcher Ansicht
+const REITER = { liste: "liste", detail: "liste", form: "neu", wahl: "neu", uebersicht: "uebersicht", kommissionen: "kommissionen", kom: "kommissionen",
+  mitarbeitende: "mitarbeitende", person: "mitarbeitende", profil: "profil", einstellungen: "einstellungen" };
 
 function zeichne() {
-  const v = { start: vStart, liste: vListe, detail: vDetail, form: vForm, wahl: vWahl, menue: vMenue, uebersicht: vUebersicht,
-    kommissionen: () => vVerwalten("kommissionen"), mitarbeitende: () => vVerwalten("mitarbeitende"), profil: vProfil, einstellungen: vEinstellungen }[S.ansicht];
-  app.innerHTML = v();
+  if (!["start", "anmelden"].includes(S.ansicht) && !D.ich) S.ansicht = "anmelden";
+  const [f, fd] = AKZENTE[D.einst.akzent] || AKZENTE.pink;
+  document.documentElement.style.setProperty("--pink", f); document.documentElement.style.setProperty("--pink-dunkel", fd);
+  document.body.classList.toggle("ohne-anim", !D.einst.animationen);
+  const mitLeiste = !["start", "anmelden", "menue"].includes(S.ansicht);
+  document.body.classList.toggle("mit-leiste", mitLeiste);
+  let an = REITER[S.ansicht] || "";
+  if (S.ansicht === "form" && S.form?.id) an = "liste";
+  app.innerHTML = `<div class="ansicht r-${S.ansicht === "menue" ? "keine" : S.richtung}">${ANSICHTEN[S.ansicht]()}</div>${mitLeiste ? leiste(an) : ""}`;
+  S.richtung = "keine";
   app.querySelectorAll("textarea").forEach(hoehe);
+  zahlenZaehlen();
   const ablage = document.getElementById("ablage");
   if (ablage) {
     ablage.addEventListener("dragover", (e) => { e.preventDefault(); ablage.classList.add("drueber"); });
@@ -424,6 +751,17 @@ function zeichne() {
   }
 }
 const hoehe = (t) => { t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; };
+const animAn = () => D.einst.animationen && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// Zahlen in der Auswertung zählen hoch
+function zahlenZaehlen() {
+  if (!animAn()) return;
+  app.querySelectorAll("[data-zahl]").forEach((el) => {
+    const ziel = +el.dataset.zahl, t0 = performance.now();
+    const schritt = (t) => { const p = Math.min(1, (t - t0) / 700); el.textContent = Math.round(ziel * (1 - Math.pow(1 - p, 3))); if (p < 1) requestAnimationFrame(schritt); };
+    el.textContent = "0"; requestAnimationFrame(schritt);
+  });
+}
 
 // Bild verkleinern, damit es im Gerätespeicher Platz hat
 function bildLesen(datei) {
@@ -443,57 +781,132 @@ function bildLesen(datei) {
   r.readAsDataURL(datei);
 }
 
+// Name einer Person ändern: auch in Bestellungen und Kommissionen nachziehen
+function nameUmbenennen(alt, neu) {
+  if (!alt || alt === neu) return;
+  D.bestellungen.forEach((b) => { if (b.person === alt) b.person = neu; });
+  D.kom.forEach((k) => { if (k.verantwortlich === alt) k.verantwortlich = neu; });
+  if (D.ich === alt) D.ich = neu;
+}
+
 // ---------- Ereignisse ----------
 app.addEventListener("input", (e) => {
   const t = e.target;
-  if (t.id === "suche") { S.suche = t.value; document.getElementById("karten").innerHTML = karten(D.bestellungen.filter(passt).sort((a, b) => b.erstellt.localeCompare(a.erstellt))); return; }
+  if (t.id === "suche") { S.suche = t.value; const k = document.getElementById("karten"); k.classList.add("still"); k.innerHTML = karten(sortiert()); return; }
   if (t.dataset.f) { S.form[t.dataset.f] = t.value; t.closest(".feld").classList.remove("fehler"); if (t.tagName === "TEXTAREA") hoehe(t); }
+  if (t.dataset.e) { S.edit[t.dataset.e] = t.value; t.closest(".feld")?.classList.remove("fehler"); if (t.tagName === "TEXTAREA") hoehe(t);
+    if (t.dataset.e === "name" && S.ansicht === "person") { const a = app.querySelector(".pers-kopf .ava"); if (a) a.textContent = initialen(t.value || "?"); } }
+  if (t.dataset.s) { D.einst[t.dataset.s] = t.value; speichern(); if (t.tagName === "TEXTAREA") hoehe(t); }
 });
-app.addEventListener("change", (e) => { if (e.target.id === "datei" && e.target.files[0]) bildLesen(e.target.files[0]); });
-app.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.id === "neuname") app.querySelector('[data-a="dazu"]').click(); });
+app.addEventListener("change", (e) => {
+  const t = e.target;
+  if (t.id === "datei" && t.files[0]) bildLesen(t.files[0]);
+  if (t.dataset.zp) { const p = D.leute.find((x) => x.id === t.dataset.zp); p[t.dataset.k] = t.value; speichern(); blitz(t); }
+  if (t.dataset.zk) { const k = D.kom.find((x) => x.id === t.dataset.zk); k[t.dataset.k] = t.value; speichern(); blitz(t); }
+});
+const blitz = (el) => { el.classList.remove("gespeichert"); void el.offsetWidth; el.classList.add("gespeichert"); };
+app.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter") return;
+  if (e.target.id === "neuname") app.querySelector('[data-a="dazu"]').click();
+  if (e.target.dataset.neu) app.querySelector(`[data-a="ldazu"][data-l="${e.target.dataset.neu}"]`).click();
+});
 
 app.addEventListener("click", (e) => {
   const el = e.target.closest("[data-a]"); if (!el) return;
   const a = el.dataset.a, w = el.dataset.w;
   switch (a) {
-    case "liste": S.zurueck = []; S.ansicht = "liste"; zeichne(); break;
+    case "anmelden": S.ansicht = "anmelden"; S.richtung = "vor"; zeichne(); break;
+    case "wer": {
+      el.classList.add("gewaehlt"); app.querySelector(".an-raster").classList.add("gewaehlt-da");
+      setTimeout(() => { D.ich = w; speichern(); S.zurueck = []; S.ansicht = "liste"; S.richtung = "vor"; zeichne(); meldung("Hallo " + w.split(" ")[0] + " 👋"); }, animAn() ? 550 : 0);
+      break;
+    }
+    case "dazu": {
+      const n = document.getElementById("neuname").value.trim(); if (!n) break;
+      if (person(n)) { meldung("Gibt es schon"); break; }
+      D.leute.push({ id: neueId(), name: n, abteilung: "", funktion: "", geburtstag: "", farbe: FARBEN[D.leute.length % FARBEN.length] }); speichern(); zeichne(); break;
+    }
+    case "liste": case "uebersicht": case "kommissionen": case "mitarbeitende": case "einstellungen": case "profil": reiter(a); break;
     case "menue": gehe("menue"); break;
     case "zu": case "zurueck": zurueck(); break;
-    case "filter": S.filter = w; zeichne(); break;
-    case "filterliste": S.filter = w; S.suche = ""; S.zurueck = []; S.ansicht = "liste"; zeichne(); break;
-    case "suchliste": S.filter = "alle"; S.suche = w; S.zurueck = []; S.ansicht = "liste"; zeichne(); break;
+    case "filter": S.filter = w; app.querySelectorAll('[data-a="filter"]').forEach((b) => b.classList.toggle("an", b.dataset.w === w)); document.getElementById("karten").classList.remove("still"); document.getElementById("karten").innerHTML = karten(sortiert()); break;
+    case "filterliste": S.filter = w; S.suche = ""; reiter("liste"); break;
+    case "suchliste": S.filter = "alle"; S.suche = w; reiter("liste"); break;
     case "detail": gehe("detail", { id: el.dataset.id }); break;
-    case "neu": formNeu(); if (S.ansicht === "menue") S.zurueck.pop(), S.ansicht = "liste"; gehe("form"); break;
+    case "neu": formNeu(); if (S.ansicht === "menue") { S.zurueck = []; S.ansicht = "form"; S.richtung = "reiter"; zeichne(); } else reiter("form"); break;
     case "bearbeiten": formNeu(D.bestellungen.find((b) => b.id === S.id)); gehe("form"); break;
-    case "status": { const b = D.bestellungen.find((x) => x.id === S.id); b.status = w; speichern(); zeichne(); meldung("Status: " + STATUS[w]); break; }
-    case "fstatus": S.form.status = w; zeichne(); break;
+    case "status": {
+      const b = D.bestellungen.find((x) => x.id === S.id); b.status = w; speichern();
+      app.querySelectorAll('[data-a="status"]').forEach((x) => x.classList.toggle("an", x.dataset.w === w));
+      const s = document.getElementById("schild"); s.innerHTML = schild(w); s.firstChild.classList.add("pop");
+      meldung("Status: " + STATUS[w]); break;
+    }
+    case "fstatus": S.form.status = w; app.querySelectorAll('[data-a="fstatus"]').forEach((x) => x.classList.toggle("an", x.dataset.w === w)); break;
     case "bildwahl": document.getElementById("datei").click(); break;
     case "bildweg": S.form.bild = ""; zeichne(); break;
     case "wahl": S.wahl = w; if (S.ansicht === "wahl") zeichne(); else gehe("wahl"); break;
-    case "waehle": S.form[S.wahl] = w; zurueck(); break;
+    case "waehle": {
+      S.form[S.wahl] = w;
+      if (S.wahl === "kommission" && D.einst.verantwortlichVorschlagen) { const k = D.kom.find((x) => x.name === w); if (k?.verantwortlich && (!S.form.person || S.form.person === D.ich)) S.form.person = k.verantwortlich; }
+      el.classList.add("an"); setTimeout(zurueck, animAn() ? 180 : 0); break;
+    }
     case "senden": senden(); break;
     case "loeschen":
       if (!confirm("Bestellung wirklich löschen?")) break;
       D.bestellungen = D.bestellungen.filter((b) => b.id !== S.form.id); speichern();
-      S.zurueck = []; S.ansicht = "liste"; zeichne(); meldung("Bestellung gelöscht"); break;
-    case "uebersicht": case "kommissionen": case "mitarbeitende": case "einstellungen":
-      S.zurueck = [{ ansicht: "liste" }]; S.ansicht = a; zeichne(); window.scrollTo(0, 0); break;
-    case "profil": S.zurueck = []; S.ansicht = "profil"; zeichne(); break;
-    case "ich": D.ich = w; speichern(); zeichne(); break;
-    case "abmelden": S.zurueck = []; S.ansicht = "start"; zeichne(); break;
-    case "dazu": {
-      const inp = document.getElementById("neuname"), n = inp.value.trim(); if (!n) break;
-      const l = S.ansicht === "mitarbeitende" ? D.leute : D.kom;
-      if (l.includes(n)) { meldung("Gibt es schon"); break; }
-      l.push(n); speichern(); zeichne(); document.getElementById("neuname").focus(); break;
+      reiter("liste"); meldung("Bestellung gelöscht"); break;
+    case "abmelden": D.ich = ""; speichern(); S.zurueck = []; S.ansicht = "anmelden"; S.richtung = "zurueck"; zeichne(); break;
+
+    // Mitarbeitende
+    case "personneu": S.edit = { id: null, name: "", abteilung: "", funktion: "", geburtstag: "", notiz: "", farbe: FARBEN[D.leute.length % FARBEN.length] }; gehe("person"); break;
+    case "person": { const p = D.leute.find((x) => x.id === w); S.edit = { ...p, altName: p.name, komWahl: null }; gehe("person"); break; }
+    case "efarbe": S.edit.farbe = w; app.querySelectorAll(".farbe").forEach((x) => x.classList.toggle("an", x.dataset.w === w)); app.querySelector(".pers-kopf .ava").style.setProperty("--f", w); break;
+    case "ekom": el.classList.toggle("an"); break;
+    case "esichern": {
+      const p = S.edit, n = p.name.trim();
+      if (!n) { document.getElementById("e-name").classList.add("fehler"); meldung("Bitte einen Namen eingeben."); break; }
+      if (D.leute.some((x) => x.name === n && x.id !== p.id)) { meldung("Diesen Namen gibt es schon."); break; }
+      const daten = { id: p.id || neueId(), name: n, abteilung: p.abteilung, funktion: p.funktion.trim(), geburtstag: p.geburtstag, notiz: p.notiz || "", farbe: p.farbe };
+      if (p.id) {
+        nameUmbenennen(p.altName, n);
+        app.querySelectorAll('[data-a="ekom"]').forEach((b) => { const k = D.kom.find((x) => x.id === b.dataset.w);
+          if (b.classList.contains("an")) k.verantwortlich = n; else if (k.verantwortlich === n) k.verantwortlich = ""; });
+        D.leute[D.leute.findIndex((x) => x.id === p.id)] = daten;
+      } else D.leute.push(daten);
+      if (daten.funktion && !D.funktionen.includes(daten.funktion)) D.funktionen.push(daten.funktion);
+      speichern(); zurueck(); meldung("Gespeichert"); break;
     }
-    case "weg": {
-      const l = S.ansicht === "mitarbeitende" ? D.leute : D.kom;
-      if (!confirm(`„${l[+w]}“ entfernen? Bestehende Bestellungen bleiben.`)) break;
-      l.splice(+w, 1); speichern(); zeichne(); break;
+    case "eweg":
+      if (!confirm(`„${S.edit.altName}“ entfernen? Bestehende Bestellungen bleiben.`)) break;
+      D.leute = D.leute.filter((x) => x.id !== S.edit.id); speichern(); zurueck(); break;
+
+    // Kommissionen
+    case "komneu": S.edit = { id: null, name: "", abteilung: "", verantwortlich: "" }; gehe("kom"); break;
+    case "kom": S.edit = { ...D.kom.find((x) => x.id === w) }; S.edit.altName = S.edit.name; gehe("kom"); break;
+    case "ksichern": {
+      const k = S.edit, n = k.name.trim();
+      if (!n) { document.getElementById("e-name").classList.add("fehler"); meldung("Bitte einen Namen eingeben."); break; }
+      if (D.kom.some((x) => x.name === n && x.id !== k.id)) { meldung("Diese Kommission gibt es schon."); break; }
+      const daten = { id: k.id || neueId(), name: n, abteilung: k.abteilung, verantwortlich: k.verantwortlich };
+      if (k.id) { D.bestellungen.forEach((b) => { if (b.kommission === k.altName) b.kommission = n; }); D.kom[D.kom.findIndex((x) => x.id === k.id)] = daten; }
+      else D.kom.push(daten);
+      speichern(); zurueck(); meldung("Gespeichert"); break;
     }
+    case "kweg":
+      if (!confirm(`„${S.edit.altName}“ entfernen? Bestehende Bestellungen bleiben.`)) break;
+      D.kom = D.kom.filter((x) => x.id !== S.edit.id); speichern(); zurueck(); break;
+
+    // Einstellungen
+    case "schalter": D.einst[w] = !D.einst[w]; speichern(); el.querySelector(".schalter").classList.toggle("an", D.einst[w]); document.body.classList.toggle("ohne-anim", !D.einst.animationen); break;
+    case "akzent": D.einst.akzent = w; speichern(); zeichne(); break;
+    case "ldazu": {
+      const inp = document.getElementById("neu-" + el.dataset.l), n = inp.value.trim(); if (!n) break;
+      const l = D[el.dataset.l]; if (l.includes(n)) { meldung("Gibt es schon"); break; }
+      l.push(n); speichern(); zeichne(); document.getElementById("neu-" + el.dataset.l).focus(); break;
+    }
+    case "lweg": { const l = D[el.dataset.l]; l.splice(+w, 1); speichern(); zeichne(); break; }
     case "gross": { const g = document.createElement("div"); g.className = "gross-bild"; g.innerHTML = `<img src="${el.src}" alt="">`; g.onclick = () => g.remove(); document.body.append(g); break; }
-    case "beispiel": if (confirm("Alle Daten durch die Beispieldaten ersetzen?")) { D = vorgabe(); speichern(); meldung("Beispieldaten geladen"); } break;
+    case "beispiel": if (confirm("Alle Daten durch die Beispieldaten ersetzen?")) { const ich = D.ich; D = vorgabe(); D.ich = person(ich) ? ich : ""; speichern(); zeichne(); meldung("Beispieldaten geladen"); } break;
     case "allesweg": if (confirm("Alle Bestellungen löschen?")) { D.bestellungen = []; speichern(); meldung("Alle Bestellungen gelöscht"); } break;
   }
 });
@@ -501,18 +914,19 @@ app.addEventListener("click", (e) => {
 function senden() {
   const f = S.form; let fehlt = [];
   for (const k of ["artikel", "menge", "material", "kommission", "person"]) if (!String(f[k] || "").trim()) fehlt.push(k);
-  fehlt.forEach((k) => document.getElementById("f-" + k)?.classList.add("fehler"));
+  fehlt.forEach((k) => { const el = document.getElementById("f-" + k); el?.classList.remove("fehler"); void el?.offsetWidth; el?.classList.add("fehler"); });
   if (fehlt.length) return meldung("Bitte alle Felder mit * ausfüllen.");
   if (f.id) {
     const i = D.bestellungen.findIndex((b) => b.id === f.id); D.bestellungen[i] = { ...D.bestellungen[i], ...f };
-    speichern(); S.zurueck.pop(); S.ansicht = "detail"; S.id = f.id; zeichne(); meldung("Gespeichert");
+    speichern(); S.zurueck.pop(); S.ansicht = "detail"; S.id = f.id; S.richtung = "zurueck"; zeichne(); meldung("Gespeichert");
   } else {
     const b = { ...f, id: neueId(), status: "offen", erstellt: jetzt() };
-    D.bestellungen.push(b); speichern(); S.zurueck = []; S.filter = "alle"; S.suche = ""; S.ansicht = "liste"; zeichne(); meldung("Bestellung gesendet");
+    D.bestellungen.push(b); speichern(); S.filter = "alle"; S.suche = ""; reiter("liste"); meldung("Bestellung gesendet ✓");
+    app.querySelector(`[data-id="${b.id}"]`)?.classList.add("neu-da");
   }
 }
 
-document.addEventListener("keydown", (e) => { if (e.key === "Escape" && S.ansicht !== "start" && S.ansicht !== "liste") zurueck(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && S.zurueck.length) zurueck(); });
+matchMedia("(min-width: 900px)").addEventListener("change", () => { if (S.ansicht === "menue") zurueck(); });
 zeichne();
-
 </script></body></html>
