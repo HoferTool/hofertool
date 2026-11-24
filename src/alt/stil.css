@@ -16659,3 +16659,13 @@ body.dunkel .pb-gruen { color: #81c784 !important; }
 .pb-fagruppe__titel small { font-weight: 400; color: #667; }
 body.dunkel .pb-fagruppe__titel small { color: #aab; }
 .pb-pflicht input { border-color: #c00 !important; box-shadow: 0 0 0 1px #c00; }
+
+/* 1.777.0: Umfrage auf der Startseite schmaler (Patrick 24. November 2026:
+   „braucht zu viel Platz für nichts“): Knöpfe unter dem Titel statt daneben,
+   Titel und Text höchstens 440 breit, so schrumpft die Karte auf die Vorschläge */
+@media (min-width: 1000px) {
+  :is(.start-paar, .start-umf) .umf-karte .umf__kopf { flex-direction: column; align-items: flex-start; gap: 6px; }
+  :is(.start-paar, .start-umf) .umf-karte .umf__text,
+  :is(.start-paar, .start-umf) .umf-karte .umf__titel { max-width: 440px; }
+  :is(.start-paar, .start-umf) .umf-karte .umf__admin { gap: 8px; }
+}

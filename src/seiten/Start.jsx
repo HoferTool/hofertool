@@ -6,7 +6,6 @@
 //  nur aus, was sich wirklich geändert hat. Uhr, Wetter und Solar-
 //  anlage bleiben dabei stehen. Die Seite flackert nicht.
 // =================================================================
-import KommenGehen from "./start/KommenGehen.jsx";
 import { useEffect, useRef, useState } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
 import { Probleme, problemeLaden, EinkaufKurz, Bestellstand, BestellKurz, Geburtstage,
@@ -117,45 +116,56 @@ export default function Start({ auffrischen, module }) {
       <div className="sn2">
         {/* Seit 1.763.0 wieder das blaue Band wie früher, mit Kopfzeile
             (Wunsch Patrick 24. November 2026), Karten darunter wie bisher */}
+        {/* 1.777.0: Band und Solaranlage wieder zusammen wie im alten Look,
+            am Geburtstag das Fest im Band (Patrick 24. November 2026: „Solar
+            wie früher, mit dem oberen Balken zusammen“); kein Kommen / Gehen
+            mehr, das geht nur noch über HOFERTIME */}
         {!kopflos && <>
-          <section className="kopfkarte">
-            <Durchfahrt />
+          <section className={"kopfkarte" + (fest ? " kopfkarte--geburtstag" : "")}>
+            {fest ? <Konfetti /> : <Durchfahrt />}
             <Uhr />
-            <img className="kopfkarte__logo" src={alt.LOGO_WEISS} alt="Hofer + Co." />
+            {fest
+              ? <GeburtstagMitte kinder={kinder} />
+              : <img className="kopfkarte__logo" src={alt.LOGO_WEISS} alt="Hofer + Co." />}
             <Wetter />
           </section>
+          <Solaranlage />
           <div className="sn2-gruss">
             <p className="gruss">{alt.begruessung()}{name ? ", " + name : ""}</p>
-            <KommenGehen />
           </div>
         </>}
-        {kopflos && <div className="sn2-kopf">
-          <div className="sn2-links">
-            <p className="gruss">{alt.begruessung()}{name ? ", " + name : ""}</p>
-            <KommenGehen />
+        {kopflos && <>
+          <div className="sn2-kopf">
+            <div className="sn2-links">
+              <p className="gruss">{alt.begruessung()}{name ? ", " + name : ""}</p>
+            </div>
+            <div className="sn2-ecke"><Uhr /><Wetter /></div>
           </div>
-          <div className="sn2-ecke"><Uhr /><Wetter /></div>
-        </div>}
-        {/* Oben Solaranlage und Geburtstage (seit 1.721.0, Wunsch Patrick
-            23. November 2026); hat jemand Geburtstag, füllt das Fest die ganze Karte */}
-        <div className="sn2-oben">
-          <Solaranlage />
-          {fest
-            ? <section className="kopfkarte kopfkarte--geburtstag sn2-fest" id="db-geburtstage"><Konfetti /><GeburtstagMitte kinder={kinder} /></section>
-            : <Geburtstage leute={geb.daten} fehler={geb.fehler} />}
-        </div>
+          <div className="sn2-oben">
+            <Solaranlage />
+            {fest
+              ? <section className="kopfkarte kopfkarte--geburtstag sn2-fest" id="db-geburtstage"><Konfetti /><GeburtstagMitte kinder={kinder} /></section>
+              : <Geburtstage leute={geb.daten} fehler={geb.fehler} />}
+          </div>
+        </>}
         {/* Umfragen zuoberst direkt nach der Solaranlage (seit 1.758.0,
             Wunsch Patrick 24. November 2026); seit 1.770.0 kompakt und nur so
             breit wie nötig (Patrick: „soll nur so gross wie nötig“) */}
-        <div className="start-umf"><Umfragen auffrischen={auffrischen} /></div>
+        {/* 1.777.0: daneben der Kalender, damit neben der schmalen Umfrage
+            kein leerer Platz bleibt (Patrick 24. November 2026: „neben dran
+            ist nichts reingeschoben worden“); ohne Umfrage nimmt er die Breite */}
+        <div className="start-paar start-umf">
+          <Umfragen auffrischen={auffrischen} />
+          <KalenderKarte auffrischen={auffrischen} />
+        </div>
         {admin && <Systemzustand auffrischen={auffrischen} />}
         <NeuesTutorial />
         {/* 1.723.0: alle Karten in einem Fluss mit zwei Spalten, die der
             Browser gleich hoch verteilt (Patrick 23. November 2026: „schön
             aufteilen“), statt fester linker und rechter Spalte */}
         <SpaltenFluss>
+          {!kopflos && <Geburtstage leute={geb.daten} fehler={geb.fehler} />}
           {probSehen && <Probleme liste={prob.daten} fehler={prob.fehler} neu={prob.neu} />}
-          <KalenderKarte auffrischen={auffrischen} />
           <Materialausgabe auffrischen={auffrischen} />
           <HeuteOffen auffrischen={auffrischen} />
           <BestellKurz auffrischen={auffrischen} />
