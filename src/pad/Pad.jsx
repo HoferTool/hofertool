@@ -17,6 +17,7 @@
 // =================================================================
 import { keyenceOeffnen } from "../teile/Messberichte.jsx";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { padEinpassen, padEinpassenBeobachten } from "./einpassen.js";
 import { createRoot } from "react-dom/client";
 import { alt, reactAufraeumen } from "../bruecke.jsx";
 import Maschine, { maschineLaden } from "./Maschine.jsx";
@@ -243,6 +244,10 @@ function Pad({ h, auffrischen }) {
     if (stand.neu) alt.bewegungPad(h);
     alt.padZahlZaehlen(h);
     if (stand.daten && stand.daten.art === "maschine") alt.padTextEinpassen();
+    // Auswahlseiten passen ohne Rollen auf den Bildschirm
+    padEinpassen(h);
+    setTimeout(() => padEinpassen(h), 400); // Bilder und Schrift kommen nach
+    padEinpassenBeobachten(h);
   }, [stand, h]);
 
   if (stand.fehler) {
