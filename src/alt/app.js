@@ -175,7 +175,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.785.0";
+const APP_VERSION = "1.786.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3273,7 +3273,7 @@ function neuerLookSehen(u) {
   if (window.TEST && !window.TEST.neuesMenue) return false;
   return !istAndererNutzer(u);
 }
-// Seit 1.785.0 sehen alle Admins alles (Wunsch Patrick 24. November 2026:
+// Seit 1.786.0 sehen alle Admins alles (Wunsch Patrick 24. November 2026:
 // „alle admins alles sehen, ausser zahlen spiel“): Empfang, Kalkulation,
 // Test ERP und QMS gelten für Admins auch ohne Vermerk; die Datenbank
 // prüft dasselbe (sql/admins-sehen-alles.sql). Nur der Zahlensprint
@@ -11188,7 +11188,7 @@ const SEITEN = [
 const NEUER_LOOK_MENUE = {
   hofer2dto3d: { gruppe: "hilfsprogramme", titel: "2D → 3D" },
   einlagen: { gruppe: "hilfsprogramme" },
-  // Zahlensprint (nur mit Vermerk reihenSehen) unter Hilfsprogramme (seit 1.785.0)
+  // Zahlensprint (nur mit Vermerk reihenSehen) unter Hilfsprogramme (seit 1.786.0)
   reihen: { gruppe: "hilfsprogramme" },
   bildschirme: { gruppe: "hilfsprogramme" },
   material: { gruppe: "planwand", imHandy: true },
