@@ -17008,3 +17008,18 @@ body.dunkel .lager-buchung .lager-ein, body.dunkel .lager-zahl.lager-ein { color
   .lager-reihe { grid-template-columns: 1fr 1fr; }
   .lager-reihe--knopf { grid-template-columns: 1fr; }
 }
+
+/* 1.793.0 Prüfmittel: Übersicht mit nur zwei Zahlen (Wunsch Patrick 24. November 2026) */
+.pm-kurz { display: flex; flex-direction: column; gap: 16px; max-width: 900px; }
+.pm-kurz__zahlen { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.pm-kurz__zahl { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 22px 24px;
+  border-radius: 14px; border: 1px solid var(--linie, #d6dde5); background: var(--flaeche, #fff); cursor: pointer; text-align: left; font: inherit; }
+.pm-kurz__zahl b { font-size: 56px; line-height: 1; }
+.pm-kurz__zahl span { font-size: 18px; }
+.pm-kurz__zahl.aktiv { outline: 3px solid var(--marke, #003884); outline-offset: -1px; }
+.pm-kurz__zahl--warn b { color: #c62828; }
+.pm-kurz__knopf { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.pm-kurz__knopf .knopf { font-size: 17px; padding: 12px 20px; }
+.pm-kurz__alle { margin-top: 8px; }
+body.dunkel .pm-kurz__zahl { background: #1f2630; border-color: #3a4552; }
+body.dunkel .pm-kurz__zahl--warn b { color: #ff6b6b !important; }

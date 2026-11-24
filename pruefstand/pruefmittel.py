@@ -27,7 +27,10 @@ with sync_playwright() as p:
     pg, pf = starten(br, 1440, 900)
     # seit 1.607.0 Reiter der Qualitätssicherung; #/pruefmittel führt dorthin
     pruefe(pg.locator('a[href="#/qs"]').count() > 0, "Menüpunkt Qualitätssicherung für Admin")
-    pg.evaluate("location.hash='#/pruefmittel'"); pg.wait_for_selector("#pm-neu"); pg.wait_for_timeout(500)
+    pg.evaluate("location.hash='#/pruefmittel'"); pg.wait_for_selector("#pm-kurz-raus"); pg.wait_for_timeout(500)
+    # 1.793.0: zuerst nur die Übersicht, alles andere hinter „Alle Prüfmittel verwalten“
+    pruefe(pg.locator("#pm-neu").count() == 0 and pg.locator("#pm-kurz-kiste").count() == 1, "Übersicht ohne Verwaltung")
+    pg.click("#pm-alle"); pg.wait_for_selector("#pm-neu")
     pruefe("#/qs" in pg.url, "#/pruefmittel führt zur Qualitätssicherung " + pg.url)
     pruefe("Prüfmittel" in pg.inner_text(".reiter") and "Ausschussmeldungen" in pg.inner_text(".reiter"), "Reiter Ausschussmeldungen und Prüfmittel")
     # Einzeln erfassen
@@ -89,6 +92,26 @@ with sync_playwright() as p:
     pruefe(pg.locator(".pm-tabelle tbody tr").count() == 2, "Filter Lehre zeigt Grenz- und Gewindelehrdorn")
     pg.click("[data-pmfilter='g:lehre']"); pg.wait_for_timeout(300)
     pg.screenshot(path=BILD + "/pm-liste.png")
+    # 1.793.0 Rückgabekiste: zwei in die Kiste, eines zählt noch, alles quittieren
+    pg.evaluate("""() => { const l = TEST.daten.pruefmittel;
+      l[0].ort_art = 'rueckgabe'; l[0].einsatz_tage = 2; l[0].zaehlt_seit = new Date(Date.now() - 86400000).toISOString();
+      l[1].ort_art = 'rueckgabe'; l[1].einsatz_tage = 5; l[1].zaehlt_seit = null; }""")
+    pg.evaluate("location.hash='#/dashboard'"); pg.wait_for_timeout(800)
+    pg.evaluate("location.hash='#/pruefmittel'"); pg.wait_for_timeout(1200)
+    if pg.locator("#pm-kurz").count(): pg.click("#pm-kurz"); pg.wait_for_timeout(400)
+    pg.wait_for_selector("#pm-kurz-kiste")
+    pruefe("2" in pg.inner_text("#pm-kurz-kiste"), "Kiste zeigt 2: %s" % pg.inner_text("#pm-kurz-kiste"))
+    pruefe("2" in pg.inner_text("#pm-kurz-raus"), "zur Prüfung raus 2 (PM-002 abgelaufen, PM-003 nie geprüft): %s" % pg.inner_text("#pm-kurz-raus"))
+    pg.click("#pm-kurz-kiste"); pg.wait_for_selector("#pm-quittieren")
+    pg.screenshot(path=BILD + "/pm-kiste.png")
+    pg.click("#pm-quittieren"); pg.wait_for_timeout(500)
+    if pg.locator(".dialog-huelle [data-ja]").count(): pg.locator(".dialog-huelle [data-ja]").last.click()
+    pg.wait_for_timeout(900)
+    l = pg.evaluate("() => TEST.daten.pruefmittel")
+    k = [x for x in l[:2]]
+    pruefe(all(x["ort_art"] == "schrank" and not x.get("zaehlt_seit") for x in k), "quittiert: im Schrank, zählt nicht")
+    pruefe(abs(float(k[0]["einsatz_tage"]) - 3) < 0.2 and float(k[1]["einsatz_tage"]) == 5, "Tage festgehalten: %s %s" % (k[0]["einsatz_tage"], k[1]["einsatz_tage"]))
+    pruefe(pg.locator("#pm-quittieren").count() == 0, "Kiste leer")
     pruefe(not pf, "keine Seitenfehler: %s" % pf)
     # Seitlich rollen?
     sw = pg.evaluate("() => document.documentElement.scrollWidth - innerWidth")
@@ -97,7 +120,10 @@ with sync_playwright() as p:
 
     # Handy
     pg, pf = starten(br, 390, 844)
-    pg.evaluate("location.hash='#/pruefmittel'"); pg.wait_for_selector("#pm-neu"); pg.wait_for_timeout(500)
+    pg.evaluate("location.hash='#/pruefmittel'"); pg.wait_for_selector("#pm-kurz-raus"); pg.wait_for_timeout(500)
+    sw = pg.evaluate("() => document.documentElement.scrollWidth - innerWidth")
+    pruefe(sw <= 0, "Übersicht ohne seitliches Rollen Handy (%s)" % sw)
+    pg.click("#pm-alle"); pg.wait_for_selector("#pm-neu"); pg.wait_for_timeout(500)
     sw = pg.evaluate("() => document.documentElement.scrollWidth - innerWidth")
     pruefe(sw <= 0, "kein seitliches Rollen Handy (%s)" % sw)
     pg.screenshot(path=BILD + "/pm-handy.png")
@@ -108,6 +134,6 @@ with sync_playwright() as p:
     pg.evaluate("TEST.daten.profiles[0].role = 'mechaniker'")
     sichtbar = pg.evaluate("() => { location.hash = '#/pruefmittel'; return true; }")
     pg.reload(wait_until="domcontentloaded"); pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1500)
-    pruefe(pg.locator("#pm-neu").count() == 0, "Mechaniker sieht Prüfmittel nicht")
+    pruefe(pg.locator("#pm-neu, #pm-kurz-raus").count() == 0, "Mechaniker sieht Prüfmittel nicht")
     br.close()
 print("Fehler:", ", ".join(fehler) if fehler else "keine")
