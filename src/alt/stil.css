@@ -16727,3 +16727,6 @@ body.dunkel .pst-abschnitt td { background: #24364a; }
   :is(.start-paar, .start-umf) .umf-karte .umf__titel { max-width: 440px; }
   :is(.start-paar, .start-umf) .umf-karte .umf__admin { gap: 8px; }
 }
+
+/* 1.780.0: Schreck für Flavia beim Kommen über den ganzen Bildschirm, schwarz (Wunsch Patrick 24. November 2026) */
+.ze-bestaetigt__bild[data-ze-stempelbild="schreck"] { position: fixed; inset: 0; width: 100vw; height: 100vh; max-width: none; aspect-ratio: auto; object-fit: contain; background: #000; border-radius: 0; box-shadow: none; z-index: 1; }
