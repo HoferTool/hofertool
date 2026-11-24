@@ -172,6 +172,7 @@ export default function Dokumente() {
       <PoolDrucker />
       <PoolOrdner />
       <EinrichtblattOrdner />
+      <PruefberichtOrdner />
       <ZeichnungsOrdner />
       <Letzte stand={stand} hochladen={hochladenWaehlen} />
     </>
@@ -512,6 +513,65 @@ function EbFormular({ werte, typen }) {
             + (st.rest ? " · " + alt.zahlText(st.rest) + " folgen im nächsten Durchlauf" : "") : ""}</Lebt>
         </div>
         {admin && <button className="knopf knopf--klein" id="eb-speichern" onClick={speichern}>Ordner speichern</button>}</div>
+      {lief && st.ordner && st.ordner.some((o) => o.fehler) && <div className="klein" style={{ color: "var(--gefahr)" }}>
+        {st.ordner.filter((o) => o.fehler).map((o) => o.pfad + ": " + o.fehler).join(" · ")}</div>}
+    </>
+  );
+}
+
+// ---------- Prüfbericht-Ordner (nur lesen, seit 1.771.0) ----------
+//  pruefberichte.ps1 lädt aus diesen Ordnern alle Excel-Prüfberichte mit
+//  HOCO Nr. im Namen oder im Namen eines Ordners darüber hoch; die App
+//  zeigt sie unter Qualitätssicherung → Prüfberichte (Wunsch Patrick
+//  24. November 2026: „will das als Pfad hinterlegen, dort ist es nach
+//  Ordner“). Im Ordner wird nie etwas gelöscht oder geändert.
+
+const pbLaden = () => configLaden(["pruefbericht_ordner", "pruefbericht_status"], "Prüfbericht-Ordner");
+
+function PruefberichtOrdner() {
+  const { daten } = useNachsehen(pbLaden);
+  if (!alt.istAdmin()) return null;
+  return (
+    <Gruppe titel="Prüfbericht-Ordner" id="pb-ordner"
+      text={"Die Aufgabe „HoferTool“ lädt alle fünf Minuten neue und geänderte Excel-Prüfberichte hoch. Die HOCO Nr. "
+        + "darf im Dateinamen oder im Namen eines Ordners darüber stehen. Zu sehen unter Qualitätssicherung → Prüfberichte. "
+        + "Im Ordner wird nie etwas gelöscht, verschoben oder geändert."}>
+      {daten ? <PbFormular werte={daten} /> : <div className="laedt">Wird geladen …</div>}
+    </Gruppe>
+  );
+}
+
+function PbFormular({ werte }) {
+  const start = jsonOder(werte.pruefbericht_ordner, null) || {};
+  const [ordner, setOrdner] = useState((start.ordner && start.ordner.length) ? start.ordner : [{ pfad: "", unter: true }]);
+  const st = jsonOder(werte.pruefbericht_status, null);
+  const aendern = (i, feld, wert) => setOrdner((l) => l.map((o, j) => (j === i ? { ...o, [feld]: wert } : o)));
+  const speichern = async () => {
+    const l = ordner.map((o) => ({ pfad: (o.pfad || "").trim(), unter: !!o.unter })).filter((o) => o.pfad);
+    const r = await alt.db.from("app_config").upsert([{ schluessel: "pruefbericht_ordner", wert: JSON.stringify({ ordner: l }) }]);
+    if (r.error) { alt.meldung(alt.fehlertext(r.error), "fehler"); return; }
+    alt.meldung("Gespeichert.", "gut");
+  };
+  const lief = st && st.immer;
+  return (
+    <>
+      {ordner.map((o, i) => (
+        <div className="eb-ordner-zeile" key={i}>
+          <input type="text" className="eb-ordner-pfad" aria-label="Ordner" placeholder={"\\\\Server\\QS\\Prüfberichte"}
+            value={o.pfad} data-pbordner={i} onChange={(e) => aendern(i, "pfad", e.target.value)} />
+          <label className="eb-ordner-unter klein">
+            <input type="checkbox" checked={!!o.unter} onChange={(e) => aendern(i, "unter", e.target.checked)} /> mit Unterordnern</label>
+          <button className="knopf knopf--klein" aria-label="Ordner entfernen" title="Ordner entfernen"
+            onClick={() => setOrdner((l) => (l.length > 1 ? l.filter((x, j) => j !== i) : [{ pfad: "", unter: true }]))}>✕</button>
+        </div>
+      ))}
+      <button className="knopf knopf--klein" onClick={() => setOrdner((l) => [...l, { pfad: "", unter: true }])}>+ Ordner</button>
+      <div className="knopfreihe es-knopfreihe es-knopfreihe--ende">
+        <div id="pb-ordner-stand" className="dokpfad-stand">
+          <Lebt stand={st}>{lief ? " · " + alt.zahlText(st.excel || 0) + " Prüfberichte"
+            + (st.rest ? " · " + alt.zahlText(st.rest) + " folgen im nächsten Durchlauf" : "") : ""}</Lebt>
+        </div>
+        <button className="knopf knopf--klein" id="pb-ordner-speichern" onClick={speichern}>Ordner speichern</button></div>
       {lief && st.ordner && st.ordner.some((o) => o.fehler) && <div className="klein" style={{ color: "var(--gefahr)" }}>
         {st.ordner.filter((o) => o.fehler).map((o) => o.pfad + ": " + o.fehler).join(" · ")}</div>}
     </>

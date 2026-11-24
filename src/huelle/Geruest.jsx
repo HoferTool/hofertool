@@ -93,7 +93,7 @@ function todoModusDarf() {
 // … man soll auswählen können, ob man es will“): mit „Menü immer zeigen“
 // unter Einstellungen → Allgemein bleiben die Menüpunkte stehen und die
 // Todos stehen darunter, ohne Wechsel nach 3 Minuten.
-// Seit 1.770.0 ist „Menü immer zeigen“ die Vorgabe für alle (Wunsch Patrick
+// Seit 1.772.0 ist „Menü immer zeigen“ die Vorgabe für alle (Wunsch Patrick
 // 24. November 2026: „das mit Menü immer drin soll bei allen rein ausser bei
 // Michel“); wer es ausgeschaltet hat (Michel), behält die Uhr.
 export function menueFest() {

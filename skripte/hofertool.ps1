@@ -11,6 +11,7 @@
 #     zeichnungen.ps1       Zeichnungen hochladen, nur lesen
 #     einrichtblaetter.ps1  Einrichtblätter hochladen, nur lesen
 #     nc-geo.ps1            Geometrie-Programme der SW (4…) ins Einrichtblatt, nur lesen
+#     pruefberichte.ps1     Excel-Prüfberichte aus den Ordnern in die App (QS), nur lesen
 #
 #  Dazu startet es drucken.ps1, wenn es nicht schon läuft: Das bleibt
 #  dauernd im Hintergrund und druckt Aufträge aus der App alle paar
@@ -86,7 +87,7 @@ function Teil([string]$skript, [int]$minuten, [string]$braucht) {
 $QUELLE = "https://raw.githubusercontent.com/HoferTool/hofertool/main/skripte"
 function Aktualisieren {
   try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch { }
-  foreach ($n in @("dokumente-teile.ps1", "solarlog.ps1", "dokumente-pool.ps1", "zeichnungen.ps1", "einrichtblaetter.ps1", "nc-geo.ps1", "keyence.ps1", "drucken.ps1", "hofertool.ps1")) {
+  foreach ($n in @("dokumente-teile.ps1", "solarlog.ps1", "dokumente-pool.ps1", "zeichnungen.ps1", "einrichtblaetter.ps1", "nc-geo.ps1", "pruefberichte.ps1", "keyence.ps1", "drucken.ps1", "hofertool.ps1")) {
     $ziel = Join-Path $ordnerHier $n
     $temp = Join-Path $env:TEMP ("hofertool-neu-" + $n)
     try {
@@ -150,6 +151,7 @@ try {
   Teil "zeichnungen.ps1"      10 "abgleich-einstellungen.json"
   Teil "einrichtblaetter.ps1" 10 "abgleich-einstellungen.json"
   Teil "nc-geo.ps1"           5  "abgleich-einstellungen.json"
+  Teil "pruefberichte.ps1"    10 "abgleich-einstellungen.json"
 } finally {
   try { $sperre.ReleaseMutex() } catch { }
 }

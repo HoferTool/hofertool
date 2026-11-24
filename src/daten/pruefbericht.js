@@ -1,0 +1,304 @@
+// =================================================================
+//  PRÜFBERICHTE (seit 1.771.0, Wunsch Patrick 24. November 2026:
+//  „alle Berichte per Pfad hochladen und daraus ein Prüfprotokoll machen,
+//  das per Tool läuft und ähnlich aufgebaut ist“)
+//  Die Excel-Prüfberichte (Kopf A1:I7, Tabelle ab der Zeile „Nr. | Soll
+//  | Ist ×5 | Bemerkungen / spez. Prüfmittel“, unten „Prüf-Entscheid“)
+//  liest die App mit excelRoh und baut daraus die Vorlage einer HOCO Nr.
+//  (alle Seiten 1/2, 2/2 … zusammen). In der App ausgefüllt werden die
+//  Protokolle (Tabelle pruefprotokolle), Excel bleibt nur Quelle.
+//  Aus der Toleranz in „Soll“ prüft die App jeden Ist-Wert, und aus der
+//  letzten Spalte, welche Lehren es braucht.
+// =================================================================
+import { alt } from "../bruecke.jsx";
+
+export const fehltTabelle = (e) =>
+  /pruefbericht_dateien|pruefprotokolle|does not exist|schema cache/i.test(String((e && e.message) || e || ""));
+
+const zahl = (t) => {
+  const m = /-?\d+(?:[.,]\d+)?/.exec(String(t ?? "").replace(/'/g, ""));
+  return m ? Number(m[0].replace(",", ".")) : null;
+};
+const ZAHL = "(\\d+(?:[.,]\\d+)?)";
+const n = (t) => Number(String(t).replace(",", "."));
+const rund = (x) => Math.round(x * 10000) / 10000;
+
+// HOCO Nr. aus Text: 10844-0049 (auch 10844 0049)
+export function hocoAus(text) {
+  const m = /(\d{5})[\s\-_.]?(\d{4})(?!\d)/.exec(String(text || ""));
+  return m ? m[1] + "-" + m[2] : "";
+}
+
+// ---------- Excel lesen ----------
+const KOPF = [
+  [/^fa-?nummer/i, "fa_nr"], [/^artikel-?bez/i, "bezeichnung"], [/^ho\+?co/i, "hoco"],
+  [/^zeichn/i, "zeichnung"], [/^bestellte/i, "menge"], [/^automaten/i, "typ"],
+  [/^nummer/i, "maschine"], [/^allg/i, "alltol"],
+];
+
+// Aus den Rohdaten (excelRoh) ein Bericht: { kopf, zeilen, seite, seiten }
+export function berichtAusExcel(roh) {
+  const z = roh.zellen || {};
+  const zelle = (r, s) => (z[r + ":" + s] || {}).text || "";
+  const zeilenNr = [...new Set(Object.values(z).map((c) => c.z))].sort((a, b) => a - b);
+  const kopf = {};
+  let tabStart = null, ende = null, seite = null, seiten = null;
+  for (const r of zeilenNr) {
+    const a = zelle(r, 1).trim();
+    if (tabStart === null && /^nr\.?$/i.test(a) && /soll/i.test(zelle(r, 2))) { tabStart = r; continue; }
+    if (/^prüf-?\s*entscheid/i.test(a)) ende = ende || r;
+    for (let s = 1; s <= 12; s++) {
+      const t = zelle(r, s);
+      const sm = /seite\s*(\d+)\s*\/\s*(\d+)/i.exec(t);
+      if (sm) { seite = Number(sm[1]); seiten = Number(sm[2]); }
+      if (tabStart !== null) continue;
+      const k = KOPF.find(([re]) => re.test(t.trim()));
+      if (!k) continue;
+      // Der Wert steht in der nächsten belegten Zelle rechts davon
+      for (let w = s + 1; w <= s + 3; w++) {
+        const v = zelle(r, w);
+        if (v && !KOPF.some(([re]) => re.test(v.trim())) && !/^index$/i.test(v)) { kopf[k[1]] = v.trim(); break; }
+      }
+    }
+    if (tabStart === null && /^index$/i.test(zelle(r, 9))) kopf.index = zelle(r + 1, 9);
+  }
+  if (tabStart === null) throw new Error("Kein Prüfbericht: Zeile „Nr. / Soll“ fehlt");
+  const zeilen = [];
+  for (const r of zeilenNr) {
+    if (r <= tabStart || (ende && r >= ende)) continue;
+    const nr = zelle(r, 1).trim(), soll = zelle(r, 2).trim(), pm = zelle(r, 8).trim();
+    const ist = [3, 4, 5, 6, 7].map((s) => zelle(r, s));
+    if (!nr && !soll && !pm) continue;
+    if (!nr && soll && !pm && ist.every((x) => !x)) { zeilen.push({ abschnitt: soll }); continue; }
+    zeilen.push({ nr, soll, pm });
+  }
+  return { kopf, zeilen, seite, seiten };
+}
+
+// Mehrere Seiten einer HOCO Nr. zu einer Vorlage, Seite 1 zuerst
+export function vorlageAus(berichte) {
+  const b = [...berichte].sort((x, y) => (x.seite || 99) - (y.seite || 99));
+  const kopf = {};
+  for (const x of b) for (const [k, v] of Object.entries(x.kopf || {})) if (v && !kopf[k]) kopf[k] = v;
+  const zeilen = [];
+  let frei = 0;
+  for (const x of b) for (const zl of x.zeilen) zeilen.push({ ...zl, id: zl.nr ? "n" + zl.nr : "x" + (++frei) });
+  return { kopf, zeilen };
+}
+
+// ---------- Toleranz ----------
+// Gibt { min, max, einheit } oder null (ohne Mass, nur Gewinde, Material …)
+const NUR_MAX = /^(ra|rz|rmax|rundlauf|planlauf|gesamtlauf|position|ebenheit|parallel\w*|rechtwink\w*|koaxial\w*|konzentr\w*|symmetrie|geradheit|rundheit|zylindr\w*|kb)\b/i;
+export function toleranz(soll) {
+  let s = String(soll || "").trim().replace(/^Ø\s*/, "").replace(/\s*x\s*45°\s*$/i, "")
+    .replace(/\s+\d+\s*x\s*$/i, "").trim();
+  if (!s || /^M\d/i.test(s)) return null;
+  const grad = /°/.test(s) ? "°" : "";
+  // Bereich wie „1.24-1.34“, „KB 0.02-0.1“
+  let m = new RegExp("^(?:[A-Za-zÄÖÜäöü.]+\\s*)?" + ZAHL + "\\s*-\\s*" + ZAHL + "°?$").exec(s);
+  // „5.5 -0.1“ ist kein Bereich, sondern Nennmass mit Abmass
+  if (m && n(m[2]) > n(m[1])) return { min: n(m[1]), max: n(m[2]), einheit: grad };
+  // Nur obere Grenze: Ra 1.6, Rundlauf 0.03, R0.1 max.
+  m = new RegExp("^[A-Za-zÄÖÜäöü.]*\\s*" + ZAHL + "\\s*max\\.?$", "i").exec(s);
+  if (m) return { min: null, max: n(m[1]), einheit: grad };
+  if (NUR_MAX.test(s)) { const v = zahl(s); return v === null ? null : { min: null, max: v, einheit: "" }; }
+  // Nennmass mit Abmassen: „17 -0.03/-0.06“, „23.3 +0.05“, „30° +/-5°“, „R0.4 +/-0.2“
+  m = new RegExp("^R?\\s*" + ZAHL + "\\s*°?\\s*(.*)$", "i").exec(s);
+  if (!m) return null;
+  const nenn = n(m[1]), rest = m[2].trim();
+  if (!rest) return null;
+  const pm = new RegExp("^(?:\\+\\s*/\\s*-|±)\\s*" + ZAHL).exec(rest);
+  if (pm) return { min: rund(nenn - n(pm[1])), max: rund(nenn + n(pm[1])), einheit: grad };
+  const ab = [...rest.matchAll(new RegExp("([+-])\\s*" + ZAHL, "g"))].map((x) => (x[1] === "-" ? -1 : 1) * n(x[2]));
+  if (!ab.length) return null;
+  if (ab.length === 1) ab.push(0);
+  return { min: rund(nenn + Math.min(...ab)), max: rund(nenn + Math.max(...ab)), einheit: grad };
+}
+
+export function toleranzText(t) {
+  if (!t) return "";
+  const e = t.einheit || "";
+  if (t.min === null) return "≤ " + t.max + e;
+  return t.min + e + " … " + t.max + e;
+}
+
+// Ist-Wert gegen die Toleranz: "gut", "schlecht" oder "" (nicht prüfbar)
+export function istPruefen(ist, t) {
+  const s = String(ist ?? "").trim();
+  if (!s) return "";
+  if (/^(n\.?\s*i\.?\s*o\.?|nok|nicht\s*i\.?\s*o|nicht\s*ok|schlecht|ausschuss)\b/i.test(s)) return "schlecht";
+  if (/^(ok|i\.?\s*o\.?|gut)\b/i.test(s)) return "gut";
+  if (!t) return "";
+  const v = zahl(s);
+  if (v === null) return "";
+  const eps = 1e-9;
+  if (/^<|kleiner/i.test(s)) return t.max !== null && v <= t.max + eps ? "gut" : "";
+  if (t.min !== null && v < t.min - eps) return "schlecht";
+  if (t.max !== null && v > t.max + eps) return "schlecht";
+  return "gut";
+}
+
+// ---------- Lehren und Messmittel aus der letzten Spalte ----------
+const LEHRE_RE = /lehr|kontrollring|grenzdorn|gewinde-?\s*(ring|dorn)|prüfstift|pruefstift|stifte?\b/i;
+const KEIN_MESSMITTEL = /^(material|kernbohrung|siehe|vgl|ø|visuell|sichtprüfung)/i;
+
+export function lehrenAus(vorlage) {
+  const lehren = new Map(), mess = new Map();
+  for (const zl of vorlage.zeilen || []) {
+    const pm = String(zl.pm || "").trim();
+    if (!pm) continue;
+    if (LEHRE_RE.test(pm)) {
+      const name = pm.replace(/\s*[ØøD]?\s*\d+(?:[.,]\d+)?\s*(\/\s*\d+(?:[.,]\d+)?)?\s*$/, "").trim() || pm;
+      let mass = (/(\d+(?:[.,]\d+)?\s*\/\s*\d+(?:[.,]\d+)?)/.exec(pm) || [])[1] || "";
+      const t = toleranz(zl.soll);
+      if (!mass && /gewinde/i.test(pm)) mass = String(zl.soll || "").replace(/\s+\d+\s*x\s*$/i, "").trim();
+      else if (!mass && t && t.min !== null) mass = "Ø " + t.min.toFixed(3) + " / " + t.max.toFixed(3);
+      else if (!mass && t) mass = "≤ " + t.max;
+      if (!mass) mass = String(zl.soll || "").trim();
+      mass = mass.replace(/\s+/g, " ");
+      // Gleiche Lehre für dasselbe Soll nur einmal (Nr. 07 und 41 bei 10844-0049)
+      const key = (name + "|" + (t ? toleranzText(t) : mass)).toLowerCase();
+      const da = lehren.get(key);
+      const vonHand = /\d\s*\/\s*\d/.test(pm);
+      if (da) { da.nr.push(zl.nr || "–"); if (vonHand && !da.vonHand) { da.mass = mass; da.vonHand = true; } }
+      else lehren.set(key, { name, mass, soll: zl.soll, nr: [zl.nr || "–"], vonHand });
+    } else if (!KEIN_MESSMITTEL.test(pm)) {
+      const w = pm.split(/[\/Ø(]/)[0].trim();
+      if (!w) continue;
+      const k = w.toLowerCase();
+      if (mess.has(k)) mess.get(k).nr.push(zl.nr || "–");
+      else mess.set(k, { name: w, nr: [zl.nr || "–"] });
+    }
+  }
+  return { lehren: [...lehren.values()], messmittel: [...mess.values()] };
+}
+
+// Passt ein Prüfmittel aus der Prüfmittelverwaltung zu einer Lehre?
+// Gleiche Zahlen im Mass (oder die HOCO Nr. am Prüfmittel).
+export function pruefmittelFuer(lehre, liste, hoco) {
+  const zahlen = (t) => (String(t || "").match(/\d+(?:[.,]\d+)?/g) || []).map((x) => n(x));
+  const soll = zahlen(lehre.mass);
+  return (liste || []).filter((p) => {
+    if (p.status && p.status !== "aktiv") return false;
+    if (hoco && p.hoco && String(p.hoco).includes(hoco)) return true;
+    const ist = zahlen((p.mass || "") + " " + (p.bezeichnung || ""));
+    return soll.length > 0 && soll.every((v) => ist.some((x) => Math.abs(x - v) < 0.0005));
+  });
+}
+
+// ---------- Datenbank ----------
+export async function dateienLaden(hoco) {
+  let q = alt.db.from("pruefbericht_dateien").select("*").order("hoco_nr").order("seite", { nullsFirst: false });
+  if (hoco) q = q.eq("hoco_nr", hoco);
+  const { data, error } = await alt.zeitlimit(q, 15000, "Prüfberichte");
+  if (error) throw error;
+  return data || [];
+}
+
+export async function protokolleLaden(hoco) {
+  let q = alt.db.from("pruefprotokolle").select("*").order("erstellt_am", { ascending: false });
+  if (hoco) q = q.eq("hoco_nr", hoco);
+  const { data, error } = await alt.zeitlimit(q, 15000, "Prüfprotokolle");
+  if (error) throw error;
+  return data || [];
+}
+
+// Vorlage einer HOCO Nr. aus ihren Dateien, im Speicher gemerkt je Adresse
+const gelesen = new Map();
+export async function dateiLesen(d) {
+  if (gelesen.has(d.url)) return gelesen.get(d.url);
+  const p = (async () => {
+    const r = await fetch(d.url, { cache: "no-cache" });
+    if (!r.ok) throw new Error("Datei nicht ladbar (" + r.status + ")");
+    const { excelRoh } = await import("../einrichtblatt/excelEinlesen.js");
+    const b = berichtAusExcel(await excelRoh(new Uint8Array(await r.arrayBuffer())));
+    if (!b.seite && d.seite) b.seite = d.seite;
+    return b;
+  })();
+  gelesen.set(d.url, p);
+  p.catch(() => gelesen.delete(d.url));
+  return p;
+}
+
+export async function vorlageLaden(dateien) {
+  return vorlageAus(await Promise.all(dateien.map(dateiLesen)));
+}
+
+// Von Hand hochladen: liest die Datei zuerst, damit HOCO Nr. und Seite stimmen
+export async function dateiHochladen(datei) {
+  const { excelRoh } = await import("../einrichtblatt/excelEinlesen.js");
+  const daten = new Uint8Array(await datei.arrayBuffer());
+  const b = berichtAusExcel(await excelRoh(daten));
+  const hoco = hocoAus(b.kopf.hoco) || hocoAus(datei.name);
+  if (!hoco) throw new Error(datei.name + ": keine HOCO Nr. gefunden");
+  const endung = (datei.name.split(".").pop() || "xlsx").toLowerCase();
+  const ablage = "pruefberichte/" + hoco + "/" + Date.now() + "-" + Math.random().toString(36).slice(2, 7) + "." + endung;
+  const { error: fu } = await alt.db.storage.from("zeichnungen").upload(ablage, datei, { upsert: false });
+  if (fu) throw fu;
+  const url = alt.db.storage.from("zeichnungen").getPublicUrl(ablage).data.publicUrl;
+  // Gleiche HOCO Nr. und Seite: die neue Datei ersetzt die alte
+  const { data: vorher } = await alt.db.from("pruefbericht_dateien").select("*").eq("hoco_nr", hoco);
+  const gleich = (vorher || []).filter((v) => (v.seite || null) === (b.seite || null) && v.quelle === "hand");
+  const { data, error } = await alt.db.from("pruefbericht_dateien").insert({
+    hoco_nr: hoco, name: datei.name, url, ablage, seite: b.seite || null, quelle: "hand",
+    geaendert: datei.lastModified ? new Date(datei.lastModified).toISOString() : null,
+  }).select().single();
+  if (error) throw error;
+  if (gleich.length) await alt.db.from("pruefbericht_dateien").delete().in("id", gleich.map((v) => v.id));
+  return { zeile: data, ersetzt: gleich, bericht: b };
+}
+
+// ---------- Arten von Berichten (seit 1.771.0, Wunsch Patrick 24. November 2026:
+// „Teileprüfbericht, wo man 5 Teile für Erstteilprüfung oder Endkontrolle
+// braucht … AQL … und LL Langläufer, wichtige Masse auf eine Liste und dann
+// täglich stichprobenmässig kontrolliert“) ----------
+export const ARTEN = [
+  { id: "erstteil", name: "Erstteilprüfung", kurz: "Erstteil", text: "5 Teile, alle Masse" },
+  { id: "endkontrolle", name: "Endkontrolle", kurz: "Endkontrolle", text: "5 Teile, alle Masse" },
+  { id: "aql", name: "AQL-Stichprobe", kurz: "AQL", text: "Stichprobe nach Losgrösse (ISO 2859-1)" },
+  { id: "ll", name: "LL Langläufer", kurz: "LL", text: "Wichtige Masse, Stichproben laufend" },
+];
+export const artVon = (id) => ARTEN.find((a) => a.id === id) || ARTEN[0];
+export const TEILE = 5;
+
+// ---------- AQL nach ISO 2859-1, Einfach-Stichprobe, normale Prüfung ----------
+// Kennbuchstabe aus der Losgrösse (Prüfniveau I, II, III)
+const LOSE = [8, 15, 25, 50, 90, 150, 280, 500, 1200, 3200, 10000, 35000, 150000, 500000, Infinity];
+const NIVEAU = {
+  I: "AABCCDEFGHJKLMN", II: "ABCDEFGHJKLMNPQ", III: "BCDEFGHJKLMNPQR",
+};
+const BUCHST = "ABCDEFGHJKLMNPQR";
+const UMFANG = [2, 3, 5, 8, 13, 20, 32, 50, 80, 125, 200, 315, 500, 800, 1250, 2000];
+export const AQL_WERTE = [0.010, 0.015, 0.025, 0.040, 0.065, 0.10, 0.15, 0.25, 0.40, 0.65, 1.0, 1.5, 2.5, 4.0, 6.5, 10];
+const FOLGE = [1, 2, 3, 5, 7, 10, 14, 21];
+
+// Feld der Tabelle II-A: Zahl (Annahmezahl Ac) oder "u" / "d" (Pfeil hinauf / hinunter).
+// Das Muster je Reihe: links vom Ac 0 Pfeil hinunter, rechts davon Pfeil
+// hinauf, Pfeil hinunter, dann 1, 2, 3, 5, 7, 10, 14, 21, danach hinauf.
+function feld(reihe, spalte) {
+  const c0 = 14 - reihe; // A: Ac 0 bei AQL 6.5 … R: eine Spalte links von 0.010
+  const d = spalte - c0;
+  if (d < 0) return "d";
+  if (d === 0) return 0;
+  if (d === 1) return "u";
+  if (d === 2) return "d";
+  return d - 3 < FOLGE.length ? FOLGE[d - 3] : "u";
+}
+
+// { buchstabe, n, ac, re, hundert } für Losgrösse, AQL und Niveau
+export function aqlPlan(los, aql, niveau = "II") {
+  los = Math.floor(Number(los) || 0);
+  const spalte = AQL_WERTE.findIndex((a) => Math.abs(a - Number(aql)) < 1e-9);
+  if (los < 2 || spalte < 0) return null;
+  const nv = NIVEAU[niveau] || NIVEAU.II;
+  const start = BUCHST.indexOf(nv[LOSE.findIndex((g) => los <= g)]);
+  let r = start;
+  for (let i = 0; i < 40; i++) {
+    const f = feld(r, spalte);
+    if (f === "d") { if (r < BUCHST.length - 1) { r++; continue; } return null; }
+    if (f === "u") { if (r > 0) { r--; continue; } return null; }
+    const n = UMFANG[r];
+    return { buchstabe: BUCHST[start], n: Math.min(n, los), ac: f, re: f + 1, hundert: n >= los };
+  }
+  return null;
+}

@@ -48,7 +48,7 @@ with sync_playwright() as p:
     pg.reload(); pg.wait_for_selector("#nav-todo", timeout=20000); pg.wait_for_timeout(600)
     pruefe("nav--zeigt-menue" in cls(), "nach Neuladen Menü")
     pruefe(not pf, "keine Fehler im Browser " + str(pf))
-# Seit 1.770.0 ist „Menü immer zeigen“ die Vorgabe: ohne gespeicherte Wahl steht das Menü
+# Seit 1.772.0 ist „Menü immer zeigen“ die Vorgabe: ohne gespeicherte Wahl steht das Menü
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
     ctx = br.new_context(viewport={"width": 1440, "height": 900}); pg = ctx.new_page()
