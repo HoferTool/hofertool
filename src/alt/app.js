@@ -174,7 +174,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.756.2";
+const APP_VERSION = "1.756.3";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -6419,7 +6419,21 @@ function ferienGriffe(b) {
       aktiv = false;
       e.stopPropagation();
       balken.classList.remove("pw-balken--groesse");
-      if (!bewegt || (vonJetzt === vonStart && dauerJetzt === dauerStart)) { planAktualisieren(b); return; }
+      if (!bewegt) {
+        // Zwei Klicks kurz nacheinander auf einen Griff öffnen den Eintrag
+        // (Wunsch Patrick 24. November 2026). Hier selbst gezählt, weil
+        // der Griff den Zeiger einfängt und der Browser so kein dblclick
+        // auf dem Balken meldet.
+        balken.style.setProperty("--von", vonStart); balken.style.setProperty("--dauer", dauerStart);
+        const jetzt = Date.now();
+        if (jetzt - (Number(balken.dataset.fklick) || 0) < 450) {
+          balken.dataset.fklick = "";
+          const f3 = (plan.ferien || []).find((x) => x.id === balken.dataset.ferien);
+          if (f3 && !document.getElementById("fd-person")) ferienDialog(f3, f3.zeile, f3.von, b);
+        } else balken.dataset.fklick = String(jetzt);
+        return;
+      }
+      if (vonJetzt === vonStart && dauerJetzt === dauerStart) { planAktualisieren(b); return; }
 
       const f2 = (plan.ferien || []).find((x) => x.id === balken.dataset.ferien);
       if (!f2) return;
@@ -7237,6 +7251,15 @@ function ferienVerhalten(b) {
   });
 
   tafel.querySelectorAll("[data-ferien]").forEach((el) => {
+    // Doppelklick öffnet jeden Eintrag, auch über den Griffen: bei
+    // eintägigen Einträgen liegt fast der ganze Balken unter den Griffen,
+    // ein Klick dort öffnete nichts (Wunsch Patrick 24. November 2026).
+    el.addEventListener("dblclick", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (document.getElementById("fd-person")) return;   // Fenster schon offen
+      const f2 = (plan.ferien || []).find((x) => x.id === el.dataset.ferien);
+      if (f2) ferienDialog(f2, f2.zeile, f2.von, b);
+    });
     let halten = null, zieht = false, gestartet = false, schatten = null;
     let startX = 0, startY = 0;
 
