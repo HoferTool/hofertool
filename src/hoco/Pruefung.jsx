@@ -44,6 +44,10 @@ export default function Pruefung({ hoco, darf }) {
   const artUm = (id) => setW((x) => ({ ...x, arten: x.arten.includes(id) ? x.arten.filter((a) => a !== id) : ARTEN.map((a) => a.id).filter((a) => a === id || x.arten.includes(a)) }));
   const zeileSetzen = (id, n, v) => setW((x) => ({ ...x, zeilen: x.zeilen.map((z) => (z.id === id ? { ...z, [n]: v } : z)) }));
   const zeileWeg = (id) => setW((x) => ({ ...x, zeilen: x.zeilen.filter((z) => z.id !== id) }));
+  // Markierte Zeilen im Masse-Blatt leeren oder löschen (seit 1.786.0)
+  const zeilenLeeren = (ids) => setW((x) => ({ ...x, zeilen: x.zeilen.map((z) => (!ids.has(z.id) ? z
+    : "abschnitt" in z ? { ...z, abschnitt: "" } : { ...z, nr: "", soll: "", pm: "", ll: false })) }));
+  const zeilenWeg = (ids) => setW((x) => ({ ...x, zeilen: x.zeilen.filter((z) => !ids.has(z.id)) }));
   // bei = Index, vor dem eingefügt wird (leer = ans Ende)
   const zeileDazu = (abschnitt, bei) => setW((x) => {
     const nrn = x.zeilen.map((z) => parseInt(z.nr, 10)).filter((v) => !isNaN(v));
@@ -124,7 +128,7 @@ export default function Pruefung({ hoco, darf }) {
           ? w.zeilen.filter((z) => !z.abschnitt).length + " Masse" + (w.zeilen.some((z) => z.abschnitt) ? " in " + w.zeilen.filter((z) => z.abschnitt).length + " Abschnitten" : "")
           : "Noch keine Masse. Öffne das Blatt oder lies einen Excel-Prüfbericht ein."}</span>
       </div>
-      {blatt ? createPortal(<MasseBlatt w={w} hoco={hoco} schreibt={schreibt} zeileSetzen={zeileSetzen} zeileWeg={zeileWeg} zeileDazu={zeileDazu}
+      {blatt ? createPortal(<MasseBlatt w={w} hoco={hoco} schreibt={schreibt} zeileSetzen={zeileSetzen} zeileWeg={zeileWeg} zeilenLeeren={zeilenLeeren} zeilenWeg={zeilenWeg} zeileDazu={zeileDazu}
         schieben={schieben} neuFokus={neuFokus} geaendert={geaendert} laeuft={laeuft} speichern={speichern} zu={() => setBlatt(false)} />, document.body) : null}
       {lehren.lehren.length ? <p className="klein">Benötigte Lehren: {lehren.lehren.map((l) => l.name + " " + l.mass).join(" · ")}</p> : null}
 
@@ -167,8 +171,61 @@ function seitenTeilen(zeilen) {
   return s;
 }
 
-function MasseBlatt({ w, hoco, schreibt, zeileSetzen, zeileWeg, zeileDazu, schieben, neuFokus, geaendert, laeuft, speichern, zu }) {
+function MasseBlatt({ w, hoco, schreibt, zeileSetzen, zeileWeg, zeilenLeeren, zeilenWeg, zeileDazu, schieben, neuFokus, geaendert, laeuft, speichern, zu }) {
   const huelle = useRef(null);
+  // Zeilen markieren wie in Excel (seit 1.786.0, Wunsch Patrick 24. November
+  // 2026: „ganze Bereiche markieren, zum Beispiel leeren“): Zeilenkopf links
+  // antippen, ziehen oder mit Shift erweitern, Strg einzeln dazu
+  const [mark, setMark] = useState(() => new Set());
+  const anker = useRef(null);
+  const zieht = useRef(false);
+  const idx = (id) => w.zeilen.findIndex((z) => z.id === id);
+  const bereich = (a, b) => {
+    const [i, j] = [idx(a), idx(b)].sort((x, y) => x - y);
+    return new Set(w.zeilen.slice(i, j + 1).map((z) => z.id));
+  };
+  const kopfDown = (id) => (e) => {
+    e.preventDefault();
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    if (e.shiftKey && anker.current && idx(anker.current) >= 0) setMark(bereich(anker.current, id));
+    else if (e.ctrlKey || e.metaKey) { setMark((m) => { const n = new Set(m); n.has(id) ? n.delete(id) : n.add(id); return n; }); anker.current = id; }
+    else { anker.current = id; setMark(new Set([id])); }
+    zieht.current = true;
+  };
+  useEffect(() => {
+    const bewegt = (e) => {
+      if (!zieht.current || !anker.current) return;
+      const tr = document.elementFromPoint(e.clientX, e.clientY)?.closest?.("tr[data-pstzeile]");
+      if (tr) setMark(bereich(anker.current, tr.getAttribute("data-pstzeile")));
+    };
+    const los = () => { zieht.current = false; };
+    window.addEventListener("pointermove", bewegt); window.addEventListener("pointerup", los);
+    return () => { window.removeEventListener("pointermove", bewegt); window.removeEventListener("pointerup", los); };
+  });
+  // Nur ein Fenster, das über dem Blatt liegt (später angehängt), zählt;
+  // das Fenster der Stammdaten darunter ist auch eine .dialog-huelle, sonst
+  // schloss Escape statt des Blatts gleich die ganzen Stammdaten.
+  const dialogDarueber = () => [...document.querySelectorAll(".dialog-huelle")].some((d) =>
+    huelle.current && !d.contains(huelle.current) && (huelle.current.compareDocumentPosition(d) & Node.DOCUMENT_POSITION_FOLLOWING));
+  const markiert = [...mark].filter((id) => idx(id) >= 0);
+  const leeren = () => { if (markiert.length) zeilenLeeren(new Set(markiert)); };
+  const loeschen = async () => {
+    if (!markiert.length) return;
+    const ok = await alt.nachfragen({ titel: "Zeilen löschen", text: markiert.length + (markiert.length === 1 ? " Zeile löschen?" : " Zeilen löschen?"), bestaetigen: "Löschen" });
+    if (!ok) return;
+    zeilenWeg(new Set(markiert)); setMark(new Set());
+  };
+  useEffect(() => {
+    const t = (e) => {
+      if (!markiert.length || dialogDarueber()) return;
+      const imFeld = e.target && e.target.closest && e.target.closest("input, textarea, select, [contenteditable]");
+      if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); setMark(new Set()); return; }
+      if (imFeld || !schreibt) return;
+      if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); leeren(); }
+    };
+    window.addEventListener("keydown", t, true);
+    return () => window.removeEventListener("keydown", t, true);
+  });
   const zuFragen = async () => {
     if (geaendert && schreibt) {
       const ok = await alt.nachfragen({ titel: "Noch nicht gespeichert", text: "Die Änderungen bleiben in den Stammdaten stehen, sind aber noch nicht gespeichert.", bestaetigen: "Trotzdem schliessen" });
@@ -178,8 +235,11 @@ function MasseBlatt({ w, hoco, schreibt, zeileSetzen, zeileWeg, zeileDazu, schie
   };
   useEffect(() => {
     const t = (e) => {
-      if (e.key !== "Escape" || e.defaultPrevented || document.querySelector(".dialog-huelle")) return;
-      e.preventDefault(); e.stopPropagation(); zuFragen();
+      if (e.key !== "Escape" || e.defaultPrevented || dialogDarueber()) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      // Erst die Markierung aufheben, erst das nächste Escape schliesst
+      if (markiert.length) { setMark(new Set()); return; }
+      zuFragen();
     };
     window.addEventListener("keydown", t, true);
     return () => window.removeEventListener("keydown", t, true);
@@ -200,6 +260,12 @@ function MasseBlatt({ w, hoco, schreibt, zeileSetzen, zeileWeg, zeileDazu, schie
         <span className="klein">{w.zeilen.filter((z) => !z.abschnitt).length} Masse · {seiten.length} {seiten.length === 1 ? "Seite" : "Seiten"}</span>
         <span className="pst-platz" />
         {schreibt ? <>
+          {markiert.length ? <span className="pst-markleiste" data-pstmarkleiste="">
+            <b>{markiert.length} {markiert.length === 1 ? "Zeile" : "Zeilen"} markiert</b>
+            <button type="button" className="knopf knopf--klein" id="pst-mark-leeren" onClick={leeren}>Leeren</button>
+            <button type="button" className="knopf knopf--klein" id="pst-mark-weg" onClick={loeschen}>Löschen</button>
+            <button type="button" className="knopf knopf--klein" onClick={() => setMark(new Set())}>Aufheben</button>
+          </span> : null}
           <button type="button" className="knopf knopf--klein" id="pst-mass-neu" onClick={() => zeileDazu(false)}>+ Mass</button>
           <button type="button" className="knopf knopf--klein" id="pst-abschnitt-neu" onClick={() => zeileDazu(true)}>+ Abschnitt</button>
           {geaendert ? <span className="klein pb-rot">Noch nicht gespeichert</span> : null}
@@ -216,16 +282,18 @@ function MasseBlatt({ w, hoco, schreibt, zeileSetzen, zeileWeg, zeileDazu, schie
               <p className="klein pst-a4-kopf">{[v.bezeichnung, v.zeichnung ? "Zeichnung " + v.zeichnung : "", v.index ? "Index " + v.index : "", v.alltol ? "Allg. Toleranz " + v.alltol : ""].filter(Boolean).join(" · ")}</p>
             </> : <p className="klein pst-a4-weiter">Prüfmasse {hoco} · Fortsetzung</p>}
             <table className="pst-a4-tabelle">
-              <thead><tr><th className="pst-c-nr">Nr.</th><th>Soll</th><th className="pst-c-tol">Toleranz</th><th>Prüfmittel</th><th className="pst-c-ll" title="Kommt auf die Langläufer-Liste">LL</th>{schreibt ? <th className="pst-c-kn" /> : null}</tr></thead>
+              <thead><tr>{schreibt ? <th className="pst-c-kopf" title="Zeilen markieren: antippen, ziehen, Shift oder Strg" /> : null}<th className="pst-c-nr">Nr.</th><th>Soll</th><th className="pst-c-tol">Toleranz</th><th>Prüfmittel</th><th className="pst-c-ll" title="Kommt auf die Langläufer-Liste">LL</th>{schreibt ? <th className="pst-c-kn" /> : null}</tr></thead>
               <tbody>
                 {seite.map(({ z, i }) => "abschnitt" in z ? (
-                  <tr key={z.id} className="pst-abschnitt" data-pstzeile={z.id}>
+                  <tr key={z.id} className={"pst-abschnitt" + (mark.has(z.id) ? " pst-markiert" : "")} data-pstzeile={z.id}>
+                    {schreibt ? <td className="pst-c-kopf" data-pstkopf={z.id} onPointerDown={kopfDown(z.id)}>{i + 1}</td> : null}
                     <td colSpan={5}><input data-pstfokus={z.id} value={z.abschnitt} placeholder="Name des Abschnitts, z.B. Aussendurchmesser" disabled={!schreibt}
                       onChange={(e) => zeileSetzen(z.id, "abschnitt", e.target.value)} onKeyDown={enter(i)} /></td>
                     {schreibt ? <td className="pst-c-kn"><Knoepfe i={i} schieben={schieben} weg={() => zeileWeg(z.id)} /></td> : null}
                   </tr>
                 ) : (
-                  <tr key={z.id} data-pstzeile={z.id}>
+                  <tr key={z.id} className={mark.has(z.id) ? "pst-markiert" : ""} data-pstzeile={z.id}>
+                    {schreibt ? <td className="pst-c-kopf" data-pstkopf={z.id} onPointerDown={kopfDown(z.id)}>{i + 1}</td> : null}
                     <td className="pst-c-nr"><input value={z.nr || ""} disabled={!schreibt} onChange={(e) => zeileSetzen(z.id, "nr", e.target.value)} /></td>
                     <td><input data-pstfokus={z.id} className="pst-soll" value={z.soll || ""} disabled={!schreibt} placeholder="z.B. Ø 6.00 ±0.02" onChange={(e) => zeileSetzen(z.id, "soll", e.target.value)} /></td>
                     <td className="pst-c-tol">{(() => { const t = toleranz(z.soll); return t ? toleranzText(t) : "—"; })()}</td>

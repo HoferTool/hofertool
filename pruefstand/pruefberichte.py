@@ -29,7 +29,7 @@ with sync_playwright() as p:
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
     pg.evaluate("""s => { TEST.daten.pruef_stamm = [s]; TEST.daten.pruefbericht_dateien = []; TEST.daten.pruefprotokolle = [];
         const m = (TEST.daten.machines || [])[0];
-        TEST.daten.jobs.push({ id: 'jpb1', job_number: '99999-0001', fa_nr: '2026000111', plan_status: 'laeuft', planned_from: '2026-11-20', target_quantity: 800, machine_id: m && m.id },
+        TEST.daten.jobs.push({ id: 'jpb1', job_number: '99999-0001', fa_nr: '2026000111', plan_status: 'laeuft', planned_from: '2026-11-20', target_quantity: 800, machine_id: m && m.id, material_bez: 'X10CrNiS18-9 rd 011 mm h8', material_dm: 11 },
                              { id: 'jpb2', job_number: '99999-0001', fa_nr: '2025000999', plan_status: 'fertig', planned_from: '2025-05-01', target_quantity: 500 }); }""", STAMM)
     pg.evaluate("location.hash='#/qs'"); pg.wait_for_timeout(800)
     pg.evaluate("() => { const b = [...document.querySelectorAll('[data-qs=pruefberichte], .nav a, .nav button, .reiter button, .reiter a')].find(x => x.offsetParent && /Prüfberichte/.test(x.textContent)); b && b.click(); }")
@@ -51,6 +51,7 @@ with sync_playwright() as p:
     pg.fill("[data-pbist='n1-0']", "5.52"); pg.fill("[data-pbist='n1-1']", "5.60"); pg.mouse.move(5, 5); pg.wait_for_timeout(300)
     k0 = pg.get_attribute("[data-pbist='n1-0']", "class"); k1 = pg.get_attribute("[data-pbist='n1-1']", "class")
     pruefe("pb-ist--gut" in k0 and "pb-ist--schlecht" in k1, "gut/schlecht")
+    pruefe("rd 011" in pg.inner_text("#pb-blatt"), "Material mit Durchmesser im Kopf")
     pg.wait_for_timeout(1300)
     pp = pg.evaluate("() => TEST.daten.pruefprotokolle")
     pruefe(len(pp) == 1 and pp[0].get("fa_nr") == "2026000111" and pp[0].get("job_id") == "jpb1", "Erstteil mit FA und Auftrag")
@@ -113,10 +114,22 @@ with sync_playwright() as p:
     pruefe(pg.locator(".pst-abschnitt").count() >= 1, "Abschnitt angelegt")
     pg.locator("[data-pstabschnittdavor]").first.click(); pg.wait_for_timeout(200)
     pruefe(pg.locator(".pst-abschnitt").count() >= 2, "Abschnitt davor eingefügt")
+    # Zeilen markieren wie Excel: Kopf antippen, Shift bis zur vierten, leeren, dann löschen
+    k = pg.locator("[data-pstkopf]")
+    k.nth(1).click(); k.nth(3).click(modifiers=["Shift"]); pg.wait_for_timeout(150)
+    pruefe(pg.locator("tr.pst-markiert").count() == 3, "3 Zeilen markiert: %d" % pg.locator("tr.pst-markiert").count())
+    pg.click("#pst-mark-leeren"); pg.wait_for_timeout(150)
+    leer = pg.evaluate("() => [...document.querySelectorAll('tr.pst-markiert input:not([type=checkbox])')].every(i => !i.value)")
+    pruefe(leer, "markierte Zeilen geleert")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(150)
+    pruefe(pg.locator("tr.pst-markiert").count() == 0 and pg.locator("[data-pstblatt]").count() == 1, "Escape hebt Markierung auf, Blatt bleibt")
+    k.nth(1).click(); k.nth(2).click(modifiers=["Shift"]); pg.click("#pst-mark-weg"); pg.wait_for_timeout(200)
+    pg.locator(".dialog-huelle button:has-text('Löschen')").click(); pg.wait_for_timeout(200)
+    pruefe(pg.locator("[data-pstblatt] tbody tr").count() == 23, "2 Zeilen gelöscht: %d" % pg.locator("[data-pstblatt] tbody tr").count())
     pg.screenshot(path="/tmp/pst_blatt.png")
     pg.click("#pst-blatt-speichern"); pg.wait_for_timeout(1000)
     st = pg.evaluate("() => TEST.daten.pruef_stamm[0]")
-    pruefe(len(st.get("zeilen") or []) == 25, "gespeichert: %d Zeilen" % len(st.get("zeilen") or []))
+    pruefe(len(st.get("zeilen") or []) == 23, "gespeichert: %d Zeilen" % len(st.get("zeilen") or []))
     pg.click("#pst-blatt-zu"); pg.wait_for_timeout(400)
     pruefe(pg.locator("[data-pstblatt]").count() == 0, "Blatt zu")
     pruefe(not pf, "keine Seitenfehler: %s" % pf)

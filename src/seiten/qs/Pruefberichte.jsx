@@ -105,6 +105,16 @@ export function anstehend(jobs, stamm, protokolle) {
   return aus;
 }
 
+// Material samt Durchmesser aus dem Auftrag (seit 1.786.0, Wunsch Patrick
+// 24. November 2026: „bei Material soll auch Durchmesser stehen, ist wichtig“)
+function materialText(j) {
+  const bez = String((j && j.material_bez) || "").trim();
+  const dm = j && j.material_dm;
+  if (!bez) return dm ? "Ø " + dm + " mm" : "";
+  if (!dm || /\b(rd|sw|vk|ø|rohr)\b|\d+\s*x\s*\d/i.test(bez)) return bez;
+  return bez + " · Ø " + dm + " mm";
+}
+
 // ---------- Neues Protokoll ----------
 // Masse und Vorgaben kommen aus den Stammdaten der HOCO Nr.
 async function protokollAnlegen(hoco, art, j, protokolle) {
@@ -116,6 +126,8 @@ async function protokollAnlegen(hoco, art, j, protokolle) {
   }
   const kopf = { art, zeilen: st.zeilen, vorlage: st.kopf || {}, menge: j.target_quantity || "" };
   if (j.maschine) kopf.maschine = j.maschine;
+  const mat = materialText(j);
+  if (mat) kopf.material = mat;
   if (art === "aql") { kopf.los = j.target_quantity || ""; kopf.aql = st.aql ?? 1.0; kopf.niveau = st.niveau || "II"; }
   if (art === "ll") {
     // Masse mit Häkchen LL in den Stammdaten, sonst die Wahl vom letzten LL
@@ -150,7 +162,7 @@ export default function Pruefberichte() {
     const [protokolle, stamm, jobsR] = await Promise.all([
       protokolleLaden(),
       stammLaden().catch((f) => { if (fehltTabelle(f)) return []; throw f; }),
-      alt.db.from("jobs").select("id, fa_nr, job_number, plan_status, target_quantity, machine_id, planned_from").in("plan_status", ["ruesten", "laeuft"]),
+      alt.db.from("jobs").select("id, fa_nr, job_number, plan_status, target_quantity, machine_id, planned_from, material_bez, material_dm").in("plan_status", ["ruesten", "laeuft"]),
     ]);
     const jobs = jobsR.data || [];
     const ids = [...new Set(jobs.map((j) => j.machine_id).filter(Boolean))];
@@ -275,7 +287,7 @@ function Uebersicht({ daten, neu, oeffnen }) {
 }
 
 function KopfRaster({ kopf, w, hoco }) {
-  const felder = [["HOCO Nr.", hoco], ["Artikel", kopf.bezeichnung], ["Zeichnung", kopf.zeichnung], ["Index", kopf.index],
+  const felder = [["HOCO Nr.", hoco], ["Artikel", kopf.bezeichnung], ["Zeichnung", kopf.zeichnung], ["Index", kopf.index], ["Material", w.kopf.material],
     ["Bestellte Menge", w.kopf.menge ? alt.zahlText(Number(w.kopf.menge) || 0) : ""], ["Allg. Toleranz", kopf.alltol]];
   return (
     <div className="pb-kopf">
@@ -296,6 +308,16 @@ function Protokoll({ p, zurueck }) {
   const timer = useRef(null);
   const letzt = useRef(w);
   letzt.current = w;
+  // Ältere Protokolle ohne Material holen es einmal aus dem Auftrag
+  useEffect(() => {
+    if (w.kopf.material || !w.job_id) return;
+    let weg = false;
+    alt.db.from("jobs").select("material_bez, material_dm").eq("id", w.job_id).maybeSingle().then(({ data }) => {
+      const mat = materialText(data);
+      if (!weg && mat) setW((x) => ({ ...x, kopf: { ...x.kopf, material: mat } }));
+    }, () => {});
+    return () => { weg = true; };
+  }, [w.job_id]);
 
   const speichern = async (x) => {
     setStand("Speichert …");
@@ -362,18 +384,6 @@ function Protokoll({ p, zurueck }) {
       alt.betrachter(URL.createObjectURL(blob), dateiName(), true);
     } catch (f) { setStand(""); alt.meldung("Drucken ging nicht: " + fehlerText(f), "fehler"); }
   };
-  const herunterladen = async () => {
-    try {
-      setStand("PDF wird erstellt …");
-      const blob = await pdfMachen();
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = dateiName();
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 60000);
-      setStand("PDF heruntergeladen");
-    } catch (f) { setStand(""); alt.meldung("PDF ging nicht: " + fehlerText(f), "fehler"); }
-  };
 
   const e = auswerten(w);
   // Erstteil: zuerst die Checkliste quittieren, dann das Protokoll (seit 1.785.0).
@@ -389,7 +399,6 @@ function Protokoll({ p, zurueck }) {
         <span className="pst-platz" />
         <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(hoco)}>Stammdaten {hoco}</button>
         <button type="button" className="knopf knopf--klein" id="pb-drucken" onClick={drucken}>🖨 Drucken</button>
-        <button type="button" className="knopf knopf--klein" onClick={herunterladen}>⬇ PDF</button>
         {darf() ? <button type="button" className="knopf knopf--klein knopf--gefahr-leise" id="pb-loeschen" onClick={loeschen}>Löschen</button> : null}
       </div>
 
@@ -408,11 +417,6 @@ function Protokoll({ p, zurueck }) {
           : <TeileTabelle zeilen={zeilen} w={w} schreibt={schreibt} aendern={aendern} />}
 
         <div className="pb-ende">
-          <div className="pb-ergebnis">
-            <span className="pb-gruen">{e.gut} i.O.</span>
-            {e.schlecht ? <span className="pb-rot">{e.schlecht} n.i.O.</span> : null}
-            {e.offen && art !== "ll" ? <span>{e.offen} leer</span> : null}
-          </div>
           <div className="pb-entscheid">
             <b>Prüf-Entscheid</b>
             {ENTSCHEIDE.map(([id, n]) => (
@@ -688,20 +692,18 @@ function protokollHtml(w, hoco) {
     }).join("");
   }
   const plan = art === "aql" ? aqlPlan(k.los, k.aql, k.niveau) : null;
-  const felder = [["HOCO Nr.", hoco], ["FA Nr.", w.fa_nr], ["Artikel", v.bezeichnung], ["Zeichnung", v.zeichnung], ["Index", v.index],
+  const felder = [["HOCO Nr.", hoco], ["FA Nr.", w.fa_nr], ["Artikel", v.bezeichnung], ["Zeichnung", v.zeichnung], ["Index", v.index], ["Material", k.material],
     ["Allg. Toleranz", v.alltol], ["Automat", v.typ], ["Maschine", k.maschine || v.maschine]]
     .concat(plan ? [["Losgrösse", alt.zahlText(Number(k.los))], ["AQL / Niveau", k.aql + " / " + (k.niveau || "II")], ["Stichprobe", plan.n + " Stk, Ac " + plan.ac + " / Re " + plan.re]] : []);
-  const e = auswerten(w);
   return "<style>"
-    + ".pbp{font-family:Arial,sans-serif;color:#111;font-size:9pt}"
-    + ".pbp h1{font-size:15pt;margin:0 0 6px;color:#003884}.pbp .pbp-kf{display:grid;grid-template-columns:repeat(4,1fr);gap:3px 12px;margin-bottom:8px}.pbp .pbp-kf small{color:#666;display:block;font-size:7pt}"
-    + ".pbp table{width:100%;border-collapse:collapse}.pbp th,.pbp td{border:1px solid #999;padding:2px 4px;text-align:left;font-size:8pt}.pbp th{background:#e8eef6}.pbp tr.ab td{background:#f3f3f3;font-weight:700}"
+    + ".pbp{font-family:Arial,sans-serif;color:#111;font-size:10pt}"
+    + ".pbp h1{font-size:15pt;margin:0 0 6px;color:#003884}.pbp .pbp-kf{display:grid;grid-template-columns:repeat(4,1fr);gap:3px 12px;margin-bottom:8px}.pbp .pbp-kf small{color:#666;display:block;font-size:8pt}"
+    + ".pbp table{width:100%;border-collapse:collapse}.pbp th,.pbp td{border:1px solid #999;padding:2px 4px;text-align:left;font-size:9pt}.pbp th{background:#e8eef6}.pbp tr.ab td{background:#f3f3f3;font-weight:700}"
     + ".pbp .pbp-fuss{display:flex;gap:24px;margin-top:10px}.pbp .pbp-fuss div{flex:1}</style>"
     + briefkopf() + "<div class='inhalt pbp'>"
     + "<h1>Prüfprotokoll · " + h(artVon(art).name) + "</h1>"
     + "<div class='pbp-kf'>" + felder.filter(([, x]) => x).map(([n, x]) => "<div><small>" + h(n) + "</small>" + h(x) + "</div>").join("") + "</div>"
     + "<table><thead><tr><th>Nr.</th><th>Soll</th>" + kopfZ + "<th>Prüfmittel</th></tr></thead><tbody>" + koerper + "</tbody></table>"
-    + "<div class='pbp-fuss'><div><b>Ergebnis:</b> " + e.gut + " i.O." + (e.schlecht ? ", " + e.schlecht + " n.i.O." : "") + "</div>"
-    + "<div><b>Prüf-Entscheid:</b> " + h(entscheidText(w.entscheid)) + "</div><div><b>Datum:</b> " + h(datumText(w.datum)) + "</div><div><b>Visum:</b> " + h(w.visum) + "</div></div>"
+    + "<div class='pbp-fuss'><div><b>Prüf-Entscheid:</b> " + h(entscheidText(w.entscheid)) + "</div><div><b>Datum:</b> " + h(datumText(w.datum)) + "</div><div><b>Visum:</b> " + h(w.visum) + "</div></div>"
     + (w.bemerkung ? "<p><b>Bemerkung:</b> " + h(w.bemerkung) + "</p>" : "") + "</div>";
 }

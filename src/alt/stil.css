@@ -16677,13 +16677,13 @@ body.dunkel .pb-fagruppe__titel small { color: #aab; }
 .pst-platz { flex: 1; }
 .pb-blattseite { display: flex; flex-direction: column; align-items: center; }
 .pb-blattseite > .pb-werkzeug { width: 100%; max-width: 210mm; display: flex; }
-.pb-blatt { box-sizing: border-box; width: 100%; max-width: 210mm; min-height: 297mm; background: #fff; color: #1a2530; padding: 0 12mm 14mm; box-shadow: 0 4px 24px rgba(0, 25, 60, .18); border-radius: 2px; display: flex; flex-direction: column; gap: 10px; font-size: 12px; }
+.pb-blatt { box-sizing: border-box; width: 100%; max-width: 210mm; min-height: 297mm; background: #fff; color: #1a2530; padding: 0 12mm 14mm; box-shadow: 0 4px 24px rgba(0, 25, 60, .18); border-radius: 2px; display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
 .pb-brief { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px; background: #003884; color: #fff; margin: 0 -12mm; padding: 10px 12mm; min-height: 26mm; font-size: 11px; line-height: 1.4; }
 .pb-brief img { height: 16mm; max-width: 50mm; object-fit: contain; }
 .pb-brief__siegel { height: 18mm !important; }
 .pb-blatt__titel { margin: 6px 0 0; font-size: 19px; color: #003884; }
-.pb-blatt .pb-tabelle { font-size: 11px; }
-.pb-blatt .pb-ist { width: 62px; font-size: 12px; padding: 3px 4px; }
+.pb-blatt .pb-tabelle { font-size: 12px; }
+.pb-blatt .pb-ist { width: 62px; font-size: 13px; padding: 3px 4px; }
 .pb-visum td { font-weight: 600; background: #f4f7fa; }
 body.dunkel .pb-blatt, body.dunkel .pb-blatt * { color: #1a2530 !important; -webkit-text-fill-color: #1a2530; }
 body.dunkel .pb-blatt .pb-brief, body.dunkel .pb-blatt .pb-brief * { color: #fff !important; -webkit-text-fill-color: #fff; }
@@ -16808,3 +16808,17 @@ body.dunkel .pb-blatt .pb-pm { color: #1a2530 !important; -webkit-text-fill-colo
 .pb-check__liste small { opacity: .7; }
 .pb-check__liste .pb-check--an { background: rgba(30, 150, 80, .1); border-color: rgba(30, 150, 80, .5); }
 .pb-check__fuss { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; border-top: 1px solid var(--linie, #d6dee8); padding-top: 12px; }
+
+/* 1.786.0: Titel des Prüfprotokolls nahe unter dem Briefkopf (Patrick 24. November 2026: „Lücke kleiner, so gut wie möglich nach oben“) */
+.pb-blatt .pb-briefkopf { margin-bottom: 0; }
+.pb-blatt .pb-briefkopf .balken { margin-bottom: 0 !important; }
+.pb-blatt .pb-blatt__titel { margin-top: 2px; }
+
+/* 1.786.0: Zeilen im Masse-Blatt markieren wie in Excel */
+.pst-a4-tabelle .pst-c-kopf { width: 26px; text-align: center; background: #eef2f6; color: #5a6b7c !important; font-size: 11px !important; cursor: pointer; user-select: none; touch-action: none; }
+.pst-a4-tabelle th.pst-c-kopf { background: #dfe6ee; }
+.pst-a4-tabelle tr.pst-markiert td { background: #d6e6fb !important; }
+.pst-a4-tabelle tr.pst-markiert td.pst-c-kopf { background: #0a5bd8 !important; color: #fff !important; -webkit-text-fill-color: #fff; }
+.pst-markleiste { display: inline-flex; gap: 6px; align-items: center; padding: 3px 8px; border-radius: 8px; background: #e6effb; }
+/* 1.786.0: Rückfragen über dem Masse-Blatt (z-index 900) zeigen */
+[data-pstblatt] ~ .dialog-huelle { z-index: 950; }

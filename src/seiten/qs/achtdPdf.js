@@ -14,9 +14,18 @@ const BREITE = 210, HOEHE = 297, UNTEN = 14;
 // Seit 1.781.0 auch auf den Folgeseiten das Briefpapier oben, der Inhalt darunter
 const OBEN = BRIEF_HOEHE + 8;
 
+// Seit 1.786.0: Stellen unter Tabellenzeilen merken sich, damit die
+// nächste Seite die Linie über der Zeile nochmals zeigt (sonst begann
+// Seite 2 mit offenen Zellen ohne obere Linie).
+let zeilenStellen = new Set();
 function trennstellen(blatt) {
   const oben = blatt.getBoundingClientRect().top;
   const s = new Set();
+  zeilenStellen = new Set();
+  blatt.querySelectorAll("tr").forEach((x) => {
+    const q = x.getBoundingClientRect();
+    if (q.height) zeilenStellen.add(Math.ceil(q.bottom - oben) + 1);
+  });
   blatt.querySelectorAll("p, li, ul, tr, .pbp-kf, .pbp-fuss, .zwei, .kacheln, .ablauf, .titel, .fakten > div, .karte, .wirk, .dbilder figure, .unterschrift").forEach((x) => {
     const q = x.getBoundingClientRect();
     if (q.height) s.add(Math.ceil(q.bottom - oben) + 1);
@@ -59,7 +68,7 @@ export async function blattPdf(html, fuss) {
       const passend = stellen.filter((s) => s > ab + seite * 0.4 && s <= grenze);
       const ende = passend.length ? passend[passend.length - 1] : Math.floor(grenze);
       enden.push([ab, ende]);
-      ab = ende;
+      ab = zeilenStellen.has(ende) ? ende - 3 : ende;
     }
     const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
     for (let n = 0; n < enden.length; n++) {
