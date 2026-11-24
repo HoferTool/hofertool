@@ -191,7 +191,9 @@ export function bahnLesen(zeilen, v, { mitG50 = false, start = null } = {}) {
     if (/^M5[01](?!\d)/.test(s) || /[XYZUW]3\s*=/.test(s)) continue;
     if (/G28/.test(s)) { if (/[HC]/.test(s.replace(/G28/, "")) && !polar) c = 0; continue; }
     if (/G80/.test(s)) { zyk = null; continue; }
-    if (/^T\d/.test(s) || /G4(?!\d)|G04|G23|G22/.test(s)) continue;
+    // G10 (Korrektur setzen, etwa G10P03X0.15) fährt nicht, seit 1.757.2
+    // (vorher fuhr G10P03X0. auf X0 und stach die Kugel bis zur Mitte ein)
+    if (/^T\d/.test(s) || /G4(?!\d)|G04|G23|G22|G10(?!\d)/.test(s)) continue;
     const g = [...s.matchAll(/G(\d+)/g)].map((m) => Number(m[1]));
     for (const n of g) if (n <= 3) { modal = n; zyk = null; }
     const neuZyk = g.find((n) => ZYKLUS_Z.includes(n) || ZYKLUS_X.includes(n));
@@ -539,6 +541,7 @@ export function simAufbauen(wRoh) {
   // SW-20 (1.669.0): drei Kanäle, Kanal 3 arbeitet an der Hauptspindel
   const sw = kanalZahl() > 2;
   const schritte = [];
+  const vk = { 1: { ...v }, 2: { ...v }, 3: { ...v } };
   let cZ = -Infinity, hatGew = false;
   // Seit 1.738.0 (Patrick 23. November 2026: „die Bearbeitung in Kanal 3
   // soll auch ein eigenes Werkzeug für die Simulation haben“): eine
@@ -557,6 +560,11 @@ export function simAufbauen(wRoh) {
     const kanal = art === "k2" || art === "k2a" || art === "k2b" || gegen ? 2 : 1;
     const wzOk = wzVollstaendig(bRoh);
     const wa = wzOk ? wzArt(bRoh) : null;
+    // Seit 1.757.2 (Patrick 24. November 2026, 10789-0034): Variablen wie
+    // #100=6.485 gelten im ganzen Kanal weiter wie an der Fanuc, nicht nur
+    // in der Bearbeitung, in der sie stehen (vorher war R#100 in der
+    // nächsten Bearbeitung 0 und die Kugel wurde eine Gerade)
+    const vv = vk[k3 ? 3 : kanal];
     const s = { i, id: b.id, unter: !!fest, block: bRoh, kanal, pfad: k3 ? 3 : kanal, titel, platz: Number(b.platz) || 0, art, gegen, wz: wzOk ? bRoh.wz : null, wzArt: wa, punkte: [], modus: null, status: "" };
     let zeilen = fest || (k3 ? blockZeilen3(b, w, marken[b.id]) : kanal === 2 ? blockZeilen2(b, marken[b.id], w) : blockZeilen(b, w, marken[b.id]));
     // Seit 1.618.1: genau so, wie es im Programmfenster steht (mit Handänderungen)
@@ -571,7 +579,7 @@ export function simAufbauen(wRoh) {
       // Seit 1.728.0: Frontbohrapparat angetrieben Kanal 1 (T500 / T600),
       // gebaut wie der in Kanal 3: Teil 0.5 mm vor „Anfahren Z“, tiefer =
       // grösseres Z, C dreht das Teil, Träger 1 nicht gespiegelt
-      const roh = bahnLesen(zeilen, { ...v });
+      const roh = bahnLesen(zeilen, vv);
       s.zeilen = zeilen;
       const erst = roh.find((p) => p.z != null);
       const an = num(b.anZ) ?? (erst ? erst.z : 0);
@@ -587,7 +595,7 @@ export function simAufbauen(wRoh) {
       // SW-20 Frontbohrapparat Kanal 1 (G50Z wie Patricks T600): Z nach
       // G50 ist die Lage im Teil, die Spitze steht Vorposition − Nullpunkt
       // vor der Drehebene
-      const roh = bahnLesen(zeilen, { ...v }, { mitG50: true });
+      const roh = bahnLesen(zeilen, vv, { mitG50: true });
       s.zeilen = zeilen;
       s.punkte = roh.map((p) => ({ z: p.z, r: Math.abs(p.x || 0) / 2, vor: p.vor, nr: p.nr, mx: (p.x || 0) / 2, my: p.y || 0 }));
       const dz = vorG50(zeilen);
@@ -608,7 +616,7 @@ export function simAufbauen(wRoh) {
         zeilen = neu;
       }
       const start = art === "quer" && gegen ? { x: num(b.X) || 0, y: num(b.Y) || 0 } : art === "quer" ? { x: 0 } : art === "k2a" ? { x: 0 } : null;
-      const roh = bahnLesen(zeilen, { ...v }, { start });
+      const roh = bahnLesen(zeilen, vv, { start });
       s.zeilen = zeilen;
       s.achse = art === "seite" ? "quer" : "laengs";
       // Lage in Z: Querwerkzeuge auf der programmierten Lage im Teil, die
@@ -649,7 +657,7 @@ export function simAufbauen(wRoh) {
       // bohren direkt mit der Gegenspindel) rechnet wie ein Frontwerkzeug
       // Seit 1.669.0 zählt nur G50 mit X oder Z (SW-20: G50S4000 ist die Drehzahlbegrenzung)
       const ohneG50 = art === "k2" && !zeilen.some((z) => /G50/i.test(z) && /[XZ]/i.test(String(z).replace(/\(.*?\)/g, "").replace(/G50/i, "")));
-      const roh = bahnLesen(zeilen, { ...v }, { mitG50: art === "k2" && !ohneG50 });
+      const roh = bahnLesen(zeilen, vv, { mitG50: art === "k2" && !ohneG50 });
       s.zeilen = zeilen;
       // Bohr- und Fräswerkzeuge an Front: Teil 0.5 mm vor „Anfahren Z“,
       // tiefer ins Teil = weg von „Zurück Z“

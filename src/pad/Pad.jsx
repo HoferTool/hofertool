@@ -150,7 +150,7 @@ async function typenLaden(p) {
 }
 
 // Parks und Maschinen fürs Pad, ohne den Park „Extern“ für alle ausser
-// Externen und Admins (seit 1.520.0, padParkVerborgen in app.js)
+// Externen (seit 1.757.1, vorher auch Admins; padParkVerborgen in app.js)
 async function padParksUndMaschinen() {
   const [parks, maschinen] = await Promise.all([alt.ladeParks(false), alt.ladeAlleMaschinen()]);
   return [parks.filter((k) => !alt.padParkVerborgen(k.id)),
