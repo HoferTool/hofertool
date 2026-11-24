@@ -1,6 +1,6 @@
-# Park „Extern“ im Pad Mode nur für Externe und Admins (1.520.0,
-# Wunsch Patrick 13. November 2026): bei Admin sichtbar, bei Mechaniker
-# weder bei den Parks noch im QS Check.
+# Park „Extern“ im Pad Mode nur für Externe (seit 1.757.0, Wunsch
+# Patrick 24. November 2026; 1.520.0 bis 1.756.x auch Admins): bei Admin
+# und Mechaniker weder bei den Parks noch im QS Check.
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -19,7 +19,7 @@ def koerper(rolle):
         zusatz + "\nif (typeof window !== \"undefined\") window.TEST = TEST;")
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox","--disable-dev-shm-usage"])
-    for rolle, soll in [("admin", True), ("mechaniker", False)]:
+    for rolle, soll in [("admin", False), ("mechaniker", False)]:
         pg = br.new_context(viewport={"width":1400,"height":950}).new_page()
         pg.on("pageerror", lambda e: fehler.append("SEITENFEHLER: " + str(e)[:160]))
         k = koerper(rolle)
