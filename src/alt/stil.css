@@ -16873,3 +16873,15 @@ body.dunkel .eba-pf-geozahl { background: #2b333d; color: #e6edf3 !important; -w
 @media (max-width: 1000px) {
   :is(#pad, .pl-seite) .pl-links, :is(#pad, .pl-seite) .pl-karte { min-height: auto; flex: none; }
 }
+/* 1.790.0: Stimmen im Fenster „Umfrage bearbeiten“ */
+.umf-st { margin-top: 6px; border-top: 1px solid var(--linie); padding-top: 4px; }
+.umf-st__liste { display: grid; gap: 4px; margin-bottom: 8px; }
+.umf-st__zeile { display: grid; grid-template-columns: minmax(80px, auto) 1fr auto; gap: 10px; align-items: center;
+  padding: 6px 10px; border: 1px solid var(--linie); border-radius: 8px; }
+.umf-st__zeile span { overflow-wrap: anywhere; }
+.umf-st__neu { display: grid; gap: 8px; padding: 10px; border: 1px dashed var(--linie-stark); border-radius: 8px; }
+.umf-st__neu input[type="text"] { padding: 8px 10px; font: inherit; border: 1px solid var(--linie-stark); border-radius: 6px; }
+.umf-st__wahl { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.umf-st__wahl.fehlt { outline: 2px solid var(--rot, #c62828); outline-offset: 3px; border-radius: 4px; }
+.umf-st__wahl label { display: flex; gap: 6px; align-items: center; }
+.umf-st__neu .knopf { justify-self: start; }

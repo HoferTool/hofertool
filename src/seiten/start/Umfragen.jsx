@@ -487,6 +487,7 @@ function Bearbeiten({ u, zu, neu }) {
       </div>
       <button type="button" className="am-seite-dazu" id="umf-v-dazu"
         onClick={() => setVorschlaege((l) => [...l, neuerVorschlag()])}>+ Vorschlag</button>
+      {u && <StimmenBearbeiten u={u} neu={neu} />}
       {laedt > 0 && <p className="hinweis">Bild wird hochgeladen …</p>}
       <input ref={wahl} type="file" accept="image/*" hidden id="umf-bild-datei"
         onChange={(e) => { bildDazu(ziel.current, e.target.files); e.target.value = ""; }} />
@@ -495,6 +496,101 @@ function Bearbeiten({ u, zu, neu }) {
         <button type="button" className="knopf knopf--haupt" id="umf-speichern" disabled={speichert || laedt > 0} onClick={speichern}>
           {u ? "Speichern" : "Umfrage starten"}</button>
       </div>
+    </div>
+  );
+}
+
+// Seit 1.790.0 (Wunsch Patrick 24. November 2026: „wenn man auf Bearbeiten
+// drückt, soll man die Stimmen bearbeiten können, hinzufügen oder löschen“):
+// wirkt sofort, nicht erst mit Speichern, auch bei geschlossenen Umfragen.
+// Nur gespeicherte Vorschläge sind wählbar. Mit Rückgängig.
+function StimmenBearbeiten({ u, neu }) {
+  const [stimmen, setStimmen] = useState(() => u.stimmen.map((s) => ({ ...s, umfrage_id: u.id })));
+  const [name, setName] = useState("");
+  const [wahl, setWahl] = useState([]);
+  const [fehler, setFehler] = useState("");
+  const [laeuft, setLaeuft] = useState(false);
+  const vorschlaege = u.vorschlaege;
+  const textVon = (id) => (vorschlaege.find((v) => v.id === id) || {}).text || "?";
+  // Je Name eine Zeile, in der Reihenfolge der Vorschläge
+  const leute = [];
+  for (const s of stimmen) {
+    let p = leute.find((x) => x.name.toLowerCase() === s.name.toLowerCase());
+    if (!p) { p = { name: s.name, zeilen: [] }; leute.push(p); }
+    p.zeilen.push(s);
+  }
+  leute.sort((a, b) => a.name.localeCompare(b.name, "de"));
+
+  const weg = async (p) => {
+    setLaeuft(true);
+    const ids = p.zeilen.map((z) => z.id);
+    const { error } = await alt.db.from("umfrage_stimmen").delete().in("id", ids);
+    setLaeuft(false);
+    if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
+    alt.merkeSchritt("Stimme löschen", [alt.rueckRein("umfrage_stimmen", p.zeilen)]);
+    setStimmen((l) => l.filter((x) => !ids.includes(x.id)));
+    alt.meldung("Stimme von " + p.name + " gelöscht.");
+    neu();
+  };
+
+  const dazu = async () => {
+    const n = name.trim().replace(/\s+/g, " ");
+    if (!n) { setFehler("name"); document.getElementById("umf-st-name").focus(); return; }
+    if (!wahl.length) { setFehler("wahl"); return; }
+    setLaeuft(true);
+    // Derselbe Name nochmals ersetzt seine Stimme, wie beim Abstimmen
+    const alte = stimmen.filter((x) => x.name.toLowerCase() === n.toLowerCase());
+    if (alte.length) {
+      const { error } = await alt.db.from("umfrage_stimmen").delete().in("id", alte.map((x) => x.id));
+      if (error) { setLaeuft(false); alt.meldung(alt.fehlertext(error), "fehler"); return; }
+    }
+    const zeilen = wahl.map((v) => ({ umfrage_id: u.id, vorschlag_id: v, name: n }));
+    const { data, error } = await alt.db.from("umfrage_stimmen").insert(zeilen).select("id, umfrage_id, vorschlag_id, name");
+    setLaeuft(false);
+    if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
+    const neue = (data && data.length ? data : zeilen.map((z, i) => ({ ...z, id: "neu" + Date.now() + i })));
+    const schritte = [alt.rueckWeg("umfrage_stimmen", { umfrage_id: u.id, name: n })];
+    if (alte.length) schritte.push(alt.rueckRein("umfrage_stimmen", alte));
+    alt.merkeSchritt("Stimme eintragen", schritte);
+    setStimmen((l) => [...l.filter((x) => !alte.includes(x)), ...neue]);
+    setName(""); setWahl([]); setFehler("");
+    alt.meldung("Stimme von " + n + " eingetragen.", "gut");
+    neu();
+  };
+
+  const umschalten = (id) => {
+    setFehler("");
+    setWahl((l) => (l.includes(id) ? l.filter((x) => x !== id) : u.mehrfach ? [...l, id] : [id]));
+  };
+
+  return (
+    <div className="umf-st" id="umf-stimmen">
+      <h3 className="umf-b__titel">Stimmen ({leute.length} {leute.length === 1 ? "Person" : "Personen"})</h3>
+      <p className="hinweis">Änderungen hier gelten sofort.</p>
+      {leute.length === 0 && <p className="hinweis">Noch keine Stimmen.</p>}
+      <div className="umf-st__liste">
+        {leute.map((p) => (
+          <div key={p.name} className="umf-st__zeile" data-umfst={p.name}>
+            <b>{p.name}</b>
+            <span>{p.zeilen.map((z) => textVon(z.vorschlag_id)).join(", ")}</span>
+            <button type="button" className="linkknopf linkknopf--gefahr" title="Stimme löschen" disabled={laeuft}
+              data-umfstweg={p.name} onClick={() => weg(p)}>✕</button>
+          </div>))}
+      </div>
+      {vorschlaege.length > 0 && (
+        <div className="umf-st__neu">
+          <input type="text" id="umf-st-name" value={name} placeholder="Name" aria-label="Name"
+            className={fehler === "name" ? "fehlt" : ""}
+            onChange={(e) => { setName(e.target.value); setFehler(""); }}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); dazu(); } }} />
+          <div className={"umf-st__wahl" + (fehler === "wahl" ? " fehlt" : "")}>
+            {vorschlaege.map((v) => (
+              <label key={v.id}><input type={u.mehrfach ? "checkbox" : "radio"} name="umf-st-wahl"
+                data-umfstwahl={v.id} checked={wahl.includes(v.id)} onChange={() => umschalten(v.id)} /> {v.text}</label>))}
+          </div>
+          <button type="button" className="knopf knopf--klein" id="umf-st-dazu" disabled={laeuft} onClick={dazu}>+ Stimme</button>
+        </div>)}
+      {fehler === "wahl" && <p className="feld-fehler">Bitte einen Vorschlag wählen.</p>}
     </div>
   );
 }
