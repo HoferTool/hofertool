@@ -20,8 +20,16 @@ function audio() {
 }
 // Safari am iPad spielt nur, wenn der Ton bei einem Tipp freigegeben wurde. Die
 // Animation kommt erst nach der Antwort des Servers, darum schon beim Tipp freigeben.
+// Ein wirklich gespielter, leiser Ton beim Tipp gibt den Ton sicher frei. Der
+// Stummschalter am Handy gilt bewusst weiter (Patrick 24. November 2026).
 if (typeof document !== "undefined") {
-  const frei = () => { audio(); };
+  const frei = () => {
+    const c = audio(); if (!c) return;
+    try {
+      const q = c.createBufferSource(); q.buffer = c.createBuffer(1, 1, c.sampleRate);
+      q.connect(c.destination); q.start(0);
+    } catch { /* egal */ }
+  };
   document.addEventListener("pointerdown", frei, { capture: true, passive: true });
   document.addEventListener("keydown", frei, { capture: true });
 }
@@ -134,6 +142,13 @@ function fotoHolen(name, art) {
   return fotos.get(k);
 }
 
+// Wie lange die Einblendung nach dem Stempeln steht. Der Schreck für Flavia braucht
+// rund 3.6 s bis zum Schlussbild, das soll danach länger stehen (Wunsch Patrick
+// 24. November 2026: „lass den Schluss ein paar Sekunden länger eingeblendet“).
+export function stempelBildDauer(name, art) {
+  return name === "schreck" && art !== "gehen" ? 14000 : 9000;
+}
+
 export async function stempelBildHolen(personId) {
   if (!personId) return null;
   try {
@@ -152,11 +167,24 @@ export function StempelBild({ name, art }) {
   useEffect(() => {
     if (!name) return;
     let weg = false;
-    const datei = "./hofertime/stempel/" + name + "-" + a + ".webp?2";
-    // Höchstens kurz auf das Foto aus der Datenbank warten, sonst die Datei.
+    // Jedes Mal eine neue Adresse: dasselbe Bild mit derselben Adresse zeigt der
+    // Browser sonst schon fertig abgespielt, die Animation lief nur beim ersten Mal
+    // (Patrick 24. November 2026). Aus dem Foto wird darum je Einblendung eine
+    // eigene blob:-Adresse, an die Datei kommt eine Zahl.
+    const neu = Date.now();
+    const datei = "./hofertime/stempel/" + name + "-" + a + ".webp?2&n=" + neu;
+    let blob = null;
     const t = setTimeout(() => { if (!weg) setSrc((s) => s || datei); }, 1500);
-    fotoHolen(name, a).then((d) => { if (!weg) setSrc(d || datei); });
-    return () => { weg = true; clearTimeout(t); };
+    fotoHolen(name, a).then(async (d) => {
+      if (weg) return;
+      if (!d) { setSrc(datei); return; }
+      try {
+        blob = URL.createObjectURL(await (await fetch(d)).blob());
+        if (weg) { URL.revokeObjectURL(blob); return; }
+        setSrc(blob);
+      } catch { setSrc(d); }
+    });
+    return () => { weg = true; clearTimeout(t); if (blob) setTimeout(() => URL.revokeObjectURL(blob), 1000); };
   }, [name, a]);
   const ton = TOENE[name + "-" + a];
   // Die Animation läuft alle 3 s im Kreis: der Ton läuft im selben Takt mit, solange sie zu sehen ist

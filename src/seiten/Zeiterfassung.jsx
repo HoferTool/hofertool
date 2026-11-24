@@ -23,7 +23,7 @@ import { profilOeffnen } from "./zeit/Profil.jsx";
 import Panel from "./zeit/Panel.jsx";
 import { gesichtOeffnen } from "./zeit/GesichtEinlernen.jsx";
 import { wlanOeffnen } from "./zeit/WlanLink.jsx";
-import { stempelBildHolen, StempelBild } from "./zeit/stempelBild.jsx";
+import { stempelBildHolen, StempelBild, stempelBildDauer } from "./zeit/stempelBild.jsx";
 import Auswertung from "./zeit/Auswertung.jsx";
 import { ABWESENHEITEN } from "../daten/abwesenheit.js";
 
@@ -170,7 +170,7 @@ function AppKopf({ name, panel }) {
 // Nach dem Stempeln am Terminal: gross bestätigen, dann abmelden
 function Bestaetigung({ b }) {
   useEffect(() => {
-    const t = setTimeout(() => { if (alt.jetztAbmelden) alt.jetztAbmelden(); }, b.fehler && b.fehler.length ? 9000 : (b.bild ? 9000 : 4000));
+    const t = setTimeout(() => { if (alt.jetztAbmelden) alt.jetztAbmelden(); }, b.fehler && b.fehler.length ? 9000 : (b.bild ? stempelBildDauer(b.bild, b.art) : 4000));
     return () => clearTimeout(t);
   }, []);
   return (
@@ -193,7 +193,7 @@ function Person({ personId, name, konto, eigene, admin, ansicht, setAnsicht, bez
   const [animation, setAnimation] = useState(null);
   useEffect(() => {
     if (!animation) return undefined;
-    const t = setTimeout(() => setAnimation(null), 9000);
+    const t = setTimeout(() => setAnimation(null), stempelBildDauer(animation.bild, animation.art));
     return () => clearTimeout(t);
   }, [animation]);
   const jetzt = stand(daten && !daten.fehlt ? daten.stempelAlle : []);
