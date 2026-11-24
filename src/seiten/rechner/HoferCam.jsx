@@ -1463,7 +1463,7 @@ const k2Ende = (l) => [...l.filter((b) => !K2_ARTEN.includes(b.art)), ...l.filte
                     onClick={() => aendern("frei", false)}>Mit Vorlage aufbauen</button></span> : <>
                 {!aus("hd") && <label className="cam-feld" title={k3d ? "Hochdruck M188…D… ein, am Ende M189… aus" : k2 ? "Hochdruck M1884D… vor dem Werkzeugaufruf, am Ende M1894 aus" : quer ? "Hochdruck M1883D… ein, am Ende M1893 aus" : front ? "Hochdruck M1882D… ein, am Ende M1892 aus" : "Hochdruck M1881D… ein, am Ende M1891 aus"}><span>Hochdruck</span>
                   <select data-camblock="hd" value={b.hd} onChange={(e) => aendern("hd", e.target.value)}>
-                    {(() => { const st = !sb ? [...HD_STUFEN, "5"] : HD_STUFEN; return st.includes(b.hd || "") ? st : [...st, b.hd]; })().map((h) => <option key={h} value={h}>{h ? "Stufe " + h : "kein"}</option>)}
+                    {(() => { const st = !sb ? [...HD_STUFEN, "5", "6", "7"] : HD_STUFEN; return st.includes(b.hd || "") ? st : [...st, b.hd]; })().map((h) => <option key={h} value={h}>{h ? "Stufe " + h : "kein"}</option>)}
                   </select></label>}
                 {!aus("vor") && <label className="cam-feld" title={"Vorschub je Umdrehung (G99) oder je Minute (G98)" + (gegen ? ", in Kanal 2" : "") + "; am Ende der Bearbeitung immer wieder G99"}><span>Vorschub</span>
                   <select data-camblock="vor" value={vorschubArt(b)} onChange={(e) => aendern("vor", e.target.value)}>
