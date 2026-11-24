@@ -162,11 +162,16 @@ export function bahnLesen(zeilen, v, { mitG50 = false, start = null } = {}) {
     if (e && offen[e[1]]?.length) { const a = offen[e[1]].pop(); zuEnde[a] = i; zuAnfang[i] = a; }
   });
 
-  let pc = 0, schritte = 0;
+  let pc = 0, schritte = 0, param = false;
   while (pc < L.length && schritte++ < 60000) {
     const nr = pc, s = L[pc];
     pc++;
     if (!s || s === "%") continue;
+    // G10L52 … G11 (Parameter setzen, etwa Eilgang N1420P5R15000000) fährt
+    // nicht, auch die Zeilen dazwischen nicht, seit 1.767.0
+    if (/G10\s*L52/.test(s)) { param = !/G11(?!\d)/.test(s); continue; }
+    if (param) { if (/G11(?!\d)/.test(s)) param = false; continue; }
+    if (/^G11(?!\d)/.test(s)) continue;
     const wh = s.match(/^WHILE\s*\[(.*)\]\s*DO\s*(\d+)/);
     if (wh) { if (!bedingung(wh[1], v)) pc = (zuEnde[nr] ?? L.length - 1) + 1; continue; }
     if (/^END\s*\d+/.test(s)) { if (nr in zuAnfang) pc = zuAnfang[nr]; continue; }

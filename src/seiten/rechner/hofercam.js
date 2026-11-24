@@ -220,6 +220,8 @@ export function nichtMontiert(b, w) {
   return (p === "3400" && t !== "3400") || (/^342[1-3]$/.test(p) && t === "3400");
 }
 // Die SB-20RG hat nur vier Hochdruck-Stufen (Patrick 7. November 2026: „es gibt nur 4 nicht 6“).
+// SB-20RG Stufe 1 bis 4; die SW-20 hat bis 7 (Patrick 24. November 2026),
+// die Auswahl in HoferCam.jsx hängt dort 5 bis 7 an
 export const HD_STUFEN = ["", "1", "2", "3", "4"];
 
 // Seit 1.400.0: feste Frontwerkzeuge T1100–T1400 (Patricks Beispiel

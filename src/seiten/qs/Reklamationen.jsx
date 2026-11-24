@@ -75,8 +75,16 @@ export const FEHLERARTEN_8D = [
   ["Fehlerart: Teil und Menge", ["Falsches Material", "Teile vermischt / falsches Teil", "Mengenfehler"]],
   ["Fehlerart: Lieferung", ["Verpackungs- / Transportschaden", "Dokumente / Zeugnis fehlen"]],
 ];
-const FEHLERART_PUNKTE = new Set(FEHLERARTEN_8D.flatMap((g) => g[1]));
-export const fehlerartVon = (w) => ((w.achtd && Array.isArray(w.achtd.d2)) ? w.achtd.d2 : []).filter((p) => FEHLERART_PUNKTE.has(p));
+// Fehlerart = Punkte der Gruppen in D2, deren Name mit „Fehlerart“ beginnt
+// (aus der aktuellen, auch selbst bearbeiteten Liste)
+const fehlerartPunkte = () => {
+  const d2 = ACHT_D.find((d) => d.s === "d2");
+  return new Set((d2 ? d2.gruppen : FEHLERARTEN_8D).filter((g) => /^fehlerart/i.test(g[0] || "")).flatMap((g) => g[1]));
+};
+export const fehlerartVon = (w) => {
+  const fp = fehlerartPunkte();
+  return ((w.achtd && Array.isArray(w.achtd.d2)) ? w.achtd.d2 : []).filter((p) => fp.has(p));
+};
 export const WIRKSAM = "Massnahmen wirksam";
 // Je Schritt die Frage wie in einem Fragebogen (seit 1.749.0) und die Punkte
 // in Gruppen; im Bericht stehen Gruppen nur, wo pdfGruppen gesetzt ist
@@ -121,6 +129,56 @@ export const ACHT_D = [
     "Nächste Lieferung geprüft, ohne Fehler", "Keine weitere Reklamation", "Kunde hat Massnahmen akzeptiert",
     WIRKSAM, "Team informiert und Arbeit gewürdigt"]]] },
 ];
+// Eigene Punkte (seit 1.763.0, Patrick 24. November 2026: „eigene hinzufügen
+// … allgemeine alle bearbeiten können … soll immer für alles übernommen
+// werden“): je Schritt lässt sich die ganze Liste mit „✎ Liste bearbeiten“
+// ändern, gespeichert für alle in app_config.rk_punkte {d1: [[Gruppe, [Punkte]]], …};
+// was dort fehlt, nimmt die Vorgabe von oben. Schon angekreuzte Punkte, die
+// nicht mehr in der Liste stehen, bleiben im Bericht und im Fragebogen.
+const PUNKTE_KONFIG = "rk_punkte";
+const PUNKTE_VORGABE = Object.fromEntries(ACHT_D.map((d) => [d.s, JSON.parse(JSON.stringify(d.gruppen))]));
+let punkteGespeichert = {};
+const gruppenGut = (g) => Array.isArray(g) && g.length > 0 && g.every((x) => Array.isArray(x) && typeof x[0] === "string" && Array.isArray(x[1]));
+function punkteAnwenden(map) {
+  punkteGespeichert = (map && typeof map === "object") ? map : {};
+  for (const d of ACHT_D) {
+    const g = punkteGespeichert[d.s];
+    d.gruppen = gruppenGut(g) ? g.map(([n, p]) => [n, p.filter((x) => typeof x === "string" && x.trim())]) : PUNKTE_VORGABE[d.s];
+  }
+}
+async function punkteLaden() {
+  try {
+    const r = await alt.zeitlimit(alt.db.from("app_config").select("wert").eq("schluessel", PUNKTE_KONFIG).maybeSingle(), 8000, "Listen 8D");
+    if (r && !r.error) punkteAnwenden(r.data && r.data.wert ? JSON.parse(r.data.wert) : {});
+  } catch (f) { /* Vorgabe bleibt */ }
+}
+async function punkteSpeichern(s, gruppen, text) {
+  const vorher = await alt.rueckSichern("app_config", { schluessel: PUNKTE_KONFIG });
+  const alle = { ...punkteGespeichert };
+  if (gruppen) alle[s] = gruppen; else delete alle[s];
+  const r = await alt.db.from("app_config").upsert([{ schluessel: PUNKTE_KONFIG, wert: JSON.stringify(alle) }], { onConflict: "schluessel" });
+  if (r && r.error) throw r.error;
+  alt.merkeSchritt(text, vorher.length
+    ? alt.rueckRein("app_config", vorher, "schluessel")
+    : alt.rueckWeg("app_config", { schluessel: PUNKTE_KONFIG }));
+  punkteAnwenden(alle);
+}
+
+// Zu einer festgelegten Massnahme (D5) das „eingeführt“ in D6: das bekannte
+// Paar, sonst der Punkt an derselben Stelle in D6, sonst derselbe Text
+function gegenstueckD6(pk) {
+  const m = MASSNAHMEN.find((x) => x[0] === pk);
+  const d5 = ACHT_D.find((d) => d.s === "d5").gruppen;
+  const d6 = ACHT_D.find((d) => d.s === "d6").gruppen;
+  const alle6 = d6.flatMap((g) => g[1]);
+  if (m && alle6.includes(m[1])) return m[1];
+  for (let gi = 0; gi < d5.length; gi++) {
+    const i = d5[gi][1].indexOf(pk);
+    if (i >= 0 && d6[gi] && d6[gi][1][i] && (!m || d6[gi][0] === d5[gi][0])) return d6[gi][1][i];
+  }
+  return m ? m[1] : pk;
+}
+
 // Die Schritte des Fensters, einer nach dem anderen wie ein Fragebogen
 // (seit 1.749.0, Patrick: „nicht alles auf einmal, sondern nacheinander“)
 const SCHRITTE = [
@@ -155,6 +213,7 @@ async function laden() {
     alt.zeitlimit(alt.db.from("reklamationen").select("*").order("eingang", { ascending: false })
       .order("nr", { ascending: false }), 10000, "Reklamationen"),
     alt.zeitlimit(alt.db.from("profiles").select("id, full_name, email").eq("is_active", true), 8000, "Personen"),
+    punkteLaden(),
   ]);
   if (r.error) throw r.error;
   const personen = {};
@@ -311,6 +370,71 @@ const FELDER_TEXT = ["art", "partner", "kontakt", "ref_partner", "eingang", "hoc
   "status", "verantwortlich", "termin", "sofort", "ursache", "korrektur", "vorbeugung", "wirksamkeit", "fehlerort", "bemerkung"];
 const FELDER_ZAHL = ["menge_geliefert", "menge_reklamiert", "kosten"];
 
+// Angekreuzte Punkte, die nicht mehr in der Liste stehen (Liste geändert):
+// bleiben sichtbar, damit man sie abwählen kann
+function ausserListe(w, d) {
+  const bekannt = new Set(d.gruppen.flatMap((g) => g[1]));
+  const rest = angekreuzt(w, d.s).filter((p) => !bekannt.has(p));
+  return rest.length ? [["Nicht mehr in der Liste", rest]] : [];
+}
+
+// Feld mit allen Punkten eines Schritts: umbenennen, löschen, eigene
+// dazu, Gruppen dazu; gilt nach „Speichern“ für alle Reklamationen
+function ListeBearbeiten({ d, fertig }) {
+  const [g, setG] = useState(() => JSON.parse(JSON.stringify(d.gruppen)).map(([n, p]) => [n, p.concat("")]));
+  const [speichert, setSpeichert] = useState(false);
+  const mitGruppen = g.length > 1 || (g[0] && g[0][0]);
+  const setze = (gi, i, v) => setG((x) => x.map((y, k) => (k !== gi ? y : [y[0], (() => {
+    const p = y[1].slice(); p[i] = v;
+    if (i === p.length - 1 && v.trim()) p.push(""); // immer ein leeres Feld für einen neuen Punkt
+    return p;
+  })()])));
+  const weg = (gi, i) => setG((x) => x.map((y, k) => (k !== gi ? y : [y[0], y[1].filter((_, j) => j !== i)])));
+  const name = (gi, v) => setG((x) => x.map((y, k) => (k !== gi ? y : [v, y[1]])));
+  const gruppeWeg = (gi) => setG((x) => x.filter((_, k) => k !== gi));
+  const sauber = () => g.map(([n, p]) => [String(n || "").trim(), Array.from(new Set(p.map((x) => x.trim()).filter(Boolean)))])
+    .filter(([n, p]) => p.length || n);
+  const speichern = async (vorgabe) => {
+    const neu = vorgabe ? null : sauber().filter(([, p]) => p.length);
+    if (neu && !neu.length) { alt.meldung("Mindestens ein Punkt muss bleiben.", "warn"); return; }
+    setSpeichert(true);
+    try {
+      await punkteSpeichern(d.s, neu, "Liste D" + d.nr + " " + d.titel);
+      alt.meldung("Liste D" + d.nr + " gespeichert, gilt für alle Reklamationen", "gut");
+      fertig(true);
+    } catch (f) {
+      alt.meldung("Speichern ging nicht: " + ((f && f.message) || f), "fehler");
+      setSpeichert(false);
+    }
+  };
+  return (
+    <div className="rk-liste" data-rkliste-feld={d.s}>
+      <p className="klein">Punkte ändern, löschen oder unten im leeren Feld eigene dazuschreiben. Gilt nach „Speichern“ für alle Reklamationen.</p>
+      {g.map(([n, p], gi) => (
+        <div key={gi} className="rk-liste__gruppe">
+          {mitGruppen && <div className="rk-liste__kopf">
+            <input type="text" value={n} placeholder="Name der Gruppe" data-rkliste-gruppe={gi} onChange={(e) => name(gi, e.target.value)} />
+            <button type="button" className="knopf knopf--klein" title="Gruppe löschen" onClick={() => gruppeWeg(gi)}>✕ Gruppe</button>
+          </div>}
+          {p.map((pk, i) => (
+            <div key={i} className="rk-liste__zeile">
+              <input type="text" value={pk} placeholder={i === p.length - 1 ? "+ Eigener Punkt …" : ""} data-rkliste-punkt={gi + "-" + i}
+                onChange={(e) => setze(gi, i, e.target.value)} />
+              {i < p.length - 1 && <button type="button" className="knopf knopf--klein" title="Punkt löschen" data-rkliste-weg={gi + "-" + i}
+                onClick={() => weg(gi, i)}>✕</button>}
+            </div>))}
+        </div>))}
+      <div className="rk-liste__knoepfe">
+        <button type="button" className="knopf knopf--klein" data-rkliste-neugruppe onClick={() => setG((x) => x.concat([["Neue Gruppe", [""]]]))}>+ Gruppe</button>
+        <button type="button" className="knopf knopf--klein" disabled={speichert} onClick={() => speichern(true)}>Wie am Anfang</button>
+        <span style={{ flex: 1 }} />
+        <button type="button" className="knopf knopf--klein" disabled={speichert} onClick={() => fertig(false)}>Abbrechen</button>
+        <button type="button" className="knopf knopf--haupt knopf--klein" disabled={speichert} data-rkliste-speichern onClick={() => speichern(false)}>Speichern</button>
+      </div>
+    </div>
+  );
+}
+
 function RkFenster({ r, zu, nachher, personen, alle }) {
   const darf = alt.darfSchreiben() && !alt.istExtern();
   const [w, setW] = useState(() => {
@@ -327,6 +451,8 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
   const [hinweis, setHinweis] = useState("");
   const feld = useRef(null);
   const [schritt, setSchritt] = useState("kopf");
+  const [listeAuf, setListeAuf] = useState(null); // Schritt, dessen Liste gerade bearbeitet wird
+  const [, setListeStand] = useState(0);
   const nr = Math.max(0, SCHRITTE.findIndex((x) => x.id === schritt));
   const [zeigVorschau, setZeigVorschau] = useState(false);
   const [zoomV, setZoomV] = useState(0.6);
@@ -600,7 +726,7 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
   });
   const wieGeplant = () => setW((y) => {
     const a = { ...(y.achtd || {}) };
-    const dazu = angekreuzt(y, "d5").map((pk) => (MASSNAHMEN.find((m) => m[0] === pk) || [])[1]).filter(Boolean);
+    const dazu = angekreuzt(y, "d5").map(gegenstueckD6).filter(Boolean);
     a.d6 = Array.from(new Set(angekreuzt(y, "d6").concat(dazu)));
     return { ...y, achtd: a };
   });
@@ -700,7 +826,10 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
             {d.s === "d6" && darf && <button type="button" className="knopf knopf--klein rk-wiegeplant" id="rk-wiegeplant"
               disabled={!angekreuzt(w, "d5").length} onClick={wieGeplant}>Wie festgelegt ✓</button>}</h3>
           {d.oben && T(d.oben, "Was genau ist das Problem? *", { zeilen: 4, breit: true, ph: "Was hat der Kunde gefunden? Mass, Stelle, wie viele …" })}
-          {d.gruppen.map(([g, punkte]) => (
+          {listeAuf === d.s
+            ? <ListeBearbeiten d={d} fertig={(gespeichert) => { setListeAuf(null); if (gespeichert) setListeStand((x) => x + 1); }} />
+            : <>
+          {d.gruppen.concat(ausserListe(w, d)).map(([g, punkte]) => (
             <div key={g || "x"} className="rk-gruppe">
               {g && <span className="rk-gruppe__name">{g}</span>}
               <div className="rk-haken">
@@ -712,6 +841,9 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
                 })}
               </div>
             </div>))}
+          {darf && <button type="button" className="knopf knopf--klein rk-liste-knopf" data-rkliste={d.s}
+            onClick={() => setListeAuf(d.s)}>✎ Liste bearbeiten</button>}
+            </>}
           {d.text && T(d.text, "Anderes / Ergänzung", { zeilen: 2, breit: true })}
           {d.kopfText && K(d.kopfText, d.s === "d1" ? "Namen / Ergänzung" : "Anderes / Ergänzung", { zeilen: 2, breit: true })}
           {d.s === "d8" && !leer(w.bemerkung) && T("bemerkung", "Bemerkung", { zeilen: 2, breit: true })}

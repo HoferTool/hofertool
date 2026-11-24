@@ -88,8 +88,8 @@ with sync_playwright() as p:
     cb = "[data-block='0'] [data-camblock='code']"
     pg.click(cb); pg.keyboard.press("Control+Home"); pg.keyboard.press("End")
     pg.click("[data-camvorlage-auf='0']")
-    pruefe("Auswahlbild mit 4 Vorlagen und Grafik", pg.locator("[data-camvorlage-bild]").count() == 4
-           and pg.locator("[data-camvorlage-auswahl] svg").count() == 4)
+    pruefe("Auswahlbild mit 6 Vorlagen und Grafik", pg.locator("[data-camvorlage-bild]").count() == 6
+           and pg.locator("[data-camvorlage-auswahl] svg").count() == 6)
     pg.locator("[data-camvorlage]").screenshot(path="hofer_cam_vorlage_wahl.png")
     vorlage_waehlen(pg, "g83")
     pruefe("Erklärbild bei offener Vorlage", pg.locator("[data-camvorlage] .cam-vorlage__erkl svg").count() == 1)
@@ -114,7 +114,7 @@ with sync_playwright() as p:
     v = (pg.text_content("[data-camvorlage-vorschau]") or "").split("\n")
     pruefe("Vorschau G87 wie T3200", v[0] == "#100=6(ANZAHL BOHRUNGEN)" and "G87X9.625Q1000P200F0.01" in v and v[-1] == "END1" and v.count("G1X14.5F0.5") == 2)
     pg.screenshot(path="hofer_cam_vorlage.png")
-    pg.click("[data-camvorlage] .cam-vorlage__kopf .knopf")
+    pg.click("[data-camvorlage] .cam-vorlage__kopf .knopf[title='Schliessen']")
     pg.fill(cb, "G1X-0.8F0.05\n\nG0Z0.5")
     pg.click("#cam-neu-dreh")
     pruefe("Zweiter Block nimmt freien Platz", pg.get_attribute("[data-block='1'] [data-camblock='platz']", "data-wert") == "200")

@@ -67,6 +67,61 @@ export const VORLAGEN = [
     ],
   },
   {
+    // Seit 1.767.0 (Patrick 24. November 2026, nach seinem Block mit
+    // „EILGANG AUF 15M“: „mach mir eine vorlage dafür“): Anbohren, in die
+    // Pilotbohrung fahren mit wenig Hochdruck, dann G83 mit viel Hochdruck,
+    // der Eilgang der Achse ist für den Zyklus mit G10L52 / N1420 gesenkt
+    id: "tiefpilot", name: "Tieflochbohren mit Pilot und Eilgang",
+    felder: [
+      { name: "EIL", text: "Eilgang senken", typ: "haken", start: true, lang: "Eilgang der Achse während dem Bohren mit G10L52 N1420 heruntersetzen und danach zurück" },
+      { name: "ACHSE", text: "Achse P", start: "5", zeigen: (w) => !!w.EIL, pflicht: (g) => !!g.EIL, lang: "Nummer der Achse im Parameter 1420 (P5 in deinem Programm)" },
+      { name: "E1", text: "Eilgang beim Bohren", einheit: "m/min", start: "15", zeigen: (w) => !!w.EIL, pflicht: (g) => !!g.EIL, lang: "Eilgang während G83 (15 → R15000000)" },
+      { name: "E2", text: "Eilgang danach", einheit: "m/min", start: "35", zeigen: (w) => !!w.EIL, pflicht: (g) => !!g.EIL, lang: "Eilgang nach dem Bohren wieder (35 → R35000000)" },
+      { name: "MAN", text: "Code am Anfang", typ: "text", start: "M1110P1", lang: "Zeile vor dem Bohren, leer = ohne" },
+      { name: "MAUS", text: "Code am Ende", typ: "text", start: "M1111P1", lang: "Zeile nach dem Bohren, leer = ohne" },
+      { name: "Z", text: "Vorposition Z", einheit: "mm", start: "5.00", lang: "Material auf Z fahren (G0Z…), leer = ohne" },
+      { name: "ZA", text: "Anbohren bis Z", einheit: "mm", start: "6.50", lang: "Anbohren im Vorschub bis Z (G1Z…), leer = ohne" },
+      { name: "FA", text: "Vorschub Anbohren", einheit: "mm/U", start: "0.05", pflicht: (g) => num(g.ZA) != null },
+      { name: "HDA", text: "HD-Ausgang", start: "5", lang: "Ausgang im M188…D… / M189… (M1885 = Ausgang 5)", pflicht: true },
+      { name: "HD1", text: "HD-Stufe Pilot", start: "2", lang: "Hochdruck beim Fahren in die Pilotbohrung (D2), leer = ohne" },
+      { name: "WP", text: "Pilot Tiefe W", einheit: "mm", start: "10.00", lang: "In die Pilotbohrung fahren, schrittweise (G1W…), leer = ohne" },
+      { name: "FP", text: "Vorschub Pilot", einheit: "mm/U", start: "0.22", pflicht: (g) => num(g.WP) != null },
+      { name: "HD2", text: "HD-Stufe Bohren", start: "7", lang: "Hochdruck beim Tieflochbohren (D7), leer = ohne", pflicht: true },
+      { name: "W", text: "Tiefe W", einheit: "mm", lang: "Bohrtiefe schrittweise ab der Pilotbohrung (G83W…)", pflicht: true },
+      { name: "Q", text: "Zustellung Q", einheit: "mm", start: "6", lang: "Zustellung je Schritt in mm, im Programm in µm (6 → Q6000)", pflicht: true },
+      { name: "P", text: "Verweilen P", einheit: "ms", start: "200", lang: "Verweilen am Grund in ms, leer = ohne" },
+      { name: "F", text: "Vorschub F", einheit: "mm/U", start: "0.05", pflicht: true },
+      { name: "U", text: "Verweilen nach G80", einheit: "s", start: "0.02", lang: "G4U… nach dem Zyklus, leer = ohne" },
+      { name: "ZR", text: "Zurück Z", einheit: "mm", start: "-1.0", lang: "Wegfahren im Vorschub (G1Z…), leer = ohne" },
+      { name: "FR", text: "Vorschub zurück", einheit: "mm/U", start: "10.0", pflicht: (g) => num(g.ZR) != null },
+    ],
+  },
+  {
+    // Seit 1.767.0 (Patrick 24. November 2026: „Vorlage für die
+    // Zählerfunktion … auch verschachtelt, also Zähler innerhalb eines
+    // Zählers … mit Grafik“): WHILE … DO / END bis drei Ebenen, Zähler
+    // zählen von 0 aufwärts, damit man sie im Code für Lagen braucht
+    id: "zaehler", name: "Zähler (Schleife), verschachtelt",
+    felder: [
+      { name: "EB", text: "Ebenen", typ: "wahl", start: "2", optionen: [["1", "1 Zähler"], ["2", "Zähler im Zähler"], ["3", "3 Ebenen"]], lang: "Wie viele Zähler ineinander" },
+      { name: "N1", text: "Ebene 1: Anzahl", einheit: "Stk", start: "4", pflicht: (g) => Number(g.EB) >= 1, lang: "So oft läuft Ebene 1" },
+      { name: "V1", text: "Ebene 1: Zähler", einheit: "#", start: "110", pflicht: (g) => Number(g.EB) >= 1, lang: "Variable des Zählers (#110), zählt 0, 1, 2 … und lässt sich im Code brauchen, z. B. G0C[#110*90]" },
+      { name: "VOR1", text: "Ebene 1: Code je Durchgang", typ: "code", zeigen: (w) => Number(w.EB) === 1, lang: "NC-Code, der in jedem Durchgang läuft" },
+      { name: "VOR1x", text: "Ebene 1: Code vor Ebene 2", typ: "code", zeigen: (w) => Number(w.EB) > 1, lang: "Läuft je Durchgang von Ebene 1, bevor Ebene 2 startet, leer = ohne" },
+      { name: "NACH1", text: "Ebene 1: Code nach Ebene 2", typ: "code", zeigen: (w) => Number(w.EB) > 1, lang: "Läuft je Durchgang von Ebene 1, nachdem Ebene 2 fertig ist (z. B. weiterdrehen G1H…), leer = ohne" },
+      { name: "N2", text: "Ebene 2: Anzahl", einheit: "Stk", start: "3", pflicht: (g) => Number(g.EB) >= 2, zeigen: (w) => Number(w.EB) >= 2, lang: "So oft läuft Ebene 2" },
+      { name: "V2", text: "Ebene 2: Zähler", einheit: "#", start: "111", pflicht: (g) => Number(g.EB) >= 2, zeigen: (w) => Number(w.EB) >= 2, lang: "Variable des Zählers (#111), zählt 0, 1, 2 … und lässt sich im Code brauchen, z. B. G0C[#111*90]" },
+      { name: "VOR2", text: "Ebene 2: Code je Durchgang", typ: "code", zeigen: (w) => Number(w.EB) === 2, lang: "NC-Code, der in jedem Durchgang läuft" },
+      { name: "VOR2x", text: "Ebene 2: Code vor Ebene 3", typ: "code", zeigen: (w) => Number(w.EB) > 2, lang: "Läuft je Durchgang von Ebene 2, bevor Ebene 3 startet, leer = ohne" },
+      { name: "NACH2", text: "Ebene 2: Code nach Ebene 3", typ: "code", zeigen: (w) => Number(w.EB) > 2, lang: "Läuft je Durchgang von Ebene 2, nachdem Ebene 3 fertig ist (z. B. weiterdrehen G1H…), leer = ohne" },
+      { name: "N3", text: "Ebene 3: Anzahl", einheit: "Stk", start: "2", pflicht: (g) => Number(g.EB) >= 3, zeigen: (w) => Number(w.EB) >= 3, lang: "So oft läuft Ebene 3" },
+      { name: "V3", text: "Ebene 3: Zähler", einheit: "#", start: "112", pflicht: (g) => Number(g.EB) >= 3, zeigen: (w) => Number(w.EB) >= 3, lang: "Variable des Zählers (#112), zählt 0, 1, 2 … und lässt sich im Code brauchen, z. B. G0C[#112*90]" },
+      { name: "VOR3", text: "Ebene 3: Code je Durchgang", typ: "code", zeigen: (w) => Number(w.EB) === 3, lang: "NC-Code, der in jedem Durchgang läuft" },
+      { name: "VOR3x", text: "Ebene 3: Code vor Ebene 4", typ: "code", zeigen: (w) => Number(w.EB) > 3, lang: "Läuft je Durchgang von Ebene 3, bevor Ebene 4 startet, leer = ohne" },
+      { name: "NACH3", text: "Ebene 3: Code nach Ebene 4", typ: "code", zeigen: (w) => Number(w.EB) > 3, lang: "Läuft je Durchgang von Ebene 3, nachdem Ebene 4 fertig ist (z. B. weiterdrehen G1H…), leer = ohne" },
+    ],
+  },
+  {
     id: "g87", name: "Querbohren G87, mehrere Positionen",
     felder: [
       { name: "N", text: "Anzahl", einheit: "Stk", lang: "Anzahl Bohrungen gleichmässig über den Umfang (#100=…)", start: "6", pflicht: (g) => !g.CF },
@@ -223,6 +278,46 @@ export function vorlageZeilen(id, w = {}) {
     });
     if (g.G80) z.push("G80");
     return { zeilen: z };
+  }
+  if (v.id === "tiefpilot") {
+    const z = [];
+    const eil = (m) => ["(EILGANG AUF " + rund(num(m), 1) + "M)", "G10L52", "N1420P" + Math.round(num(g.ACHSE)) + "R" + Math.round(num(m) * 1e6), "G11"];
+    const a = String(g.HDA).trim();
+    if (g.EIL) z.push(...eil(g.E1));
+    if (String(g.MAN).trim()) z.push(String(g.MAN).trim().toUpperCase());
+    if (num(g.Z) != null) z.push("G0Z" + zahl(g.Z));
+    if (num(g.ZA) != null) z.push("G1Z" + zahl(g.ZA) + "F" + zahl(g.FA));
+    if (num(g.HD1) != null) z.push("M188" + a + "D" + Math.round(num(g.HD1)));
+    if (num(g.WP) != null) z.push("G1W" + zahl(g.WP) + "F" + zahl(g.FP));
+    z.push("M188" + a + "D" + Math.round(num(g.HD2)) + "(HD EIN)");
+    const p = num(g.P) != null && num(g.P) > 0 ? "P" + Math.round(num(g.P)) : "";
+    z.push("G83W" + zahl(g.W) + "Q" + um(g.Q) + p + "F" + zahl(g.F));
+    if (g.EIL) z.push(...eil(g.E2));
+    z.push("M189" + a + "(HD AUS)", "G80");
+    if (num(g.U) != null && num(g.U) > 0) z.push("G4U" + zahl(g.U));
+    if (num(g.ZR) != null) z.push("G1Z" + zahl(g.ZR) + "F" + zahl(g.FR));
+    if (String(g.MAUS).trim()) z.push(String(g.MAUS).trim().toUpperCase());
+    return { zeilen: z };
+  }
+  if (v.id === "zaehler") {
+    const n = Math.max(1, Math.min(3, Number(g.EB) || 1));
+    const code = (t) => String(t || "").split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+    const vars = [];
+    for (let k = 1; k <= n; k++) {
+      const vn = String(g["V" + k]).replace(/^#/, "").trim();
+      if (!/^\d+$/.test(vn)) return { fehler: "Ebene " + k + ": Zähler muss eine Zahl sein (z. B. 110)" };
+      if (vars.includes(vn)) return { fehler: "Ebene " + k + ": Zähler #" + vn + " ist schon vergeben" };
+      if (!(Math.round(num(g["N" + k])) >= 1)) return { fehler: "Ebene " + k + ": Anzahl mindestens 1" };
+      vars.push(vn);
+    }
+    const ebene = (k) => {
+      const vn = vars[k - 1], z = ["#" + vn + "=0(ZAEHLER " + k + ")", "WHILE[#" + vn + "LT" + Math.round(num(g["N" + k])) + "]DO" + k];
+      if (k === n) { const c = code(g["VOR" + k]); z.push(...(c.length ? c : ["(CODE EBENE " + k + " HIER)"])); }
+      else z.push(...code(g["VOR" + k + "x"]), ...ebene(k + 1), ...code(g["NACH" + k]));
+      z.push("#" + vn + "=#" + vn + "+1", "END" + k);
+      return z;
+    };
+    return { zeilen: ebene(1) };
   }
   if (v.id === "g87") {
     const q = um(g.Q) != null && num(g.Q) > 0 ? "Q" + um(g.Q) : "";

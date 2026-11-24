@@ -220,9 +220,59 @@ function M142() {
   );
 }
 
-const BILDER = { g83: G83, g87: G87, g76: G76, einstich: Einstich, m50: M50, m142: M142 };
+// Tieflochbohren mit Pilot (seit 1.767.0): anbohren, in die Pilotbohrung
+// mit wenig Hochdruck, dann G83 mit viel Hochdruck, Eilgang gesenkt
+function TiefPilot() {
+  return (
+    <svg viewBox="0 0 220 130">
+      <Defs />
+      <line x1="6" y1="62" x2="214" y2="62" className="cam-vbild__achse" />
+      <rect x="14" y="22" width="126" height="80" className="cam-vbild__teil" />
+      <rect x="40" y="55" width="100" height="14" className="cam-vbild__loch" />
+      <line x1="118" y1="55" x2="118" y2="69" className="cam-vbild__stufe" />
+      <path d="M40 55 L34 62 L40 69" className="cam-vbild__loch" />
+      <path d="M160 56 L150 56 L145 62 L150 68 L160 68 Z" className="cam-vbild__wz" />
+      <rect x="160" y="56" width="46" height="12" className="cam-vbild__wz" />
+      <Pfeil x1="140" y1="110" x2="118" y2="110" beide />
+      <Text x="129" y="124">Pilot</Text>
+      <Pfeil x1="118" y1="110" x2="36" y2="110" beide />
+      <Text x="77" y="124">Tiefe W (G83)</Text>
+      <Text x="129" y="48" cls="cam-vbild__klein">HD D2</Text>
+      <Text x="77" y="48" cls="cam-vbild__klein">HD D7</Text>
+      <Text x="150" y="16" anker="middle" cls="cam-vbild__klein">Eilgang 15 → 35 m/min</Text>
+    </svg>
+  );
+}
+
+// Zähler (seit 1.767.0): Kästen ineinander, je Ebene Anzahl und Zähler,
+// zeichnet sich nach den Feldern
+function Zaehler({ w = {} }) {
+  const n = Math.max(1, Math.min(3, Number(w.EB) || 1));
+  const box = [];
+  for (let k = 1; k <= n; k++) {
+    const r = (k - 1) * 16;
+    box.push(
+      <g key={k}>
+        <rect x={8 + r} y={8 + r * 0.9} width={204 - 2 * r} height={114 - 1.8 * r} rx="6" className={k === n ? "cam-vbild__wz" : "cam-vbild__teil"} />
+        <Text x={14 + r} y={20 + r * 0.9} anker="start" cls="cam-vbild__klein">{"Ebene " + k + ": " + (w["N" + k] || "?") + " × (#" + String(w["V" + k] || "").replace(/^#/, "") + ")"}</Text>
+        <path d={`M${206 - r} ${30 + r * 0.9} A 10 10 0 1 1 ${196 - r} ${22 + r * 0.9}`} className="cam-vbild__weg" markerEnd="url(#cvb-pfeil)" />
+      </g>
+    );
+  }
+  return (
+    <svg viewBox="0 0 220 130">
+      <Defs />
+      {box}
+      <Text x="110" y={74 + (n - 1) * 8} cls="cam-vbild__text">Code je Durchgang</Text>
+    </svg>
+  );
+}
+
+const BILDER = { g83: G83, zaehler: Zaehler, tiefpilot: TiefPilot, g87: G87, g76: G76, einstich: Einstich, m50: M50, m142: M142 };
 export const VORLAGE_TEXT = {
   g83: "Bohren in Schritten mit Rückzug zum Spänebrechen, in der Mitte oder angetrieben auf Lochkreis oder X/Y",
+  tiefpilot: "Anbohren, mit wenig Hochdruck in die Pilotbohrung, dann G83 mit viel Hochdruck, Eilgang dafür gesenkt (G10L52 N1420)",
+  zaehler: "Code mehrmals wiederholen mit WHILE / DO, auch Zähler im Zähler bis 3 Ebenen, der Zähler lässt sich im Code brauchen",
   g87: "Bohrungen quer über den Umfang, gleich oder frei verteilt, wahlweise mit Z je Bohrung",
   g76: "Aussen- oder Innengewinde in mehreren Durchgängen an der Flanke",
   einstich: "Nut am Mantel, innen in der Bohrung oder an der Front, mit Fasen und Radien",
