@@ -33,13 +33,12 @@ export const STIL = `
 .rkpdf .balken .kontakt2 span { display: inline-block; width: 4mm; opacity: .7; }
 .rkpdf .balken .firma, .rkpdf .balken .ort { font-weight: 700; }
 .rkpdf .balken .firma { font-size: 8.5pt; }
-.rkpdf .streifen { height: 1.6mm; background: linear-gradient(90deg, #003884 0, #2f6fd0 55%, #e8730c 100%); }
 .rkpdf .inhalt { padding: 7mm 13mm 2mm; }
 .rkpdf p { margin: 0 0 1mm; }
 .rkpdf .titel { display: flex; justify-content: space-between; align-items: flex-end; gap: 4mm; margin-bottom: 5mm; }
 .rkpdf .titel .klein { font-size: 7.5pt; letter-spacing: .18em; color: #6b7890; font-weight: 700; text-transform: uppercase; }
 .rkpdf .titel h1 { margin: 0; font-size: 25pt; line-height: 1.05; color: #003884; letter-spacing: -.01em; }
-.rkpdf .titel h1 b { color: #e8730c; }
+.rkpdf .titel h1 b { color: #003884; }
 .rkpdf .titel .unter { font-size: 10pt; color: #33405a; margin-top: 1mm; }
 .rkpdf .chips { display: flex; gap: 1.5mm; justify-content: flex-end; margin-bottom: 2mm; }
 .rkpdf .chip { font-size: 7.5pt; font-weight: 700; padding: 1mm 3mm; border-radius: 10mm; border: .6pt solid #c8d2e2; color: #8a93a3; white-space: nowrap; }
@@ -47,8 +46,7 @@ export const STIL = `
 .rkpdf .chip.rot { background: #c8322a; color: #fff; border-color: #c8322a; }
 .rkpdf .datum { text-align: right; font-size: 8pt; color: #6b7890; white-space: nowrap; }
 .rkpdf .kacheln { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2.5mm; margin-bottom: 4mm; }
-.rkpdf .kachel { background: #f1f5fb; border-radius: 2.5mm; padding: 2.5mm 3mm; border-top: 1.2mm solid #003884; }
-.rkpdf .kachel.rot { border-top-color: #c8322a; } .rkpdf .kachel.org { border-top-color: #e8730c; } .rkpdf .kachel.gr { border-top-color: #2f9e5b; }
+.rkpdf .kachel { background: #f1f5fb; border-radius: 2.5mm; padding: 2.5mm 3mm; border: .5pt solid #dfe5ee; }
 .rkpdf .kachel .k { font-size: 6.8pt; text-transform: uppercase; letter-spacing: .08em; color: #6b7890; font-weight: 700; }
 .rkpdf .kachel .w { font-size: 14pt; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
 .rkpdf .kachel .w.text { font-size: 10.5pt; }
@@ -74,15 +72,12 @@ export const STIL = `
 .rkpdf .sk .nr { width: 7.5mm; height: 7.5mm; border-radius: 2mm; background: #003884; color: #fff; font-weight: 700; font-size: 10pt;
   display: flex; align-items: center; justify-content: center; flex: none; }
 .rkpdf .sk h2 { margin: 0; font-size: 11pt; color: #003884; }
-.rkpdf .karte { background: #f7f9fc; border-left: 1mm solid #003884; border-radius: 0 2.5mm 2.5mm 0; padding: 2.5mm 4mm; }
-.rkpdf .ursache .nr { background: #e8730c; } .rkpdf .ursache .karte { border-left-color: #e8730c; background: #fff7f0; }
-.rkpdf .ursache h2 { color: #b85a08; }
+.rkpdf .karte { background: #f7f9fc; border: .5pt solid #e4eaf3; border-radius: 2.5mm; padding: 2.5mm 4mm; }
 .rkpdf .gruppe { font-size: 7pt; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #6b7890; margin: 1.2mm 0 .5mm; }
 .rkpdf ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: .6mm 5mm; }
 .rkpdf li { display: flex; gap: 2mm; align-items: flex-start; }
 .rkpdf i.ok { flex: none; width: 3.8mm; height: 3.8mm; border-radius: 1mm; background: #003884; color: #fff; font-style: normal;
   font-size: 7pt; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-top: .4mm; }
-.rkpdf .ursache i.ok { background: #e8730c; }
 .rkpdf .frei { white-space: normal; }
 .rkpdf ul + .frei, .rkpdf .gruppe ~ .frei { margin-top: 1.8mm; padding-top: 1.8mm; border-top: .5pt dashed #c8d2e2; }
 .rkpdf .nichts { color: #8a93a3; font-style: italic; margin: 0; }
@@ -100,7 +95,7 @@ function briefkopf() {
     + '<div class="kontakt2"><span>T</span>032 677 55 77<br><span>F</span>032 677 55 70<br>'
     + 'admin@hoferco.ch<br>www.hoferco.ch</div>'
     + (alt.SIEGEL_BRIEF ? '<img class="briefsiegel" src="' + alt.SIEGEL_BRIEF + '" alt="ISO 9001">' : "")
-    + '</div><div class="streifen"></div>';
+    + '</div>';
 }
 
 const haken = (p) => '<li><i class="ok">✓</i><span>' + esc(p) + "</span></li>";
