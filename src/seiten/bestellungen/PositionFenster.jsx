@@ -37,7 +37,7 @@ function padBesteller(maschinen) {
   const id = padMaschineId();
   if (!id) return null;
   const m = (maschinen || alt.best.alleMaschinen || []).find((x) => x.id === id);
-  return m ? "Pad " + alt.maschineZielText(m) : null;
+  return m ? "Prod " + alt.maschineZielText(m) : null;
 }
 
 // fertig: wird nach dem Speichern aufgerufen, damit die Liste neu lädt.
