@@ -175,7 +175,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.784.1";
+const APP_VERSION = "1.785.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3273,20 +3273,25 @@ function neuerLookSehen(u) {
   if (window.TEST && !window.TEST.neuesMenue) return false;
   return !istAndererNutzer(u);
 }
+// Seit 1.785.0 sehen alle Admins alles (Wunsch Patrick 24. November 2026:
+// „alle admins alles sehen, ausser zahlen spiel“): Empfang, Kalkulation,
+// Test ERP und QMS gelten für Admins auch ohne Vermerk; die Datenbank
+// prüft dasselbe (sql/admins-sehen-alles.sql). Nur der Zahlensprint
+// bleibt beim Vermerk reihenSehen.
 function empfangSehen(u) {
-  return !!(u && u.einstellungen && u.einstellungen.empfangSehen);
+  return !!(u && (u.role === "admin" || (u.einstellungen && u.einstellungen.empfangSehen)));
 }
 // Die Kalkulation sieht vorerst nur, wer den Vermerk kalkulationSehen am
 // Konto hat (Wunsch Patrick 27. Oktober 2026: „nur für Patrick Ruch“,
 // sql/kalkulation.sql); die Datenbank prüft dasselbe.
 function kalkulationSehen(u) {
-  return !!(u && u.einstellungen && u.einstellungen.kalkulationSehen);
+  return !!(u && (u.role === "admin" || (u.einstellungen && u.einstellungen.kalkulationSehen)));
 }
 // Test ERP (seit 1.672.0, Wunsch Patrick 20. November 2026: „vorläufig nur
 // für mich“): nur mit Vermerk erpSehen am Konto, die Datenbank prüft dasselbe
 // (erp_darf() in sql/erp-test.sql)
 function erpSehen(u) {
-  return !!(u && u.einstellungen && u.einstellungen.erpSehen);
+  return !!(u && (u.role === "admin" || (u.einstellungen && u.einstellungen.erpSehen)));
 }
 // Hofer + Co Zahlensprint zum Reihen lernen: nur mit dem Vermerk reihenSehen am Konto
 // (Wunsch Patrick 14. November 2026: „nur für Patrick Ruch“)
@@ -3296,7 +3301,7 @@ function reihenSehen(u) {
 // Den Reiter QM sieht vorerst nur, wer den Vermerk qmSehen am Konto hat
 // (Wunsch Patrick 10. November 2026: „aktuell nur für Patrick Ruch“).
 function qmSehen(u) {
-  return !!(u && u.einstellungen && u.einstellungen.qmSehen);
+  return !!(u && (u.role === "admin" || (u.einstellungen && u.einstellungen.qmSehen)));
 }
 // Hofer Cam in NC-PRO: vom 5. November 2026 an nur mit dem Vermerk
 // camSehen (Patrick Ruch), seit 1.432.0 für alle, die NC-PRO sehen, also
@@ -11183,6 +11188,8 @@ const SEITEN = [
 const NEUER_LOOK_MENUE = {
   hofer2dto3d: { gruppe: "hilfsprogramme", titel: "2D → 3D" },
   einlagen: { gruppe: "hilfsprogramme" },
+  // Zahlensprint (nur mit Vermerk reihenSehen) unter Hilfsprogramme (seit 1.785.0)
+  reihen: { gruppe: "hilfsprogramme" },
   bildschirme: { gruppe: "hilfsprogramme" },
   material: { gruppe: "planwand", imHandy: true },
   bestellungen: { gruppe: "produktion", imHandy: true },

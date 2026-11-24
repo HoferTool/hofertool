@@ -259,10 +259,10 @@ function startSeiten(u) {
     if (u.role === "dienst" && ["material", "maschinen", "statistik", "kalender"].includes(x.pfad)) return false;
     if (x.pfad === "infoboard") return u.role === "admin" || istAndererNutzer(u);
     if (x.pfad === "pausenraum") return u.role !== "extern" && u.role !== "dienst";
-    if (x.pfad === "empfang") return u.role === "admin" && !!(u.einstellungen && u.einstellungen.empfangSehen);
-    if (x.pfad === "kalkulation") return u.role !== "extern" && !!(u.einstellungen && u.einstellungen.kalkulationSehen);
-    if (x.pfad === "erp") return u.role !== "extern" && !!(u.einstellungen && u.einstellungen.erpSehen);
-    if (x.pfad === "qmalt") return u.role !== "extern" && !!(u.einstellungen && u.einstellungen.qmSehen);
+    if (x.pfad === "empfang") return u.role === "admin" && (u.role === "admin" || !!(u.einstellungen && u.einstellungen.empfangSehen));
+    if (x.pfad === "kalkulation") return u.role !== "extern" && (u.role === "admin" || !!(u.einstellungen && u.einstellungen.kalkulationSehen));
+    if (x.pfad === "erp") return u.role !== "extern" && (u.role === "admin" || !!(u.einstellungen && u.einstellungen.erpSehen));
+    if (x.pfad === "qmalt") return u.role !== "extern" && (u.role === "admin" || !!(u.einstellungen && u.einstellungen.qmSehen));
     return true;
   });
 }
