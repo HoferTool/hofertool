@@ -66,7 +66,7 @@ with sync_playwright() as p:
             titel: h.textContent.trim(), titelOben: h.getBoundingClientRect().bottom <= z.getBoundingClientRect().top + 1 }; })()""")
         pruefe(not r["navRollt"], "Reiter rollen nicht " + str(r))
         pruefe(r["listeRollt"], "nur die Liste rollt " + str(r))
-        pruefe(r["titel"].startswith("Todos"), "Titel Todos " + str(r))
+        pruefe(r["titel"].startswith("Meine Todo"), "Titel Todos " + str(r))
         pruefe(r["titelOben"], "Titel über den Zahlen " + str(r))
         pg.screenshot(path=f"{BILD}/nav_todo{'_dunkel' if dunkel else ''}.png")
         if not dunkel:

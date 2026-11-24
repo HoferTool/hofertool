@@ -746,5 +746,5 @@ export function NavTodos({ id = "nav-todo" } = {}) {
   // (seit 1.556.1, Patrick 15. November 2026: „soll zur Planwand gehen und
   // nicht so komisch öffnen“)
   const oeffnen = (j) => alt.balkenZeigen(j.id);
-  return <div className="nav-todo" id={id}><Todos d={d} neu={neu} titel="Todos" oeffnen={oeffnen} titelKlick={alt.istAdmin() ? planerTabOeffnen : null} /></div>;
+  return <div className="nav-todo" id={id}><Todos d={d} neu={neu} titel="Meine Todo’s" oeffnen={oeffnen} titelKlick={alt.istAdmin() ? planerTabOeffnen : null} /></div>;
 }
