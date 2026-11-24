@@ -132,7 +132,7 @@ function blattHtml(t, erstes) {
   }).join("");
   const arten = Object.entries(t.arten).sort((a, b) => b[1].tage - a[1].tage);
   return "<div class='ts" + (erstes ? "" : " pdf-neue-seite") + "'>"
-    + "<div class='ck-titel'><h1>Tagessummen</h1><div class='ck-firma'><img class='ck-logo' src='./logo-empfang.png' alt='Hofer + Co'></div></div>"
+    + "<div class='ck-titel'><h1>Tagessummen</h1></div>"
     + "<div class='ts-kopf'>" + e(t.name) + (t.abteilung ? " (" + e(t.abteilung) + ")" : "") + "</div>"
     + "<div class='ts-zr'><span>Zeitraum</span><span>" + WT[alt.ausIso(t.von).getDay()] + ", " + d8(t.von) + " - " + WT[alt.ausIso(t.bis).getDay()] + ", " + d8(t.bis) + "</span></div>"
     + "<table><thead><tr><th colspan='2'>Datum</th><th class='r'>Soll</th><th class='r'>Ist</th><th class='r'>Diff.</th><th class='r'>GZ</th><th class='r'>Ferien</th><th>Bemerkungen</th></tr></thead><tbody>"

@@ -16769,7 +16769,7 @@ body.dunkel .pst-a4 .pst-a4-tabelle td, body.dunkel .pst-a4 .pst-a4-tabelle th, 
 body.dunkel .pst-a4 .pst-a4-tabelle .pst-abschnitt input { color: #003884 !important; -webkit-text-fill-color: #003884; }
 @media (max-width: 800px) { .pst-a4 { min-height: 0; } .pst-c-kn { width: auto; } }
 
-/* 1.781.1 Prüfprotokoll ruhiger: Kopf mit Beschriftung über dem Wert,
+/* 1.782.1 Prüfprotokoll ruhiger: Kopf mit Beschriftung über dem Wert,
    kleinere Felder, feste Spalten (Prüfmittel ganz rechts lesbar),
    Datum unten neben Visum. Wunsch Patrick 24. November 2026. */
 .pb-blatt .pb-kopf { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 14px; font-size: 13px; }
@@ -16792,7 +16792,7 @@ body.dunkel .pst-a4 .pst-a4-tabelle .pst-abschnitt input { color: #003884 !impor
 .pb-unterschrift input { padding: 4px 7px; font-size: 13px; }
 body.dunkel .pb-blatt .pb-kopf small { color: #6b7b8a !important; -webkit-text-fill-color: #6b7b8a; }
 body.dunkel .pb-blatt .pb-pm { color: #1a2530 !important; -webkit-text-fill-color: #1a2530; }
-/* 1.781.1 Auswahl untereinander, eine Spalte (Prüfprotokoll-Arten) */
+/* 1.782.1 Auswahl untereinander, eine Spalte (Prüfprotokoll-Arten) */
 .statuswahl.statuswahl--liste { display: flex; flex-direction: column; gap: 8px; }
 .statuswahl.statuswahl--liste .knopf { width: 100%; }
 .pb-unterschrift label { color: #1a2530; }

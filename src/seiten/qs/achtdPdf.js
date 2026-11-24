@@ -6,10 +6,13 @@
 import html2canvas from "html2canvas-pro";
 import { jsPDF } from "jspdf";
 import { STIL, achtdHtml } from "./achtdBlatt.js";
+import { BRIEF_HOEHE, briefkopfAufSeite } from "../../teile/briefkopf.js";
 
 export { achtdHtml };
 const MM = 96 / 25.4;
-const BREITE = 210, HOEHE = 297, OBEN = 12, UNTEN = 14;
+const BREITE = 210, HOEHE = 297, UNTEN = 14;
+// Seit 1.781.0 auch auf den Folgeseiten das Briefpapier oben, der Inhalt darunter
+const OBEN = BRIEF_HOEHE + 8;
 
 function trennstellen(blatt) {
   const oben = blatt.getBoundingClientRect().top;
@@ -66,7 +69,7 @@ export async function blattPdf(html, fuss) {
       blatt.style.marginTop = -von + "px";
       const bild = await html2canvas(huelle, { scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false,
         width: breite, height: h, windowWidth: Math.ceil(breite) + 40 });
-      if (n) pdf.addPage("a4", "portrait");
+      if (n) { pdf.addPage("a4", "portrait"); await briefkopfAufSeite(pdf, BREITE); }
       pdf.addImage(bild.toDataURL("image/jpeg", 0.9), "JPEG", 0, n ? OBEN : 0, BREITE, h / MM);
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(8);
