@@ -29,7 +29,7 @@ import { meldungenVerwalten } from "../teile/anmeldeMeldungen.jsx";
 import { adressenAus, verteilerLaden, verteilerSpeichern } from "../teile/ferienTermin.js";
 import { Gruppe, Zeile, SchalterZeile, ReiterZeichen } from "./teile.jsx";
 import { Mailkonto } from "./Mailkonto.jsx";
-import { menueFestAnwenden } from "../huelle/Geruest.jsx";
+import { menueFestAnwenden, menueFest } from "../huelle/Geruest.jsx";
 import { todosSichtbar } from "../pad/planerTab.js";
 
 // Wer nicht Admin ist, sieht nur „Allgemein“ (Wunsch Patrick,
@@ -336,9 +336,9 @@ function MeinKonto() {
   );
 }
 
-function Schalter({ id, name, titel, text, beiAenderung }) {
+function Schalter({ id, name, titel, text, beiAenderung, an }) {
   return (
-    <SchalterZeile id={id} titel={titel} text={text} defaultChecked={alt.einstellung(name)}
+    <SchalterZeile id={id} titel={titel} text={text} defaultChecked={an ? an() : alt.einstellung(name)}
       onChange={(e) => {
         alt.einstellungSetzen(name, e.target.checked);
         if (beiAenderung) beiAenderung(e.target.checked);
@@ -361,7 +361,7 @@ function Darstellung() {
       </Zeile>
       <Schalter id="e-dunkel" name="dunkel" titel="Dunkler Modus"
         beiAenderung={(an) => { document.body.classList.toggle("dunkel", an); alt.fensterleisteFaerben(); }} />
-      {todosSichtbar() && <Schalter id="e-menuefest" name="navmenuefest" titel="Menü immer zeigen"
+      {todosSichtbar() && <Schalter id="e-menuefest" name="navmenuefest" titel="Menü immer zeigen" an={menueFest}
         text="Die Menüpunkte bleiben in der Seitenleiste stehen, die Todos stehen darunter. Mit ☰ fährst du das Menü ein und aus, ohne Zeit. Ohne wechselt die Leiste nach 3 Minuten zu den Todos."
         beiAenderung={() => menueFestAnwenden()} />}
       <Schalter id="e-wochestart" name="wochestart" titel="Erfassung mit der Woche öffnen"

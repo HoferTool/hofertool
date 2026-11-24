@@ -81,15 +81,18 @@ export default function Umfragen({ auffrischen }) {
   const admin = alt.istAdmin();
   const offen = daten.filter((u) => u.offen);
   const zu = daten.filter((u) => !u.offen);
-  // Ohne offene Umfrage steht die Karte nur bei Admins, mit dem Plus
-  if (!offen.length && !admin) return <div id="db-umfragen" />;
+  // Seit 1.774.0 legt jeder (ausser Externen und Dienst) Umfragen an
+  // (Wunsch Patrick 24. November 2026: „Umfragen soll jeder erstellen
+  // können auf Start“), darum steht die Karte mit dem Plus auch ohne
+  // offene Umfrage für alle. Die eigene Umfrage ändern, schliessen und
+  // löschen darf, wer sie erstellt hat, Admins alle.
 
   return (
     <div id="db-umfragen">
       <section className="karte umf-karte">
         <div className="karte__kopf"><h2>Umfrage{offen.length > 1 ? "n" : ""}
           {offen.length > 1 && <> <span className="marke">{offen.length}</span></>}</h2>
-          {admin && <div className="notiz-kopfrechts">
+          {<div className="notiz-kopfrechts">
             <button type="button" className="notizbuch-knopf" id="umf-neu" aria-label="Neue Umfrage"
               title="Neue Umfrage" onClick={() => bearbeitenOeffnen(null, neu)}><Symbol d={PLUS} /></button>
           </div>}
@@ -131,6 +134,9 @@ function UmfrageListe({ liste, neu, admin, id }) {
 }
 
 function Umfrage({ u, neu, admin }) {
+  // Eigene Umfrage: wie ein Admin verwalten, Ergebnis mit Namen sehen
+  const meine = !!u.erstellt_von && u.erstellt_von === (alt.profil && alt.profil.id);
+  const verwalten = admin || meine;
   const gemerkt = lesen(STIMME_SPEICHER, {})[u.id];
   const [wahl, setWahl] = useState(() => new Set());
   const [name, setName] = useState(() => lesen(NAME_SPEICHER, "") || "");
@@ -139,7 +145,7 @@ function Umfrage({ u, neu, admin }) {
   const [fehlt, setFehlt] = useState("");
   const { je, leute, max } = auswerten(u);
   const abgestimmt = !!gemerkt && !nochmals;
-  const ergebnis = !u.offen || abgestimmt || admin;
+  const ergebnis = !u.offen || abgestimmt || verwalten;
   const waehlbar = u.offen && !abgestimmt;
 
   const tippen = (id) => {
@@ -171,7 +177,7 @@ function Umfrage({ u, neu, admin }) {
     <article className={"umf" + (u.offen ? "" : " umf--zu")} data-umfrage={u.id}>
       <div className="umf__kopf">
         <h3 className="umf__titel">{u.titel}</h3>
-        {admin && <div className="umf__admin">
+        {verwalten && <div className="umf__admin">
           {u.offen && <button className="linkknopf" data-umfqr={u.id} onClick={() => qrOeffnen(u, neu)}>QR-Code</button>}
           <button className="linkknopf" data-umfbearb={u.id} onClick={() => bearbeitenOeffnen(u, neu)}>Bearbeiten</button>
           <button className="linkknopf" data-umfoffen={u.id} onClick={() => offenSetzen(u, !u.offen, neu)}>
@@ -185,6 +191,7 @@ function Umfrage({ u, neu, admin }) {
       <p className="umf__info klein">
         {u.offen ? (u.mehrfach ? "Mehrere Vorschläge wählbar" : "Einen Vorschlag wählen") : "Abgeschlossen"}
         {ergebnis && <> · {leute} {leute === 1 ? "Person hat" : "Personen haben"} abgestimmt</>}
+        {u.namen_zeigen && <> · Namen sichtbar</>}
       </p>
       <div className="umf__vorschlaege">
         {u.vorschlaege.map((v) => {
@@ -207,7 +214,7 @@ function Umfrage({ u, neu, admin }) {
                 {ergebnis && <span className="umf-v__zahl">{namen.length}</span>}
               </div>
               {ergebnis && <div className="umf-v__balken" aria-label={anteil + " %"}><span style={{ width: anteil + "%" }} /></div>}
-              {ergebnis && admin && namen.length > 0 && <div className="umf-v__namen klein">{namen.join(", ")}</div>}
+              {ergebnis && (verwalten || u.namen_zeigen) && namen.length > 0 && <div className="umf-v__namen klein">{namen.join(", ")}</div>}
             </div>);
         })}
       </div>
@@ -342,6 +349,7 @@ function Bearbeiten({ u, zu, neu }) {
   const [text, setText] = useState(u ? u.beschreibung || "" : "");
   const [bild, setBild] = useState(u ? u.bild_url : null);
   const [mehrfach, setMehrfach] = useState(u ? u.mehrfach : false);
+  const [namenZeigen, setNamenZeigen] = useState(u ? !!u.namen_zeigen : false);
   const [vorschlaege, setVorschlaege] = useState(() =>
     u && u.vorschlaege.length ? u.vorschlaege.map(neuerVorschlag) : [neuerVorschlag(), neuerVorschlag()]);
   const [laedt, setLaedt] = useState(0);
@@ -391,12 +399,14 @@ function Bearbeiten({ u, zu, neu }) {
     setSpeichert(true);
     try {
       const kopf = { titel: t, beschreibung: text.trim() || null, bild_url: bild || null, mehrfach };
+      // Nur mitschicken, wenn an, damit es ohne neue Spalte weiter geht
+      if (namenZeigen || (u && u.namen_zeigen)) kopf.namen_zeigen = namenZeigen;
       let id = u && u.id;
       if (id) {
         const { error } = await alt.db.from("umfragen").update(kopf).eq("id", id);
         if (error) throw error;
       } else {
-        const { data, error } = await alt.db.from("umfragen").insert({ ...kopf, offen: true, sort: -Math.floor(Date.now() / 1000) }).select("id");
+        const { data, error } = await alt.db.from("umfragen").insert({ ...kopf, erstellt_von: alt.profil && alt.profil.id, offen: true, sort: -Math.floor(Date.now() / 1000) }).select("id");
         if (error) throw error;
         id = data[0].id;
       }
@@ -441,6 +451,10 @@ function Bearbeiten({ u, zu, neu }) {
       </div>
       <label className="umf-b__haken"><input type="checkbox" id="umf-mehrfach" checked={mehrfach}
         onChange={(e) => setMehrfach(e.target.checked)} /> Mehrere Vorschläge wählbar</label>
+      {/* Seit 1.774.0 (Wunsch Patrick 24. November 2026: „sehen können, wer
+          was gestimmt hat, als wählbar“): Namen bei jedem Vorschlag für alle */}
+      <label className="umf-b__haken"><input type="checkbox" id="umf-namen" checked={namenZeigen}
+        onChange={(e) => setNamenZeigen(e.target.checked)} /> Für alle sichtbar, wer was gestimmt hat</label>
 
       <h3 className="umf-b__titel">Vorschläge</h3>
       {fehlt === "vorschlaege" && <p className="feld-fehler">Bitte mindestens einen Vorschlag eintragen.</p>}

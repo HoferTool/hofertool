@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.767.0 (24. November 2026)
+
+- HOFERCAM: neue Vorlage „Tieflochbohren mit Pilot und Eilgang“ nach Patricks Block (Eilgang mit G10L52 N1420 senken, anbohren, Pilot mit wenig HD, G83 mit viel HD, zurück). Neue Vorlage „Zähler (Schleife), verschachtelt“ mit WHILE / DO bis 3 Ebenen und Grafik. Simulation übergeht G10L52 … G11. HD-Stufen der SW-20 bis 7.
+
 ## 1.763.1 (24. November 2026)
 
 - HOFERCAM, Werkzeugprotokoll einlesen (Patrick mit 10053-0485: „warum erkennst du T700 nicht als Scheibenfräser?“): ein Fräswerkzeug mit Mass wie „Ø25 x 1.5 x 8 Z40“ (Ø x Breite x Bohrung, Z = Zähne) gilt als Scheibenfräser, wenn die Breite höchstens ein Viertel des Ø ist oder es 10 oder mehr Zähne hat, die Breite kommt aus dem Mass; auch Wörter wie Säge oder Schlitzfräser; vorher wurde es ein Schaftfräser Ø25 (`scheibenMass` in `camProtokoll.js`).

@@ -14,7 +14,7 @@ def pruefe(ok, text):
 def daten(rolle):
     return """;
 (function(){
-  TEST.navTodos = true; TEST.ohneKopf = true;
+  TEST.navTodos = true; TEST.ohneKopf = true; (TEST.daten.profiles || []).forEach(p => { p.einstellungen = Object.assign(p.einstellungen || {}, { navmenuefest: false }); });
   TEST.daten.profiles[0].role = '%s';
   if (TEST.daten.profiles[0].role === 'admin') TEST.daten.profiles[0].einstellungen = Object.assign({}, TEST.daten.profiles[0].einstellungen || {}, { neuerLook: true });
   const J = TEST.daten.jobs; J[0].problem = 'Spindel klemmt';

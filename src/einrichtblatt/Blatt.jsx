@@ -1507,6 +1507,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   };
   // Strg + V fügt ein Bild aus der Zwischenablage ein (nicht in Feldern)
   const klebenDort = useRef(null);
+  const druckZiel = useRef(null);   // wo der letzte Druck auf die Bühne losging
   const einfuegenRef = useRef(bildEinfuegen);
   einfuegenRef.current = bildEinfuegen;
   useEffect(() => {
@@ -1599,7 +1600,15 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
         <button className="knopf knopf--klein knopf--haupt" data-eba-kopie-ab="" onClick={() => setKopie(null)}>Fertig</button>
       </div>}
       <div className="betrachter__buehne eba-buehne" ref={seite}
-        onPointerDownCapture={(e) => { if (klebenDort.current) klebenDort.current(e.currentTarget.ownerDocument); }} onClick={() => { if (platz) offenesNehmen(entwurf); setPlatz(null); setMarkiert(null); }}>
+        onPointerDownCapture={(e) => { druckZiel.current = e.target; if (klebenDort.current) klebenDort.current(e.currentTarget.ownerDocument); }}
+        onClick={(e) => {
+          // Markiert man im Fenster des Platzes Text und fährt dabei über
+          // das Blatt hinaus, kommt der Klick hier an (gemeinsamer Vorfahre).
+          // Dann nicht schliessen: nur ein Klick, der dort losging, wo er
+          // endet, zählt als „daneben tippen“ (Patrick 24. November 2026).
+          const d = druckZiel.current; druckZiel.current = null;
+          if (d && d !== e.target) return;
+          if (platz) offenesNehmen(entwurf); setPlatz(null); setMarkiert(null); }}>
         {zseite && bearbeiten && <div className="eba-zseite-leiste" onClick={(e) => e.stopPropagation()}>
           <label>Name <input className="eba-zseite-name" data-eba-seite-name="" value={zseite.name || ""}
             onChange={(e) => seiteAendern(seiteNr - 1, { name: e.target.value })} /></label>

@@ -174,7 +174,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.767.0";
+const APP_VERSION = "1.775.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3260,8 +3260,17 @@ function zeitAdmin() { return istAdmin() && !!(profil && profil.zeitAdmin); }
 // Neuer Look (ohne Kopfzeile, Logo und Knöpfe oben in der Leiste, am Handy
 // eigene Kopfleiste) vorerst nur mit Vermerk neuerLook am Konto (seit
 // 1.713.0, Wunsch Patrick 23. November 2026: „Änder zu nur Saheesan“).
+// Seit 1.772.0 für alle (Wunsch Patrick 24. November 2026: „kannst es für
+// alle online stellen“), ausser Externen, Dienst, Gerätekonten und reinen
+// HOFERTIME-Konten; der Vermerk neuerLook gilt weiter auch dort.
 function neuerLookSehen(u) {
-  return !!(u && u.einstellungen && u.einstellungen.neuerLook);
+  if (!u) return false;
+  if (u.einstellungen && u.einstellungen.neuerLook) return true;
+  if (u.role === "extern" || u.role === "dienst" || u.nur_zeit) return false;
+  // Im Prüfstand nur mit Vermerk oder TEST.neuesMenue: die älteren Tests
+  // bedienen noch das alte Menü (Bestellungen, Rechner … als eigene Punkte).
+  if (window.TEST && !window.TEST.neuesMenue) return false;
+  return !istAndererNutzer(u);
 }
 function empfangSehen(u) {
   return !!(u && u.einstellungen && u.einstellungen.empfangSehen);
@@ -9404,7 +9413,11 @@ function suchListe({ titel, eintraege, neuText, leerText }) {
     const neu = h.querySelector("[data-neu]");
     if (neu) neu.onclick = () => ende("__neu");
     h.querySelector("[data-nein]").onclick = () => ende(null);
-    h.onclick = (e) => { if (e.target === h) ende(null); };
+    // Nur zu, wenn Drücken und Loslassen beide daneben sind: wer im
+    // Fenster Text markiert und dabei hinausfährt, schliesst es nicht
+    let hRaus = false;
+    h.onpointerdown = (e) => { hRaus = (e.target === h); };
+    h.onclick = (e) => { if (e.target === h && hRaus) ende(null); hRaus = false; };
     setTimeout(() => feld.focus(), 50);
   });
 }
@@ -9856,7 +9869,10 @@ function bestStatusDialog(z, b) {
   document.body.appendChild(huelle);
 
   huelle.querySelector("[data-nein]").onclick = () => huelle.remove();
-  huelle.onclick = (e) => { if (e.target === huelle) huelle.remove(); };
+  // Nur zu, wenn Drücken und Loslassen beide daneben sind (Markieren)
+  let raus = false;
+  huelle.onpointerdown = (e) => { raus = (e.target === huelle); };
+  huelle.onclick = (e) => { if (e.target === huelle && raus) huelle.remove(); raus = false; };
 
   huelle.querySelectorAll("[data-neu]").forEach((k) => {
     k.onclick = async () => {
