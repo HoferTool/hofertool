@@ -42,7 +42,9 @@ with sync_playwright() as p:
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
     url = f"http://127.0.0.1:{PORT}/testdatei/bericht.xlsx"
     pg.evaluate("""u => { TEST.daten.pruefbericht_dateien = [{ id: 'd1', hoco_nr: '99999-0001', name: 'Bericht 99999-0001.xlsx', url: u, ablage: 'x', seite: 1, quelle: 'ordner' }];
-                          TEST.daten.pruefprotokolle = TEST.daten.pruefprotokolle || []; }""", url)
+                          TEST.daten.pruefprotokolle = TEST.daten.pruefprotokolle || [];
+                          TEST.daten.jobs.push({ id: 'jpb1', job_number: '99999-0001', fa_nr: '2026000111', plan_status: 'laeuft', planned_from: '2026-11-20', target_quantity: 800 },
+                                               { id: 'jpb2', job_number: '99999-0001', fa_nr: '2025000999', plan_status: 'fertig', planned_from: '2025-05-01', target_quantity: 500 }); }""", url)
     pg.evaluate("location.hash='#/qs'"); pg.wait_for_timeout(800)
     pruefe("Prüfberichte" in pg.inner_text(".reiter"), "Reiter Prüfberichte da")
     pg.evaluate("() => { const b = [...document.querySelectorAll('[data-qs=pruefberichte], .nav a, .nav button')].find(x => x.offsetParent && /Prüfberichte/.test(x.textContent)) || document.querySelector('[data-qs=pruefberichte]'); b.click(); }"); pg.wait_for_selector("#pb-liste"); pg.wait_for_timeout(500)
@@ -51,7 +53,10 @@ with sync_playwright() as p:
     leh = pg.inner_text("#pb-lehren")
     pruefe("Grenzlehrdorn" in leh and "Gewindelehrdorn" in leh, "Lehren erkannt: " + leh.replace("\n", " | ")[:200])
     # Erstteil
-    pg.click("[data-pbneu=erstteil]"); pg.wait_for_selector("#pb-tabelle"); pg.wait_for_timeout(300)
+    pg.click("[data-pbneu=erstteil]"); pg.wait_for_selector(".dialog-huelle [data-w]")
+    wahl = pg.inner_text(".dialog-huelle")
+    pruefe("FA 2026000111" in wahl and wahl.index("2026000111") < wahl.index("2025000999"), "FA-Wahl, laufende zuerst: " + wahl.replace("\n", " | ")[:160])
+    pg.click(".dialog-huelle [data-w=jpb1]"); pg.wait_for_selector("#pb-tabelle"); pg.wait_for_timeout(300)
     pg.fill("[data-pbist='n1-0']", "5.52"); pg.fill("[data-pbist='n1-1']", "5.60"); pg.mouse.move(5, 5); pg.wait_for_timeout(300)
     k0 = pg.get_attribute("[data-pbist='n1-0']", "class"); k1 = pg.get_attribute("[data-pbist='n1-1']", "class")
     pruefe("pb-ist--gut" in k0 and "pb-ist--schlecht" in k1, "gut/schlecht: %s / %s" % (k0, k1))
@@ -66,7 +71,7 @@ with sync_playwright() as p:
     pruefe(pp and pp[0].get("abgeschlossen_am"), "abgeschlossen")
     # AQL
     pg.locator("button:has-text('← 99999-0001')").first.click(); pg.wait_for_selector("#pb-neu")
-    pg.click("[data-pbneu=aql]"); pg.wait_for_selector("#pb-aql"); pg.wait_for_timeout(300)
+    pg.click("[data-pbneu=aql]"); pg.wait_for_selector(".dialog-huelle [data-w]"); pg.click(".dialog-huelle [data-w=jpb2]"); pg.wait_for_selector("#pb-aql"); pg.wait_for_timeout(300)
     pg.locator(".pb-felder label:has-text('Losgrösse') input").fill("500"); pg.wait_for_timeout(300)
     aql = pg.inner_text("#pb-aql")
     pruefe("Stichprobe" in aql, "AQL-Plan: " + aql.replace("\n", " ")[:120])
@@ -75,7 +80,8 @@ with sync_playwright() as p:
     pg.wait_for_timeout(1200)
     # LL
     pg.locator("button:has-text('← 99999-0001')").first.click(); pg.wait_for_selector("#pb-neu")
-    pg.click("[data-pbneu=ll]"); pg.wait_for_selector("#pb-ll-wahl"); pg.wait_for_timeout(300)
+    pg.click("[data-pbneu=ll]"); pg.wait_for_selector(".dialog-huelle [data-w]"); pg.click(".dialog-huelle [data-w=_hand]")
+    pg.wait_for_selector(".dialog-huelle input"); pg.fill(".dialog-huelle input", "2026777777"); pg.keyboard.press("Enter"); pg.wait_for_selector("#pb-ll-wahl"); pg.wait_for_timeout(300)
     pg.click("[data-pbll='n1']"); pg.click("[data-pbll='n2']"); pg.click("#pb-ll-fertig"); pg.wait_for_selector("#pb-ll-probe")
     pg.click("#pb-ll-probe"); pg.wait_for_timeout(300)
     f = pg.locator("[data-pbist^='n2-']").first
@@ -85,6 +91,11 @@ with sync_playwright() as p:
     ll = [x for x in pp if (x.get("kopf") or {}).get("art") == "ll"]
     pruefe(ll and len((ll[0].get("werte") or {}).get("proben") or []) == 1, "LL Stichprobe gespeichert")
     pruefe(len(pp) == 3, "drei Protokolle: %d" % len(pp))
+    fas = sorted(str(x.get("fa_nr")) for x in pp)
+    pruefe(fas == ["2025000999", "2026000111", "2026777777"], "je FA gespeichert: %s" % fas)
+    pruefe([x.get("job_id") for x in pp if x.get("fa_nr") == "2026000111"] == ["jpb1"], "Auftrag verknüpft")
+    pg.locator("button:has-text('← 99999-0001')").first.click(); pg.wait_for_selector("#pb-neu"); pg.wait_for_timeout(500)
+    pruefe(pg.locator("[data-pbfa]").count() == 3, "Liste nach FA gruppiert: %d" % pg.locator("[data-pbfa]").count())
     pruefe(not pf, "keine Seitenfehler: %s" % pf)
     br.close()
 print("Fehler:", "keine" if not fehler else fehler)
