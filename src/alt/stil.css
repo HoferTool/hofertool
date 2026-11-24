@@ -16563,3 +16563,6 @@ body.dunkel .rk-liste { background: #1d2630; }
   .sn2-oben { grid-template-columns: minmax(0, 1fr) fit-content(50%); }
   .sn2-oben > #db-geburtstage { min-width: 280px; }
 }
+.rk-liste input[type=text] { padding: 4px 8px; min-height: 0; height: 32px; font-size: .9rem; }
+.rk-liste__zeile .knopf, .rk-liste__kopf .knopf { min-height: 0; height: 32px; padding: 0 10px; }
+.rk-liste__zeile, .rk-liste__kopf { margin: 3px 0; }
