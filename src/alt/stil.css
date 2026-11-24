@@ -16550,22 +16550,22 @@ body.dunkel .rk-liste { background: #1d2630; }
   .start-paar > * { flex: 1 1 420px; min-width: 0; }
   .start-paar > #db-umfragen, .start-paar > .umf-karte { flex-grow: 1.4; }
 }
-:is(.start-paar, .start-umf) .umf-karte .umf__titel { font-size: 17px; }
-:is(.start-paar, .start-umf) .umf-karte .umf__text { margin-top: 3px; font-size: 14px; }
-:is(.start-paar, .start-umf) .umf-karte .umf__info { margin: 4px 0 8px; }
-:is(.start-paar, .start-umf) .umf-karte .umf__bild { max-width: 260px; margin-top: 8px; }
-:is(.start-paar, .start-umf) .umf-karte .umf__bild img { max-height: 150px; }
-:is(.start-paar, .start-umf) .umf-karte .umf__vorschlaege { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
-:is(.start-paar, .start-umf) .umf-karte .umf-v { border-width: 1.5px; }
-:is(.start-paar, .start-umf) .umf-karte .umf-v__bild { aspect-ratio: 16 / 10; }
-:is(.start-paar, .start-umf) .umf-karte .umf-v__unten { padding: 6px 8px; gap: 6px; }
-:is(.start-paar, .start-umf) .umf-karte .umf-v__wahl { width: 18px; height: 18px; }
-:is(.start-paar, .start-umf) .umf-karte .umf-v__text { font-size: 14px; }
-:is(.start-paar, .start-umf) .umf-karte .umf-v__zahl { font-size: 15px; }
-:is(.start-paar, .start-umf) .umf-karte .umf-v__balken { height: 5px; margin: 0 8px 7px; }
-:is(.start-paar, .start-umf) .umf-karte .umf__abstimmen { margin-top: 10px; }
-:is(.start-paar, .start-umf) .umf-karte .umf__name { padding: 7px 10px; }
-:is(.start-paar, .start-umf) .umf-karte .umf { padding-top: 10px; margin-top: 10px; }
+:is(.start-paar, .start-umf, .sn2-spalten) .umf-karte .umf__titel { font-size: 17px; }
+:is(.start-paar, .start-umf, .sn2-spalten) .umf-karte .umf__text { margin-top: 3px; font-size: 14px; }
+:is(.start-paar, .start-umf, .sn2-spalten) .umf-karte .umf__info { margin: 4px 0 8px; }
+:is(.start-paar, .start-umf, .sn2-spalten) .umf-karte .umf__bild { max-width: 260px; margin-top: 8px; }
+:is(.start-paar, .start-umf, .sn2-spalten) .umf-karte .umf__bild img { max-height: 150px; }
+:is(.start-paar, .start-umf, .sn2-spalten) .umf-karte .umf__vorschlaege { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+:is(.start-paar, .start-umf, .sn2-spalten) .umf-karte .umf-v { border-width: 1.5px; }
+:is(.start-paar, .start-umf, .sn2-spalten) .umf-karte .umf-v__bild { aspect-ratio: 16 / 10; }
+:is(.start-paar, .start-umf, .sn2-spalten) .umf-karte .umf-v__unten { padding: 6px 8px; gap: 6px; }
+:is(.start-paar, .start-umf, .sn2-spalten) .umf-karte .umf-v__wahl { width: 18px; height: 18px; }
+:is(.start-paar, .start-umf, .sn2-spalten) .umf-karte .umf-v__text { font-size: 14px; }
+:is(.start-paar, .start-umf, .sn2-spalten) .umf-karte .umf-v__zahl { font-size: 15px; }
+:is(.start-paar, .start-umf, .sn2-spalten) .umf-karte .umf-v__balken { height: 5px; margin: 0 8px 7px; }
+:is(.start-paar, .start-umf, .sn2-spalten) .umf-karte .umf__abstimmen { margin-top: 10px; }
+:is(.start-paar, .start-umf, .sn2-spalten) .umf-karte .umf__name { padding: 7px 10px; }
+:is(.start-paar, .start-umf, .sn2-spalten) .umf-karte .umf { padding-top: 10px; margin-top: 10px; }
 
 /* 1.772.0: Umfrage auf der Startseite nur so breit wie nötig, in beiden Looks
    (Patrick 24. November 2026: „immer noch so breit, soll nur so gross wie nötig“):
@@ -16577,11 +16577,11 @@ body.dunkel .rk-liste { background: #1d2630; }
   .start-paar > :not(#db-umfragen):not(.umf-karte) { flex: 1 1 340px; }
   :is(.start-paar, .start-umf) #db-umfragen { max-width: 100%; }
   :is(.start-paar, .start-umf) .umf-karte { width: fit-content; max-width: 100%; box-sizing: border-box; }
-  :is(.start-paar, .start-umf) .umf-karte .umf__vorschlaege { display: flex; flex-wrap: wrap; }
-  :is(.start-paar, .start-umf) .umf-karte .umf-v { flex: 0 0 150px; width: 150px; }
-  :is(.start-paar, .start-umf) .umf-karte .umf__text,
-  :is(.start-paar, .start-umf) .umf-karte .umf__titel { max-width: 640px; }
-  :is(.start-paar, .start-umf) .umf-karte .umf__name { flex: 0 1 220px; }
+  :is(.start-paar, .start-umf, .sn2-spalten) .umf-karte .umf__vorschlaege { display: flex; flex-wrap: wrap; }
+  :is(.start-paar, .start-umf, .sn2-spalten) .umf-karte .umf-v { flex: 0 0 150px; width: 150px; }
+  :is(.start-paar, .start-umf, .sn2-spalten) .umf-karte .umf__text,
+  :is(.start-paar, .start-umf, .sn2-spalten) .umf-karte .umf__titel { max-width: 640px; }
+  :is(.start-paar, .start-umf, .sn2-spalten) .umf-karte .umf__name { flex: 0 1 220px; }
 }
 
 /* 1.769.0 Prüfmittel: bald fällige Prüfung */
@@ -16736,3 +16736,11 @@ body.dunkel .pst-abschnitt td { background: #24364a; }
   .pb-blatt .pb-briefkopf .balken img { height: 12mm; }
   .pb-blatt .pb-briefkopf .balken img.briefsiegel, .pb-blatt .pb-briefkopf .kontakt2 { display: none; }
 }
+/* 1.780.1 (Patrick 24. November 2026: „was ist das für eine Lücke … oben der
+   Balken wie letzte Woche, da alles schön zusammen ist“): im neuen Look
+   schob der Abstand von .sn2 (gap 16px) Band und Solaranlage auseinander */
+.sn2 > .kopfkarte + .kopfkarte__solar { margin-top: -16px !important; }
+.sn2 > .kopfkarte:has(+ .kopfkarte__solar:not(:empty)) { border-radius: var(--radius) var(--radius) 0 0 !important; }
+
+/* 1.780.0: Schreck für Flavia beim Kommen über den ganzen Bildschirm, schwarz (Wunsch Patrick 24. November 2026) */
+.ze-bestaetigt__bild[data-ze-stempelbild="schreck"] { position: fixed; inset: 0; width: 100vw; height: 100vh; max-width: none; aspect-ratio: auto; object-fit: contain; background: #000; border-radius: 0; box-shadow: none; z-index: 1; }

@@ -100,6 +100,9 @@ self.addEventListener("fetch", (e) => {
   // Die Abstimmseite für den QR-Code (public/abstimmen/) läuft ohne App
   // und ohne Anmeldung, immer frisch aus dem Netz.
   if (url.pathname.includes("/abstimmen/")) return;
+  // SÜMI Bestell-App (public/suemi/): eigene Testseite, nicht Teil der
+  // App, immer frisch aus dem Netz (Patrick 24. November 2026).
+  if (url.pathname.includes("/suemi/")) return;
 
   // Einlagen Gen ist eine eigene Seite im Rahmen (public/einlagen/). Sie
   // darf nie als Seite der App abgelegt werden, sonst startet ohne Netz

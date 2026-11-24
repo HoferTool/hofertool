@@ -1,0 +1,1066 @@
+<!doctype html>
+<html lang="de-CH">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#121316">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>SÜMI Schreinerei · Bestellungen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --grund:#121316; --flaeche:#1b1d21; --flaeche2:#22252a; --rand:#30343a;
+  --text:#f2f3f5; --leise:#9aa0a8; --pink:#e5175f; --pink-dunkel:#5a1027;
+  --orange:#f08a1c; --gruen:#2fae5b; --radius:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--grund);color:var(--text);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;font-size:15px;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0}
+#app{max-width:560px;margin:0 auto;min-height:100%;position:relative;display:flex;flex-direction:column}
+svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* Kopf */
+.kopf{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--rand);position:sticky;top:0;background:var(--grund);z-index:5;padding-top:calc(14px + env(safe-area-inset-top))}
+.marke{display:flex;align-items:center;gap:10px}
+.marke .wort{line-height:1}
+.marke .wort b{display:block;font-size:19px;letter-spacing:.32em;font-weight:500}
+.marke .wort small{display:block;font-size:7.5px;letter-spacing:.38em;color:var(--leise);margin-top:3px}
+.titelzeile{display:flex;align-items:center;gap:14px;padding:20px 18px 6px}
+.titelzeile h1{font-size:22px;font-weight:600;flex:1}
+.zurueck{padding:4px;margin-left:-4px}
+.inhalt{flex:1;padding:12px 18px 110px}
+
+/* Start */
+.start{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 28px;
+  background:radial-gradient(ellipse at 70% 110%,#3a2a1e 0%,transparent 55%),linear-gradient(160deg,#16171a 0%,#121316 55%,#1d1712 100%)}
+.start .gross b{display:block;font-size:56px;font-weight:500;letter-spacing:.34em;margin:28px 0 8px -0.34em;padding-left:.34em}
+.start .gross small{font-size:16px;letter-spacing:.42em;color:#ddd}
+.start p{margin-top:56px;font-size:20px;line-height:1.4;color:#ddd}
+.start .strich{width:60px;height:3px;background:var(--pink);margin:28px auto 56px;border-radius:2px}
+.knopf{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:var(--pink);color:#fff;border-radius:10px;padding:14px;font-weight:600;font-size:16px}
+.knopf:active{filter:brightness(.9)}
+.knopf.klein{width:auto;padding:9px 14px;font-size:14px}
+.knopf.grau{background:var(--flaeche2);border:1px solid var(--rand)}
+
+/* Suche und Filter */
+.suche{display:flex;align-items:center;gap:10px;border:1px solid var(--rand);border-radius:10px;padding:10px 12px;background:var(--flaeche);margin:12px 0}
+.suche input{flex:1;background:none;border:0;outline:0;font-size:14px}
+.suche svg{color:var(--leise)}
+.filter{display:grid;grid-template-columns:auto 1fr 1.4fr 1fr;gap:8px;margin-bottom:14px}
+.filter button{border:1px solid var(--rand);border-radius:8px;padding:8px 10px;font-size:13px;font-weight:500;background:var(--flaeche)}
+.filter button.an{background:var(--pink);border-color:var(--pink)}
+
+/* Karten */
+.karte{display:flex;gap:14px;align-items:center;background:var(--flaeche);border:1px solid var(--rand);border-radius:var(--radius);padding:12px;margin-bottom:10px;width:100%;text-align:left}
+.karte .bild{width:68px;height:68px;border-radius:8px;flex:none;overflow:hidden;background:var(--flaeche2);display:flex;align-items:center;justify-content:center;color:var(--leise)}
+.karte .bild img{width:100%;height:100%;object-fit:cover}
+.karte .mitte{flex:1;min-width:0}
+.karte h3{font-size:15px;font-weight:600;margin-bottom:3px;display:flex;gap:8px;justify-content:space-between;align-items:flex-start}
+.karte h3 span{overflow:hidden;text-overflow:ellipsis}
+.karte .zeile{font-size:12.5px;color:var(--leise);line-height:1.45}
+.karte .zeile b{color:var(--text);font-weight:500}
+.karte > svg{color:var(--leise)}
+.schild{font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;white-space:nowrap;flex:none}
+.schild.offen{background:var(--pink)}
+.schild.bearbeitung{background:var(--orange);color:#2a1500}
+.schild.erledigt{background:var(--gruen)}
+.leer{color:var(--leise);text-align:center;padding:40px 10px}
+
+/* Formular */
+.feld{display:flex;gap:14px;align-items:center;background:var(--flaeche);border:1px solid var(--rand);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;position:relative}
+.feld:focus-within{border-color:var(--pink)}
+.feld > svg{color:var(--text)}
+.feld .fi{flex:1;min-width:0}
+.feld label{display:block;font-size:13px;font-weight:500;margin-bottom:3px}
+.feld input,.feld textarea{width:100%;background:none;border:0;outline:0;font-size:13.5px;color:var(--text)}
+.feld input::placeholder,.feld textarea::placeholder{color:var(--leise)}
+.feld textarea{resize:none;min-height:20px}
+.feld.fehler{border-color:var(--pink)}
+.feld.wahl{cursor:pointer}
+.feld.wahl .wert{font-size:14px;color:var(--text)}
+.feld.wahl .wert.leer2{color:var(--leise)}
+.ablage{border:1.5px dashed #555b63;border-radius:10px;padding:18px;text-align:center;font-size:13px;color:#ddd;margin-top:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px}
+.ablage.drueber{border-color:var(--pink);background:#2a1620}
+.vorschau{position:relative;margin-top:10px}
+.vorschau img{width:100%;max-height:220px;object-fit:cover;border-radius:10px;display:block}
+.vorschau button{position:absolute;top:8px;right:8px;background:#000a;border-radius:20px;padding:6px 10px;font-size:12px}
+.feld.block{display:block}
+.feld.block .kopfzeile{display:flex;gap:14px;align-items:center}
+
+/* Auswahl-Blatt */
+.huelle{position:fixed;inset:0;background:#000a;z-index:50;display:flex;align-items:flex-end;justify-content:center;animation:ein .15s}
+.blatt{background:var(--flaeche);border-top-left-radius:18px;border-top-right-radius:18px;width:100%;max-width:560px;max-height:80vh;overflow:auto;padding:18px 18px calc(18px + env(safe-area-inset-bottom))}
+.blatt h2{font-size:17px;font-weight:600;margin-bottom:12px}
+.radio{display:flex;gap:14px;align-items:center;padding:11px 6px;width:100%;text-align:left;font-size:14.5px;border-bottom:1px solid var(--rand)}
+.radio:last-child{border-bottom:0}
+.radio .kreis{width:20px;height:20px;border-radius:50%;border:1.8px solid #cfd3d8;flex:none;display:flex;align-items:center;justify-content:center}
+.radio.an .kreis{border-color:var(--pink)}
+.radio.an .kreis::after{content:"";width:10px;height:10px;border-radius:50%;background:var(--pink)}
+.gruppe-titel{font-size:15px;font-weight:600;margin:18px 0 10px}
+.liste-kasten{background:var(--flaeche);border:1px solid var(--rand);border-radius:var(--radius);padding:4px 12px}
+@keyframes ein{from{opacity:0}}
+
+/* Details */
+.detail{background:var(--flaeche);border:1px solid var(--rand);border-radius:var(--radius);padding:14px}
+.detail .oben{display:flex;gap:16px}
+.detail .oben .bild{width:84px;height:84px;border-radius:8px;overflow:hidden;background:var(--flaeche2);flex:none;display:flex;align-items:center;justify-content:center;color:var(--leise)}
+.detail .oben img{width:100%;height:100%;object-fit:cover}
+.detail h2{font-size:18px;font-weight:600;display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin-bottom:10px}
+.detail dt{font-size:13px;color:var(--leise);margin-top:10px}
+.detail dd{font-size:14px;margin-top:2px;white-space:pre-wrap}
+.detail .foto{margin-top:14px}
+.detail .foto img{width:100%;max-height:260px;object-fit:cover;border-radius:8px;cursor:zoom-in}
+.detail .info{display:flex;gap:14px;align-items:center;border-top:1px solid var(--rand);margin-top:14px;padding-top:14px}
+.detail .info + .info{border-top:0;margin-top:0}
+.detail .info small{display:block;font-size:12px;color:var(--leise)}
+.status-wahl{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}
+.status-wahl button{border:1px solid var(--rand);border-radius:8px;padding:9px 4px;font-size:13px;background:var(--flaeche)}
+.status-wahl button.an.offen{background:var(--pink);border-color:var(--pink)}
+.status-wahl button.an.bearbeitung{background:var(--orange);border-color:var(--orange);color:#2a1500}
+.status-wahl button.an.erledigt{background:var(--gruen);border-color:var(--gruen)}
+.zweiknopf{display:flex;gap:10px;margin-top:10px}
+
+/* Menü */
+.menue{position:fixed;inset:0;background:var(--grund);z-index:40;display:flex;flex-direction:column;animation:ein .15s;max-width:560px;margin:0 auto}
+.menue .marke-gross{display:flex;justify-content:space-between;align-items:center;padding:36px 22px 26px;padding-top:calc(36px + env(safe-area-inset-top))}
+.menue nav{padding:0 14px}
+.menue nav button{display:flex;align-items:center;gap:16px;width:100%;padding:14px 12px;border-radius:10px;font-size:15.5px;font-weight:500;margin-bottom:4px}
+.menue nav button span{flex:1;text-align:left}
+.menue nav button.an{background:var(--pink-dunkel);color:var(--pink);border:1px solid #7d1a3a}
+.menue hr{border:0;border-top:1px solid var(--rand);margin:12px 4px}
+
+/* Unten */
+.unten{position:fixed;bottom:0;left:0;right:0;max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);background:var(--flaeche);border-top:1px solid var(--rand);padding:8px 0 calc(8px + env(safe-area-inset-bottom));z-index:10}
+.unten button{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11.5px;color:#ddd}
+.unten button.an{color:var(--pink)}
+
+/* Verwalten */
+.zeile-verw{display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--rand)}
+.zeile-verw:last-child{border-bottom:0}
+.zeile-verw span{flex:1}
+.zeile-verw small{color:var(--leise);font-size:12px}
+.zeile-verw button{color:var(--leise);padding:4px}
+.neu-zeile{display:flex;gap:8px;margin-top:12px}
+.neu-zeile input{flex:1;background:var(--flaeche);border:1px solid var(--rand);border-radius:10px;padding:11px 12px;outline:0}
+.neu-zeile input:focus{border-color:var(--pink)}
+.text-leise{color:var(--leise);font-size:13px;line-height:1.5}
+
+.meldung{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#2b2e34;border:1px solid var(--rand);padding:10px 16px;border-radius:10px;font-size:14px;z-index:60;animation:ein .2s;max-width:90%}
+.gross-bild{position:fixed;inset:0;background:#000e;z-index:70;display:flex;align-items:center;justify-content:center;padding:20px}
+.gross-bild img{max-width:100%;max-height:100%;border-radius:8px}
+.profil-bild{width:72px;height:72px;border-radius:50%;background:var(--pink-dunkel);color:var(--pink);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:600;margin:10px auto}
+
+/* ===== Bestellsystem wie im HoferTool ===== */
+.reiter{display:flex;gap:6px;overflow-x:auto;margin:4px -18px 12px;padding:0 18px;scrollbar-width:none}
+.reiter::-webkit-scrollbar{display:none}
+.reiter button{flex:none;border:1px solid var(--rand);border-radius:8px;padding:8px 12px;font-size:13px;font-weight:500;background:var(--flaeche);display:flex;gap:6px;align-items:center}
+.reiter button.an{background:var(--pink);border-color:var(--pink)}
+.reiter button i{font-style:normal;font-size:11px;background:#0005;border-radius:10px;padding:1px 7px}
+.blocktitel{font-size:13px;font-weight:600;color:var(--leise);text-transform:uppercase;letter-spacing:.08em;margin:18px 0 8px;display:flex;gap:8px;align-items:center}
+.blocktitel i{font-style:normal;background:var(--flaeche2);border-radius:10px;padding:1px 8px;color:var(--text)}
+
+.lief{background:var(--flaeche);border:1px solid var(--rand);border-radius:var(--radius);margin-bottom:12px;overflow:hidden}
+.lief-kopf{display:flex;gap:12px;align-items:center;padding:12px;border-bottom:1px solid var(--rand)}
+.lief-logo{width:40px;height:40px;border-radius:9px;background:var(--pink-dunkel);color:var(--pink);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex:none}
+.lief-kopf .mitte{flex:1;min-width:0}
+.lief-kopf h3{font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis}
+.lief-kopf h3 a{color:inherit;text-decoration:none;border-bottom:1px dotted var(--leise)}
+.lief-kopf small{display:block;color:var(--leise);font-size:12px;margin-top:2px}
+.lief-knoepfe{display:flex;gap:6px;flex-wrap:wrap;padding:10px 12px;border-top:1px solid var(--rand);background:#0002}
+.mini{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--rand);border-radius:8px;padding:7px 10px;font-size:12.5px;font-weight:500;background:var(--flaeche2)}
+.mini.haupt{background:var(--pink);border-color:var(--pink)}
+.mini svg.i{width:16px;height:16px}
+
+.pos{display:flex;gap:12px;align-items:center;padding:11px 12px;border-bottom:1px solid var(--rand);width:100%;text-align:left}
+.pos:last-child{border-bottom:0}
+.pos .bild{width:54px;height:54px;border-radius:8px;flex:none;overflow:hidden;background:var(--flaeche2);display:flex;align-items:center;justify-content:center;color:var(--leise)}
+.pos .bild img{width:100%;height:100%;object-fit:cover}
+.pos .mitte{flex:1;min-width:0}
+.pos h4{font-size:14.5px;font-weight:600;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.pos h4 .nr{font-size:12px;color:var(--leise);font-weight:500}
+.pos .zeile{font-size:12.5px;color:var(--leise);line-height:1.45}
+.pos .zeile b{color:var(--text);font-weight:500}
+.pos .rechts{text-align:right;flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.pos .menge{font-size:15px;font-weight:600}
+.pos .menge small{font-size:11px;color:var(--leise);font-weight:400;margin-left:3px}
+.pos.spaet{box-shadow:inset 3px 0 0 var(--pink)}
+.chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+.chip{font-size:11px;border-radius:6px;padding:2px 7px;background:var(--flaeche2);border:1px solid var(--rand);color:#ddd}
+.chip.spaet{background:var(--pink-dunkel);border-color:#7d1a3a;color:#ff8fb3}
+.chip.bald{background:#3a2a10;border-color:#6b4a14;color:#ffc874}
+.teil{width:80px}
+.teil .balken{height:5px;border-radius:3px;background:var(--flaeche2);overflow:hidden}
+.teil .balken i{display:block;height:100%;background:#d9b23a}
+.teil div{font-size:10.5px;color:var(--leise);margin-top:3px}
+
+.schild.bestellt{background:var(--orange);color:#2a1500}
+.schild.teilweise_geliefert{background:#d9b23a;color:#2a2000}
+.schild.geliefert{background:var(--gruen)}
+.status-wahl{grid-template-columns:repeat(2,1fr)}
+.status-wahl button.an.bestellt{background:var(--orange);border-color:var(--orange);color:#2a1500}
+.status-wahl button.an.teilweise_geliefert{background:#d9b23a;border-color:#d9b23a;color:#2a2000}
+.status-wahl button.an.geliefert{background:var(--gruen);border-color:var(--gruen)}
+
+.treffer{margin:-4px 0 10px;background:var(--flaeche);border:1px solid var(--rand);border-radius:var(--radius);overflow:hidden}
+.treffer:empty{display:none}
+.treffer button{display:block;width:100%;text-align:left;padding:10px 14px;border-bottom:1px solid var(--rand)}
+.treffer button:last-child{border-bottom:0}
+.treffer button:hover{background:var(--flaeche2)}
+.treffer b{font-weight:600}
+.treffer small{display:block;color:var(--leise);font-size:12px;margin-top:1px}
+.treffer .aehnlich{font-size:10.5px;background:#3a2a10;color:#ffc874;border-radius:5px;padding:1px 6px;margin-left:6px}
+.treffer .neu{color:var(--pink);font-weight:600}
+.gewaehlt{display:flex;gap:12px;align-items:center;background:var(--flaeche);border:1px solid var(--pink);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px}
+.gewaehlt .fi{flex:1;min-width:0}
+.gewaehlt label{font-size:13px;font-weight:500}
+.gewaehlt .wert b{font-weight:600}
+.gewaehlt .wert small{display:block;color:var(--leise);font-size:12px}
+.hinweis{background:#3a2a10;border:1px solid #6b4a14;color:#ffd79a;border-radius:10px;padding:10px 12px;font-size:13px;margin:-2px 0 10px;line-height:1.45}
+.zwei{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.zwei .feld{margin-bottom:10px}
+.feld input[type=date]{color-scheme:dark}
+
+.stamm{display:flex;gap:12px;align-items:center;padding:12px;border-bottom:1px solid var(--rand)}
+.stamm:last-child{border-bottom:0}
+.stamm .mitte{flex:1;min-width:0}
+.stamm b{font-weight:600;font-size:14.5px}
+.stamm .nr{color:var(--leise);font-size:12px;margin-right:6px}
+.stamm small{display:block;color:var(--leise);font-size:12.5px;line-height:1.45}
+.stamm .knoepfe{display:flex;gap:2px;flex:none}
+.stamm .knoepfe button{padding:7px;color:var(--leise);border-radius:8px}
+.stamm .knoepfe button:hover{background:var(--flaeche2);color:var(--text)}
+.kopie{padding:2px;color:var(--leise);vertical-align:middle}
+.kopie svg.i{width:15px;height:15px}
+
+/* Fenster als Blatt von unten */
+.form .feld2{margin-bottom:10px}
+.form .feld2 label{display:block;font-size:12.5px;color:var(--leise);margin-bottom:4px}
+.form .feld2 input,.form .feld2 select,.form .feld2 textarea{width:100%;background:var(--flaeche2);border:1px solid var(--rand);border-radius:9px;padding:10px 12px;outline:0;font-size:14.5px}
+.form .feld2 input:focus,.form .feld2 select:focus,.form .feld2 textarea:focus{border-color:var(--pink)}
+.form .feld2.fehler input,.form .feld2.fehler select{border-color:var(--pink)}
+.form .text-leise{margin:-4px 0 12px}
+.form .zeile-knopf{display:flex;gap:10px;margin-top:14px}
+.form .zeile-knopf .knopf{flex:1}
+.rueck{position:fixed;right:max(16px,calc(50% - 284px));bottom:calc(84px + env(safe-area-inset-bottom));z-index:11;background:var(--flaeche2);border:1px solid var(--rand);border-radius:22px;padding:9px 14px;font-size:13px;display:flex;gap:6px;align-items:center;box-shadow:0 4px 14px #0007}
+.rueck svg.i{width:17px;height:17px}
+
+@media (min-width:900px){
+  #app,.unten,.menue{max-width:760px}
+  .blatt{max-width:620px}
+  .rueck{right:calc(50% - 364px)}
+}
+.mini{color:var(--text);text-decoration:none}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// ---------- Symbole ----------
+const I = {
+  paket:'<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/>',
+  raute:'<path d="M5 9h14M5 15h14M10 4 8 20M16 4l-2 16"/>',
+  datei:'<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>',
+  kamera:'<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/>',
+  leute:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5"/>',
+  person:'<circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/>',
+  runter:'<path d="m6 9 6 6 6-6"/>',
+  rechts:'<path d="m9 6 6 6-6 6"/>',
+  links:'<path d="M19 12H5M11 6l-6 6 6 6"/>',
+  senden:'<path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/>',
+  suche:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  haus:'<path d="M3 11 12 3l9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  menue:'<path d="M4 7h16M4 12h16M4 17h16"/>',
+  zahnrad:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  abmelden:'<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h8M10 12h11M17 8l4 4-4 4"/>',
+  stift:'<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m14 6 4 4"/>',
+  uhr:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M10 2h4"/>',
+  x:'<path d="M6 6l12 12M18 6 6 18"/>',
+  muell:'<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+};
+const sym = (n, gr) => `<svg class="i" viewBox="0 0 24 24" ${gr ? `style="width:${gr}px;height:${gr}px"` : ""}>${I[n]}</svg>`;
+
+// Logo: Kreis mit geschwungenen Streifen (eigene Zeichnung nach der Vorlage)
+function logo(gr) {
+  const id = "c" + Math.random().toString(36).slice(2, 7);
+  let streifen = "";
+  for (let k = 0; k < 7; k++) {
+    const y = 14 + k * 12;
+    streifen += `<path d="M-5 ${y} C 20 ${y - 10}, 35 ${y + 12}, 55 ${y + 2} S 90 ${y - 12}, 105 ${y - 4}" stroke="#e5175f" stroke-width="7.5" fill="none" stroke-linecap="round"/>`;
+  }
+  return `<svg width="${gr}" height="${gr}" viewBox="0 0 100 100" aria-hidden="true"><defs><clipPath id="${id}"><circle cx="50" cy="50" r="48"/></clipPath></defs><g clip-path="url(#${id})">${streifen}</g></svg>`;
+}
+const marke = (gr = 38) => `<div class="marke">${logo(gr)}<div class="wort"><b>SÜMI</b><small>SCHREINEREI</small></div></div>`;
+Object.assign(I, {
+  kopie:'<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/>',
+  lkw:'<path d="M3 6h11v10H3zM14 9h4l3 3v4h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/>',
+  welt:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+  kalender:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  rueck:'<path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>',
+  drucker:'<path d="M6 9V3h12v6M6 18H4a1 1 0 0 1-1-1v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1h-2"/><path d="M6 14h12v7H6z"/>',
+  etikett:'<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+  haken:'<path d="m5 12 5 5 9-10"/>',
+  hochladen:'<path d="M12 16V4M7 9l5-5 5 5M4 20h16"/>',
+});
+
+// ---------- Daten ----------
+// Aufgebaut wie die Bestellungen im HoferTool: Lieferanten, Artikel und Positionen.
+// Eine Position durchläuft offen → bestellt → teilweise geliefert → geliefert.
+const SPEICHER = "suemi.bestellungen.v2";
+const STATUS = { offen: "Offen", bestellt: "Bestellt", teilweise_geliefert: "Teilweise geliefert", geliefert: "Geliefert" };
+
+function vorgabe() {
+  const jetzt = Date.now(), h = 3600e3, tag = 24 * h;
+  const iso = n => new Date(jetzt + n * tag).toISOString().slice(0, 10);
+  return {
+    mitarbeitende: ["Tobias Mathys", "Ian Staubitzer", "Daniel Stalder", "Hansruedi Sommer", "Levin Neuenschwander"],
+    kommissionen: ["Montage", "Werkstatt", "Oberflächen", "Produktion"],
+    ich: "Tobias Mathys",
+    lieferanten: [
+      { id: 1, name: "Holzhandel Beispiel AG", website: "", mail: "bestellung@holzhandel.example", telefon: "", bestellweg: "mail" },
+      { id: 2, name: "Beschläge Muster GmbH", website: "https://www.beschlaege.example", mail: "", telefon: "", bestellweg: "website" },
+      { id: 3, name: "Farben & Lacke Probe", website: "", mail: "info@farben.example", telefon: "", bestellweg: "mail" },
+    ],
+    artikel: [
+      { id: 1, nr: "MPX-BI-18", name: "Multiplex Birke 18 mm", beschreibung: "2500 x 1250 mm", lieferant_id: 1, einheit: "Platte" },
+      { id: 2, nr: "EI-MAS-27", name: "Eiche massiv 27 mm", beschreibung: "Leimholz, 2500 x 600 mm", lieferant_id: 1, einheit: "Stk" },
+      { id: 3, nr: "KU-EI-22", name: "Kantenumleimer Eiche 22 mm", beschreibung: "Rolle 50 m, vorbeleimt", lieferant_id: 1, einheit: "Rolle" },
+      { id: 4, nr: "SPX-5X80", name: "Holzbauschrauben 5x80 mm", beschreibung: "Senkkopf, Torx 25, verzinkt", lieferant_id: 2, einheit: "Pak" },
+      { id: 5, nr: "SCH-110-CL", name: "Topfscharnier 110°", beschreibung: "mit Dämpfung, zum Aufstecken", lieferant_id: 2, einheit: "Stk" },
+      { id: 6, nr: "ZW-300", name: "Schraubzwinge 300 mm", beschreibung: "Ganzstahl", lieferant_id: 2, einheit: "Stk" },
+      { id: 7, nr: "AL-9010-25", name: "Acryllack seidenmatt RAL 9010", beschreibung: "Dose 2.5 l", lieferant_id: 3, einheit: "Dose" },
+      { id: 8, nr: "HL-D3-750", name: "Holzleim D3", beschreibung: "Flasche 750 g", lieferant_id: 3, einheit: "Fl" },
+    ],
+    positionen: [
+      { id: 1, artikel_id: 4, menge: 2, beschreibung: "", kommission: "Montage", person: "Tobias Mathys", notiz: "", frist: iso(-1), liefertermin: "", status: "offen", geliefert_menge: 0, bild: "", erstellt: jetzt - 30 * h, erstellt_von: "Ian Staubitzer", status_am: jetzt - 30 * h },
+      { id: 2, artikel_id: 2, menge: 4, beschreibung: "", kommission: "Werkstatt", person: "Daniel Stalder", notiz: "Für Tischplatte Küche Müller", frist: iso(5), liefertermin: "", status: "offen", geliefert_menge: 0, bild: "", erstellt: jetzt - 26 * h, erstellt_von: "Daniel Stalder", status_am: jetzt - 26 * h },
+      { id: 3, artikel_id: 7, menge: 3, beschreibung: "", kommission: "Oberflächen", person: "Ian Staubitzer", notiz: "", frist: iso(2), liefertermin: "", status: "offen", geliefert_menge: 0, bild: "", erstellt: jetzt - 20 * h, erstellt_von: "Levin Neuenschwander", status_am: jetzt - 20 * h },
+      { id: 4, artikel_id: 5, menge: 40, beschreibung: "", kommission: "Montage", person: "Tobias Mathys", notiz: "", frist: "", liefertermin: "KW 49", status: "bestellt", geliefert_menge: 0, bild: "", erstellt: jetzt - 72 * h, erstellt_von: "Hansruedi Sommer", status_am: jetzt - 48 * h },
+      { id: 5, artikel_id: 1, menge: 10, beschreibung: "", kommission: "Produktion", person: "Daniel Stalder", notiz: "", frist: "", liefertermin: "", status: "teilweise_geliefert", geliefert_menge: 6, bild: "", erstellt: jetzt - 96 * h, erstellt_von: "Daniel Stalder", status_am: jetzt - 10 * h },
+      { id: 6, artikel_id: 6, menge: 6, beschreibung: "", kommission: "Produktion", person: "Levin Neuenschwander", notiz: "", frist: "", liefertermin: "", status: "geliefert", geliefert_menge: 6, bild: "", erstellt: jetzt - 200 * h, erstellt_von: "Levin Neuenschwander", status_am: jetzt - 120 * h },
+    ],
+  };
+}
+let D;
+try { D = JSON.parse(localStorage.getItem(SPEICHER)) || vorgabe(); } catch { D = vorgabe(); }
+function speichern() {
+  try { localStorage.setItem(SPEICHER, JSON.stringify(D)); }
+  catch { meldung("Speicher voll. Bitte ältere Bilder entfernen."); }
+}
+const neueId = liste => Math.max(0, ...liste.map(x => x.id)) + 1;
+
+// ---------- Rückgängig ----------
+// Vor jeder Änderung wird der ganze Stand gemerkt (höchstens 20 Schritte).
+const RUECK = [];
+function merke(text) {
+  RUECK.push({ text, stand: JSON.stringify(D) });
+  if (RUECK.length > 20) RUECK.shift();
+}
+function rueckgaengig() {
+  const s = RUECK.pop();
+  if (!s) return meldung("Nichts zum Rückgängigmachen.");
+  D = JSON.parse(s.stand); speichern(); zeichne(); meldung("Rückgängig: " + s.text);
+}
+document.addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+    if (e.target.closest("input,textarea")) return;
+    e.preventDefault(); rueckgaengig();
+  }
+});
+
+// ---------- Helfer ----------
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const z2 = n => String(n).padStart(2, "0");
+const datumZeit = t => { const d = new Date(t); return `${z2(d.getDate())}.${z2(d.getMonth() + 1)}.${d.getFullYear()}, ${z2(d.getHours())}:${z2(d.getMinutes())}`; };
+const datum = iso => { if (!iso) return ""; const [j, m, t] = iso.split("-"); return `${t}.${m}.${j}`; };
+const zahl = n => { const s = String(Math.round(n * 100) / 100); const [g, k] = s.split("."); return g.replace(/\B(?=(\d{3})+(?!\d))/g, "'") + (k ? "." + k : ""); };
+const artikelVon = p => D.artikel.find(a => a.id === p.artikel_id) || { id: 0, nr: "", name: "(Artikel gelöscht)", beschreibung: "", lieferant_id: 0, einheit: "" };
+const lieferantVon = id => D.lieferanten.find(l => l.id === id);
+const initialen = n => String(n || "?").split(/\s+/).filter(Boolean).map(x => x[0]).join("").slice(0, 2).toUpperCase();
+const heuteIso = () => { const d = new Date(); return `${d.getFullYear()}-${z2(d.getMonth() + 1)}-${z2(d.getDate())}`; };
+const tageBis = iso => Math.round((new Date(iso + "T00:00") - new Date(heuteIso() + "T00:00")) / 864e5);
+
+// Frist rot, wenn vorbei, gelb bis 3 Tage vorher, nur solange offen
+function fristTon(p) {
+  if (p.status !== "offen" || !p.frist) return "";
+  const t = tageBis(p.frist);
+  return t < 0 ? "spaet" : t <= 3 ? "bald" : "";
+}
+
+// Suche: jedes Wort muss irgendwo vorkommen, Bindestriche, Punkte und Leerzeichen zählen nicht
+const norm = s => String(s || "").toLowerCase().replace(/[\s\-._/]/g, "");
+function passt(text, suche) {
+  const t = String(text || "").toLowerCase(), tn = norm(text);
+  return String(suche || "").toLowerCase().split(/\s+/).filter(Boolean).every(w => t.includes(w) || tn.includes(norm(w)));
+}
+function abstand(a, b) {
+  if (Math.abs(a.length - b.length) > 2) return 9;
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++)
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+// Ähnlich: jedes Suchwort ab 4 Zeichen findet ein Wort mit 1 (ab 8 Zeichen 2) Tippfehlern
+function aehnlich(text, suche) {
+  const woerter = String(text || "").toLowerCase().split(/[\s,()]+/).map(norm).filter(Boolean);
+  const such = String(suche || "").toLowerCase().split(/\s+/).map(norm).filter(Boolean);
+  if (!such.length) return false;
+  return such.every(w => {
+    if (woerter.some(x => x.includes(w))) return true;
+    if (w.length < 4) return false;
+    const erlaubt = w.length >= 8 ? 2 : 1;
+    return woerter.some(x => abstand(w, x.slice(0, w.length)) <= erlaubt || abstand(w, x) <= erlaubt);
+  });
+}
+const artikelText = a => [a.nr, a.name, a.beschreibung, a.einheit, lieferantVon(a.lieferant_id)?.name].join(" ");
+const posText = p => { const a = artikelVon(p); return [artikelText(a), p.beschreibung, p.kommission, p.person, p.notiz, p.liefertermin, STATUS[p.status], p.erstellt_von, p.menge].join(" "); };
+
+function ersatzBild(a) {
+  const t = (a.name + " " + a.beschreibung).toLowerCase();
+  const n = /schraub|nagel|dübel|scharnier|beschlag/.test(t) ? "raute" : /farbe|lack|öl|beize|leim/.test(t) ? "datei" : "paket";
+  return sym(n, 26);
+}
+const bildHtml = p => p.bild ? `<img src="${p.bild}" alt="">` : ersatzBild(artikelVon(p));
+
+// ---------- Zustand und Navigation ----------
+let Z = { seite: "start", reiter: "offen", suche: "", id: null, entwurf: null, menue: false };
+const app = document.getElementById("app");
+
+function gehe(seite, mehr = {}) {
+  Z = { ...Z, seite, menue: false, ...mehr };
+  history.pushState({ ...Z, entwurf: null }, "", "#" + seite);
+  zeichne();
+  window.scrollTo(0, 0);
+}
+window.addEventListener("popstate", e => {
+  if (document.querySelector(".huelle,.gross-bild")) { schliesseOben(); history.pushState({ ...Z, entwurf: null }, "", "#" + Z.seite); return; }
+  if (e.state) { Z = { ...e.state, entwurf: Z.entwurf, menue: false }; zeichne(); }
+});
+function schliesseOben() {
+  const o = [...document.querySelectorAll(".gross-bild, .huelle")].pop();
+  if (!o) return;
+  if (o.__zu) o.__zu(); else o.remove();
+}
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  if (document.querySelector(".huelle,.gross-bild")) return schliesseOben();
+  if (Z.menue) { Z.menue = false; return zeichne(); }
+  if (Z.seite !== "start" && Z.seite !== "uebersicht") history.back();
+});
+
+function meldung(t) {
+  document.querySelector(".meldung")?.remove();
+  const m = document.createElement("div"); m.className = "meldung"; m.textContent = t;
+  document.body.appendChild(m); setTimeout(() => m.remove(), 2600);
+}
+
+const kopf = () => `<header class="kopf">${marke()}<button data-a="menue" aria-label="Menü">${sym("menue", 26)}</button></header>`;
+const titel = (t, zurueck = true, rechts = "") => `<div class="titelzeile">${zurueck ? `<button class="zurueck" data-a="zurueck" aria-label="Zurück">${sym("links")}</button>` : ""}<h1>${t}</h1>${rechts}</div>`;
+const unten = aktiv => `<nav class="unten">
+  <button class="${aktiv === "uebersicht" ? "an" : ""}" data-a="gehe" data-z="uebersicht">${sym("haus")}Übersicht</button>
+  <button class="${aktiv === "neu" ? "an" : ""}" data-a="neu">${sym("plus")}Neue Bestellung</button>
+  <button class="${aktiv === "profil" ? "an" : ""}" data-a="gehe" data-z="profil">${sym("person")}Profil</button></nav>` +
+  (RUECK.length ? `<button class="rueck" data-a="rueck">${sym("rueck")}Rückgängig</button>` : "");
+
+// ---------- Bausteine der Liste ----------
+function posHtml(p, mitLieferant = false) {
+  const a = artikelVon(p), l = lieferantVon(a.lieferant_id);
+  const ton = fristTon(p);
+  const chips = [];
+  if (p.frist && p.status === "offen") chips.push(`<span class="chip ${ton}">${ton === "spaet" ? "Frist vorbei · " : "bis "}${datum(p.frist)}</span>`);
+  if (p.liefertermin) chips.push(`<span class="chip">Termin ${esc(p.liefertermin)}</span>`);
+  if (p.status !== "offen") chips.push(`<span class="chip">${STATUS[p.status]} ${datumZeit(p.status_am).slice(0, 10)}</span>`);
+  const teil = p.status === "teilweise_geliefert"
+    ? `<div class="teil"><div class="balken"><i style="width:${Math.min(100, (p.geliefert_menge / p.menge) * 100)}%"></i></div><div>${zahl(p.geliefert_menge)} da · ${zahl(p.menge - p.geliefert_menge)} offen</div></div>` : "";
+  return `<button class="pos ${ton === "spaet" ? "spaet" : ""}" data-a="detail" data-z="${p.id}">
+    <div class="bild">${bildHtml(p)}</div>
+    <div class="mitte"><h4>${esc(a.name)}${a.nr ? `<span class="nr">${esc(a.nr)}</span>` : ""}</h4>
+      ${p.beschreibung || a.beschreibung ? `<div class="zeile">${esc(p.beschreibung || a.beschreibung)}</div>` : ""}
+      <div class="zeile">Kommission: <b>${esc(p.kommission)}</b> · Bestellen: <b>${esc(p.person)}</b></div>
+      ${mitLieferant && l ? `<div class="zeile">${esc(l.name)}</div>` : ""}
+      ${chips.length ? `<div class="chips">${chips.join("")}</div>` : ""}</div>
+    <div class="rechts"><div class="menge">${zahl(p.menge)}<small>${esc(a.einheit)}</small></div>${teil || `<em class="schild ${p.status}">${STATUS[p.status]}</em>`}</div>
+  </button>`;
+}
+
+// Eine Karte je Lieferant, wie im HoferTool
+function lieferantenKarten(liste) {
+  const gruppen = new Map();
+  liste.forEach(p => { const k = artikelVon(p).lieferant_id || 0; if (!gruppen.has(k)) gruppen.set(k, []); gruppen.get(k).push(p); });
+  const karten = [...gruppen.entries()].map(([lid, ps]) => ({ l: lieferantVon(lid), lid, ps, spaet: ps.some(p => fristTon(p) === "spaet") }));
+  karten.sort((a, b) => (b.spaet - a.spaet) || String(a.l?.name || "~").localeCompare(String(b.l?.name || "~"), "de"));
+  return karten.map(({ l, lid, ps }) => {
+    ps.sort((a, b) => (a.frist || "9999").localeCompare(b.frist || "9999") || b.erstellt - a.erstellt);
+    const name = l ? l.name : "Ohne Lieferant";
+    const link = l?.website ? `<a href="${esc(l.website)}" target="_blank" rel="noopener">${esc(name)}</a>` : esc(name);
+    const weg = l ? (l.bestellweg === "website" ? "Bestellen über Website" : l.mail ? "Bestellen per Mail" : "") : "";
+    const alleOffen = ps.every(p => p.status === "offen");
+    return `<section class="lief">
+      <div class="lief-kopf"><div class="lief-logo">${esc(initialen(name))}</div>
+        <div class="mitte"><h3>${link}</h3><small>${ps.length} ${ps.length === 1 ? "Position" : "Positionen"}${weg ? " · " + weg : ""}</small></div></div>
+      ${ps.map(p => posHtml(p)).join("")}
+      <div class="lief-knoepfe">
+        <button class="mini haupt" data-a="blatt" data-z="${lid}" data-s="${alleOffen ? "offen" : "bestellt"}">${sym("drucker")}Bestellblatt</button>
+        ${l?.mail && alleOffen ? `<button class="mini" data-a="mail" data-z="${lid}">${sym("mail")}Per Mail</button>` : ""}
+        ${l?.website ? `<a class="mini" href="${esc(l.website)}" target="_blank" rel="noopener">${sym("welt")}Website</a>` : ""}
+        <button class="mini" data-a="alle" data-z="${lid}" data-s="${alleOffen ? "offen" : "bestellt"}">${sym("haken")}Status für alle</button>
+      </div></section>`;
+  }).join("");
+}
+
+function listeHtml() {
+  const r = Z.reiter, s = Z.suche;
+  if (r === "artikel") {
+    const al = D.artikel.filter(a => passt(artikelText(a), s)).sort((a, b) => a.name.localeCompare(b.name, "de"));
+    return `<div class="liste-kasten" style="padding:0 0">${al.map(a => {
+      const l = lieferantVon(a.lieferant_id);
+      const offen = D.positionen.filter(p => p.artikel_id === a.id && p.status !== "geliefert").length;
+      return `<div class="stamm"><div class="mitte"><b>${esc(a.name)}</b>
+        <small>${a.nr ? `<span class="nr">${esc(a.nr)}</span><button class="kopie" data-a="kopieNr" data-z="${esc(a.nr)}" aria-label="Art.-Nr. kopieren">${sym("kopie")}</button> · ` : ""}${esc(l?.name || "Ohne Lieferant")} · ${esc(a.einheit || "–")}${offen ? ` · ${offen} in Bestellung` : ""}</small>
+        ${a.beschreibung ? `<small>${esc(a.beschreibung)}</small>` : ""}</div>
+        <div class="knoepfe"><button data-a="artBestellen" data-z="${a.id}" aria-label="Bestellen">${sym("plus", 20)}</button>
+          <button data-a="artKopie" data-z="${a.id}" aria-label="Kopieren">${sym("kopie", 20)}</button>
+          <button data-a="artEdit" data-z="${a.id}" aria-label="Bearbeiten">${sym("stift", 20)}</button>
+          <button data-a="artWeg" data-z="${a.id}" aria-label="Löschen">${sym("muell", 20)}</button></div></div>`;
+    }).join("") || `<p class="leer">Keine Artikel gefunden.</p>`}</div>`;
+  }
+  if (r === "lieferanten") {
+    const ll = D.lieferanten.filter(l => passt([l.name, l.website, l.mail, l.telefon].join(" "), s)).sort((a, b) => a.name.localeCompare(b.name, "de"));
+    return `<div class="liste-kasten" style="padding:0">${ll.map(l => {
+      const n = D.artikel.filter(a => a.lieferant_id === l.id).length;
+      return `<div class="stamm"><div class="lief-logo">${esc(initialen(l.name))}</div><div class="mitte"><b>${esc(l.name)}</b>
+        <small>${n} Artikel · ${l.bestellweg === "website" ? "bestellen über Website" : "bestellen per Mail"}</small>
+        ${l.mail ? `<small>${esc(l.mail)}</small>` : ""}${l.website ? `<small>${esc(l.website)}</small>` : ""}${l.telefon ? `<small>${esc(l.telefon)}</small>` : ""}</div>
+        <div class="knoepfe"><button data-a="liefEdit" data-z="${l.id}" aria-label="Bearbeiten">${sym("stift", 20)}</button>
+          <button data-a="liefWeg" data-z="${l.id}" aria-label="Löschen">${sym("muell", 20)}</button></div></div>`;
+    }).join("") || `<p class="leer">Keine Lieferanten gefunden.</p>`}</div>`;
+  }
+  const pos = D.positionen.filter(p => passt(posText(p), s));
+  if (r === "offen") {
+    const l = pos.filter(p => p.status === "offen");
+    return lieferantenKarten(l) || `<p class="leer">${s ? "Nichts gefunden." : "Nichts offen. Alles bestellt."}</p>`;
+  }
+  if (r === "bestellt") {
+    const b = pos.filter(p => p.status === "bestellt"), t = pos.filter(p => p.status === "teilweise_geliefert");
+    if (!b.length && !t.length) return `<p class="leer">${s ? "Nichts gefunden." : "Nichts unterwegs."}</p>`;
+    return (b.length ? `<div class="blocktitel">Bestellt <i>${b.length}</i></div>${lieferantenKarten(b)}` : "") +
+      (t.length ? `<div class="blocktitel">Teilweise geliefert <i>${t.length}</i></div>${lieferantenKarten(t)}` : "");
+  }
+  const h = pos.filter(p => p.status === "geliefert").sort((a, b) => b.status_am - a.status_am);
+  return h.length ? `<div class="lief">${h.map(p => posHtml(p, true)).join("")}</div>` : `<p class="leer">${s ? "Nichts gefunden." : "Noch nichts geliefert."}</p>`;
+}
+
+const REITER = [["offen", "Offen"], ["bestellt", "Bestellt"], ["historie", "Historie"], ["artikel", "Artikel"], ["lieferanten", "Lieferanten"]];
+function reiterZahl(k) {
+  if (k === "offen") return D.positionen.filter(p => p.status === "offen").length;
+  if (k === "bestellt") return D.positionen.filter(p => p.status === "bestellt" || p.status === "teilweise_geliefert").length;
+  return 0;
+}
+
+// ---------- Seiten ----------
+const SEITEN = {
+  start: () => `<section class="start">
+      ${logo(150)}
+      <div class="gross"><b>SÜMI</b><small>SCHREINEREI</small></div>
+      <p>Gemeinsam<br>mehr möglich machen.</p>
+      <div class="strich"></div>
+      <button class="knopf" data-a="gehe" data-z="uebersicht">Zur Bestellung</button>
+    </section>`,
+
+  uebersicht: () => {
+    const r = Z.reiter;
+    const knopf = r === "artikel" ? `<button class="knopf klein" data-a="artNeu">${sym("plus", 18)}Artikel</button>`
+      : r === "lieferanten" ? `<button class="knopf klein" data-a="liefNeu">${sym("plus", 18)}Lieferant</button>`
+      : `<button class="knopf klein" data-a="neu">${sym("plus", 18)}Neue Position</button>`;
+    const platz = r === "artikel" ? "Art.-Nr., Bezeichnung, Lieferant …" : r === "lieferanten" ? "Name, Mail, Website …" : "Artikel, Art.-Nr., Kommission, Person …";
+    return kopf() + titel("Bestellungen", false, knopf) +
+      `<div class="inhalt">
+        <div class="reiter">${REITER.map(([k, t]) => { const n = reiterZahl(k); return `<button class="${r === k ? "an" : ""}" data-a="reiter" data-z="${k}">${t}${n ? `<i>${n}</i>` : ""}</button>`; }).join("")}</div>
+        <label class="suche">${sym("suche", 20)}<input id="suche" type="search" placeholder="${platz}" value="${esc(Z.suche)}"></label>
+        <div id="liste">${listeHtml()}</div>
+      </div>` + unten("uebersicht");
+  },
+
+  neu: () => {
+    const e = Z.entwurf, a = e.artikel_id ? D.artikel.find(x => x.id === e.artikel_id) : null;
+    const bearbeiten = !!e.id;
+    const schon = a ? D.positionen.filter(p => p.artikel_id === a.id && p.id !== e.id && p.status !== "geliefert") : [];
+    const artikelFeld = a
+      ? `<div class="gewaehlt" id="f-artikel_id">${sym("paket")}<div class="fi"><label>Artikel *</label>
+          <div class="wert"><b>${esc(a.name)}</b><small>${esc([a.nr, lieferantVon(a.lieferant_id)?.name, a.beschreibung].filter(Boolean).join(" · "))}</small></div></div>
+          <button class="mini" data-a="artAendern">Ändern</button></div>
+        ${schon.length ? `<div class="hinweis"><b>Schon bestellt?</b> ${schon.map(p => `${zahl(p.menge)} ${esc(artikelVon(p).einheit)} ${STATUS[p.status].toLowerCase()} (${esc(p.kommission)})`).join(", ")}. Hinzufügen geht trotzdem.</div>` : ""}`
+      : `<label class="feld" id="f-artikel_id">${sym("suche")}<div class="fi"><label>Artikel *</label><input id="artsuche" value="${esc(e.artsuche || "")}" placeholder="Art.-Nr. oder Bezeichnung suchen …" autocomplete="off"></div></label>
+        <div class="treffer" id="treffer">${trefferHtml(e.artsuche || "")}</div>`;
+    return kopf() + titel(bearbeiten ? "Bestellung bearbeiten" : "Neue Bestellung") + `<div class="inhalt">
+      ${artikelFeld}
+      <label class="feld" id="f-menge">${sym("raute")}<div class="fi"><label>Menge *${a?.einheit ? ` (${esc(a.einheit)})` : ""}</label><input data-f="menge" inputmode="decimal" value="${esc(e.menge)}" placeholder="z. B. 10"></div></label>
+      <label class="feld">${sym("datei")}<div class="fi"><label>Material / Beschreibung</label><textarea data-f="beschreibung" rows="1" placeholder="${esc(a?.beschreibung || "z. B. Holz, Farbe, Grösse …")}">${esc(e.beschreibung)}</textarea></div></label>
+      <div class="feld block"><div class="kopfzeile">${sym("kamera")}<div class="fi"><label>Bild anhängen</label></div></div>
+        ${e.bild ? `<div class="vorschau"><img src="${e.bild}" alt=""><button data-a="bildweg">Entfernen</button></div>`
+          : `<div class="ablage" id="ablage" data-a="bildwahl">${sym("kamera", 24)}<span>Bild auswählen oder<br>hier ablegen</span></div>`}
+        <input type="file" id="datei" accept="image/*" hidden></div>
+      <button class="feld wahl" id="f-kommission" data-a="wahl" data-z="kommission" style="width:100%;text-align:left">${sym("leute")}<div class="fi"><label>Kommission *</label><div class="wert ${e.kommission ? "" : "leer2"}">${esc(e.kommission || "Bitte wählen")}</div></div>${sym("runter", 20)}</button>
+      <button class="feld wahl" id="f-person" data-a="wahl" data-z="person" style="width:100%;text-align:left">${sym("person")}<div class="fi"><label>Muss bestellt werden von: *</label><div class="wert ${e.person ? "" : "leer2"}">${esc(e.person || "Bitte wählen")}</div></div>${sym("runter", 20)}</button>
+      <div class="zwei">
+        <label class="feld">${sym("kalender")}<div class="fi"><label>Bis wann bestellen</label><input type="date" data-f="frist" value="${esc(e.frist)}"></div></label>
+        <label class="feld">${sym("lkw")}<div class="fi"><label>Liefertermin</label><input data-f="liefertermin" value="${esc(e.liefertermin)}" placeholder="z. B. KW 49"></div></label>
+      </div>
+      <label class="feld">${sym("stift")}<div class="fi"><label>Notiz</label><textarea data-f="notiz" rows="1" placeholder="freiwillig">${esc(e.notiz)}</textarea></div></label>
+      <div style="height:6px"></div>
+      <button class="knopf" data-a="senden">${sym("senden", 20)}${bearbeiten ? "Änderungen speichern" : "Zur Bestellung hinzufügen"}</button>
+    </div>` + unten(bearbeiten ? "" : "neu");
+  },
+
+  detail: () => {
+    const p = D.positionen.find(x => x.id === Z.id);
+    if (!p) return kopf() + titel("Bestelldetails") + `<p class="leer">Diese Bestellung gibt es nicht mehr.</p>` + unten("");
+    const a = artikelVon(p), l = lieferantVon(a.lieferant_id);
+    const s = k => `<button class="${k} ${p.status === k ? "an" : ""}" data-a="status" data-z="${k}">${STATUS[k]}</button>`;
+    const zeile = (t, w) => w ? `<dt>${t}</dt><dd>${w}</dd>` : "";
+    const ton = fristTon(p);
+    return kopf() + titel("Bestelldetails") + `<div class="inhalt">
+      <div class="detail">
+        <div class="oben"><div class="bild">${bildHtml(p)}</div>
+          <div style="flex:1;min-width:0"><h2><span>${esc(a.name)}</span><em class="schild ${p.status}">${STATUS[p.status]}</em></h2>
+          <dl>${zeile("Art.-Nr.", a.nr ? `${esc(a.nr)} <button class="kopie" data-a="kopieNr" data-z="${esc(a.nr)}" aria-label="Art.-Nr. kopieren">${sym("kopie")}</button>` : "")}
+          ${zeile("Menge", `${zahl(p.menge)} ${esc(a.einheit)}${p.status === "teilweise_geliefert" ? ` · davon ${zahl(p.geliefert_menge)} da, ${zahl(p.menge - p.geliefert_menge)} offen` : ""}`)}
+          ${zeile("Lieferant", l ? (l.website ? `<a href="${esc(l.website)}" target="_blank" rel="noopener" style="color:inherit">${esc(l.name)}</a>` : esc(l.name)) : "Ohne Lieferant")}</dl></div></div>
+        <dl>${zeile("Material / Beschreibung", esc(p.beschreibung || a.beschreibung))}
+          ${zeile("Kommission", esc(p.kommission))}
+          ${zeile("Bis wann bestellen", p.frist ? `<span class="chip ${ton}">${datum(p.frist)}${ton === "spaet" ? " · vorbei" : ""}</span>` : "")}
+          ${zeile("Liefertermin", esc(p.liefertermin))}
+          ${zeile("Notiz", esc(p.notiz))}</dl>
+        ${p.bild ? `<div class="foto"><dt>Bild</dt><img src="${p.bild}" alt="" data-a="zoom" style="margin-top:6px"></div>` : ""}
+        <div class="info">${sym("person")}<div><small>Muss bestellt werden von:</small>${esc(p.person)}</div></div>
+        <div class="info">${sym("uhr")}<div><small>Erfasst am</small>${datumZeit(p.erstellt)}${p.erstellt_von ? ` von ${esc(p.erstellt_von)}` : ""}</div></div>
+        ${p.status !== "offen" ? `<div class="info">${sym("haken")}<div><small>${STATUS[p.status]} seit</small>${datumZeit(p.status_am)}</div></div>` : ""}
+      </div>
+      <div class="gruppe-titel">Status ändern</div>
+      <div class="status-wahl">${s("offen")}${s("bestellt")}${s("teilweise_geliefert")}${s("geliefert")}</div>
+      <div class="zweiknopf"><button class="knopf" data-a="bearbeiten">${sym("stift", 20)}Bearbeiten</button>
+        <button class="knopf grau" data-a="loeschen">${sym("muell", 20)}Löschen</button></div>
+    </div>` + unten("");
+  },
+
+  kommissionen: () => verwalten("Kommissionen", "kommissionen", "kommission", "Neue Kommission, z. B. Küche Müller"),
+  mitarbeitende: () => verwalten("Mitarbeitende", "mitarbeitende", "person", "Vorname Nachname"),
+
+  einstellungen: () => kopf() + titel("Einstellungen") + `<div class="inhalt">
+      <div class="liste-kasten" style="padding:14px">
+        <p class="text-leise">Dies ist eine Testversion. Alle Bestellungen, Artikel und Lieferanten sind nur auf diesem Gerät gespeichert. Andere Geräte sehen sie noch nicht. Mit „Daten sichern“ speicherst du alles als Datei, mit „Daten laden“ holst du es auf einem anderen Gerät wieder.</p>
+      </div>
+      <div style="height:14px"></div>
+      <button class="knopf grau" data-a="sichern">${sym("runter", 20)}Daten sichern (Datei)</button>
+      <div style="height:10px"></div>
+      <button class="knopf grau" data-a="laden">${sym("hochladen", 20)}Daten laden</button>
+      <input type="file" id="ladedatei" accept=".json,application/json" hidden>
+      <div style="height:10px"></div>
+      <button class="knopf grau" data-a="zuruecksetzen">${sym("muell", 20)}Alles auf Beispieldaten zurücksetzen</button>
+    </div>` + unten(""),
+
+  profil: () => {
+    const meine = D.positionen.filter(p => p.person === D.ich && p.status === "offen")
+      .sort((a, b) => (a.frist || "9999").localeCompare(b.frist || "9999"));
+    const unterwegs = D.positionen.filter(p => p.person === D.ich && (p.status === "bestellt" || p.status === "teilweise_geliefert"));
+    return kopf() + titel("Profil", false) + `<div class="inhalt">
+      <div class="profil-bild">${esc(initialen(D.ich))}</div>
+      <p style="text-align:center;font-weight:600;font-size:17px">${esc(D.ich)}</p>
+      <p class="text-leise" style="text-align:center;margin-bottom:14px">${meine.length} offen zum Bestellen · ${unterwegs.length} unterwegs</p>
+      <button class="feld wahl" data-a="wahl" data-z="ich" style="width:100%;text-align:left">${sym("person")}<div class="fi"><label>Ich bin</label><div class="wert">${esc(D.ich)}</div></div>${sym("runter", 20)}</button>
+      <div class="gruppe-titel">Muss ich bestellen</div>
+      ${meine.length ? `<div class="lief">${meine.map(p => posHtml(p, true)).join("")}</div>` : `<p class="leer">Nichts zu bestellen.</p>`}
+      ${unterwegs.length ? `<div class="gruppe-titel">Von mir bestellt, noch nicht ganz da</div><div class="lief">${unterwegs.map(p => posHtml(p, true)).join("")}</div>` : ""}
+    </div>` + unten("profil");
+  },
+};
+
+function verwalten(t, schluessel, feld, platzhalter) {
+  return kopf() + titel(t) + `<div class="inhalt">
+    <div class="liste-kasten">${D[schluessel].map((n, i) => {
+      const anz = D.positionen.filter(p => p[feld] === n && p.status !== "geliefert").length;
+      return `<div class="zeile-verw"><span>${esc(n)}</span><small>${anz} in Bestellung</small><button data-a="weg" data-k="${schluessel}" data-z="${i}" aria-label="Entfernen">${sym("x", 18)}</button></div>`;
+    }).join("") || `<p class="leer">Noch keine Einträge.</p>`}</div>
+    <form class="neu-zeile" data-k="${schluessel}"><input name="n" placeholder="${platzhalter}" autocomplete="off"><button class="knopf klein" type="submit">${sym("plus", 18)}</button></form>
+  </div>` + unten("");
+}
+
+const MENUE = [
+  ["uebersicht", "paket", "Bestellungen", "offen"], ["neu", "plus", "Neue Bestellung"],
+  ["uebersicht", "etikett", "Artikel", "artikel"], ["uebersicht", "lkw", "Lieferanten", "lieferanten"],
+  ["kommissionen", "leute", "Kommissionen"], ["mitarbeitende", "person", "Mitarbeitende"],
+];
+function menueHtml() {
+  return `<div class="menue"><div class="marke-gross">${marke(58)}<button data-a="menue" aria-label="Schliessen">${sym("x", 26)}</button></div><nav>
+    ${MENUE.map(([z, s, t, r]) => {
+      const an = Z.seite === z && (!r || (r === "offen" ? !["artikel", "lieferanten"].includes(Z.reiter) : Z.reiter === r));
+      return `<button class="${an ? "an" : ""}" data-a="${z === "neu" ? "neu" : "gehe"}" data-z="${z}" ${r ? `data-r="${r}"` : ""}>${sym(s)}<span>${t}</span>${sym("rechts", 18)}</button>`;
+    }).join("")}
+    <hr><button data-a="gehe" data-z="einstellungen">${sym("zahnrad")}<span>Einstellungen</span></button>
+    <button data-a="gehe" data-z="start">${sym("abmelden")}<span>Abmelden</span></button></nav></div>`;
+}
+
+// ---------- Artikelsuche in „Neue Bestellung“ ----------
+function trefferHtml(text) {
+  const t = text.trim();
+  if (!t) return "";
+  const genau = D.artikel.filter(a => passt(artikelText(a), t));
+  const aeh = D.artikel.filter(a => !genau.includes(a) && aehnlich(artikelText(a), t)).slice(0, 20);
+  const zeile = (a, ae) => `<button data-a="artWahl" data-z="${a.id}"><b>${esc(a.name)}</b>${ae ? `<span class="aehnlich">ähnlich</span>` : ""}
+    <small>${esc([a.nr, lieferantVon(a.lieferant_id)?.name, a.beschreibung].filter(Boolean).join(" · "))}</small></button>`;
+  return genau.slice(0, 30).map(a => zeile(a, false)).join("") + aeh.map(a => zeile(a, true)).join("") +
+    `<button data-a="artNeuAusSuche"><span class="neu">+ Neuen Artikel anlegen: „${esc(t)}“</span></button>`;
+}
+
+// ---------- Fenster von unten ----------
+function blattOeffnen(inhalt, zu) {
+  const h = document.createElement("div"); h.className = "huelle";
+  h.innerHTML = `<div class="blatt form">${inhalt}</div>`;
+  h.__zu = () => { h.remove(); zu && zu(); };
+  h.addEventListener("click", e => { if (e.target === h) h.__zu(); });
+  document.body.appendChild(h);
+  return h;
+}
+function frage(titelText, text, knoepfe) {
+  return new Promise(ok => {
+    const h = blattOeffnen(`<h2>${titelText}</h2>${text ? `<p class="text-leise">${text}</p>` : ""}
+      <div class="zeile-knopf">${knoepfe.map((k, i) => `<button class="knopf ${k.haupt ? "" : "grau"}" data-i="${i}">${k.text}</button>`).join("")}</div>`, () => ok(null));
+    h.querySelectorAll("[data-i]").forEach(b => b.onclick = () => { h.remove(); ok(knoepfe[+b.dataset.i].wert); });
+  });
+}
+const bestaetigen = (t, text, ja = "Ja") => frage(t, text, [{ wert: false, text: "Abbrechen" }, { wert: true, text: ja, haupt: true }]).then(Boolean);
+
+// felder: [{name, label, typ: text|zahl|wahl|bereich, wert, pflicht, optionen:[[wert,text]], platz}]
+function formular(titelText, felder, okText = "Speichern", hinweis = "") {
+  return new Promise(ok => {
+    const f = d => {
+      const w = esc(d.wert ?? "");
+      const feld = d.typ === "wahl" ? `<select name="${d.name}">${d.optionen.map(([v, t]) => `<option value="${esc(v)}" ${String(v) === String(d.wert ?? "") ? "selected" : ""}>${esc(t)}</option>`).join("")}</select>`
+        : d.typ === "bereich" ? `<textarea name="${d.name}" rows="2" placeholder="${esc(d.platz || "")}">${w}</textarea>`
+        : `<input name="${d.name}" value="${w}" placeholder="${esc(d.platz || "")}" ${d.typ === "zahl" ? 'inputmode="decimal"' : ""} autocomplete="off">`;
+      return `<div class="feld2" data-n="${d.name}"><label>${esc(d.label)}${d.pflicht ? " *" : ""}</label>${feld}</div>`;
+    };
+    const h = blattOeffnen(`<h2>${titelText}</h2>${hinweis ? `<p class="text-leise">${hinweis}</p>` : ""}<form>${felder.map(f).join("")}
+      <div class="zeile-knopf"><button type="button" class="knopf grau" data-weg>Abbrechen</button><button class="knopf" type="submit">${okText}</button></div></form>`, () => ok(null));
+    const form = h.querySelector("form");
+    setTimeout(() => form.querySelector("input,textarea,select")?.focus(), 30);
+    h.querySelector("[data-weg]").onclick = () => h.__zu();
+    form.onsubmit = e => {
+      e.preventDefault();
+      const werte = {}; let fehlt = false;
+      felder.forEach(d => {
+        let v = form.elements[d.name].value.trim();
+        const box = h.querySelector(`[data-n="${d.name}"]`); box.classList.remove("fehler");
+        if (d.typ === "zahl" && v) { v = Number(v.replace(/'/g, "").replace(",", ".")); if (!(v >= 0)) { box.classList.add("fehler"); fehlt = true; } }
+        if (d.pflicht && (v === "" || v === null)) { box.classList.add("fehler"); fehlt = true; }
+        werte[d.name] = v;
+      });
+      if (fehlt) return meldung("Bitte die rot markierten Felder ausfüllen.");
+      h.remove(); ok(werte);
+    };
+  });
+}
+
+function auswahl(titelText, liste, aktuell, waehle) {
+  const h = blattOeffnen(`<h2>${titelText}</h2><div class="liste-kasten">${liste.map((n, i) => `<button class="radio ${n === aktuell ? "an" : ""}" data-i="${i}"><span class="kreis"></span>${esc(n)}</button>`).join("") || `<p class="leer">Noch keine Einträge. Im Menü anlegen.</p>`}</div>`);
+  h.addEventListener("click", e => { const r = e.target.closest(".radio"); if (r) { h.remove(); waehle(liste[+r.dataset.i]); } });
+}
+
+// ---------- Artikel und Lieferanten ----------
+const liefOptionen = () => [["", "Ohne Lieferant"], ...D.lieferanten.slice().sort((a, b) => a.name.localeCompare(b.name, "de")).map(l => [l.id, l.name]), ["neu", "+ Neuer Lieferant …"]];
+async function artikelFormular(a, kopie = false) {
+  const neu = !a || kopie;
+  const w = await formular(kopie ? "Artikel kopieren" : neu ? "Neuer Artikel" : "Artikel bearbeiten", [
+    { name: "name", label: "Bezeichnung", wert: a?.name, pflicht: true, platz: "z. B. Multiplex Birke 18 mm" },
+    { name: "nr", label: "Art.-Nr. beim Lieferanten", wert: a?.nr, platz: "freiwillig" },
+    { name: "lieferant_id", label: "Lieferant", typ: "wahl", wert: a?.lieferant_id ?? "", optionen: liefOptionen() },
+    { name: "einheit", label: "Einheit", wert: a?.einheit ?? "Stk", platz: "Stk, Pak, Platte, m, kg …" },
+    { name: "beschreibung", label: "Beschreibung", typ: "bereich", wert: a?.beschreibung, platz: "Mass, Farbe, Ausführung …" },
+  ], kopie ? "Als neuen Artikel speichern" : "Speichern", kopie ? "Alles ist ausgefüllt. Ändere, was anders ist." : "");
+  if (!w) return null;
+  if (w.nr && D.artikel.some(x => x.nr && norm(x.nr) === norm(w.nr) && (neu || x.id !== a.id))) { meldung("Diese Art.-Nr. gibt es schon."); return artikelFormular({ ...a, ...w, lieferant_id: w.lieferant_id === "neu" ? "" : +w.lieferant_id || "" }, kopie); }
+  if (w.lieferant_id === "neu") {
+    const l = await lieferantFormular();
+    w.lieferant_id = l ? l.id : 0;
+  } else w.lieferant_id = +w.lieferant_id || 0;
+  if (neu) {
+    merke("Artikel angelegt");
+    const x = { id: neueId(D.artikel), ...w };
+    D.artikel.push(x); speichern(); meldung("Artikel angelegt."); return x;
+  }
+  merke("Artikel geändert");
+  Object.assign(D.artikel.find(x => x.id === a.id), w); speichern(); meldung("Artikel gespeichert.");
+  return a;
+}
+async function lieferantFormular(l) {
+  const w = await formular(l ? "Lieferant bearbeiten" : "Neuer Lieferant", [
+    { name: "name", label: "Name", wert: l?.name, pflicht: true },
+    { name: "bestellweg", label: "Bestellt wird", typ: "wahl", wert: l?.bestellweg || "mail", optionen: [["mail", "per Mail"], ["website", "über die Website"]] },
+    { name: "mail", label: "Mail für Bestellungen", wert: l?.mail, platz: "bestellung@…" },
+    { name: "website", label: "Website", wert: l?.website, platz: "https://…" },
+    { name: "telefon", label: "Telefon", wert: l?.telefon },
+  ]);
+  if (!w) return null;
+  if (w.website && !/^https?:\/\//i.test(w.website)) w.website = "https://" + w.website;
+  if (!l) {
+    merke("Lieferant angelegt");
+    const x = { id: neueId(D.lieferanten), ...w }; D.lieferanten.push(x); speichern(); meldung("Lieferant angelegt."); return x;
+  }
+  merke("Lieferant geändert");
+  Object.assign(D.lieferanten.find(x => x.id === l.id), w); speichern(); meldung("Lieferant gespeichert."); return l;
+}
+
+// ---------- Status ----------
+async function statusSetzen(ps, status) {
+  let geliefert = null;
+  if (status === "teilweise_geliefert") {
+    if (ps.length !== 1) return;
+    const p = ps[0], a = artikelVon(p);
+    const w = await formular("Teilweise geliefert", [{ name: "g", label: `Wie viel ist da? (von ${zahl(p.menge)} ${a.einheit})`, typ: "zahl", wert: p.geliefert_menge || "", pflicht: true }], "Übernehmen");
+    if (!w) return;
+    if (w.g >= p.menge) status = "geliefert";
+    else if (w.g <= 0) return meldung("Bitte eine Menge über 0 eingeben.");
+    geliefert = w.g;
+  }
+  merke(ps.length > 1 ? `Status für ${ps.length} Positionen` : "Status geändert");
+  const jetzt = Date.now();
+  ps.forEach(p => {
+    p.status = status; p.status_am = jetzt;
+    p.geliefert_menge = status === "geliefert" ? p.menge : status === "teilweise_geliefert" ? geliefert : 0;
+  });
+  speichern(); zeichne();
+  meldung(`${ps.length > 1 ? ps.length + " Positionen: " : ""}${STATUS[status]}.`);
+}
+
+// ---------- Bestellblatt und Mail ----------
+function posFuerLieferant(lid, art) {
+  return D.positionen.filter(p => (artikelVon(p).lieferant_id || 0) === lid &&
+    (art === "offen" ? p.status === "offen" : p.status === "bestellt" || p.status === "teilweise_geliefert") && passt(posText(p), Z.suche));
+}
+function bestellblatt(lid, art) {
+  const ps = posFuerLieferant(lid, art), l = lieferantVon(lid);
+  const mitTermin = ps.some(p => p.liefertermin);
+  const zeilen = ps.map((p, i) => { const a = artikelVon(p); const m = p.status === "teilweise_geliefert" ? p.menge - p.geliefert_menge : p.menge; return `<tr><td>${i + 1}</td><td>${esc(a.nr)}</td><td><b>${esc(a.name)}</b>${p.beschreibung || a.beschreibung ? `<br><small>${esc(p.beschreibung || a.beschreibung)}</small>` : ""}</td><td class="r">${zahl(m)}</td><td>${esc(a.einheit)}</td>${mitTermin ? `<td>${esc(p.liefertermin)}</td>` : ""}<td>${esc(p.kommission)}</td></tr>`; }).join("");
+  const w = window.open("", "_blank");
+  if (!w) return meldung("Der Browser hat das Fenster blockiert.");
+  w.document.write(`<!doctype html><html lang="de-CH"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bestellung ${esc(l?.name || "")}</title>
+  <style>body{font-family:Inter,Arial,sans-serif;color:#111;margin:0;padding:24px;max-width:900px;margin:auto}
+  .kopf{display:flex;align-items:center;gap:14px;background:#121316;color:#fff;padding:16px 20px;border-radius:8px}
+  .kopf b{font-size:22px;letter-spacing:.3em;font-weight:500}.kopf small{display:block;font-size:9px;letter-spacing:.38em;color:#bbb}
+  h1{font-size:20px;margin:22px 0 4px}p{margin:2px 0;color:#444;font-size:13px}
+  table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}th{text-align:left;border-bottom:2px solid #e5175f;padding:6px;font-size:11px;letter-spacing:.05em}
+  td{border-bottom:1px solid #ddd;padding:7px 6px;vertical-align:top}td.r{text-align:right}small{color:#666}
+  .k{margin-top:18px;display:flex;gap:10px}.k button{background:#e5175f;color:#fff;border:0;border-radius:8px;padding:10px 16px;font-size:14px;cursor:pointer}
+  @media print{.k{display:none}body{padding:0}}</style></head><body>
+  <div class="kopf">${logo(44)}<div><b>SÜMI</b><small>SCHREINEREI</small></div></div>
+  <h1>Bestellung</h1><p>An: <b>${esc(l?.name || "Ohne Lieferant")}</b>${l?.mail ? " · " + esc(l.mail) : ""}</p>
+  <p>Datum: ${datumZeit(Date.now()).slice(0, 10)} · Besteller: ${esc(D.ich)}</p>
+  <table><thead><tr><th>POS</th><th>ART.-NR.</th><th>BEZEICHNUNG</th><th style="text-align:right">MENGE</th><th>EINHEIT</th>${mitTermin ? "<th>TERMIN</th>" : ""}<th>KOMMISSION</th></tr></thead><tbody>${zeilen}</tbody></table>
+  <div class="k"><button onclick="print()">Drucken / als PDF</button></div></body></html>`);
+  w.document.close();
+}
+async function perMail(lid) {
+  const ps = posFuerLieferant(lid, "offen"), l = lieferantVon(lid);
+  if (!l?.mail) return;
+  const text = `Guten Tag\n\nWir bestellen:\n\n${ps.map(p => { const a = artikelVon(p); return `${zahl(p.menge)} ${a.einheit}  ${a.nr ? a.nr + "  " : ""}${a.name}${p.beschreibung ? " (" + p.beschreibung + ")" : ""}`; }).join("\n")}\n\nFreundliche Grüsse\n${D.ich}\nSÜMI Schreinerei`;
+  location.href = `mailto:${encodeURIComponent(l.mail)}?subject=${encodeURIComponent("Bestellung SÜMI Schreinerei")}&body=${encodeURIComponent(text)}`;
+  setTimeout(async () => {
+    if (await bestaetigen("Mail geschickt?", `Die ${ps.length} Positionen als bestellt markieren?`, "Ja, bestellt")) statusSetzen(ps, "bestellt");
+  }, 600);
+}
+
+// ---------- Zeichnen ----------
+function zeichne() {
+  app.innerHTML = SEITEN[Z.seite]() + (Z.menue ? menueHtml() : "");
+  const s = document.getElementById("suche");
+  if (s) s.addEventListener("input", () => { Z.suche = s.value; document.getElementById("liste").innerHTML = listeHtml(); });
+  const as = document.getElementById("artsuche");
+  if (as) as.addEventListener("input", () => { Z.entwurf.artsuche = as.value; as.closest(".feld").classList.remove("fehler"); document.getElementById("treffer").innerHTML = trefferHtml(as.value); });
+  app.querySelectorAll("[data-f]").forEach(el => el.addEventListener("input", () => {
+    Z.entwurf[el.dataset.f] = el.value;
+    el.closest(".feld").classList.remove("fehler");
+    if (el.tagName === "TEXTAREA") { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }
+  }));
+  app.querySelectorAll("textarea[data-f]").forEach(el => { el.style.height = el.scrollHeight + "px"; });
+  const datei = document.getElementById("datei");
+  if (datei) datei.addEventListener("change", () => datei.files[0] && bildLaden(datei.files[0]));
+  const ab = document.getElementById("ablage");
+  if (ab) {
+    ab.addEventListener("dragover", e => { e.preventDefault(); ab.classList.add("drueber"); });
+    ab.addEventListener("dragleave", () => ab.classList.remove("drueber"));
+    ab.addEventListener("drop", e => { e.preventDefault(); ab.classList.remove("drueber"); const f = e.dataTransfer.files[0]; f && bildLaden(f); });
+  }
+  const ld = document.getElementById("ladedatei");
+  if (ld) ld.addEventListener("change", () => ld.files[0] && datenLaden(ld.files[0]));
+  app.querySelectorAll("form.neu-zeile").forEach(f => f.addEventListener("submit", e => {
+    e.preventDefault(); const n = f.n.value.trim(); if (!n) return;
+    if (D[f.dataset.k].includes(n)) return meldung("Gibt es schon.");
+    merke("Eintrag angelegt");
+    D[f.dataset.k].push(n); speichern(); zeichne();
+    document.querySelector("form.neu-zeile input").focus();
+  }));
+}
+
+// Bilder verkleinern, damit der Speicher reicht
+function bildLaden(f) {
+  if (!f.type.startsWith("image/")) return meldung("Bitte ein Bild wählen.");
+  const r = new FileReader();
+  r.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 900, k = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas"); c.width = img.width * k; c.height = img.height * k;
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      Z.entwurf.bild = c.toDataURL("image/jpeg", .78); zeichne();
+    };
+    img.src = r.result;
+  };
+  r.readAsDataURL(f);
+}
+function datenLaden(f) {
+  const r = new FileReader();
+  r.onload = async () => {
+    try {
+      const neu = JSON.parse(r.result);
+      if (!Array.isArray(neu.positionen) || !Array.isArray(neu.artikel)) throw 0;
+      if (!await bestaetigen("Daten laden?", "Alles auf diesem Gerät wird durch die Datei ersetzt.", "Laden")) return;
+      merke("Daten geladen"); D = neu; speichern(); meldung("Daten geladen."); gehe("uebersicht");
+    } catch { meldung("Diese Datei kann ich nicht lesen."); }
+  };
+  r.readAsText(f);
+}
+
+const leererEntwurf = (artikel_id = 0) => ({ artikel_id, artsuche: "", menge: "", beschreibung: "", bild: "", kommission: "", person: "", frist: "", liefertermin: "", notiz: "" });
+
+// ---------- Klicks ----------
+document.addEventListener("click", async e => {
+  const el = e.target.closest("[data-a]"); if (!el || !document.contains(el)) return;
+  const a = el.dataset.a, z = el.dataset.z;
+  if (a === "gehe") return gehe(z, el.dataset.r ? { reiter: el.dataset.r, suche: "" } : {});
+  if (a === "zurueck") return history.length > 1 ? history.back() : gehe("uebersicht");
+  if (a === "menue") { Z.menue = !Z.menue; return zeichne(); }
+  if (a === "rueck") return rueckgaengig();
+  if (a === "reiter") { Z.reiter = z; Z.suche = ""; return zeichne(); }
+  if (a === "detail") return gehe("detail", { id: +z });
+  if (a === "neu") { Z.entwurf = leererEntwurf(); return gehe("neu"); }
+  if (a === "kopieNr") {
+    e.stopPropagation();
+    try { await navigator.clipboard.writeText(z); meldung(`Art.-Nr. ${z} kopiert.`); } catch { meldung("Kopieren geht hier nicht."); }
+    return;
+  }
+  if (a === "bildwahl") return document.getElementById("datei").click();
+  if (a === "bildweg") { e.preventDefault(); Z.entwurf.bild = ""; return zeichne(); }
+  if (a === "zoom") { const g = document.createElement("div"); g.className = "gross-bild"; g.innerHTML = `<img src="${el.src}">`; g.onclick = () => g.remove(); return document.body.appendChild(g); }
+  if (a === "wahl") {
+    if (z === "kommission") return auswahl("Kommission wählen", D.kommissionen, Z.entwurf.kommission, w => { Z.entwurf.kommission = w; zeichne(); });
+    if (z === "person") return auswahl("Mitarbeitende", D.mitarbeitende, Z.entwurf.person, w => { Z.entwurf.person = w; zeichne(); });
+    if (z === "ich") return auswahl("Wer bist du?", D.mitarbeitende, D.ich, w => { D.ich = w; speichern(); zeichne(); });
+  }
+  // Artikel in der neuen Bestellung
+  if (a === "artWahl") { Z.entwurf.artikel_id = +z; return zeichne(); }
+  if (a === "artAendern") { Z.entwurf.artikel_id = 0; zeichne(); return document.getElementById("artsuche")?.focus(); }
+  if (a === "artNeuAusSuche") {
+    const x = await artikelFormular({ name: Z.entwurf.artsuche.trim(), einheit: "Stk" }, true);
+    if (x) { Z.entwurf.artikel_id = x.id; } return zeichne();
+  }
+  if (a === "senden") {
+    const en = Z.entwurf;
+    const fehlt = ["artikel_id", "menge", "kommission", "person"].filter(k => !String(en[k] || "").trim() || (k === "artikel_id" && !en.artikel_id));
+    const menge = Number(String(en.menge).replace(/'/g, "").replace(",", "."));
+    if (en.menge && !(menge > 0)) fehlt.push("menge");
+    fehlt.forEach(k => document.getElementById("f-" + k)?.classList.add("fehler"));
+    if (fehlt.length) return meldung(fehlt.includes("artikel_id") ? "Bitte einen Artikel wählen oder neu anlegen." : "Bitte alle Felder mit * ausfüllen.");
+    const daten = { artikel_id: en.artikel_id, menge, beschreibung: en.beschreibung.trim(), bild: en.bild, kommission: en.kommission, person: en.person, frist: en.frist, liefertermin: en.liefertermin.trim(), notiz: en.notiz.trim() };
+    if (en.id) {
+      merke("Bestellung geändert");
+      Object.assign(D.positionen.find(p => p.id === en.id), daten);
+      speichern(); meldung("Gespeichert."); history.back();
+    } else {
+      merke("Bestellung hinzugefügt");
+      const jetzt = Date.now();
+      D.positionen.push({ id: neueId(D.positionen), ...daten, status: "offen", geliefert_menge: 0, erstellt: jetzt, erstellt_von: D.ich, status_am: jetzt });
+      speichern(); meldung("Zur Bestellung hinzugefügt.");
+      gehe("uebersicht", { reiter: "offen", suche: "" });
+    }
+    return;
+  }
+  // Detail
+  const pos = () => D.positionen.find(p => p.id === Z.id);
+  if (a === "status") { const p = pos(); if (p.status === z && z !== "teilweise_geliefert") return; return statusSetzen([p], z); }
+  if (a === "bearbeiten") {
+    const p = pos();
+    const was = await frage("Was bearbeiten?", "", [{ wert: "pos", text: "Diese Bestellung", haupt: true }, { wert: "art", text: "Den Artikel selbst" }]);
+    if (was === "pos") { Z.entwurf = { ...leererEntwurf(), ...p, menge: String(p.menge) }; return gehe("neu"); }
+    if (was === "art") { const art = D.artikel.find(x => x.id === p.artikel_id); if (!art) return meldung("Artikel gibt es nicht mehr."); await artikelFormular(art); return zeichne(); }
+    return;
+  }
+  if (a === "loeschen") {
+    if (!await bestaetigen("Bestellung löschen?", "Mit „Rückgängig“ holst du sie zurück.", "Löschen")) return;
+    merke("Bestellung gelöscht");
+    D.positionen = D.positionen.filter(p => p.id !== Z.id); speichern(); meldung("Gelöscht."); return gehe("uebersicht");
+  }
+  // Lieferanten-Karten
+  if (a === "blatt") return bestellblatt(+z, el.dataset.s);
+  if (a === "mail") return perMail(+z);
+  if (a === "alle") {
+    const ps = posFuerLieferant(+z, el.dataset.s);
+    const moegl = ["offen", "bestellt", "geliefert"].filter(s => ps.some(p => p.status !== s));
+    const s = await frage(`Status für alle ${ps.length} Positionen`, esc(lieferantVon(+z)?.name || "Ohne Lieferant"), moegl.map(s => ({ wert: s, text: STATUS[s], haupt: s === "bestellt" })));
+    if (!s) return;
+    if (!await bestaetigen(`Alle ${ps.length} auf „${STATUS[s]}“?`, "", "Ja, alle")) return;
+    return statusSetzen(ps, s);
+  }
+  // Artikel-Reiter
+  const art = () => D.artikel.find(x => x.id === +z);
+  if (a === "artNeu") { await artikelFormular(); return zeichne(); }
+  if (a === "artEdit") { await artikelFormular(art()); return zeichne(); }
+  if (a === "artKopie") { const k = { ...art() }; k.nr = k.nr ? k.nr + "-KOPIE" : ""; await artikelFormular(k, true); return zeichne(); }
+  if (a === "artBestellen") { Z.entwurf = leererEntwurf(+z); return gehe("neu"); }
+  if (a === "artWeg") {
+    const x = art(), n = D.positionen.filter(p => p.artikel_id === x.id && p.status !== "geliefert").length;
+    if (!await bestaetigen(`„${esc(x.name)}“ löschen?`, n ? `${n} Bestellungen laufen noch mit diesem Artikel.` : "", "Löschen")) return;
+    merke("Artikel gelöscht"); D.artikel = D.artikel.filter(y => y.id !== x.id); speichern(); return zeichne();
+  }
+  if (a === "liefNeu") { await lieferantFormular(); return zeichne(); }
+  if (a === "liefEdit") { await lieferantFormular(D.lieferanten.find(l => l.id === +z)); return zeichne(); }
+  if (a === "liefWeg") {
+    const l = D.lieferanten.find(x => x.id === +z), n = D.artikel.filter(x => x.lieferant_id === l.id).length;
+    if (!await bestaetigen(`„${esc(l.name)}“ löschen?`, n ? `${n} Artikel stehen danach ohne Lieferant da.` : "", "Löschen")) return;
+    merke("Lieferant gelöscht");
+    D.lieferanten = D.lieferanten.filter(x => x.id !== l.id);
+    D.artikel.forEach(x => { if (x.lieferant_id === l.id) x.lieferant_id = 0; });
+    speichern(); return zeichne();
+  }
+  // Verwalten, Einstellungen
+  if (a === "weg") {
+    const k = el.dataset.k, n = D[k][+z];
+    if (!await bestaetigen(`„${esc(n)}“ entfernen?`, "Bestehende Bestellungen behalten den Eintrag.", "Entfernen")) return;
+    merke("Eintrag entfernt"); D[k].splice(+z, 1); speichern(); return zeichne();
+  }
+  if (a === "sichern") {
+    const b = new Blob([JSON.stringify(D)], { type: "application/json" });
+    const l = document.createElement("a"); l.href = URL.createObjectURL(b);
+    l.download = `SUEMI-Bestellungen-${heuteIso()}.json`; l.click(); return;
+  }
+  if (a === "laden") return document.getElementById("ladedatei").click();
+  if (a === "zuruecksetzen") {
+    if (!await bestaetigen("Alles zurücksetzen?", "Alle Daten auf diesem Gerät werden durch Beispieldaten ersetzt.", "Zurücksetzen")) return;
+    merke("Zurückgesetzt"); D = vorgabe(); speichern(); meldung("Zurückgesetzt."); return gehe("uebersicht");
+  }
+});
+
+// Start
+const anfang = location.hash.slice(1);
+if (["uebersicht", "kommissionen", "mitarbeitende", "einstellungen", "profil"].includes(anfang)) Z.seite = anfang;
+history.replaceState({ ...Z }, "", "#" + Z.seite);
+zeichne();
+
+</script>
+</body>
+</html>
