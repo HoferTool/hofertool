@@ -145,8 +145,9 @@ export default function Start({ auffrischen, module }) {
             : <Geburtstage leute={geb.daten} fehler={geb.fehler} />}
         </div>
         {/* Umfragen zuoberst direkt nach der Solaranlage (seit 1.758.0,
-            Wunsch Patrick 24. November 2026) */}
-        <Umfragen auffrischen={auffrischen} />
+            Wunsch Patrick 24. November 2026); seit 1.770.0 kompakt und nur so
+            breit wie nötig (Patrick: „soll nur so gross wie nötig“) */}
+        <div className="start-umf"><Umfragen auffrischen={auffrischen} /></div>
         {admin && <Systemzustand auffrischen={auffrischen} />}
         <NeuesTutorial />
         {/* 1.723.0: alle Karten in einem Fluss mit zwei Spalten, die der
