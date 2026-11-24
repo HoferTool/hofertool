@@ -193,6 +193,33 @@ function KopfRaster({ kopf }) {
   );
 }
 
+// Protokolle nach FA Nr., die jüngste FA zuerst (die Liste kommt neuste zuerst)
+function faGruppen(liste) {
+  const m = new Map();
+  for (const p of liste) { const k = String(p.fa_nr || "").trim() || "_"; if (!m.has(k)) m.set(k, []); m.get(k).push(p); }
+  return [...m.entries()].sort((x, y) => (x[0] === "_") - (y[0] === "_"));
+}
+
+// ---------- FA Nr. wählen ----------
+const STAND = { laeuft: "läuft", ruesten: "Rüsten", geplant: "geplant", fertig: "fertig" };
+async function faWaehlen(hoco) {
+  const { data } = await alt.db.from("jobs").select("id, fa_nr, target_quantity, plan_status, planned_from")
+    .eq("job_number", hoco).order("planned_from", { ascending: false, nullsFirst: false }).limit(30);
+  const rang = (x) => ({ laeuft: 0, ruesten: 1, geplant: 2 }[x.plan_status] ?? 3);
+  const auftraege = (data || []).filter((x) => x.fa_nr).sort((a, b) => rang(a) - rang(b)).slice(0, 8);
+  const opt = auftraege.map((x) => ({ wert: x.id, text: "FA " + x.fa_nr + " · " + (STAND[x.plan_status] || x.plan_status || "")
+    + (x.planned_from ? " · ab " + datumText(x.planned_from) : "") + (x.target_quantity ? " · " + alt.zahlText(x.target_quantity) + " Stk" : "") }));
+  opt.push({ wert: "_hand", text: "Andere FA Nr. eintippen …" });
+  const w = await alt.auswahlDialog("Für welche FA Nr.?", opt, "Das Protokoll wird mit dieser FA Nr. gespeichert. Jede FA hat ihre eigenen Protokolle.");
+  if (!w) return null;
+  if (w !== "_hand") return auftraege.find((x) => x.id === w);
+  const e = await alt.dialogFelder({ titel: "FA Nr. eintippen", felder: [{ name: "fa", label: "FA Nr.", pflicht: true }], bestaetigen: "Weiter" });
+  const fa = e && String(e.fa || "").trim();
+  if (!fa) return null;
+  const da = (data || []).find((x) => String(x.fa_nr || "").trim() === fa);
+  return da || { fa_nr: fa };
+}
+
 // ---------- Eine HOCO Nr. ----------
 function HocoAnsicht({ g, zurueck, neu, oeffnen }) {
   const { vorlage, fehler } = useVorlage(g.dateien);
@@ -209,9 +236,10 @@ function HocoAnsicht({ g, zurueck, neu, oeffnen }) {
     if (!vorlage) return;
     setLegt(true);
     try {
-      const { data: auftrag } = await alt.db.from("jobs").select("fa_nr, target_quantity").eq("job_number", g.hoco)
-        .order("planned_from", { ascending: false, nullsFirst: false }).limit(1);
-      const j = (auftrag && auftrag[0]) || {};
+      // Jedes Protokoll gehört zu einer FA Nr., damit alte Prüfungen nicht
+      // überschrieben werden wie das Excel im Ordner (Patrick 24.11.2026)
+      const j = await faWaehlen(g.hoco);
+      if (!j) return;
       const kopf = { art, zeilen: vorlage.zeilen, vorlage: vorlage.kopf, menge: j.target_quantity || "" };
       if (art === "aql") { kopf.los = j.target_quantity || ""; kopf.aql = 1.0; kopf.niveau = "II"; }
       if (art === "ll") {
@@ -221,7 +249,7 @@ function HocoAnsicht({ g, zurueck, neu, oeffnen }) {
         kopf.auswahl = ((vor && vor.kopf.auswahl) || []).filter((x) => ids.has(x));
       }
       const { data, error } = await alt.db.from("pruefprotokolle").insert({
-        hoco_nr: g.hoco, fa_nr: j.fa_nr || null, kopf, werte: art === "ll" ? { proben: [] } : {}, datum: heute(),
+        hoco_nr: g.hoco, fa_nr: j.fa_nr, job_id: j.id || null, kopf, werte: art === "ll" ? { proben: [] } : {}, datum: heute(),
       }).select().single();
       if (error) throw error;
       alt.merkeSchritt("Neues Prüfprotokoll " + g.hoco, alt.rueckWeg("pruefprotokolle", { id: data.id }));
@@ -280,7 +308,10 @@ function HocoAnsicht({ g, zurueck, neu, oeffnen }) {
         ) : null}
         {!g.protokolle.length ? <p className="klein">Noch kein Protokoll.</p> : (
           <div className="pb-protokolle">
-            {g.protokolle.map((p) => {
+            {faGruppen(g.protokolle).map(([fa, liste]) => (
+              <div key={fa} className="pb-fagruppe" data-pbfa={fa}>
+                <h4 className="pb-fagruppe__titel">{fa === "_" ? "Ohne FA Nr." : "FA " + fa}<small>{liste.length} Protokoll{liste.length === 1 ? "" : "e"}</small></h4>
+            {liste.map((p) => {
               const e = auswerten(p);
               return (
                 <button type="button" key={p.id} className="pb-protokolle__zeile" data-pbprotokoll={p.id} onClick={() => oeffnen(p.id)}>
@@ -291,6 +322,8 @@ function HocoAnsicht({ g, zurueck, neu, oeffnen }) {
                 </button>
               );
             })}
+              </div>
+            ))}
           </div>
         )}
       </section>
@@ -372,14 +405,14 @@ function Protokoll({ p, g, zurueck, neu }) {
     <div className="pb" data-pbprotokolloffen={w.id}>
       <div className="pb-kopfzeile">
         <button type="button" className="knopf knopf--klein" onClick={zurueck}>← {g.hoco}</button>
-        <h2 className="pb-titel"><span className={"pb-art pb-art--" + art}>{artVon(art).kurz}</span> {artVon(art).name} {g.hoco}</h2>
+        <h2 className="pb-titel"><span className={"pb-art pb-art--" + art}>{artVon(art).kurz}</span> {artVon(art).name} {g.hoco}{w.fa_nr ? " · FA " + w.fa_nr : ""}</h2>
         <span className="klein" id="pb-stand">{stand}</span>
         <button type="button" className="knopf knopf--klein" onClick={drucken}>⬇ PDF</button>
         {darf() ? <button type="button" className="knopf knopf--klein" onClick={loeschen}>Löschen</button> : null}
       </div>
       <KopfRaster kopf={w.kopf.vorlage || {}} />
       <div className="pb-felder">
-        <label>FA Nr.<input value={w.fa_nr || ""} disabled={!schreibt} onChange={(x) => setzen("fa_nr", x.target.value)} /></label>
+        <label className={!String(w.fa_nr || "").trim() ? "pb-pflicht" : ""}>FA Nr.<input value={w.fa_nr || ""} disabled={!schreibt} onChange={(x) => setzen("fa_nr", x.target.value)} /></label>
         <label>Datum<input type="date" value={w.datum || ""} disabled={!schreibt} onChange={(x) => setzen("datum", x.target.value)} /></label>
         <label>Maschine<input value={w.kopf.maschine || ""} placeholder={(w.kopf.vorlage || {}).maschine || ""} disabled={!schreibt} onChange={(x) => kopfSetzen("maschine", x.target.value)} /></label>
         {art === "aql" ? <AqlKopf k={w.kopf} schreibt={schreibt} setzen={kopfSetzen} werte={w.werte} /> : null}

@@ -16649,3 +16649,10 @@ body.dunkel .pb-ist--gut { background: #1d3a24; }
 body.dunkel .pb-ist--schlecht, body.dunkel .pb-zeile--rot td { background: #45201f; }
 body.dunkel .pb-rot { color: #ff8a80 !important; }
 body.dunkel .pb-gruen { color: #81c784 !important; }
+
+/* ---------- 1.773.0 Prüfprotokolle je FA Nr. ---------- */
+.pb-fagruppe { margin: 0 0 12px; }
+.pb-fagruppe__titel { display: flex; gap: 8px; align-items: baseline; margin: 10px 0 4px; font-size: 14px; color: var(--marke, #003884); }
+.pb-fagruppe__titel small { font-weight: 400; color: #667; }
+body.dunkel .pb-fagruppe__titel small { color: #aab; }
+.pb-pflicht input { border-color: #c00 !important; box-shadow: 0 0 0 1px #c00; }
