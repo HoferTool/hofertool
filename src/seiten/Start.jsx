@@ -148,22 +148,18 @@ export default function Start({ auffrischen, module }) {
               : <Geburtstage leute={geb.daten} fehler={geb.fehler} />}
           </div>
         </>}
-        {/* Umfragen zuoberst direkt nach der Solaranlage (seit 1.758.0,
-            Wunsch Patrick 24. November 2026); seit 1.770.0 kompakt und nur so
-            breit wie nötig (Patrick: „soll nur so gross wie nötig“) */}
-        {/* 1.778.0: daneben der Kalender, damit neben der schmalen Umfrage
-            kein leerer Platz bleibt (Patrick 24. November 2026: „neben dran
-            ist nichts reingeschoben worden“); ohne Umfrage nimmt er die Breite */}
-        <div className="start-paar start-umf">
-          <Umfragen auffrischen={auffrischen} />
-          <KalenderKarte auffrischen={auffrischen} />
-        </div>
         {admin && <Systemzustand auffrischen={auffrischen} />}
         <NeuesTutorial />
         {/* 1.723.0: alle Karten in einem Fluss mit zwei Spalten, die der
             Browser gleich hoch verteilt (Patrick 23. November 2026: „schön
             aufteilen“), statt fester linker und rechter Spalte */}
+        {/* 1.779.0: Umfrage und Kalender stehen zuerst im Fluss der zwei
+            Spalten, so füllen die anderen Karten den Platz neben der hohen
+            Umfrage (Patrick 24. November 2026: „soll immer auffüllen, so gut
+            wie möglich“); vorher stand neben ihr nur der kurze Kalender */}
         <SpaltenFluss>
+          <Umfragen auffrischen={auffrischen} />
+          <KalenderKarte auffrischen={auffrischen} />
           {!kopflos && <Geburtstage leute={geb.daten} fehler={geb.fehler} />}
           {probSehen && <Probleme liste={prob.daten} fehler={prob.fehler} neu={prob.neu} />}
           <Materialausgabe auffrischen={auffrischen} />

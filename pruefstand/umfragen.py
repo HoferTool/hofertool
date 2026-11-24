@@ -50,7 +50,7 @@ with sync_playwright() as p:
             # auch im neuen Look (Klasse neues-menue)
             pg.evaluate("document.documentElement.classList.add('neues-menue'); location.hash = '#/material'")
             pg.wait_for_timeout(500); pg.evaluate("location.hash = '#/dashboard'"); pg.wait_for_timeout(1200)
-            pruefe("neuer Look: Umfrage schmal", pg.locator(".sn2 .start-umf .umf-karte").count() == 1
+            pruefe("neuer Look: Umfrage schmal", pg.locator(".sn2 .sn2-spalten .umf-karte").count() == 1
                    and pg.locator(".sn2 .umf-karte").bounding_box()["width"] < 900)
             pg.screenshot(path=SP + "umfrage_start_neu.png", full_page=True)
             pg.evaluate("document.documentElement.classList.remove('neues-menue'); location.hash = '#/material'")
