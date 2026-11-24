@@ -1,4 +1,4 @@
-# Eintägige Abwesenheit (1.756.3): Doppelklick öffnet den Eintrag, auch
+# Eintägige Abwesenheit (1.756.4): Doppelklick öffnet den Eintrag, auch
 # wenn er über einem Griff liegt.
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
