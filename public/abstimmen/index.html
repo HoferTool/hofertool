@@ -1,0 +1,167 @@
+<!doctype html>
+<!-- Abstimmseite für den QR-Code der Umfragen (seit 1.761.0, Wunsch Patrick
+     24. November 2026: „QR-Code, damit man direkt mit dem Smartphone
+     abstimmen kann“, Entscheid „Ohne Anmeldung“). Eigene kleine Seite ohne
+     App und ohne Anmeldung: liest die Umfrage über umfrage_qr_lesen und
+     stimmt über umfrage_qr_abstimmen ab (sql/umfrage-qr.sql). Erreichbar
+     nur, wenn ein Admin bei der Umfrage den QR-Code geöffnet hat. Namen
+     anderer sieht man hier nie, nur die Zahl der Stimmen. -->
+<html lang="de-CH">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#003884">
+<meta name="robots" content="noindex">
+<title>Umfrage · Hofer + Co</title>
+<link rel="icon" href="../icon-192.png">
+<style>
+  :root { --blau: #003884; --blau2: #0a4fae; --grund: #eef3f9; --karte: #fff; --tinte: #13233a;
+    --leise: #5b6b80; --rand: #d5deea; --gut: #1f8a4c; --fehler: #b3261e; }
+  @media (prefers-color-scheme: dark) {
+    :root { --grund: #0c1626; --karte: #14223a; --tinte: #e8eef7; --leise: #9fb0c6; --rand: #26395a; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--grund); color: var(--tinte);
+    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { background: var(--blau); padding: calc(18px + env(safe-area-inset-top)) 16px 22px; text-align: center; }
+  header img { height: 44px; max-width: 70%; }
+  main { max-width: 560px; margin: -10px auto 0; padding: 0 16px 40px; }
+  .karte { background: var(--karte); border: 1px solid var(--rand); border-radius: 14px; padding: 18px;
+    box-shadow: 0 6px 20px rgba(0, 30, 70, .08); }
+  h1 { font-size: 1.3rem; margin: 0 0 6px; }
+  .text { margin: 0 0 12px; white-space: pre-wrap; }
+  .info { color: var(--leise); font-size: .9rem; margin: 0 0 12px; }
+  .bild { width: 100%; border-radius: 10px; margin: 0 0 12px; display: block; }
+  .v { display: flex; gap: 12px; align-items: center; width: 100%; text-align: left; font: inherit; color: inherit;
+    background: transparent; border: 2px solid var(--rand); border-radius: 12px; padding: 12px; margin: 0 0 10px;
+    cursor: pointer; position: relative; overflow: hidden; }
+  .v img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; flex: none; }
+  .v__text { flex: 1; position: relative; z-index: 1; }
+  .v__zahl { font-weight: 700; position: relative; z-index: 1; }
+  .v__balken { position: absolute; inset: 0 auto 0 0; background: rgba(10, 79, 174, .12); z-index: 0; }
+  .v--an { border-color: var(--blau2); background: rgba(10, 79, 174, .08); }
+  .v--an::after { content: "✓"; position: absolute; right: 12px; top: 8px; color: var(--blau2); font-weight: 800; }
+  .v[disabled] { cursor: default; }
+  label { display: block; font-weight: 600; margin: 14px 0 6px; }
+  input { width: 100%; font: inherit; padding: 12px; border: 2px solid var(--rand); border-radius: 10px;
+    background: var(--karte); color: var(--tinte); }
+  input:focus { outline: none; border-color: var(--blau2); }
+  .knopf { width: 100%; margin-top: 14px; padding: 14px; font: inherit; font-weight: 700; border: 0;
+    border-radius: 12px; background: var(--blau); color: #fff; cursor: pointer; }
+  .knopf[disabled] { opacity: .6; }
+  .link { background: none; border: 0; color: var(--blau2); font: inherit; text-decoration: underline;
+    cursor: pointer; padding: 8px 0 0; }
+  .meldung { margin: 12px 0 0; font-weight: 600; }
+  .meldung--gut { color: var(--gut); }
+  .meldung--fehler { color: var(--fehler); }
+  .fehlt { border-color: var(--fehler) !important; }
+  .leer { text-align: center; color: var(--leise); padding: 30px 10px; }
+</style>
+</head>
+<body>
+<header><img src="../logo-weiss.svg" alt="Hofer + Co"></header>
+<main><div class="karte" id="inhalt"><p class="leer">Umfrage wird geladen …</p></div></main>
+<script>
+(function () {
+  "use strict";
+  var URL_DB = "https://lzhqwbxfwqamauntehof.supabase.co/rest/v1/rpc/";
+  var KEY = "sb_publishable_MLN71MehUtWldj_GVLDBvw_OCJODSCW";
+  var id = new URLSearchParams(location.search).get("u") || "";
+  var el = document.getElementById("inhalt");
+  var u = null, wahl = [], abgestimmt = false, nochmals = false, meldung = null;
+
+  function lesen(k, s) { try { var w = localStorage.getItem(k); return w == null ? s : JSON.parse(w); } catch (f) { return s; } }
+  function ablegen(k, w) { try { localStorage.setItem(k, JSON.stringify(w)); } catch (f) { /* privat */ } }
+  function esc(t) { return String(t == null ? "" : t).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+
+  function rpc(name, daten) {
+    // Window-Name als Test-Haken: der Prüfstand ersetzt die Antwort
+    if (window.TEST_RPC) return window.TEST_RPC(name, daten);
+    return fetch(URL_DB + name, { method: "POST",
+      headers: { apikey: KEY, Authorization: "Bearer " + KEY, "Content-Type": "application/json" },
+      body: JSON.stringify(daten) }).then(function (r) {
+      return r.text().then(function (t) {
+        var j = null; try { j = t ? JSON.parse(t) : null; } catch (f) { /* leer */ }
+        if (!r.ok) throw new Error((j && j.message) || "Keine Verbindung zum Server.");
+        return j;
+      });
+    });
+  }
+
+  function laden() {
+    if (!/^[0-9a-f-]{36}$/i.test(id)) { zeigeLeer("Dieser Link ist nicht gültig."); return; }
+    rpc("umfrage_qr_lesen", { p_umfrage: id }).then(function (d) {
+      if (!d) { zeigeLeer("Diese Umfrage gibt es nicht oder sie ist nicht freigegeben."); return; }
+      u = d; abgestimmt = !!lesen("hofer.umfrage.stimmen", {})[id];
+      document.title = u.titel + " · Hofer + Co";
+      zeichnen();
+    }).catch(function (f) { zeigeLeer(f.message + " Bitte später nochmals versuchen."); });
+  }
+  function zeigeLeer(t) { el.innerHTML = '<p class="leer">' + esc(t) + "</p>"; }
+
+  function zeichnen() {
+    var waehlbar = u.offen && (!abgestimmt || nochmals);
+    var ergebnis = !waehlbar;
+    var h = "<h1>" + esc(u.titel) + "</h1>";
+    if (u.beschreibung) h += '<p class="text">' + esc(u.beschreibung) + "</p>";
+    if (u.bild_url) h += '<img class="bild" src="' + esc(u.bild_url) + '" alt="">';
+    h += '<p class="info">' + (u.offen ? (u.mehrfach ? "Mehrere Vorschläge wählbar" : "Einen Vorschlag wählen")
+      : "Diese Umfrage ist abgeschlossen") + (ergebnis ? " · " + u.leute + (u.leute === 1 ? " Person hat" : " Personen haben") + " abgestimmt" : "") + "</p>";
+    (u.vorschlaege || []).forEach(function (v) {
+      var an = wahl.indexOf(v.id) >= 0;
+      var anteil = u.leute ? Math.round(v.stimmen / u.leute * 100) : 0;
+      h += '<button type="button" class="v' + (an ? " v--an" : "") + '" data-v="' + esc(v.id) + '"' + (waehlbar ? "" : " disabled") + ">"
+        + (ergebnis ? '<span class="v__balken" style="width:' + anteil + '%"></span>' : "")
+        + (v.bild_url ? '<img src="' + esc(v.bild_url) + '" alt="">' : "")
+        + '<span class="v__text">' + esc(v.text) + "</span>"
+        + (ergebnis ? '<span class="v__zahl">' + v.stimmen + " · " + anteil + " %</span>" : "") + "</button>";
+    });
+    if (waehlbar) {
+      h += '<label for="name">Dein Name</label><input id="name" autocomplete="name" maxlength="60" value="'
+        + esc(lesen("hofer.umfrage.name", "")) + '" placeholder="Vorname Nachname">'
+        + '<button type="button" class="knopf" id="senden">Abstimmen</button>';
+    } else if (u.offen) {
+      h += '<button type="button" class="link" id="nochmals">Jemand anderes stimmt ab</button>';
+    }
+    if (meldung) h += '<p class="meldung meldung--' + meldung.art + '">' + esc(meldung.text) + "</p>";
+    el.innerHTML = h;
+    Array.prototype.forEach.call(el.querySelectorAll("[data-v]"), function (b) {
+      b.onclick = function () {
+        var v = b.getAttribute("data-v"); meldung = null;
+        if (wahl.indexOf(v) >= 0) wahl = wahl.filter(function (x) { return x !== v; });
+        else wahl = u.mehrfach ? wahl.concat(v) : [v];
+        var n = document.getElementById("name"); var nameJetzt = n ? n.value : null;
+        zeichnen();
+        if (nameJetzt != null) document.getElementById("name").value = nameJetzt;
+      };
+    });
+    var s = document.getElementById("senden"); if (s) s.onclick = senden;
+    var n = document.getElementById("nochmals");
+    if (n) n.onclick = function () { nochmals = true; wahl = []; meldung = null; ablegen("hofer.umfrage.name", ""); zeichnen(); };
+  }
+
+  function senden() {
+    var feld = document.getElementById("name");
+    var name = feld.value.trim().replace(/\s+/g, " ");
+    if (!wahl.length) { meldung = { art: "fehler", text: "Bitte zuerst einen Vorschlag antippen." }; zeichnen();
+      document.getElementById("name").value = name; return; }
+    if (name.length < 2) { feld.classList.add("fehlt"); feld.focus(); return; }
+    var knopf = document.getElementById("senden"); knopf.disabled = true; knopf.textContent = "Wird gesendet …";
+    rpc("umfrage_qr_abstimmen", { p_umfrage: id, p_vorschlaege: wahl, p_name: name }).then(function () {
+      ablegen("hofer.umfrage.name", name);
+      var st = lesen("hofer.umfrage.stimmen", {}); st[id] = name; ablegen("hofer.umfrage.stimmen", st);
+      abgestimmt = true; nochmals = false; wahl = [];
+      meldung = { art: "gut", text: "Danke, " + name + "! Deine Stimme ist gezählt." };
+      return rpc("umfrage_qr_lesen", { p_umfrage: id }).then(function (d) { if (d) u = d; zeichnen(); });
+    }).catch(function (f) {
+      meldung = { art: "fehler", text: f.message }; zeichnen();
+      var n2 = document.getElementById("name"); if (n2) n2.value = name;
+    });
+  }
+
+  laden();
+})();
+</script>
+</body>
+</html>

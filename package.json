@@ -21,6 +21,7 @@
     "occt-import-js": "^0.0.23",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.4.299",
+    "qrcode-generator": "^1.4.4",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "tesseract.js": "7.0.0",
