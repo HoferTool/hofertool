@@ -28,7 +28,7 @@ with sync_playwright() as p:
     # seit 1.607.0 Reiter der Qualitätssicherung; #/pruefmittel führt dorthin
     pruefe(pg.locator('a[href="#/qs"]').count() > 0, "Menüpunkt Qualitätssicherung für Admin")
     pg.evaluate("location.hash='#/pruefmittel'"); pg.wait_for_selector("#pm-kurz-raus"); pg.wait_for_timeout(500)
-    # 1.789.0: zuerst nur die Übersicht, alles andere hinter „Alle Prüfmittel verwalten“
+    # 1.793.0: zuerst nur die Übersicht, alles andere hinter „Alle Prüfmittel verwalten“
     pruefe(pg.locator("#pm-neu").count() == 0 and pg.locator("#pm-kurz-kiste").count() == 1, "Übersicht ohne Verwaltung")
     pg.click("#pm-alle"); pg.wait_for_selector("#pm-neu")
     pruefe("#/qs" in pg.url, "#/pruefmittel führt zur Qualitätssicherung " + pg.url)
@@ -92,7 +92,7 @@ with sync_playwright() as p:
     pruefe(pg.locator(".pm-tabelle tbody tr").count() == 2, "Filter Lehre zeigt Grenz- und Gewindelehrdorn")
     pg.click("[data-pmfilter='g:lehre']"); pg.wait_for_timeout(300)
     pg.screenshot(path=BILD + "/pm-liste.png")
-    # 1.789.0 Rückgabekiste: zwei in die Kiste, eines zählt noch, alles quittieren
+    # 1.793.0 Rückgabekiste: zwei in die Kiste, eines zählt noch, alles quittieren
     pg.evaluate("""() => { const l = TEST.daten.pruefmittel;
       l[0].ort_art = 'rueckgabe'; l[0].einsatz_tage = 2; l[0].zaehlt_seit = new Date(Date.now() - 86400000).toISOString();
       l[1].ort_art = 'rueckgabe'; l[1].einsatz_tage = 5; l[1].zaehlt_seit = null; }""")

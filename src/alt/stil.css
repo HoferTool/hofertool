@@ -10294,7 +10294,7 @@ body.dunkel .vb-mat--nichts { color: #9b1c15; }
   .auf-kopf__titel { flex: 1 1 0; min-width: 0; order: 0; }
   .auf-kopf__knoepfe { display: contents; }
   .auf-kopf__knoepfe .dialog__schliessen-inline { order: 1; flex: none; }
-  .auf-kopf__knoepfe #pl-problem-eigen, .auf-kopf__knoepfe #pl-vorbereiten { order: 3; flex: 1 1 0; min-height: 36px; }
+  .auf-kopf__knoepfe #pl-problem-eigen, .auf-kopf__knoepfe #pl-vorbereiten, .auf-kopf__knoepfe #pl-qs { order: 3; flex: 1 1 0; min-height: 36px; }
   .auf-kopf::after { content: ""; order: 2; flex-basis: 100%; height: 0; }
 }
 /* Werkzeug in drei Zeilen wie im Einrichtblatt (seit 1.272.1) */
@@ -16837,7 +16837,179 @@ body.dunkel .eba-pf-geozahl { background: #2b333d; color: #e6edf3 !important; -w
 .schreibleiste__zahl::-webkit-inner-spin-button, .schreibleiste__zahl::-webkit-outer-spin-button,
 .eba-pf-geozahl::-webkit-inner-spin-button, .eba-pf-geozahl::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 
-/* 1.789.0 Prüfmittel: Übersicht mit nur zwei Zahlen (Wunsch Patrick 24. November 2026) */
+/* Planer kompakter und ohne Abschneiden (seit 1.789.0, Patrick 24. November 2026:
+   „zu gross die Schrift und so, und viel abgeschnitten“): kleinere Schrift, und ist die
+   Materialkarte schmal, stehen Material und Stand je Zeile unter HOCO Nr. statt in
+   eigenen Spalten, die rechts aus der Karte ragten. */
+:is(#pad, .pl-seite) .pl { font-size: 14px; }
+:is(#pad, .pl-seite) .pl-todo__titel { font-size: .9rem; }
+:is(#pad, .pl-seite) .pl-todo__unter { font-size: .76rem; }
+:is(#pad, .pl-seite) .pl-todo__eintrag { padding: 7px 8px; gap: 8px; }
+:is(#pad, .pl-seite) .pl-haken { width: 28px; height: 28px; }
+:is(#pad, .pl-seite) .pl-zahl b { font-size: 1.5rem; }
+:is(#pad, .pl-seite) .pl-zahl span { font-size: .74rem; }
+:is(#pad, .pl-seite) .pl-kopf h2 { font-size: .82rem; }
+:is(#pad, .pl-seite) .pl-plus { width: 36px; height: 36px; font-size: 1.35rem; }
+:is(#pad, .pl-seite) .pl-knopf { font-size: .8rem; padding: 6px 10px; }
+:is(#pad, .pl-seite) .pl-lief__name { font-size: 1rem; }
+:is(#pad, .pl-seite) .pl-marke { font-size: .74rem; }
+:is(#pad, .pl-seite) .pl-zeile { font-size: .84rem; padding: 6px 10px; gap: 6px;
+  grid-template-columns: 28px 76px 56px 96px minmax(120px, 1.5fr) 96px minmax(140px, 1.3fr); }
+:is(#pad, .pl-seite) .pl-zeile__haken { width: 24px; height: 24px; }
+:is(#pad, .pl-seite) .pl-chip { font-size: .7rem; }
+:is(#pad, .pl-seite) .pl-lwahl { font-size: .74rem; }
+:is(#pad, .pl-seite) .pl-suche input { font-size: 14px; padding: 6px 10px; }
+:is(#pad, .pl-seite) .pl-material { container-type: inline-size; }
+:is(#pad, .pl-seite) .pl-zahl, :is(#pad, .pl-seite) .pl-karte { min-width: 0; }
+@container (max-width: 860px) {
+  :is(#pad, .pl-seite) .pl-zeile { grid-template-columns: 28px 70px 54px minmax(0, 1fr) auto; row-gap: 4px; }
+  :is(#pad, .pl-seite) .pl-zeile > .pl-mat { grid-column: 2 / 5; grid-row: 2; }
+  :is(#pad, .pl-seite) .pl-zeile > .pl-bedarf { grid-column: 5; grid-row: 1 / 3; }
+  :is(#pad, .pl-seite) .pl-zeile > .pl-stand { grid-column: 2 / -1; grid-row: 3; flex-direction: row; flex-wrap: wrap; align-items: center; }
+  :is(#pad, .pl-seite) .pl-zeile > .pl-haken { grid-row: 1 / 3; }
+}
+/* Untereinander (iPad hoch) wachsen die Karten mit ihrem Inhalt, sonst lag die lange
+   Todo-Liste unter der Materialkarte und nur ihre Haken schauten darüber hinaus. */
+@media (max-width: 1000px) {
+  :is(#pad, .pl-seite) .pl-links, :is(#pad, .pl-seite) .pl-karte { min-height: auto; flex: none; }
+}
+
+/* 1.790.0 QS-Massnahmen aus Reklamationen: Knopf QS, Quittieren, D7/D8 */
+.qs-liste { list-style: none; margin: 4px 0 14px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.qs-massnahme, .qs-pm { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 8px 10px;
+  border: 1px solid #e3e8ee; border-radius: 8px; background: #fff; }
+.qs-massnahme { border-left: 4px solid #e0a100; background: #fff9e8; }
+.qs-massnahme b { flex: 1 1 100%; }
+.qs-quittiert { font-size: 12px; color: #1b7a3a; font-weight: 600; }
+.qs-pm__ok { font-size: 12px; color: #1b7a3a; }
+.qs-pm__fehlt { font-size: 12px; color: #b3261e; }
+
+.dialog.qs-quitt { width: min(560px, calc(100vw - 32px)); }
+.qs-quitt__kopf { display: flex; gap: 12px; align-items: center; background: #fff3cd; border: 1px solid #e0a100;
+  border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
+.qs-quitt__kopf h2 { margin: 0; font-size: 20px; }
+.qs-quitt__zeichen { font-size: 34px; line-height: 1; color: #c77700; }
+.qs-quitt__text { margin: 0 0 8px; }
+.qs-quitt__liste { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.qs-quitt__punkt { display: flex; gap: 10px; align-items: flex-start; width: 100%; text-align: left; padding: 12px;
+  border: 2px solid #d7dde4; border-radius: 10px; background: #fff; cursor: pointer; font: inherit; color: inherit; min-height: 52px; }
+.qs-quitt__punkt.an { border-color: #1b7a3a; background: #eaf6ee; }
+.qs-quitt__punkt small { display: block; color: #555; margin-top: 2px; }
+.qs-quitt__kuerzel input { font-size: 20px; letter-spacing: 2px; width: 120px; text-transform: uppercase; }
+.rk-fertigung { margin-top: 12px; padding: 10px; border: 1px dashed #e0a100; border-radius: 8px; background: #fffaf0;
+  display: flex; flex-direction: column; gap: 6px; }
+.rk-fertigung small { color: #666; }
+.rk-nachweis { margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: #eaf6ee; border: 1px solid #b9dfc6; }
+.rk-nachweis__zeile { font-size: 13px; margin-top: 3px; }
+body.dunkel .qs-massnahme, body.dunkel .qs-pm, body.dunkel .qs-quitt__punkt { background: #1f2630; border-color: #3a4552; }
+body.dunkel .qs-massnahme { border-left-color: #e0a100; background: #2c2716; }
+body.dunkel .qs-quitt__kopf { background: #3a2f12; border-color: #a77a00; }
+body.dunkel .qs-quitt__punkt.an { background: #183224; border-color: #2e9a55; }
+body.dunkel .rk-fertigung { background: #2c2716; border-color: #a77a00; }
+body.dunkel .rk-nachweis { background: #183224; border-color: #2e6a44; }
+.dialog.qs-quitt, .dialog.qs-quitt .qs-quitt__text, .dialog.qs-quitt .qs-quitt__punkt { color: #1a2330; }
+body.dunkel .dialog.qs-quitt, body.dunkel .dialog.qs-quitt .qs-quitt__text, body.dunkel .dialog.qs-quitt .qs-quitt__punkt { color: #fff; }
+/* 1.790.0: Stimmen im Fenster „Umfrage bearbeiten“ */
+.umf-st { margin-top: 6px; border-top: 1px solid var(--linie); padding-top: 4px; }
+.umf-st__liste { display: grid; gap: 4px; margin-bottom: 8px; }
+.umf-st__zeile { display: grid; grid-template-columns: minmax(80px, auto) 1fr auto; gap: 10px; align-items: center;
+  padding: 6px 10px; border: 1px solid var(--linie); border-radius: 8px; }
+.umf-st__zeile span { overflow-wrap: anywhere; }
+.umf-st__neu { display: grid; gap: 8px; padding: 10px; border: 1px dashed var(--linie-stark); border-radius: 8px; }
+.umf-st__neu input[type="text"] { padding: 8px 10px; font: inherit; border: 1px solid var(--linie-stark); border-radius: 6px; }
+.umf-st__wahl { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.umf-st__wahl.fehlt { outline: 2px solid var(--rot, #c62828); outline-offset: 3px; border-radius: 4px; }
+.umf-st__wahl label { display: flex; gap: 6px; align-items: center; }
+.umf-st__neu .knopf { justify-self: start; }
+
+/* =================================================================
+   LAGER MIT LOGIK (seit 1.791.0, Wunsch Patrick 24. November 2026)
+   ================================================================= */
+.lager-reiter .lager-reiter--rot { color: #c0392b; font-weight: 600; }
+.lager-liste { padding: 0; overflow: hidden; }
+.lager-zeile {
+  display: grid; grid-template-columns: 9rem 1.4fr 7rem 1.4fr 8rem; gap: .6rem; align-items: center;
+  width: 100%; padding: .55rem .9rem; border: 0; border-top: 1px solid var(--linie, #e3e8ef);
+  background: none; text-align: left; font: inherit; color: inherit; cursor: pointer;
+}
+.lager-zeile:hover { background: rgba(0, 56, 132, .05); }
+.lager-zeile--kopf { cursor: default; border-top: 0; font-weight: 600; }
+.lager-zeile--kopf:hover { background: none; }
+.lager-zeile--leer { opacity: .55; }
+.lager-zeile--minus .lager-zahl { color: #c0392b; }
+.lager-zahl { text-align: right; white-space: nowrap; }
+.lager-schild {
+  display: inline-block; margin-left: .4rem; padding: .05rem .45rem; border-radius: 999px;
+  background: #e8f0fb; color: #003884; font-size: .78rem; font-weight: 600; white-space: nowrap;
+}
+.lager-schild--warn { background: #fdf0d5; color: #8a5a00; }
+.lager-rot { color: #c0392b; font-weight: 600; }
+.lager-offen { padding: .4rem .9rem .9rem 2rem; background: rgba(0, 56, 132, .03); border-top: 1px solid var(--linie, #e3e8ef); }
+.lager-kette { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin-bottom: .5rem; }
+.lager-linien { display: flex; flex-direction: column; gap: .3rem; }
+.lager-linie {
+  display: grid; grid-template-columns: 7rem 1.5fr 1fr 6rem auto; gap: .6rem; align-items: center;
+  padding: .4rem .6rem; border-radius: 8px; background: var(--flaeche, #fff); border: 1px solid var(--linie, #e3e8ef);
+}
+.lager-liste > .lager-linie { margin: .4rem .8rem; }
+.lager-linie--extern { border-style: dashed; background: #f7f9fc; }
+.lager-linie--gross { grid-template-columns: 8rem 1.4fr 1.4fr 7rem auto; }
+.lager-linie .klein { display: block; }
+.lager-ablauf__knoepfe { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .3rem; }
+.lager-erklaerung { margin: .6rem .9rem; }
+.lager-buchungen { display: flex; flex-direction: column; }
+.lager-buchung {
+  display: grid; grid-template-columns: 8rem 6rem 1fr auto; gap: .6rem; align-items: center;
+  padding: .45rem .9rem; border-top: 1px solid var(--linie, #e3e8ef);
+}
+.lager-buchung .lager-ein, .lager-zahl.lager-ein { color: #1e8449; }
+.lager-buchung .lager-aus, .lager-zahl.lager-aus { color: #c0392b; }
+.lager-karte { margin-bottom: 1rem; }
+.lager-karte__kopf { display: flex; justify-content: space-between; align-items: center; gap: .6rem; margin-bottom: .6rem; }
+.lager-karte__kopf h2 { margin: 0; }
+.lager-tabelle { display: flex; flex-direction: column; }
+.lager-reihe {
+  display: grid; grid-template-columns: 1.3fr 1.2fr 6rem 8rem 1.3fr auto; gap: .6rem; align-items: center;
+  padding: .45rem .3rem; border-top: 1px solid var(--linie, #e3e8ef);
+}
+.lager-reihe--kopf { border-top: 0; font-weight: 600; }
+.lager-reihe--knopf {
+  grid-template-columns: 9rem 1fr 2fr; width: 100%; background: none; border-left: 0; border-right: 0; border-bottom: 0;
+  text-align: left; font: inherit; color: inherit; cursor: pointer;
+}
+.lager-reihe--knopf:hover { background: rgba(0, 56, 132, .05); }
+.lager-dialog { width: min(560px, calc(100vw - 2rem)); max-width: min(560px, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow-y: auto; }
+.lager-dialog .feld select, .lager-dialog .feld input, .lager-dialog .feld textarea { width: 100%; box-sizing: border-box; }
+.lager-knoepfe { display: flex; flex-wrap: wrap; gap: .35rem; }
+.lager-zwei { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+.lager-zwei > select, .lager-zwei > input { flex: 1 1 12rem; min-width: 0; }
+.lager-ablauf { list-style: none; margin: .6rem 0; padding: 0; display: flex; flex-direction: column; gap: .3rem; }
+.lager-ablauf li {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; padding: .45rem .6rem;
+  border-radius: 8px; border: 1px solid var(--linie, #e3e8ef); background: var(--flaeche, #fff);
+}
+.lager-ablauf li .lager-ablauf__knoepfe { margin-left: auto; }
+.lager-ablauf__fest { background: #e8f0fb !important; color: #003884; font-weight: 600; }
+body.dunkel .lager-schild { background: #1d3557; }
+body.dunkel .lager-schild--warn { background: #5a4310; }
+body.dunkel .lager-ablauf__fest { background: #1d3557 !important; }
+body.dunkel .lager-linie--extern { background: rgba(255, 255, 255, .04); }
+body.dunkel .lager-rot, body.dunkel .lager-zeile--minus .lager-zahl, body.dunkel .lager-reiter--rot,
+body.dunkel .lager-buchung .lager-aus, body.dunkel .lager-zahl.lager-aus { color: #ff8a80 !important; }
+body.dunkel .lager-buchung .lager-ein, body.dunkel .lager-zahl.lager-ein { color: #6fdc8c !important; }
+@media (max-width: 700px) {
+  .lager-zeile { grid-template-columns: 1fr auto; }
+  .lager-zeile > :nth-child(2), .lager-zeile > :nth-child(4) { grid-column: 1 / -1; }
+  .lager-zeile--kopf { display: none; }
+  .lager-linie, .lager-linie--gross { grid-template-columns: 1fr auto; }
+  .lager-ablauf__knoepfe { grid-column: 1 / -1; justify-content: flex-start; }
+  .lager-offen { padding-left: .9rem; }
+  .lager-buchung { grid-template-columns: 1fr auto; }
+  .lager-reihe { grid-template-columns: 1fr 1fr; }
+  .lager-reihe--knopf { grid-template-columns: 1fr; }
+}
+
+/* 1.793.0 Prüfmittel: Übersicht mit nur zwei Zahlen (Wunsch Patrick 24. November 2026) */
 .pm-kurz { display: flex; flex-direction: column; gap: 16px; max-width: 900px; }
 .pm-kurz__zahlen { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
 .pm-kurz__zahl { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 22px 24px;

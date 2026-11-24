@@ -18,8 +18,9 @@ import { statistikZurueck } from "../seiten/Statistik.jsx";
 import Kalkulation, { kalkulationZurueck } from "../seiten/Kalkulation.jsx";
 import Erp from "../seiten/Erp.jsx";
 import StartModule from "../seiten/StartModule.jsx";
+import Lager from "../seiten/Lager.jsx";
 import Zeiterfassung from "../seiten/Zeiterfassung.jsx";
-import { zeitApp, istZeitAdresse, zeitHandy } from "../seiten/zeit/app.js";
+import { zeitApp, istZeitAdresse, zeitHandy, istTerminal } from "../seiten/zeit/app.js";
 import Reihen from "../seiten/Reihen.jsx";
 import QmAlternativ from "../seiten/QmAlternativ.jsx";
 import "../seiten/Kalender.jsx";
@@ -55,6 +56,7 @@ import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { einrichtblattAppOeffnen } from "../einrichtblatt/Blatt.jsx";
 import { blattSuchen as appBlattSuchen, roteWerkzeugeVorDemBeenden } from "../einrichtblatt/daten.js";
 import { erstteilVorLaeuft } from "../daten/pruefbericht.js";
+import { qsQuittierenFragen } from "../planwand/QsMassnahmen.jsx";
 import { materialBlattFuer } from "../einrichtblatt/jeMaterial.js";
 import { symboleLaden, symbolHtml, symbolInfoZeigen, symbolInfoSetzen, symbolInfoWeg,
   symbolInfoOffen, M_SYMBOL, symbolModusAktiv, symbolAnAuftrag, symbolAmBalkenKlick, symbolAnwendenEnde } from "../daten/symbole.js";
@@ -175,7 +177,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.789.0";
+const APP_VERSION = "1.793.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1992,6 +1994,15 @@ async function profilLaden(frisch) {
     if (istAndererNutzer(profil) && s.refresh_token && !sitzungGemerkt(profil.email)) {
       sitzungMerken(profil.email, s.refresh_token);
     }
+    // Wer „Angemeldet bleiben“ am Konto eingeschaltet hat, dessen Gerät
+    // merkt sich die Anmeldung immer, auch wenn beim Anmelden das Häkchen
+    // „Auf diesem Gerät merken“ fehlte (1.792.1, Patrick 24. November 2026:
+    // „muss ich immer wieder neu anmelden“). Vorher lag die Sitzung dann
+    // im sessionStorage: Tab zu, Browser neu gestartet oder nach dem
+    // Abmelden wieder Passwort. Nie am Stempel-Terminal.
+    if (dauerhaftBleiben() && s.refresh_token && !sitzungGemerkt(profil.email)) {
+      sitzungMerken(profil.email, s.refresh_token);
+    }
     // Den Browser bitten, den Speicher nicht von selbst zu leeren
     // (Safari löscht sonst nach 7 Tagen ohne Besuch alles)
     try {
@@ -3370,6 +3381,8 @@ function seiteSichtbar(pfad) {
   if (pfad === "wz508") return neuerLook() && !istExtern() && meineRolle() !== "dienst";
   if (pfad === "kalkulation") return kalkulationSehen(profil) && !istExtern();
   if (pfad === "erp") return erpSehen(profil) && !istExtern();
+  // Lager (seit 1.702.0): nur Admins, nie Externe, wie bin_admin() in der Datenbank
+  if (pfad === "lager") return istAdmin() && !istExtern();
   // Zeiterfassung (seit 1.626.0): alle Personen ausser Externen, Dienst und
   // Gerätekonten, wie zeit_darf() in der Datenbank; Admins immer
   // Seit 1.635.1 nur noch in der eigenen App HOFERTIME, nicht mehr als
@@ -7500,6 +7513,8 @@ async function zustandSetzen(j, neu) {
   if (beendet) await roteWerkzeugeVorDemBeenden(j);
   // Erst nach abgeschlossener Erstteilprüfung auf „läuft“ (seit 1.783.0)
   if (neu === "laeuft") await erstteilVorLaeuft(j);
+  // QS-Massnahmen aus Reklamationen beim Rüsten und Start quittieren (seit 1.790.0)
+  if ((neu === "laeuft" || neu === "ruesten") && j.plan_status !== neu) await qsQuittierenFragen(j, neu, true);
   if (beendet) await letzteStueckzahlFragen(j);
   if (beendet) await stueckzeitVorDemBeenden(j);
   // Was vom Material übrig bleibt, geht ins Lager (seit 1.67.0)
@@ -7562,6 +7577,8 @@ async function zustandSetzen(j, neu) {
       if (r2.error) throw r2.error;
       naechster.plan_status = "ruesten";
       hinweis = naechster.job_number + " steht jetzt auf Rüsten.";
+      // Rückt der nächste von selbst auf Rüsten: gleich fragen, sperrt aber nicht
+      await qsQuittierenFragen(naechster, "ruesten", false).catch(() => {});
     }
   }
   return { ok: true, hinweis: hinweis, naechster: naechster };
@@ -8751,7 +8768,7 @@ function zuletztSchreiben(sofort) {
 
 // Beim Start mit noch gültiger Sitzung: war die Person zu lange weg?
 function zuLangeWeg(p) {
-  if (!p || !p.id || istAndererNutzer(p) || handyBleibt(p)) return false;
+  if (!p || !p.id || istAndererNutzer(p) || handyBleibt(p) || dauerhaftBleiben()) return false;
   const zuletzt = zuletztLesen(p.id);
   return zuletzt > 0 && Date.now() - zuletzt >= LEERLAUF_MAX_MS;
 }
@@ -8761,6 +8778,17 @@ function zuLangeWeg(p) {
 function handyBleibt(p) {
   const k = p || profil;
   return zeitHandy() && !(k && k.zeit_terminal);
+}
+
+// „Angemeldet bleiben“ heisst seit 1.792.1 wirklich angemeldet bleiben:
+// keine Abmeldung nach 5 Minuten und auch nicht nach 4 Stunden ohne
+// Bedienung (Patrick 24. November 2026: „das angemeldet bleiben geht
+// irgendwie nicht wirklich, muss ich immer wieder neu anmelden“). Nie am
+// Stempel-Terminal von HOFERTIME.
+function dauerhaftBleiben() {
+  if (!profil) return false;
+  try { if (istTerminal()) return false; } catch (f) { /* weiter */ }
+  return einstellung("angemeldetbleiben");
 }
 
 function leerlaufAktiv() {
@@ -8813,7 +8841,7 @@ function leerlaufPruefen() {
   }
   // Obergrenze 4 Stunden vor allen Ausnahmen; nur Gerätekonten und ein
   // laufendes Hochladen im Temp-Ordner halten sie auf
-  if (!istAndererNutzer() && !document.querySelector(".temp__liste--laeuft")) {
+  if (!istAndererNutzer() && !dauerhaftBleiben() && !document.querySelector(".temp__liste--laeuft")) {
     const zuletzt = Math.max(leerlauf.echt, zuletztLesen(profil.id));
     if (Date.now() - zuletzt >= LEERLAUF_MAX_MS) {
       const abmelden = leerlauf.abmelden;
@@ -11009,6 +11037,10 @@ SYM.erp = svg('<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18
 SYM.reihen = svg('<path d="M12 2.5l1.6 2.2 2.7-.6.6 2.7 2.4 1.3-1 2.5 1 2.5-2.4 1.3-.6 2.7-2.7-.6L12 21.5l-1.6-2.2-2.7.6-.6-2.7-2.4-1.3 1-2.5-1-2.5 2.4-1.3.6-2.7 2.7.6z"/>'
   + '<path d="M9.6 9.6l4.8 4.8M14.4 9.6l-4.8 4.8"/>');
 
+// Lager: Regal mit Kisten
+SYM.lager = svg('<path d="M3.5 3v18M20.5 3v18M3.5 11h17M3.5 19h17"/>'
+  + '<rect x="6" y="6" width="5" height="5" rx=".6"/><rect x="12.5" y="7.5" width="4" height="3.5" rx=".6"/><rect x="7.5" y="14" width="6" height="5" rx=".6"/>');
+
 // Zeiterfassung: Stempeluhr
 SYM.zeit = svg('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9.5 2.5h5M12 2.5V5"/>');
 
@@ -11136,6 +11168,7 @@ const SEITEN = [
   // QMS (Wunsch Patrick 10. November 2026)
   // QMS: schlankes QM-System nach ISO 9001 (seit 1.463.0, bis 1.473.x „QM alternativ“)
   { pfad: "qmalt",        titel: "QMS", zeichen: SYM.qs, zeige: reactSeite(QmAlternativ) },
+  { pfad: "lager",        titel: "Lager", zeichen: SYM.lager, zeige: reactSeite(Lager) },
   // Zeiterfassung: Kommen / Gehen am Handy, PC und iPad (Wunsch Patrick 18. November 2026)
   { pfad: "zeit",         titel: "HOFERTIME", zeichen: SYM.zeit, zeige: reactSeite(Zeiterfassung) },
   { pfad: "bestellungen", titel: "Bestellungen", zeichen: SYM.bestellungen, zeige: seiteBestellungen },
