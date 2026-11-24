@@ -323,7 +323,7 @@ export default function Panel() {
   }
   useEffect(() => {
     if (!fertig) return undefined;
-    const t = setTimeout(() => { setFertig(null); setSuche(""); }, fertig.bild ? 7000 : 5000);
+    const t = setTimeout(() => { setFertig(null); setSuche(""); }, fertig.bild ? 9000 : 5000);
     return () => clearTimeout(t);
   }, [fertig]);
 
