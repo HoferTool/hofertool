@@ -177,7 +177,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.792.1";
+const APP_VERSION = "1.792.2";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -8768,7 +8768,7 @@ function zuletztSchreiben(sofort) {
 
 // Beim Start mit noch gültiger Sitzung: war die Person zu lange weg?
 function zuLangeWeg(p) {
-  if (!p || !p.id || istAndererNutzer(p) || handyBleibt(p) || dauerhaftBleiben()) return false;
+  if (!p || !p.id || istAndererNutzer(p) || handyBleibt(p)) return false;
   const zuletzt = zuletztLesen(p.id);
   return zuletzt > 0 && Date.now() - zuletzt >= LEERLAUF_MAX_MS;
 }
@@ -8780,10 +8780,10 @@ function handyBleibt(p) {
   return zeitHandy() && !(k && k.zeit_terminal);
 }
 
-// „Angemeldet bleiben“ heisst seit 1.792.1 wirklich angemeldet bleiben:
-// keine Abmeldung nach 5 Minuten und auch nicht nach 4 Stunden ohne
-// Bedienung (Patrick 24. November 2026: „das angemeldet bleiben geht
-// irgendwie nicht wirklich, muss ich immer wieder neu anmelden“). Nie am
+// Mit „Angemeldet bleiben“ merkt sich das Gerät die Anmeldung immer, auch
+// ohne Häkchen beim Anmelden (1.792.1, Patrick 24. November 2026: „muss ich
+// immer wieder neu anmelden“). Die Abmeldung nach 4 Stunden bleibt (Entscheid
+// Patrick), danach genügt aber ein Tipp auf die Kachel. Nie am
 // Stempel-Terminal von HOFERTIME.
 function dauerhaftBleiben() {
   if (!profil) return false;
@@ -8841,7 +8841,7 @@ function leerlaufPruefen() {
   }
   // Obergrenze 4 Stunden vor allen Ausnahmen; nur Gerätekonten und ein
   // laufendes Hochladen im Temp-Ordner halten sie auf
-  if (!istAndererNutzer() && !dauerhaftBleiben() && !document.querySelector(".temp__liste--laeuft")) {
+  if (!istAndererNutzer() && !document.querySelector(".temp__liste--laeuft")) {
     const zuletzt = Math.max(leerlauf.echt, zuletztLesen(profil.id));
     if (Date.now() - zuletzt >= LEERLAUF_MAX_MS) {
       const abmelden = leerlauf.abmelden;
