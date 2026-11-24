@@ -57,7 +57,7 @@ export default function Pruefmittel({ auffrischen, eingebettet }) {
 
   const s = suche.trim().toLowerCase();
   const passt = (p) => (!s || s.split(/\s+/).every((w) => suchText(p, daten.maschinen).includes(w)))
-    // Zahlen-Kacheln sind seit 1.793.1 weg (Patrick: „bringt niemandem etwas“), Ausgemusterte bleiben verborgen
+    // Zahlen-Kacheln sind seit 1.795.1 weg (Patrick: „bringt niemandem etwas“), Ausgemusterte bleiben verborgen
     && p.status !== "weg";
   // Fällige und bald fällige zuoberst, dann nach nächster Prüfung, dann wie geladen
   const rang = (p) => istFaellig(p) ? 0 : baldFaellig(p) ? 1 : 2;

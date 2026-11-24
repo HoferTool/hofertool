@@ -1,6 +1,6 @@
 # Nach 4 Stunden ohne Bedienung abmelden (1.54.0), auch nach geschlossenem
-# Tab. Seit 1.792.1 nicht mit „Angemeldet bleiben“ (Patrick 24. November
-# 2026). Gerätekonten („Andere Nutzer“) bleiben angemeldet.
+# Tab, auch mit „Angemeldet bleiben“; seit 1.792.1 bleibt dort der Schlüssel
+# auf dem Gerät, ein Tipp genügt. Gerätekonten („Andere Nutzer“) bleiben angemeldet.
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -38,22 +38,23 @@ STD = 60 * 60 * 1000
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
 
-    # 1. Person mit „Angemeldet bleiben“: bleibt auch nach 5 Stunden ohne
-    # Bedienung angemeldet (seit 1.792.1, Patrick 24. November 2026), und
-    # das Gerät merkt sich die Anmeldung von selbst
+    # 1. Person mit „Angemeldet bleiben“: Gerät merkt sich die Anmeldung von
+    # selbst, nach 4 Stunden abgemeldet, Schlüssel bleibt (1.792.2)
     pg, f = seite(br, "window.OHNE_SITZUNG = false; window.SITZUNG_MAIL = 'saheesan.hudson@hoferco.ch'; window.BLEIBEN = true;")
     pruefe("Bleiben: angemeldet", angemeldet(pg))
     g = pg.evaluate("JSON.parse(localStorage.getItem('hofer.geraet.sitzungen') || '{}')")
     pruefe("Bleiben: Gerät merkt sich die Anmeldung", bool(g.get("saheesan.hudson@hoferco.ch")))
     pg.clock.fast_forward(5 * STD); pg.wait_for_timeout(1500)
-    pruefe("Bleiben: nach 5 Stunden noch angemeldet", angemeldet(pg))
+    pruefe("Bleiben: nach 4 Stunden ohne Bedienung abgemeldet", not angemeldet(pg))
+    g = pg.evaluate("JSON.parse(localStorage.getItem('hofer.geraet.sitzungen') || '{}')")
+    pruefe("Bleiben: Schlüssel bleibt nach der Abmeldung", bool(g.get("saheesan.hudson@hoferco.ch")))
     fehler += f; pg.close()
 
     # 2. Tab zu oder Rechner im Ruhezustand: letzte Bedienung vor 5 Stunden
     vor5 = "localStorage.setItem('hofer.zuletztAktiv', JSON.stringify({ u1: Date.now() - 5 * 3600000 }));"
     pg, f = seite(br, "window.OHNE_SITZUNG = false; window.SITZUNG_MAIL = 'saheesan.hudson@hoferco.ch'; window.BLEIBEN = true;"
                   + "if (!sessionStorage.getItem('x')) { sessionStorage.setItem('x', 1); " + vor5 + " }")
-    pruefe("Bleiben, beim Öffnen nach 5 Stunden: angemeldet", angemeldet(pg))
+    pruefe("Bleiben, beim Öffnen nach 5 Stunden: abgemeldet", not angemeldet(pg))
     fehler += f; pg.close()
     # ohne „Angemeldet bleiben“ weiter abgemeldet
     pg, f = seite(br, "window.OHNE_SITZUNG = false; window.SITZUNG_MAIL = 'saheesan.hudson@hoferco.ch';"

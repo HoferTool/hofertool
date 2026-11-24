@@ -93,8 +93,11 @@ export const STIL = `
 .rkpdf .nichts { color: #8a93a3; font-style: italic; margin: 0; }
 .rkpdf .wirk { display: flex; gap: 3mm; align-items: center; margin-top: 2mm; }
 .rkpdf .stempel { border: 1pt solid #2f9e5b; color: #2f9e5b; font-weight: 700; border-radius: 1.5mm; padding: 1mm 3mm; font-size: 8.5pt; }
-.rkpdf .unterschrift { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 9mm; }
-.rkpdf .unterschrift div { border-top: .6pt solid #33405a; padding-top: 1mm; font-size: 7.5pt; color: #6b7890; }
+.rkpdf .unterschrift { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 6mm; }
+.rkpdf .unterschrift .linie { border-top: .6pt solid #33405a; padding-top: 1mm; font-size: 7.5pt; color: #6b7890; }
+.rkpdf .unterschrift .sig { height: 12mm; display: flex; align-items: flex-end; justify-content: space-between; gap: 4mm; padding: 0 1mm .6mm; }
+.rkpdf .unterschrift .sig-datum { font-size: 9pt; color: #1d2b45; padding-bottom: .8mm; }
+.rkpdf .unterschrift .sig-name { font-family: "Alex Brush", "Segoe Script", "Brush Script MT", cursive; font-size: 24pt; line-height: 1; color: #10306e; white-space: nowrap; }
 `;
 
 // Briefkopf nach Hofer-Briefpapier (CLAUDE.md), auch für die Prüfprotokolle
@@ -180,9 +183,6 @@ export function achtdHtml(w) {
   const fa = fehlerartVon(w).concat(angekreuzt(w, "fa"));
   const fehlerart = fa.length ? fa.join(", ") : (w.fehlerart || "");
   const kachel = (art, k1, wert, text) => '<div class="kachel ' + art + '"><div class="k">' + k1 + '</div><div class="w' + (text ? " text" : "") + '">' + wert + "</div></div>";
-  const ablauf = ACHT_D.map((a) => [a.nr, a.kurz])
-    .map(([n, t], i, l) => '<div class="p' + (ausgefuellt(w, n) ? "" : " offen") + '"><i>D' + n + "</i><span>" + t + "</span></div>"
-      + (i < l.length - 1 ? '<div class="l' + (ausgefuellt(w, n) && ausgefuellt(w, l[i + 1][0]) ? " voll" : "") + '"></div>' : "")).join("");
   const ref = (leer(w.nr) ? "" : esc(w.nr)) + (leer(w.ref_partner) ? "" : " · " + (kunde ? "Kunde" : "Lieferant") + ": " + esc(w.ref_partner));
   let h = briefkopf() + '<div class="inhalt">'
     + '<section data-s="kopf"><div class="titel"><div><div class="klein">Reklamation ' + esc(w.nr || "") + '</div><h1>' + (w.art === "intern" ? "Interne Reklamation" : "8D-Report") + '<b>.</b></h1>'
@@ -195,7 +195,6 @@ export function achtdHtml(w) {
     + kachel("org", "Fehlerart", leer(fehlerart) ? "–" : esc(fehlerart), true)
     + kachel("", w.termin ? "Termin" : "Eröffnet am", datum(w.termin || w.eingang) || "–")
     + "</div>"
-    + '<div class="ablauf">' + ablauf + "</div>"
     + '<div class="zwei"><div class="adr">' + (kunde ? hofer : andere) + '</div><div class="adr">' + (kunde ? andere : hofer) + "</div></div>"
     + '<div class="fakten">' + fakt("Beanstand.-Nr.", ref) + fakt("Eröffnet am", datum(w.eingang)) + fakt("Auftrags Nr.", esc(k.auftrag)) + "</div>"
     + "</section>"
@@ -206,8 +205,17 @@ export function achtdHtml(w) {
     + fakt("Fabrikationsauftrag", esc(w.fa_nr)) + fakt("Beanstandungsmenge", zahl(w.menge_reklamiert)) + fakt("Gutteile", zahl(k.gut))
     + "</div></section>";
   for (const a of ACHT_D) h += abschnitt(w, a);
-  h += '<div class="unterschrift"><div>Datum, Unterschrift Hofer + Co.</div><div>Datum, Unterschrift '
-    + (w.art === "intern" ? "Verantwortlich" : (kunde ? "Kunde" : "Lieferant")) + "</div></div>";
+  // Digitale Unterschrift (seit 1.794.0, Wunsch Patrick 24. November 2026:
+  // „digitale Unterschrift mit Datum unten passend auf die Linie“): auf
+  // der Linie von Hofer + Co. stehen Datum und der Name des Bearbeiters
+  // in Schreibschrift (Alex Brush wie im Bestellblatt), die andere Linie
+  // bleibt leer für die Gegenseite
+  const signiert = !leer(k.bearbeiter)
+    ? '<div class="sig"><span class="sig-datum">' + datum(k.berichtsdatum || alt.isoDatum(new Date())) + '</span><span class="sig-name">'
+      + esc(k.bearbeiter) + "</span></div>"
+    : '<div class="sig"></div>';
+  h += '<div class="unterschrift"><div>' + signiert + '<div class="linie">Datum, Unterschrift Hofer + Co.</div></div><div><div class="sig"></div><div class="linie">Datum, Unterschrift '
+    + (w.art === "intern" ? "Verantwortlich" : (kunde ? "Kunde" : "Lieferant")) + "</div></div></div>";
   return h + "</div>";
 }
 
@@ -215,4 +223,18 @@ export function achtdHtml(w) {
 export function achtdVorschau(w, teil) {
   const hervor = teil ? '#rk-vorschau .rkpdf section[data-s="' + teil + '"] { background: #fff6cc; box-shadow: 0 0 0 2mm #fff6cc; border-radius: 2mm; }' : "";
   return '<div class="rkpdf"><style>' + STIL + hervor + "</style>" + achtdHtml(w) + "</div>";
+}
+
+// Schreibschrift für die Unterschrift einmal laden (Google Fonts wie im
+// Bestellblatt); das PDF wartet höchstens vier Sekunden darauf
+export async function unterschriftSchrift() {
+  if (!document.getElementById("schrift-alexbrush")) {
+    const l = document.createElement("link");
+    l.id = "schrift-alexbrush"; l.rel = "stylesheet";
+    l.href = "https://fonts.googleapis.com/css2?family=Alex+Brush&display=swap";
+    document.head.appendChild(l);
+  }
+  try {
+    await Promise.race([document.fonts.load('24pt "Alex Brush"'), new Promise((ok) => setTimeout(ok, 4000))]);
+  } catch (f) { /* dann eine andere Schreibschrift */ }
 }

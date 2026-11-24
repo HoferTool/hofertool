@@ -68,7 +68,7 @@ with sync_playwright() as p:
     pg.click('[data-pm="%s"]' % p3); pg.wait_for_selector("#pm-fenster"); pg.click("#pm-austragen")
     pg.click("[data-pmortwahl='person']"); pg.fill("#pm-orttext", "Tristan Ecker"); pg.click("#pm-austragen-ok"); pg.wait_for_timeout(800)
     pruefe("Tristan Ecker" in pg.locator("[data-pmort='person']").inner_text(), "bei Person")
-    # 1.793.1: keine Zahlen-Kacheln mehr
+    # 1.795.1: keine Zahlen-Kacheln mehr
     pruefe(pg.locator(".pm-kachel, .pm-kacheln").count() == 0, "keine Zahlen-Kacheln")
     pg.screenshot(path=BILD + "/pm-wo.png", full_page=True)
     # Zurück in den Schrank
