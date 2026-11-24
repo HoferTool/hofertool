@@ -16566,3 +16566,28 @@ body.dunkel .rk-liste { background: #1d2630; }
 .rk-liste input[type=text] { padding: 4px 8px; min-height: 0; height: 32px; font-size: .9rem; }
 .rk-liste__zeile .knopf, .rk-liste__kopf .knopf { min-height: 0; height: 32px; padding: 0 10px; }
 .rk-liste__zeile, .rk-liste__kopf { margin: 3px 0; }
+
+/* 1.768.0: Startseite im normalen Look, Umfrage kompakter und am PC mit dem
+   Kalender nebeneinander (Wunsch Patrick 24. November 2026) */
+.start-paar > :empty { display: none; }
+@media (min-width: 1000px) {
+  .start-paar { display: flex; flex-wrap: wrap; gap: 0 var(--abstand, 16px); align-items: flex-start; }
+  .start-paar > * { flex: 1 1 420px; min-width: 0; }
+  .start-paar > #db-umfragen, .start-paar > .umf-karte { flex-grow: 1.4; }
+}
+.start-paar .umf-karte .umf__titel { font-size: 17px; }
+.start-paar .umf-karte .umf__text { margin-top: 3px; font-size: 14px; }
+.start-paar .umf-karte .umf__info { margin: 4px 0 8px; }
+.start-paar .umf-karte .umf__bild { max-width: 260px; margin-top: 8px; }
+.start-paar .umf-karte .umf__bild img { max-height: 150px; }
+.start-paar .umf-karte .umf__vorschlaege { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.start-paar .umf-karte .umf-v { border-width: 1.5px; }
+.start-paar .umf-karte .umf-v__bild { aspect-ratio: 16 / 10; }
+.start-paar .umf-karte .umf-v__unten { padding: 6px 8px; gap: 6px; }
+.start-paar .umf-karte .umf-v__wahl { width: 18px; height: 18px; }
+.start-paar .umf-karte .umf-v__text { font-size: 14px; }
+.start-paar .umf-karte .umf-v__zahl { font-size: 15px; }
+.start-paar .umf-karte .umf-v__balken { height: 5px; margin: 0 8px 7px; }
+.start-paar .umf-karte .umf__abstimmen { margin-top: 10px; }
+.start-paar .umf-karte .umf__name { padding: 7px 10px; }
+.start-paar .umf-karte .umf { padding-top: 10px; margin-top: 10px; }

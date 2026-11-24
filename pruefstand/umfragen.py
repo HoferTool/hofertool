@@ -39,6 +39,11 @@ with sync_playwright() as p:
         pruefe(art + ": drei Vorschläge", pg.locator("[data-umfvorschlag]").count() == 3)
         if art == "pc":
             pg.locator("#db-umfragen").screenshot(path=SP + "umfrage_vorher.png")
+            # 1.768.0: am PC Umfrage und Kalender nebeneinander
+            if pg.locator("#db-kalender").count():
+                a = pg.locator("#db-umfragen").bounding_box(); k = pg.locator("#db-kalender").bounding_box()
+                pruefe("Kalender neben der Umfrage", abs(a["y"] - k["y"]) < 4 and k["x"] > a["x"] + a["width"] - 4)
+            pg.screenshot(path=SP + "umfrage_start_pc.png", full_page=True)
             pg.click("[data-umfabstimmen]"); pg.wait_for_timeout(100)
             pruefe("ohne Wahl Hinweis", pg.locator(".umf .feld-fehler").count() == 1)
             pg.click("[data-umfvorschlag='v-1']")

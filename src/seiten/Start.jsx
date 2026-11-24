@@ -182,7 +182,14 @@ export default function Start({ auffrischen, module }) {
       {!module && <Solaranlage />}
       {/* Umfragen mit Abstimmen per Name (Wunsch Patrick 17. November 2026),
           seit 1.758.0 direkt nach der Solaranlage (Wunsch Patrick 24. November 2026) */}
-      {!module && <Umfragen auffrischen={auffrischen} />}
+      {/* Seit 1.768.0 am PC Umfrage und Kalender nebeneinander, die Umfrage
+          kompakter (Wunsch Patrick 24. November 2026: „nicht so viel Platz,
+          dass daneben noch was anderes stehen kann“); fehlt eine, nimmt die
+          andere die ganze Breite */}
+      {!module && <div className="start-paar">
+        <Umfragen auffrischen={auffrischen} />
+        <KalenderKarte auffrischen={auffrischen} />
+      </div>}
       <p className="gruss">{alt.begruessung()}{name ? ", " + name : ""}</p>
       {module}
       {module && <h2 className="sm-heute">Heute</h2>}
@@ -194,7 +201,7 @@ export default function Start({ auffrischen, module }) {
       {probSehen && <Probleme liste={prob.daten} fehler={prob.fehler} neu={prob.neu} />}
       {/* Termine der nächsten zwei Wochen, statt des Reiters Kalender
           (Wunsch Patrick 30. Oktober 2026) */}
-      <KalenderKarte auffrischen={auffrischen} />
+      {module && <KalenderKarte auffrischen={auffrischen} />}
       {/* Dienstjubiläen alle 5 Jahre, nur Admins (Wunsch Patrick 18. November 2026) */}
       <Jubilaeen auffrischen={auffrischen} />
       {/* Maschinen ohne Stückzahl von heute oder ohne Stückzeit
