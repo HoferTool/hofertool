@@ -7,7 +7,7 @@
 //  und seit 1.749.0 für die Vorschau neben dem Formular.
 // =================================================================
 import { alt } from "../../bruecke.jsx";
-import { ACHT_D } from "./Reklamationen.jsx";
+import { ACHT_D, WIRKSAM, fehlerartVon } from "./Reklamationen.jsx";
 
 const esc = (t) => alt.esc(t == null ? "" : String(t));
 const leer = (v) => v == null || String(v).trim() === "";
@@ -69,7 +69,7 @@ export const STIL = `
 .rkpdf .fakten span { display: block; font-size: 6.8pt; color: #6b7890; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
 .rkpdf .sek { margin-bottom: 3.5mm; }
 .rkpdf .sk { display: flex; align-items: center; gap: 2.5mm; margin-bottom: 1.5mm; }
-.rkpdf .sk .nr { width: 7.5mm; height: 7.5mm; border-radius: 2mm; background: #003884; color: #fff; font-weight: 700; font-size: 10pt;
+.rkpdf .sk .nr { width: 7.5mm; height: 7.5mm; border-radius: 2mm; background: #003884; color: #fff; font-weight: 700; font-size: 8.5pt;
   display: flex; align-items: center; justify-content: center; flex: none; }
 .rkpdf .sk h2 { margin: 0; font-size: 11pt; color: #003884; }
 .rkpdf .karte { background: #f7f9fc; border: .5pt solid #e4eaf3; border-radius: 2.5mm; padding: 2.5mm 4mm; }
@@ -103,33 +103,34 @@ const fakt = (b, w) => "<div><span>" + esc(b) + "</span>" + (leer(w) ? "–" : w
 const sek = (s, nr, titel, inhalt, extra) => '<section class="sek' + (extra ? " " + extra : "") + '" data-s="' + s + '">'
   + '<div class="sk"><span class="nr">' + nr + "</span><h2>" + esc(titel) + '</h2></div><div class="karte">' + inhalt + "</div></section>";
 const angekreuzt = (w, s) => (w.achtd && Array.isArray(w.achtd[s])) ? w.achtd[s] : [];
-const WIRKSAM = "Wirksamkeit bei der nächsten Lieferung geprüft";
 
-// Ein Abschnitt 2 bis 7: angekreuzte Punkte je Gruppe, dann der freie Text
+// Ein Abschnitt D1 bis D8: angekreuzte Punkte je Gruppe, dann der freie Text
 function abschnitt(w, a) {
   const l = angekreuzt(w, a.s);
   const bekannt = new Set();
-  let h = "";
+  let h = a.oben && !leer(w[a.oben]) ? '<p class="frei">' + zl(w[a.oben]) + "</p>" : "";
   for (const [g, punkte] of a.gruppen) {
     punkte.forEach((p) => bekannt.add(p));
-    const da = punkte.filter((p) => l.includes(p) && !(a.s === "d7" && p === WIRKSAM));
+    const da = punkte.filter((p) => l.includes(p) && !(a.s === "d8" && p === WIRKSAM));
     if (!da.length) continue;
     if (g && a.pdfGruppen) h += '<p class="gruppe">' + esc(g) + "</p>";
     h += "<ul>" + da.map(haken).join("") + "</ul>";
   }
   const rest = l.filter((p) => !bekannt.has(p));
   if (rest.length) h += "<ul>" + rest.map(haken).join("") + "</ul>";
-  if (!leer(w[a.text])) h += '<p class="frei">' + zl(w[a.text]) + "</p>";
-  if (a.s === "d7" && l.includes(WIRKSAM)) h += '<div class="wirk"><span class="stempel">✓ WIRKSAM</span><span>' + esc(WIRKSAM) + "</span></div>";
-  return sek(a.s, a.nr, a.titel, h || '<p class="nichts">–</p>', a.s === "d4" ? "ursache" : "");
+  const frei = a.text ? w[a.text] : (w.kopf || {})[a.kopfText];
+  if (!leer(frei)) h += '<p class="frei">' + zl(frei) + "</p>";
+  if (a.s === "d8" && !leer(w.bemerkung)) h += '<p class="frei"><b>Bemerkung:</b> ' + zl(w.bemerkung) + "</p>";
+  if (a.s === "d8" && l.includes(WIRKSAM)) h += '<div class="wirk"><span class="stempel">✓ WIRKSAM</span><span>' + esc(WIRKSAM) + "</span></div>";
+  return sek(a.s, "D" + a.nr, a.titel, h || '<p class="nichts">–</p>', a.s === "d4" ? "ursache" : "");
 }
 
 // Ob ein Punkt 1 bis 8 schon etwas enthält (für die Leiste oben)
 function ausgefuellt(w, nr) {
-  if (nr === 1) return !leer(w.fehler);
-  if (nr === 8) return !leer(w.bemerkung);
   const a = ACHT_D.find((x) => x.nr === nr);
-  return !!a && (angekreuzt(w, a.s).length > 0 || !leer(w[a.text]));
+  if (!a) return false;
+  if (a.oben && !leer(w[a.oben])) return true;
+  return angekreuzt(w, a.s).length > 0 || !leer(a.text ? w[a.text] : (w.kopf || {})[a.kopfText]);
 }
 
 export function achtdHtml(w) {
@@ -149,11 +150,11 @@ export function achtdHtml(w) {
   const chips = (st === "abgelehnt" ? [["abgelehnt", "Abgelehnt"]] : [])
     .concat([["offen", "Offen"], ["bearbeitung", "In Bearbeitung"], ["abgeschlossen", "Abgeschlossen"]])
     .map(([s, t]) => '<span class="chip' + (s === st ? (s === "abgelehnt" ? " rot" : " an") : "") + '">' + t + "</span>").join("");
-  const fa = angekreuzt(w, "fa");
+  const fa = fehlerartVon(w).concat(angekreuzt(w, "fa"));
   const fehlerart = fa.length ? fa.join(", ") : (w.fehlerart || "");
   const kachel = (art, k1, wert, text) => '<div class="kachel ' + art + '"><div class="k">' + k1 + '</div><div class="w' + (text ? " text" : "") + '">' + wert + "</div></div>";
-  const ablauf = [[1, "Problem"], [2, "Fehlerart"], [3, "Fehlerort"], [4, "Ursache"], [5, "Sofort"], [6, "Geplant"], [7, "Eingeführt"], [8, "Bemerkung"]]
-    .map(([n, t], i, l) => '<div class="p' + (ausgefuellt(w, n) ? "" : " offen") + '"><i>' + n + "</i><span>" + t + "</span></div>"
+  const ablauf = ACHT_D.map((a) => [a.nr, a.kurz])
+    .map(([n, t], i, l) => '<div class="p' + (ausgefuellt(w, n) ? "" : " offen") + '"><i>D' + n + "</i><span>" + t + "</span></div>"
       + (i < l.length - 1 ? '<div class="l' + (ausgefuellt(w, n) && ausgefuellt(w, l[i + 1][0]) ? " voll" : "") + '"></div>' : "")).join("");
   const ref = (leer(w.nr) ? "" : esc(w.nr)) + (leer(w.ref_partner) ? "" : " · " + (kunde ? "Kunde" : "Lieferant") + ": " + esc(w.ref_partner));
   let h = briefkopf() + '<div class="inhalt">'
@@ -176,10 +177,8 @@ export function achtdHtml(w) {
     + fakt("Kunden Art. Nr.", esc(k.kunden_art)) + fakt("Bestellte Menge", zahl(k.bestellt)) + fakt("Gelieferte Menge", zahl(w.menge_geliefert))
     + fakt("Retournierte Menge", zahl(k.retour)) + fakt("Lieferschein Nr.", esc(k.lieferschein)) + fakt("Lieferdatum", datum(k.lieferdatum))
     + fakt("Fabrikationsauftrag", esc(w.fa_nr)) + fakt("Beanstandungsmenge", zahl(w.menge_reklamiert)) + fakt("Gutteile", zahl(k.gut))
-    + "</div></section>"
-    + sek("d1", 1, "Problembeschreibung", leer(w.fehler) ? '<p class="nichts">–</p>' : '<p class="frei">' + zl(w.fehler) + "</p>");
+    + "</div></section>";
   for (const a of ACHT_D) h += abschnitt(w, a);
-  h += sek("bem", 8, "Bemerkung", leer(w.bemerkung) ? '<p class="nichts">–</p>' : '<p class="frei">' + zl(w.bemerkung) + "</p>");
   h += '<div class="unterschrift"><div>Datum, Unterschrift Hofer + Co.</div><div>Datum, Unterschrift '
     + (w.art === "intern" ? "Verantwortlich" : (kunde ? "Kunde" : "Lieferant")) + "</div></div>";
   return h + "</div>";

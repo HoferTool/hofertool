@@ -69,6 +69,20 @@ function durchmesser(...texte) {
   return null;
 }
 
+// Scheibenfräser: Wort im Text, oder Mass wie beim Hersteller „Ø25 x 1.5 x 8 Z40“
+// (Ø Scheibe x Breite x Bohrung, Z = Zähne): schmal im Verhältnis zum Ø oder viele Zähne.
+// Vorher wurde so ein Werkzeug ein Schaftfräser Ø25 (Patrick 24. November 2026, 10053-0485 T700).
+const SCHEIBE_RE = /scheibe|t-?nut|s[äa]ge|schlitzfr[äa]s/i;
+function scheibenMass(t, d) {
+  const m = /(?:Ø|ø|⌀|\bD)\s*(\d+(?:[.,]\d+)?)\s*[x×*]\s*(\d+(?:[.,]\d+)?)(?:\s*[x×*]\s*(\d+(?:[.,]\d+)?))?/i.exec(String(t || ""));
+  const zaehne = /\bZ\s*(\d{1,3})\b/.exec(String(t || ""));
+  if (!m) return null;
+  const dm = zahl(m[1]), b = zahl(m[2]);
+  if (!(dm > 0 && b > 0) || (d && Math.abs(dm - d) > 0.01)) return null;
+  if (b <= dm / 4 || (zaehne && zahl(zaehne[1]) >= 10)) return { breite: b };
+  return null;
+}
+
 // Vorschlag für ein Werkzeug; null, wenn nichts dazu passt
 export function wzVorschlag(p, b) {
   const arten = wzArten(b.art);
@@ -90,11 +104,12 @@ export function wzVorschlag(p, b) {
     const d = zentr ? durchmesser(wzTxt, aufgabe) : durchmesser(p.mass, p.taetigkeit, wzTxt);
     if (!d || !(d > 0)) return null;
     let form = "bohrer";
-    if (FRAES_RE.test(aufgabe) && !BOHR_RE.test(aufgabe)) form = /kugel/i.test(alles) ? "kugel" : /scheibe|t-?nut/i.test(alles) ? "scheibe" : "schaft";
+    const sch = scheibenMass(wzTxt, d);
+    if (FRAES_RE.test(aufgabe) && !BOHR_RE.test(aufgabe)) form = /kugel/i.test(alles) ? "kugel" : SCHEIBE_RE.test(alles) || sch ? "scheibe" : "schaft";
     if (/fase|senk/i.test(aufgabe) && !/bohr/i.test(aufgabe)) form = "fase";
     const wz = { art: "fraes", form, d: rund(d) };
     if (form === "bohrer" || form === "fase") wz.winkel = zentr || form === "fase" ? "90" : /pilot|hss/i.test(alles) ? "118" : "140";
-    if (form === "scheibe") { wz.breite = "1"; wz.hals = rund(d * 0.5); wz.laenge = "5"; }
+    if (form === "scheibe") { wz.breite = sch ? rund(sch.breite) : "1"; wz.hals = rund(d * 0.5); wz.laenge = "5"; }
     else wz.laenge = String(zentr ? Math.max(5, Math.round(d * 2.4)) : Math.max(5, Math.round(d * 4)));
     return wz;
   }

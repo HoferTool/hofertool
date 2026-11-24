@@ -54,7 +54,7 @@ export function UmfrageFlaeche({ feld, breite, hoehe }) {
 
   if (u === undefined) return <div className="ib-umf hell-bleibt" />;
   if (!u) return <div className="ib-umf hell-bleibt" style={{ fontSize: s }}><p className="ib-umf__leer">Umfrage nicht gefunden.</p></div>;
-  // Prozent = Anteil an allen Stimmen (seit 1.763.0, Patrick: „prz soll richtig rechnen,
+  // Prozent = Anteil an allen Stimmen (seit 1.765.0, Patrick: „prz soll richtig rechnen,
   // nicht einfach hundert“); bei mehreren wählbaren zählen alle abgegebenen Stimmen
   const summe = u.vorschlaege.reduce((n, v) => n + (v.stimmen || 0), 0);
   const prozent = (v) => (summe ? Math.round(100 * (v.stimmen || 0) / summe) : 0);
@@ -117,7 +117,7 @@ export async function umfrageWaehlen() {
 }
 
 // Quer ↔ Hochformat für ein schon gesetztes Teil: Breite und Höhe tauschen
-// um die Mitte, so dass es auf der Tafel bleibt (seit 1.763.0)
+// um die Mitte, so dass es auf der Tafel bleibt (seit 1.765.0)
 export function lageTauschen(t, mass) {
   let w = t.h, h = t.w;
   const maxH = mass.hoehe, maxB = mass.breite;

@@ -188,7 +188,7 @@ function Gestalten({ mass }) {
   };
 
   // Umfrage mit QR-Code (seit 1.762.0, Wunsch Patrick 24. November 2026),
-  // quer (Frage und QR-Code nebeneinander) oder seit 1.763.0 im Hochformat
+  // quer (Frage und QR-Code nebeneinander) oder seit 1.765.0 im Hochformat
   const umfrageOeffnen = async (t) => {
     const feld = await umfrageWaehlen();
     if (!feld) return;
