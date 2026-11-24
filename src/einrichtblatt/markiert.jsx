@@ -353,6 +353,7 @@ export function MarkierLeiste({ ohneMarkierung, hinweis, feld, start = 12, min =
         <button type="button" data-pf-geogr="auto" onMouseDown={behalten} onClick={() => tun({ groesse: null })}>Normal</button>
         <button type="button" data-pf-geogr="minus" aria-label="Kleiner" onMouseDown={behalten} onClick={() => gr(-1)}>−</button>
         <button type="button" data-pf-geogr="plus" aria-label="Grösser" onMouseDown={behalten} onClick={() => gr(1)}>+</button>
+        <GroesseZahl min={min} max={max} feld={feld} start={start} setzen={(g) => tun({ groesse: g })} />
       </span>
       <span className="eba-pf-ausr" data-pf-ausr="">
         {AUSR_KNOEPFE.map(([a, titel]) => <button key={a} type="button" title={titel} aria-label={titel}
@@ -366,6 +367,41 @@ export function MarkierLeiste({ ohneMarkierung, hinweis, feld, start = 12, min =
       </span>
     </span>
   );
+}
+
+// Schriftgrösse als Zahl (seit 1.786.0, Wunsch Patrick 24. November 2026:
+// „auch per Zahleingabe einstellen“). Enter oder Verlassen setzt sie auf
+// die gemerkte Markierung; das Feld zeigt die Grösse an der Markierung.
+function GroesseZahl({ min, max, feld, start, setzen }) {
+  const ref = useRef(null);
+  const zuletzt = useRef("");
+  useEffect(() => {
+    const neu = () => {
+      const el = ref.current;
+      if (!el || document.activeElement === el) return;
+      const g = markierteGroesse(feld, start);
+      el.value = g ? String(g) : "";
+    };
+    document.addEventListener("selectionchange", neu);
+    return () => document.removeEventListener("selectionchange", neu);
+  }, [feld, start]);
+  const setzenAusFeld = () => {
+    const el = ref.current;
+    const v = String((el && el.value) || "").trim();
+    if (!v || v === zuletzt.current) return;
+    const n = Math.round(parseFloat(v.replace(",", ".")));
+    if (!isFinite(n)) return;
+    const g = Math.max(min, Math.min(max, n));
+    el.value = String(g);
+    zuletzt.current = String(g);
+    setzen(g);
+  };
+  return <input ref={ref} type="number" inputMode="numeric" min={min} max={max} step="1" placeholder="Zahl"
+    className="eba-pf-geozahl" data-pf-geozahl="" aria-label="Schriftgrösse als Zahl"
+    title={"Schriftgrösse als Zahl (" + min + " bis " + max + "), Enter setzt sie"}
+    onFocus={(e) => { zuletzt.current = e.target.value; }}
+    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); zuletzt.current = ""; setzenAusFeld(); } }}
+    onBlur={setzenAusFeld} />;
 }
 
 // Knöpfe und Zeichen für die Ausrichtung (auch in der Schreibleiste)

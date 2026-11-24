@@ -16808,3 +16808,18 @@ body.dunkel .pb-blatt .pb-pm { color: #1a2530 !important; -webkit-text-fill-colo
 .pb-check__liste small { opacity: .7; }
 .pb-check__liste .pb-check--an { background: rgba(30, 150, 80, .1); border-color: rgba(30, 150, 80, .5); }
 .pb-check__fuss { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; border-top: 1px solid var(--linie, #d6dee8); padding-top: 12px; }
+
+/* 1.786.0: Schriftgrösse als Zahl in der Schreibleiste und in der
+   MarkierLeiste (Einrichtblatt, Wartung mit Text) */
+.schreibleiste__zahl { width: 54px; height: 34px; padding: 0 4px; border-radius: 8px; border: 1px solid rgba(20, 40, 80, .3);
+  background: #fff; color: #14233a; font: inherit; font-size: 14px; text-align: center; box-sizing: border-box; }
+body.pad-offen .schreibleiste__zahl { height: 44px; width: 62px; font-size: 17px; }
+.nb-textleiste .schreibleiste__zahl { height: 30px; }
+body.dunkel .schreibleiste__zahl { background: #2a3546; border-color: rgba(255, 255, 255, .25); color: #e6edf3 !important; -webkit-text-fill-color: #e6edf3; }
+.eba-pf-geozahl { width: 58px; height: 32px; padding: 0 4px; border: 2px solid var(--linie-stark); border-radius: 6px;
+  background: #fff; color: #14233a; font: inherit; font-size: .9rem; text-align: center; box-sizing: border-box; }
+body.dunkel .eba-pf-geozahl { background: #2b333d; color: #e6edf3 !important; -webkit-text-fill-color: #e6edf3; }
+/* Ohne Pfeile im Zahlenfeld: ein Tipp darauf änderte sonst gleich die Grösse */
+.schreibleiste__zahl, .eba-pf-geozahl { -moz-appearance: textfield; appearance: textfield; }
+.schreibleiste__zahl::-webkit-inner-spin-button, .schreibleiste__zahl::-webkit-outer-spin-button,
+.eba-pf-geozahl::-webkit-inner-spin-button, .eba-pf-geozahl::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
