@@ -107,7 +107,7 @@ with sync_playwright() as p:
             sw = pg.evaluate("document.documentElement.scrollWidth")
             pruefe("handy: kein seitliches Rollen", sw <= breite)
         pg.context.close()
-    # Seit 1.771.0: auch Mitarbeiter legen Umfragen an, Namen sichtbar mit Häkchen
+    # Seit 1.773.0: auch Mitarbeiter legen Umfragen an, Namen sichtbar mit Häkchen
     pg = br.new_context(viewport={"width": 1440, "height": 900}).new_page()
     pg.on("pageerror", lambda e: fehler.append("SEITENFEHLER: " + str(e)[:160]))
     MA = DAZU + "TEST.daten.profiles[0].role = 'mitarbeiter'; TEST.daten.umfragen[0].namen_zeigen = true; TEST.daten.umfragen[0].erstellt_von = 'u9';"

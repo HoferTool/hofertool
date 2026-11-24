@@ -7,7 +7,7 @@ fehler = []
 def pruefe(ok, text):
     print(("ok   " if ok else "FEHLT") + " " + text)
     if not ok: fehler.append(text)
-DATEN = ";TEST.navTodos = true; TEST.ohneWechsel = true; TEST.todoMenueMs = 1500;"
+DATEN = ";TEST.navTodos = true; TEST.ohneWechsel = true; TEST.todoMenueMs = 1500; if (!sessionStorage.mfTest) { sessionStorage.mfTest = 1; (TEST.daten.profiles || []).forEach(p => { p.einstellungen = Object.assign(p.einstellungen || {}, { navmenuefest: false }); }); }"
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
     ctx = br.new_context(viewport={"width": 1440, "height": 900})
@@ -48,4 +48,15 @@ with sync_playwright() as p:
     pg.reload(); pg.wait_for_selector("#nav-todo", timeout=20000); pg.wait_for_timeout(600)
     pruefe("nav--zeigt-menue" in cls(), "nach Neuladen Menü")
     pruefe(not pf, "keine Fehler im Browser " + str(pf))
+# Seit 1.772.0 ist „Menü immer zeigen“ die Vorgabe: ohne gespeicherte Wahl steht das Menü
+with sync_playwright() as p:
+    br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
+    ctx = br.new_context(viewport={"width": 1440, "height": 900}); pg = ctx.new_page()
+    ctx.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FAKE + ";TEST.navTodos = true; TEST.ohneWechsel = true; TEST.todoMenueMs = 1500;"))
+    for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
+        ctx.route(u, lambda r: r.abort())
+    pg.goto(f"http://127.0.0.1:{PORT}/index.html#/dashboard", wait_until="domcontentloaded")
+    pg.wait_for_selector("#nav-todo", timeout=20000); pg.wait_for_timeout(2500)
+    c = pg.evaluate("document.body.className")
+    pruefe("nav--zeigt-menue" in c, "Vorgabe: Menü steht, auch nach Zeit")
 print("Fehler: " + (", ".join(fehler) if fehler else "keine"))

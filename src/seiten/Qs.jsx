@@ -14,12 +14,15 @@ import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import Ausschuss from "./qs/Ausschuss.jsx";
 import Reklamationen from "./qs/Reklamationen.jsx";
 import Pruefmittel from "./Pruefmittel.jsx";
+import Pruefberichte from "./qs/Pruefberichte.jsx";
 
 // Gewählter Reiter; bleibt beim Seitenwechsel
 export const qsZustand = { ansicht: "ausschuss" };
 
 export function qsReiter() {
   const r = [["ausschuss", "Ausschussmeldungen"]];
+  // Prüfberichte seit 1.771.0 für alle, die QS sehen (Wunsch Patrick 24. November 2026)
+  r.push(["pruefberichte", "Prüfberichte"]);
   // Reklamationsmanagement nur für Admins (seit 1.748.0, Wunsch Patrick 23. November 2026)
   if (alt.istAdmin()) r.push(["reklamationen", "Reklamationsmanagement"]);
   // Prüfmittelverwaltung wieder da seit 1.755.0, nur Admins (Wunsch Patrick 24. November 2026:
@@ -40,6 +43,7 @@ export default function Qs({ auffrischen, behaelter }) {
       <Uebergang key={qsZustand.ansicht}>
         <div id="qs-inhalt">
           {qsZustand.ansicht === "reklamationen" ? <Reklamationen />
+            : qsZustand.ansicht === "pruefberichte" ? <Pruefberichte />
             : qsZustand.ansicht === "pruefmittel" ? <Pruefmittel auffrischen={auffrischen} behaelter={behaelter} eingebettet />
             : <Ausschuss auffrischen={auffrischen} behaelter={behaelter} />}
         </div>

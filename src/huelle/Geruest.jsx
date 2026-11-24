@@ -93,8 +93,13 @@ function todoModusDarf() {
 // … man soll auswählen können, ob man es will“): mit „Menü immer zeigen“
 // unter Einstellungen → Allgemein bleiben die Menüpunkte stehen und die
 // Todos stehen darunter, ohne Wechsel nach 3 Minuten.
+// Seit 1.772.0 ist „Menü immer zeigen“ die Vorgabe für alle (Wunsch Patrick
+// 24. November 2026: „das mit Menü immer drin soll bei allen rein ausser bei
+// Michel“); wer es ausgeschaltet hat (Michel), behält die Uhr.
 export function menueFest() {
-  return alt.einstellung && alt.einstellung("navmenuefest");
+  if (!alt.einstellungWert) return false;
+  const w = alt.einstellungWert("navmenuefest", null);
+  return w === null || w === undefined || w === "" ? true : (w === "true" || w === "1" || w === true);
 }
 // Seit 1.717.0 (Wunsch Patrick 23. November 2026: „wenn man Menü immer an
 // hat, soll man per Schalter ausfahren oder einfahren, ohne Zeit“): mit

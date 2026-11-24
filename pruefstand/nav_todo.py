@@ -13,6 +13,8 @@ def pruefe(ok, text):
 DATEN = """;
 (function(){
   TEST.navTodos = true;
+  // Uhr nach 3 Minuten nur noch ohne „Menü immer zeigen“ (Vorgabe seit 1.770.0 an)
+  (TEST.daten.profiles || []).forEach(p => { p.einstellungen = Object.assign(p.einstellungen || {}, { navmenuefest: false }); });
   const J = TEST.daten.jobs;
   const geplant = J.filter(j => j.plan_status === 'geplant');
   // A: früher bei Metalix und Notz, B: nur bei Notz → beides bei Notz
