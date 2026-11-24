@@ -131,8 +131,17 @@ function gruss() {
   return h < 5 ? "Gute Nacht" : h < 11 ? "Guten Morgen" : h < 17 ? "Guten Tag" : h < 22 ? "Guten Abend" : "Gute Nacht";
 }
 
+// Die Gerätekonten Pad Mode und QS Pad heissen seit 1.777.0 „Prod“ und
+// „QS“, damit überall, wo etwas vom Pad aus gemacht wurde, dieser Name
+// steht (Wunsch Patrick 24. November 2026). Auf der Anmeldung bleiben
+// die Kacheln erkennbar wie bisher.
+const KACHEL_NAMEN = { "pad.mode@hoferco.ch": "Pad Mode", "qs@hoferco.ch": "QS Pad" };
+function kachelName(u) {
+  return KACHEL_NAMEN[String(u.email || "").toLowerCase()] || alt.personName(u);
+}
+
 function Bildchen({ konto, className }) {
-  const name = konto.full_name || konto.email;
+  const name = kachelName(konto);
   return konto.bild_url
     ? <img className={className} src={konto.bild_url} alt="" data-hell={bildHell(konto.bild_url) ? "" : undefined} />
     : <span className={className + " login__buchstabe"}>{name.charAt(0).toUpperCase()}</span>;
@@ -153,8 +162,7 @@ async function kachelnLaden() {
       .filter((u) => zeitApp ? (!istAndererNutzer(u) || u.nur_zeit) : !u.nur_zeit);
   if (!data.length) throw new Error("leer");
   // Immer in derselben Reihenfolge: nach Namen, wie im Telefonbuch
-  data.sort((x, y) => String(x.full_name || x.email || "").localeCompare(
-    String(y.full_name || y.email || ""), "de", { sensitivity: "base" }));
+  data.sort((x, y) => kachelName(x).localeCompare(kachelName(y), "de", { sensitivity: "base" }));
   return data;
 }
 
@@ -428,7 +436,7 @@ function Anmeldung() {
                 className={"login__kachel" + (heim && heim === u.email ? " login__kachel--heim" : "")}
                 onClick={(ev) => kontoWaehlen(u, ev)}>
                 <Bildchen konto={u} className={"login__kachel-bild" + (u.bild_url ? "" : " login__kachel-buchstabe")} />
-                <span className="login__kachel-name">{alt.personName(u)}</span>
+                <span className="login__kachel-name">{kachelName(u)}</span>
                 {u.ohne_passwort && <span className="login__offen" title="Mit PIN">•</span>}
               </button>
             ))}
@@ -610,7 +618,7 @@ function KontoAnmeldung({ konto, mitPin, aufPasswort, hinweis, wartet }) {
     istAndererNutzer(konto));
   // autoFocus wirkt beim Wechsel nicht zuverlässig, darum von Hand
   useLayoutEffect(() => { if (pwRef.current) pwRef.current.focus({ preventScroll: true }); }, [pwRef]);
-  const name = konto.full_name || konto.email;
+  const name = kachelName(konto);
   return (
     <>
       <div className={"login__gross-rahmen" + (wartet ? " login__gross-rahmen--wartet" : "")}>

@@ -430,7 +430,7 @@ with sync_playwright() as p:
     neu = pg.evaluate("TEST.daten.order_items[TEST.daten.order_items.length - 1]")
     print("Pad Besteller:", neu.get("besteller"))
     pruefe("Pad: Besteller ist die Maschine", pg.evaluate("TEST.daten.order_items.length") == vorher + 1
-           and neu.get("besteller") == "Pad " + mk)
+           and neu.get("besteller") == "Prod " + mk)
     pg.evaluate("TEST.daten.profiles.forEach(p => { if (p.einstellungen) delete p.einstellungen.padGeraet; })")
     pg.click(".eba-fenster [data-zu]"); pg.wait_for_timeout(300)
 
