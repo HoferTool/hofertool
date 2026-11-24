@@ -16523,3 +16523,11 @@ body:not(.dunkel) .sn2-oben #db-solar .solar-tag div { background: #f1f5f9; colo
 .sn2-gruss { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .sn2-gruss .gruss { margin: 0; }
 @media (max-width: 779px) { .sn2-gruss { justify-content: center; text-align: center; } }
+
+/* 1.764.0 (Wunsch Patrick 24. November 2026: „Geburtstage nicht so breit, so breit wie nötig“):
+   oben neben der Solaranlage nimmt die Karte Geburtstage nur die Breite ihres Inhalts,
+   die Solaranlage den Rest; höchstens die Hälfte, damit lange Namen nicht alles verdrängen */
+@media (min-width: 1101px) {
+  .sn2-oben { grid-template-columns: minmax(0, 1fr) fit-content(50%); }
+  .sn2-oben > #db-geburtstage { min-width: 280px; }
+}
