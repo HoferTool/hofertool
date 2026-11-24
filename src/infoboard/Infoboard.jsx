@@ -27,6 +27,7 @@ import { aufbauLaden, aufbauSpeichern, aufbauOrdnen, dateiHochladen, dateiTyp, f
   layoutsLaden, layoutSpeichern, layoutLoeschen, gleicherAufbau, ohneEffekte } from "./daten.js";
 import { EFFEKTE } from "./Wetterhimmel.jsx";
 import { kachelBearbeiten, inhaltBearbeiten, inhaltName } from "./Kachel.jsx";
+import { umfrageWaehlen } from "./UmfrageFeld.jsx";
 
 // 0 = nicht von selbst blättern, die Seite wechselt nur beim Antippen
 // (Wunsch Patrick 21. Oktober 2026).
@@ -186,6 +187,17 @@ function Gestalten({ mass }) {
     setGewaehlt(neu.id);
   };
 
+  // Umfrage mit QR-Code (seit 1.762.0, Wunsch Patrick 24. November 2026),
+  // zuerst quer, damit Frage und QR-Code nebeneinander stehen
+  const umfrageOeffnen = async (t) => {
+    const feld = await umfrageWaehlen();
+    if (!feld) return;
+    if (t) { await teilAendern(t.id, feld); return; }
+    const neu = neuesTeil({ id: neueId(), art: "umfrage", ...feld }, 0.5, null, mass);
+    await aendern((teile) => [...teile, neu]);
+    setGewaehlt(neu.id);
+  };
+
   // Antippbare Kachel (nur Pausenraum), zuerst klein und fast quadratisch
   const kachelOeffnen = async (t) => {
     const feld = await kachelBearbeiten(t);
@@ -211,6 +223,7 @@ function Gestalten({ mass }) {
         : wahl.art === "text" ? "Der Text verschwindet vom Infoboard."
         : wahl.art === "web" ? "Die Webseite verschwindet vom Infoboard."
         : wahl.art === "programm" ? "Das Programmfenster verschwindet vom Infoboard."
+        : wahl.art === "umfrage" ? "Die Umfrage verschwindet vom " + mass.name + ". Sie selbst bleibt bestehen."
         : wahl.art === "kachel" ? "Die Kachel verschwindet vom " + mass.name + ". Die Datei bleibt in der Ablage."
         : "Die Datei verschwindet vom Infoboard.", bestaetigen: "Entfernen", gefahr: true });
     if (!ok) return;
@@ -237,6 +250,7 @@ function Gestalten({ mass }) {
     : f.art === "web" ? "Webseite: " + (f.adresse || "")
     : f.art === "programm" ? "Programmfenster: " + (f.titel || "")
     : f.art === "kachel" ? "Kachel: " + (f.titel || "")
+    : f.art === "umfrage" ? "Umfrage: " + (f.titel || "")
     : f.art === "datei" && f.datei ? ({ pdf: "PDF", bild: "Bild", video: "Video", excel: "Excel" }[f.datei.typ] || "Datei") + ": " + (f.datei.name || "")
     : "Leer";
 
@@ -254,7 +268,7 @@ function Gestalten({ mass }) {
           <Tafel mass={mass} aufbau={aufbau} bearbeiten={admin} gewaehlt={gewaehlt} waehlen={setGewaehlt} effektProbe={probe || null}
             teilAendern={admin ? teilAendern : null} logoSetzen={admin ? logoSetzen : null}
             ablegen={admin && !laedt ? (dateien, punkt) => dateienAblegen(dateien, punkt, null) : null}
-            doppelt={admin ? (id) => { const t = aufbau.teile.find((x) => x.id === id); if (t && t.art === "text") textOeffnen(t); if (t && t.art === "web") webOeffnen(t); if (t && t.art === "programm") programmOeffnen(t); if (t && t.art === "kachel") kachelOeffnen(t); } : null} />
+            doppelt={admin ? (id) => { const t = aufbau.teile.find((x) => x.id === id); if (t && t.art === "text") textOeffnen(t); if (t && t.art === "web") webOeffnen(t); if (t && t.art === "programm") programmOeffnen(t); if (t && t.art === "kachel") kachelOeffnen(t); if (t && t.art === "umfrage") umfrageOeffnen(t); } : null} />
         </div>
         <div className="ib-gestalten__seite">
           {admin && <>
@@ -270,6 +284,8 @@ function Gestalten({ mass }) {
                 Text ohne Hintergrund</button>
               <button type="button" className="knopf" data-ib="neu-web" onClick={() => webOeffnen(null)}>
                 Webseite hinzufügen</button>
+              <button type="button" className="knopf" data-ib="neu-umfrage" onClick={() => umfrageOeffnen(null)}>
+                Umfrage mit QR-Code</button>
               {mass.id === "haupt" &&
                 <button type="button" className="knopf" data-ib="neu-programm" onClick={() => programmOeffnen(null)}>
                   Programmfenster (Kamera) …</button>}
@@ -308,6 +324,8 @@ function Gestalten({ mass }) {
                     ? <button type="button" className="knopf" data-ib="web" onClick={() => webOeffnen(wahl)}>Webseite ändern</button>
                     : wahl.art === "programm"
                     ? <button type="button" className="knopf" data-ib="programm" onClick={() => programmOeffnen(wahl)}>Programmfenster ändern</button>
+                    : wahl.art === "umfrage"
+                    ? <button type="button" className="knopf" data-ib="umfrage" onClick={() => umfrageOeffnen(wahl)}>Andere Umfrage …</button>
                     : wahl.art === "kachel"
                     ? <button type="button" className="knopf" data-ib="kachel" onClick={() => kachelOeffnen(wahl)}>Titel und Farbe …</button>
                     : wahl.art === "datei" &&

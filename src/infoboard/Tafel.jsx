@@ -24,6 +24,7 @@ import Skizze from "../pad/Skizze.jsx";
 import { TextBlatt } from "./TextFeld.jsx";
 import { WebFlaeche, ProgrammFlaeche } from "./WebFeld.jsx";
 import { KachelFlaeche, KachelGross } from "./Kachel.jsx";
+import { UmfrageFlaeche } from "./UmfrageFeld.jsx";
 import Radio from "./Radio.jsx";
 import { Seite as ExcelSeite, seitenRechnen } from "../teile/ExcelAnsicht.jsx";
 import { excelLesen } from "../teile/excelLesen.js";
@@ -324,6 +325,7 @@ function Kopf() {
 function FeldInhalt({ feld, format, bearbeiten, grossZiel, breite, hoehe, grund, antippen }) {
   if (feld.art === "kachel") return <KachelFlaeche feld={feld} breite={breite} hoehe={hoehe} antippen={bearbeiten ? null : antippen} />;
   if (feld.art === "text") return <TextBlatt html={feld.html} format={format} breite={breite} hoehe={hoehe} ohneGrund={!!feld.ohneGrund} tafel={grund} />;
+  if (feld.art === "umfrage") return <UmfrageFlaeche feld={feld} breite={breite} hoehe={hoehe} />;
   if (feld.art === "web") return <WebFlaeche feld={feld} bearbeiten={bearbeiten} />;
   if (feld.art === "programm") return <ProgrammFlaeche feld={feld} bearbeiten={bearbeiten} />;
   if (feld.art === "skizze") {
