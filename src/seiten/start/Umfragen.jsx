@@ -17,6 +17,7 @@ import { useRef, useState } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
 import { Symbol } from "../../teile/zeichnen.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
+import { ZiehListe } from "../../teile/ZiehListe.jsx";
 
 const ABLAGE = "zeichnungen";
 const PLUS = "M12 5v14M5 12h14";
@@ -43,7 +44,7 @@ export function umfrageSehen() {
 async function umfragenLaden() {
   const { data, error } = await alt.zeitlimit(alt.db.from("umfragen")
     .select("*, umfrage_vorschlaege(*), umfrage_stimmen(id, vorschlag_id, name)")
-    .order("erstellt_am", { ascending: false }).limit(40), 9000, "Umfragen");
+    .order("sort", { ascending: true }).order("erstellt_am", { ascending: false }).limit(40), 9000, "Umfragen");
   if (error) throw error;
   return (data || []).map((u) => ({ ...u,
     vorschlaege: (u.umfrage_vorschlaege || []).slice().sort((a, b) => (a.sort || 0) - (b.sort || 0)),
@@ -94,15 +95,39 @@ export default function Umfragen({ auffrischen }) {
           </div>}
         </div>
         {!offen.length && <p className="hinweis">Keine offene Umfrage. Mit + legst du eine an.</p>}
-        {offen.map((u) => <Umfrage key={u.id} u={u} neu={neu} admin={admin} />)}
+        <UmfrageListe liste={offen} neu={neu} admin={admin} id="umf-liste-offen" />
         {zu.length > 0 && (
           <details className="umf-zu" data-umf-zu="">
             <summary>Abgeschlossene Umfragen <span className="probleme-andere__zahl">{zu.length}</span></summary>
-            {zu.map((u) => <Umfrage key={u.id} u={u} neu={neu} admin={admin} />)}
+            <UmfrageListe liste={zu} neu={neu} admin={admin} id="umf-liste-zu" />
           </details>)}
       </section>
     </div>
   );
+}
+
+// Reihenfolge legen Admins selbst fest (seit 1.760.0, Wunsch Patrick
+// 24. November 2026: „ich will die Umfragen selber sortieren können“):
+// am Griff ⠿ ziehen, nur am Griff, damit Antippen zum Abstimmen bleibt.
+// Gespeichert als umfragen.sort, mit Rückgängig.
+function UmfrageListe({ liste, neu, admin, id }) {
+  if (!admin || liste.length < 2) return liste.map((u) => <Umfrage key={u.id} u={u} neu={neu} admin={admin} />);
+  const ordnen = async (keys) => {
+    const vorher = liste.map((u) => ({ id: u.id, sort: u.sort || 0 }));
+    const basis = Math.min(...vorher.map((v) => v.sort));
+    const aenderungen = keys.map((k, i) => ({ id: k, sort: basis + i }))
+      .filter((n) => (vorher.find((v) => v.id === n.id) || {}).sort !== n.sort);
+    if (!aenderungen.length) return;
+    for (const a of aenderungen) {
+      const { error } = await alt.db.from("umfragen").update({ sort: a.sort }).eq("id", a.id);
+      if (error) { alt.meldung(alt.fehlertext(error), "fehler"); neu(); return; }
+    }
+    alt.merkeSchritt("Umfragen sortieren", aenderungen.map((a) =>
+      alt.rueckSetz("umfragen", { sort: vorher.find((v) => v.id === a.id).sort }, { id: a.id })));
+    neu();
+  };
+  return <ZiehListe nurGriff darf id={id} className="umf-zieh" ordnen={ordnen}
+    eintraege={liste.map((u) => ({ key: u.id, inhalt: <Umfrage u={u} neu={neu} admin={admin} /> }))} />;
 }
 
 function Umfrage({ u, neu, admin }) {
@@ -291,7 +316,8 @@ function Bearbeiten({ u, zu, neu }) {
     const liste = vorschlaege.filter((v) => v.text.trim() || v.bild_url)
       .map((v, i) => ({ ...v, text: v.text.trim() || "Vorschlag " + (i + 1) }));
     if (!t) { setFehlt("titel"); document.getElementById("umf-titel").focus(); return; }
-    if (liste.length < 2) { setFehlt("vorschlaege"); return; }
+    // Ein einziger Vorschlag genügt (seit 1.760.0, Patrick 24. November 2026)
+    if (liste.length < 1) { setFehlt("vorschlaege"); return; }
     // Weggenommene Vorschläge mit Stimmen: einmal nachfragen
     const weg = u ? u.vorschlaege.filter((v) => !liste.some((x) => x.id === v.id)) : [];
     const wegStimmen = u ? u.stimmen.filter((s) => weg.some((v) => v.id === s.vorschlag_id)).length : 0;
@@ -306,7 +332,7 @@ function Bearbeiten({ u, zu, neu }) {
         const { error } = await alt.db.from("umfragen").update(kopf).eq("id", id);
         if (error) throw error;
       } else {
-        const { data, error } = await alt.db.from("umfragen").insert(kopf).select("id");
+        const { data, error } = await alt.db.from("umfragen").insert({ ...kopf, offen: true, sort: -Math.floor(Date.now() / 1000) }).select("id");
         if (error) throw error;
         id = data[0].id;
       }
@@ -353,7 +379,7 @@ function Bearbeiten({ u, zu, neu }) {
         onChange={(e) => setMehrfach(e.target.checked)} /> Mehrere Vorschläge wählbar</label>
 
       <h3 className="umf-b__titel">Vorschläge</h3>
-      {fehlt === "vorschlaege" && <p className="feld-fehler">Bitte mindestens zwei Vorschläge eintragen.</p>}
+      {fehlt === "vorschlaege" && <p className="feld-fehler">Bitte mindestens einen Vorschlag eintragen.</p>}
       <div className="umf-b__liste">
         {vorschlaege.map((v, i) => (
           <div key={v.k} className="umf-b__v" data-umfbv={i} {...ablage(v.k)}>
