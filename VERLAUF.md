@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.763.1 (24. November 2026)
+
+- HOFERCAM, Werkzeugprotokoll einlesen (Patrick mit 10053-0485: „warum erkennst du T700 nicht als Scheibenfräser?“): ein Fräswerkzeug mit Mass wie „Ø25 x 1.5 x 8 Z40“ (Ø x Breite x Bohrung, Z = Zähne) gilt als Scheibenfräser, wenn die Breite höchstens ein Viertel des Ø ist oder es 10 oder mehr Zähne hat, die Breite kommt aus dem Mass; auch Wörter wie Säge oder Schlitzfräser; vorher wurde es ein Schaftfräser Ø25 (`scheibenMass` in `camProtokoll.js`).
+
 ## 1.761.1 (24. November 2026)
 
 - HOFERCAM 3D-Simulation, Scheibenfräser als Querwerkzeug (Patrick mit 10789-0034): die angefahrene X-Position ist die Lage des Schlitzes, nicht der Scheibe; über die Drehmitte hinaus liegt der Schlitz mittig. Zustellung in Z: Z ist die vordere Kante der Scheibe. T1300 schneidet jetzt das Kreuz 1.25 × 3.5 wie im STEP (vorher daneben und rund 16 tief). T700 noch offen (Ø im Werkzeug).
