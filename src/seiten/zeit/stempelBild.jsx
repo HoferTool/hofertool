@@ -134,6 +134,13 @@ function fotoHolen(name, art) {
   return fotos.get(k);
 }
 
+// Wie lange die Einblendung nach dem Stempeln steht. Der Schreck für Flavia braucht
+// rund 3.6 s bis zum Schlussbild, das soll danach länger stehen (Wunsch Patrick
+// 24. November 2026: „lass den Schluss ein paar Sekunden länger eingeblendet“).
+export function stempelBildDauer(name, art) {
+  return name === "schreck" && art !== "gehen" ? 14000 : 9000;
+}
+
 export async function stempelBildHolen(personId) {
   if (!personId) return null;
   try {

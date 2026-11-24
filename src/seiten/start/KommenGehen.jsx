@@ -6,7 +6,7 @@
 import { useEffect, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { stempelLaden, stempeln, stand, uhrzeit } from "../../daten/zeit.js";
-import { stempelBildHolen, StempelBild } from "../zeit/stempelBild.jsx";
+import { stempelBildHolen, StempelBild, stempelBildDauer } from "../zeit/stempelBild.jsx";
 
 function erfasst(p) {
   return p && p.id && p.is_active !== false && p.role !== "extern" && p.role !== "dienst" && !p.andere_nutzer && !p.zeit_terminal;
@@ -38,7 +38,7 @@ export default function KommenGehen() {
   }, [darf]);
   useEffect(() => {
     if (!bild) return;
-    const t = setTimeout(() => setBild(null), 9000);
+    const t = setTimeout(() => setBild(null), stempelBildDauer(bild.name, bild.art));
     return () => clearTimeout(t);
   }, [bild]);
 

@@ -17,7 +17,7 @@ import {
   tageRechnen, paareRechnen, montag, tagePlus,
 } from "../../daten/zeit.js";
 import { terminalSetzen } from "./app.js";
-import { stempelBildHolen, StempelBild } from "./stempelBild.jsx";
+import { stempelBildHolen, StempelBild, stempelBildDauer } from "./stempelBild.jsx";
 import { gesichtLesen, personFinden, kameraStarten, kameraMoeglich, lichtHinweis } from "./gesicht.js";
 
 // 1.744.0: Namensliste passt ohne Rollen auf den Bildschirm (Wunsch Patrick
@@ -323,7 +323,7 @@ export default function Panel() {
   }
   useEffect(() => {
     if (!fertig) return undefined;
-    const t = setTimeout(() => { setFertig(null); setSuche(""); }, fertig.bild ? 9000 : 5000);
+    const t = setTimeout(() => { setFertig(null); setSuche(""); }, fertig.bild ? stempelBildDauer(fertig.bild, fertig.art) : 5000);
     return () => clearTimeout(t);
   }, [fertig]);
 
