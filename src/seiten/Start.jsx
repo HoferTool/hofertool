@@ -115,7 +115,7 @@ export default function Start({ auffrischen, module }) {
   if (!module && document.documentElement.classList.contains("neues-menue")) {
     return (
       <div className="sn2">
-        {/* Seit 1.762.0 wieder das blaue Band wie früher, mit Kopfzeile
+        {/* Seit 1.763.0 wieder das blaue Band wie früher, mit Kopfzeile
             (Wunsch Patrick 24. November 2026), Karten darunter wie bisher */}
         {!kopflos && <>
           <section className="kopfkarte">

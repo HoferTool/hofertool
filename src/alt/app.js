@@ -174,7 +174,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.762.0";
+const APP_VERSION = "1.763.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -11738,7 +11738,7 @@ function zeichneGeruest() {
   // neuerLook (Saheesan), für alle erst, wenn Patrick es ausdrücklich sagt. Ältere
   // Prüfstände bedienen noch die Knöpfe der Kopfzeile, darum dort nur mit
   // TEST.ohneKopf.
-  // Seit 1.762.0 wieder mit Kopfzeile und altem Look (Wunsch Patrick 24. November
+  // Seit 1.763.0 wieder mit Kopfzeile und altem Look (Wunsch Patrick 24. November
   // 2026: „alles wie das alte … aber Reiter-Unterteilungen noch gleich“): der
   // Vermerk neuerLook gibt nur noch das neue Menü und die Karten der
   // Startseite (Klasse neues-menue); ohne Kopfzeile nur noch im Prüfstand.

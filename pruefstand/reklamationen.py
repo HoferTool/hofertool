@@ -63,13 +63,13 @@ with sync_playwright() as p:
     if "Werkzeugverschleiss" not in pg.inner_text("#rk-vorschau section[data-s='d4']"): fehler.append("Vorschau ohne Ursache")
     an = pg.locator(".rk-haken__punkt.an").all_inner_texts()
     if not any("Werkzeugverschleiss" in x for x in an): fehler.append("Häkchen nicht übernommen: " + str(an))
-    # „Wie geplant“ kreuzt in 7 die eingeführten Massnahmen zu 6 an
+    # „Wie festgelegt“ kreuzt in D6 die eingeführten Massnahmen zu D5 an
     pg.click("[data-rkschritt='d5']")
     if pg.locator(".rk-gruppe__name").count() < 3: fehler.append("Massnahmen nicht in Gruppen")
     pg.click("[data-rk8d='d5'] [data-rkhaken='Dokumente anpassen']")
     pg.click("#rk-weiter")
     pg.click("#rk-wiegeplant"); pg.wait_for_timeout(200)
-    an7 = pg.locator("[data-rk8d='d7'] .rk-haken__punkt.an").all_inner_texts()
+    an7 = pg.locator("[data-rk8d='d6'] .rk-haken__punkt.an").all_inner_texts()
     if not any("Dokumente wurden angepasst" in x for x in an7): fehler.append("Wie geplant: " + str(an7))
     pg.click("[data-rkschritt='artikel']"); pg.fill("#rk-k-lieferschein", "LS-1")
     pg.click("[data-rkschritt='d3']"); pg.click("[data-rk8d='d3'] [data-rkhaken='Ersatzlieferung']")
@@ -77,7 +77,14 @@ with sync_playwright() as p:
     pg.click("#rk-speichern"); pg.wait_for_timeout(300)
     if not pg.locator("#rk-f-fehler").count(): fehler.append("Kein Sprung zum Problem")
     pg.fill("#rk-f-fehler", "Gewinde nicht gängig")
-    if "Gewinde nicht" not in pg.inner_text("#rk-vorschau section[data-s='d1']"): fehler.append("Vorschau ohne Problem")
+    if "Gewinde nicht" not in pg.inner_text("#rk-vorschau section[data-s='d2']"): fehler.append("Vorschau ohne Problem")
+    # Klassisches 8D: D1 Team mit Namen, D2 Fehlerart zum Ankreuzen
+    pg.click("[data-rkschritt='d1']"); pg.wait_for_selector("[data-rk8d='d1']")
+    pg.click("[data-rk8d='d1'] [data-rkhaken='Qualität']")
+    pg.click("[data-rkschritt='d2']"); pg.click("[data-rk8d='d2'] [data-rkhaken='Gewindefehler']")
+    vt = pg.inner_text("#rk-vorschau")
+    for x in ("D1", "D8", "Team", "Abstellmassnahmen einführen"):
+        if x not in vt: fehler.append("Vorschau ohne " + x)
     if BILDER: pg.screenshot(path=BILDER + "/rk-fenster.png", full_page=True)
     # Bericht speichert zuerst und lädt ein PDF
     with pg.expect_download(timeout=30000) as d:
@@ -88,6 +95,8 @@ with sync_playwright() as p:
     if not z: fehler.append("Neue Reklamation nicht gespeichert")
     else:
         if "Ersatzlieferung" not in (z.get("achtd") or {}).get("d3", []): fehler.append("D3 nicht gespeichert: " + str(z.get("achtd")))
+        if "Gewindefehler" not in (z.get("achtd") or {}).get("d2", []): fehler.append("D2 nicht gespeichert")
+        if "Qualität" not in (z.get("achtd") or {}).get("d1", []): fehler.append("D1 nicht gespeichert")
         if z.get("nr") != "RK26-002": fehler.append("Nummer: " + str(z.get("nr")))
         if (z.get("kopf") or {}).get("lieferschein") != "LS-1": fehler.append("Kopf nicht gespeichert: " + str(z.get("kopf")))
     pg.click("#rk-fenster [data-zu]"); pg.wait_for_timeout(500)

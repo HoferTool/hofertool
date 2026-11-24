@@ -1,4 +1,4 @@
-# 1.762.0 (Wunsch Patrick 24. November 2026): Vermerk neuerLook gibt wieder
+# 1.763.0 (Wunsch Patrick 24. November 2026): Vermerk neuerLook gibt wieder
 # Kopfzeile und blaues Band auf Start, aber Karten und Menü wie im neuen Look.
 import time, os
 from pruefstand import server_starten, FAKE, CH, PORT

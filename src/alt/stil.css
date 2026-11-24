@@ -16494,7 +16494,28 @@ body:not(.dunkel) .sn2-oben #db-solar .solar-tag div { background: #f1f5f9; colo
 .umf-qr__bild svg { display: block; width: 100%; height: auto; }
 .umf-qr__link { word-break: break-all; margin: 6px 0 0; }
 
-/* 1.762.0 (Wunsch Patrick 24. November 2026: „alles wie das alte, einfach bei
+/* ---- 1.762.0: Umfrage mit QR-Code auf der Anzeige (Infoboard, Empfang, Pausenraum) ---- */
+.ib-umf { width: 100%; height: 100%; box-sizing: border-box; background: #ffffff; color: #13233a;
+  border-radius: 0.6em; padding: 0.9em 1em; display: flex; flex-direction: column; gap: 0.8em; overflow: hidden;
+  box-shadow: 0 0.2em 0.8em rgba(0, 20, 60, .18); line-height: 1.2; }
+.ib-umf--quer { flex-direction: row; align-items: stretch; }
+.ib-umf__text { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 0.35em; overflow: hidden; }
+.ib-umf__marke { font-size: 0.6em; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #003884; }
+.ib-umf__titel { margin: 0; font-size: 1.25em; font-weight: 800; color: #0d1f38; overflow-wrap: anywhere; }
+.ib-umf__beschr { margin: 0; font-size: 0.7em; color: #4a5a70; }
+.ib-umf__liste { list-style: none; margin: 0.2em 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.45em; }
+.ib-umf__zeile { display: flex; justify-content: space-between; gap: 0.5em; font-size: 0.8em; }
+.ib-umf__zeile span { overflow-wrap: anywhere; }
+.ib-umf__zeile b { color: #003884; font-variant-numeric: tabular-nums; }
+.ib-umf__balken { height: 0.35em; border-radius: 1em; background: #e3eaf3; overflow: hidden; margin-top: 0.15em; }
+.ib-umf__balken i { display: block; height: 100%; background: #003884; border-radius: 1em; transition: width .6s; }
+.ib-umf__leute { margin-top: auto; font-size: 0.6em; color: #5b6b80; }
+.ib-umf__qr { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.3em; }
+.ib-umf__code svg { width: 100%; height: 100%; display: block; }
+.ib-umf__scan { font-size: 0.6em; font-weight: 700; color: #003884; text-align: center; max-width: 12em; }
+.ib-umf__leer { margin: auto; color: #5b6b80; }
+
+/* 1.763.0 (Wunsch Patrick 24. November 2026: „alles wie das alte, einfach bei
    Start die Felder so wie jetzt, also wieder mit Balken, aber Reiter-
    Unterteilungen noch gleich“): Startseite mit dem blauen Band wie früher,
    darunter Gruss mit Kommen / Gehen und die Karten wie im neuen Look */
