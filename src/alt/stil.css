@@ -16266,12 +16266,12 @@ html.ohne-kopf body:not(.dunkel) main, html.ohne-kopf body:not(.dunkel) .inhalt 
 /* Seit 1.752.2 auch Pad Mode wieder ohne Themenfarbe (Patrick: „das padmode
    nicht in themenfarbe“). */
 /* Karten der Startseite: Kopfband in der Themenfarbe, Titel farbig */
-html.ohne-kopf .sn2 :is(.sn2-spalten, .sn2-oben) .karte:not(.sn2-fest):not(.heuteoffen) {
+.sn2 :is(.sn2-spalten, .sn2-oben) .karte:not(.sn2-fest):not(.heuteoffen) {
   border-top: 4px solid var(--marke); border-color: color-mix(in srgb, var(--marke) 18%, var(--linie)); border-top-color: var(--marke); }
-html.ohne-kopf .sn2 :is(.sn2-spalten, .sn2-oben) .karte:not(.heuteoffen) > h2:first-child,
-html.ohne-kopf .sn2 :is(.sn2-spalten, .sn2-oben) .karte:not(.heuteoffen) > :first-child h2 { color: var(--marke); }
-html.ohne-kopf body.dunkel .sn2 :is(.sn2-spalten, .sn2-oben) .karte:not(.heuteoffen) > h2:first-child,
-html.ohne-kopf body.dunkel .sn2 :is(.sn2-spalten, .sn2-oben) .karte:not(.heuteoffen) > :first-child h2 { color: color-mix(in srgb, var(--marke) 45%, #fff) !important; }
+.sn2 :is(.sn2-spalten, .sn2-oben) .karte:not(.heuteoffen) > h2:first-child,
+.sn2 :is(.sn2-spalten, .sn2-oben) .karte:not(.heuteoffen) > :first-child h2 { color: var(--marke); }
+body.dunkel .sn2 :is(.sn2-spalten, .sn2-oben) .karte:not(.heuteoffen) > h2:first-child,
+body.dunkel .sn2 :is(.sn2-spalten, .sn2-oben) .karte:not(.heuteoffen) > :first-child h2 { color: color-mix(in srgb, var(--marke) 45%, #fff) !important; }
 /* 1.745.0 (Patrick: „etwas mittiger positionieren“): Punkt und Schrift im
    Knopf Kommen / Gehen genau in der Mitte, Abstand links und rechts gleich */
 .sn2-stempel { line-height: 1; padding: 0 20px; justify-content: center; }
@@ -16441,31 +16441,31 @@ body.dunkel .pm-maschinenwahl .typwahl__knopf.aktiv { background: var(--marke-he
    Im neuen Look und hell ist die Solaranlage auf der Startseite eine helle
    Karte wie die anderen (weiss, Kopfband in der Themenfarbe), Farben der
    Werte und Kurven gedämpft. Dunkel bleibt sie wie bisher. */
-html.ohne-kopf body:not(.dunkel) .sn2-oben #db-solar .solar {
+body:not(.dunkel) .sn2-oben #db-solar .solar {
   background: #fff !important; color: var(--tinte, #1f2937);
   border: 1px solid color-mix(in srgb, var(--marke) 18%, var(--linie, #e2e8f0)) !important;
   border-top: 4px solid var(--marke) !important; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
-html.ohne-kopf body:not(.dunkel) .sn2-oben #db-solar .solar::after { display: none; }
-html.ohne-kopf body:not(.dunkel) .sn2-oben #db-solar {
+body:not(.dunkel) .sn2-oben #db-solar .solar::after { display: none; }
+body:not(.dunkel) .sn2-oben #db-solar {
   --sol-erz: #65a30d; --sol-erz-hell: #4d7c0f; --sol-netz: #0891b2; --sol-netz-hell: #0e7490;
   --sol-verb: color-mix(in srgb, var(--marke) 80%, #fff); --sol-verb-hell: var(--marke); }
-html.ohne-kopf body:not(.dunkel) .sn2-oben #db-solar .sol-kopf__titel { color: var(--marke); }
-html.ohne-kopf body:not(.dunkel) .sn2-oben #db-solar .sol-kopf__stand { color: #15803d; }
-html.ohne-kopf body:not(.dunkel) .sn2-oben #db-solar :is(.sol-zahl__name, .sol-ring__unten, .solar-tag span, .sol-ring__mitte span) { color: #64748b; }
-html.ohne-kopf body:not(.dunkel) .sn2-oben #db-solar .sol-zahl { border-left-color: #e2e8f0; }
-html.ohne-kopf body:not(.dunkel) .sn2-oben #db-solar .sol-zahl__wert,
-html.ohne-kopf body:not(.dunkel) .sn2-oben #db-solar .sol-kurve--prod,
-html.ohne-kopf body:not(.dunkel) .sn2-oben #db-solar .sol-ring__voll { text-shadow: none; filter: none !important; }
-html.ohne-kopf body:not(.dunkel) .sn2-oben #db-solar .sol-ring__spur { stroke: #e5e7eb; }
-html.ohne-kopf body:not(.dunkel) .sn2-oben #db-solar :is(.sol-ring__mitte strong, .sol-ring__zahl) { color: var(--tinte, #1f2937); }
-html.ohne-kopf body:not(.dunkel) .sn2-oben #db-solar .sol-gitter { stroke: rgba(0,0,0,.06); }
-html.ohne-kopf body:not(.dunkel) .sn2-oben #db-solar .sol-flaeche { fill: rgba(101,163,13,.14); }
-html.ohne-kopf body:not(.dunkel) .sn2-oben #db-solar .sol-verlauf__achse,
-html.ohne-kopf body:not(.dunkel) .sn2-oben #db-solar .sol-verlauf__mitte { color: #94a3b8; }
-html.ohne-kopf body:not(.dunkel) .sn2-oben #db-solar .sol-spanne { background: #f1f5f9; }
-html.ohne-kopf body:not(.dunkel) .sn2-oben #db-solar .sol-spanne__knopf { color: #64748b; }
-html.ohne-kopf body:not(.dunkel) .sn2-oben #db-solar .sol-spanne__knopf.aktiv { background: color-mix(in srgb, var(--marke) 14%, #fff); color: var(--marke); }
-html.ohne-kopf body:not(.dunkel) .sn2-oben #db-solar .solar-tag div { background: #f1f5f9; color: var(--tinte, #1f2937); }
+body:not(.dunkel) .sn2-oben #db-solar .sol-kopf__titel { color: var(--marke); }
+body:not(.dunkel) .sn2-oben #db-solar .sol-kopf__stand { color: #15803d; }
+body:not(.dunkel) .sn2-oben #db-solar :is(.sol-zahl__name, .sol-ring__unten, .solar-tag span, .sol-ring__mitte span) { color: #64748b; }
+body:not(.dunkel) .sn2-oben #db-solar .sol-zahl { border-left-color: #e2e8f0; }
+body:not(.dunkel) .sn2-oben #db-solar .sol-zahl__wert,
+body:not(.dunkel) .sn2-oben #db-solar .sol-kurve--prod,
+body:not(.dunkel) .sn2-oben #db-solar .sol-ring__voll { text-shadow: none; filter: none !important; }
+body:not(.dunkel) .sn2-oben #db-solar .sol-ring__spur { stroke: #e5e7eb; }
+body:not(.dunkel) .sn2-oben #db-solar :is(.sol-ring__mitte strong, .sol-ring__zahl) { color: var(--tinte, #1f2937); }
+body:not(.dunkel) .sn2-oben #db-solar .sol-gitter { stroke: rgba(0,0,0,.06); }
+body:not(.dunkel) .sn2-oben #db-solar .sol-flaeche { fill: rgba(101,163,13,.14); }
+body:not(.dunkel) .sn2-oben #db-solar .sol-verlauf__achse,
+body:not(.dunkel) .sn2-oben #db-solar .sol-verlauf__mitte { color: #94a3b8; }
+body:not(.dunkel) .sn2-oben #db-solar .sol-spanne { background: #f1f5f9; }
+body:not(.dunkel) .sn2-oben #db-solar .sol-spanne__knopf { color: #64748b; }
+body:not(.dunkel) .sn2-oben #db-solar .sol-spanne__knopf.aktiv { background: color-mix(in srgb, var(--marke) 14%, #fff); color: var(--marke); }
+body:not(.dunkel) .sn2-oben #db-solar .solar-tag div { background: #f1f5f9; color: var(--tinte, #1f2937); }
 
 /* 1.757.0 (Patrick 24. November 2026: „soll Meine Todo's heissen, Abgeschlossen
    einen längeren Knopf, der die Zeile ausfüllt, neben Plus“) */
@@ -16494,25 +16494,46 @@ html.ohne-kopf body:not(.dunkel) .sn2-oben #db-solar .solar-tag div { background
 .umf-qr__bild svg { display: block; width: 100%; height: auto; }
 .umf-qr__link { word-break: break-all; margin: 6px 0 0; }
 
-/* ---- 1.762.0: Umfrage mit QR-Code auf der Anzeige (Infoboard, Empfang, Pausenraum) ---- */
+/* ---- 1.762.0 / 1.765.0: Umfrage mit QR-Code auf der Anzeige (Infoboard, Empfang, Pausenraum),
+   quer oder hoch, Prozent am Ganzen, Bilder der Umfrage und der Vorschläge ---- */
 .ib-umf { width: 100%; height: 100%; box-sizing: border-box; background: #ffffff; color: #13233a;
-  border-radius: 0.6em; padding: 0.9em 1em; display: flex; flex-direction: column; gap: 0.8em; overflow: hidden;
-  box-shadow: 0 0.2em 0.8em rgba(0, 20, 60, .18); line-height: 1.2; }
-.ib-umf--quer { flex-direction: row; align-items: stretch; }
-.ib-umf__text { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 0.35em; overflow: hidden; }
-.ib-umf__marke { font-size: 0.6em; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #003884; }
-.ib-umf__titel { margin: 0; font-size: 1.25em; font-weight: 800; color: #0d1f38; overflow-wrap: anywhere; }
-.ib-umf__beschr { margin: 0; font-size: 0.7em; color: #4a5a70; }
-.ib-umf__liste { list-style: none; margin: 0.2em 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.45em; }
-.ib-umf__zeile { display: flex; justify-content: space-between; gap: 0.5em; font-size: 0.8em; }
+  border-radius: 0.7em; display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 0.25em 1em rgba(0, 20, 60, .2); line-height: 1.2; border: 1px solid #d5deea; }
+.ib-umf--quer { flex-direction: row; }
+.ib-umf__haupt { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 0.6em;
+  padding: 0 0 0.8em; overflow: hidden; }
+.ib-umf__kopf { display: flex; align-items: center; gap: 0.7em; padding: 0.75em 1em; color: #fff;
+  background: linear-gradient(135deg, #003884, #0b5cbf); }
+.ib-umf--hoch .ib-umf__kopf { flex-direction: column; align-items: stretch; }
+.ib-umf__titelbild { flex: 0 0 auto; width: 4.2em; height: 4.2em; object-fit: cover; border-radius: 0.5em;
+  border: 2px solid rgba(255,255,255,.7); background: #fff; }
+.ib-umf--hoch .ib-umf__titelbild { width: 100%; height: 4.5em; }
+.ib-umf__kopftext { min-width: 0; }
+.ib-umf__marke { font-size: 0.55em; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; opacity: .85; }
+.ib-umf__titel { margin: 0.1em 0 0; font-size: 1.25em; font-weight: 800; color: #fff !important; overflow-wrap: anywhere; }
+.ib-umf__beschr { margin: 0.25em 0 0; font-size: 0.65em; color: rgba(255,255,255,.88) !important; }
+.ib-umf__liste { list-style: none; margin: 0; padding: 0 1em; display: flex; flex-direction: column; gap: 0.55em; min-height: 0; }
+.ib-umf__liste li { display: flex; align-items: center; gap: 0.6em; padding: 0.45em 0.6em; border-radius: 0.5em;
+  background: #f3f6fb; border: 1px solid #e1e8f2; }
+.ib-umf__liste li.ib-umf__vorne { background: #eaf2ff; border-color: #9fc0ec; }
+.ib-umf__vbild { flex: 0 0 auto; width: 2.6em; height: 2.6em; border-radius: 0.4em; object-fit: cover; background: #dfe7f1; }
+.ib-umf__vbild--leer { display: block; }
+.ib-umf__vtext { flex: 1 1 auto; min-width: 0; }
+.ib-umf__zeile { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5em; font-size: 0.82em; font-weight: 600; }
 .ib-umf__zeile span { overflow-wrap: anywhere; }
-.ib-umf__zeile b { color: #003884; font-variant-numeric: tabular-nums; }
-.ib-umf__balken { height: 0.35em; border-radius: 1em; background: #e3eaf3; overflow: hidden; margin-top: 0.15em; }
-.ib-umf__balken i { display: block; height: 100%; background: #003884; border-radius: 1em; transition: width .6s; }
-.ib-umf__leute { margin-top: auto; font-size: 0.6em; color: #5b6b80; }
-.ib-umf__qr { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.3em; }
+.ib-umf__zeile b { color: #003884; font-variant-numeric: tabular-nums; font-size: 1.15em; white-space: nowrap; }
+.ib-umf__balken { height: 0.45em; border-radius: 1em; background: #dbe4ef; overflow: hidden; margin-top: 0.25em; }
+.ib-umf__balken i { display: block; height: 100%; background: linear-gradient(90deg, #0b5cbf, #003884); border-radius: 1em; transition: width .6s; }
+.ib-umf__stimmen { display: block; margin-top: 0.2em; font-size: 0.55em; color: #5b6b80; }
+.ib-umf__leute { margin-top: auto; padding: 0 1.2em; font-size: 0.6em; color: #5b6b80; }
+.ib-umf__qr { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.35em;
+  padding: 0.8em 1em; background: #f3f6fb; }
+.ib-umf--quer .ib-umf__qr { border-left: 1px solid #e1e8f2; }
+.ib-umf--hoch .ib-umf__qr { border-top: 1px solid #e1e8f2; }
+.ib-umf__code { background: #fff; padding: 0.35em; border-radius: 0.5em; box-shadow: 0 0.1em 0.4em rgba(0,20,60,.15); box-sizing: content-box; }
 .ib-umf__code svg { width: 100%; height: 100%; display: block; }
-.ib-umf__scan { font-size: 0.6em; font-weight: 700; color: #003884; text-align: center; max-width: 12em; }
+.ib-umf__scan { font-size: 0.85em; font-weight: 800; color: #003884; text-align: center; }
+.ib-umf__scanklein { font-size: 0.55em; color: #4a5a70; text-align: center; max-width: 14em; }
 .ib-umf__leer { margin: auto; color: #5b6b80; }
 
 /* 1.763.0: Listen im 8D selbst bearbeiten (Reklamationen) */
@@ -16526,3 +16547,19 @@ body.dunkel .rk-liste { background: #1d2630; }
 .rk-liste__kopf input, .rk-liste__zeile input { flex: 1; min-width: 0; }
 .rk-liste__zeile { padding-left: 14px; }
 .rk-liste__knoepfe { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+/* 1.763.0 (Wunsch Patrick 24. November 2026: „alles wie das alte, einfach bei
+   Start die Felder so wie jetzt, also wieder mit Balken, aber Reiter-
+   Unterteilungen noch gleich“): Startseite mit dem blauen Band wie früher,
+   darunter Gruss mit Kommen / Gehen und die Karten wie im neuen Look */
+.sn2 > .kopfkarte { margin: 0 !important; }
+.sn2-gruss { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.sn2-gruss .gruss { margin: 0; }
+@media (max-width: 779px) { .sn2-gruss { justify-content: center; text-align: center; } }
+
+/* 1.764.0 (Wunsch Patrick 24. November 2026: „Geburtstage nicht so breit, so breit wie nötig“):
+   oben neben der Solaranlage nimmt die Karte Geburtstage nur die Breite ihres Inhalts,
+   die Solaranlage den Rest; höchstens die Hälfte, damit lange Namen nicht alles verdrängen */
+@media (min-width: 1101px) {
+  .sn2-oben { grid-template-columns: minmax(0, 1fr) fit-content(50%); }
+  .sn2-oben > #db-geburtstage { min-width: 280px; }
+}

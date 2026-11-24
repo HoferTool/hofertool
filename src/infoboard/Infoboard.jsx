@@ -27,7 +27,7 @@ import { aufbauLaden, aufbauSpeichern, aufbauOrdnen, dateiHochladen, dateiTyp, f
   layoutsLaden, layoutSpeichern, layoutLoeschen, gleicherAufbau, ohneEffekte } from "./daten.js";
 import { EFFEKTE } from "./Wetterhimmel.jsx";
 import { kachelBearbeiten, inhaltBearbeiten, inhaltName } from "./Kachel.jsx";
-import { umfrageWaehlen } from "./UmfrageFeld.jsx";
+import { umfrageWaehlen, lageTauschen } from "./UmfrageFeld.jsx";
 
 // 0 = nicht von selbst blättern, die Seite wechselt nur beim Antippen
 // (Wunsch Patrick 21. Oktober 2026).
@@ -188,12 +188,15 @@ function Gestalten({ mass }) {
   };
 
   // Umfrage mit QR-Code (seit 1.762.0, Wunsch Patrick 24. November 2026),
-  // zuerst quer, damit Frage und QR-Code nebeneinander stehen
+  // quer (Frage und QR-Code nebeneinander) oder seit 1.765.0 im Hochformat
   const umfrageOeffnen = async (t) => {
     const feld = await umfrageWaehlen();
     if (!feld) return;
     if (t) { await teilAendern(t.id, feld); return; }
-    const neu = neuesTeil({ id: neueId(), art: "umfrage", ...feld }, 0.5, null, mass);
+    const lage = await alt.auswahlDialog("Wie soll die Umfrage stehen?",
+      [{ wert: "quer", text: "Quer" }, { wert: "hoch", text: "Hochformat" }]);
+    if (!lage) return;
+    const neu = neuesTeil({ id: neueId(), art: "umfrage", ...feld }, lage === "hoch" ? 1.45 : 0.5, null, mass);
     await aendern((teile) => [...teile, neu]);
     setGewaehlt(neu.id);
   };
@@ -325,7 +328,12 @@ function Gestalten({ mass }) {
                     : wahl.art === "programm"
                     ? <button type="button" className="knopf" data-ib="programm" onClick={() => programmOeffnen(wahl)}>Programmfenster ändern</button>
                     : wahl.art === "umfrage"
-                    ? <button type="button" className="knopf" data-ib="umfrage" onClick={() => umfrageOeffnen(wahl)}>Andere Umfrage …</button>
+                    ? <>
+                        <button type="button" className="knopf" data-ib="umfrage" onClick={() => umfrageOeffnen(wahl)}>Andere Umfrage …</button>
+                        <button type="button" className="knopf knopf--still" data-ib="umfrage-lage"
+                          onClick={() => teilAendern(wahl.id, lageTauschen(wahl, mass))}>
+                          {wahl.w > wahl.h ? "Hochformat" : "Quer"}</button>
+                      </>
                     : wahl.art === "kachel"
                     ? <button type="button" className="knopf" data-ib="kachel" onClick={() => kachelOeffnen(wahl)}>Titel und Farbe …</button>
                     : wahl.art === "datei" &&
