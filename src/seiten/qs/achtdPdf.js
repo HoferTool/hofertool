@@ -5,7 +5,7 @@
 // =================================================================
 import html2canvas from "html2canvas-pro";
 import { jsPDF } from "jspdf";
-import { STIL, achtdHtml } from "./achtdBlatt.js";
+import { STIL, achtdHtml, unterschriftSchrift } from "./achtdBlatt.js";
 import { BRIEF_HOEHE, briefkopfAufSeite } from "../../teile/briefkopf.js";
 
 export { achtdHtml };
@@ -34,7 +34,8 @@ function trennstellen(blatt) {
   return [...s].filter((x) => x > 0).sort((a, b) => a - b);
 }
 
-export function achtdPdf(w, fuss) {
+export async function achtdPdf(w, fuss) {
+  await unterschriftSchrift();
   return blattPdf("<style>" + STIL + "</style>" + achtdHtml(w), fuss);
 }
 
