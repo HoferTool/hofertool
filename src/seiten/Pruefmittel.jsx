@@ -3,40 +3,48 @@
 //  15. November 2026: „Prüfmittelverwaltung … bisher über Gewatec …
 //  eine bessere Übersicht, wo was ist, dass man sagen kann, dieser
 //  Prüfstift oder diese Lehre ist auf der Maschine“).
-//  Reiter „Wo ist was“ (Schrank, Maschinen nach Park, Personen, extern)
-//  und „Liste“. Ein Tipp auf ein Prüfmittel öffnet sein Fenster mit
-//  Austragen, Zurück, Heute geprüft, Bearbeiten und Verlauf.
+//  Seit 1.797.0 eine Seite: oben die zwei Zahlen (zur Prüfung raus,
+//  Rückgabekiste), Knopf „An Maschinen“ mit Hallenplan
+//  (pruefmittel/Halle.jsx), darunter die Liste wie im Gewatec mit
+//  Filter und Sortieren. Ein Tipp auf ein Prüfmittel öffnet sein
+//  Fenster mit Austragen, Zurück, Heute geprüft, Bearbeiten, Verlauf.
 //  Nur Admins, nie Externe (seiteSichtbar in app.js, Regeln in der
 //  Datenbank). Daten in src/daten/pruefmittel.js.
 // =================================================================
 import { useState } from "react";
 import { alt, useDaten, useGemerkt } from "../bruecke.jsx";
-import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { useSeitenSuche, hinzeigen } from "../teile/seitenSuche.js";
+import Halle, { LAGE } from "./pruefmittel/Halle.jsx";
 import { pruefmittelLaden, verlaufLaden, ARTEN, artText, ORTE, STATUS, fehltTabelle,
   maschineText, naechstePruefung, istFaellig, ortText, suchText, zeilenLesen,
-  GRUPPEN, gruppeVon, gruppeText, PRUEFUNG_WO, pruefWoText, baldFaellig, einsatzTage } from "../daten/pruefmittel.js";
+  gruppeVon, gruppeText, PRUEFUNG_WO, pruefWoText, baldFaellig, einsatzTage } from "../daten/pruefmittel.js";
 
-const gemerkt = { reiter: "wo", suche: "", alles: false, kurz: "" };
+const gemerkt = { suche: "", kurz: "", typ: "", zustand: "", ort: "", sort: "nr", ab: false, mehr: false };
 const T = "pruefmittel";
+const ZEIGEN = 300;
 
+// Seit 1.797.0 eine einzige Seite (Wunsch Patrick 25. November 2026: „ich will
+// beides kombiniert … Prüfmittel an Maschine per Knopf … unten alle wie Gewatec:
+// Status (Icon), Nr, Bez., Typ, Hersteller, Nennmass, Bereich, Lagerort … alles
+// andere sieht man, wenn man draufklickt … oben Filter und Sortieren“).
 export default function Pruefmittel({ auffrischen, eingebettet }) {
-  const [reiter, setReiter] = useState(gemerkt.reiter);
   const [suche, setSuche] = useState(gemerkt.suche);
-  // Erst nur zwei Zahlen (Wunsch Patrick 24. November 2026: „eigentlich gar
-  // nix, nur wie viele raus müssen für Prüfung und wie viele noch in der
-  // Rückgabekiste sind“); die ganze Verwaltung hinter „Alle Prüfmittel“.
-  const [alles, setAlles] = useState(gemerkt.alles);
   const [kurz, setKurz] = useState(gemerkt.kurz);
-  useGemerkt(gemerkt, { reiter, suche, alles, kurz });
+  const [typ, setTyp] = useState(gemerkt.typ);
+  const [zustand, setZustand] = useState(gemerkt.zustand);
+  const [ort, setOrt] = useState(gemerkt.ort);
+  const [sort, setSort] = useState(gemerkt.sort);
+  const [ab, setAb] = useState(gemerkt.ab);
+  const [mehr, setMehr] = useState(gemerkt.mehr);
+  useGemerkt(gemerkt, { suche, kurz, typ, zustand, ort, sort, ab, mehr });
   const { daten, fehler, neu } = useDaten(pruefmittelLaden, [auffrischen]);
 
   useSeitenSuche({
-    name: "Prüfmittel", platzhalter: "Nr., Bezeichnung, Mass, Maschine …",
+    name: "Prüfmittel", platzhalter: "Nr., Bezeichnung, Typ, Hersteller, Mass, Maschine …",
     eintraege: () => ((daten && daten.liste) || []).map((p) => ({
       gruppe: "Prüfmittel", zeichen: "📏", titel: [p.nr, p.bezeichnung].filter(Boolean).join(" · "),
-      zeile: [p.mass, ortText(p, daten.maschinen)].filter(Boolean).join(" · "),
+      zeile: [p.typ, p.nennmass || p.mass, ortText(p, daten.maschinen)].filter(Boolean).join(" · "),
       such: suchText(p, daten.maschinen), p })),
     springen: (x) => pmFenster(x.p, daten, neu),
   });
@@ -50,48 +58,91 @@ export default function Pruefmittel({ auffrischen, eingebettet }) {
   }
   if (!daten) return (<>{!eingebettet && <h1 className="seitentitel">Prüfmittel</h1>}<div className="laedt">Wird geladen …</div></>);
 
-  if (!alles) return (<>
-    {!eingebettet && <h1 className="seitentitel">Prüfmittel</h1>}
-    <Kurz d={daten} neu={neu} offen={kurz} setOffen={setKurz} alles={() => setAlles(true)} />
-  </>);
-
+  const typen = [...new Set(daten.liste.map((p) => p.typ).filter(Boolean))].sort((x, y) => x.localeCompare(y, "de"));
   const s = suche.trim().toLowerCase();
   const passt = (p) => (!s || s.split(/\s+/).every((w) => suchText(p, daten.maschinen).includes(w)))
-    // Zahlen-Kacheln sind seit 1.795.1 weg (Patrick: „bringt niemandem etwas“), Ausgemusterte bleiben verborgen
-    && p.status !== "weg";
-  // Fällige und bald fällige zuoberst, dann nach nächster Prüfung, dann wie geladen
-  const rang = (p) => istFaellig(p) ? 0 : baldFaellig(p) ? 1 : 2;
-  const liste = daten.liste.filter(passt).map((p, i) => [p, i]).sort((a, b) => rang(a[0]) - rang(b[0])
-    || (rang(a[0]) < 2 ? String(naechstePruefung(a[0])).localeCompare(String(naechstePruefung(b[0]))) : 0) || a[1] - b[1]).map((x) => x[0]);
+    && (!typ || p.typ === typ) && (!ort || p.ort_art === ort)
+    && (zustand ? zustandVon(p) === zustand : p.status !== "weg");
+  const wert = SPALTEN.find((x) => x[0] === sort) || SPALTEN[1];
+  const liste = daten.liste.filter(passt).map((p) => [p, wert[2](p, daten)])
+    .sort((x, y) => vergleich(x[1], y[1]) * (ab ? -1 : 1) || vergleich(x[0].nr, y[0].nr)).map((x) => x[0]);
+  const anMaschinen = daten.liste.filter((p) => p.ort_art === "maschine" && p.status !== "weg");
+  const sortieren = (k) => { if (k === sort) setAb(!ab); else { setSort(k); setAb(false); } };
+  const gefiltert = !!(s || typ || ort || zustand);
 
   return (
     <>
       {!eingebettet && <h1 className="seitentitel">Prüfmittel</h1>}
-      <div className="mat-kopf"><button className="knopf knopf--still" id="pm-kurz" onClick={() => setAlles(false)}>← Zurück zur Übersicht</button></div>
-      <div className="mat-kopf">
-        <button className="knopf knopf--haupt" id="pm-neu" onClick={() => bearbeiten(null, daten, neu)}>+ Prüfmittel</button>
-        <input className="mat-sucheingabe" id="pm-suche" type="search" value={suche}
-          placeholder="Suchen: Nr., Bezeichnung, Mass, Maschine, Person" onChange={(e) => setSuche(e.target.value)} />
-        <button className="knopf" id="pm-einfuegen" onClick={() => einfuegen(neu)}>Aus Gewatec / Excel einfügen</button>
+      <Kurz d={daten} neu={neu} offen={kurz} setOffen={setKurz} />
+      <div className="mat-kopf pm-leiste">
+        <button className="knopf knopf--haupt" id="pm-maschinen" onClick={() => maschinenFenster(anMaschinen, daten, neu)}>
+          ⚙️ An Maschinen ({anMaschinen.length})</button>
+        <button className="knopf" id="pm-neu" onClick={() => bearbeiten(null, daten, neu)}>+ Prüfmittel</button>
+        <button className="knopf knopf--still" id="pm-einfuegen" onClick={() => einfuegen(neu)}>Aus Gewatec / Excel einfügen</button>
       </div>
-      <Reiter reiter={[["wo", "Wo ist was"], ["liste", "Liste"]]} aktiv={reiter} waehlen={setReiter} merkmal="pmreiter" seite="pruefmittel" />
-      <Uebergang key={reiter}>
-        {!daten.liste.length
-          ? <div className="karte karte--hinweis"><p>Noch keine Prüfmittel erfasst. Mit „+ Prüfmittel“ einzeln oder mit
-              „Aus Gewatec / Excel einfügen“ viele auf einmal.</p></div>
-          : !liste.length ? <div className="karte karte--hinweis"><p>Nichts gefunden.</p></div>
-          : reiter === "liste" ? <Liste liste={liste} d={daten} neu={neu} />
-          : <WoIstWas liste={liste} d={daten} neu={neu} />}
-      </Uebergang>
+      <div className="pm-filter" id="pm-filter">
+        <input className="mat-sucheingabe" id="pm-suche" type="search" value={suche}
+          placeholder="Suchen: Nr., Bezeichnung, Typ, Hersteller, Mass, Maschine" onChange={(e) => setSuche(e.target.value)} />
+        <select id="pm-f-typ" value={typ} onChange={(e) => setTyp(e.target.value)}>
+          <option value="">Alle Typen</option>{typen.map((t) => <option key={t} value={t}>{t}</option>)}</select>
+        <select id="pm-f-status" value={zustand} onChange={(e) => setZustand(e.target.value)}>
+          <option value="">Alle Status</option>{ZUSTAENDE.map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select>
+        <select id="pm-f-ort" value={ort} onChange={(e) => setOrt(e.target.value)}>
+          <option value="">Alle Lagerorte</option>{ORTE.map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select>
+        <select id="pm-f-sort" value={sort + (ab ? "-" : "")} onChange={(e) => { const v = e.target.value; setSort(v.replace(/-$/, "")); setAb(v.endsWith("-")); }}>
+          {SPALTEN.map(([k, t]) => [<option key={k} value={k}>Sortieren: {t} ↑</option>, <option key={k + "-"} value={k + "-"}>Sortieren: {t} ↓</option>])}</select>
+        {gefiltert && <button className="knopf knopf--still" id="pm-f-weg" onClick={() => { setSuche(""); setTyp(""); setZustand(""); setOrt(""); }}>Filter weg</button>}
+        <span className="klein pm-filter__zahl">{zahlText(liste.length)} {gefiltert ? "gefunden" : "Prüfmittel"}</span>
+      </div>
+      {!daten.liste.length
+        ? <div className="karte karte--hinweis"><p>Noch keine Prüfmittel erfasst. Mit „+ Prüfmittel“ einzeln oder mit
+            „Aus Gewatec / Excel einfügen“ viele auf einmal.</p></div>
+        : !liste.length ? <div className="karte karte--hinweis"><p>Nichts gefunden.</p></div>
+        : <Liste liste={mehr ? liste : liste.slice(0, ZEIGEN)} d={daten} neu={neu} sort={sort} ab={ab} sortieren={sortieren} />}
+      {!mehr && liste.length > ZEIGEN && <div className="pm-mehr"><button className="knopf" id="pm-mehr" onClick={() => setMehr(true)}>
+        Alle {zahlText(liste.length)} zeigen</button></div>}
     </>
   );
+}
+
+// Status wie in Gewatec als farbiger Punkt
+const ZUSTAENDE = [["ok", "In Ordnung"], ["bald", "Bald fällig (30 Tage)"], ["faellig", "Prüfung fällig"],
+  ["gesperrt", "Gesperrt"], ["weg", "Ausgeschieden"]];
+function zustandVon(p) {
+  if (p.status === "weg") return "weg";
+  if (p.status === "gesperrt") return "gesperrt";
+  if (istFaellig(p)) return "faellig";
+  if (baldFaellig(p)) return "bald";
+  return "ok";
+}
+const ZUSTAND_RANG = { faellig: 0, gesperrt: 1, bald: 2, ok: 3, weg: 4 };
+const vergleich = (x, y) => {
+  if (x == null || x === "") return y == null || y === "" ? 0 : 1;
+  if (y == null || y === "") return -1;
+  return typeof x === "number" && typeof y === "number" ? x - y
+    : String(x).localeCompare(String(y), "de", { numeric: true, sensitivity: "base" });
+};
+const SPALTEN = [
+  ["status", "Status", (p) => ZUSTAND_RANG[zustandVon(p)]],
+  ["nr", "Nr.", (p) => p.nr],
+  ["bezeichnung", "Bezeichnung", (p) => p.bezeichnung],
+  ["typ", "Typ", (p) => p.typ],
+  ["hersteller", "Hersteller", (p) => p.hersteller],
+  ["nennmass", "Nennmass", (p) => p.nennmass || p.mass],
+  ["messbereich", "Messbereich", (p) => p.messbereich],
+  ["ort", "Lagerort", (p, d) => ortText(p, d.maschinen)],
+];
+
+function StatusPunkt({ p }) {
+  const z = zustandVon(p);
+  return <span className={"pm-punkt pm-punkt--" + z} title={(ZUSTAENDE.find((x) => x[0] === z) || [0, ""])[1]} data-pmstatus={z} />;
 }
 
 // ---------- Übersicht: nur Prüfung fällig und Rückgabekiste ----------
 
 export const fuerPruefung = (p) => p.status === "aktiv" && p.ort_art !== "extern" && istFaellig(p);
 
-function Kurz({ d, neu, offen, setOffen, alles }) {
+function Kurz({ d, neu, offen, setOffen }) {
   const raus = d.liste.filter(fuerPruefung);
   const kiste = d.liste.filter((p) => p.ort_art === "rueckgabe");
   const liste = offen === "raus" ? raus : offen === "kiste" ? kiste : [];
@@ -114,7 +165,6 @@ function Kurz({ d, neu, offen, setOffen, alles }) {
       {offen && (liste.length
         ? <section className="karte" data-pmkurz={offen}>{liste.map((p) => <Zeile key={p.id} p={p} d={d} neu={neu} />)}</section>
         : <div className="karte karte--hinweis"><p>{offen === "raus" ? "Nichts fällig." : "Die Rückgabekiste ist leer."}</p></div>)}
-      <div className="pm-kurz__alle"><button className="knopf knopf--still" id="pm-alle" onClick={alles}>Alle Prüfmittel verwalten</button></div>
     </div>);
 }
 
@@ -132,79 +182,80 @@ async function quittieren(liste) {
   return true;
 }
 
-// ---------- Wo ist was ----------
+// ---------- An Maschinen (Fenster) ----------
 
-function WoIstWas({ liste, d, neu }) {
-  const von = (o) => liste.filter((p) => p.ort_art === o);
-  const anMaschinen = von("maschine");
+function maschinenFenster(liste, d, neu) {
+  fensterOeffnen((zu) => <AnMaschinen liste={liste} d={d} zu={zu} neu={neu} />, null, "pm-huelle");
+}
+
+function AnMaschinen({ liste, d, zu, neu }) {
+  const [gewaehlt, setGewaehlt] = useState(null);
   const jeMaschine = new Map();
-  anMaschinen.forEach((p) => {
+  liste.forEach((p) => {
     if (!jeMaschine.has(p.machine_id)) jeMaschine.set(p.machine_id, []);
     jeMaschine.get(p.machine_id).push(p);
   });
+  const zahl = new Map([...jeMaschine].map(([id, l]) => [id, l.length]));
+  const faellig = new Set(liste.filter(istFaellig).map((p) => p.machine_id));
   const reihe = (id) => { const i = d.maschinen.findIndex((m) => m.id === id); return i < 0 ? 9999 : i; };
+  // Maschinen mit Prüfmitteln, die nicht im Hallenplan stehen (z.B. 303/304)
+  const ausserhalb = [...jeMaschine.keys()].map((id) => d.maschinen.find((m) => m.id === id))
+    .filter((m) => !m || !LAGE[String(m.machine_number || "")]);
   const jePark = new Map();
-  [...jeMaschine.keys()].sort((a, b) => reihe(a) - reihe(b)).forEach((id) => {
+  [...jeMaschine.keys()].filter((id) => !gewaehlt || id === gewaehlt).sort((a, b) => reihe(a) - reihe(b)).forEach((id) => {
     const m = d.maschinen.find((x) => x.id === id);
     const park = m && d.parks.find((x) => x.id === m.park_id);
     const k = park ? park.name : "Ohne Park";
     if (!jePark.has(k)) jePark.set(k, []);
     jePark.get(k).push([m, jeMaschine.get(id)]);
   });
-  const nachPerson = new Map();
-  von("person").forEach((p) => {
-    const k = p.ort_text || "?";
-    if (!nachPerson.has(k)) nachPerson.set(k, []);
-    nachPerson.get(k).push(p);
-  });
+  const mGew = gewaehlt && d.maschinen.find((m) => m.id === gewaehlt);
+  const oeffnen = (p) => { zu(); pmFenster(p, d, neu); };
   return (
-    <div className="pm-wo">
-      {anMaschinen.length > 0 && <section className="karte" data-pmort="maschine">
-        <div className="karte__kopf"><h2>⚙️ An Maschinen</h2><span className="klein">{anMaschinen.length}</span></div>
-        {[...jePark.entries()].map(([park, ms]) => (
+    <div className="dialog dialog--breit pm-fenster pm-anmaschinen" role="dialog" aria-modal="true" id="pm-maschinen-fenster">
+      <div className="blatt__kopf">
+        <h2>⚙️ Prüfmittel an Maschinen ({liste.length})</h2>
+        <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button>
+      </div>
+      <p className="hinweis">Maschine antippen zeigt ihre Prüfmittel. Die Zahl sagt, wie viele dort sind, rot = Prüfung fällig.</p>
+      <Halle maschinen={d.maschinen} zahl={zahl} faellig={faellig} gewaehlt={gewaehlt} waehlen={setGewaehlt} />
+      {ausserhalb.length > 0 && (
+        <div className="pm-ausserhalb">Nicht im Plan:{" "}
+          {ausserhalb.map((m, i) => (
+            <button key={m ? m.id : "x" + i} className={"knopf knopf--klein" + (m && gewaehlt === m.id ? " aktiv" : "")}
+              onClick={() => m && setGewaehlt(gewaehlt === m.id ? null : m.id)}>
+              {maschineText(m)} ({jeMaschine.get(m ? m.id : null)?.length || 0})
+            </button>))}
+        </div>)}
+      {mGew && (
+        <div className="pm-halle__wahl">
+          <b>{maschineText(mGew)}</b>
+          <button className="knopf knopf--klein" id="pm-halle-alle" onClick={() => setGewaehlt(null)}>Alle Maschinen zeigen</button>
+        </div>)}
+      {!liste.length ? <p className="hinweis">An keiner Maschine ist ein Prüfmittel ausgetragen.</p>
+        : gewaehlt && !jeMaschine.has(gewaehlt) ? <p className="hinweis">An dieser Maschine ist kein Prüfmittel ausgetragen.</p>
+        : [...jePark.entries()].map(([park, ms]) => (
           <div key={park} className="pm-park">
             <h3 className="pm-park__titel">{park}</h3>
             <div className="pm-maschinen">
               {ms.map(([m, pms]) => (
                 <div key={m ? m.id : "?"} className="pm-maschine" data-pmmaschine={m ? m.id : ""}>
                   <div className="pm-maschine__kopf">{maschineText(m)}</div>
-                  {pms.map((p) => <Zeile key={p.id} p={p} d={d} neu={neu} ohneOrt />)}
+                  {pms.map((p) => <Zeile key={p.id} p={p} d={d} neu={neu} ohneOrt klick={oeffnen} />)}
                 </div>))}
             </div>
           </div>))}
-      </section>}
-      {von("rueckgabe").length > 0 && <Gruppe titel="📥 Rückgabekiste" ort="rueckgabe" liste={von("rueckgabe")} d={d} neu={neu} />}
-      {von("schrank").length > 0 && <Gruppe titel="🗄️ Prüfmittelschrank" ort="schrank" liste={von("schrank")} d={d} neu={neu} />}
-      {nachPerson.size > 0 && <section className="karte" data-pmort="person">
-        <div className="karte__kopf"><h2>👤 Bei Personen</h2><span className="klein">{von("person").length}</span></div>
-        <div className="pm-maschinen">
-          {[...nachPerson.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([wer, pms]) => (
-            <div key={wer} className="pm-maschine">
-              <div className="pm-maschine__kopf">{wer}</div>
-              {pms.map((p) => <Zeile key={p.id} p={p} d={d} neu={neu} ohneOrt />)}
-            </div>))}
-        </div>
-      </section>}
-      {von("extern").length > 0 && <Gruppe titel="🚚 Extern / Kalibrierung" ort="extern" liste={von("extern")} d={d} neu={neu} />}
     </div>);
 }
 
-function Gruppe({ titel, ort, liste, d, neu }) {
-  return (
-    <section className="karte" data-pmort={ort}>
-      <div className="karte__kopf"><h2>{titel}</h2><span className="klein">{liste.length}</span></div>
-      {liste.map((p) => <Zeile key={p.id} p={p} d={d} neu={neu} />)}
-    </section>);
-}
-
-function Zeile({ p, d, neu, ohneOrt }) {
+function Zeile({ p, d, neu, ohneOrt, klick }) {
   const faellig = istFaellig(p);
   return (
     <button className={"pm-zeile" + (p.status !== "aktiv" ? " pm-zeile--aus" : "")} data-pm={p.id}
-      onClick={() => pmFenster(p, d, neu)}>
+      onClick={() => klick ? klick(p) : pmFenster(p, d, neu)}>
       <span className="pm-zeile__nr">{p.nr || "–"}</span>
       <span className="pm-zeile__was">
-        <b>{p.bezeichnung}</b>{p.mass ? " " + p.mass : ""}
+        <b>{p.bezeichnung}</b>{(p.nennmass || p.mass) ? " " + (p.nennmass || p.mass) : ""}
         <span className="klein">
           {[p.ort_text && (ohneOrt ? p.ort_art === "maschine" : p.ort_art !== "person") ? p.ort_text : null,
             p.hoco ? "für " + p.hoco : null,
@@ -225,26 +276,28 @@ const tageText = (p) => {
     + " Einsatztage" + (p.zaehlt_seit ? " (läuft)" : "");
 };
 
-// ---------- Liste ----------
+// ---------- Liste wie Gewatec ----------
 
-function Liste({ liste, d, neu }) {
+function Liste({ liste, d, neu, sort, ab, sortieren }) {
   return (
     <div className="karte pm-tabelle-karte">
-      <table className="pm-tabelle">
-        <thead><tr><th>Nr.</th><th>Bezeichnung</th><th>Art</th><th>Mass</th><th>Wo</th><th>Prüfung</th><th>Nächste Prüfung</th><th>Status</th></tr></thead>
+      <table className="pm-tabelle pm-tabelle--gw" id="pm-tabelle">
+        <thead><tr>{SPALTEN.map(([k, t]) => (
+          <th key={k} data-pmsort={k} className={sort === k ? "aktiv" : ""} onClick={() => sortieren(k)}
+            aria-sort={sort === k ? (ab ? "descending" : "ascending") : "none"}>
+            {k === "status" ? "" : t}{sort === k ? (ab ? " ↓" : " ↑") : ""}</th>))}</tr></thead>
         <tbody>
-          {liste.map((p) => {
-            const n = naechstePruefung(p);
-            return (
-              <tr key={p.id} data-pm={p.id} onClick={() => pmFenster(p, d, neu)}>
-                <td>{p.nr || "–"}</td><td><b>{p.bezeichnung}</b>{p.hoco ? <div className="klein">für {p.hoco}</div> : null}</td>
-                <td>{artText(p.art)}{gruppeVon(p) ? <div className="klein">{gruppeText(gruppeVon(p))}</div> : null}</td>
-                <td>{p.mass || ""}</td><td>{ortText(p, d.maschinen)}</td>
-                <td>{p.intervall_monate ? [pruefWoText(p.pruefung_wo), "alle " + p.intervall_monate + " Mt."].filter(Boolean).join(", ") : "–"}</td>
-                <td className={istFaellig(p) ? "pm-rot" : baldFaellig(p) ? "pm-bald" : ""}>{n ? alt.kurzDatum(n) : "–"}</td>
-                <td>{(STATUS.find((x) => x[0] === p.status) || [0, p.status])[1]}</td>
-              </tr>);
-          })}
+          {liste.map((p) => (
+            <tr key={p.id} data-pm={p.id} onClick={() => pmFenster(p, d, neu)}>
+              <td className="pm-td-status"><StatusPunkt p={p} /></td>
+              <td className="pm-td-nr">{p.nr || "–"}</td>
+              <td className="pm-td-bez"><b>{p.bezeichnung}</b></td>
+              <td>{p.typ || ""}</td>
+              <td>{p.hersteller || ""}</td>
+              <td>{p.nennmass || p.mass || ""}</td>
+              <td>{p.messbereich || ""}</td>
+              <td>{ortText(p, d.maschinen)}</td>
+            </tr>))}
         </tbody>
       </table>
     </div>);
@@ -285,14 +338,18 @@ function PmFenster({ p, d, zu, neu }) {
         <button className="knopf knopf--gefahr" id="pm-loeschen" onClick={async () => { if (await loeschen(p)) fertig(); }}>Löschen</button>
       </div>
       <dl className="pm-angaben">
+        <dt>Status</dt><dd><StatusPunkt p={p} /> {(ZUSTAENDE.find((x) => x[0] === zustandVon(p)) || [0, ""])[1]}</dd>
+        <dt>Typ</dt><dd>{p.typ || "–"}</dd>
+        <dt>Hersteller</dt><dd>{p.hersteller || "–"}</dd>
+        <dt>Nennmass</dt><dd>{p.nennmass || "–"}</dd>
+        <dt>Messbereich</dt><dd>{p.messbereich || "–"}</dd>
         <dt>Art</dt><dd>{[artText(p.art), gruppeText(gruppeVon(p))].filter(Boolean).join(" · ") || "–"}</dd>
-        <dt>Mass</dt><dd>{p.mass || "–"}</dd>
+        {p.mass && p.mass !== p.nennmass ? <><dt>Mass</dt><dd>{p.mass}</dd></> : null}
         <dt>Für HOCO Nr.</dt><dd>{p.hoco || "–"}</dd>
         <dt>Prüfintervall</dt><dd>{p.intervall_monate ? p.intervall_monate + " Monate" + (p.pruefung_wo ? " · " + pruefWoText(p.pruefung_wo) : "") : "–"}</dd>
         <dt>Einsatztage</dt><dd>{tageText(p)}</dd>
         <dt>Zuletzt geprüft</dt><dd>{p.letzte_pruefung ? alt.langDatum(p.letzte_pruefung) : "–"}</dd>
         <dt>Nächste Prüfung</dt><dd className={istFaellig(p) ? "pm-rot" : ""}>{n ? alt.langDatum(n) : "–"}</dd>
-        <dt>Status</dt><dd>{(STATUS.find((x) => x[0] === p.status) || [0, p.status])[1]}</dd>
         {p.notiz ? <><dt>Notiz</dt><dd>{p.notiz}</dd></> : null}
       </dl>
       <h3>Verlauf</h3>
@@ -392,6 +449,10 @@ async function bearbeiten(p, d, neu) {
     felder: [
       { name: "nr", label: "Nr. (wie in Gewatec)", wert: p ? p.nr || "" : "", platzhalter: "PM-0123" },
       { name: "bezeichnung", label: "Bezeichnung", pflicht: true, wert: p ? p.bezeichnung : "", platzhalter: "Grenzlehrdorn, Prüfstift …" },
+      { name: "typ", label: "Typ", wert: p ? p.typ || "" : "", platzhalter: "Lehrdorn, Messschieber …" },
+      { name: "hersteller", label: "Hersteller", wert: p ? p.hersteller || "" : "" },
+      { name: "nennmass", label: "Nennmass", wert: p ? p.nennmass || "" : "", platzhalter: "4.000 H7" },
+      { name: "messbereich", label: "Messbereich", wert: p ? p.messbereich || "" : "", platzhalter: "0–150 mm" },
       { name: "art", label: "Art", auswahl: [["", "–"], ...ARTEN], wert: p ? p.art || "" : "" },
       { name: "mass", label: "Mass", wert: p ? p.mass || "" : "", platzhalter: "Ø 4.000 H7, M6 6H …" },
       { name: "hoco", label: "Für HOCO Nr. (freiwillig)", wert: p ? p.hoco || "" : "", platzhalter: "10841-0009" },
@@ -407,6 +468,8 @@ async function bearbeiten(p, d, neu) {
   if (!w) return;
   const daten = {
     nr: (w.nr || "").trim() || null, bezeichnung: w.bezeichnung.trim(), art: w.art || null,
+    typ: (w.typ || "").trim() || null, hersteller: (w.hersteller || "").trim() || null,
+    nennmass: (w.nennmass || "").trim() || null, messbereich: (w.messbereich || "").trim() || null,
     mass: (w.mass || "").trim() || null, hoco: (w.hoco || "").trim() || null,
     intervall_monate: Number(w.intervall) > 0 ? Math.round(Number(w.intervall)) : null,
     intervall_tage: Number(w.tage) > 0 ? Math.round(Number(w.tage)) : null,
