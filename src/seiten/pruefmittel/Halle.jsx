@@ -44,7 +44,7 @@ export const LAGE = {
   ...paar(6, 119, 116), ...paar(7, 115, 113), ...paar(8, 114, 117),
   401: { art: "macodel", x: SX, y: ZEILE(8) + 122, lader: "rechts" },
 };
-const B = SR + SW + 40, DY = 110, HALLE = 1180 + DY, H = HALLE + 60;
+const DX = 110, B = SR + SW + 40 + DX, DY = 110, HALLE = 1180 + DY, H = HALLE + 60;
 
 // Maschinen ohne Eintrag in der Datenbank (Patrick 25. November 2026: „oben
 // links soll noch Takamaz hin als kleines Viereck“, „an oberer Wand sind noch
@@ -54,12 +54,12 @@ const B = SR + SW + 40, DY = 110, HALLE = 1180 + DY, H = HALLE + 60;
 // so gross wie eine Star („breite etwa wie Maschine CNC wie Star“).
 export const EXTRA = [
   { id: "x:takamaz", name: "Takamaz", such: /takamaz/i, x: 22, y: 22, w: 64, h: 64 },
-  { id: "x:gdw", name: "GDW", such: /gdw/i, x: 110, y: 22, w: SW, h: 64 },
+  { id: "x:gdw", name: "GDW", such: /gdw/i, x: 110 + DX, y: 22, w: SW, h: 64 },
   { id: "x:fehlmann", name: "Fräse Fehlmann", such: /fehlmann/i, x: B - 360, y: 22, w: SW, h: 64 },
   { id: "x:fraese", name: "Fräse", such: /fr(ä|ae)se/i, ohne: /fehlmann/i, x: B - 190, y: 22, w: SW, h: 64 },
 ];
 // Werkbänke: nur zur Orientierung, ohne Prüfmittel und nicht anwählbar
-const BAENKE = [{ x: 290, y: 22 }, { x: 460, y: 22 }];
+const BAENKE = [{ x: 290 + DX, y: 22 }, { x: 460 + DX, y: 22 }];
 export function extraVon(p) {
   const t = [p.notiz, p.ort_text, p.bezeichnung].filter(Boolean).join(" ");
   const e = EXTRA.find((x) => x.such.test(t) && !(x.ohne && x.ohne.test(t)));
@@ -81,7 +81,7 @@ export default function Halle({ maschinen, zahl, faellig, gewaehlt, waehlen }) {
         </g>)}
         {EXTRA.map((e) => <Extra key={e.id} e={e} n={zahl.get(e.id) || 0} warn={faellig.has(e.id)}
           an={gewaehlt === e.id} waehlen={waehlen} />)}
-        <g transform={`translate(0 ${DY})`}>
+        <g transform={`translate(${DX} ${DY})`}>
         {Object.entries(LAGE).map(([nr, l]) => {
           const m = nachNr.get(nr);
           return <Maschine key={nr} nr={nr} l={l} m={m} n={m ? zahl.get(m.id) || 0 : 0}
