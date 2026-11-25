@@ -216,7 +216,7 @@ function Verwalten() {
     const k = stand.konto;
     const w = await dialogFelder({
       titel: "Konto für den Einzahlungsschein",
-      text: "Auf dieses Konto wird bezahlt. Mit QR-IBAN bekommt jede Rechnung eine QR-Referenz, sonst eine RF-Referenz.",
+      text: "Auf dieses Konto wird bezahlt. Mit normaler IBAN ohne Referenz, die Rechnungsnummer steht in der Mitteilung.",
       felder: [
         { name: "iban", label: "IBAN oder QR-IBAN", wert: k.iban || "", pflicht: true },
         { name: "name", label: "Name", wert: k.name || "", pflicht: true },
@@ -233,7 +233,7 @@ function Verwalten() {
     const daten = { ...k, ...w, land: k.land || "CH" };
     const { error } = await alt.db.from("kiosk_konto").upsert({ id: 1, daten, geaendert_am: new Date().toISOString() });
     if (error) { alt.meldung("Speichern ging nicht: " + error.message, "fehler"); return; }
-    alt.meldung("Konto gespeichert" + (istQrIban(w.iban) ? " (QR-IBAN, mit QR-Referenz)." : " (mit RF-Referenz)."), "gut");
+    alt.meldung("Konto gespeichert" + (istQrIban(w.iban) ? " (QR-IBAN, mit QR-Referenz)." : "."), "gut");
     laden();
   };
 

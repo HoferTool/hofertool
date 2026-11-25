@@ -46,20 +46,21 @@ function mod10(ziffern) {
   return String((10 - u) % 10);
 }
 
-// Referenz aus der Rechnungsnummer: QRR (27 Ziffern) bei QR-IBAN,
-// sonst SCOR nach ISO 11649 (RF..). So erkennt die Bank, wofür bezahlt wird.
+// Referenz: mit normaler IBAN keine (NON), bezahlt wird auf Vertrauen,
+// die Rechnungsnummer steht in der Mitteilung (Wunsch Patrick 25. November 2026:
+// „es braucht keine Referenz“). Nur eine QR-IBAN verlangt nach der Norm eine
+// QR-Referenz (27 Ziffern aus der Rechnungsnummer).
 export function referenz(iban, nr) {
   if (istQrIban(iban)) {
     const r = String(nr).padStart(26, "0");
     return { typ: "QRR", ref: r + mod10(r) };
   }
-  const koerper = "KIOSK" + nr;
-  const pz = String(98 - mod97(koerper + "RF00")).padStart(2, "0");
-  return { typ: "SCOR", ref: "RF" + pz + koerper };
+  return { typ: "NON", ref: "" };
 }
 
 // Referenz lesbar in Fünfer- bzw. Vierergruppen
 export function referenzText(r) {
+  if (r.typ === "NON") return "";
   if (r.typ === "QRR") return r.ref.slice(0, 2) + " " + r.ref.slice(2).replace(/(.{5})/g, "$1 ").trim();
   return r.ref.replace(/(.{4})/g, "$1 ").trim();
 }
@@ -166,7 +167,7 @@ async function zahlteil(pdf, konto, betrag, ref, mitteilung) {
   pdf.setFont("helvetica", "bold"); pdf.setFontSize(11); pdf.text("Empfangsschein", x, y0 + 9);
   y = y0 + 16;
   y = zeilen(x, y, "Konto / Zahlbar an", [ibanText(konto.iban), ...adr], 6, 8, 3.5);
-  y = zeilen(x, y, "Referenz", [referenzText(ref)], 6, 8, 3.5);
+  if (ref.typ !== "NON") y = zeilen(x, y, "Referenz", [referenzText(ref)], 6, 8, 3.5);
   pdf.setFont("helvetica", "bold"); pdf.setFontSize(6); pdf.text("Zahlbar durch (Name/Adresse)", x, y);
   ecken(pdf, x, y + 1.5, 52, 20);
   y = y0 + 73;
@@ -188,7 +189,7 @@ async function zahlteil(pdf, konto, betrag, ref, mitteilung) {
   pdf.text("CHF", x, y + 5); pdf.text(betragText(betrag), x + 16, y + 5);
   x = 118; y = y0 + 9;
   y = zeilen(x, y, "Konto / Zahlbar an", [ibanText(konto.iban), ...adr], 8, 10, 4.2);
-  y = zeilen(x, y, "Referenz", [referenzText(ref)], 8, 10, 4.2);
+  if (ref.typ !== "NON") y = zeilen(x, y, "Referenz", [referenzText(ref)], 8, 10, 4.2);
   if (mitteilung) {
     const teile = pdf.splitTextToSize(String(mitteilung), 87);
     y = zeilen(x, y, "Zusätzliche Informationen", teile.slice(0, 2), 8, 10, 4.2);
