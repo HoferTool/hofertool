@@ -101,6 +101,8 @@ export function anstehend(jobs, stamm, protokolle) {
     const meine = (protokolle || []).filter((p) => gehoertZu(p, j));
     const von = (art) => meine.filter((p) => (p.kopf || {}).art === art);
     const offenes = (art) => von(art).find((p) => !p.abgeschlossen_am) || null;
+    // „Im alten System geprüft“ erledigt die Art für diesen Auftrag (seit 1.836.0)
+    const altDa = (art) => von(art).some((p) => p.abgeschlossen_am && (p.kopf || {}).alt);
     // Erstteil gilt erst mit Freigabe als erledigt (seit 1.785.0)
     const fertig = (art) => von(art).some((p) => p.abgeschlossen_am && (art !== "erstteil" || p.entscheid === "freigabe"));
     const fa = String(j.fa_nr || "").trim();
@@ -110,13 +112,39 @@ export function anstehend(jobs, stamm, protokolle) {
     if (j.plan_status === "fertig" && arten.includes("endkontrolle") && !endFertig) aus.endkontrolle.push({ j, art: "endkontrolle", p: offenes("endkontrolle") });
     if (j.plan_status !== "laeuft") continue;
     if (arten.includes("aql") && !fertig("aql")) aus.aql.push({ j, art: "aql", p: offenes("aql") });
-    if (arten.includes("ll")) {
+    if (arten.includes("ll") && !altDa("ll")) {
       const ll = von("ll").find((p) => !p.abgeschlossen_am) || null;
       const heuteDa = ll && ((ll.werte || {}).proben || []).some((pr) => pr.datum === t);
       if (!heuteDa) aus.ll.push({ j, art: "ll", p: ll });
     }
   }
   return aus;
+}
+
+// „Im alten System geprüft“ (seit 1.836.0, Wunsch Patrick 25. November 2026:
+// „gewisse Aufträge laufen schon mit bisherigem System … Button zum einfach
+// weitergeben, es wird geprüft, aber nicht im Tool dokumentiert“): legt ein schon
+// abgeschlossenes Protokoll ohne Masse an, damit der Punkt wegfällt; bei der
+// Erstteilprüfung geht der Auftrag danach auf „läuft“.
+async function altGeprueft(t) {
+  const name = artName({ art: t.art }).name;
+  if (!(await alt.nachfragen({ titel: "Im alten System geprüft?", text: name + " für " + t.j.job_number + (t.j.fa_nr ? " (FA " + t.j.fa_nr + ")" : "") + " wurde mit dem bisherigen System gemacht. Der Punkt fällt weg, im Tool wird nichts dokumentiert." + (t.art === "erstteil" ? " Der Auftrag geht danach auf „läuft“." : ""), bestaetigen: "Ja, weitergeben" }))) return false;
+  const jetzt = new Date().toISOString();
+  const { data, error } = await alt.db.from("pruefprotokolle").insert({
+    hoco_nr: t.j.job_number, fa_nr: t.j.fa_nr || null, job_id: t.j.id || null,
+    kopf: { art: t.art, alt: true, zeilen: [], vorlage: {}, bemerkung: "Im alten System geprüft" },
+    werte: {}, datum: heute(), entscheid: "freigabe", visum: "altes System", abgeschlossen_am: jetzt,
+  }).select().single();
+  if (error) { alt.meldung("Konnte nicht speichern: " + error.message, "fehler"); return false; }
+  alt.merkeSchritt(name + " im alten System " + t.j.job_number, [alt.rueckWeg("pruefprotokolle", { id: data.id })]);
+  if (t.art === "erstteil" && t.j.id) {
+    try {
+      const { data: j } = await alt.db.from("jobs").select("*").eq("id", t.j.id).maybeSingle();
+      if (j && j.plan_status !== "laeuft" && j.plan_status !== "fertig" && !j.ended_at) await alt.zustandSetzen(j, "laeuft");
+    } catch (e) { alt.meldung("Weitergegeben, aber „läuft“ ging nicht: " + fehlerText(e), "warn"); return true; }
+  }
+  alt.meldung(name + " " + t.j.job_number + " weitergegeben.", "gut");
+  return true;
 }
 
 // Material samt Durchmesser aus dem Auftrag (seit 1.786.0, Wunsch Patrick
@@ -287,6 +315,8 @@ function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
                       <span>{t.j.fa_nr ? "FA " + t.j.fa_nr : "ohne FA"} · {t.j.maschine || "?"} · {STAND[t.j.plan_status] || ""}</span>
                       <small>{t.p ? (t.art === "ll" ? "heute noch keine Stichprobe" : "in Arbeit, weiterführen") : "noch nicht angefangen"}</small>
                     </button>
+                    {darf() ? <button type="button" className="pb-todo__alt" data-pbalt={t.j.id} title="Wurde mit dem bisherigen System geprüft, nur weitergeben"
+                      onClick={async () => { if (await altGeprueft(t)) neu(); }}>✓ Im alten System geprüft</button> : null}
                   </li>
                 ))}
               </ul>
@@ -315,7 +345,7 @@ function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
                     <td>{p.fa_nr || <span className="pb-rot">fehlt</span>}</td>
                     <td>{datumText(p.datum || p.erstellt_am)}</td>
                     <td className="nowrap">{e.schlecht ? <b className="pb-rot">{e.schlecht} n.i.O. </b> : null}<span className="klein">{e.gut} i.O.</span></td>
-                    <td>{p.abgeschlossen_am ? "✓ " + (entscheidText(p.entscheid) || "abgeschlossen") : "in Arbeit"}</td>
+                    <td>{p.abgeschlossen_am ? ((p.kopf || {}).alt ? "✓ im alten System" : "✓ " + (entscheidText(p.entscheid) || "abgeschlossen")) : "in Arbeit"}</td>
                     <td className="klein nowrap">{zeitText(p.geaendert_am || p.erstellt_am)}</td>
                     <td className="nowrap">{darf() ? <button type="button" className="knopf knopf--klein knopf--gefahr-leise" title="Protokoll löschen" data-pbweg={p.id}
                       onClick={(x) => { x.stopPropagation(); loeschen(p); }}>✕</button> : null}</td>
