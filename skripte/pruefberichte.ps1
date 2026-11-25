@@ -134,7 +134,7 @@ try {
     $inApp[$k] += $r
   }
 
-  # HOCO Nummern mit Prüfprotokoll in der App (seit 1.795.0, Wunsch Patrick
+  # HOCO Nummern mit Prüfprotokoll in der App (seit 1.799.0, Wunsch Patrick
   # 24. November 2026: „sobald eine neuere dazu kommt, soll das Original weg“):
   # dort gilt nur noch die App, das Excel aus dem Ordner kommt aus der App weg
   # und wird nie mehr hochgeladen. Der Ordner selbst wird nie angefasst.

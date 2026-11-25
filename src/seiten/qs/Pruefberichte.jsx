@@ -11,7 +11,7 @@
 //  darunter die zuletzt bearbeiteten Protokolle als Liste, „+ Protokoll“
 //  mit der Wahl der Art. Ein Protokoll sieht aus wie ein A4-Blatt und
 //  lässt sich drucken und löschen.
-//  Seit 1.795.0 (Patrick 25. November 2026: „die Version aus dem Ordner als
+//  Seit 1.799.0 (Patrick 25. November 2026: „die Version aus dem Ordner als
 //  letzte Produktion ansehen, sobald eine neuere dazukommt, soll das
 //  Original weg … ab dann immer alle speichern“): solange es für eine HOCO
 //  Nr. noch kein Protokoll in der App gibt, steht ihr Excel aus dem Ordner

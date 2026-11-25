@@ -65,9 +65,22 @@ export const fehltTabelle = (e) =>
 
 export const maschineText = (m) => m ? [m.machine_number, m.name].filter(Boolean).join(" · ") : "?";
 
+// Seitenweise je 1'000: seit dem Gewatec-Import (25. November 2026) sind es
+// über 1'000, Supabase liefert ohne range höchstens 1'000 Zeilen.
+async function allePruefmittel() {
+  const alle = [];
+  for (let von = 0; von < 20000; von += 1000) {
+    const r = await alt.db.from("pruefmittel").select("*").order("nr").order("id").range(von, von + 999);
+    if (r.error) return r;
+    alle.push(...(r.data || []));
+    if (!r.data || r.data.length < 1000) break;
+  }
+  return { data: alle, error: null };
+}
+
 export async function pruefmittelLaden() {
   const [r, maschinen, parks, leute] = await Promise.all([
-    alt.zeitlimit(alt.db.from("pruefmittel").select("*").order("nr"), 10000, "Prüfmittel"),
+    alt.zeitlimit(allePruefmittel(), 15000, "Prüfmittel"),
     alt.ladeMaschinen(false, true),
     alt.ladeParks(false, true),
     alt.zeitlimit(alt.db.from("profiles").select("id, full_name, email, is_active"), 8000, "Personen")
@@ -121,7 +134,7 @@ export function ortText(p, maschinen) {
 
 export function suchText(p, maschinen) {
   return [p.nr, p.bezeichnung, artText(p.art), gruppeText(gruppeVon(p)), pruefWoText(p.pruefung_wo),
-    p.mass, p.hoco, p.notiz, ortText(p, maschinen)]
+    p.mass, p.typ, p.hersteller, p.nennmass, p.messbereich, p.hoco, p.notiz, ortText(p, maschinen)]
     .filter(Boolean).join(" ").toLowerCase();
 }
 

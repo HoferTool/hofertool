@@ -41,7 +41,8 @@ with sync_playwright() as p:
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FAKE))
     for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
         pg.route(u, lambda r: r.abort())
-    laden(pg, "")
+    # Seit 1.785.0 sehen Admins QMS immer, darum ohne Vermerk als Mitarbeiter
+    laden(pg, ";\n(TEST.daten.profiles.find(x => x.id === 'u1') || {}).role = 'mitarbeiter';\n")
     pruefe(pg.locator("[data-nav='qmalt']").count() == 0, "ohne Vermerk kein QM alternativ")
     laden(pg, VERMERK)
     pg.evaluate("location.hash='#/qmalt'")

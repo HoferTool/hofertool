@@ -70,7 +70,8 @@ with sync_playwright() as p:
                               ("ipad-hoch", 820, 1180, False), ("handy", 390, 844, True)]:
         pg = seite(br, b, h, mobil)
         n = pg.locator("#pad .pad-ak__karte").count()
-        nm = pg.evaluate("TEST.daten.machines.filter(m => m.is_active !== false).length")
+        # Seit 1.757.0 zeigt das Pad den Park Extern nur noch Externen, auch Admins nicht
+        nm = pg.evaluate("(() => { const ext = new Set(TEST.daten.machine_parks.filter(p => /extern|lohn|fremd/i.test(p.name || '')).map(p => p.id)); return TEST.daten.machines.filter(m => m.is_active !== false && !ext.has(m.park_id)).length; })()")
         if n != nm: fehler.append(f"{name}: {n} Karten statt {nm}")
         if pg.locator("#pad [data-qspark]").count(): fehler.append(name + ": Parkwahl noch da")
         # Ganze Fläche: Karten füllen die Höhe (ausser am Handy, dort rollt es)

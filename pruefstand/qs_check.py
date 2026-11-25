@@ -76,7 +76,8 @@ with sync_playwright() as p:
     pg.wait_for_timeout(600)
     if pg.locator("#pad [data-qspark]").count(): fehler.append("Parkwahl noch da")
     n = pg.locator("#pad .pad-ak__karte").count()
-    nm = pg.evaluate("TEST.daten.machines.filter(m => m.is_active !== false).length")
+    # Seit 1.757.0 zeigt das Pad den Park Extern nur noch Externen, auch Admins nicht
+    nm = pg.evaluate("(() => { const ext = new Set(TEST.daten.machine_parks.filter(p => /extern|lohn|fremd/i.test(p.name || '')).map(p => p.id)); return TEST.daten.machines.filter(m => m.is_active !== false && !ext.has(m.park_id)).length; })()")
     if n != nm: fehler.append(f"Alle {nm} Maschinen erwartet: {n}")
     # Zeichnung und WBG öffnen den Betrachter
     pg.locator("#pad [data-qsmaschine='m-k1'] [data-qsdok='zeichnung']").click()

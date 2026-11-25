@@ -292,10 +292,10 @@ function LagerReiter({ d, a }) {
   const liste = bestand(d, a.id);
   const summe = liste.reduce((s, e) => s + e.menge, 0);
   return <>
-    <GTabelle kopf={["Charge", "Lagerplatz", "Menge"]} rechts={[2]} leer="Kein Bestand."
+    <GTabelle kopf={["Charge", "Lagerart", "Lagerplatz", "Menge"]} rechts={[3]} leer="Kein Bestand."
       zeilen={liste.map((e) => { const l = d.lagerMap.get(e.lager_id);
         return { key: e.charge + e.lager_id, klasse: e.menge < 0 ? "erp-minus" : "",
-          zellen: [e.charge, l ? l.lagerart + " " + l.platz : "–", mengeText(e.menge) + " " + (a.einheit || "")] }; })} />
+          zellen: [e.charge, l ? l.lagerart : "–", l ? l.platz : "–", mengeText(e.menge) + " " + (a.einheit || "")] }; })} />
     <p className="gf-summe">Bestand gesamt <b>{mengeText(summe)} {a.einheit}</b></p>
   </>;
 }

@@ -1,4 +1,4 @@
-# Letzte Produktion (seit 1.795.0): Excel aus dem Ordner bis zum ersten Protokoll.
+# Letzte Produktion (seit 1.799.0): Excel aus dem Ordner bis zum ersten Protokoll.
 # Grundlage wie pruefberichte.py (seit 1.779.0, Wunsch Patrick 24. November 2026): was nötig ist
 # und die Masse stehen in den Stammdaten der HOCO Nr. (pruef_stamm); im Reiter
 # Todos Erstteil / AQL / LL, Liste der zuletzt bearbeiteten, „+ Protokoll“ mit

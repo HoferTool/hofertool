@@ -16364,15 +16364,6 @@ body.dunkel .eba-pf-zeichen button { background: #1d2733; }
 /* ---- Prüfmittel wieder da (1.755.0, Wunsch Patrick 24. November 2026) ---- */
 /* ---------- Prüfmittel (provisorisch, seit 1.557.0) ---------- */
 .pm-erklaerung { margin: -4px 0 12px; color: var(--gedaempft); max-width: 900px; }
-.pm-kacheln { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; }
-.pm-kachel { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 14px;
-  border: 1px solid var(--linie); border-radius: var(--radius); background: var(--flaeche); color: var(--tinte);
-  font: inherit; cursor: pointer; text-align: left; transition: border-color .15s, box-shadow .15s; }
-.pm-kachel b { font-size: 1.6rem; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--marke); }
-.pm-kachel span { font-size: .85rem; color: var(--gedaempft); }
-.pm-kachel:hover { border-color: var(--marke); }
-.pm-kachel.aktiv { border-color: var(--marke); box-shadow: inset 0 0 0 2px var(--marke); }
-.pm-kachel--warn b { color: var(--warnung); }
 .pm-wo .karte__kopf h2 { font-size: 1.05rem; }
 .pm-park + .pm-park { margin-top: 12px; }
 .pm-park__titel { margin: 6px 0 8px; font-size: .85rem; font-weight: 650; color: var(--gedaempft);
@@ -16922,7 +16913,7 @@ body.dunkel .dialog.qs-quitt, body.dunkel .dialog.qs-quitt .qs-quitt__text, body
 .umf-st__wahl label { display: flex; gap: 6px; align-items: center; }
 .umf-st__neu .knopf { justify-self: start; }
 
-/* =================================================================
+/* ==========================================================
    LAGER MIT LOGIK (seit 1.791.0, Wunsch Patrick 24. November 2026)
    ================================================================= */
 .lager-reiter .lager-reiter--rot { color: #c0392b; font-weight: 600; }
@@ -17023,3 +17014,110 @@ body.dunkel .lager-buchung .lager-ein, body.dunkel .lager-zahl.lager-ein { color
 .pm-kurz__alle { margin-top: 8px; }
 body.dunkel .pm-kurz__zahl { background: #1f2630; border-color: #3a4552; }
 body.dunkel .pm-kurz__zahl--warn b { color: #ff6b6b !important; }
+/* ---------- 1.795.0: Handy-Menü nur mit Hauptpunkten, Unterpunkte als zweite Ebene ----------
+   Ein Hauptpunkt mit Unterpunkten (›) schiebt die Liste seiner Unterpunkte von
+   rechts herein, „‹ Zurück“ oder Escape schiebt das normale Menü wieder von links. */
+.handymenue__ebene { display: grid; gap: 4px; }
+.handymenue__ebene--unter { animation: hm-ebene-rechts .34s cubic-bezier(.2, .9, .25, 1) both; }
+.handymenue__ebene--zurueck { animation: hm-ebene-links .34s cubic-bezier(.2, .9, .25, 1) both; }
+.handymenue__ebene--zurueck .handymenue__punkt { animation: none; }
+.handymenue__weiter { color: var(--marke); font-weight: 700; }
+.handymenue__unterkopf { display: flex; align-items: center; gap: 10px; padding: 0 4px 6px; }
+.handymenue__zurueck { all: unset; box-sizing: border-box; cursor: pointer; flex: none;
+  padding: 9px 14px; border-radius: 14px; font-weight: 600; font-size: .95rem;
+  background: var(--marke-hell); color: var(--marke); -webkit-tap-highlight-color: transparent; }
+.handymenue__zurueck:active { transform: scale(.96); }
+.handymenue__zurueck:focus-visible { outline: 3px solid color-mix(in srgb, var(--marke) 45%, transparent); }
+.handymenue__untertitel { display: flex; align-items: center; gap: 8px; min-width: 0;
+  font-weight: 700; font-size: 1.02rem; color: var(--tinte); overflow-wrap: anywhere; }
+.handymenue__zeichen--klein { width: 34px; height: 34px; border-radius: 11px; flex: none; }
+.handymenue__zeichen--klein .navsym { width: 19px; height: 19px; }
+.handymenue__unterliste { display: grid; gap: 6px; padding: 0 2px;
+  max-height: min(60vh, 520px); overflow-y: auto; }
+.handymenue__unterpunkt { all: unset; box-sizing: border-box; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  min-height: 50px; padding: 10px 16px; border-radius: 16px;
+  background: var(--marke-hell); color: var(--tinte); font-size: 1rem; font-weight: 600;
+  -webkit-tap-highlight-color: transparent;
+  animation: hm-punkt-rechts .34s cubic-bezier(.2, .9, .25, 1) backwards;
+  animation-delay: calc(var(--nr) * 30ms + 60ms); }
+.handymenue__unterpunkt:active { transform: scale(.98); }
+.handymenue__unterpunkt:focus-visible { outline: 3px solid color-mix(in srgb, var(--marke) 45%, transparent); }
+.handymenue__unterpunkt.aktiv { background: var(--marke); color: #fff; }
+.handymenue__unterpunkt.aktiv .handymenue__weiter { color: #fff; }
+.handymenue--schliesst .handymenue__ebene { animation: hm-inhalt-weg .16s ease-in both; }
+body.dunkel .handymenue__zurueck, body.dunkel .handymenue__weiter { color: var(--marke) !important; }
+body.dunkel .handymenue__unterpunkt { background: rgba(255, 255, 255, .08); }
+body.dunkel .handymenue__unterpunkt.aktiv { background: var(--marke); }
+body.dunkel .handymenue__unterpunkt.aktiv, body.dunkel .handymenue__unterpunkt.aktiv * { color: #0b1a33 !important; }
+@keyframes hm-ebene-rechts { from { opacity: 0; transform: translateX(36px); } }
+@keyframes hm-ebene-links { from { opacity: 0; transform: translateX(-36px); } }
+@keyframes hm-punkt-rechts { from { opacity: 0; transform: translateX(28px); } }
+@media (prefers-reduced-motion: reduce) {
+  .handymenue__ebene, .handymenue__unterpunkt { animation: none !important; }
+}
+
+/* ---------- 1.797.0 Prüfmittel: eine Seite wie Gewatec, Hallenplan ---------- */
+.pm-leiste { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0 8px; }
+.pm-filter { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 10px; }
+.pm-filter .mat-sucheingabe { flex: 1 1 260px; min-width: 0; }
+.pm-filter select { padding: 7px 8px; border: 1px solid var(--linie); border-radius: 8px; background: var(--flaeche); color: var(--tinte); max-width: 100%; }
+.pm-filter__zahl { margin-left: auto; color: var(--gedaempft); }
+.pm-punkt { display: inline-block; width: 13px; height: 13px; border-radius: 50%; vertical-align: middle;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.18); }
+.pm-punkt--ok { background: #2f9e55; }
+.pm-punkt--bald { background: #f0b429; }
+.pm-punkt--faellig { background: #d64545; }
+.pm-punkt--gesperrt { background: #6b7280; }
+.pm-punkt--weg { background: transparent; box-shadow: inset 0 0 0 2px #9aa3ad; }
+.pm-tabelle--gw th[data-pmsort] { cursor: pointer; user-select: none; white-space: nowrap; }
+.pm-tabelle--gw th.aktiv { color: var(--marke); }
+.pm-tabelle--gw .pm-td-status { width: 22px; }
+.pm-tabelle--gw .pm-td-nr { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pm-mehr { text-align: center; margin: 12px 0; }
+@media (max-width: 700px) {
+  .pm-tabelle--gw tr { grid-template-columns: 18px 1fr; }
+  .pm-tabelle--gw td:nth-child(2) { font-weight: 650; }
+}
+.pm-anmaschinen { width: min(1180px, calc(100vw - 24px)); }
+.pm-halle { width: 100%; margin: 8px 0 10px; border-radius: 10px; overflow: hidden; border: 1px solid #c9ced4; background: #f2efe8; }
+.pm-halle__bild { display: block; width: 100%; height: auto; }
+.pm-halle .hl-gelb { stroke: #f2c200; stroke-width: 6; stroke-dasharray: 26 14; }
+.pm-halle .hl-qs { font: 700 26px system-ui, sans-serif; fill: #3c4650; letter-spacing: .08em; }
+.pm-halle .hl-schrift { font: 600 18px system-ui, sans-serif; fill: #3c4650; }
+.pm-halle .hl-raum { font: 700 34px system-ui, sans-serif; fill: #3c4650; letter-spacing: .02em; }
+.pm-halle .hl-treppe { fill: none; stroke: #7b8189; stroke-width: 3; }
+.pm-halle .hl-maschine { cursor: pointer; outline: none; }
+.pm-halle .hl-maschine:hover, .pm-halle .hl-maschine:focus-visible { filter: brightness(1.06) drop-shadow(0 0 6px rgba(11,92,171,.45)); }
+.pm-halle .hl-maschine--fehlt { cursor: default; opacity: .45; }
+.pm-halle .hl-rahmen { fill: none; stroke: #0b5cab; stroke-width: 7; stroke-dasharray: 18 10; animation: hl-lauf 1.2s linear infinite; }
+@keyframes hl-lauf { to { stroke-dashoffset: -56; } }
+.pm-halle .hl-zahl circle { fill: #0b5cab; stroke: #fff; stroke-width: 3; }
+.pm-halle .hl-zahl--warn circle { fill: #d64545; }
+.pm-halle .hl-zahl text { font: 800 20px system-ui, sans-serif; fill: #fff; }
+.pm-halle .hl-nr { font: 800 22px system-ui, sans-serif; fill: #1d2733; }
+.pm-halle .hl-typ { font: 600 14px system-ui, sans-serif; fill: #4b5563; }
+.pm-halle .hl-marke { font: 800 11px system-ui, sans-serif; fill: #fff; letter-spacing: .06em; }
+.pm-ausserhalb { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 10px; font-size: .9rem; color: var(--gedaempft); }
+.pm-ausserhalb .aktiv { outline: 2px solid var(--marke); }
+.pm-halle__wahl { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 4px 0 8px; }
+.pm-halle .hl-nr--auf, .pm-halle .hl-typ--auf { paint-order: stroke; stroke: rgba(255,255,255,.85); stroke-width: 4px; }
+/* 1.798.0 3D-Viewer für SketchUp-Exporte (Modell3d.jsx, modell3d/Ansicht.jsx) */
+.m3d-kopf { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.m3d-kopf .seitentitel { margin: 0; margin-right: auto; }
+.m3d-fehler { background: #fdecea; color: #8a1c12; border: 1px solid #f3b8b0; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+body.dunkel .m3d-fehler { background: #3a1714; border-color: #7a2a22; }
+.m3d-leer { max-width: 640px; padding: 18px 20px; line-height: 1.5; }
+.m3d-leer h2 { margin: 0 0 8px; font-size: 18px; }
+.m3d-leer ol { margin: 8px 0 10px 20px; padding: 0; }
+.m3d-ansicht { display: flex; flex-direction: column; gap: 8px; }
+.m3d-zwei { display: flex; gap: 10px; align-items: stretch; }
+.m3d-flaeche { flex: 1; min-width: 0; height: calc(100vh - 230px); min-height: 320px; }
+.m3d-teile { width: 240px; flex: none; padding: 10px; overflow-y: auto; height: calc(100vh - 230px); min-height: 320px; box-sizing: border-box; }
+.m3d-teile-kopf { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
+.m3d-teil { display: flex; gap: 6px; align-items: flex-start; padding: 3px 0; font-size: 13px; overflow-wrap: anywhere; cursor: pointer; }
+@media (max-width: 780px) {
+  .m3d-zwei { flex-direction: column; }
+  .m3d-flaeche { height: 62vh; }
+  .m3d-teile { width: auto; height: auto; max-height: 220px; }
+}

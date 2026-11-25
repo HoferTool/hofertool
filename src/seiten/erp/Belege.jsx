@@ -8,11 +8,11 @@
 import { useState, useRef } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
-import { Feld, Tabelle, Suche, passt, tun, belegDrucken } from "./teile.jsx";
+import { Feld, Tabelle, Suche, passt, tun, belegDrucken, LagerEingabe, lagerStart, lagerAus } from "./teile.jsx";
 import {
   allesLaden, einfuegen, aendern, loeschen, naechsteBelegNr, BELEGTYP, MWST, zahl, chf, mengeText, artikelText,
   partnerText, datumText, terminText, bestand, buchen, gebucht, folgePositionen, belegSumme, chargeVerfolgen, fibuText,
-  posPe, posBetrag, peKurz, peZahl, preisFuerMenge, PE_AUSWAHL, kwText,
+  posPe, posBetrag, peKurz, peZahl, preisFuerMenge, PE_AUSWAHL, kwText, lagerName,
 } from "../../daten/erp.js";
 import { GFenster, KF, GTabelle, schliessenFragen } from "./Stamm.jsx";
 import { partnerFensterOeffnen } from "./PartnerFenster.jsx";
@@ -21,13 +21,7 @@ import { cockpitOeffnen } from "./Cockpit.jsx";
 
 const heute = () => new Date().toISOString().slice(0, 10);
 const mitPreis = (typ) => typ !== "lieferschein" && typ !== "fertigung";
-const LAGER_JE_ART = { hofer: "FT", rohmaterial: "RM", werkzeug: "WZ" };
-
-function lagerVorgabe(d, artikel) {
-  const vor = LAGER_JE_ART[(artikel || {}).art] || "FT";
-  return (d.lager.find((l) => l.platz.startsWith(vor)) || d.lager[0] || {}).id || "";
-}
-const lagerText = (d, id) => { const l = d.lagerMap.get(id); return l ? l.platz : "–"; };
+const lagerText = (d, id) => lagerName(d.lagerMap.get(id));
 
 // ---------- Stand eines Belegs ----------
 // Gerechnet aus den Folgebelegen und Bewegungen, nicht gespeichert
@@ -658,9 +652,9 @@ function Buchungen({ d, b }) {
   return (
     <details className="erp-buchungen" open={b.typ === "fertigung"}>
       <summary>Lagerbuchungen ({liste.length})</summary>
-      <Tabelle kopf={["Art", "Artikel", "Charge", "Lager", "Menge", "Am"]}
+      <Tabelle kopf={["Art", "Artikel", "Charge", "Lagerart", "Lagerplatz", "Menge", "Am"]}
         zeilen={liste.map((x) => ({ key: x.id, klasse: x.menge < 0 ? "erp-minus" : "",
-          zellen: [x.art, artikelText(d.artikelMap.get(x.artikel_id)), x.charge, lagerText(d, x.lager_id), mengeText(x.menge), datumText(x.am)] }))} />
+          zellen: [x.art, artikelText(d.artikelMap.get(x.artikel_id)), x.charge, (d.lagerMap.get(x.lager_id) || {}).lagerart || "–", (d.lagerMap.get(x.lager_id) || {}).platz || "–", mengeText(x.menge), datumText(x.am)] }))} />
     </details>
   );
 }
@@ -813,17 +807,19 @@ function EingangFenster({ d, b, zu, fertig }) {
   const pos = (d.posJe.get(b.id) || []).filter((p) => p.artikel_id);
   const [w, setW] = useState(() => pos.map((p) => {
     const offen = Math.max(0, zahl(p.menge) - gebucht(d, p.id, "eingang"));
-    return { an: offen > 0, menge: String(offen), charge: "WE-" + b.nr + "-" + p.pos, lager: lagerVorgabe(d, d.artikelMap.get(p.artikel_id)), lief: "" };
+    return { an: offen > 0, menge: String(offen), charge: "WE-" + b.nr + "-" + p.pos, lief: "", ...lagerStart(d, d.artikelMap.get(p.artikel_id)) };
   }));
   const setzen = (i, name, v) => setW((l) => l.map((x, j) => (j === i ? { ...x, [name]: v } : x)));
-  const lagerWahl = d.lager.map((l) => [l.id, l.platz + (l.bezeichnung ? " · " + l.bezeichnung : "")]);
   const lief = d.partnerMap.get(b.partner_id) || {};
   const los = async () => {
     const wahl = w.map((x, i) => ({ ...x, p: pos[i] })).filter((x) => x.an && zahl(x.menge) > 0);
     if (!wahl.length) throw new Error("Keine Menge gewählt.");
     for (const x of wahl) {
       if (!x.charge.trim()) throw new Error("Position " + x.p.pos + ": Charge fehlt.");
-      await buchen({ artikel_id: x.p.artikel_id, lager_id: x.lager || null, charge: x.charge.trim(), menge: zahl(x.menge), art: "eingang",
+    }
+    for (const x of wahl) x.lagerId = await lagerAus(d, d.artikelMap.get(x.p.artikel_id), x);
+    for (const x of wahl) {
+      await buchen({ artikel_id: x.p.artikel_id, lager_id: x.lagerId, charge: x.charge.trim(), menge: zahl(x.menge), art: "eingang",
         beleg_id: b.id, position_id: x.p.id, herkunft: "Lieferant " + (lief.nr || "") + " " + (lief.name || ""),
         notiz: x.lief ? "Charge Lieferant " + x.lief : null });
     }
@@ -841,7 +837,7 @@ function EingangFenster({ d, b, zu, fertig }) {
           <Feld f={{ name: "menge", label: "Menge", typ: "zahl" }} wert={w[i].menge} setzen={(v) => setzen(i, "menge", v)} />
           <Feld f={{ name: "charge", label: "Charge" }} wert={w[i].charge} setzen={(v) => setzen(i, "charge", v)} />
           <Feld f={{ name: "lief", label: "Charge / Zeugnis Lieferant" }} wert={w[i].lief} setzen={(v) => setzen(i, "lief", v)} />
-          <Feld f={{ name: "lager", label: "Lager", auswahl: lagerWahl }} wert={w[i].lager} setzen={(v) => setzen(i, "lager", v)} />
+          <LagerEingabe d={d} artikel={d.artikelMap.get(p.artikel_id)} w={w[i]} id={p.id} setzen={(n, v) => setzen(i, n, v)} />
         </div>))}
       <div className="dialog__knoepfe">
         <button className="knopf knopf--still" onClick={zu}>Abbrechen</button>
@@ -891,13 +887,14 @@ function FertigFenster({ d, b, zu, fertig }) {
   const p = (d.posJe.get(b.id) || [])[0];
   const a = p && d.artikelMap.get(p.artikel_id);
   const offen = p ? Math.max(0, zahl(p.menge) - gebucht(d, p.id, "fertig")) : 0;
-  const [w, setW] = useState({ menge: String(offen), charge: b.nr, lager: lagerVorgabe(d, a) });
+  const [w, setW] = useState({ menge: String(offen), charge: b.nr, ...lagerStart(d, a) });
   const los = async () => {
     if (!p || !a) throw new Error("Der Fertigungsauftrag hat keinen Artikel.");
     if (!(zahl(w.menge) > 0)) throw new Error("Menge fehlt.");
     if (!d.bewegungen.some((x) => x.beleg_id === b.id && x.art === "entnahme")
       && !(await alt.nachfragen({ titel: "Ohne Material?", text: "Für diesen Fertigungsauftrag ist noch kein Material entnommen. Die Charge hat dann keine Herkunft. Trotzdem fertig melden?", bestaetigen: "Trotzdem" }))) return;
-    await buchen({ artikel_id: a.id, lager_id: w.lager || null, charge: w.charge.trim() || b.nr, menge: zahl(w.menge), art: "fertig",
+    const lagerId = await lagerAus(d, a, w);
+    await buchen({ artikel_id: a.id, lager_id: lagerId, charge: w.charge.trim() || b.nr, menge: zahl(w.menge), art: "fertig",
       beleg_id: b.id, position_id: p.id, herkunft: "FA " + b.nr });
     alt.meldung("Fertig gemeldet, " + mengeText(w.menge) + " " + (p.einheit || "") + " an Lager.", "gut");
     zu(); await fertig();
@@ -908,7 +905,7 @@ function FertigFenster({ d, b, zu, fertig }) {
       <p>{artikelText(a)} · offen {mengeText(offen)}</p>
       <Feld f={{ name: "menge", label: "Menge gut", typ: "zahl" }} wert={w.menge} setzen={(v) => setW((x) => ({ ...x, menge: v }))} />
       <Feld f={{ name: "charge", label: "Charge" }} wert={w.charge} setzen={(v) => setW((x) => ({ ...x, charge: v }))} />
-      <Feld f={{ name: "lager", label: "Lager", auswahl: d.lager.map((l) => [l.id, l.platz]) }} wert={w.lager} setzen={(v) => setW((x) => ({ ...x, lager: v }))} />
+      <LagerEingabe d={d} artikel={a} w={w} id="fertig" setzen={(n, v) => setW((x) => ({ ...x, [n]: v }))} />
       <div className="dialog__knoepfe">
         <button className="knopf knopf--still" onClick={zu}>Abbrechen</button>
         <button className="knopf knopf--haupt" data-erp-ja="" onClick={() => tun(los)}>Fertig melden</button>

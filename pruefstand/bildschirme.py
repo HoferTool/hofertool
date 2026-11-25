@@ -29,8 +29,12 @@ with sync_playwright() as p:
         if handy:
             pg.locator(".handymenue__knopf").click(); pg.wait_for_timeout(900)
             namen = pg.evaluate("[...document.querySelectorAll('.handymenue__text')].map(t => t.textContent)")
-            pruefe("Anzeigen" in namen and "Infoboard" not in namen, "Handy-Menü: Bildschirme: %s" % namen[-3:])
-            pg.locator(".handymenue__punkt", has_text="Anzeigen").click(); pg.wait_for_timeout(1200)
+            # Seit dem neuen Menü hat Anzeigen eine zweite Ebene („Anzeigen ›“) mit der Übersicht zuerst
+            pruefe(any(n.startswith("Anzeigen") for n in namen) and "Infoboard" not in namen, "Handy-Menü: Bildschirme: %s" % namen[-3:])
+            pg.locator(".handymenue__punkt", has_text="Anzeigen").click(); pg.wait_for_timeout(700)
+            if pg.locator(".handymenue__unterpunkt").count():
+                pg.locator(".handymenue__unterpunkt", has_text="Übersicht").click()
+            pg.wait_for_timeout(1200)
         else:
             pg.click("[data-nav='bildschirme']"); pg.wait_for_timeout(1200)
         pg.wait_for_selector("#bs-wahl")

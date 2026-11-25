@@ -22,6 +22,45 @@ export const BELEGTYP = {
 };
 
 export const ARTIKELART = { hofer: "Hofer + Co Artikel", rohmaterial: "Rohmaterial", werkzeug: "Werkzeug" };
+// Lagerarten (Wunsch Patrick 25. November 2026): die vier für Hofer + Co
+// Artikel, dazu Rohmaterial und Werkzeuge, damit die übrigen Artikel auch
+// einen Platz haben. „je“ sagt, für welche Artikelart sie gelten.
+export const LAGERARTEN = [
+  { code: "FL", text: "Fertigteile", je: "hofer" },
+  { code: "HFL", text: "Halbfertigteile", je: "hofer" },
+  { code: "EXT", text: "Teile in Zusatzbearbeitung extern", je: "hofer" },
+  { code: "SPL", text: "Sperrlager", je: "hofer" },
+  { code: "RM", text: "Rohmaterial", je: "rohmaterial" },
+  { code: "WZ", text: "Werkzeuge", je: "werkzeug" },
+];
+export const lagerartText = (code) => { const a = LAGERARTEN.find((x) => x.code === code); return a ? a.text : ""; };
+// Lagerplatz kurz, etwa „FL Allgemein“
+export const lagerName = (l) => (l ? l.lagerart + " " + l.platz : "–");
+export const istHoferLager = (code) => LAGERARTEN.some((x) => x.code === code && x.je === "hofer");
+export const HOFER_LAGERARTEN = LAGERARTEN.filter((x) => x.je === "hofer");
+
+// Lagerplätze für Hofer + Co Artikel sind keine Stammdaten (Patrick
+// 25. November 2026): man wählt die Lagerart und tippt den Platz frei ein.
+// Die Zeile in erp_lager legt die App beim Buchen still selbst an, ohne
+// eigenen Rückgängig-Schritt, damit Strg + Z die Buchung zurücknimmt.
+export async function lagerplatzId(d, lagerart, platz) {
+  const p = String(platz || "").trim();
+  if (!lagerart) throw new Error("Lagerart fehlt.");
+  if (!p) throw new Error("Lagerplatz fehlt (" + lagerart + ").");
+  const da = d.lager.find((l) => l.lagerart === lagerart && l.platz.toLowerCase() === p.toLowerCase());
+  if (da) return da.id;
+  const r = await alt.zeitlimit(alt.db.from("erp_lager").insert({ lagerart, platz: p }).select("*").single(), 10000, "erp_lager");
+  if (r.error) throw r.error;
+  d.lager.push(r.data); d.lagerMap.set(r.data.id, r.data);
+  return r.data.id;
+}
+
+// Lagerplätze, die zu einer Artikelart passen; ohne Treffer alle
+export const lagerFuer = (lager, art) => {
+  const codes = LAGERARTEN.filter((x) => x.je === art).map((x) => x.code);
+  const r = lager.filter((l) => codes.includes(l.lagerart));
+  return (r.length ? r : lager).slice().sort((a, b) => (codes.indexOf(a.lagerart) - codes.indexOf(b.lagerart)) || a.platz.localeCompare(b.platz));
+};
 export const HOFER_NR = /^\d{5}-\d{4}$/;
 export const MWST = 8.1;
 

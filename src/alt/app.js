@@ -25,6 +25,7 @@ import Reihen from "../seiten/Reihen.jsx";
 import QmAlternativ from "../seiten/QmAlternativ.jsx";
 import "../seiten/Kalender.jsx";
 import Einlagen from "../seiten/Einlagen.jsx";
+import Modell3d from "../seiten/Modell3d.jsx";
 import Hofer2dTo3d from "../seiten/Hofer2dTo3d.jsx";
 import MaschinenSeite, { maschinenZurueck } from "../seiten/Maschinen.jsx";
 import Bildschirme from "../seiten/Bildschirme.jsx";
@@ -177,7 +178,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.795.0";
+const APP_VERSION = "1.799.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3370,7 +3371,7 @@ function seiteSichtbar(pfad) {
   // Konten nur für HOFERTIME (seit 1.626.0) sehen nur ihre Zeiten
   if (profil && profil.nur_zeit) return pfad === "zeit";
   // Das Dienstkonto braucht keine Material-Seite
-  if ((pfad === "material" || pfad === "maschinen" || pfad === "statistik" || pfad === "kalender" || pfad === "einlagen" || pfad === "hofer2dto3d" || pfad === "qs") && meineRolle() === "dienst") return false;
+  if ((pfad === "material" || pfad === "maschinen" || pfad === "statistik" || pfad === "kalender" || pfad === "einlagen" || pfad === "hofer2dto3d" || pfad === "modell3d" || pfad === "qs") && meineRolle() === "dienst") return false;
   if (pfad === "infoboard" || pfad === "pausenraum") return infoboardSichtbar();
   if (pfad === "bildschirme") return SEITEN.some((s) => s.gruppe === "bildschirme" && seiteSichtbar(s.pfad));
   if (pfad === "startneu") return istAdmin() && !istExtern();
@@ -10998,6 +10999,10 @@ SYM.einlagen = svg('<rect x="3" y="3" width="18" height="18" rx="2.5"/>'
 SYM.hofer2dto3d = svg('<path d="M3 4h7v12H3z"/><path d="M5 7.5h3M5 10.5h3"/>'
   + '<path d="M16.5 8l4.5 2.5v5L16.5 18 12 15.5v-5z"/><path d="M12 10.5l4.5 2.5 4.5-2.5M16.5 13v5"/>');
 
+// 3D-Viewer: Würfel mit Drehpfeil
+SYM.modell3d = svg('<path d="M12 3l7 4v8l-7 4-7-4V7z"/><path d="M5 7l7 4 7-4M12 11v8"/>'
+  + '<path d="M2.5 13.5a9.5 4 0 0 0 4 4"/>');
+
 SYM.temp = svg('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'
   + '<path d="M12 16v-5"/><path d="M9.5 13.5L12 11l2.5 2.5"/>');
 
@@ -11190,6 +11195,8 @@ const SEITEN = [
   { pfad: "hilfsprogramme", titel: "Hilfsprogramme", zeichen: SYM.hilfsprogramme, zeige: reactSeite(Hilfsprogramme) },
   { pfad: "hofer2dto3d",  titel: "HOFER2DTO3D", zeichen: SYM.hofer2dto3d, zeige: reactSeite(Hofer2dTo3d) },
   { pfad: "einlagen",     titel: "Einlagen Generator", zeichen: SYM.einlagen, zeige: reactSeite(Einlagen) },
+  // 3D-Viewer für SketchUp-Exporte (seit 1.797.0, Wunsch Patrick 25. November 2026)
+  { pfad: "modell3d",     titel: "3D-Viewer", zeichen: SYM.modell3d, zeige: reactSeite(Modell3d) },
   // Reihen lernen als 3D-Snowboard-Spiel, nur für Patrick (seit 1.546.0)
   { pfad: "reihen",       titel: "Hofer + Co Zahlensprint", zeichen: SYM.reihen, zeige: reactSeite(Reihen) },
   // Alle Bildschirme unter einem Punkt im Menü (seit 1.315.0, Wunsch Patrick
@@ -11221,6 +11228,7 @@ const SEITEN = [
 const NEUER_LOOK_MENUE = {
   hofer2dto3d: { gruppe: "hilfsprogramme", titel: "2D → 3D" },
   einlagen: { gruppe: "hilfsprogramme" },
+  modell3d: { gruppe: "hilfsprogramme" },
   // Zahlensprint (nur mit Vermerk reihenSehen) unter Hilfsprogramme (seit 1.786.0)
   reihen: { gruppe: "hilfsprogramme" },
   bildschirme: { gruppe: "hilfsprogramme" },

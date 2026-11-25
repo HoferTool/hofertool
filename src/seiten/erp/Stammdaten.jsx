@@ -6,7 +6,7 @@ import { formular, Tabelle, Suche, passt, tun, Feld, AG_FELDER } from "./teile.j
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import {
   einfuegen, aendern, loeschen, naechstePartnerNr, ARTIKELART, HOFER_NR, bestand, mengeText, chf,
-  mapsLink, artikelText, zahl, buchen, peKurz,
+  mapsLink, artikelText, zahl, buchen, peKurz, LAGERARTEN, lagerartText, lagerName, istHoferLager, HOFER_LAGERARTEN, lagerplatzId,
 } from "../../daten/erp.js";
 import { stundensatz } from "../../daten/kalkulation.js";
 import { artikelFensterOeffnen } from "./ArtikelFenster.jsx";
@@ -301,12 +301,17 @@ function Bedingungen({ d, neu, art }) {
 }
 
 // ---------- Lager ----------
+// Nur Plätze für Rohmaterial und Werkzeug sind Stammdaten; die der Hofer + Co
+// Artikel entstehen beim Buchen (Patrick 25. November 2026)
+const stammPlaetze = (d) => d.lager.filter((l) => !istHoferLager(l.lagerart));
+const artRang = (l) => { const i = LAGERARTEN.findIndex((a) => a.code === l.lagerart); return i < 0 ? 99 : i; };
 function Lager({ d, neu }) {
   const [suche, setSuche] = useState("");
   const platzBearbeiten = (l) => formular({
     titel: "Lagerplatz" + (l ? " " + l.platz : " neu"),
-    wert: l ? { lagerart: l.lagerart, platz: l.platz, bezeichnung: l.bezeichnung || "" } : { lagerart: "", platz: "", bezeichnung: "" },
-    felder: [{ name: "lagerart", label: "Lagerart", platzhalter: "Fertigteile, Rohmaterial, Werkzeuge, Sperrlager …" },
+    wert: l ? { lagerart: l.lagerart, platz: l.platz, bezeichnung: l.bezeichnung || "" } : { lagerart: "RM", platz: "", bezeichnung: "" },
+    felder: [{ name: "lagerart", label: "Lagerart", auswahl: LAGERARTEN.filter((a) => a.je !== "hofer").map((a) => [a.code, a.code + " · " + a.text])
+        .concat(l && !lagerartText(l.lagerart) ? [[l.lagerart, l.lagerart]] : []) },
       { name: "platz", label: "Lagerplatz" }, { name: "bezeichnung", label: "Bezeichnung" }],
     speichern: async (w) => {
       if (!w.lagerart.trim() || !w.platz.trim()) throw new Error("Lagerart und Platz werden benötigt.");
@@ -320,14 +325,18 @@ function Lager({ d, neu }) {
     const artikel = d.artikel.filter((a) => a.aktiv).sort((a, b) => a.nr.localeCompare(b.nr));
     formular({
       titel: "Lagerbuchung von Hand (Inventur / Korrektur)",
-      wert: { artikel_id: artikel[0] ? artikel[0].id : "", lager_id: d.lager[0] ? d.lager[0].id : "", charge: "", menge: "", notiz: "" },
+      wert: { artikel_id: artikel[0] ? artikel[0].id : "", lager_id: "art:FL", platz: "", charge: "", menge: "", notiz: "" },
       felder: [{ name: "artikel_id", label: "Artikel (mit Index)", auswahl: artikel.map((a) => [a.id, ARTIKELART[a.art].slice(0, 5) + " · " + artikelText(a)]) },
-        { name: "lager_id", label: "Lagerplatz", auswahl: d.lager.map((l) => [l.id, l.lagerart + " " + l.platz]) },
+        // Hofer + Co Artikel: Lagerart wählen und Platz frei eintippen
+        { name: "lager_id", label: "Lager", auswahl: HOFER_LAGERARTEN.map((a) => ["art:" + a.code, a.code + " · " + a.text + " (Platz eintippen)"])
+          .concat(stammPlaetze(d).map((l) => [l.id, lagerName(l)])) },
+        { name: "platz", label: "Lagerplatz (bei FL, HFL, EXT, SPL)" },
         { name: "charge", label: "Charge" }, { name: "menge", label: "Menge (+ zu, − ab)" },
         { name: "notiz", label: "Grund", breit: true }],
       speichern: async (w) => {
         if (!w.charge.trim() || !zahl(w.menge)) throw new Error("Charge und Menge werden benötigt.");
-        await buchen({ artikel_id: w.artikel_id, lager_id: w.lager_id || null, charge: w.charge.trim(), menge: zahl(w.menge),
+        const lagerId = String(w.lager_id).startsWith("art:") ? await lagerplatzId(d, w.lager_id.slice(4), w.platz) : (w.lager_id || null);
+        await buchen({ artikel_id: w.artikel_id, lager_id: lagerId, charge: w.charge.trim(), menge: zahl(w.menge),
           art: "korrektur", notiz: w.notiz || null });
         neu();
       },
@@ -342,19 +351,19 @@ function Lager({ d, neu }) {
     <>
       <h3>Lagerplätze</h3>
       <div className="mat-kopf"><button className="knopf knopf--haupt" onClick={() => platzBearbeiten()}>+ Lagerplatz</button></div>
-      <Tabelle kopf={["Lagerart", "Platz", "Bezeichnung"]} zeilen={d.lager.slice().sort((a, b) => (a.lagerart + a.platz).localeCompare(b.lagerart + b.platz))
-        .map((l) => ({ key: l.id, klick: () => platzBearbeiten(l), zellen: [l.lagerart, <b>{l.platz}</b>, l.bezeichnung || ""] }))} />
+      <Tabelle kopf={["Lagerart", "Platz", "Bezeichnung"]} zeilen={stammPlaetze(d).sort((a, b) => (artRang(a) - artRang(b)) || a.platz.localeCompare(b.platz))
+        .map((l) => ({ key: l.id, klick: () => platzBearbeiten(l), zellen: [<span><b>{l.lagerart}</b> {lagerartText(l.lagerart)}</span>, <b>{l.platz}</b>, l.bezeichnung || ""] }))} />
       <h3>Bestand nach Charge</h3>
       <div className="mat-kopf">
         <button className="knopf" onClick={korrektur}>Buchung von Hand</button>
         <Suche wert={suche} setzen={setSuche} platzhalter="Artikel, Index, Charge, Platz …" />
       </div>
-      <Tabelle kopf={["Artikel", "Index", "Bezeichnung", "Charge", "Lagerplatz", "Menge"]} leer="Kein Bestand."
+      <Tabelle kopf={["Artikel", "Index", "Bezeichnung", "Charge", "Lagerart", "Lagerplatz", "Menge"]} leer="Kein Bestand."
         zeilen={best.map((e) => {
           const a = d.artikelMap.get(e.artikel_id) || {};
           const l = d.lagerMap.get(e.lager_id);
           return { key: e.artikel_id + e.charge + e.lager_id, klasse: e.menge < 0 ? "erp-minus" : "",
-            zellen: [<b>{a.nr}</b>, a.idx || "", a.bezeichnung || "", e.charge, l ? l.lagerart + " " + l.platz : "–", mengeText(e.menge) + " " + (a.einheit || "")] };
+            zellen: [<b>{a.nr}</b>, a.idx || "", a.bezeichnung || "", e.charge, l ? l.lagerart : "–", l ? l.platz : "–", mengeText(e.menge) + " " + (a.einheit || "")] };
         })} />
     </>
   );

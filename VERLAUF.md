@@ -3,6 +3,18 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.796.0 (25. November 2026)
+
+Test ERP: Lagerarten FL, HFL, EXT, SPL für Hofer + Co Artikel (dazu RM, WZ). Lagerplätze der Hofer + Co Artikel sind keine Stammdaten mehr: beim Einbuchen Lagerart wählen und Platz frei eintippen, der Platz bleibt, solange aus der Buchung Teile am Lager sind (Wunsch Patrick).
+
+## 1.795.2 (25. November 2026)
+
+- Prüfstand an die neuen Regeln angepasst, die App ist unverändert: `empfang.py`, `qm_alternativ.py` und `qm_pad_audit.py` prüfen „ohne Vermerk“ jetzt als Mitarbeiter, weil Admins seit 1.785.0 alles sehen; `kalender.py` erwartet den Kalender vor den Problemen (seit 1.768.0 neben der Umfrage); `qs_check.py` und `ak_vorschau.py` zählen die Maschinen ohne den Park Extern, den das Pad seit 1.757.0 nur Externen zeigt.
+
+## 1.795.0 (24. November 2026)
+
+- Menü am Handy (Patrick: „soll nur Hauptreiter anzeigen, wenn es Unterreiter hat, sollen die per Animation kommen“): nur noch Hauptpunkte; Punkte mit Unterreitern haben ›, Antippen schiebt die Unterreiter herein, „‹ Zurück“ oder Escape führt zum Menü zurück.
+
 ## 1.789.0 (24. November 2026)
 
 - Planer (Patrick: „zu gross die Schrift und so, und viel abgeschnitten“): kleinere Schrift überall; ist die Materialkarte schmal, rutschen Material und Stand je Zeile unter die HOCO Nr., nichts ragt mehr rechts hinaus; am iPad hochkant liegt die Todo-Liste nicht mehr unter der Materialkarte; Maschine und HOCO Nr. kleben nicht mehr aneinander.
