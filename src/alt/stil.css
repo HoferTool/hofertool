@@ -17244,3 +17244,34 @@ body.dunkel .kalk-wahl__zeile:hover { background: #2a3746; }
 /* 1.812.0: Besuch bei Lieferanten im Bearbeitungsmodus (Dateien dazu nur dort) */
 .lk-besuch .bs-symbolknopf[aria-pressed="true"] { background: var(--marke); color: #fff; border-color: var(--marke); }
 .lk-besuch__bearb { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+
+/* ===== 1.816.0 HOFERTIME Kiosk (Wunsch Patrick 25. November 2026) ===== */
+.ki { display: grid; gap: 14px; max-width: 900px; }
+.ki-teilwahl { display: flex; gap: 8px; flex-wrap: wrap; }
+.ki-kopf { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.ki-offen { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; color: #003884; }
+.ki-artikel { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.ki-art { display: grid; justify-items: center; gap: 4px; padding: 14px 10px; border-radius: 14px;
+  border: 1px solid #c9d4e2; background: #fff; cursor: pointer; font: inherit; color: inherit;
+  transition: transform .12s ease, box-shadow .12s ease; }
+.ki-art:hover { box-shadow: 0 4px 14px rgba(0, 56, 132, .15); }
+.ki-art:active { transform: scale(.96); }
+.ki-art__zeichen { font-size: 36px; line-height: 1; }
+.ki-art__name { font-weight: 600; text-align: center; overflow-wrap: anywhere; }
+.ki-art__preis { color: #003884; font-variant-numeric: tabular-nums; }
+.ki-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ki-liste > li { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  padding: 8px 10px; border-radius: 10px; background: #f3f6fa; }
+.ki-knoepfe { display: flex; gap: 6px; flex-wrap: wrap; }
+.ki-bezahlt { color: #1f7a3a; font-weight: 600; }
+.ki-unbezahlt { color: #b3261e; font-weight: 600; }
+.ki-aus { opacity: .5; }
+.ki-warn { border-left: 4px solid #e0a100; }
+.ki-qr-fenster { max-width: 360px; }
+.ki-qr { background: #fff; padding: 12px; border-radius: 8px; }
+.ki-qr svg { width: 100%; height: auto; display: block; }
+body.dunkel .ki-art { background: #1d2733; border-color: #34465c; }
+body.dunkel .ki-liste > li { background: #1d2733; }
+body.dunkel .ki-offen, body.dunkel .ki-art__preis { color: #8fb6ff !important; }
+body.dunkel .ki-bezahlt { color: #6fd38f !important; }
+body.dunkel .ki-unbezahlt { color: #ff8a80 !important; }

@@ -25,6 +25,7 @@ import { gesichtOeffnen } from "./zeit/GesichtEinlernen.jsx";
 import { wlanOeffnen } from "./zeit/WlanLink.jsx";
 import { stempelBildHolen, StempelBild, stempelBildDauer } from "./zeit/stempelBild.jsx";
 import Auswertung from "./zeit/Auswertung.jsx";
+import Kiosk from "./zeit/Kiosk.jsx";
 import { ABWESENHEITEN } from "../daten/abwesenheit.js";
 
 const gemerkt = { reiter: "ich", person: null, ansicht: "woche", bezug: null, offen: null };
@@ -104,7 +105,7 @@ async function laden(personId, ansicht, bezugIso) {
 export default function Zeiterfassung({ auffrischen }) {
   const admin = alt.zeitAdmin();
   const ich = alt.profil || {};
-  const [reiter, setReiter] = useState(admin ? gemerkt.reiter : "ich");
+  const [reiter, setReiter] = useState(admin || gemerkt.reiter === "kiosk" ? gemerkt.reiter : "ich");
   const [person, setPerson] = useState(gemerkt.person);
   const [ansicht, setAnsicht] = useState(gemerkt.ansicht);
   const [bezug, setBezug] = useState(gemerkt.bezug || alt.isoDatum(new Date()));
@@ -124,18 +125,20 @@ export default function Zeiterfassung({ auffrischen }) {
   return (
     <>
       {document.body.classList.contains("ze-app") ? <AppKopf name={alt.personName(ich)} /> : <h1 className="seitentitel">HOFERTIME</h1>}
-      {admin && (
-        <div className="reiter ze-reiter">
+      <div className="reiter ze-reiter">
           <button className={"reiter__knopf" + (reiter === "ich" ? " aktiv" : "")} id="ze-reiter-ich"
             onClick={() => setReiter("ich")}>Meine Zeiten</button>
-          <button className={"reiter__knopf" + (reiter === "alle" ? " aktiv" : "")} id="ze-reiter-alle"
+          <button className={"reiter__knopf" + (reiter === "kiosk" ? " aktiv" : "")} id="ze-reiter-kiosk"
+            onClick={() => setReiter("kiosk")}>Kiosk</button>
+          {admin && <><button className={"reiter__knopf" + (reiter === "alle" ? " aktiv" : "")} id="ze-reiter-alle"
             onClick={() => setReiter("alle")}>Alle Mitarbeiter</button>
           <button className={"reiter__knopf" + (reiter === "auswertung" ? " aktiv" : "")} id="ze-reiter-auswertung"
             onClick={() => setReiter("auswertung")}>Auswertung</button>
           {person && <button className={"reiter__knopf" + (reiter === "person" ? " aktiv" : "")} id="ze-reiter-person"
-            onClick={() => setReiter("person")}>{alt.personName(person)}</button>}
-        </div>)}
-      {reiter === "auswertung" && admin ? <Auswertung auffrischen={auffrischen} />
+            onClick={() => setReiter("person")}>{alt.personName(person)}</button>}</>}
+        </div>
+      {reiter === "kiosk" ? <Kiosk admin={admin} />
+        : reiter === "auswertung" && admin ? <Auswertung auffrischen={auffrischen} />
         : reiter === "alle"
         ? <Alle auffrischen={auffrischen} oeffnen={(p) => { setPerson(p); setReiter("person"); setOffen(null); }} />
         : <Person key={personId} personId={personId} name={name} konto={konto} eigene={personId === ich.id} admin={admin}
