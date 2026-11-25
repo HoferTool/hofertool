@@ -140,6 +140,17 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
               ? <button className="knopf knopf--klein" onClick={laengeBearbeiten}>
                   {t.teil_laenge_mm ? laengeText(t.teil_laenge_mm) + (t.teil_mass_bestaetigt ? "" : " · prüfen") : "eintragen"}</button>
               : <b>{t.teil_laenge_mm ? laengeText(t.teil_laenge_mm) : "—"}</b>}</span>}
+          {/* Index aus der WBG des jüngsten Auftrags (seit 1.829.0, Wunsch
+              Patrick 25. November 2026): gleiche HOCO Nr., anderer Index ist
+              nicht dasselbe Teil */}
+          {(() => {
+            const vomFa = (faListe.find((x) => x.wbg_index && x.wbg_index !== "?") || {}).wbg_index;
+            const idx = (t.index_nr || "").trim() || (vomFa && vomFa !== "-" ? vomFa : "");
+            const alle = [...new Set(faListe.map((x) => x.wbg_index).filter((x) => x && x !== "?" && x !== "-"))];
+            return (idx || alle.length > 0) && <span className="hocoteil__angabe" id="hoco-index">
+              <small>Index</small><b>{idx || "—"}</b>
+              {alle.length > 1 && <small> früher: {alle.filter((x) => x !== idx).join(", ")}</small>}</span>;
+          })()}
           <span className="hocoteil__angabe"><small>Maschinentypen</small><b>{typenGenutzt.length}</b></span>
           <span className="hocoteil__angabe"><small>FA Nummern</small><b>{faListe.length}</b></span>
         </div>
@@ -212,6 +223,8 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
           <tr key={x.id}>
             <td><strong>{x.fa_nr}</strong></td>
             <td className="klein">{x.planned_from ? alt.kurzDatum(x.planned_from) : ""}</td>
+            <td className="klein" data-faindex={x.wbg_index || ""}>{x.wbg_index && x.wbg_index !== "?"
+              ? (x.wbg_index === "-" ? "ohne Index" : "Index " + x.wbg_index) : ""}</td>
             {/* Die Anhänge des Auftrags: das Warenbegleitblatt gehört zum
                 Durchlauf, ist also je FA Nr. ein anderes. Die Zeichnung
                 steht hier nicht mehr, sie gilt für die ganze HOCO Nr. und

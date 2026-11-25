@@ -69,10 +69,14 @@ export async function teilLaden(t, darf) {
   // zusammengetragen, damit man sieht, wann es gelaufen ist.
   let faListe = [], vomAuftrag = null;
   try {
-    const r = await db.from("jobs")
-      .select("id, fa_nr, planned_from, plan_status, drawing_url, wbg_url, wz_historie_url")
+    // Seit 1.829.0 mit dem Index aus der WBG; ohne die Spalte wie vorher
+    const holen = (spalten) => db.from("jobs").select(spalten)
       .eq("job_number", t.hoco_nr)
       .order("planned_from", { ascending: false }).limit(50);
+    let r = await holen("id, fa_nr, planned_from, plan_status, drawing_url, wbg_url, wz_historie_url, wbg_index");
+    if (r.error && /wbg_index/.test(String(r.error.message || ""))) {
+      r = await holen("id, fa_nr, planned_from, plan_status, drawing_url, wbg_url, wz_historie_url");
+    }
     faListe = (r.data || []).filter((x) => x.fa_nr);
     // Protokoll WW bei jedem Auftrag mit Werkzeugwechseln, nicht nur dort,
     // wo noch eine abgelegte Datei hängt (die fiel bis 1.814.0 5 Tage nach dem
