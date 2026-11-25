@@ -17164,7 +17164,7 @@ body.dunkel .pm-kurz__zahl.pm-kurz__zahl--rot { background: #a32020; border-colo
 .pm-pop .pm-maschine { border: 0; padding: 0; background: transparent; }
 body.dunkel .pm-pop { background: #1f2630; border-color: #3a4552; }
 
-/* 1.803.0 Arbeitsplan im Artikel: Arbeitsgänge per Ziehen umsortieren (ZiehListe statt Tabelle) */
+/* 1.804.0 Arbeitsplan im Artikel: Arbeitsgänge per Ziehen umsortieren (ZiehListe statt Tabelle) */
 .erp-ap { font-size: 0.9rem; }
 .erp-ap__liste { list-style: none; margin: 0; padding: 0; }
 .erp-ap .ziehliste__zeile { border-top: 1px solid #e3e8ee; align-items: stretch; }

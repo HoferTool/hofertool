@@ -242,7 +242,7 @@ function ArbeitsplanReiter({ w, setW, set, roh }) {
       <KF label="Material" nurLesen wert={roh ? roh.nr + (roh.bezeichnung && roh.bezeichnung !== roh.nr ? " · " + roh.bezeichnung : "") : w.material || "–"} breit />
       <KF label="Materialbedarf kg pro Fertigteil" name="materialbedarf" typ="zahl" rechts wert={w.materialbedarf} setzen={set("materialbedarf")} />
     </div>
-    {/* Reihenfolge mit Ziehen wie in der Kalkulation (seit 1.803.0, Wunsch Patrick 25. November 2026) */}
+    {/* Reihenfolge mit Ziehen wie in der Kalkulation (seit 1.804.0, Wunsch Patrick 25. November 2026) */}
     <div className="gf-tab-huelle erp-ap">
       <div className="erp-ap__zeile erp-ap__kopf" aria-hidden="true">
         <span>Pos</span><span>I/E</span><span>AG-Code</span><span>Beschreibung</span><span>Arbeitsplatz</span><span className="rechts">SZ s</span><span className="rechts">RZ h</span>
