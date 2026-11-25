@@ -17357,3 +17357,25 @@ body.dunkel .druckwahl .knopf.knopf--spedition { background: #e8730c !important;
 
 /* 1.826.0: Endkontrolle oder Zwischenkontrolle im Protokoll wählen */
 .pb-kontrolle { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 10px; }
+
+/* 1.827.0: Prüfmittel-Filter über die ganze Breite und schlanker, gesperrte rot (Patrick 25.11.2026: „sieht so klobig aus“, „grau soll rot sein“). */
+.pm-punkt--gesperrt { background: #d64545; box-shadow: inset 0 0 0 2px #8f1d1d; }
+.pm-filter { max-width: none; padding: 10px 12px; gap: 8px; border-radius: 12px; }
+.pm-suchzeile { display: flex; gap: 10px; align-items: center; }
+.pm-such { flex: 1 1 auto; display: flex; align-items: center; gap: 8px; min-width: 0; height: 40px; padding: 0 14px;
+  border: 1px solid var(--linie, #d6dde5); border-radius: 999px; background: var(--grund, #f4f6f9); cursor: text; }
+.pm-such:focus-within { border-color: var(--marke, #003884); box-shadow: 0 0 0 3px rgba(0, 56, 132, .12); background: var(--flaeche, #fff); }
+.pm-such__lupe { font-size: 20px; line-height: 1; color: var(--gedaempft); }
+.pm-such input { flex: 1; min-width: 0; border: 0 !important; background: transparent !important; outline: none;
+  box-shadow: none !important; font-size: 15px; padding: 0 !important; color: var(--tinte); }
+.pm-suchzeile #pm-neu { flex: 0 0 auto; height: 40px; border-radius: 999px; padding: 0 18px; white-space: nowrap; }
+.pm-fk-reihe { display: flex; flex-wrap: wrap; gap: 8px; }
+.pm-fk { flex-direction: row; align-items: center; gap: 6px; padding: 4px 6px 4px 12px; border-radius: 999px; background: transparent; }
+.pm-fk > span { font-size: 13px; font-weight: 500; text-transform: none; letter-spacing: 0; }
+.pm-fk select { width: auto; font-size: 14px; }
+body.dunkel .pm-such { background: #222a34; border-color: #3a4552; }
+body.dunkel .pm-fk { background: transparent; }
+@media (max-width: 700px) {
+  .pm-fk-reihe { display: flex; }
+  .pm-suchzeile #pm-neu { padding: 0 12px; }
+}

@@ -77,13 +77,13 @@ export default function Pruefmittel({ auffrischen, eingebettet }) {
       <Kurz d={daten} neu={neu} offen={kurz} setOffen={setKurz} vorne={
         <button className="pm-kurz__zahl pm-kurz__zahl--masch" id="pm-maschinen" onClick={() => maschinenFenster(anMaschinen, daten, neu)}>
           <b className="pm-kurz__bild" aria-hidden="true">🏭</b><span>Hallenplan ›</span></button>} />
-      <div className="mat-kopf pm-leiste">
-        <button className="knopf" id="pm-neu" onClick={() => bearbeiten(null, daten, neu)}>+ Prüfmittel</button>
-        <button className="knopf knopf--still" id="pm-einfuegen" onClick={() => einfuegen(neu)}>Aus Gewatec / Excel einfügen</button>
-      </div>
       <div className="pm-filter" id="pm-filter">
-        <input className="mat-sucheingabe" id="pm-suche" type="search" value={suche}
-          placeholder="Suchen: Nr., Bezeichnung, Typ, Hersteller, Mass, Maschine" onChange={(e) => setSuche(e.target.value)} />
+        <div className="pm-suchzeile">
+          <label className="pm-such"><span className="pm-such__lupe" aria-hidden="true">⌕</span>
+            <input id="pm-suche" type="search" value={suche}
+              placeholder="Suchen: Nr., Bezeichnung, Typ, Hersteller, Mass, Maschine" onChange={(e) => setSuche(e.target.value)} /></label>
+          <button className="knopf knopf--haupt" id="pm-neu" onClick={() => bearbeiten(null, daten, neu)}>+ Prüfmittel</button>
+        </div>
         <div className="pm-fk-reihe">
           <label className={"pm-fk" + (typ ? " pm-fk--an" : "")}><span>Typ</span>
             <select id="pm-f-typ" value={typ} onChange={(e) => setTyp(e.target.value)}>
@@ -102,8 +102,7 @@ export default function Pruefmittel({ auffrischen, eingebettet }) {
         <span className="klein pm-filter__zahl">{zahlText(liste.length)} {gefiltert ? "gefunden" : "Prüfmittel"}</span>
       </div>
       {!daten.liste.length
-        ? <div className="karte karte--hinweis"><p>Noch keine Prüfmittel erfasst. Mit „+ Prüfmittel“ einzeln oder mit
-            „Aus Gewatec / Excel einfügen“ viele auf einmal.</p></div>
+        ? <div className="karte karte--hinweis"><p>Noch keine Prüfmittel erfasst. Mit „+ Prüfmittel“ eines erfassen.</p></div>
         : !liste.length ? <div className="karte karte--hinweis"><p>Nichts gefunden.</p></div>
         : <Liste liste={mehr ? liste : liste.slice(0, ZEIGEN)} d={daten} neu={neu} sort={sort} ab={ab} sortieren={sortieren} />}
       {!mehr && liste.length > ZEIGEN && <div className="pm-mehr"><button className="knopf" id="pm-mehr" onClick={() => setMehr(true)}>
@@ -125,7 +124,8 @@ function zustandVon(p) {
 // Immer zuerst die gesperrten, dann die gelben (bald fällig), dann alle anderen in der
 // gewählten Sortierung (Patrick 25. November 2026: „alle, welche gesperrt sind, ganz nach
 // oben, dann alle, die gelb sind, dann die restlichen“)
-const gruppe = (p) => { const z = zustandVon(p); return z === "gesperrt" ? 0 : z === "bald" ? 1 : 2; };
+// Seit 1.827.0 sind gesperrte rot wie fällige und stehen mit ihnen zuoberst (Patrick: „grau soll rot sein“).
+const gruppe = (p) => { const z = zustandVon(p); return z === "gesperrt" || z === "faellig" ? 0 : z === "bald" ? 1 : 2; };
 const ZUSTAND_RANG = { faellig: 0, gesperrt: 1, bald: 2, ok: 3, weg: 4 };
 const vergleich = (x, y) => {
   if (x == null || x === "") return y == null || y === "" ? 0 : 1;
@@ -151,7 +151,8 @@ function StatusPunkt({ p }) {
 
 // ---------- Übersicht: nur Prüfung fällig und Rückgabekiste ----------
 
-export const fuerPruefung = (p) => p.status === "aktiv" && p.ort_art !== "extern" && istFaellig(p);
+// Gesperrte müssen auch zur Prüfung raus (1.827.0, Patrick 25. November 2026: „die Null kann ja nicht sein“)
+export const fuerPruefung = (p) => p.ort_art !== "extern" && (p.status === "gesperrt" || (p.status === "aktiv" && istFaellig(p)));
 
 function Kurz({ d, neu, offen, setOffen, vorne }) {
   const raus = d.liste.filter(fuerPruefung);
