@@ -73,24 +73,30 @@ export default function Pruefmittel({ auffrischen, eingebettet }) {
   return (
     <>
       {!eingebettet && <h1 className="seitentitel">Prüfmittel</h1>}
-      <Kurz d={daten} neu={neu} offen={kurz} setOffen={setKurz} />
+      <Kurz d={daten} neu={neu} offen={kurz} setOffen={setKurz} vorne={
+        <button className="pm-kurz__zahl pm-kurz__zahl--masch" id="pm-maschinen" onClick={() => maschinenFenster(anMaschinen, daten, neu)}>
+          <b>{anMaschinen.length}</b><span>An Maschinen · Hallenplan ›</span></button>} />
       <div className="mat-kopf pm-leiste">
-        <button className="knopf knopf--haupt" id="pm-maschinen" onClick={() => maschinenFenster(anMaschinen, daten, neu)}>
-          ⚙️ An Maschinen ({anMaschinen.length})</button>
         <button className="knopf" id="pm-neu" onClick={() => bearbeiten(null, daten, neu)}>+ Prüfmittel</button>
         <button className="knopf knopf--still" id="pm-einfuegen" onClick={() => einfuegen(neu)}>Aus Gewatec / Excel einfügen</button>
       </div>
       <div className="pm-filter" id="pm-filter">
         <input className="mat-sucheingabe" id="pm-suche" type="search" value={suche}
           placeholder="Suchen: Nr., Bezeichnung, Typ, Hersteller, Mass, Maschine" onChange={(e) => setSuche(e.target.value)} />
-        <select id="pm-f-typ" value={typ} onChange={(e) => setTyp(e.target.value)}>
-          <option value="">Alle Typen</option>{typen.map((t) => <option key={t} value={t}>{t}</option>)}</select>
-        <select id="pm-f-status" value={zustand} onChange={(e) => setZustand(e.target.value)}>
-          <option value="">Alle Status</option>{ZUSTAENDE.map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select>
-        <select id="pm-f-ort" value={ort} onChange={(e) => setOrt(e.target.value)}>
-          <option value="">Alle Lagerorte</option>{ORTE.map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select>
-        <select id="pm-f-sort" value={sort + (ab ? "-" : "")} onChange={(e) => { const v = e.target.value; setSort(v.replace(/-$/, "")); setAb(v.endsWith("-")); }}>
-          {SPALTEN.map(([k, t]) => [<option key={k} value={k}>Sortieren: {t} ↑</option>, <option key={k + "-"} value={k + "-"}>Sortieren: {t} ↓</option>])}</select>
+        <div className="pm-fk-reihe">
+          <label className={"pm-fk" + (typ ? " pm-fk--an" : "")}><span>Typ</span>
+            <select id="pm-f-typ" value={typ} onChange={(e) => setTyp(e.target.value)}>
+              <option value="">Alle</option>{typen.map((t) => <option key={t} value={t}>{t}</option>)}</select></label>
+          <label className={"pm-fk" + (zustand ? " pm-fk--an" : "")}><span>Status</span>
+            <select id="pm-f-status" value={zustand} onChange={(e) => setZustand(e.target.value)}>
+              <option value="">Alle</option>{ZUSTAENDE.map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select></label>
+          <label className={"pm-fk" + (ort ? " pm-fk--an" : "")}><span>Lagerort</span>
+            <select id="pm-f-ort" value={ort} onChange={(e) => setOrt(e.target.value)}>
+              <option value="">Alle</option>{ORTE.map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select></label>
+          <label className="pm-fk"><span>Sortieren</span>
+            <select id="pm-f-sort" value={sort + (ab ? "-" : "")} onChange={(e) => { const v = e.target.value; setSort(v.replace(/-$/, "")); setAb(v.endsWith("-")); }}>
+              {SPALTEN.map(([k, t]) => [<option key={k} value={k}>{t} ↑</option>, <option key={k + "-"} value={k + "-"}>{t} ↓</option>])}</select></label>
+        </div>
         {gefiltert && <button className="knopf knopf--still" id="pm-f-weg" onClick={() => { setSuche(""); setTyp(""); setZustand(""); setOrt(""); }}>Filter weg</button>}
         <span className="klein pm-filter__zahl">{zahlText(liste.length)} {gefiltert ? "gefunden" : "Prüfmittel"}</span>
       </div>
@@ -142,13 +148,14 @@ function StatusPunkt({ p }) {
 
 export const fuerPruefung = (p) => p.status === "aktiv" && p.ort_art !== "extern" && istFaellig(p);
 
-function Kurz({ d, neu, offen, setOffen }) {
+function Kurz({ d, neu, offen, setOffen, vorne }) {
   const raus = d.liste.filter(fuerPruefung);
   const kiste = d.liste.filter((p) => p.ort_art === "rueckgabe");
   const liste = offen === "raus" ? raus : offen === "kiste" ? kiste : [];
   return (
     <div className="pm-kurz">
       <div className="pm-kurz__zahlen">
+        {vorne}
         <button className={"pm-kurz__zahl" + (raus.length ? " pm-kurz__zahl--warn" : "") + (offen === "raus" ? " aktiv" : "")}
           id="pm-kurz-raus" onClick={() => setOffen(offen === "raus" ? "" : "raus")}>
           <b>{raus.length}</b><span>Müssen zur Prüfung raus</span></button>
