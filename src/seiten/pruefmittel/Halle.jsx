@@ -121,50 +121,20 @@ function Raeume() {
               transform={r.senk ? `rotate(-90 ${cx} ${cy})` : undefined}>{r.name}</text>
           </g>);
       })}
-      <Programmierzimmer x={6 + SQ + LG + 22} y={HALLE - 6 - 340} />
+      <Programmierzimmer x={6 + SQ + LG + 22} y={HALLE - 6 - PZ_H - 130} />
     </g>
   );
 }
 
-// Programmierzimmer, Masse aus Patricks Skizze (877 × 762 Punkte) umgerechnet
+// Programmierzimmer: frei in der Halle, deutlich von der Wand weg, ohne
+// Einrichtung (Patrick 25. November 2026: „Ansicht von Zimmer innen weg, das
+// Zimmer muss von der Wand gelöst werden“)
 const PZ_B = 330, PZ_H = 300;   // schmal genug, dass die Macodel 401 daneben frei bleibt
 function Programmierzimmer({ x, y }) {
-  const X = (p) => x + ((p - 45) * PZ_B) / 877, Y = (p) => y + ((p - 25) * PZ_H) / 762;
-  const R = (x1, y1, x2, y2, rest) => <rect x={X(x1)} y={Y(y1)} width={X(x2) - X(x1)} height={Y(y2) - Y(y1)} {...rest} />;
-  const T = (px, py, t, gr = 11, rest = {}) => <text x={X(px)} y={Y(py)} textAnchor="middle" style={{ font: `600 ${gr}px system-ui, sans-serif`, fill: "#26313b" }} {...rest}>{t}</text>;
-  const blau = { fill: "#1b5e86", stroke: "#123f5a", strokeWidth: 1.5 };
-  const weiss = { fill: "#fff", stroke: "#26313b", strokeWidth: 1.2 };
-  const geraet = { fill: "#f3f6f2", stroke: "#4a9a3a", strokeWidth: 1.5 };
   return (
     <g className="hl-pz">
-      <rect x={x} y={y} width={PZ_B} height={PZ_H} fill="#eef1f3" stroke="#6b7076" strokeWidth="8" filter="url(#hl-schatten)" />
-      {/* Türe oben links mit Aufschlag */}
-      <rect x={X(47)} y={y - 5} width={X(177) - X(47)} height="10" fill="#eef1f3" />
-      <path d={`M${X(162)} ${y} v${Y(85) - y}`} stroke="#26313b" strokeWidth="2" />
-      <path d={`M${X(162)} ${Y(85)} A${X(162) - X(50)} ${Y(85) - y} 0 0 1 ${X(50)} ${y}`} fill="none" stroke="#8a939b" strokeWidth="1.2" strokeDasharray="4 3" />
-      {/* Arbeitstisch mit drei PCs und Stühlen */}
-      {R(188, 55, 806, 135, blau)}
-      {[[225, 302, "PC SB"], [408, 483, "PC SW"], [594, 680, "PC MW"]].map(([a, b, t]) => (
-        <g key={t}>{R(a, 76, b, 116, weiss)}{T((a + b) / 2, 104, t, 10)}</g>))}
-      {[275, 454, 633].map((c) => <ellipse key={c} cx={X(c)} cy={Y(183)} rx={X(c + 30) - X(c)} ry={Y(198) - Y(183)} {...blau} />)}
-      {R(810, 63, 907, 159, weiss)}{T(858, 106, "Mess-", 10)}{T(858, 134, "maschine", 10)}
-      {/* Planwand an der linken Wand */}
-      {R(50, 220, 85, 568, geraet)}
-      {T(68, 394, "Planwand", 11, { transform: `rotate(-90 ${X(68)} ${Y(394)})` })}
-      {/* Trennwände */}
-      <g stroke="#26313b" strokeWidth="3" strokeLinecap="round">
-        <line x1={X(45)} y1={Y(580)} x2={X(207)} y2={Y(580)} />
-        <line x1={X(398)} y1={Y(580)} x2={X(686)} y2={Y(577)} />
-        <line x1={X(527)} y1={Y(583)} x2={X(521)} y2={Y(785)} />
-      </g>
-      {R(54, 599, 137, 655, geraet)}{T(96, 634, "3D-Drucker", 9)}
-      {R(56, 682, 139, 737, geraet)}{T(98, 717, "3D-Drucker", 9)}
-      {R(405, 610, 483, 757, geraet)}{T(444, 690, "Keyence", 10, { transform: `rotate(-90 ${X(444)} ${Y(683)})` })}
-      {R(555, 614, 636, 741, blau)}{R(575, 633, 613, 729, weiss)}
-      {T(594, 684, "PC Index", 9, { transform: `rotate(-90 ${X(594)} ${Y(681)})` })}
-      <ellipse cx={X(673)} cy={Y(683)} rx={X(688) - X(673)} ry={Y(718) - Y(683)} {...blau} />
-      {R(787, 671, 903, 760, geraet)}{T(845, 720, "Drucker", 10)}
-      <text x={x + PZ_B / 2} y={Y(400)} textAnchor="middle" className="hl-raum" style={{ fontSize: 22, opacity: 0.55 }}>Programmierzimmer</text>
+      <rect x={x} y={y} width={PZ_B} height={PZ_H} fill="#e4e7ea" stroke="#6b7076" strokeWidth="8" filter="url(#hl-schatten)" />
+      <text x={x + PZ_B / 2} y={y + PZ_H / 2 + 10} textAnchor="middle" className="hl-raum" style={{ fontSize: 28 }}>Programmierzimmer</text>
     </g>
   );
 }
