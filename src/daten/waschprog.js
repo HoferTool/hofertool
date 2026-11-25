@@ -15,7 +15,8 @@ import { pdfjs } from "../teile/PdfAnsicht.jsx";
 // 20. Oktober 2026: in der Schnellvorschau der Planwand). Gemerkt wird
 // darum je Adresse beides, unter neuem Namen; die alte Liste ohne
 // Zeichnungsnummer wird nicht mehr gelesen, jede WBG also einmal neu.
-const SCHLUESSEL = "hofer.wbgfelder";
+// Seit 1.829.0 auch der Index („Ind. B“), darum nochmals neuer Name.
+const SCHLUESSEL = "hofer.wbgfelder2";
 const MAX_GEMERKT = 400;
 const gemerkt = new Map();
 const unterwegs = new Map();
@@ -67,7 +68,21 @@ export function zeichnungNrAusText(stuecke) {
   return null;
 }
 
-// Liest beide Felder einer WBG: { wasch, znr }, je "" wenn nicht da
+// Index der Zeichnung („Z-Nr.: 123 Ind. B“, Wunsch Patrick 25. November
+// 2026). Vorkommen: A, d, 01, A.2, C.1, „Rev. 02“; „--“ heisst kein Index
+// und gibt "-". Nicht gefunden gibt null.
+export function indexAusText(stuecke) {
+  for (const text of zeilenAusText(stuecke)) {
+    const m = /(?:^|\s)Ind(?:ex)?(?:\.|:|\s)\s*:?\s*([^\s]+(?:\s+\d{1,3}\b)?)/.exec(text);
+    if (!m) continue;
+    const w = m[1].trim();
+    if (/^[-–—_.]+$/.test(w)) return "-";
+    return w.slice(0, 12);
+  }
+  return null;
+}
+
+// Liest die Felder einer WBG: { wasch, znr, idx }, je "" wenn nicht da
 export function wbgFelderLesen(adresse) {
   if (!adresse) return Promise.resolve(null);
   if (gemerkt.has(adresse)) return Promise.resolve(gemerkt.get(adresse));
@@ -85,7 +100,8 @@ export function wbgFelderLesen(adresse) {
       // Nicht gefunden (etwa eine eingescannte WBG ohne Text) heisst
       // einfach: nichts anzeigen. Auch das wird gemerkt.
       const wert = { wasch: waschprogAusText(inhalt.items) || "",
-        znr: zeichnungNrAusText(inhalt.items) || "" };
+        znr: zeichnungNrAusText(inhalt.items) || "",
+        idx: indexAusText(inhalt.items) || "" };
       merken(adresse, wert);
       return wert;
     } finally { aufgabe.destroy(); }
@@ -95,6 +111,7 @@ export function wbgFelderLesen(adresse) {
 }
 
 export const waschprogLesen = (adresse) => wbgFelderLesen(adresse).then((w) => (w ? w.wasch : null));
+export const indexLesen = (adresse) => wbgFelderLesen(adresse).then((w) => (w ? w.idx : null));
 export const zeichnungNrLesen = (adresse) => wbgFelderLesen(adresse).then((w) => (w ? w.znr : null));
 // Sofort, ohne zu lesen: was schon gemerkt ist, sonst undefined
 export const zeichnungNrGemerkt = (adresse) => (gemerkt.has(adresse) ? gemerkt.get(adresse).znr : undefined);
@@ -110,5 +127,22 @@ export function useWaschprog(adresse) {
     if (adresse && !gemerkt.has(adresse)) waschprogLesen(adresse).then((w) => { if (!weg) setWert(w); });
     return () => { weg = true; };
   }, [adresse]);
+  return wert;
+}
+
+// Für React: Index der WBG. Steht er schon am Auftrag (jobs.wbg_index),
+// gilt der, sonst wird die WBG gelesen. "-" heisst kein Index.
+export function useWbgIndex(adresse, amAuftrag) {
+  const sofort = () => (amAuftrag && amAuftrag !== "?" ? amAuftrag
+    : adresse && gemerkt.has(adresse) ? gemerkt.get(adresse).idx : null);
+  const [wert, setWert] = useState(sofort);
+  useEffect(() => {
+    let weg = false;
+    setWert(sofort());
+    if (!(amAuftrag && amAuftrag !== "?") && adresse && !gemerkt.has(adresse)) {
+      indexLesen(adresse).then((w) => { if (!weg) setWert(w); });
+    }
+    return () => { weg = true; };
+  }, [adresse, amAuftrag]);
   return wert;
 }

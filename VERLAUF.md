@@ -3,9 +3,13 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.835.0 (25. November 2026)
+
+Kiosk in HOFERTIME: je Artikel ein Bild (unter Verwalten „+ Bild“) und eine Beschreibung statt Emoji (Wunsch Patrick). SQL `sql/hofertime-21-kiosk-bild.sql`.
+
 ## 1.830.0 (25. November 2026)
 
-- Kiosk in HOFERTIME: je Artikel ein Bild (unter Verwalten „+ Bild“) und eine Beschreibung statt Emoji (Wunsch Patrick).
+Index aus jeder WBG gelesen und je Auftrag gespeichert (`jobs.wbg_index`), der Index des jüngsten Auftrags kommt in die Stammdaten der HOCO Nr.; sichtbar im Pad, im Auftragsfenster und bei der HOCO Nr. je FA Nr. (Wunsch Patrick: Teile mit anderem Index mitverfolgen).
 
 ## 1.829.0 (25. November 2026)
 

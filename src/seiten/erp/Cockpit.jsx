@@ -37,7 +37,7 @@ function Cockpit({ d, aussen, a, zu }) {
     .filter(({ b }) => b && b.typ === typ && b.status !== "storniert")
     .filter(({ b }) => (!von || (b.datum || "") >= von) && (!bis || (b.datum || "") <= bis))
     .map(({ p, b }) => ({ p, b, ist: erledigt(d, typ, p), soll: zahl(p.menge) }))
-    .filter((x) => mitErledigt || x.ist < x.soll - 1e-9)
+    .filter((x) => mitErledigt || (x.b.status !== "abgeschlossen" && x.ist < x.soll - 1e-9))
     .sort((x, y) => (x.b.datum || "").localeCompare(y.b.datum || ""));
 
   const kopf = <>

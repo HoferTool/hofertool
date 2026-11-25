@@ -56,11 +56,17 @@ export function berichtAusExcel(roh) {
   const kopf = {};
   const teilweise = [];
   let tabStart = null, ende = null, seite = null, seiten = null, indexGesehen = false;
+  // Spalte, in der „Nr.“ steht (bei älteren Blättern nicht immer in der ersten)
+  let o = 1;
   for (const r of zeilenNr) {
-    const a = zelle(r, 1).trim();
-    if (tabStart === null && /^nr\.?$/i.test(a) && /soll/i.test(zelle(r, 2))) { tabStart = r; continue; }
+    const a = zelle(r, o).trim();
+    if (tabStart === null) {
+      let gefunden = 0;
+      for (let s = 1; s <= 4 && !gefunden; s++) if (/^(nr|pos)\.?$/i.test(zelle(r, s).trim()) && /soll|mass|merkmal/i.test(zelle(r, s + 1))) gefunden = s;
+      if (gefunden) { tabStart = r; o = gefunden; continue; }
+    }
     // Ende der Tabelle: „Prüf-Entscheid“, bei älteren Blättern „Freigabe Maschine …“, „Datum / Visum“ oder „Bemerkungen“
-    if (tabStart !== null && (/^prüf\s*-?\s*entscheid|^bemerkung/i.test(a) || /^(freigabe\s+maschine|datum\s*\/\s*visum)/i.test(zelle(r, 2).trim()))) ende = ende || r;
+    if (tabStart !== null && (/^prüf\s*-?\s*entscheid|^bemerkung/i.test(a) || /^(freigabe\s+maschine|datum\s*\/\s*visum)/i.test(zelle(r, o + 1).trim()))) ende = ende || r;
     else if (/^prüf\s*-?\s*entscheid/i.test(a)) ende = ende || r;
     for (let s = 1; s <= 14; s++) {
       const t = zelle(r, s).trim();
@@ -91,21 +97,25 @@ export function berichtAusExcel(roh) {
       }
     }
   }
-  if (tabStart === null) throw new Error("Kein Prüfbericht: Zeile „Nr. / Soll“ fehlt");
+  // Ohne Tabelle trotzdem den Kopf behalten, damit die Vorlage so weit wie möglich gefüllt ist
+  if (tabStart === null) {
+    if (!Object.keys(kopf).length) throw new Error("Kein Prüfbericht: Zeile „Nr. / Soll“ fehlt");
+    return { kopf, zeilen: [], seite, seiten, teilweise: ["Tabelle mit „Nr. / Soll“ nicht gefunden, Masse von Hand eintragen"] };
+  }
   // Spalten aus der Kopfzeile der Tabelle
   let istSp = [], pmSp = 0;
-  for (let s = 3; s <= 14; s++) {
+  for (let s = o + 2; s <= 14 + o - 1; s++) {
     const t = zelle(tabStart, s);
     if (/^ist/i.test(t.trim())) istSp.push(s);
     else if (!pmSp && /bemerk|prüfm|pruefm|mittel/i.test(t)) pmSp = s;
   }
-  if (!istSp.length) istSp = [3, 4, 5, 6, 7];
+  if (!istSp.length) istSp = [o + 2, o + 3, o + 4, o + 5, o + 6];
   if (!pmSp) pmSp = Math.max(...istSp) + 1;
   const zeilen = [];
   let ohneSoll = 0;
   for (const r of zeilenNr) {
     if (r <= tabStart || (ende && r >= ende)) continue;
-    const nr = zelle(r, 1).trim(), soll = zelle(r, 2).trim(), pm = zelle(r, pmSp).trim();
+    const nr = zelle(r, o).trim(), soll = zelle(r, o + 1).trim(), pm = zelle(r, pmSp).trim();
     const ist = istSp.map((s) => zelle(r, s));
     if (!nr && !soll && !pm) continue;
     if (!nr && soll && !pm && ist.every((x) => !x)) { zeilen.push({ abschnitt: soll }); continue; }

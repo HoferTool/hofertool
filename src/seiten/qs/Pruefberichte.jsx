@@ -38,7 +38,9 @@ const fehlerText = (f) => fehltTabelle(f)
 const heute = () => alt.isoDatum(new Date());
 const datumText = (d) => (d ? String(d).slice(0, 10).split("-").reverse().join(".") : "");
 const zeitText = (d) => { if (!d) return ""; const x = new Date(d); return datumText(alt.isoDatum(x)) + " " + String(x.getHours()).padStart(2, "0") + ":" + String(x.getMinutes()).padStart(2, "0"); };
-const darf = () => alt.darfSchreiben() && !alt.istExtern();
+// Ausfüllen, Freigabe und Abschliessen darf jeder ausser Externen und Dienst
+// (Wunsch Patrick 25. November 2026: „dafür brauchts keine Rechte, jeder darf das ausfüllen und Freigabe erteilen“)
+const darf = () => !alt.istExtern() && alt.meineRolle() !== "dienst";
 
 const ENTSCHEIDE = [["freigabe", "Freigabe"], ["nacharbeit", "Nacharbeit / Sortieren"], ["neu", "Neuanfertigung"]];
 const entscheidText = (e) => (ENTSCHEIDE.find((x) => x[0] === e) || [])[1] || "";
@@ -214,11 +216,11 @@ export default function Pruefberichte() {
   }
   if (pbZustand.vorlage) return <VorlageLeer key={pbZustand.vorlage.hoco + "|" + pbZustand.vorlage.idx} v={pbZustand.vorlage}
     zurueck={() => { pbZustand.vorlage = null; neuZeichnen(); }} />;
-  return <Uebersicht daten={daten} neu={neu} oeffnen={oeffnen} />;
+  return <Uebersicht daten={daten} neu={neu} oeffnen={oeffnen} zeichnen={neuZeichnen} />;
 }
 
 // ---------- Übersicht: was ansteht und die zuletzt bearbeiteten ----------
-function Uebersicht({ daten, neu, oeffnen }) {
+function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
   const [suche, setSuche] = useState(pbZustand.suche);
   const [legt, setLegt] = useState(false);
   const todo = useMemo(() => anstehend(daten.jobs, daten.stamm, daten.protokolle), [daten]);
@@ -262,7 +264,7 @@ function Uebersicht({ daten, neu, oeffnen }) {
     .sort((a, b) => String(b.zeit).localeCompare(String(a.zeit)) || String(a.hoco).localeCompare(String(b.hoco)));
   const letzteZeigen = suche ? letzte.slice(0, 200) : letzte.slice(0, 30);
   // Das Excel selbst zeigt die App nie: daraus wird eine leere Vorlage (seit 1.823.0)
-  const vorlageAnsehen = (x) => { pbZustand.vorlage = { hoco: x.hoco, idx: x.idx, dateien: x.dateien }; neuZeichnen(); };
+  const vorlageAnsehen = (x) => { pbZustand.vorlage = { hoco: x.hoco, idx: x.idx, dateien: x.dateien }; zeichnen(); };
 
   const SPALTEN = [
     ["erstteil", "Erstteilprüfung", "Aufträge mit FA Nr. in Rüsten ohne freigegebene Erstteilprüfung"],
@@ -372,23 +374,54 @@ function KopfRaster({ kopf, w, hoco }) {
 // Bericht; was sich nicht lesen liess, steht mit ⚠ darüber. ----------
 function VorlageLeer({ v, zurueck }) {
   const [st, setSt] = useState({ laedt: true });
+  const [stamm, setStamm] = useState(undefined);
+  const [speichert, setSpeichert] = useState(false);
   useEffect(() => {
     let weg = false;
     vorlageLaden(v.dateien).then((x) => { if (!weg) setSt({ v: x }); }, (f) => { if (!weg) setSt({ fehler: fehlerText(f) }); });
+    stammLaden(v.hoco).then((x) => { if (!weg) setStamm(x); }, () => { if (!weg) setStamm(null); });
     return () => { weg = true; };
   }, [v]);
   const vor = st.v;
   const teilweise = (vor && vor.teilweise) || [];
+  const hatMasse = !!(stamm && (stamm.zeilen || []).length);
+  // „Ist okay so“: was gelesen wurde, kommt als Masse in die Stammdaten der HOCO Nr.
+  // Danach gilt nur noch der Stamm (Protokolle, Endkontrolle), das Excel nicht mehr.
+  const okay = async () => {
+    if (!vor || speichert) return;
+    if (hatMasse) {
+      const ok = await alt.nachfragen({ titel: "Masse ersetzen?", text: "Für " + v.hoco + " stehen schon " + stamm.zeilen.length + " Masse in den Stammdaten. Mit „Ist okay so“ werden sie durch diese Vorlage ersetzt.", bestaetigen: "Ersetzen" });
+      if (!ok) return;
+    }
+    setSpeichert(true);
+    try {
+      const kopf = { ...((stamm && stamm.kopf) || {}), ...(vor.kopf || {}) };
+      if (!kopf.index && v.idx) kopf.index = v.idx;
+      const arten = stamm && (stamm.arten || []).length ? stamm.arten : ["erstteil", "endkontrolle"];
+      await stammSpeichern(v.hoco, { arten, aql: stamm ? stamm.aql ?? null : null, niveau: stamm ? stamm.niveau || null : null,
+        zeilen: (vor.zeilen || []).map((z) => ({ ...z })), kopf });
+      setStamm(await stammLaden(v.hoco).catch(() => null));
+      alt.meldung("Vorlage übernommen: " + (vor.zeilen || []).filter((z) => z.soll).length + " Masse in den Stammdaten von " + v.hoco + ".", "gut");
+    } catch (f) { alt.meldung(fehlerText(f), "fehler"); }
+    setSpeichert(false);
+  };
   return (
     <div className="pb pb-blattseite" data-pbvorlage={v.hoco}>
       <div className="pb-kopfzeile pb-werkzeug">
         <button type="button" className="knopf knopf--klein" onClick={zurueck}>← Prüfberichte</button>
         <span className="pst-platz" />
-        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(v.hoco)}>Stammdaten {v.hoco}</button>
+        {vor && darf() ? (
+          <button type="button" className="knopf knopf--klein knopf--haupt" id="pb-vorlage-okay" disabled={speichert} onClick={okay}>
+            {speichert ? "Wird gespeichert …" : "✓ Ist okay so"}</button>
+        ) : null}
+        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(v.hoco)}>{hatMasse ? "Masse ändern" : "Stammdaten " + v.hoco}</button>
       </div>
       {st.laedt ? <p className="klein">Vorlage wird gelesen …</p> : null}
       {st.fehler ? <p className="pb-rot" id="pb-vorlage-fehler">⚠ Datei konnte nicht gelesen werden: {st.fehler}</p> : null}
-      {teilweise.length ? <p className="pb-rot" id="pb-vorlage-teilweise">⚠ Datei konnte zum Teil nicht gelesen werden: {teilweise.join("; ")}</p> : null}
+      {teilweise.length ? <p className="pb-rot" id="pb-vorlage-teilweise">⚠ Datei konnte zum Teil nicht gelesen werden: {teilweise.join("; ")}. Bitte durchschauen und fehlende Masse unter „Stammdaten“ ergänzen.</p> : null}
+      {vor ? (hatMasse
+        ? <p className="klein" id="pb-vorlage-stand">✓ In den Stammdaten stehen {stamm.zeilen.length} Zeilen{stamm.geaendert_am ? " (Stand " + zeitText(stamm.geaendert_am) + ")" : ""}. Protokolle nehmen die Masse von dort.</p>
+        : <p className="klein" id="pb-vorlage-stand">Durchschauen, ob alles stimmt, dann „✓ Ist okay so“. Danach kommen die Masse in die Stammdaten, und Erstteilprüfung und Endkontrolle nehmen sie von dort.</p>) : null}
       {vor ? (
         <div className="pb-blatt hell-bleibt" id="pb-blatt">
           <div className="rkpdf pb-briefkopf" dangerouslySetInnerHTML={{ __html: "<style>" + STIL + "</style>" + briefkopf() }} />
@@ -594,31 +627,43 @@ async function schrankLaden() {
 // Nach erledigter Erstteilprüfung (Freigabe) die Lehren aus dem Schrank auf den Auftrag ausbuchen
 // (Wunsch Patrick 24. November 2026): sie zählen ab „läuft“ Einsatztage und
 // kommen bei „fertig“ in die Rückgabekiste (Auslöser in sql/pruefmittel-rueckgabe.sql).
-// Nur Admins dürfen Prüfmittel ändern; sonst bleibt es still.
+// Gebucht über die Funktionen aus sql/pruefmittel-ausbuchen-alle.sql, damit es für alle
+// geht, die das Protokoll abschliessen dürfen; ohne sie (alter Stand) nur Admins direkt.
 async function ausbuchen(w, hoco) {
   try {
-    if (!w.job_id || !alt.istAdmin()) return;
+    if (!w.job_id) return;
     const { lehren } = lehrenAus({ zeilen: masse(w.kopf.zeilen) });
     if (!lehren.length) return;
-    const [{ data: pm }, { data: job }] = await Promise.all([
-      schrankLaden(),
-      alt.db.from("jobs").select("id, machine_id, plan_status").eq("id", w.job_id).maybeSingle(),
-    ]);
-    if (!pm || !job || !job.machine_id) return;
+    let { data: pm, error: fs } = await alt.db.rpc("pruefmittel_schrank_lesen");
+    const ohneRpc = !!fs;
+    if (ohneRpc) {
+      if (!alt.istAdmin()) return;
+      pm = (await schrankLaden()).data;
+    }
+    if (!pm || !pm.length) return;
     const ids = new Set();
     lehren.forEach((l) => { const x = pruefmittelFuer(l, pm.filter((p) => !ids.has(p.id)), hoco)[0]; if (x) ids.add(x.id); });
     if (!ids.size) return;
     const liste = [...ids];
     const vorher = [];
-    for (const id of liste) vorher.push(...await alt.rueckSichern("pruefmittel", { id }));
-    const neu = { ort_art: "maschine", machine_id: job.machine_id, job_id: job.id };
-    // Läuft der Auftrag schon, zählen die Tage ab jetzt (sonst ab „läuft“ über den Auslöser)
-    if (job.plan_status === "laeuft") neu.zaehlt_seit = new Date().toISOString();
-    const { error } = await alt.db.from("pruefmittel").update(neu)
-      .in("id", liste);
-    if (error) return;
-    alt.merkeSchritt(liste.length + " Prüfmittel ausgebucht", alt.rueckRein("pruefmittel", vorher));
-    alt.meldung(liste.length + " Prüfmittel auf den Auftrag ausgebucht.", "gut");
+    if (alt.istAdmin()) for (const id of liste) vorher.push(...await alt.rueckSichern("pruefmittel", { id }));
+    let n = 0;
+    if (!ohneRpc) {
+      const { data, error } = await alt.db.rpc("pruefmittel_ausbuchen", { p_job: w.job_id, p_ids: liste });
+      if (error) return;
+      n = Number(data) || 0;
+    } else {
+      const { data: job } = await alt.db.from("jobs").select("id, machine_id, plan_status").eq("id", w.job_id).maybeSingle();
+      if (!job || !job.machine_id) return;
+      const neu = { ort_art: "maschine", machine_id: job.machine_id, job_id: job.id };
+      if (job.plan_status === "laeuft") neu.zaehlt_seit = new Date().toISOString();
+      const { error } = await alt.db.from("pruefmittel").update(neu).in("id", liste);
+      if (error) return;
+      n = liste.length;
+    }
+    if (!n) return;
+    if (vorher.length) alt.merkeSchritt(n + " Prüfmittel ausgebucht", alt.rueckRein("pruefmittel", vorher));
+    alt.meldung(n + " Prüfmittel auf den Auftrag ausgebucht.", "gut");
   } catch (e) { /* still: ohne Prüfmittel geht es weiter */ }
 }
 

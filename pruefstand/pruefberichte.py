@@ -30,6 +30,10 @@ with sync_playwright() as p:
     pg.evaluate("""s => { TEST.daten.pruef_stamm = [s]; TEST.daten.pruefbericht_dateien = []; TEST.daten.pruefprotokolle = [];
         TEST.daten.pruefmittel = [{ id: 'pmx', nr: 'PM-9', bezeichnung: 'Grenzlehrdorn', mass: '5.45 / 5.55', ort_art: 'schrank', status: 'aktiv' }];
         const m = (TEST.daten.machines || [])[0];
+        // Nachbau der Funktionen aus sql/pruefmittel-ausbuchen-alle.sql
+        TEST.rpc.pruefmittel_schrank_lesen = () => TEST.daten.pruefmittel.filter(p => p.ort_art === 'schrank');
+        TEST.rpc.pruefmittel_ausbuchen = (a) => { const j = TEST.daten.jobs.find(x => x.id === a.p_job); let n = 0;
+          TEST.daten.pruefmittel.forEach(p => { if (a.p_ids.includes(p.id) && p.ort_art === 'schrank') { p.ort_art = 'maschine'; p.machine_id = j.machine_id; p.job_id = j.id; n++; } }); return n; };
         TEST.daten.jobs.push({ id: 'jpb1', job_number: '99999-0001', fa_nr: '2026000111', plan_status: 'ruesten', planned_from: '2026-11-20', target_quantity: 800, machine_id: m && m.id, material_bez: 'X10CrNiS18-9 rd 011 mm h8', material_dm: 11 },
                              { id: 'jpb2', job_number: '99999-0001', fa_nr: '2025000999', plan_status: 'fertig', planned_from: '2026-11-01', ended_at: new Date(Date.now() - 3*86400000).toISOString(), target_quantity: 500 }); }""", STAMM)
     pg.evaluate("location.hash='#/qs'"); pg.wait_for_timeout(800)

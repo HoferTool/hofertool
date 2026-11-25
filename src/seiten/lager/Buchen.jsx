@@ -47,7 +47,7 @@ function Buchen({ richtung, daten, bestand, vorgabe, zu, neu }) {
     const grund = vorgabe.grund || (ein ? "produktion" : "extern_raus");
     const linie = vorgabe.linie || (linien[0] && linien[0].schluessel + "@" + linien[0].hoco) || "";
     const st = {
-      grund, job: "", hoco: vorgabe.hoco || "", index_nr: vorgabe.hoco ? (daten.index.get(vorgabe.hoco) || "") : "",
+      grund, fa: "", job: "", hoco: vorgabe.hoco || "", index_nr: vorgabe.hoco ? (daten.index.get(vorgabe.hoco) || "") : "",
       art: "fertig", ort: "", menge: "", notiz: "", bezug: vorgabe.bezug || "", ext: "", zurueck_bis: "", rest_erledigt: false, linie,
     };
     return vorbereiten(st, grund);
@@ -85,10 +85,7 @@ function Buchen({ richtung, daten, bestand, vorgabe, zu, neu }) {
   const setze = (feld, wert) => setW((s) => {
     let n = { ...s, [feld]: wert };
     if (feld === "grund" || feld === "bezug" || feld === "linie") n = vorbereiten(n, n.grund);
-    if (feld === "job") {
-      const j = daten.auftraege.find((a) => a.id === wert);
-      if (j) { n.hoco = j.job_number; n.index_nr = daten.index.get(j.job_number) || ""; n.art = artFuerStufe(daten, j.job_number, 0); }
-    }
+    if (feld === "fa") n = faAnwenden(n, wert, null);
     if (feld === "hoco" && n.grund !== "extern_zurueck") {
       const h = wert.trim();
       if (daten.index.has(h)) n.index_nr = daten.index.get(h) || "";
@@ -101,10 +98,64 @@ function Buchen({ richtung, daten, bestand, vorgabe, zu, neu }) {
     return n;
   });
 
+  // FA Nr. auflösen (seit 1.802.0, Wunsch Patrick 25. November 2026: „man soll
+  // eingeben können und wenns den FA nicht gibt soll er dann für Lager erstellt
+  // werden … Index soll es übernehmen von Auftrag und auch hier merken"):
+  // zuerst ein Auftrag der Planwand mit dieser FA, sonst frühere Lagerbuchungen
+  // derselben FA (Lager-FA, meist aus der Zeit vor dem HoferTool), sonst neu.
+  // Der Index kommt aus der letzten Lagerbuchung dieser FA, sonst aus den
+  // Stammdaten der HOCO Nr.; jede Buchung merkt ihn so für das nächste Mal.
+  function faNorm(t) { return String(t || "").replace(/\s+/g, "").toUpperCase(); }
+  function frueherFa(fa) {
+    const f = faNorm(fa);
+    if (!f) return null;
+    return [...(daten.buchungen || [])].filter((b) => faNorm(b.fa_nr) === f)
+      .sort((a, b) => String(b.erstellt_am || "").localeCompare(String(a.erstellt_am || "")))[0] || null;
+  }
+  function faAnwenden(n, text, auftrag) {
+    n.fa = text;
+    const f = faNorm(text);
+    const j = auftrag || (f ? (daten.auftraege || []).find((a) => faNorm(a.fa_nr) === f) : null);
+    const frueher = frueherFa(text);
+    const warAuftrag = !!n.job;
+    n.job = j ? j.id : "";
+    if (j) {
+      n.hoco = j.job_number;
+      // Index: wie zuletzt bei dieser FA gebucht, sonst aus der WBG des
+      // Auftrags ("-" = ohne Index, "?" = nicht lesbar), sonst Stammdaten
+      const wi = String(j.wbg_index || "").trim();
+      n.index_nr = frueher && frueher.hoco_nr === j.job_number ? (frueher.index_nr || "")
+        : wi && wi !== "?" ? (wi === "-" ? "" : wi) : (daten.index.get(j.job_number) || "");
+      n.art = artFuerStufe(daten, j.job_number, 0);
+    } else if (frueher) {
+      n.hoco = frueher.hoco_nr; n.index_nr = frueher.index_nr || "";
+      n.art = artFuerStufe(daten, frueher.hoco_nr, 0);
+    } else if (warAuftrag) {
+      n.hoco = ""; n.index_nr = "";
+    }
+    return n;
+  }
+  // Ältere Aufträge, die nicht mitgeladen sind, beim Verlassen des Felds holen
+  async function faNachschlagen() {
+    const fa = w.fa.trim();
+    if (!fa || w.job || frueherFa(fa)) return;
+    try {
+      const r = await alt.db.from("planwand").select("id, job_number, fa_nr, maschine, maschine_nr, plan_status, ended_at, stand, started_at").eq("fa_nr", fa).limit(1);
+      const j = r.data && r.data[0];
+      if (!j || !j.job_number) return;
+      const ri = await alt.db.from("jobs").select("wbg_index").eq("id", j.id).limit(1).then((x) => x, () => ({}));
+      if (ri.data && ri.data[0] && ri.data[0].wbg_index) j.wbg_index = ri.data[0].wbg_index;
+      daten.auftraege = (daten.auftraege || []).concat([j]);
+      setW((s) => (s.fa.trim() === fa ? faAnwenden({ ...s }, s.fa, j) : s));
+    } catch (e) { /* ohne Netz bleibt es ein Lager-FA */ }
+  }
+
   const linie = ein ? null : linieVon(w.linie);
+  const faJob = w.job ? (daten.auftraege || []).find((a) => a.id === w.job) : null;
+  const faFrueher = !faJob && w.fa.trim() ? frueherFa(w.fa) : null;
   const offen = offeneExtern.find((o) => o.raus.id === w.bezug);
   const stIndex = daten.index.get((w.hoco || "").trim());
-  const hocoAusAuftrag = w.grund === "produktion" && w.job;
+  const hocoAusAuftrag = w.grund === "produktion" && (w.job || faFrueher);
   const auftraege = (daten.auftraege || []).filter((j) => j.ended_at || j.plan_status === "laeuft" || j.plan_status === "ruesten" || j.started_at)
     .sort((a, b) => String(b.ended_at || "9999").localeCompare(String(a.ended_at || "9999"))).slice(0, 150);
   const externListe = [...daten.extern.values()].filter((x) => x.aktiv !== false);
@@ -115,12 +166,13 @@ function Buchen({ richtung, daten, bestand, vorgabe, zu, neu }) {
     let zeile;
     if (ein) {
       const hoco = w.hoco.trim();
-      if (!hoco) { alt.meldung("HOCO Nr. oder Auftrag wird benötigt.", "warn"); return; }
+      if (!hoco) { alt.meldung(w.fa.trim() ? "FA nicht auf der Planwand: bitte die HOCO Nr. eintippen." : "HOCO Nr. oder FA Nr. wird benötigt.", "warn"); return; }
       zeile = { hoco_nr: hoco, menge, index_nr: w.index_nr.trim() || null, art: w.art, grund: w.grund,
         ort: w.ort.trim() || null, notiz: w.notiz.trim() || null, stufe: 0 };
       if (w.grund === "produktion") {
         const j = daten.auftraege.find((a) => a.id === w.job);
-        if (j) { zeile.job_id = j.id; zeile.fa_nr = j.fa_nr || null; }
+        zeile.fa_nr = w.fa.trim() || null;
+        if (j) { zeile.job_id = j.id; zeile.fa_nr = j.fa_nr || zeile.fa_nr; }
         zeile.stufe = 0;
       }
       if (w.grund === "extern_zurueck") {
@@ -168,11 +220,15 @@ function Buchen({ richtung, daten, bestand, vorgabe, zu, neu }) {
         </Feld>
 
         {ein && w.grund === "produktion" && (
-          <Feld label="Auftrag von der Planwand" hinweis="Ohne Auftrag die HOCO Nr. unten eintippen.">
-            <select id="lb-job" value={w.job} onChange={(e) => setze("job", e.target.value)}>
-              <option value="">— ohne Auftrag —</option>
-              {auftraege.map((j) => <option key={j.id} value={j.id}>{auftragText(j)}</option>)}
-            </select>
+          <Feld label="FA Nr." hinweis={!w.fa.trim() ? "FA eintippen oder aus der Liste wählen. Ohne FA die HOCO Nr. unten eintippen."
+            : faJob ? "Auftrag: " + auftragText(faJob)
+            : faFrueher ? "Lager-FA, schon gebucht mit " + faFrueher.hoco_nr + (faFrueher.index_nr ? " Index " + faFrueher.index_nr : "")
+            : "FA nicht auf der Planwand: wird für das Lager angelegt. HOCO Nr. und Index unten eintippen."}>
+            <input type="text" id="lb-fa" list="lb-fa-liste" value={w.fa} autoComplete="off" placeholder="z.B. 2026001234"
+              onChange={(e) => setze("fa", e.target.value)} onBlur={faNachschlagen} />
+            <datalist id="lb-fa-liste">
+              {auftraege.filter((j) => j.fa_nr).map((j) => <option key={j.id} value={j.fa_nr}>{auftragText(j)}</option>)}
+            </datalist>
           </Feld>)}
 
         {ein && w.grund === "extern_zurueck" && (
@@ -195,7 +251,8 @@ function Buchen({ richtung, daten, bestand, vorgabe, zu, neu }) {
               <input type="text" id="lb-hoco" value={w.hoco} disabled={!!hocoAusAuftrag} placeholder="z.B. 10007-0589"
                 onChange={(e) => setze("hoco", e.target.value)} />
             </Feld>
-            <Feld label="Index" hinweis={stIndex != null && stIndex !== w.index_nr.trim() ? "Stammdaten: " + (stIndex || "ohne") : null}>
+            <Feld label="Index" hinweis={stIndex != null && stIndex !== w.index_nr.trim() ? "Stammdaten: " + (stIndex || "ohne")
+              + (faFrueher ? " · gemerkt bei dieser FA" : "") : null}>
               <input type="text" id="lb-index" value={w.index_nr} placeholder="ohne" onChange={(e) => setze("index_nr", e.target.value)} />
             </Feld>
           </div>)}
