@@ -354,16 +354,18 @@ function F({ label, wert, setzen, einheit, id, text, mehrzeilig, hinweis, typ, p
 // wie bisher.
 let stammVorrat = null;
 function useErpStamm() {
-  const [st, setSt] = useState(stammVorrat || { partner: [], artikel: [] });
+  const [st, setSt] = useState(stammVorrat || { partner: [], artikel: [], bed: [] });
   useEffect(() => {
     if (stammVorrat) return undefined;
     let weg = false;
     (async () => {
       try {
-        const [p, a] = await Promise.all([
+        const [p, a, b] = await Promise.all([
           alt.db.from("erp_partner").select("id, art, nr, name, aktiv, daten").eq("art", "kunde").limit(5000),
-          alt.db.from("erp_artikel").select("id, art, nr, idx, bezeichnung, zeichnung, kunde_id, aktiv, daten").limit(20000)]);
+          alt.db.from("erp_artikel").select("id, art, nr, idx, bezeichnung, zeichnung, kunde_id, aktiv, daten").limit(20000),
+          alt.db.from("erp_bedingungen").select("id, art, code, text").limit(500)]);
         const neu = {
+          bed: b && !b.error && Array.isArray(b.data) ? b.data : [],
           partner: p && !p.error && Array.isArray(p.data) ? p.data.filter((x) => x.aktiv !== false) : [],
           artikel: a && !a.error && Array.isArray(a.data) ? a.data.filter((x) => x.aktiv !== false) : [] };
         stammVorrat = neu;
@@ -401,6 +403,20 @@ function partnerAdresse(p) {
   return { zusatz: ad.name2 || "", strasse: ad.strasse || "", land: ad.land || "", plz: ad.plz || "", ort: ad.ort || "" };
 }
 
+// Liefer- und Zahlungsbedingung sowie Versand eines Kunden aus den
+// Stammdaten des Test ERP (Wunsch Patrick 25. November 2026: „Liefer-,
+// Zahlungsbedingung und ähnliches kommen über den Kunden-Code“). Leere
+// Angaben im Kunden lassen das Feld der Kalkulation, wie es ist.
+function partnerBedingungen(p, bed) {
+  const d = (p && p.daten) || {};
+  const text = (id) => { const b = (bed || []).find((x) => x.id === id || x.code === id); return b ? b.text : ""; };
+  const aus = {};
+  const lb = text(d.liefer); if (lb) aus.lieferbed = lb;
+  const zb = text(d.zahlung); if (zb) aus.zahlung = zb;
+  if (d.versand && typeof d.versand === "string") aus.versand = d.versand;
+  return aus;
+}
+
 function Kopf({ k, setze, setK, nr, setNr }) {
   const f = (name) => ({ wert: k.kopf[name], setzen: (w) => setze("kopf." + name, w) });
   // Adresse in einzelnen Feldern; ein alter Block `adresse` wird beim ersten
@@ -413,10 +429,19 @@ function Kopf({ k, setze, setK, nr, setNr }) {
   }) });
   const stamm = useErpStamm();
   const kundeSetzen = (p) => setK((x) => {
-    const kopf = { ...x.kopf, kunde: p.name || "", kunde_id: p.id, ...partnerAdresse(p) };
+    const kopf = { ...x.kopf, kunde: p.name || "", kunde_id: p.id, kundencode: p.nr || "", ...partnerAdresse(p) };
     delete kopf.adresse;
-    return { ...x, kopf };
+    return { ...x, kopf, angebot: { ...(x.angebot || {}), ...partnerBedingungen(p, stamm.bed) } };
   });
+  // Kunden-Code: genau eine bekannte Nr. getippt übernimmt den Kunden gleich
+  const codeSetzen = (w) => {
+    setze("kopf.kundencode", w);
+    const t = String(w || "").trim();
+    const p = t.length >= 5 ? stamm.partner.find((x) => String(x.nr) === t) : null;
+    if (p && p.id !== k.kopf.kunde_id) kundeSetzen(p);
+  };
+  const codeWahl = useWahl(stammTreffer(stamm.partner, k.kopf.kundencode, (p) => [p.nr, p.name]).map((p) => ({
+    id: p.id, titel: p.nr + " " + p.name, unter: partnerAdresse(p).ort, p })), (t) => kundeSetzen(t.p));
   const kundeWahl = useWahl(stammTreffer(stamm.partner, k.kopf.kunde, (p) => [p.nr, p.name]).map((p) => ({
     id: p.id, titel: p.name, unter: [p.nr, partnerAdresse(p).ort].filter(Boolean).join(" · "), p })), (t) => kundeSetzen(t.p));
   const hofer = stamm.artikel.filter((x) => x.art === "hofer");
@@ -428,13 +453,17 @@ function Kopf({ k, setze, setK, nr, setNr }) {
     setK((x) => {
       const kopf = { ...x.kopf, artikel: a.nr || "", index: a.idx || "", zeichnung: a.zeichnung || "",
         ident: d.ident || x.kopf.ident || "", bezeichnung: a.bezeichnung || x.kopf.bezeichnung || "", artikel_id: a.id };
-      if (kunde) { Object.assign(kopf, { kunde: kunde.name || "", kunde_id: kunde.id, ...partnerAdresse(kunde) }); delete kopf.adresse; }
+      let angebot = x.angebot;
+      if (kunde) {
+        Object.assign(kopf, { kunde: kunde.name || "", kunde_id: kunde.id, kundencode: kunde.nr || "", ...partnerAdresse(kunde) }); delete kopf.adresse;
+        angebot = { ...(x.angebot || {}), ...partnerBedingungen(kunde, stamm.bed) };
+      }
       let material = x.material;
       if (matBez && !String(x.material.bez || "").trim()) {
         const w = werkstoffGenau(matBez); const t = materialZerlegen(matBez);
         material = { ...x.material, bez: matBez, nr: (w && w.nr) || x.material.nr, d: t && t.d ? String(t.d) : x.material.d };
       }
-      return { ...x, kopf, material };
+      return { ...x, kopf, material, angebot };
     });
   };
   const artikelWahl = useWahl(stammTreffer(hofer, k.kopf.artikel, (a) => [a.nr, a.idx, a.bezeichnung, a.zeichnung, (a.daten || {}).ident])
@@ -470,6 +499,7 @@ function Kopf({ k, setze, setK, nr, setNr }) {
       <section className="karte">
         <h2>Kunde und Artikel</h2>
         <F label="Kalkulation Nr." id="kalk-nr" text wert={nr} setzen={setNr} />
+        <F label="Kunden-Code" id="kalk-kundecode" text platz={stamm.partner.length ? "Kunden-Nr., z. B. 10804" : undefined} wahl={codeWahl} wert={k.kopf.kundencode} setzen={codeSetzen} />
         <F label="Kunde" id="kalk-kunde" text platz={stamm.partner.length ? "Name oder Nr. tippen, Vorschlag wählen" : undefined} wahl={kundeWahl} {...f("kunde")} />
         <F label="Zusatz" id="kalk-adr-zusatz" text platz="Abteilung, z. Hd. …" {...a("zusatz")} />
         <F label="Strasse" id="kalk-adr-strasse" text {...a("strasse")} />
