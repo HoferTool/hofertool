@@ -141,8 +141,8 @@ export function naechstePartnerNr(d, art) {
 // Belege: Jahr und laufende Nr., z.B. 20260099 (seit 1.810.0, Wunsch Patrick
 // 25. November 2026: alle Belegarten im gleichen Format; vorher AU26-0001).
 // Jede Art zählt für sich, eine Bestellung darf dieselbe Nr. haben wie ein
-// Auftrag (unique je typ + nr). Fortlaufend je Typ
-// und Jahr, beim Jahreswechsel beginnt das neue Jahr von selbst wieder vorne.
+// Auftrag (unique je typ + nr). Fortlaufend je Typ über die Jahre, beim
+// Jahreswechsel ändert nur das Jahr vorne (seit 1.820.0).
 // Startwerte (Wunsch Patrick 25. November 2026, für den Wechsel vom alten
 // ERP): app_config.erp_nummern {typ: {jahr: start}}, die nächste Nummer ist
 // nie kleiner als der Startwert und nie kleiner als die höchste + 1.
@@ -156,14 +156,22 @@ export const startWert = (nummern, typ, jahr) => {
   const n = parseInt((nummern || {})[typ]?.[jahr], 10);
   return Number.isFinite(n) && n > 0 ? n : 1;
 };
-// nrn: alle vorhandenen Nummern dieses Kreises (Text)
+// vorhandene: alle vorhandenen Nummern dieses Kreises (Text).
+// Seit 1.820.0 (Wunsch Patrick 25. November 2026: „beim Startwert fürs
+// nächste Jahr soll nur das Jahr ändern, die fortlaufende Nr. geht weiter,
+// wo im letzten Jahr aufgehört wurde“): die laufende Nr. zählt über die
+// Jahre weiter, beim Jahreswechsel wechselt nur das Jahr vorne
+// (20260145 → 20270146). Startwerte früherer Jahre gelten weiter.
 export function naechsteNummer(nummern, typ, vorhandene, jahr = new Date().getFullYear()) {
   const kreis = NUMMERNKREISE.find((k) => k.typ === typ);
-  const vor = kreis.muster(jahr);
-  const hoch = vorhandene.map((n) => String(n || "")).filter((n) => n.startsWith(vor) && /^\d+$/.test(n.slice(vor.length)))
-    .map((n) => parseInt(n.slice(vor.length), 10) || 0);
-  const n = Math.max(hoch.length ? Math.max(...hoch) + 1 : 1, startWert(nummern, typ, jahr));
-  return nummerText(kreis, jahr, n);
+  let hoch = 0;
+  vorhandene.forEach((n) => {
+    const m = /^(20\d\d)(\d+)$/.exec(String(n || ""));
+    if (m && Number(m[1]) <= jahr) hoch = Math.max(hoch, parseInt(m[2], 10) || 0);
+  });
+  let start = 1;
+  Object.keys((nummern || {})[typ] || {}).forEach((j) => { if (Number(j) <= jahr) start = Math.max(start, startWert(nummern, typ, j)); });
+  return nummerText(kreis, jahr, Math.max(hoch + 1, start));
 }
 export function naechsteBelegNr(d, typ) {
   return naechsteNummer(d.nummern, typ, d.belege.filter((b) => b.typ === typ).map((b) => b.nr));

@@ -178,7 +178,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.818.0";
+const APP_VERSION = "1.819.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -306,6 +306,15 @@ function fensterZumachen(el) {
     + " .dialog__knoepfe .knopf--still");
   if (knopf) knopf.click();
   else el.remove();
+}
+
+// Holt die Fensterleiste ein Fenster nach vorne, schliesst Escape danach
+// genau dieses zuerst (src/teile/fensterVerwalter.js)
+function fensterStapelVorne(el) {
+  const i = fensterStapel.indexOf(el);
+  if (i === -1 || i === fensterStapel.length - 1) return;
+  fensterStapel.splice(i, 1);
+  fensterStapel.push(el);
 }
 
 function oberstesFensterSchliessen() {
@@ -11222,7 +11231,7 @@ const neuerLook = () => document.documentElement.classList.contains("neues-menue
 
 // Was die neu gebauten React-Seiten vom alten Programm brauchen
 Object.assign(alt, {
-  LOGO_BRIEF, SIEGEL_BRIEF,
+  LOGO_BRIEF, SIEGEL_BRIEF, fensterStapelVorne,
   camSehen, SYM, neuerLook,
   meineProfilId, meinName: () => (profil ? personName(profil, "") : ""), meineMail: () => (profil && profil.email) || "", parkIstExtern, padParkVerborgen, leerlaufAktiv,
   zeitlimit, meldung, nachfragen, fehlertext, fehlerMerken, dialogFelder, auswahlDialog,
