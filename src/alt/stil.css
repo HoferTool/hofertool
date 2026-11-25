@@ -17085,6 +17085,7 @@ body.dunkel .handymenue__unterpunkt.aktiv, body.dunkel .handymenue__unterpunkt.a
 .pm-halle .hl-gelb { stroke: #f2c200; stroke-width: 6; stroke-dasharray: 26 14; }
 .pm-halle .hl-qs { font: 700 26px system-ui, sans-serif; fill: #3c4650; letter-spacing: .08em; }
 .pm-halle .hl-schrift { font: 600 18px system-ui, sans-serif; fill: #3c4650; }
+.pm-halle .hl-raum { font: 700 34px system-ui, sans-serif; fill: #3c4650; letter-spacing: .02em; }
 .pm-halle .hl-treppe { fill: none; stroke: #7b8189; stroke-width: 3; }
 .pm-halle .hl-maschine { cursor: pointer; outline: none; }
 .pm-halle .hl-maschine:hover, .pm-halle .hl-maschine:focus-visible { filter: brightness(1.06) drop-shadow(0 0 6px rgba(11,92,171,.45)); }

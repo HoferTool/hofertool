@@ -33,7 +33,9 @@ export const LAGE = {
   114: { art: "star", x: LINKS, y: ZEILE(8) }, 117: { art: "star", x: RECHTS, y: ZEILE(8), spiegel: true },
   401: { art: "macodel", x: LINKS, y: ZEILE(8) + 100 },
 };
-const B = 1700, H = 1250;
+// Unter der Halle die Räume, links nach rechts wie auf Patricks Skizze (25. November 2026)
+const B = 1700, HALLE = 1250, H = 1470;
+const RAEUME = ["Schleuderei", "Wäscherei", "Lager", "Programmierzimmer"];
 const GROESSE = { star: [170, 72], index: [130, 200], hanwha: [70, 130], macodel: [270, 120] };
 
 export default function Halle({ maschinen, zahl, faellig, gewaehlt, waehlen }) {
@@ -42,12 +44,13 @@ export default function Halle({ maschinen, zahl, faellig, gewaehlt, waehlen }) {
     <div className="pm-halle">
       <svg viewBox={`0 0 ${B} ${H}`} className="pm-halle__bild" role="img" aria-label="Hallenplan">
         <Vorlagen />
-        <rect x="0" y="0" width={B} height={H} fill="url(#hl-boden)" />
+        <rect x="0" y="0" width={B} height={HALLE} fill="url(#hl-boden)" />
         {/* Gehweg zwischen den Star-Reihen, gelb markiert wie in der Halle */}
-        <rect x="1085" y="10" width="260" height={H - 20} fill="#ebe7de" />
-        <line x1="1085" y1="10" x2="1085" y2={H - 10} className="hl-gelb" />
-        <line x1="1345" y1="10" x2="1345" y2={H - 10} className="hl-gelb" />
-        <rect x="6" y="6" width={B - 12} height={H - 12} fill="none" stroke="#6b7076" strokeWidth="12" />
+        <rect x="1085" y="10" width="260" height={HALLE - 20} fill="#ebe7de" />
+        <line x1="1085" y1="10" x2="1085" y2={HALLE - 10} className="hl-gelb" />
+        <line x1="1345" y1="10" x2="1345" y2={HALLE - 10} className="hl-gelb" />
+        <rect x="6" y="6" width={B - 12} height={HALLE - 12} fill="none" stroke="#6b7076" strokeWidth="12" />
+        <Raeume />
         <Treppe />
         {Object.entries(LAGE).map(([nr, l]) => {
           const m = nachNr.get(nr);
@@ -84,6 +87,26 @@ function Vorlagen() {
         <feDropShadow dx="4" dy="6" stdDeviation="4" floodColor="#000" floodOpacity=".28" />
       </filter>
     </defs>
+  );
+}
+
+function Raeume() {
+  const y = HALLE - 6, h = H - 60 - y, w = (B - 12) / RAEUME.length;
+  return (
+    <g className="hl-raeume">
+      {RAEUME.map((name, i) => {
+        const x = 6 + i * w;
+        return (
+          <g key={name}>
+            <rect x={x} y={y} width={w} height={h} fill="#e4e7ea" stroke="#6b7076" strokeWidth="12" />
+            {/* Türe zur Halle */}
+            <rect x={x + w / 2 - 45} y={y - 7} width="90" height="14" fill="#e4e7ea" />
+            <path d={`M${x + w / 2 - 45} ${y + 6} a90 90 0 0 1 90 0`} fill="none" stroke="#9aa1a8" strokeWidth="2" strokeDasharray="6 5" />
+            <text x={x + w / 2} y={y + h / 2 + 14} textAnchor="middle" className="hl-raum">{name}</text>
+          </g>
+        );
+      })}
+    </g>
   );
 }
 
