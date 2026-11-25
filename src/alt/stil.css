@@ -17273,3 +17273,7 @@ body.dunkel .lp-summen > div { background: #1c2430; border-color: #34404f; }
 .erp-pos { transition: box-shadow .4s, background-color .4s; }
 .erp-pos.erp-pos--fokus { box-shadow: 0 0 0 3px #f59e0b; background-color: #fff7e6; }
 body.dunkel .erp-pos.erp-pos--fokus { background-color: #3a2c10; }
+
+/* 1.818.0: „Artikel-Nr.“ in der Position öffnet den Artikel */
+.erp-artnr-link { color: #1d5fbf; text-decoration: underline; cursor: pointer; }
+body.dunkel .erp-artnr-link { color: #8fbaff !important; }

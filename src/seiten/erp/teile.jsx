@@ -3,7 +3,7 @@ import { useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { briefBlatt } from "../../teile/briefkopf.js";
-import { adresseText, chf, datumText, mengeText, terminText, belegSumme, BELEGTYP, artikelText, artikelIdxText, posIdx, posPe, posBetrag, peKurz,
+import { adresseText, chf, datumText, mengeText, terminText, belegSumme, BELEGTYP, artikelText, artikelIdxText, posIdx, posPe, posBetrag, peKurz, kwText, folgePositionen,
   HOFER_LAGERARTEN, istHoferLager, lagerFuer, lagerName, lagerplatzId, bestand } from "../../daten/erp.js";
 
 // Felder eines Arbeitsgangs (Arbeitsplan beim Artikel und Fenster Arbeitsplan)
@@ -213,5 +213,202 @@ export function belegDrucken(d, b) {
   const w = window.open("", "_blank");
   if (!w) { alt.meldung("Das Fenster wurde vom Browser blockiert.", "warn"); return; }
   w.document.write(html);
+  w.document.close();
+}
+
+// ---------- Auftragsbestätigung (seit 1.818.0) ----------
+// Wunsch Patrick 25. November 2026: „aus dem Auftrag direkt die
+// Auftragsbestätigung drucken“, aufgebaut wie die AB aus dem Gewatec:
+// Kopf mit Bestätigungs-Nr. und Kundenadresse samt Strichcode, je Position
+// Ihre Bestellung, Werkstoff, Zeichnung/Index, Ident-Nr. und Lieferplan.
+const CODE39 = {
+  0: "nnnwwnwnn", 1: "wnnwnnnnw", 2: "nnwwnnnnw", 3: "wnwwnnnnn", 4: "nnnwwnnnw",
+  5: "wnnwwnnnn", 6: "nnwwwnnnn", 7: "nnnwnnwnw", 8: "wnnwnnwnn", 9: "nnwwnnwnn",
+  "-": "nwnnnnwnw", "*": "nwnnwnwnn",
+};
+export function code39Svg(text, hoehe = 34) {
+  const t = String(text || "");
+  if (!t || !/^[0-9-]+$/.test(t)) return "";
+  let x = 0;
+  const balken = [];
+  for (const z of "*" + t + "*") {
+    [...CODE39[z]].forEach((m, i) => {
+      const w = m === "w" ? 2.5 : 1;
+      if (i % 2 === 0) balken.push("<rect x='" + x + "' y='0' width='" + w + "' height='" + hoehe + "'/>");
+      x += w;
+    });
+    x += 1;
+  }
+  return "<svg class='code39' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 " + x + " " + hoehe + "' width='" + (x * 1.1) + "' height='" + hoehe + "' preserveAspectRatio='none'>" + balken.join("") + "</svg>";
+}
+
+export function abDrucken(d, b) {
+  const esc = alt.esc;
+  const p = d.partnerMap.get(b.partner_id) || {};
+  const pd = p.daten || {};
+  const bd = b.daten || {};
+  const an = bd.rechnung_an || { name: p.name, ...(pd.adresse || {}) };
+  const liefer = bd.anschrift || null;
+  const pos = d.posJe.get(b.id) || [];
+  const s = belegSumme(d, b);
+  const bed = (id) => (d.bedingungen.find((x) => x.id === id) || {}).text || "";
+  const name = (alt.meinName && alt.meinName()) || "";
+  const mail = (alt.meineMail && alt.meineMail()) || "admin@hoferco.ch";
+  const tel = String((alt.einstellungWert && (alt.einstellungWert("telefon", "") || alt.einstellungWert("rk_tel", ""))) || "") || "032 677 55 77";
+  const kontakt = (pd.kontakte || [])[0] || {};
+  const z = (l, w) => (w ? "<tr><td class='l'>" + esc(l) + "</td><td>" + esc(w) + "</td></tr>" : "");
+  const zeilen = pos.map((x, i) => {
+    const a = d.artikelMap.get(x.artikel_id);
+    const ad = (a && a.daten) || {};
+    const xd = x.daten || {};
+    const ix = posIdx(d, x);
+    const roh = ad.rohmaterial_id && d.artikelMap.get(ad.rohmaterial_id);
+    const werkstoff = (roh && roh.bezeichnung) || ad.material || "";
+    const wid = (/\b1\.\d{4}\b/.exec(werkstoff) || [])[0] || "";
+    const titel = a ? (a.bezeichnung || artikelIdxText(a, ix)) : (x.text || "");
+    const pe = posPe(x);
+    const abrufe = (xd.abrufe || []).filter((r) => r.termin || r.kw || r.menge);
+    const lp = abrufe.length
+      ? abrufe.map((r) => "<tr><td>" + esc(r.kw ? "KW " + r.kw : (r.termin ? "KW " + kwText(r.termin) : "")) + "</td><td class='r'>"
+        + mengeText(r.menge) + " " + esc(x.einheit || "Stk") + "</td><td>" + esc(r.bemerkung || "") + "</td></tr>").join("")
+      : "<tr><td>" + esc(terminText(x)) + "</td><td class='r'>" + mengeText(x.menge) + " " + esc(x.einheit || "Stk") + "</td><td></td></tr>";
+    return "<tbody class='pos'>"
+      + (bd.ihre_nr ? "<tr class='ihre'><td>" + (i + 1) + ".0</td><td colspan='5'>Ihre Bestellung " + esc(bd.ihre_nr)
+        + (bd.ihre_datum ? " vom " + datumText(bd.ihre_datum) : "") + "</td></tr>" : "")
+      + "<tr class='haupt'><td>" + esc(x.pos) + "</td><td class='r'>" + mengeText(x.menge) + " " + esc(x.einheit || "Stk") + "</td><td><b>" + esc(titel) + "</b></td>"
+      + "<td class='r'>" + chf(x.preis) + "</td><td class='r'>" + esc(pe > 1 ? peKurz(pe) : "1 Stk") + "</td><td class='r'>" + chf(posBetrag(x)) + "</td></tr>"
+      + "<tr><td></td><td></td><td colspan='4'><table class='det'>"
+      + z("Werkstoff", werkstoff) + z("Werkst. ID", wid)
+      + (a && (a.zeichnung || ix) ? z("Zeichnung", (a.zeichnung || "") + (ix ? " / Index: " + ix : "")) : "")
+      + z("Ident-Nr.", ad.kunden_nr || ad.ident || "") + z("Artikel-Code", a ? a.nr : "") + z("Zolltarif-Nr.", ad.zolltarif || "")
+      + (x.text && a ? z("Bemerkung", x.text) : "")
+      + "</table><div class='lpt'>LIEFERPLAN:</div><table class='lp'><thead><tr><th>Termin(e)</th><th class='r'>Menge</th><th>Bemerkung</th></tr></thead><tbody>"
+      + lp + "</tbody></table></td></tr></tbody>";
+  }).join("");
+  const roh = "<!doctype html><html><head><meta charset='utf-8'><title>" + esc("Auftragsbestätigung " + b.nr) + "</title><style>"
+    + "body{font:10pt Arial,sans-serif;margin:0;color:#111}h1{font-size:17pt;margin:0 0 12px;font-weight:700}"
+    + ".kopf{display:flex;justify-content:space-between;gap:10mm;margin-bottom:8mm}.kopf table td{padding:1px 6px 1px 0;vertical-align:top}"
+    + ".l{color:#444;white-space:nowrap;padding-right:8px}.adr{white-space:pre-line;font-size:11pt;margin-bottom:8px}"
+    + ".code39{display:block;margin:4px 0 6px}.cz{font-size:8pt;color:#444}"
+    + "table.ab{width:100%;border-collapse:collapse}table.ab>thead th{border-bottom:1.5px solid #003884;color:#003884;text-align:left;padding:4px;font-size:9pt}"
+    + "table.ab td{padding:2px 4px;vertical-align:top}.r{text-align:right}.pos{border-bottom:1px solid #ccc;page-break-inside:avoid}"
+    + ".ihre td{padding-top:8px;color:#333}.haupt td{padding-top:4px}.det td{padding:0 8px 0 0;font-size:9pt}"
+    + ".lpt{font-weight:700;font-size:9pt;margin-top:6px}.lp{border-collapse:collapse;margin-bottom:8px;font-size:9pt}.lp th{text-align:left;font-weight:400;color:#444;padding:0 14px 0 0;border-bottom:1px solid #ddd}"
+    + ".lp td{padding:0 14px 0 0}.netto{display:flex;justify-content:flex-end;gap:16mm;font-weight:700;margin:6px 4px 10mm;font-size:11pt}"
+    + ".fuss td{padding:2px 10px 2px 0;vertical-align:top}.gruss{margin-top:10mm}.test{color:#b00;font-weight:bold}@media print{.test{display:none}}"
+    + "</style></head><body><!--INHALT-->"
+    + "<p class='test'>TESTVERSION ERP</p>"
+    + "<h1>Auftragsbestätigung</h1>"
+    + "<div class='kopf'><table>"
+    + z("Bestätigungs-Nr.", b.nr) + z("Datum", datumText(b.datum)) + z("Sachbearbeiter", name) + z("Telefon", tel)
+    + z("Telefax", "0041 32 677 55 70") + z("E-Mail", mail)
+    + "</table><div><div class='adr'>" + esc(adresseText(an)) + "</div><table>"
+    + z("Ihr Zeichen", bd.zeichen || kontakt.name || "") + z("Kundennummer", p.nr || "") + z("Telefon", pd.telefon || kontakt.telefon || "")
+    + z("Telefax", pd.fax || "")
+    + "</table>" + code39Svg(b.nr) + code39Svg(p.nr) + "</div></div>"
+    + "<table class='ab'><thead><tr><th>POS</th><th class='r'>MENGE</th><th>Bezeichnung</th><th class='r'>PREIS</th><th class='r'>PRO</th><th class='r'>BETRAG(CHF)</th></tr></thead>"
+    + zeilen + "</table>"
+    + "<div class='netto'><span>Netto-Warenwert in CHF</span><span>" + chf(s.netto) + "</span></div>"
+    + "<table class='fuss'>"
+    + (liefer ? "<tr><td class='l'>Versandanschrift</td><td style='white-space:pre-line'>" + esc(adresseText(liefer)) + "</td></tr>" : "")
+    + z("Lieferbedingung", bed(bd.liefer)) + z("Zahlungsbedingung", bed(bd.zahlung)) + "</table>"
+    + (bd.text ? "<p style='white-space:pre-line'>" + esc(bd.text) + "</p>" : "")
+    + "<div class='gruss'>Mit freundlichen Grüssen<br><br><b>HOFER + CO</b><br>" + esc(name) + "</div>"
+    + "<script>setTimeout(()=>print(),400)</script></body></html>";
+  const w = window.open("", "_blank");
+  if (!w) { alt.meldung("Das Fenster wurde vom Browser blockiert.", "warn"); return; }
+  w.document.write(briefBlatt(roh));
+  w.document.close();
+}
+
+// Lieferschein im Aufbau wie im Gewatec (seit 1.818.0, Patricks Muster
+// vom 25. November 2026): je Position die Auftragsbestätigung, Ihre
+// Bestellung, Werkstoff, Zeichnung, Gesamtmenge und die bis zu diesem
+// Lieferschein gelieferte Menge.
+export function lsDrucken(d, b) {
+  const esc = alt.esc;
+  const p = d.partnerMap.get(b.partner_id) || {};
+  const pd = p.daten || {};
+  const bd = b.daten || {};
+  const an = bd.anschrift || bd.rechnung_an || { name: p.name, ...(pd.adresse || {}) };
+  const pos = d.posJe.get(b.id) || [];
+  const bed = (id) => (d.bedingungen.find((x) => x.id === id) || {}).text || "";
+  const name = (alt.meinName && alt.meinName()) || "";
+  const mail = (alt.meineMail && alt.meineMail()) || "admin@hoferco.ch";
+  const tel = "0041 32 677 55 77";
+  const kontakt = (pd.kontakte || [])[0] || {};
+  const z = (l, w) => (w ? "<tr><td class='l'>" + esc(l) + "</td><td>" + esc(w) + "</td></tr>" : "");
+  const n = (v) => Number(String(v ?? "").replace(",", ".")) || 0;
+  // Bis zu diesem Lieferschein geliefert: frühere Lieferscheine derselben Auftragsposition und dieser
+  const vorher = (lb) => lb.id === b.id || String(lb.datum || "") < String(b.datum || "")
+    || (String(lb.datum || "") === String(b.datum || "") && String(lb.nr || "") <= String(b.nr || ""));
+  let netto = 0;
+  const zeilen = pos.map((x) => {
+    const a = d.artikelMap.get(x.artikel_id);
+    const ad = (a && a.daten) || {};
+    const ix = posIdx(d, x);
+    const roh = ad.rohmaterial_id && d.artikelMap.get(ad.rohmaterial_id);
+    const werkstoff = (roh && roh.bezeichnung) || ad.material || "";
+    const wid = (/\b1\.\d{4}\b/.exec(werkstoff) || [])[0] || "";
+    const titel = a ? (a.bezeichnung || artikelIdxText(a, ix)) : (x.text || "");
+    const ap = x.bezug_id && d.posMap.get(x.bezug_id);
+    const ab = ap && d.belegMap.get(ap.beleg_id);
+    const abd = (ab && ab.daten) || {};
+    const gesamt = ap ? n(ap.menge) : 0;
+    const gel = ap ? folgePositionen(d, ap.id, "lieferschein")
+      .filter((y) => { const lb = d.belegMap.get(y.beleg_id); return lb && lb.status !== "storniert" && vorher(lb); })
+      .reduce((s2, y) => s2 + n(y.menge), 0) : n(x.menge);
+    const kg = ad.gewicht ? n(ad.gewicht) * n(x.menge) : 0;
+    netto += kg;
+    const ein = esc(x.einheit || "Stk");
+    const ihreNr = abd.ihre_nr || bd.ihre_nr;
+    const ihreDat = abd.ihre_datum || bd.ihre_datum;
+    const zeichen = abd.zeichen || bd.zeichen;
+    return "<tbody class='pos'>"
+      + (ab ? "<tr class='ref'><td></td><td colspan='3'>Auftragsbestätigung: " + esc(ab.nr) + " vom " + datumText(ab.datum) + "</td></tr>" : "")
+      + (ihreNr ? "<tr class='ref'><td></td><td colspan='3'>Ihre Bestellung " + esc(ihreNr) + (ihreDat ? " vom " + datumText(ihreDat) : "")
+        + (zeichen ? " &nbsp; Zeichen: " + esc(zeichen) : "") + "</td></tr>" : "")
+      + "<tr class='haupt'><td>" + esc(x.pos) + "</td><td class='r'>" + mengeText(x.menge) + " " + ein + "</td><td><b>" + esc(titel) + "</b></td>"
+      + "<td class='r'>" + (kg ? kg.toFixed(1) : "") + "</td></tr>"
+      + "<tr><td></td><td></td><td colspan='2'><table class='det'>"
+      + z("Werkstoff", werkstoff) + z("Werkst. ID", wid)
+      + (a && (a.zeichnung || ix) ? z("Zeichnung / Index", (a.zeichnung || "") + (ix ? " / " + ix : "")) : "")
+      + z("Ident-Nr.", ad.kunden_nr || ad.ident || "") + z("Artikel-Code", a ? a.nr : "") + z("Zolltarif-Nr.", ad.zolltarif || "")
+      + (x.text && a ? z("Bemerkung", x.text) : "")
+      + (ap ? z("Gesamtmenge", ": " + mengeText(gesamt) + " " + ein) : "")
+      + z("Gelieferte Menge", ": " + mengeText(gel) + " " + ein)
+      + "</table></td></tr></tbody>";
+  }).join("");
+  const brutto = n(bd.gewicht_brutto);
+  const gewicht = (brutto ? brutto.toFixed(1) + " kg brutto" : "") + (brutto && netto ? " / " : "") + (netto ? netto.toFixed(1) + " kg netto" : "");
+  const roh = "<!doctype html><html><head><meta charset='utf-8'><title>" + esc("Lieferschein " + b.nr) + "</title><style>"
+    + "body{font:10pt Arial,sans-serif;margin:0;color:#111}h1{font-size:17pt;margin:0 0 12px;font-weight:700}"
+    + ".kopf{display:flex;justify-content:space-between;gap:10mm;margin-bottom:6mm}.kopf table td{padding:1px 6px 1px 0;vertical-align:top}"
+    + ".l{color:#444;white-space:nowrap;padding-right:8px}.adr{white-space:pre-line;font-size:11pt;margin-bottom:8px}"
+    + ".code39{display:block;margin:4px 0 6px}.intro{margin:0 0 4mm}"
+    + "table.ls{width:100%;border-collapse:collapse}table.ls>thead th{border-bottom:1.5px solid #003884;color:#003884;text-align:left;padding:4px;font-size:9pt}"
+    + "table.ls td{padding:2px 4px;vertical-align:top}.r{text-align:right}.pos{border-bottom:1px dashed #999;page-break-inside:avoid}"
+    + ".ref td{padding-top:6px;color:#333;font-size:9pt}.haupt td{padding-top:4px}.det td{padding:0 8px 0 0;font-size:9pt}.det{margin-bottom:6px}"
+    + ".fuss{margin-top:8mm}.fuss td{padding:2px 10px 2px 0;vertical-align:top}.test{color:#b00;font-weight:bold}@media print{.test{display:none}}"
+    + "</style></head><body><!--INHALT-->"
+    + "<p class='test'>TESTVERSION ERP</p>"
+    + "<h1>Lieferschein</h1>"
+    + "<div class='kopf'><div><table>"
+    + z("Lieferschein-Nr.", b.nr) + z("Datum", datumText(b.datum)) + z("Sachbearbeiter", name) + z("Telefon", tel)
+    + z("Telefax", "0041 32 677 55 70") + z("E-Mail", mail)
+    + "</table>" + code39Svg(b.nr) + "</div><div><div class='adr'>" + esc(adresseText(an)) + "</div><table>"
+    + z("Kundennummer", p.nr || "") + z("Telefon", pd.telefon || kontakt.telefon || "") + z("Telefax", pd.fax || "")
+    + "</table>" + code39Svg(p.nr) + "</div></div>"
+    + "<p class='intro'>Wir senden Ihnen aufgrund der unten aufgeführten Liefer- und Zahlungsbedingungen:</p>"
+    + "<table class='ls'><thead><tr><th>POS</th><th class='r'>MENGE</th><th>BENENNUNG</th><th class='r'>NETTO (kg)</th></tr></thead>"
+    + zeilen + "</table>"
+    + "<table class='fuss'>"
+    + z("Verpackung", bd.verpackung || "") + z("Verpackungskosten", bd.verp_kosten || "") + z("Porto", bd.porto || "")
+    + z("Gesamtgewicht", gewicht) + z("Versandbedingung", bd.versand || "") + z("Lieferbedingung", bed(bd.liefer)) + "</table>"
+    + (bd.text ? "<p style='white-space:pre-line'>" + esc(bd.text) + "</p>" : "")
+    + "<script>setTimeout(()=>print(),400)</script></body></html>";
+  const w = window.open("", "_blank");
+  if (!w) { alt.meldung("Das Fenster wurde vom Browser blockiert.", "warn"); return; }
+  w.document.write(briefBlatt(roh));
   w.document.close();
 }

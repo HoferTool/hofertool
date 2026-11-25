@@ -139,6 +139,9 @@ with sync_playwright() as p:
     pg.locator(".dialog:has([data-erp-lspos]) [data-erp-ja]").click(); pg.wait_for_timeout(1000)
     lf = [x for x in tabelle(pg, "erp_bewegungen") if x["art"] == "lieferung"]
     pruefe(len(lf) == 1 and lf[0]["menge"] == -150 and lf[0]["charge"] == fa[0]["nr"], "Lieferschein bucht 150 aus der FA-Charge: %s" % lf)
+    oben(pg).locator(".erp-folge button").last.click(); pg.wait_for_selector("[data-erp-typ='lieferschein']")
+    with pg.expect_popup() as pop: pg.locator("[data-erp-typ='lieferschein'] [data-erp-drucken]").last.click(timeout=5000)
+    w = pop.value; w.wait_for_load_state(); pruefe("Gelieferte Menge" in w.content(), "Lieferschein druckt wie Gewatec"); w.close()
     pg.locator("[data-erp-beleg] [data-nein]").last.click(); pg.wait_for_timeout(300)
     while pg.locator("[data-erp-beleg]").count(): pg.locator("[data-erp-beleg] [data-nein]").last.click(); pg.wait_for_timeout(200)
 
@@ -283,6 +286,21 @@ with sync_playwright() as p:
     pos = [x for x in tabelle(pg, "erp_positionen") if x["artikel_id"] == a["id"]][-1]
     ab = (pos.get("daten") or {}).get("abrufe") or []
     pruefe([x["menge"] for x in ab] == [4000, 2000], "Lieferplan gespeichert: %s" % ab)
+    # Auftragsbestätigung und Liefern je Position (1.818.0)
+    with pg.expect_popup() as pop: oben(pg).locator("[data-erp-ab-drucken]").click()
+    w = pop.value; w.wait_for_load_state(); pruefe("Auftragsbestätigung" in w.content(), "Auftragsbestätigung druckt"); w.close()
+    oben(pg).locator("[data-erp-zeile]").first.click(); pg.wait_for_selector("[data-erp-pos-ls]")
+    # „Artikel-Nr.“ in der Position öffnet das Artikelfenster
+    n0 = pg.locator(".gf").count()
+    oben(pg).locator("[data-erp-artnr-link]").first.click(); pg.wait_for_timeout(500)
+    pruefe(pg.locator(".gf").count() == n0 + 1, "Artikel-Nr. öffnet den Artikel: %d -> %d" % (n0, pg.locator(".gf").count()))
+    pg.locator(".gf").last.locator(".gf-zu").click(); pg.wait_for_timeout(300)
+    if pg.locator(".dialog-huelle [data-ja]").count(): pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(300)
+    oben(pg).locator("[data-erp-pos-ls]").first.click(); pg.wait_for_selector("[data-erp-lspos]")
+    pruefe(pg.locator("[data-erp-lspos]").count() == 1, "Liefern zeigt nur diese Position: %d" % pg.locator("[data-erp-lspos]").count())
+    pg.locator(".dialog:has([data-erp-lspos]) .knopf--still").click(); pg.wait_for_timeout(300)
+    if oben(pg).locator("[data-nein]").count(): oben(pg).locator("[data-nein]").last.click(); pg.wait_for_timeout(300)
+    if pg.locator(".dialog-huelle [data-ja]").count(): pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(300)
 
     # Nummernkreise: Startwert für den Wechsel vom alten ERP
     import datetime
