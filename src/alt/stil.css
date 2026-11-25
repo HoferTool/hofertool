@@ -17342,3 +17342,14 @@ body.dunkel .druckwahl .knopf.knopf--spedition { background: #e8730c !important;
 /* 1.820.0 Letzte Produktion: eine ruhige Zeile je HOCO Nr. und Index */
 #pb-letzte-liste td { vertical-align: middle; }
 #pb-letzte-liste .pb-letzte-name { overflow-wrap: anywhere; max-width: 420px; }
+
+/* 1.824.0 Stückzahl korrigieren im Auftragsfenster */
+.stk-korr { width: min(520px, calc(100vw - 32px)); max-width: none; }
+.stk-korr__kopf { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.stk-korr__info { margin: 4px 0 10px; }
+.stk-korr__fehler { color: #c62828; }
+.stk-korr__tabelle { width: 100%; border-collapse: collapse; }
+.stk-korr__tabelle th, .stk-korr__tabelle td { padding: 4px 6px; border-bottom: 1px solid rgba(0,0,0,.1); text-align: left; }
+.stk-korr__feld { width: 110px; }
+.stk-korr__knoepfe { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+.stk-korr-huelle { z-index: 1200; }

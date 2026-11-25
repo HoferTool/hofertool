@@ -3,6 +3,11 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.824.0 (25. November 2026)
+
+Im Auftragsfenster Knopf „Stückzahl“: gemeldete Zählerstände eines Auftrags ändern, einzeln löschen oder alles auf 0 zurücksetzen, mit Rückgängig (Patrick: „10500 von 5000 stimmt nicht, wir haben noch gar nicht gestartet“; der Auftrag trug einen alten Zählerstand vom 28.09.2026).
+
+
 ## 1.819.1 (25. November 2026)
 
 Knopf „Spedition WBG“ orange, „Planbüro WBG“ bleibt blau (Wunsch Patrick).
