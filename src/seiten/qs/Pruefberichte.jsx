@@ -214,11 +214,11 @@ export default function Pruefberichte() {
   }
   if (pbZustand.vorlage) return <VorlageLeer key={pbZustand.vorlage.hoco + "|" + pbZustand.vorlage.idx} v={pbZustand.vorlage}
     zurueck={() => { pbZustand.vorlage = null; neuZeichnen(); }} />;
-  return <Uebersicht daten={daten} neu={neu} oeffnen={oeffnen} />;
+  return <Uebersicht daten={daten} neu={neu} oeffnen={oeffnen} zeichnen={neuZeichnen} />;
 }
 
 // ---------- Übersicht: was ansteht und die zuletzt bearbeiteten ----------
-function Uebersicht({ daten, neu, oeffnen }) {
+function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
   const [suche, setSuche] = useState(pbZustand.suche);
   const [legt, setLegt] = useState(false);
   const todo = useMemo(() => anstehend(daten.jobs, daten.stamm, daten.protokolle), [daten]);
@@ -262,7 +262,7 @@ function Uebersicht({ daten, neu, oeffnen }) {
     .sort((a, b) => String(b.zeit).localeCompare(String(a.zeit)) || String(a.hoco).localeCompare(String(b.hoco)));
   const letzteZeigen = suche ? letzte.slice(0, 200) : letzte.slice(0, 30);
   // Das Excel selbst zeigt die App nie: daraus wird eine leere Vorlage (seit 1.823.0)
-  const vorlageAnsehen = (x) => { pbZustand.vorlage = { hoco: x.hoco, idx: x.idx, dateien: x.dateien }; neuZeichnen(); };
+  const vorlageAnsehen = (x) => { pbZustand.vorlage = { hoco: x.hoco, idx: x.idx, dateien: x.dateien }; zeichnen(); };
 
   const SPALTEN = [
     ["erstteil", "Erstteilprüfung", "Aufträge mit FA Nr. in Rüsten ohne freigegebene Erstteilprüfung"],
@@ -372,23 +372,54 @@ function KopfRaster({ kopf, w, hoco }) {
 // Bericht; was sich nicht lesen liess, steht mit ⚠ darüber. ----------
 function VorlageLeer({ v, zurueck }) {
   const [st, setSt] = useState({ laedt: true });
+  const [stamm, setStamm] = useState(undefined);
+  const [speichert, setSpeichert] = useState(false);
   useEffect(() => {
     let weg = false;
     vorlageLaden(v.dateien).then((x) => { if (!weg) setSt({ v: x }); }, (f) => { if (!weg) setSt({ fehler: fehlerText(f) }); });
+    stammLaden(v.hoco).then((x) => { if (!weg) setStamm(x); }, () => { if (!weg) setStamm(null); });
     return () => { weg = true; };
   }, [v]);
   const vor = st.v;
   const teilweise = (vor && vor.teilweise) || [];
+  const hatMasse = !!(stamm && (stamm.zeilen || []).length);
+  // „Ist okay so“: was gelesen wurde, kommt als Masse in die Stammdaten der HOCO Nr.
+  // Danach gilt nur noch der Stamm (Protokolle, Endkontrolle), das Excel nicht mehr.
+  const okay = async () => {
+    if (!vor || speichert) return;
+    if (hatMasse) {
+      const ok = await alt.nachfragen({ titel: "Masse ersetzen?", text: "Für " + v.hoco + " stehen schon " + stamm.zeilen.length + " Masse in den Stammdaten. Mit „Ist okay so“ werden sie durch diese Vorlage ersetzt.", bestaetigen: "Ersetzen" });
+      if (!ok) return;
+    }
+    setSpeichert(true);
+    try {
+      const kopf = { ...((stamm && stamm.kopf) || {}), ...(vor.kopf || {}) };
+      if (!kopf.index && v.idx) kopf.index = v.idx;
+      const arten = stamm && (stamm.arten || []).length ? stamm.arten : ["erstteil", "endkontrolle"];
+      await stammSpeichern(v.hoco, { arten, aql: stamm ? stamm.aql ?? null : null, niveau: stamm ? stamm.niveau || null : null,
+        zeilen: (vor.zeilen || []).map((z) => ({ ...z })), kopf });
+      setStamm(await stammLaden(v.hoco).catch(() => null));
+      alt.meldung("Vorlage übernommen: " + (vor.zeilen || []).filter((z) => z.soll).length + " Masse in den Stammdaten von " + v.hoco + ".", "gut");
+    } catch (f) { alt.meldung(fehlerText(f), "fehler"); }
+    setSpeichert(false);
+  };
   return (
     <div className="pb pb-blattseite" data-pbvorlage={v.hoco}>
       <div className="pb-kopfzeile pb-werkzeug">
         <button type="button" className="knopf knopf--klein" onClick={zurueck}>← Prüfberichte</button>
         <span className="pst-platz" />
-        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(v.hoco)}>Stammdaten {v.hoco}</button>
+        {vor && darf() ? (
+          <button type="button" className="knopf knopf--klein knopf--haupt" id="pb-vorlage-okay" disabled={speichert} onClick={okay}>
+            {speichert ? "Wird gespeichert …" : "✓ Ist okay so"}</button>
+        ) : null}
+        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(v.hoco)}>{hatMasse ? "Masse ändern" : "Stammdaten " + v.hoco}</button>
       </div>
       {st.laedt ? <p className="klein">Vorlage wird gelesen …</p> : null}
       {st.fehler ? <p className="pb-rot" id="pb-vorlage-fehler">⚠ Datei konnte nicht gelesen werden: {st.fehler}</p> : null}
-      {teilweise.length ? <p className="pb-rot" id="pb-vorlage-teilweise">⚠ Datei konnte zum Teil nicht gelesen werden: {teilweise.join("; ")}</p> : null}
+      {teilweise.length ? <p className="pb-rot" id="pb-vorlage-teilweise">⚠ Datei konnte zum Teil nicht gelesen werden: {teilweise.join("; ")}. Bitte durchschauen und fehlende Masse unter „Stammdaten“ ergänzen.</p> : null}
+      {vor ? (hatMasse
+        ? <p className="klein" id="pb-vorlage-stand">✓ In den Stammdaten stehen {stamm.zeilen.length} Zeilen{stamm.geaendert_am ? " (Stand " + zeitText(stamm.geaendert_am) + ")" : ""}. Protokolle nehmen die Masse von dort.</p>
+        : <p className="klein" id="pb-vorlage-stand">Durchschauen, ob alles stimmt, dann „✓ Ist okay so“. Danach kommen die Masse in die Stammdaten, und Erstteilprüfung und Endkontrolle nehmen sie von dort.</p>) : null}
       {vor ? (
         <div className="pb-blatt hell-bleibt" id="pb-blatt">
           <div className="rkpdf pb-briefkopf" dangerouslySetInnerHTML={{ __html: "<style>" + STIL + "</style>" + briefkopf() }} />
