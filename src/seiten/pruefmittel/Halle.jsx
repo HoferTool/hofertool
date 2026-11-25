@@ -54,14 +54,15 @@ const DX = 110, B = SR + SW + 40 + DX, DY = 110, HALLE = 1180 + DY, H = HALLE + 
 // so gross wie eine Star („breite etwa wie Maschine CNC wie Star“).
 export const EXTRA = [
   { id: "x:takamaz", name: "Takamaz", such: /takamaz/i, x: 22, y: 22, w: 64, h: 64 },
-  { id: "x:gdw", name: "GDW", such: /gdw/i, x: 110 + DX, y: 22, w: SW, h: 64 },
+  { id: "x:gdw", name: "GDW", such: /gdw/i, x: B - 360 - (SW + 16), y: 22, w: SW, h: 64 },
   { id: "x:fehlmann", name: "Fehlmann", such: /fehlmann/i, x: B - 360, y: 22, w: SW, h: 64 },
   { id: "x:fraese", name: "Fräse", such: /fr(ä|ae)se/i, ohne: /fehlmann/i, x: B - 190, y: 22, w: SW, h: 64 },
 ];
 // Werkbänke mit je einer Schäublin: nur zur Orientierung, ohne Prüfmittel und
-// nicht anwählbar; seit 1.821.1 ganz rechts direkt links neben Fehlmann
+// nicht anwählbar; seit 1.821.1 rechts, seit 1.839.1 links neben der GDW,
+// die direkt links neben Fehlmann steht
 // (Patrick 25. November 2026: „ganz nach rechts geschoben an Fehlmann“)
-const BAENKE = [{ x: B - 360 - 2 * (SW + 16), y: 22 }, { x: B - 360 - (SW + 16), y: 22 }];
+const BAENKE = [{ x: B - 360 - 3 * (SW + 16), y: 22 }, { x: B - 360 - 2 * (SW + 16), y: 22 }];
 export function extraVon(p) {
   const t = [p.notiz, p.ort_text, p.bezeichnung].filter(Boolean).join(" ");
   const e = EXTRA.find((x) => x.such.test(t) && !(x.ohne && x.ohne.test(t)));

@@ -179,7 +179,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.839.0";
+const APP_VERSION = "1.839.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -233,6 +233,15 @@ function escapeZurueck() {
     if (!ARCHIV && profil && istModulTab()) {
       e.preventDefault();
       modulTabVerlassenFragen();
+      return;
+    }
+    // Qualitätssicherung (seit 1.839.1, Wunsch Patrick 25. November 2026:
+    // „wenn ich Esc drücke, springt es zu Ausschuss, soll beim Reiter
+    // bleiben“): Escape schliesst nur eine offene Ansicht im Reiter
+    // (Protokoll, Vorlage …, Knopf mit data-esc-zurueck), der Reiter bleibt.
+    if (wo === "qs") {
+      const z = document.querySelector("#inhalt [data-esc-zurueck]");
+      if (z) { e.preventDefault(); z.click(); }
       return;
     }
     if (wo === "bestellungen" && best.ansicht && best.ansicht !== "offen") {

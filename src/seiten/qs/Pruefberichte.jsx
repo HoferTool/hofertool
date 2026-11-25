@@ -465,7 +465,7 @@ function VorlageLeer({ v, zurueck }) {
   return (
     <div className="pb pb-blattseite" data-pbvorlage={v.hoco}>
       <div className="pb-kopfzeile pb-werkzeug">
-        <button type="button" className="knopf knopf--klein" onClick={zurueck}>← Prüfberichte</button>
+        <button type="button" className="knopf knopf--klein" data-esc-zurueck onClick={zurueck}>← Prüfberichte</button>
         <span className="pst-platz" />
         {vor && darf() ? (
           <button type="button" className="knopf knopf--klein knopf--haupt" id="pb-vorlage-okay" disabled={speichert} onClick={okay}>
@@ -597,7 +597,7 @@ function Protokoll({ p, zurueck }) {
   return (
     <div className="pb pb-blattseite" data-pbprotokolloffen={w.id}>
       <div className="pb-kopfzeile pb-werkzeug">
-        <button type="button" className="knopf knopf--klein" onClick={zurueck}>← Prüfberichte</button>
+        <button type="button" className="knopf knopf--klein" data-esc-zurueck onClick={zurueck}>← Prüfberichte</button>
         <span className="klein" id="pb-stand">{stand}</span>
         <span className="pst-platz" />
         <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(hoco)}>Prüfmasse {hoco}</button>
@@ -746,7 +746,7 @@ function Checkliste({ w, hoco, schreibt, zurueck, quittieren }) {
   return (
     <div className="pb pb-blattseite" data-pbcheckliste={w.id}>
       <div className="pb-kopfzeile pb-werkzeug">
-        <button type="button" className="knopf knopf--klein" onClick={zurueck}>← Prüfberichte</button>
+        <button type="button" className="knopf knopf--klein" data-esc-zurueck onClick={zurueck}>← Prüfberichte</button>
         <span className="pst-platz" />
         <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(hoco)}>Prüfmasse {hoco}</button>
       </div>
