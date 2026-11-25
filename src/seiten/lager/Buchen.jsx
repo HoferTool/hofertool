@@ -18,7 +18,7 @@ import {
 } from "./logik.js";
 
 export function linieText(daten, l, mitHoco) {
-  return [mitHoco ? l.hoco : null, l.index_nr ? "Index " + l.index_nr : "ohne Index",
+  return [mitHoco ? l.hoco : null, l.index_nr ? "Index " + l.index_nr : "Index leer",
     artText(l.art) + (stufeText(daten, l.hoco, l.art, l.stufe) ? " " + stufeText(daten, l.hoco, l.art, l.stufe) : ""),
     l.ort || null, alt.zahlText(l.menge) + " Stk"].filter(Boolean).join(" · ");
 }
@@ -204,6 +204,12 @@ function Buchen({ richtung, daten, bestand, vorgabe, zu, neu }) {
       const u = await alt.db.from("lager_buchungen").update({ erledigt: true }).eq("id", offen.raus.id);
       if (!u.error) schritte.push(alt.rueckSetz("lager_buchungen", { erledigt: false }, { id: offen.raus.id }));
     }
+    // Haben die Stammdaten noch keinen Index, kommt der hier eingetippte dorthin
+    // (seit 1.841.0, Wunsch Patrick 25. November 2026)
+    if (ein && zeile.index_nr && daten.index.has(zeile.hoco_nr) && !daten.index.get(zeile.hoco_nr)) {
+      const u = await alt.db.from("hoco_parts").update({ index_nr: zeile.index_nr }).eq("hoco_nr", zeile.hoco_nr);
+      if (!u.error) schritte.push(alt.rueckSetz("hoco_parts", { index_nr: null }, { hoco_nr: zeile.hoco_nr }));
+    }
     alt.merkeSchritt("Lager " + (ein ? "eingebucht" : "ausgebucht"), schritte);
     alt.meldung(alt.zahlText(menge) + " Stk " + zeile.hoco_nr + (ein ? " eingebucht." : " ausgebucht."), "gut");
     zu(); neu();
@@ -251,9 +257,9 @@ function Buchen({ richtung, daten, bestand, vorgabe, zu, neu }) {
               <input type="text" id="lb-hoco" value={w.hoco} disabled={!!hocoAusAuftrag} placeholder="z.B. 10007-0589"
                 onChange={(e) => setze("hoco", e.target.value)} />
             </Feld>
-            <Feld label="Index" hinweis={stIndex != null && stIndex !== w.index_nr.trim() ? "Stammdaten: " + (stIndex || "ohne")
+            <Feld label="Index" hinweis={stIndex != null && stIndex !== w.index_nr.trim() ? "Stammdaten: " + (stIndex || "leer")
               + (faFrueher ? " · gemerkt bei dieser FA" : "") : null}>
-              <input type="text" id="lb-index" value={w.index_nr} placeholder="ohne" onChange={(e) => setze("index_nr", e.target.value)} />
+              <input type="text" id="lb-index" value={w.index_nr} placeholder="leer = noch keiner" onChange={(e) => setze("index_nr", e.target.value)} />
             </Feld>
           </div>)}
 
