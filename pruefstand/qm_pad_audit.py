@@ -39,7 +39,8 @@ with sync_playwright() as p:
     for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
         pg.route(u, lambda r: r.abort())
     # ohne Vermerk keine Kachel Audit
-    laden("")
+    # Seit 1.785.0 sehen Admins QMS immer, darum ohne Vermerk als Mitarbeiter
+    laden(";\n(TEST.daten.profiles.find(x => x.id === 'u1') || {}).role = 'mitarbeiter';")
     pg.locator("button:has-text('Pad Mode'):visible").first.click(); pg.wait_for_selector("#pad [data-padwo='qs']")
     pruefe(pg.locator("#pad [data-padwo='audit']").count() == 0, "ohne qmSehen keine Kachel Audit")
     pg.evaluate("sessionStorage.clear()")

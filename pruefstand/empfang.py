@@ -24,12 +24,14 @@ with sync_playwright() as p:
     pf = []; pg.on("pageerror", lambda e: pf.append(str(e)[:200]))
     heute = datetime.now()
     pg.clock.set_system_time(datetime(heute.year, heute.month, heute.day, 10, 0) + timedelta(days=(2 - heute.weekday()) % 7))
-    pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FAKE))
+    # Seit 1.785.0 sehen Admins den Empfang immer, darum ohne Vermerk als Mitarbeiter
+    OHNE = FAKE + ";\n(TEST.daten.profiles.find(x => x.id === 'u1') || {}).role = 'mitarbeiter';\n"
+    pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=OHNE))
     for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
         pg.route(u, lambda r: r.abort())
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
-    # Ohne Vermerk empfangSehen am Konto kein Empfang, auch für Admins
+    # Ohne Vermerk empfangSehen am Konto kein Empfang (ausser Admins)
     # Seit 1.315.0 stehen die Bildschirme unter einem Punkt „Bildschirme“
     pg.evaluate("location.hash='#/bildschirme'"); pg.wait_for_selector("#bs-wahl")
     pruefe(pg.locator("[data-bs='empfang']").count() == 0 and pg.locator("[data-bs='infoboard']").count() > 0,

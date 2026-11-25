@@ -44,7 +44,8 @@ with sync_playwright() as p:
     # Seit 1.446.1 streng nach Datum, der Countdown reiht sich ein
     pruefe(k.index("Kehrichtabfuhr") < k.index("Letzter Arbeitstag"), "Start nach Datum, nächster oben: %r" % k)
     reihe = pg.evaluate("""() => [...document.querySelectorAll('#db-probleme, #db-kalender, #db-status')].map(e => e.id)""")
-    pruefe(reihe[:2] == ["db-probleme", "db-kalender"], "Kalender direkt nach den Problemen: %s" % reihe)
+    # Seit 1.768.0 steht der Kalender oben neben der Umfrage, vor den Problemen
+    pruefe(reihe[:2] == ["db-kalender", "db-probleme"], "Kalender oben vor den Problemen: %s" % reihe)
     pruefe(pg.locator("[data-nav='kalender']").count() == 0, "kein Reiter Kalender im Menü")
     pg.click("#db-kalender .karte"); pg.wait_for_selector("#kal-fenster #kal-alle")
     pruefe("Kehrichtabfuhr" in pg.inner_text("#kal-alle"), "Eintrag im Fenster")
