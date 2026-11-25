@@ -9,10 +9,13 @@
 #  Qualitätssicherung → Prüfberichte und macht daraus Prüfprotokolle.
 #
 #  Genommen wird jede Excel-Datei (.xlsx, .xlsm, .xls) in den Ordnern,
-#  mit Unterordnern, wenn das Häkchen gesetzt ist. Die HOCO Nr. kommt wie
-#  bei den Zeichnungen zuerst aus Kundenordner und Teilordner
-#  ("10841\0009 Federführung …"), sonst aus dem Dateinamen, sonst aus
-#  einem Ordnernamen darüber. Ohne HOCO Nr. bleibt die Datei weg.
+#  mit Unterordnern, wenn das Häkchen gesetzt ist. Die HOCO Nr. ist der
+#  Kundenordner (5 Ziffern) plus die letzten vier Ziffern der Nummer im
+#  Dateinamen, sonst wie bei den Zeichnungen aus Kunden- und Teilordner.
+#  Genommen werden nur HOCO Nummern, die es im Tool gibt (hoco_parts).
+#  Aus dem Excel liest das Programm den Index (Zelle unter "Index"); je
+#  HOCO Nr. und Index bleibt nur der neuste Bericht als Vorlage, ältere
+#  kommen aus der App (Wunsch Patrick 25. November 2026).
 #
 #  Unveränderte Dateien (Name, Grösse, Änderungszeit) bleiben in Ruhe.
 #  Eine geänderte Datei ersetzt ihre frühere in der App. Ist eine Datei
@@ -59,13 +62,15 @@ $U = ($E.supabase_url).TrimEnd("/")
 $KEY = $E.anon_key
 
 # dateien: voller Pfad → Kennung der zuletzt hochgeladenen Fassung
-$stand = @{ token = $null; ablauf = 0; auffrischen = $null; dateien = @{}; zuletzt = $null }
+# index: Kennung der Datei → Index aus dem Excel (gemerkt, damit jede Datei nur einmal geöffnet wird)
+$stand = @{ token = $null; ablauf = 0; auffrischen = $null; dateien = @{}; zuletzt = $null; index = @{} }
 if (Test-Path $standDatei) {
   try {
     $g = Get-Content -Raw -Path $standDatei -Encoding UTF8 | ConvertFrom-Json
     $stand.token = $g.token; $stand.ablauf = [double]$g.ablauf; $stand.auffrischen = $g.auffrischen
     $stand.zuletzt = $g.zuletzt
     if ($g.dateien) { $g.dateien.PSObject.Properties | ForEach-Object { $stand.dateien[$_.Name] = [string]$_.Value } }
+    if ($g.index) { $g.index.PSObject.Properties | ForEach-Object { $stand.index[$_.Name] = [string]$_.Value } }
   } catch { }
 }
 function StandSichern {
@@ -133,6 +138,100 @@ function HocoAusPfad($d, [string]$wurzel) {
   return $null
 }
 
+# Aufbau der Ordner laut Patrick (25. November 2026): Kundenübersicht →
+# Kundenordner (fünf Ziffern) → Ordner je Gruppe von Teilen → Bericht.
+# Die letzten vier Ziffern der Nummer im Dateinamen sind die Artikel-Nr.
+# der HOCO Nr. Gibt alle möglichen HOCO Nummern, die erste bekannte gilt.
+function HocoKandidaten($d, [string]$wurzel) {
+  $liste = @()
+  $h = HocoAusPfad $d $wurzel
+  if ($h) { $liste += $h }
+  $w = $wurzel.TrimEnd('\').ToLower()
+  $kunde = $null
+  $o = $d.Directory
+  while ($o -and $o.FullName.TrimEnd('\').Length -gt $w.Length) {
+    $kn = [regex]::Match([string]$o.Name, '^\s*(\d{5})(?!\d)')
+    if ($kn.Success -and -not (IstBereich $o.Name)) { $kunde = $kn.Groups[1].Value; break }
+    $o = $o.Parent
+  }
+  if ($kunde) {
+    $n = [regex]::Match([IO.Path]::GetFileNameWithoutExtension($d.Name), '\d+(?:\s?-\s?\d+)?')
+    if ($n.Success) {
+      $ziffern = ($n.Value -replace '\D', '')
+      if ($ziffern.Length -ge 4) { $liste += ($kunde + "-" + $ziffern.Substring($ziffern.Length - 4)) }
+    }
+  }
+  return @($liste | Select-Object -Unique)
+}
+
+# Index aus dem Excel lesen, wie die App (pruefbericht.js): die Zelle unter
+# dem Wort "Index" im Kopf des ersten Blatts. Nur .xlsx/.xlsm, .xls gibt "".
+Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+function ZipText($zip, [string]$name) {
+  $e = $zip.GetEntry($name)
+  if (-not $e) { return $null }
+  $r = New-Object IO.StreamReader($e.Open())
+  try { return $r.ReadToEnd() } finally { $r.Close() }
+}
+function IndexAusExcel([string]$datei) {
+  if ($datei -notmatch '(?i)\.xls[xm]$') { return "" }
+  $zip = [IO.Compression.ZipFile]::OpenRead($datei)
+  try {
+    $teile = @()
+    $ss = ZipText $zip "xl/sharedStrings.xml"
+    if ($ss) {
+      $x = New-Object Xml.XmlDocument; $x.LoadXml($ss)
+      foreach ($si in $x.DocumentElement.ChildNodes) { if ($si.LocalName -eq "si") { $teile += [string]$si.InnerText } }
+    }
+    # erstes Blatt über workbook.xml und seine Verweise
+    $blatt = "xl/worksheets/sheet1.xml"
+    try {
+      $wb = New-Object Xml.XmlDocument; $wb.LoadXml((ZipText $zip "xl/workbook.xml"))
+      $erstes = @($wb.GetElementsByTagName("sheet"))[0]
+      $rid = $erstes.GetAttribute("id", "http://schemas.openxmlformats.org/officeDocument/2006/relationships")
+      $rel = New-Object Xml.XmlDocument; $rel.LoadXml((ZipText $zip "xl/_rels/workbook.xml.rels"))
+      foreach ($r in $rel.DocumentElement.ChildNodes) {
+        if ($r.GetAttribute("Id") -eq $rid) {
+          $z = $r.GetAttribute("Target").TrimStart('/')
+          if ($z -notlike "xl/*") { $z = "xl/" + $z }
+          $blatt = $z
+        }
+      }
+    } catch { }
+    $txt = ZipText $zip $blatt
+    if (-not $txt) { return "" }
+    $x = New-Object Xml.XmlDocument; $x.LoadXml($txt)
+    $werte = @{}; $fund = $null
+    foreach ($c in $x.GetElementsByTagName("c")) {
+      $ref = $c.GetAttribute("r")
+      $m = [regex]::Match($ref, '^([A-Z]+)(\d+)$')
+      if (-not $m.Success) { continue }
+      $v = $null
+      foreach ($k in $c.ChildNodes) { if ($k.LocalName -eq "v" -or $k.LocalName -eq "is") { $v = [string]$k.InnerText } }
+      if ($null -eq $v) { continue }
+      if ($c.GetAttribute("t") -eq "s") { $i = [int]$v; if ($i -lt $teile.Count) { $v = $teile[$i] } }
+      $v = $v.Trim()
+      $werte[$ref] = $v
+      if (-not $fund -and $v -match '^(?i)index\s*:?$') { $fund = @($m.Groups[1].Value, [int]$m.Groups[2].Value) }
+    }
+    if (-not $fund) { return "" }
+    $unter = $werte[$fund[0] + ($fund[1] + 1)]
+    if ($unter) { return ([string]$unter).Trim() }
+    return ""
+  } finally { $zip.Dispose() }
+}
+
+function LesenAlle([string]$pfad) {
+  $alle = @(); $ab = 0
+  while ($true) {
+    $teil = @(Lesen ($pfad + "&limit=1000&offset=" + $ab))
+    $alle += $teil
+    if ($teil.Count -lt 1000) { break }
+    $ab += 1000
+  }
+  return $alle
+}
+
 function AusAblageWeg($pfade) {
   $p = @($pfade | Where-Object { $_ })
   if ($p.Count -eq 0) { return }
@@ -142,9 +241,18 @@ function AusAblageWeg($pfade) {
   } catch { Schreibe ("Alte Datei nicht gelöscht: " + $_.Exception.Message) }
 }
 
+function ZeilenWeg($zeilen) {
+  $z = @($zeilen)
+  if ($z.Count -eq 0) { return }
+  try {
+    Aendern "Delete" ("pruefbericht_dateien?id=in.(" + (($z | ForEach-Object { $_.id }) -join ",") + ")") $null $null
+    AusAblageWeg @($z | ForEach-Object { [string]$_.ablage })
+  } catch { Schreibe ("Nicht entfernt: " + $_.Exception.Message) }
+}
+
 $jetztIso = (Get-Date).ToUniversalTime().ToString("o")
 $status = @{ immer = $true; zeit = $jetztIso; gesehen = $jetztIso; rechner = $env:COMPUTERNAME; scharf = (-not $Probe);
-             ordner = @(); excel = 0; ohneNr = 0; rest = 0; hochgeladen = 0; entfernt = 0; abgeloest = 0; umgestellt = 0; fehler = $null }
+             ordner = @(); excel = 0; ohneNr = 0; rest = 0; hochgeladen = 0; entfernt = 0; abgeloest = 0; umgestellt = 0; doppelt = 0; unbekannt = 0; aelter = 0; fehler = $null }
 
 try {
   Anmelden
@@ -156,11 +264,39 @@ try {
   }
 
   # Was in der App schon aus den Ordnern kam
+  # Seitenweise lesen: die Datenbank gibt je Abfrage höchstens 1'000 Zeilen.
+  # Vorher sah die Aufgabe nur die ersten 1'000, hielt den Rest für neu und
+  # lud dieselben Dateien bei jedem Durchlauf nochmals hoch (25. November 2026:
+  # 7'648 Zeilen für 1'152 Dateien).
   $inApp = @{}
-  foreach ($r in (Lesen "pruefbericht_dateien?select=id,pfad,ablage,kennung,hoco_nr&quelle=eq.ordner")) {
+  foreach ($r in (LesenAlle "pruefbericht_dateien?select=id,pfad,ablage,kennung,hoco_nr,index_nr&quelle=eq.ordner&order=id")) {
     $k = [string]$r.pfad
     if (-not $inApp.ContainsKey($k)) { $inApp[$k] = @() }
     $inApp[$k] += $r
+  }
+
+  # Doppelte derselben Datei (gleicher Pfad, gleiche Kennung) aufräumen,
+  # die zuerst angelegte bleibt
+  if ($status.scharf) {
+    foreach ($k in @($inApp.Keys)) {
+      $zeilen = @($inApp[$k])
+      if ($zeilen.Count -lt 2) { continue }
+      $bleibt = @(); $weg = @(); $kenn = @{}
+      foreach ($z in $zeilen) {
+        $kk = [string]$z.kennung + "|" + [string]$z.hoco_nr
+        if ($kenn.ContainsKey($kk)) { $weg += $z } else { $kenn[$kk] = $true; $bleibt += $z }
+      }
+      if ($weg.Count -eq 0) { continue }
+      try {
+        for ($i = 0; $i -lt $weg.Count; $i += 100) {
+          $teil = @($weg[$i..([Math]::Min($i + 99, $weg.Count - 1))])
+          Aendern "Delete" ("pruefbericht_dateien?id=in.(" + (($teil | ForEach-Object { $_.id }) -join ",") + ")") $null $null
+          AusAblageWeg @($teil | ForEach-Object { [string]$_.ablage })
+        }
+        $status.doppelt += $weg.Count
+        $inApp[$k] = $bleibt
+      } catch { Schreibe ("Doppelte nicht entfernt: " + $k + ": " + $_.Exception.Message) }
+    }
   }
 
   # HOCO Nummern mit Prüfprotokoll in der App (seit 1.799.0, Wunsch Patrick
@@ -172,9 +308,16 @@ try {
     if ($r.hoco_nr) { $mitApp[[string]$r.hoco_nr] = $true }
   }
 
+  # HOCO Nummern, die es im Tool gibt
+  $bekannt = @{}
+  foreach ($r in (LesenAlle "hoco_parts?select=hoco_nr&order=hoco_nr")) { if ($r.hoco_nr) { $bekannt[[string]$r.hoco_nr] = $true } }
+
   $gesehen = @{}
   $erreichbar = @()
   $nochFrei = $hoechstensJeLauf
+  $leseFrei = 300      # so viele Excel je Durchlauf öffnen, um den Index zu lesen
+  $gruppen = @{}       # "HOCO|Index" → Dateien
+  $offen = @{}         # HOCO Nr., bei denen noch nicht alle Indexe gelesen sind
   foreach ($o in @($konf.ordner)) {
     if (-not $o.pfad) { continue }
     $pfad = PfadAufloesen ([string]$o.pfad)
@@ -196,79 +339,103 @@ try {
 
     foreach ($d in $alle) {
       $gesehen[$d.FullName] = $true
-      $h = HocoAusPfad $d $pfad
-      if (-not $h) {
+      $kand = @(HocoKandidaten $d $pfad)
+      $vorher = @()
+      if ($inApp.ContainsKey($d.FullName)) { $vorher = @($inApp[$d.FullName]) }
+      if ($kand.Count -eq 0) {
+        # Ohne Teil-Nr. (Vorlagen, Infos): früher Hochgeladenes wieder weg
         $status.ohneNr++
-        # Früher mit falscher Nummer hochgeladen (Vorlagen, Infos ohne Teil-Nr.): wieder weg
-        if ($inApp.ContainsKey($d.FullName) -and $status.scharf) {
-          $weg = @($inApp[$d.FullName])
-          try {
-            Aendern "Delete" ("pruefbericht_dateien?id=in.(" + (($weg | ForEach-Object { $_.id }) -join ",") + ")") $null $null
-            AusAblageWeg @($weg | ForEach-Object { [string]$_.ablage })
-            $status.entfernt++
-          } catch { Schreibe ("Fehler beim Entfernen von " + $d.FullName + ": " + $_.Exception.Message) }
-        }
+        if ($vorher.Count -gt 0 -and $status.scharf) { ZeilenWeg $vorher; $status.entfernt++ }
+        continue
+      }
+      # Nur HOCO Nummern, die es im Tool gibt (Wunsch Patrick 25. November 2026)
+      $h = $null
+      foreach ($k in $kand) { if ($bekannt.ContainsKey($k)) { $h = $k; break } }
+      if (-not $h) {
+        $status.unbekannt++
+        if ($vorher.Count -gt 0 -and $status.scharf) { ZeilenWeg $vorher; $status.entfernt++ }
         continue
       }
       if ($mitApp.ContainsKey($h)) {
-        if ($inApp.ContainsKey($d.FullName) -and $status.scharf) {
-          $weg = @($inApp[$d.FullName])
-          try {
-            Aendern "Delete" ("pruefbericht_dateien?id=in.(" + (($weg | ForEach-Object { $_.id }) -join ",") + ")") $null $null
-            AusAblageWeg @($weg | ForEach-Object { [string]$_.ablage })
-            $status.abgeloest++
-            Schreibe ("Original abgelöst (Protokoll in der App): " + $d.FullName)
-          } catch { Schreibe ("Fehler beim Ablösen von " + $d.FullName + ": " + $_.Exception.Message) }
+        if ($vorher.Count -gt 0 -and $status.scharf) {
+          ZeilenWeg $vorher; $status.abgeloest++
+          Schreibe ("Original abgelöst (Protokoll in der App): " + $d.FullName)
         }
         continue
       }
       $kennung = Kennung $d
-      $vorher = @()
-      if ($inApp.ContainsKey($d.FullName)) { $vorher = @($inApp[$d.FullName]) }
-      $gleich = @($vorher | Where-Object { [string]$_.kennung -eq $kennung })
-      if ($gleich.Count -gt 0) {
-        # Schon hochgeladen, aber früher der falschen HOCO Nr. zugeordnet:
-        # nur die Nummer umstellen, nicht nochmals hochladen
-        $falsch = @($gleich | Where-Object { [string]$_.hoco_nr -ne $h })
-        if ($falsch.Count -gt 0 -and $status.scharf) {
-          try {
-            Aendern "Patch" ("pruefbericht_dateien?id=in.(" + (($falsch | ForEach-Object { $_.id }) -join ",") + ")") @{ hoco_nr = $h } $null
-            $status.umgestellt++
-            Schreibe ("neu zugeordnet: " + $d.FullName + "  →  " + $h)
-          } catch { Schreibe ("Fehler beim Zuordnen von " + $d.FullName + ": " + $_.Exception.Message) }
-        }
-        continue
+      # Index: gemerkt, sonst aus der schon hochgeladenen Zeile, sonst aus dem Excel
+      $idx = $null
+      if ($stand.index.ContainsKey($kennung)) { $idx = $stand.index[$kennung] }
+      if ($null -eq $idx) {
+        $z = @($vorher | Where-Object { [string]$_.kennung -eq $kennung -and $null -ne $_.index_nr })
+        if ($z.Count -gt 0) { $idx = [string]$z[0].index_nr; $stand.index[$kennung] = $idx }
       }
-      if (-not $status.scharf) { Schreibe ("Probe: " + $d.FullName + "  →  " + $h); continue }
-      if ($nochFrei -le 0) { $status.rest++; continue }
-      $kopie = $null
-      try {
-        $kopie = LesendKopieren $d
-        $endung = $d.Extension.TrimStart(".").ToLower()
-        $mime = @{ xlsx = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-                   xlsm = "application/vnd.ms-excel.sheet.macroEnabled.12"; xls = "application/vnd.ms-excel" }[$endung]
-        $ablage = "pruefberichte/" + $h + "/" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() + "-" +
-                  [Guid]::NewGuid().ToString("N").Substring(0, 6) + "." + $endung
-        $hd = Kopf; $hd["x-upsert"] = "true"
-        Invoke-RestMethod -Method Post -Uri "$U/storage/v1/object/zeichnungen/$ablage" -Headers $hd `
-          -ContentType $mime -InFile $kopie.FullName | Out-Null
-        $adresse = "$U/storage/v1/object/public/zeichnungen/$ablage"
-        Aendern "Post" "pruefbericht_dateien" @{ hoco_nr = $h; name = $d.Name; pfad = $d.FullName; url = $adresse;
-          ablage = $ablage; kennung = $kennung; quelle = "ordner"; geaendert = $d.LastWriteTimeUtc.ToString("o") } $null
-        # Die frühere Fassung derselben Datei kommt erst jetzt weg
-        if ($vorher.Count -gt 0) {
-          Aendern "Delete" ("pruefbericht_dateien?id=in.(" + (($vorher | ForEach-Object { $_.id }) -join ",") + ")") $null $null
-          AusAblageWeg @($vorher | ForEach-Object { [string]$_.ablage })
-        }
-        $status.hochgeladen++
-        $nochFrei--
-        Schreibe ($d.FullName + "  →  " + $h)
-      } catch {
-        Schreibe ("Fehler bei " + $d.FullName + ": " + $_.Exception.Message)
-        $status.fehler = "Fehler bei " + $d.Name + ": " + $_.Exception.Message
-      } finally {
-        if ($kopie) { Remove-Item -LiteralPath (Split-Path -Parent $kopie.FullName) -Recurse -Force -ErrorAction SilentlyContinue }
+      if ($null -eq $idx) {
+        if ($d.Extension -notmatch '(?i)^\.xls[xm]$') { $idx = "" }
+        elseif ($leseFrei -gt 0) {
+          $leseFrei--
+          $kopie = $null
+          try { $kopie = LesendKopieren $d; $idx = IndexAusExcel $kopie.FullName }
+          catch { Schreibe ("Index nicht gelesen: " + $d.FullName + ": " + $_.Exception.Message); $idx = "" }
+          finally { if ($kopie) { Remove-Item -LiteralPath (Split-Path -Parent $kopie.FullName) -Recurse -Force -ErrorAction SilentlyContinue } }
+          $stand.index[$kennung] = $idx
+        } else { $offen[$h] = $true; $status.rest++; continue }
       }
+      $sch = $h + "|" + $idx.ToUpper()
+      if (-not $gruppen.ContainsKey($sch)) { $gruppen[$sch] = @() }
+      $gruppen[$sch] += @{ d = $d; h = $h; idx = $idx; kennung = $kennung; vorher = $vorher }
+    }
+  }
+
+  # Je HOCO Nr. und Index nur ein Bericht, der neuste gilt als Vorlage
+  # (Wunsch Patrick 25. November 2026: „je Index ein Bericht, weil die nicht ganz identisch sind“)
+  foreach ($sch in @($gruppen.Keys)) {
+    $liste = @($gruppen[$sch])
+    if ($offen.ContainsKey($liste[0].h)) { continue }
+    $liste = @($liste | Sort-Object { $_.d.LastWriteTimeUtc } -Descending)
+    for ($i = 1; $i -lt $liste.Count; $i++) {
+      $status.aelter++
+      if ($liste[$i].vorher.Count -gt 0 -and $status.scharf) { ZeilenWeg $liste[$i].vorher }
+    }
+    $e = $liste[0]; $d = $e.d; $h = $e.h; $kennung = $e.kennung; $vorher = @($e.vorher)
+    $gleich = @($vorher | Where-Object { [string]$_.kennung -eq $kennung })
+    if ($gleich.Count -gt 0) {
+      $falsch = @($gleich | Where-Object { [string]$_.hoco_nr -ne $h -or [string]$_.index_nr -ne $e.idx -or $null -eq $_.index_nr })
+      if ($falsch.Count -gt 0 -and $status.scharf) {
+        try {
+          Aendern "Patch" ("pruefbericht_dateien?id=in.(" + (($falsch | ForEach-Object { $_.id }) -join ",") + ")") @{ hoco_nr = $h; index_nr = $e.idx } $null
+          $status.umgestellt++
+        } catch { Schreibe ("Fehler beim Zuordnen von " + $d.FullName + ": " + $_.Exception.Message) }
+      }
+      continue
+    }
+    if (-not $status.scharf) { Schreibe ("Probe: " + $d.FullName + "  →  " + $h + " Index " + $e.idx); continue }
+    if ($nochFrei -le 0) { $status.rest++; continue }
+    $kopie = $null
+    try {
+      $kopie = LesendKopieren $d
+      $endung = $d.Extension.TrimStart(".").ToLower()
+      $mime = @{ xlsx = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+                 xlsm = "application/vnd.ms-excel.sheet.macroEnabled.12"; xls = "application/vnd.ms-excel" }[$endung]
+      $ablage = "pruefberichte/" + $h + "/" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() + "-" +
+                [Guid]::NewGuid().ToString("N").Substring(0, 6) + "." + $endung
+      $hd = Kopf; $hd["x-upsert"] = "true"
+      Invoke-RestMethod -Method Post -Uri "$U/storage/v1/object/zeichnungen/$ablage" -Headers $hd `
+        -ContentType $mime -InFile $kopie.FullName | Out-Null
+      $adresse = "$U/storage/v1/object/public/zeichnungen/$ablage"
+      Aendern "Post" "pruefbericht_dateien" @{ hoco_nr = $h; index_nr = $e.idx; name = $d.Name; pfad = $d.FullName; url = $adresse;
+        ablage = $ablage; kennung = $kennung; quelle = "ordner"; geaendert = $d.LastWriteTimeUtc.ToString("o") } $null
+      # Die frühere Fassung derselben Datei kommt erst jetzt weg
+      if ($vorher.Count -gt 0) { ZeilenWeg $vorher }
+      $status.hochgeladen++
+      $nochFrei--
+      Schreibe ($d.FullName + "  →  " + $h + " Index " + $e.idx)
+    } catch {
+      Schreibe ("Fehler bei " + $d.FullName + ": " + $_.Exception.Message)
+      $status.fehler = "Fehler bei " + $d.Name + ": " + $_.Exception.Message
+    } finally {
+      if ($kopie) { Remove-Item -LiteralPath (Split-Path -Parent $kopie.FullName) -Recurse -Force -ErrorAction SilentlyContinue }
     }
   }
 
@@ -286,7 +453,7 @@ try {
       } catch { Schreibe ("Nicht entfernt: " + $k + ": " + $_.Exception.Message) }
     }
   }
-  $status.anzahl = @(Lesen "pruefbericht_dateien?select=id&quelle=eq.ordner").Count
+  $status.anzahl = @(LesenAlle "pruefbericht_dateien?select=id&quelle=eq.ordner&order=id").Count
 } catch {
   $status.fehler = $_.Exception.Message
   Schreibe ("Abbruch: " + $_.Exception.Message)

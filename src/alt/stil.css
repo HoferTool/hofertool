@@ -17282,3 +17282,7 @@ body.dunkel .erp-artnr-link { color: #8fbaff !important; }
 .druckwahl .knopf.knopf--spedition,
 body.dunkel .druckwahl .knopf.knopf--spedition { background: #e8730c !important; border-color: #c75f06 !important; color: #fff !important; }
 .druckwahl .knopf.knopf--spedition:hover { background: #d1660a !important; }
+
+/* 1.820.0 Letzte Produktion: eine ruhige Zeile je HOCO Nr. und Index */
+#pb-letzte-liste td { vertical-align: middle; }
+#pb-letzte-liste .pb-letzte-name { overflow-wrap: anywhere; max-width: 420px; }

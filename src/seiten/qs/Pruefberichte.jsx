@@ -234,18 +234,20 @@ function Uebersicht({ daten, neu, oeffnen }) {
 
   const loeschen = async (p) => { if (await protokollLoeschen(p)) neu(); };
 
-  // Letzte Produktion: Excel aus dem Ordner je HOCO Nr. ohne Protokoll in der App
+  // Letzte Produktion: je HOCO Nr. und Index nur der neuste Bericht aus dem Ordner,
+  // eine Zeile je Index (Wunsch Patrick 25. November 2026: „nicht so gebündelt“)
   const mitProtokoll = new Set(daten.protokolle.map((p) => p.hoco_nr));
-  const jeHoco = new Map();
+  const jeIndex = new Map();
   for (const d of daten.dateien || []) {
     if (mitProtokoll.has(d.hoco_nr)) continue;
-    if (!jeHoco.has(d.hoco_nr)) jeHoco.set(d.hoco_nr, []);
-    jeHoco.get(d.hoco_nr).push(d);
+    const k = d.hoco_nr + "|" + String(d.index_nr || "").toUpperCase();
+    const z = d.geaendert || d.erstellt_am || "";
+    const v = jeIndex.get(k);
+    if (!v || String(z) > String(v.zeit)) jeIndex.set(k, { hoco: d.hoco_nr, idx: d.index_nr || "", d, zeit: z });
   }
-  const letzte = [...jeHoco.entries()]
-    .map(([hoco, ds]) => ({ hoco, ds, zeit: ds.map((d) => d.geaendert || d.erstellt_am || "").sort().pop() || "" }))
-    .filter((x) => passtWoerter(suche, [x.hoco, ...x.ds.map((d) => d.name)]))
-    .sort((a, b) => String(b.zeit).localeCompare(String(a.zeit)));
+  const letzte = [...jeIndex.values()]
+    .filter((x) => passtWoerter(suche, [x.hoco, x.idx, x.d.name]))
+    .sort((a, b) => String(b.zeit).localeCompare(String(a.zeit)) || String(a.hoco).localeCompare(String(b.hoco)));
   const letzteZeigen = suche ? letzte.slice(0, 200) : letzte.slice(0, 30);
   const excelAnsehen = (d) => alt.betrachter(d.url, "Prüfbericht " + d.hoco_nr + (d.seite ? " · Seite " + d.seite : ""), false, "excel",
     (String(d.name || "").match(/\.([A-Za-z0-9]+)$/) || [])[1]);
@@ -320,17 +322,16 @@ function Uebersicht({ daten, neu, oeffnen }) {
           <p className="klein">Der Prüfbericht der letzten Produktion, solange es für die HOCO Nr. noch kein Protokoll in der App gibt. Mit dem ersten Protokoll in der App fällt das Original weg, danach bleiben alle Protokolle gespeichert.</p>
           {!letzteZeigen.length ? <p className="klein">{letzte.length ? "Nichts gefunden." : "Alle HOCO Nummern haben schon ein Protokoll in der App."}</p> : (
             <table className="tabelle pb-zuletzt" id="pb-letzte-liste">
-              <thead><tr><th>HOCO Nr.</th><th>Datei</th><th>Stand</th><th /></tr></thead>
+              <thead><tr><th>HOCO Nr.</th><th>Index</th><th>Datei</th><th>Stand</th><th /></tr></thead>
               <tbody>
                 {letzteZeigen.map((x) => (
-                  <tr key={x.hoco} data-pbletzte={x.hoco} onClick={() => excelAnsehen(x.ds[0])}>
-                    <td><b>{x.hoco}</b></td>
-                    <td>{x.ds.map((d) => <div key={d.id} className="klein">{d.name}{d.seite ? " · Seite " + d.seite : ""}</div>)}</td>
+                  <tr key={x.d.id} data-pbletzte={x.hoco} onClick={() => excelAnsehen(x.d)}>
+                    <td className="nowrap"><b>{x.hoco}</b></td>
+                    <td className="nowrap">{x.idx || "–"}</td>
+                    <td className="klein pb-letzte-name" title={x.d.name}>{x.d.name}</td>
                     <td className="klein nowrap">{zeitText(x.zeit)}</td>
-                    <td className="nowrap">{x.ds.map((d) => (
-                      <button key={d.id} type="button" className="knopf knopf--klein" data-pbletzteansehen={d.id}
-                        onClick={(e) => { e.stopPropagation(); excelAnsehen(d); }}>Ansehen{x.ds.length > 1 && d.seite ? " " + d.seite : ""}</button>
-                    ))}</td>
+                    <td className="nowrap"><button type="button" className="knopf knopf--klein" data-pbletzteansehen={x.d.id}
+                      onClick={(e) => { e.stopPropagation(); excelAnsehen(x.d); }}>Ansehen</button></td>
                   </tr>
                 ))}
               </tbody>

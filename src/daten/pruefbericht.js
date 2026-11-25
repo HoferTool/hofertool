@@ -187,12 +187,18 @@ export function pruefmittelFuer(lehre, liste, hoco) {
 }
 
 // ---------- Datenbank ----------
+// Seitenweise je 1'000, die Datenbank gibt nie mehr auf einmal (25. November 2026)
 export async function dateienLaden(hoco) {
-  let q = alt.db.from("pruefbericht_dateien").select("*").order("hoco_nr").order("seite", { nullsFirst: false });
-  if (hoco) q = q.eq("hoco_nr", hoco);
-  const { data, error } = await alt.zeitlimit(q, 15000, "Prüfberichte");
-  if (error) throw error;
-  return data || [];
+  const alle = [];
+  for (let ab = 0; ab < 50000; ab += 1000) {
+    let q = alt.db.from("pruefbericht_dateien").select("*").order("hoco_nr").order("id").range(ab, ab + 999);
+    if (hoco) q = q.eq("hoco_nr", hoco);
+    const { data, error } = await alt.zeitlimit(q, 15000, "Prüfberichte");
+    if (error) throw error;
+    alle.push(...(data || []));
+    if (!data || data.length < 1000) break;
+  }
+  return alle;
 }
 
 export async function protokolleLaden(hoco) {
