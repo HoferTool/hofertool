@@ -451,20 +451,32 @@ function Kopf({ k, setze, setK, nr, setNr }) {
     const matBez = roh ? (roh.bezeichnung || roh.nr) : (d.material || "");
     const kunde = a.kunde_id ? stamm.partner.find((p) => p.id === a.kunde_id) : null;
     setK((x) => {
-      const kopf = { ...x.kopf, artikel: a.nr || "", index: a.idx || "", zeichnung: a.zeichnung || "",
-        ident: d.ident || x.kopf.ident || "", bezeichnung: a.bezeichnung || x.kopf.bezeichnung || "", artikel_id: a.id };
+      // Der Artikel-Code ist Master: ein anderer Artikel ersetzt alle Felder,
+      // derselbe füllt nur Leeres nicht mit Leerem auf (Wunsch Patrick 25. November 2026)
+      const neu = x.kopf.artikel_id !== a.id;
+      const wert = (w, alt0) => (w || (neu ? "" : alt0 || ""));
+      const kopf = { ...x.kopf, artikel: a.nr || "", index: wert(a.idx, x.kopf.index), zeichnung: wert(a.zeichnung, x.kopf.zeichnung),
+        ident: wert(d.ident, x.kopf.ident), bezeichnung: wert(a.bezeichnung, x.kopf.bezeichnung), artikel_id: a.id };
       let angebot = x.angebot;
       if (kunde) {
         Object.assign(kopf, { kunde: kunde.name || "", kunde_id: kunde.id, kundencode: kunde.nr || "", ...partnerAdresse(kunde) }); delete kopf.adresse;
         angebot = { ...(x.angebot || {}), ...partnerBedingungen(kunde, stamm.bed) };
       }
       let material = x.material;
-      if (matBez && !String(x.material.bez || "").trim()) {
+      if (matBez && (neu || !String(x.material.bez || "").trim())) {
         const w = werkstoffGenau(matBez); const t = materialZerlegen(matBez);
         material = { ...x.material, bez: matBez, nr: (w && w.nr) || x.material.nr, d: t && t.d ? String(t.d) : x.material.d };
       }
       return { ...x, kopf, material, angebot };
     });
+  };
+  // Getippter Artikel-Code, der genau einer HOCO Nr. im Test ERP entspricht,
+  // übernimmt den Artikel gleich; ein anderer Code löst die Verknüpfung
+  const artikelCodeSetzen = (w) => {
+    const t = String(w || "").trim();
+    const a = t ? hofer.find((x) => String(x.nr) === t) : null;
+    if (a) { if (a.id !== k.kopf.artikel_id) { artikelSetzen(a); return; } setze("kopf.artikel", w); return; }
+    setK((x) => { const kopf = { ...x.kopf, artikel: w }; if (kopf.artikel_id) delete kopf.artikel_id; return { ...x, kopf }; });
   };
   const artikelWahl = useWahl(stammTreffer(hofer, k.kopf.artikel, (a) => [a.nr, a.idx, a.bezeichnung, a.zeichnung, (a.daten || {}).ident])
     .map((a) => ({ id: a.id, titel: a.nr + (a.idx ? " Ind. " + a.idx : ""), unter: [a.bezeichnung, a.zeichnung].filter(Boolean).join(" · "), a })),
@@ -475,8 +487,13 @@ function Kopf({ k, setze, setK, nr, setNr }) {
   const [matHinweis, setMatHinweis] = useState("");
   const artikel = (k.kopf.artikel || "").trim();
   const matLeer = !String(k.material.bez || "").trim();
+  // Wechselt der Artikel-Code von Hand, kommt das Material neu, auch wenn
+  // schon eines dasteht (Master); beim Öffnen bleibt das gespeicherte
+  const artikelVorher = useRef(artikel);
+  const geaendert = artikelVorher.current !== artikel;
+  const mitErp = !!k.kopf.artikel_id;
   useEffect(() => {
-    if (!/^\d{4,6}-\d{3,4}$/.test(artikel) || !matLeer) return undefined;
+    if (!/^\d{4,6}-\d{3,4}$/.test(artikel) || mitErp || !(matLeer || geaendert)) return undefined;
     let weg = false;
     const zeit = setTimeout(async () => {
       try {
@@ -484,6 +501,7 @@ function Kopf({ k, setze, setK, nr, setNr }) {
           .not("material_bez", "is", null).order("planned_from", { ascending: false }).limit(1);
         const bez = r && !r.error && r.data && r.data[0] ? String(r.data[0].material_bez || "").trim() : "";
         if (weg || !bez) return;
+        artikelVorher.current = artikel;
         setze("material.bez", bez);
         const w = werkstoffGenau(bez);
         if (w && w.nr) setze("material.nr", w.nr);
@@ -493,7 +511,7 @@ function Kopf({ k, setze, setK, nr, setNr }) {
       } catch (e) { /* ohne Verbindung bleibt das Feld leer */ }
     }, 500);
     return () => { weg = true; clearTimeout(zeit); };
-  }, [artikel, matLeer]);
+  }, [artikel, matLeer, mitErp]);
   return (
     <div className="kalk-zwei">
       <section className="karte">
@@ -506,7 +524,7 @@ function Kopf({ k, setze, setK, nr, setNr }) {
         <F label="Land" id="kalk-adr-land" text platz="CH" {...a("land")} />
         <F label="PLZ" id="kalk-adr-plz" text {...a("plz")} />
         <F label="Ort" id="kalk-adr-ort" text {...a("ort")} />
-        <F label="Artikel-Code" id="kalk-artikel" text platz={hofer.length ? "HOCO Nr. oder Bezeichnung tippen" : undefined} wahl={artikelWahl} {...f("artikel")} />
+        <F label="Artikel-Code" id="kalk-artikel" text platz={hofer.length ? "HOCO Nr. oder Bezeichnung tippen" : undefined} wahl={artikelWahl} wert={k.kopf.artikel} setzen={artikelCodeSetzen} />
         {matHinweis && <p className="hinweis" id="kalk-mat-hinweis">{matHinweis}</p>}
         <F label="Zeichnung" id="kalk-zeichnung" text {...f("zeichnung")} />
         <F label="Kunden Ident-Nr." id="kalk-ident" text {...f("ident")} />
