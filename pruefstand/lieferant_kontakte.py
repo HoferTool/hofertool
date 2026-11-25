@@ -118,6 +118,8 @@ with sync_playwright() as p:
     pruefe("Besuch im Fenster", "3. November 2026" in pg.inner_text("#lk-besuche") or "03.11" in pg.inner_text("#lk-besuche"))
     # PDFs und Bilder zum Besuch (seit 1.433.0)
     bid = b[0]["id"]
+    pruefe("Ohne Bearbeiten kein Feld PDF / Bild", pg.locator("[data-lbdateineu]").count() == 0)
+    pg.click("[data-lbbearb='" + bid + "']"); pg.wait_for_selector("[data-lbdateineu]")
     pdf = b"%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF"
     pg.set_input_files("[data-lbdateien='" + bid + "'] input[type=file]", files=[
         {"name": "Angebot 2026.pdf", "mimeType": "application/pdf", "buffer": pdf},
@@ -136,6 +138,9 @@ with sync_playwright() as p:
     d = pg.evaluate("TEST.daten.lieferant_besuche.find(x => x.id === '" + bid + "').dateien")
     pruefe("Bild gelöscht, PDF bleibt", len(d) == 1 and d[0]["name"] == "Angebot 2026.pdf")
     pruefe("Fenster noch offen", pg.locator("#lk-fenster").count() == 1)
+    pg.click("[data-lbfertig]"); pg.wait_for_timeout(300)
+    pruefe("Fertig: Feld PDF / Bild weg, PDF bleibt sichtbar", pg.locator("[data-lbdateineu]").count() == 0
+        and pg.locator("[data-lbdatei='Angebot 2026.pdf']").count() == 1 and pg.locator("[data-lbdateiweg]").count() == 0)
     # Dunkel
     pg.evaluate("document.body.classList.add('dunkel')")
     pg.locator("#lk-fenster").screenshot(path=os.path.join(HIER, "lieferant_kontakte_dunkel.png"))
@@ -144,6 +149,8 @@ with sync_playwright() as p:
     # Löschen des Kontakts lässt den Besuch stehen
     pg.click("[data-lkweg]"); pg.click(".dialog [data-ja]"); pg.wait_for_timeout(500)
     pruefe("Kontakt gelöscht", len(pg.evaluate("TEST.daten.lieferant_kontakte")) == 0)
+    pg.wait_for_timeout(400)
+    pruefe("Besuch behält den Namen", "Thomas Brunner" in pg.inner_text("#lk-besuche"))
     pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
     pruefe("Fenster zu, Zeile zählt neu", "letzter Besuch 03.11.2026" in pg.inner_text("[data-lfkontakte='s1']"))
     # Handy

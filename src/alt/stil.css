@@ -17240,3 +17240,7 @@ body.dunkel .erp-liste__zeile input[readonly] { background: #1c2836; color: #c9d
 .kalk-wahl__zeile small { color: var(--gedaempft); font-size: 12px; }
 body.dunkel .kalk-wahl { background: #1d2733; border-color: #3a4756; }
 body.dunkel .kalk-wahl__zeile:hover { background: #2a3746; }
+
+/* 1.812.0: Besuch bei Lieferanten im Bearbeitungsmodus (Dateien dazu nur dort) */
+.lk-besuch .bs-symbolknopf[aria-pressed="true"] { background: var(--marke); color: #fff; border-color: var(--marke); }
+.lk-besuch__bearb { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 10px; }
