@@ -138,7 +138,7 @@ async function altGeprueft(t) {
   const jetzt = new Date().toISOString();
   const { data, error } = await alt.db.from("pruefprotokolle").insert({
     hoco_nr: t.j.job_number, fa_nr: t.j.fa_nr || null, job_id: t.j.id || null,
-    kopf: { art: t.art, alt: true, zeilen: [], vorlage: {}, bemerkung: "Im alten System geprüft" },
+    kopf: { art: t.art, alt: true, zeilen: [], vorlage: {}, bemerkung: "Im alten System geprüft", ...(t.j.maschine ? { maschine: t.j.maschine } : {}) },
     werte: {}, datum: heute(), entscheid: "freigabe", visum: "altes System", abgeschlossen_am: jetzt,
   }).select().single();
   if (error) { alt.meldung("Konnte nicht speichern: " + error.message, "fehler"); return false; }
@@ -286,6 +286,7 @@ function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
   const [sp, setSp] = useState(pbZustand.spSuche || {});
   const spSetzen = (id, t) => setSp((v) => { const n = { ...v, [id]: t }; pbZustand.spSuche = n; return n; });
   const todo = useMemo(() => anstehend(daten.jobs, daten.stamm, daten.protokolle), [daten]);
+  const jobMaschine = useMemo(() => new Map((daten.jobs || []).map((j) => [j.id, j.maschine])), [daten]);
 
   const anlegen = async (hoco, art, j) => {
     if (!darf() || legt) return;
@@ -387,7 +388,7 @@ function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
         </div>
         {!zeigen.length ? <p className="klein">{daten.protokolle.length ? "Nichts gefunden." : "Noch kein Protokoll."}</p> : (
           <table className="tabelle pb-zuletzt" id="pb-liste">
-            <thead><tr><th>Art</th><th>HOCO Nr.</th><th>FA Nr.</th><th>Datum</th><th>Ergebnis</th><th>Stand</th><th>Geändert</th><th /></tr></thead>
+            <thead><tr><th>Art</th><th>HOCO Nr.</th><th>FA Nr.</th><th>Maschine</th><th>Datum</th><th>Ergebnis</th><th>Stand</th><th>Geändert</th><th /></tr></thead>
             <tbody>
               {zeigen.map((p) => {
                 const e = auswerten(p), art = (p.kopf || {}).art || "erstteil";
@@ -396,6 +397,8 @@ function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
                     <td><span className={"pb-art pb-art--" + art}>{artName(p.kopf).kurz}</span></td>
                     <td><b>{p.hoco_nr}</b></td>
                     <td>{p.fa_nr || <span className="pb-rot">fehlt</span>}</td>
+                    {/* Wo es gelaufen ist (Patrick 25. November 2026) */}
+                    <td data-pbmaschine>{(p.kopf || {}).maschine || (jobMaschine.get(p.job_id) || "") || <span className="klein">–</span>}</td>
                     <td>{datumText(p.datum || p.erstellt_am)}</td>
                     <td className="nowrap">{e.schlecht ? <b className="pb-rot">{e.schlecht} n.i.O. </b> : null}<span className="klein">{e.gut} i.O.</span></td>
                     <td>{p.abgeschlossen_am ? ((p.kopf || {}).alt ? "✓ im alten System" : "✓ " + (entscheidText(p.entscheid) || "abgeschlossen")) : "in Arbeit"}</td>
