@@ -25,12 +25,12 @@ import { passtWoerter } from "../../teile/Suchfeld.jsx";
 import { useSeitenSuche } from "../../teile/seitenSuche.js";
 import { STIL, briefkopf } from "./achtdBlatt.js";
 import {
-  ARTEN, artVon, TEILE, AQL_WERTE, aqlPlan, fehltTabelle, protokolleLaden, dateienLaden, stammSpeichern,
+  ARTEN, artVon, TEILE, AQL_WERTE, aqlPlan, fehltTabelle, protokolleLaden, dateienLaden, vorlageLaden, stammSpeichern,
   stammLaden, stammMitMassen, toleranz, toleranzText, istPruefen, lehrenAus, pruefmittelFuer,
 } from "../../daten/pruefbericht.js";
 
 // Offenes Protokoll und Suche bleiben beim Reiterwechsel
-const pbZustand = { suche: "", protokoll: null, frisch: null };
+const pbZustand = { suche: "", protokoll: null, frisch: null, vorlage: null };
 
 const fehlerText = (f) => fehltTabelle(f)
   ? "Die Datenbank kennt die Prüfberichte noch nicht (sql/pruefberichte.sql oder sql/pruef-stamm.sql fehlt)."
@@ -204,6 +204,8 @@ export default function Pruefberichte() {
     if (p) return <Protokoll key={p.id} p={p} zurueck={() => { pbZustand.protokoll = null; pbZustand.frisch = null; neu(); neuZeichnen(); }} />;
     pbZustand.protokoll = null;
   }
+  if (pbZustand.vorlage) return <VorlageLeer key={pbZustand.vorlage.hoco + "|" + pbZustand.vorlage.idx} v={pbZustand.vorlage}
+    zurueck={() => { pbZustand.vorlage = null; neuZeichnen(); }} />;
   return <Uebersicht daten={daten} neu={neu} oeffnen={oeffnen} />;
 }
 
@@ -243,14 +245,16 @@ function Uebersicht({ daten, neu, oeffnen }) {
     const k = d.hoco_nr + "|" + String(d.index_nr || "").toUpperCase();
     const z = d.geaendert || d.erstellt_am || "";
     const v = jeIndex.get(k);
-    if (!v || String(z) > String(v.zeit)) jeIndex.set(k, { hoco: d.hoco_nr, idx: d.index_nr || "", d, zeit: z });
+    // Alle Seiten des Berichts gehören zusammen (die Aufgabe behält nur die des neusten)
+    if (!v) jeIndex.set(k, { hoco: d.hoco_nr, idx: d.index_nr || "", d, zeit: z, dateien: [d] });
+    else { v.dateien.push(d); if (String(z) > String(v.zeit)) { v.zeit = z; v.d = d; } }
   }
   const letzte = [...jeIndex.values()]
     .filter((x) => passtWoerter(suche, [x.hoco, x.idx, x.d.name]))
     .sort((a, b) => String(b.zeit).localeCompare(String(a.zeit)) || String(a.hoco).localeCompare(String(b.hoco)));
   const letzteZeigen = suche ? letzte.slice(0, 200) : letzte.slice(0, 30);
-  const excelAnsehen = (d) => alt.betrachter(d.url, "Prüfbericht " + d.hoco_nr + (d.seite ? " · Seite " + d.seite : ""), false, "excel",
-    (String(d.name || "").match(/\.([A-Za-z0-9]+)$/) || [])[1]);
+  // Das Excel selbst zeigt die App nie: daraus wird eine leere Vorlage (seit 1.823.0)
+  const vorlageAnsehen = (x) => { pbZustand.vorlage = { hoco: x.hoco, idx: x.idx, dateien: x.dateien }; neuZeichnen(); };
 
   const SPALTEN = [
     ["erstteil", "Erstteilprüfung", "Aufträge in Rüsten oder läuft ohne abgeschlossene Erstteilprüfung"],
@@ -317,21 +321,21 @@ function Uebersicht({ daten, neu, oeffnen }) {
       {(daten.dateien || []).length ? (
         <section className="pb-karte" id="pb-letzte">
           <div className="pb-kopfzeile">
-            <h3 className="pb-titel">Letzte Produktion (Original aus dem Ordner)</h3>
+            <h3 className="pb-titel">Vorlagen aus der letzten Produktion</h3>
           </div>
-          <p className="klein">Der Prüfbericht der letzten Produktion, solange es für die HOCO Nr. noch kein Protokoll in der App gibt. Mit dem ersten Protokoll in der App fällt das Original weg, danach bleiben alle Protokolle gespeichert.</p>
+          <p className="klein">Aus dem Prüfbericht der letzten Produktion wird eine leere Vorlage (je Index, alle Seiten zusammen), solange es für die HOCO Nr. noch kein Protokoll in der App gibt. Mit dem ersten Protokoll in der App fällt sie weg, danach bleiben alle Protokolle gespeichert.</p>
           {!letzteZeigen.length ? <p className="klein">{letzte.length ? "Nichts gefunden." : "Alle HOCO Nummern haben schon ein Protokoll in der App."}</p> : (
             <table className="tabelle pb-zuletzt" id="pb-letzte-liste">
-              <thead><tr><th>HOCO Nr.</th><th>Index</th><th>Datei</th><th>Stand</th><th /></tr></thead>
+              <thead><tr><th>HOCO Nr.</th><th>Index</th><th>Bericht</th><th>Stand</th><th /></tr></thead>
               <tbody>
                 {letzteZeigen.map((x) => (
-                  <tr key={x.d.id} data-pbletzte={x.hoco} onClick={() => excelAnsehen(x.d)}>
+                  <tr key={x.d.id} data-pbletzte={x.hoco} onClick={() => vorlageAnsehen(x)}>
                     <td className="nowrap"><b>{x.hoco}</b></td>
                     <td className="nowrap">{x.idx || "–"}</td>
-                    <td className="klein pb-letzte-name" title={x.d.name}>{x.d.name}</td>
+                    <td className="klein pb-letzte-name" title={x.dateien.map((d) => d.name).join(", ")}>{x.d.name}{x.dateien.length > 1 ? " · " + x.dateien.length + " Seiten" : ""}</td>
                     <td className="klein nowrap">{zeitText(x.zeit)}</td>
                     <td className="nowrap"><button type="button" className="knopf knopf--klein" data-pbletzteansehen={x.d.id}
-                      onClick={(e) => { e.stopPropagation(); excelAnsehen(x.d); }}>Ansehen</button></td>
+                      onClick={(e) => { e.stopPropagation(); vorlageAnsehen(x); }}>Vorlage</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -350,6 +354,42 @@ function KopfRaster({ kopf, w, hoco }) {
   return (
     <div className="pb-kopf">
       {felder.filter(([, v]) => v).map(([n, v]) => <div key={n}><small>{n}</small><b>{v}</b></div>)}
+    </div>
+  );
+}
+
+// ---------- Leere Vorlage aus dem Excel der letzten Produktion (seit 1.823.0,
+// Wunsch Patrick 25. November 2026: „das efektive excel braucht man nicht zu
+// sehen, und die vorlage soll dan leer sein“). Alle Seiten eines Index sind ein
+// Bericht; was sich nicht lesen liess, steht mit ⚠ darüber. ----------
+function VorlageLeer({ v, zurueck }) {
+  const [st, setSt] = useState({ laedt: true });
+  useEffect(() => {
+    let weg = false;
+    vorlageLaden(v.dateien).then((x) => { if (!weg) setSt({ v: x }); }, (f) => { if (!weg) setSt({ fehler: fehlerText(f) }); });
+    return () => { weg = true; };
+  }, [v]);
+  const vor = st.v;
+  const teilweise = (vor && vor.teilweise) || [];
+  return (
+    <div className="pb pb-blattseite" data-pbvorlage={v.hoco}>
+      <div className="pb-kopfzeile pb-werkzeug">
+        <button type="button" className="knopf knopf--klein" onClick={zurueck}>← Prüfberichte</button>
+        <span className="pst-platz" />
+        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(v.hoco)}>Stammdaten {v.hoco}</button>
+      </div>
+      {st.laedt ? <p className="klein">Vorlage wird gelesen …</p> : null}
+      {st.fehler ? <p className="pb-rot" id="pb-vorlage-fehler">⚠ Datei konnte nicht gelesen werden: {st.fehler}</p> : null}
+      {teilweise.length ? <p className="pb-rot" id="pb-vorlage-teilweise">⚠ Datei konnte zum Teil nicht gelesen werden: {teilweise.join("; ")}</p> : null}
+      {vor ? (
+        <div className="pb-blatt hell-bleibt" id="pb-blatt">
+          <div className="rkpdf pb-briefkopf" dangerouslySetInnerHTML={{ __html: "<style>" + STIL + "</style>" + briefkopf() }} />
+          <h2 className="pb-blatt__titel">Vorlage aus letzter Produktion{v.idx ? " · Index " + v.idx : ""}</h2>
+          <KopfRaster kopf={{ ...(vor.kopf || {}), index: (vor.kopf || {}).index || v.idx }} w={{ kopf: {}, werte: {} }} hoco={v.hoco} />
+          {(vor.zeilen || []).length ? <TeileTabelle zeilen={vor.zeilen} w={{ kopf: {}, werte: {} }} schreibt={false} aendern={() => {}} />
+            : <p className="klein">Keine Masse gefunden.</p>}
+        </div>
+      ) : null}
     </div>
   );
 }

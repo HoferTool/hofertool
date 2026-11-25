@@ -13,9 +13,13 @@
 #  Kundenordner (5 Ziffern) plus die letzten vier Ziffern der Nummer im
 #  Dateinamen, sonst wie bei den Zeichnungen aus Kunden- und Teilordner.
 #  Genommen werden nur HOCO Nummern, die es im Tool gibt (hoco_parts).
-#  Aus dem Excel liest das Programm den Index (Zelle unter "Index"); je
-#  HOCO Nr. und Index bleibt nur der neuste Bericht als Vorlage, ältere
-#  kommen aus der App (Wunsch Patrick 25. November 2026).
+#  Aus dem Excel liest das Programm den Index (neben oder unter "Index",
+#  auch "Ind. B" in derselben Zelle); je HOCO Nr. und Index bleibt nur der
+#  neuste Bericht als Vorlage, ältere kommen aus der App. Ein Bericht über
+#  mehrere Dateien (Name mit "S 2", "Seite 2", "_Seite_2") bleibt zusammen:
+#  alle Seiten des neusten Berichts kommen mit, eine .xlsx gilt vor der
+#  gleichen .xls (Wunsch Patrick 25. November 2026: „mehrere Seiten
+#  zusammenfassen zu einem Punkt“, „Index wichtig“).
 #
 #  Unveränderte Dateien (Name, Grösse, Änderungszeit) bleiben in Ruhe.
 #  Eine geänderte Datei ersetzt ihre frühere in der App. Ist eine Datei
@@ -173,6 +177,30 @@ function ZipText($zip, [string]$name) {
   $r = New-Object IO.StreamReader($e.Open())
   try { return $r.ReadToEnd() } finally { $r.Close() }
 }
+# Index wie in der App (indexNorm in pruefbericht.js): "Index:" vorne weg,
+# leer, Striche und Beschriftungen ("Datum:") gelten als kein Index
+function IndexNorm([string]$t) {
+  $s = ([string]$t).Trim() -replace '^(?i)ind(ex)?\.?\s*:?\s*', ''
+  $s = $s.Trim()
+  if (-not $s -or $s -match '^[\s\-–—_./]+$' -or $s -match ':$') { return "" }
+  $s = $s.ToUpper()
+  if ($s.Length -gt 12) { $s = $s.Substring(0, 12) }
+  return $s
+}
+# Name ohne Endung und ohne Seitenangabe am Schluss ("S 2", "Seite 1+2", "_Seite_2")
+$seiteMuster = '[\s_\-]*\(?(s|seite|page|blatt)[\s_.]*\d+(\s*[+&,]\s*\d+)*\)?\s*$'
+function Grundname([string]$name) {
+  $b = [IO.Path]::GetFileNameWithoutExtension($name).ToLower()
+  $b = [regex]::Replace($b, $seiteMuster, '')
+  return ([regex]::Replace($b, '[\s_\-.]+', ' ')).Trim()
+}
+function SeiteAusName([string]$name) {
+  $b = [IO.Path]::GetFileNameWithoutExtension($name).ToLower()
+  $m = [regex]::Match($b, $seiteMuster)
+  if (-not $m.Success) { return 1 }
+  $z = [regex]::Match($m.Value, '\d+')
+  return [int]$z.Value
+}
 function IndexAusExcel([string]$datei) {
   if ($datei -notmatch '(?i)\.xls[xm]$') { return "" }
   $zip = [IO.Compression.ZipFile]::OpenRead($datei)
@@ -201,22 +229,42 @@ function IndexAusExcel([string]$datei) {
     $txt = ZipText $zip $blatt
     if (-not $txt) { return "" }
     $x = New-Object Xml.XmlDocument; $x.LoadXml($txt)
-    $werte = @{}; $fund = $null
+    # Zellen als "Zeile:Spalte"; Fehlerzellen (#WERT!) zählen nicht
+    $werte = @{}; $tab = 99999
     foreach ($c in $x.GetElementsByTagName("c")) {
-      $ref = $c.GetAttribute("r")
-      $m = [regex]::Match($ref, '^([A-Z]+)(\d+)$')
+      $m = [regex]::Match($c.GetAttribute("r"), '^([A-Z]+)(\d+)$')
       if (-not $m.Success) { continue }
+      if ($c.GetAttribute("t") -eq "e") { continue }
       $v = $null
       foreach ($k in $c.ChildNodes) { if ($k.LocalName -eq "v" -or $k.LocalName -eq "is") { $v = [string]$k.InnerText } }
       if ($null -eq $v) { continue }
       if ($c.GetAttribute("t") -eq "s") { $i = [int]$v; if ($i -lt $teile.Count) { $v = $teile[$i] } }
       $v = $v.Trim()
-      $werte[$ref] = $v
-      if (-not $fund -and $v -match '^(?i)index\s*:?$') { $fund = @($m.Groups[1].Value, [int]$m.Groups[2].Value) }
+      if (-not $v) { continue }
+      $sp = 0; foreach ($ch in $m.Groups[1].Value.ToCharArray()) { $sp = $sp * 26 + ([int]$ch - 64) }
+      $zl = [int]$m.Groups[2].Value
+      $werte["" + $zl + ":" + $sp] = $v
+      if ($sp -eq 1 -and $v -match '^(?i)nr\.?$' -and $zl -lt $tab) { $tab = $zl }
     }
-    if (-not $fund) { return "" }
-    $unter = $werte[$fund[0] + ($fund[1] + 1)]
-    if ($unter) { return ([string]$unter).Trim() }
+    # "Index" vor der Tabelle in Spalte 1 bis 14: Wert in derselben Zelle,
+    # rechts daneben (bis 3 Spalten, keine andere Beschriftung) oder darunter
+    $zeilen = @($werte.Keys | ForEach-Object { [int]($_.Split(":")[0]) } | Sort-Object -Unique)
+    foreach ($zl in $zeilen) {
+      if ($zl -ge $tab) { break }
+      for ($sp = 1; $sp -le 14; $sp++) {
+        $v = $werte["" + $zl + ":" + $sp]
+        if (-not $v -or $v -notmatch '^(?i)ind(ex)?\.?(\s|:|$)') { continue }
+        $n = IndexNorm $v
+        if ($n) { return $n }
+        for ($r = 1; $r -le 3; $r++) {
+          $w = $werte["" + $zl + ":" + ($sp + $r)]
+          if ($w) { if ($w -notmatch ':\s*$') { $n = IndexNorm $w; if ($n) { return $n } }; break }
+        }
+        $w = $werte["" + ($zl + 1) + ":" + $sp]
+        if ($w) { $n = IndexNorm $w; if ($n) { return $n } }
+        return ""
+      }
+    }
     return ""
   } finally { $zip.Dispose() }
 }
@@ -278,6 +326,7 @@ try {
       ZeilenWeg @($weg[$i..$ende])
     }
     $stand.dateien = @{}
+    $stand.index = @{}
     $stand.neu = $neu
     StandSichern
     $status.geleert = $weg.Count
@@ -337,6 +386,7 @@ try {
   $erreichbar = @()
   $nochFrei = $hoechstensJeLauf
   $leseFrei = 300      # so viele Excel je Durchlauf öffnen, um den Index zu lesen
+  $eintraege = @()
   $gruppen = @{}       # "HOCO|Index" → Dateien
   $offen = @{}         # HOCO Nr., bei denen noch nicht alle Indexe gelesen sind
   foreach ($o in @($konf.ordner)) {
@@ -403,10 +453,20 @@ try {
           $stand.index[$kennung] = $idx
         } else { $offen[$h] = $true; $status.rest++; continue }
       }
-      $sch = $h + "|" + $idx.ToUpper()
-      if (-not $gruppen.ContainsKey($sch)) { $gruppen[$sch] = @() }
-      $gruppen[$sch] += @{ d = $d; h = $h; idx = $idx; kennung = $kennung; vorher = $vorher }
+      $eintraege += @{ d = $d; h = $h; idx = (IndexNorm $idx); kennung = $kennung; vorher = $vorher;
+        grund = (Grundname $d.Name); seite = (SeiteAusName $d.Name); xlsx = ($d.Extension -match '(?i)^\.xls[xm]$') }
     }
+  }
+
+  # Seiten ohne eigenen Index (Seite 2, alte .xls neben der .xlsx) bekommen
+  # den Index der anderen Seite desselben Berichts
+  $idxJeBericht = @{}
+  foreach ($e in $eintraege) { if ($e.idx) { $idxJeBericht[$e.h + "|" + $e.grund] = $e.idx } }
+  foreach ($e in $eintraege) {
+    if (-not $e.idx -and $idxJeBericht.ContainsKey($e.h + "|" + $e.grund)) { $e.idx = $idxJeBericht[$e.h + "|" + $e.grund] }
+    $sch = $e.h + "|" + $e.idx
+    if (-not $gruppen.ContainsKey($sch)) { $gruppen[$sch] = @() }
+    $gruppen[$sch] += $e
   }
 
   # Je HOCO Nr. und Index nur ein Bericht, der neuste gilt als Vorlage
@@ -415,11 +475,20 @@ try {
     $liste = @($gruppen[$sch])
     if ($offen.ContainsKey($liste[0].h)) { continue }
     $liste = @($liste | Sort-Object { $_.d.LastWriteTimeUtc } -Descending)
-    for ($i = 1; $i -lt $liste.Count; $i++) {
-      $status.aelter++
-      if ($liste[$i].vorher.Count -gt 0 -and $status.scharf) { ZeilenWeg $liste[$i].vorher }
+    # Alle Seiten des neusten Berichts, je Seite eine Datei (.xlsx vor .xls, sonst die neuste)
+    $grund = $liste[0].grund
+    $jeSeite = @{}
+    foreach ($e in @($liste | Where-Object { $_.grund -eq $grund } | Sort-Object { -not $_.xlsx }, { -$_.d.LastWriteTimeUtc.Ticks })) {
+      if (-not $jeSeite.ContainsKey($e.seite)) { $jeSeite[$e.seite] = $e }
     }
-    $e = $liste[0]; $d = $e.d; $h = $e.h; $kennung = $e.kennung; $vorher = @($e.vorher)
+    $nehmen = @($jeSeite.Values)
+    foreach ($e in $liste) {
+      if ($nehmen -contains $e) { continue }
+      $status.aelter++
+      if ($e.vorher.Count -gt 0 -and $status.scharf) { ZeilenWeg $e.vorher }
+    }
+    foreach ($e in $nehmen) {
+    $d = $e.d; $h = $e.h; $kennung = $e.kennung; $vorher = @($e.vorher)
     $gleich = @($vorher | Where-Object { [string]$_.kennung -eq $kennung })
     if ($gleich.Count -gt 0) {
       $falsch = @($gleich | Where-Object { [string]$_.hoco_nr -ne $h -or [string]$_.index_nr -ne $e.idx -or $null -eq $_.index_nr })
@@ -457,6 +526,7 @@ try {
       $status.fehler = "Fehler bei " + $d.Name + ": " + $_.Exception.Message
     } finally {
       if ($kopie) { Remove-Item -LiteralPath (Split-Path -Parent $kopie.FullName) -Recurse -Force -ErrorAction SilentlyContinue }
+    }
     }
   }
 
