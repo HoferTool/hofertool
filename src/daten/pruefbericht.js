@@ -365,7 +365,11 @@ export const zeilenId = (zeilen, z) => {
 // täglich stichprobenmässig kontrolliert“) ----------
 export const ARTEN = [
   { id: "erstteil", name: "Erstteilprüfung", kurz: "Erstteil", text: "5 Teile, alle Masse" },
-  { id: "endkontrolle", name: "Endkontrolle", kurz: "Endkontrolle", text: "5 Teile, alle Masse" },
+  { id: "endkontrolle", name: "Endkontrolle", kurz: "Endkontrolle", text: "5 Teile, nur was nötig ist" },
+  // Zwischenkontrolle (seit 1.824.0, Wunsch Patrick 25. November 2026): nach
+  // Eloxieren, Schleifen …, wählt die QS beim fertigen Auftrag statt der
+  // Endkontrolle; kein eigenes Häkchen in den Stammdaten (nurWahl)
+  { id: "zwischen", name: "Zwischenkontrolle", kurz: "Zwischen", text: "Nach externer Bearbeitung, nur was nötig ist", nurWahl: true },
   { id: "aql", name: "AQL-Stichprobe", kurz: "AQL", text: "Stichprobe nach Losgrösse (ISO 2859-1)" },
   { id: "ll", name: "LL Langläufer", kurz: "LL", text: "Wichtige Masse, Stichproben laufend" },
 ];

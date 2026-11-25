@@ -24,6 +24,7 @@ import { alt, useDaten } from "../../bruecke.jsx";
 import { passtWoerter } from "../../teile/Suchfeld.jsx";
 import { useSeitenSuche } from "../../teile/seitenSuche.js";
 import { STIL, briefkopf } from "./achtdBlatt.js";
+import { auswahlDialog } from "../../teile/Dialoge.jsx";
 import {
   ARTEN, artVon, TEILE, AQL_WERTE, aqlPlan, fehltTabelle, protokolleLaden, dateienLaden, vorlageLaden, stammSpeichern,
   stammLaden, stammMitMassen, toleranz, toleranzText, istPruefen, lehrenAus, pruefmittelFuer,
@@ -84,8 +85,11 @@ function stammdatenOeffnen(nr) {
 const gehoertZu = (p, j) => (p.job_id && p.job_id === j.id)
   || (p.hoco_nr === j.job_number && j.fa_nr && String(p.fa_nr || "").trim() === String(j.fa_nr).trim());
 
-// Was steht an? Nur Aufträge an der Maschine (Rüsten, läuft) und nur, was
-// die Stammdaten der HOCO Nr. verlangen.
+// Was steht an? Nur was die Stammdaten der HOCO Nr. verlangen (seit 1.824.0,
+// Wunsch Patrick 25. November 2026): Erstteil, sobald der Auftrag eine FA Nr.
+// hat und auf Rüsten steht; AQL und LL, solange er läuft; Endkontrolle, wenn
+// er fertig ist. Dort wählt die QS Endkontrolle oder Zwischenkontrolle, eine
+// Zwischenkontrolle lässt die Endkontrolle offen.
 export function anstehend(jobs, stamm, protokolle) {
   const st = new Map((stamm || []).map((s) => [s.hoco_nr, s]));
   const t = heute();
@@ -99,9 +103,19 @@ export function anstehend(jobs, stamm, protokolle) {
     const offenes = (art) => von(art).find((p) => !p.abgeschlossen_am) || null;
     // Erstteil gilt erst mit Freigabe als erledigt (seit 1.785.0)
     const fertig = (art) => von(art).some((p) => p.abgeschlossen_am && (art !== "erstteil" || p.entscheid === "freigabe"));
-    if (arten.includes("erstteil") && !fertig("erstteil")) aus.erstteil.push({ j, art: "erstteil", p: offenes("erstteil") });
+    if (arten.includes("erstteil") && !fertig("erstteil")) {
+      const p = offenes("erstteil");
+      if (p || (j.plan_status === "ruesten" && String(j.fa_nr || "").trim())) aus.erstteil.push({ j, art: "erstteil", p });
+    }
+    if (j.plan_status === "fertig") {
+      if (arten.includes("endkontrolle") && !fertig("endkontrolle")) {
+        const p = offenes("endkontrolle") || offenes("zwischen");
+        const zw = von("zwischen").filter((x) => x.abgeschlossen_am).length;
+        aus.endkontrolle.push({ j, art: p ? (p.kopf || {}).art : "endkontrolle", p, waehlen: !p, zwischen: zw });
+      }
+      continue;
+    }
     if (j.plan_status !== "laeuft") continue;
-    if (arten.includes("endkontrolle") && !fertig("endkontrolle")) aus.endkontrolle.push({ j, art: "endkontrolle", p: offenes("endkontrolle") });
     if (arten.includes("aql") && !fertig("aql")) aus.aql.push({ j, art: "aql", p: offenes("aql") });
     if (arten.includes("ll")) {
       const ll = von("ll").find((p) => !p.abgeschlossen_am) || null;
@@ -171,13 +185,15 @@ export default function Pruefberichte() {
   const [, setF] = useState(0);
   const neuZeichnen = () => setF((x) => x + 1);
   const laden = async () => {
-    const [protokolle, stamm, jobsR, dateien] = await Promise.all([
+    const [protokolle, stamm, jobsR, fertigR, dateien] = await Promise.all([
       protokolleLaden(),
       stammLaden().catch((f) => { if (fehltTabelle(f)) return []; throw f; }),
-      alt.db.from("jobs").select("id, fa_nr, job_number, plan_status, target_quantity, machine_id, planned_from, material_bez, material_dm").in("plan_status", ["ruesten", "laeuft"]),
+      alt.db.from("jobs").select("id, fa_nr, job_number, plan_status, target_quantity, machine_id, planned_from, material_bez, material_dm, ended_at").in("plan_status", ["ruesten", "laeuft"]),
+      // Fertige der letzten 60 Tage für die Endkontrolle, ältere häufen sich sonst an
+      alt.db.from("jobs").select("id, fa_nr, job_number, plan_status, target_quantity, machine_id, planned_from, material_bez, material_dm, ended_at").eq("plan_status", "fertig").gte("ended_at", new Date(Date.now() - 60 * 864e5).toISOString()),
       dateienLaden().catch(() => []),
     ]);
-    const jobs = jobsR.data || [];
+    const jobs = (jobsR.data || []).concat((fertigR && fertigR.data) || []);
     const ids = [...new Set(jobs.map((j) => j.machine_id).filter(Boolean))];
     const m = ids.length ? (await alt.db.from("machines").select("id, name").in("id", ids)).data || [] : [];
     const name = new Map(m.map((x) => [x.id, x.name]));
@@ -227,7 +243,19 @@ function Uebersicht({ daten, neu, oeffnen }) {
 
   // Seit 1.784.0 kein „+ Protokoll“ mehr: Protokolle entstehen nur aus dem, was
   // die Stammdaten verlangen und hier ansteht (Wunsch Patrick 24. November 2026).
-  const todoTippen = (t) => { if (t.p) oeffnen(t.p); else anlegen(t.j.job_number, t.art, t.j); };
+  const todoTippen = async (t) => {
+    if (t.p) { oeffnen(t.p); return; }
+    let art = t.art;
+    // Beim fertigen Auftrag entscheidet die QS selbst (Wunsch Patrick 25. November 2026)
+    if (t.waehlen) {
+      art = await auswahlDialog("Welche Kontrolle?", [
+        { wert: "endkontrolle", text: "Endkontrolle" },
+        { wert: "zwischen", text: "Zwischenkontrolle" },
+      ], t.j.job_number + (t.j.fa_nr ? " · FA " + t.j.fa_nr : "") + (t.zwischen ? " · schon " + t.zwischen + " Zwischenkontrolle(n)" : ""), true);
+      if (!art) return;
+    }
+    anlegen(t.j.job_number, art, t.j);
+  };
 
   const liste = [...daten.protokolle]
     .sort((a, b) => String(b.geaendert_am || b.erstellt_am).localeCompare(String(a.geaendert_am || a.erstellt_am)))
@@ -257,8 +285,8 @@ function Uebersicht({ daten, neu, oeffnen }) {
   const vorlageAnsehen = (x) => { pbZustand.vorlage = { hoco: x.hoco, idx: x.idx, dateien: x.dateien }; neuZeichnen(); };
 
   const SPALTEN = [
-    ["erstteil", "Erstteilprüfung", "Aufträge in Rüsten oder läuft ohne abgeschlossene Erstteilprüfung"],
-    ["endkontrolle", "Endkontrolle", "Laufende Aufträge ohne abgeschlossene Endkontrolle"],
+    ["erstteil", "Erstteilprüfung", "Aufträge in Rüsten mit FA Nr. ohne Freigabe"],
+    ["endkontrolle", "Endkontrolle", "Fertige Aufträge, Endkontrolle oder Zwischenkontrolle"],
     ["aql", "AQL", "Laufende Aufträge ohne abgeschlossene AQL-Stichprobe"],
     ["ll", "LL Langläufer", "Laufende Aufträge ohne Stichprobe von heute"],
   ];
@@ -275,7 +303,7 @@ function Uebersicht({ daten, neu, oeffnen }) {
                     <button type="button" className="pb-todo__eintrag" data-pbtodoauftrag={t.j.id} disabled={!darf() && !t.p} onClick={() => todoTippen(t)}>
                       <b>{t.j.job_number}</b>
                       <span>{t.j.fa_nr ? "FA " + t.j.fa_nr : "ohne FA"} · {t.j.maschine || "?"} · {STAND[t.j.plan_status] || ""}</span>
-                      <small>{t.p ? (t.art === "ll" ? "heute noch keine Stichprobe" : "in Arbeit, weiterführen") : "noch nicht angefangen"}</small>
+                      <small>{t.p ? (t.art === "ll" ? "heute noch keine Stichprobe" : (t.art === "zwischen" ? "Zwischenkontrolle in Arbeit" : "in Arbeit, weiterführen")) : (t.zwischen ? "Zwischenkontrolle gemacht, Endkontrolle offen" : "noch nicht angefangen")}</small>
                     </button>
                   </li>
                 ))}
@@ -438,7 +466,9 @@ function Protokoll({ p, zurueck }) {
     const e = auswerten(w);
     if (!w.entscheid) { alt.meldung("Bitte zuerst den Prüf-Entscheid wählen.", "warn"); return; }
     if (!w.visum) { alt.meldung("Bitte das Visum eintragen.", "warn"); return; }
-    if (e.offen && art !== "ll") {
+    // Nicht alle Masse sind Pflicht: manche kommen erst nach Eloxieren oder
+    // Schleifen dran (seit 1.824.0); nachgefragt wird nur noch bei AQL
+    if (e.offen && art === "aql") {
       const ok = await alt.nachfragen({ titel: "Noch leere Felder", text: e.offen + " Felder sind noch leer. Trotzdem abschliessen?", bestaetigen: "Abschliessen" });
       if (!ok) return;
     }

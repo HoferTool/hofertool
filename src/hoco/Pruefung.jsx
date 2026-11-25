@@ -41,7 +41,7 @@ export default function Pruefung({ hoco, darf }) {
 
   const geaendert = JSON.stringify(w) !== JSON.stringify({ arten: st.arten || [], aql: st.aql ?? "", niveau: st.niveau || "", zeilen: st.zeilen || [], kopf: st.kopf || {} })
     || st.aus === "excel";
-  const artUm = (id) => setW((x) => ({ ...x, arten: x.arten.includes(id) ? x.arten.filter((a) => a !== id) : ARTEN.map((a) => a.id).filter((a) => a === id || x.arten.includes(a)) }));
+  const artUm = (id) => setW((x) => ({ ...x, arten: x.arten.includes(id) ? x.arten.filter((a) => a !== id) : ARTEN.filter((a) => !a.nurWahl).map((a) => a.id).filter((a) => a === id || x.arten.includes(a)) }));
   const zeileSetzen = (id, n, v) => setW((x) => ({ ...x, zeilen: x.zeilen.map((z) => (z.id === id ? { ...z, [n]: v } : z)) }));
   const zeileWeg = (id) => setW((x) => ({ ...x, zeilen: x.zeilen.filter((z) => z.id !== id) }));
   // Markierte Zeilen im Masse-Blatt leeren oder löschen (seit 1.786.0)
@@ -100,7 +100,7 @@ export default function Pruefung({ hoco, darf }) {
 
       <div className="pst-arten">
         <b>Nötig bei jedem Auftrag:</b>
-        {ARTEN.map((a) => (
+        {ARTEN.filter((a) => !a.nurWahl).map((a) => (
           <label key={a.id} className={"pb-wahl" + (w.arten.includes(a.id) ? " pb-wahl--an" : "")} data-pstart={a.id}>
             <input type="checkbox" checked={w.arten.includes(a.id)} disabled={!schreibt} onChange={() => artUm(a.id)} /> {a.name}
           </label>

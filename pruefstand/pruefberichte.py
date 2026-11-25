@@ -29,15 +29,17 @@ with sync_playwright() as p:
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
     pg.evaluate("""s => { TEST.daten.pruef_stamm = [s]; TEST.daten.pruefbericht_dateien = []; TEST.daten.pruefprotokolle = [];
         const m = (TEST.daten.machines || [])[0];
-        TEST.daten.jobs.push({ id: 'jpb1', job_number: '99999-0001', fa_nr: '2026000111', plan_status: 'laeuft', planned_from: '2026-11-20', target_quantity: 800, machine_id: m && m.id, material_bez: 'X10CrNiS18-9 rd 011 mm h8', material_dm: 11 },
-                             { id: 'jpb2', job_number: '99999-0001', fa_nr: '2025000999', plan_status: 'fertig', planned_from: '2025-05-01', target_quantity: 500 }); }""", STAMM)
+        TEST.daten.jobs.push({ id: 'jpb1', job_number: '99999-0001', fa_nr: '2026000111', plan_status: 'ruesten', planned_from: '2026-11-20', target_quantity: 800, machine_id: m && m.id, material_bez: 'X10CrNiS18-9 rd 011 mm h8', material_dm: 11 },
+                             { id: 'jpb2', job_number: '99999-0001', fa_nr: '2025000999', plan_status: 'fertig', planned_from: '2025-05-01', target_quantity: 500 },
+                             { id: 'jpb4', job_number: '99999-0001', fa_nr: '2026000444', plan_status: 'fertig', planned_from: '2026-11-10', ended_at: new Date().toISOString(), target_quantity: 400 }); }""", STAMM)
     pg.evaluate("location.hash='#/qs'"); pg.wait_for_timeout(800)
     pg.evaluate("() => { const b = [...document.querySelectorAll('[data-qs=pruefberichte], .nav a, .nav button, .reiter button, .reiter a')].find(x => x.offsetParent && /Prüfberichte/.test(x.textContent)); b && b.click(); }")
     pg.wait_for_selector("#pb-todo"); pg.wait_for_timeout(500)
     pruefe(pg.locator("[data-pbtodo=erstteil] [data-pbtodoauftrag=jpb1]").count() == 1, "Erstteil steht an")
-    pruefe(pg.locator("[data-pbtodo=aql] [data-pbtodoauftrag=jpb1]").count() == 1, "AQL steht an")
-    pruefe(pg.locator("[data-pbtodo=ll] [data-pbtodoauftrag=jpb1]").count() == 1, "LL steht an")
-    pruefe(pg.locator("[data-pbtodo=endkontrolle] [data-pbtodoauftrag=jpb1]").count() == 1, "Endkontrolle steht an")
+    pruefe(pg.locator("[data-pbtodo=aql] [data-pbtodoauftrag=jpb1]").count() == 0, "AQL erst wenn läuft")
+    pruefe(pg.locator("[data-pbtodo=endkontrolle] [data-pbtodoauftrag=jpb1]").count() == 0, "Endkontrolle erst wenn fertig")
+    pruefe(pg.locator("[data-pbtodo=endkontrolle] [data-pbtodoauftrag=jpb4]").count() == 1, "Endkontrolle für fertigen Auftrag")
+    pruefe(pg.locator("[data-pbtodoauftrag=jpb2]").count() == 0, "alter fertiger Auftrag nicht")
     pruefe(pg.locator("#pb-hochladen").count() == 0, "kein Excel-Hochladen im Reiter")
     pruefe(pg.locator("#pb-neu").count() == 0, "kein Knopf + Protokoll")
     # Erstteil aus dem Todo
@@ -63,6 +65,8 @@ with sync_playwright() as p:
     pruefe(pp and pp[0].get("abgeschlossen_am"), "abgeschlossen")
     pg.locator("button:has-text('← Prüfberichte')").click(); pg.wait_for_selector("#pb-todo"); pg.wait_for_timeout(600)
     pruefe(pg.locator("[data-pbtodo=erstteil] [data-pbtodoauftrag=jpb1]").count() == 0, "Erstteil nicht mehr offen")
+    pruefe(pg.evaluate("() => TEST.daten.jobs.find(j => j.id === 'jpb1').plan_status") == "laeuft", "jpb1 läuft nach Freigabe")
+    pruefe(pg.locator("[data-pbtodo=ll] [data-pbtodoauftrag=jpb1]").count() == 1, "LL steht an, wenn läuft")
     pruefe(pg.locator("#pb-liste [data-pbprotokoll]").count() == 1, "in der Liste zuletzt bearbeitet")
     # LL aus dem Todo
     pg.click("[data-pbtodo=ll] [data-pbtodoauftrag=jpb1]")
@@ -98,6 +102,17 @@ with sync_playwright() as p:
     pruefe(st == "laeuft", "nach Freigabe läuft der Auftrag: %s" % st)
     pg.locator("button:has-text('← Prüfberichte')").click(); pg.wait_for_selector("#pb-todo"); pg.wait_for_timeout(600)
     pruefe(pg.locator("[data-pbtodo=erstteil] [data-pbtodoauftrag=jpb3]").count() == 0, "Erstteil jpb3 nicht mehr in der Liste")
+    # Fertiger Auftrag: QS wählt Endkontrolle oder Zwischenkontrolle
+    pg.click("[data-pbtodo=endkontrolle] [data-pbtodoauftrag=jpb4]"); pg.wait_for_selector(".dialog-huelle [data-w=zwischen]")
+    pruefe(pg.locator(".dialog-huelle [data-w=endkontrolle]").count() == 1, "Wahl Endkontrolle / Zwischenkontrolle")
+    pg.click(".dialog-huelle [data-w=zwischen]"); pg.wait_for_selector("#pb-blatt"); pg.wait_for_timeout(1300)
+    zw = [x for x in pg.evaluate("() => TEST.daten.pruefprotokolle") if (x.get("kopf") or {}).get("art") == "zwischen"]
+    pruefe(len(zw) == 1 and zw[0].get("job_id") == "jpb4", "Zwischenkontrolle angelegt")
+    pg.locator("input[name=pb-entscheid]").first.check(); pg.locator("label:has-text('Visum') input").last.fill("TE"); pg.wait_for_timeout(200)
+    pg.click("#pb-abschliessen"); pg.wait_for_timeout(800)
+    pruefe(pg.locator(".dialog-huelle").count() == 0, "Zwischenkontrolle ohne Pflichtfelder abgeschlossen")
+    pg.locator("button:has-text('← Prüfberichte')").click(); pg.wait_for_selector("#pb-todo"); pg.wait_for_timeout(600)
+    pruefe(pg.locator("[data-pbtodo=endkontrolle] [data-pbtodoauftrag=jpb4]").count() == 1, "nach Zwischenkontrolle bleibt Endkontrolle offen")
     pg.screenshot(path="/tmp/pb_uebersicht.png")
     # Stammdaten: Karte Prüfung mit Masse-Blatt
     pg.locator("#pb-liste [data-pbprotokoll]").first.click()
