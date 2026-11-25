@@ -18,32 +18,34 @@
 // lader = Richtung des Stangenladers (links, rechts, oben, unten).
 const LADER = 180, LADER_B = 26;
 const ZEILE = (i) => 40 + i * 106;
-const SX = 720, SW = 150;                 // Star-Block: linkes Gehäuse, Gehäuselänge
+const SX = 870, SW = 150;                 // Star-Block: linkes Gehäuse, Gehäuselänge
 const SR = SX + SW + LADER;               // rechtes Gehäuse, Lader liegen dazwischen nebeneinander
 const VERSATZ = LADER_B + 4;              // rechte Maschine etwas tiefer
 const paar = (i, l, r) => ({
   [l]: { art: "star", x: SX, y: ZEILE(i), lader: "rechts" },
   [r]: { art: "star", x: SR, y: ZEILE(i) + VERSATZ, lader: "links" },
 });
-const IO = 30 + LADER + 4, IU = IO + 190 + 26;   // Index oben (Lader oben) / unten (Lader unten)
+// Seit 1.800.0 (Patrick 25. November 2026: „Index auch ähnlich mit Lader
+// kreuzen, aber ein wenig mehr Lücke dazwischen als bei Star“): oben Lader
+// nach unten, unten Lader nach oben, die Lader nebeneinander, die untere
+// Maschine um IV nach rechts versetzt (14 Punkte Lücke statt 4).
+const IH = 190, IO = 40, IU = IO + IH + LADER, IV = LADER_B + 14;
+const HO = 30 + LADER + 4;                // Hanwha, Lader nach oben
 export const LAGE = {
-  309: { art: "index", x: 40, y: IO, lader: "oben" },
-  308: { art: "index", x: 200, y: IO, lader: "oben" },
-  307: { art: "index", x: 200, y: IU, lader: "unten" },
-  305: { art: "index", x: 360, y: IO, lader: "oben" },
-  306: { art: "index", x: 360, y: IU, lader: "unten" },
-  201: { art: "hanwha", x: 520, y: IO, lader: "oben" },
-  202: { art: "hanwha", x: 600, y: IO, lader: "oben" },
+  309: { art: "index", x: 40, y: IO, lader: "unten" },
+  308: { art: "index", x: 210, y: IO, lader: "unten" },
+  307: { art: "index", x: 210 + IV, y: IU, lader: "oben" },
+  305: { art: "index", x: 420, y: IO, lader: "unten" },
+  306: { art: "index", x: 420 + IV, y: IU, lader: "oben" },
+  201: { art: "hanwha", x: 640, y: HO, lader: "oben" },
+  202: { art: "hanwha", x: 730, y: HO, lader: "oben" },
   ...paar(0, 121, 130), ...paar(1, 128, 129), ...paar(2, 127, 126),
   ...paar(3, 122, 123), ...paar(4, 111, 124), ...paar(5, 120, 125),
   ...paar(6, 119, 116), ...paar(7, 115, 113), ...paar(8, 114, 117),
   401: { art: "macodel", x: SX, y: ZEILE(8) + 122, lader: "rechts" },
 };
-// Räume unten links an der Wand, links nach rechts: Schleuderei und Wäscherei
-// teilen sich ein Viereck, Lager und Programmierzimmer je eines
-const B = 1240, HALLE = 1180, H = HALLE + 60;
-const RAUM = 190;
-const GROESSE = { star: [SW, 64], index: [120, 190], hanwha: [60, SW], macodel: [220, 110] };
+const B = SR + SW + 40, HALLE = 1180, H = HALLE + 60;
+const GROESSE = { star: [SW, 64], index: [120, IH], hanwha: [60, SW], macodel: [220, 110] };
 
 export default function Halle({ maschinen, zahl, faellig, gewaehlt, waehlen }) {
   const nachNr = new Map((maschinen || []).map((m) => [String(m.machine_number || ""), m]));
@@ -93,54 +95,100 @@ function Vorlagen() {
   );
 }
 
+// Räume unten links (seit 1.800.0, Patrick 25. November 2026): Schleuderei und
+// Wäscherei teilen sich ein Viereck, senkrecht nebeneinander, dann das grössere
+// Lager, beide an der Wand; das Programmierzimmer steht frei davor („nicht an
+// der Wand“) und zeigt innen die Einrichtung nach Patricks Skizze.
+const SQ = 220, LG = 270;
 function Raeume() {
-  const y = HALLE - 6 - RAUM, x0 = 6;
+  const u = HALLE - 6;
   const teile = [
-    { name: "Schleuderei", x: x0, y, w: RAUM, h: RAUM / 2 },
-    { name: "Wäscherei", x: x0, y: y + RAUM / 2, w: RAUM, h: RAUM / 2 },
-    { name: "Lager", x: x0 + RAUM, y, w: RAUM, h: RAUM },
-    { name: "Programmierzimmer", x: x0 + 2 * RAUM, y, w: RAUM, h: RAUM, zwei: ["Programmier-", "zimmer"] },
+    { name: "Schleuderei", x: 6, y: u - SQ, w: SQ / 2, h: SQ, senk: true },
+    { name: "Wäscherei", x: 6 + SQ / 2, y: u - SQ, w: SQ / 2, h: SQ, senk: true },
+    { name: "Lager", x: 6 + SQ, y: u - LG, w: LG, h: LG },
   ];
   return (
     <g className="hl-raeume">
-      {teile.map((r) => (
-        <g key={r.name}>
-          <rect x={r.x} y={r.y} width={r.w} height={r.h} fill="#e4e7ea" stroke="#6b7076" strokeWidth="8" />
-          {/* Türe zur Halle */}
-          <rect x={r.x + r.w - 4} y={r.y + r.h / 2 - 24} width="8" height="48" fill="#e4e7ea" />
-          <text x={r.x + r.w / 2} y={r.y + r.h / 2 + (r.zwei ? -4 : 8)} textAnchor="middle" className="hl-raum"
-            style={{ fontSize: r.zwei || r.h < RAUM ? 22 : 26 }}>
-            {r.zwei ? r.zwei.map((t, i) => <tspan key={t} x={r.x + r.w / 2} dy={i ? 26 : 0}>{t}</tspan>) : r.name}
-          </text>
-        </g>
-      ))}
+      {teile.map((r) => {
+        const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+        return (
+          <g key={r.name}>
+            <rect x={r.x} y={r.y} width={r.w} height={r.h} fill="#e4e7ea" stroke="#6b7076" strokeWidth="8" />
+            {/* Türe zur Halle: senkrechte Räume oben, das Lager rechts */}
+            {r.senk ? <rect x={cx - 22} y={r.y - 4} width="44" height="8" fill="#e4e7ea" />
+              : <rect x={r.x + r.w - 4} y={cy - 24} width="8" height="48" fill="#e4e7ea" />}
+            <text x={cx} y={cy + 9} textAnchor="middle" className="hl-raum" style={{ fontSize: r.senk ? 24 : 30 }}
+              transform={r.senk ? `rotate(-90 ${cx} ${cy})` : undefined}>{r.name}</text>
+          </g>);
+      })}
+      <Programmierzimmer x={6 + SQ + LG + 22} y={HALLE - 6 - 340} />
     </g>
   );
 }
 
+// Programmierzimmer, Masse aus Patricks Skizze (877 × 762 Punkte) umgerechnet
+const PZ_B = 330, PZ_H = 300;   // schmal genug, dass die Macodel 401 daneben frei bleibt
+function Programmierzimmer({ x, y }) {
+  const X = (p) => x + ((p - 45) * PZ_B) / 877, Y = (p) => y + ((p - 25) * PZ_H) / 762;
+  const R = (x1, y1, x2, y2, rest) => <rect x={X(x1)} y={Y(y1)} width={X(x2) - X(x1)} height={Y(y2) - Y(y1)} {...rest} />;
+  const T = (px, py, t, gr = 11, rest = {}) => <text x={X(px)} y={Y(py)} textAnchor="middle" style={{ font: `600 ${gr}px system-ui, sans-serif`, fill: "#26313b" }} {...rest}>{t}</text>;
+  const blau = { fill: "#1b5e86", stroke: "#123f5a", strokeWidth: 1.5 };
+  const weiss = { fill: "#fff", stroke: "#26313b", strokeWidth: 1.2 };
+  const geraet = { fill: "#f3f6f2", stroke: "#4a9a3a", strokeWidth: 1.5 };
+  return (
+    <g className="hl-pz">
+      <rect x={x} y={y} width={PZ_B} height={PZ_H} fill="#eef1f3" stroke="#6b7076" strokeWidth="8" filter="url(#hl-schatten)" />
+      {/* Türe oben links mit Aufschlag */}
+      <rect x={X(47)} y={y - 5} width={X(177) - X(47)} height="10" fill="#eef1f3" />
+      <path d={`M${X(162)} ${y} v${Y(85) - y}`} stroke="#26313b" strokeWidth="2" />
+      <path d={`M${X(162)} ${Y(85)} A${X(162) - X(50)} ${Y(85) - y} 0 0 1 ${X(50)} ${y}`} fill="none" stroke="#8a939b" strokeWidth="1.2" strokeDasharray="4 3" />
+      {/* Arbeitstisch mit drei PCs und Stühlen */}
+      {R(188, 55, 806, 135, blau)}
+      {[[225, 302, "PC SB"], [408, 483, "PC SW"], [594, 680, "PC MW"]].map(([a, b, t]) => (
+        <g key={t}>{R(a, 76, b, 116, weiss)}{T((a + b) / 2, 104, t, 10)}</g>))}
+      {[275, 454, 633].map((c) => <ellipse key={c} cx={X(c)} cy={Y(183)} rx={X(c + 30) - X(c)} ry={Y(198) - Y(183)} {...blau} />)}
+      {R(810, 63, 907, 159, weiss)}{T(858, 106, "Mess-", 10)}{T(858, 134, "maschine", 10)}
+      {/* Planwand an der linken Wand */}
+      {R(50, 220, 85, 568, geraet)}
+      {T(68, 394, "Planwand", 11, { transform: `rotate(-90 ${X(68)} ${Y(394)})` })}
+      {/* Trennwände */}
+      <g stroke="#26313b" strokeWidth="3" strokeLinecap="round">
+        <line x1={X(45)} y1={Y(580)} x2={X(207)} y2={Y(580)} />
+        <line x1={X(398)} y1={Y(580)} x2={X(686)} y2={Y(577)} />
+        <line x1={X(527)} y1={Y(583)} x2={X(521)} y2={Y(785)} />
+      </g>
+      {R(54, 599, 137, 655, geraet)}{T(96, 634, "3D-Drucker", 9)}
+      {R(56, 682, 139, 737, geraet)}{T(98, 717, "3D-Drucker", 9)}
+      {R(405, 610, 483, 757, geraet)}{T(444, 690, "Keyence", 10, { transform: `rotate(-90 ${X(444)} ${Y(683)})` })}
+      {R(555, 614, 636, 741, blau)}{R(575, 633, 613, 729, weiss)}
+      {T(594, 684, "PC Index", 9, { transform: `rotate(-90 ${X(594)} ${Y(681)})` })}
+      <ellipse cx={X(673)} cy={Y(683)} rx={X(688) - X(673)} ry={Y(718) - Y(683)} {...blau} />
+      {R(787, 671, 903, 760, geraet)}{T(845, 720, "Drucker", 10)}
+      <text x={x + PZ_B / 2} y={Y(400)} textAnchor="middle" className="hl-raum" style={{ fontSize: 22, opacity: 0.55 }}>Programmierzimmer</text>
+    </g>
+  );
+}
+
+// Treppe nur am Rand angedeutet: Stufen in der unteren Wand und ein Pfeil hinaus
 function Treppe() {
-  const x = 600, y = HALLE - 226, w = 100, h = 210, stufen = 11;
+  const x = 6 + SQ + LG + 70, w = 120, y = HALLE - 18;
   return (
     <g className="hl-treppe">
-      <rect x={x} y={y} width={w} height={h} fill="#cfd3d6" stroke="#7b8187" strokeWidth="2" />
-      {Array.from({ length: stufen }, (_, i) => (
-        <rect key={i} x={x + 4} y={y + 4 + i * ((h - 8) / stufen)} width={w - 8} height={(h - 8) / stufen - 3}
-          fill={`hsl(210 6% ${86 - i * 3}%)`} />))}
-      <rect x={x - 6} y={y} width="6" height={h} fill="#8a6d3b" />
-      <rect x={x + w} y={y} width="6" height={h} fill="#8a6d3b" />
-      <path d={`M${x + w / 2} ${y + 40} v${h - 80} m-16 -18 l16 18 l16 -18`} fill="none" stroke="#3b4148" strokeWidth="5" strokeLinecap="round" />
-      <text x={x + w / 2} y={y - 12} textAnchor="middle" className="hl-schrift">Treppe hinaus</text>
+      <rect x={x} y={y - 10} width={w} height="34" fill="#cfd3d6" />
+      {Array.from({ length: 7 }, (_, i) => <line key={i} x1={x + 6 + i * 18} x2={x + 6 + i * 18} y1={y - 8} y2={y + 22} stroke="#7b8187" strokeWidth="3" />)}
+      <path d={`M${x + w + 16} ${y + 6} h40 m-12 -10 l12 10 l-12 10`} fill="none" stroke="#3b4148" strokeWidth="4" strokeLinecap="round" transform={`rotate(90 ${x + w + 36} ${y + 6})`} />
+      <text x={x + w / 2} y={y - 18} textAnchor="middle" className="hl-schrift">Treppe</text>
     </g>
   );
 }
 
 function Maschine({ nr, l, m, n, warn, an, waehlen }) {
   const [w, h] = GROESSE[l.art];
-  const klick = m ? () => waehlen(an ? null : m.id) : undefined;
+  const klick = m ? (e) => waehlen(an ? null : m.id, e && e.currentTarget) : undefined;
   return (
     <g className={"hl-maschine" + (m ? "" : " hl-maschine--fehlt") + (an ? " hl-maschine--an" : "") + (n ? " hl-maschine--voll" : "")}
       data-hlnr={nr} data-pmmaschine={m ? m.id : undefined} onClick={klick} role={m ? "button" : undefined}
-      tabIndex={m ? 0 : undefined} onKeyDown={(e) => { if (m && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); klick(); } }}>
+      tabIndex={m ? 0 : undefined} onKeyDown={(e) => { if (m && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); klick(e); } }}>
       <g filter="url(#hl-schatten)">
         <Lader l={l} w={w} h={h} />
         {l.art === "star" && <Star x={l.x} y={l.y} w={w} h={h} spiegel={l.lader === "rechts"} />}

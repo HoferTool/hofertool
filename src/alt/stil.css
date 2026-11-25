@@ -17152,3 +17152,14 @@ body.dunkel .m3d-fehler { background: #3a1714; border-color: #7a2a22; }
   .m3d-flaeche { height: 62vh; }
   .m3d-teile { width: auto; height: auto; max-height: 220px; }
 }
+
+/* 1.800.0: Kachel "zur Prüfung raus" immer rot, Hallenplan ohne Zahl (Patrick 25. November 2026) */
+.pm-kurz__zahl.pm-kurz__zahl--rot { background: #c62828; border-color: transparent; color: #fff; }
+.pm-kurz__zahl.pm-kurz__zahl--rot b, .pm-kurz__zahl.pm-kurz__zahl--rot span { color: #fff; }
+body.dunkel .pm-kurz__zahl.pm-kurz__zahl--rot { background: #a32020; border-color: transparent; }
+.pm-kurz__zahl--masch .pm-kurz__bild { font-size: 48px; }
+.pm-pop { position: fixed; z-index: 3000; width: 360px; overflow: auto; background: #dfe5ec; color: #1c2630;
+  border: 1px solid #9aa7b4; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.28); padding: 10px; }
+.pm-pop__kopf { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; font-size: 16px; }
+.pm-pop .pm-maschine { border: 0; padding: 0; background: transparent; }
+body.dunkel .pm-pop { background: #1f2630; border-color: #3a4552; }

@@ -68,7 +68,7 @@ with sync_playwright() as p:
     pg.evaluate("location.hash='#/pruefmittel'"); pg.wait_for_selector("#pm-maschinen"); pg.wait_for_timeout(600)
     pg.click("#pm-maschinen"); pg.wait_for_selector("#pm-maschinen-fenster .pm-halle")
     pruefe(pg.locator("[data-hlnr]").count() >= 26, "Hallenplan mit allen Maschinen (%d)" % pg.locator("[data-hlnr]").count())
-    pruefe(pg.locator(".hl-raum").count() == 4 and "Programmier-zimmer" in (pg.locator(".hl-raeume").text_content() or ""), "Räume links an der Wand")
+    pruefe(pg.locator(".hl-raum").count() == 4 and "Programmierzimmer" in (pg.locator(".hl-raeume").text_content() or ""), "Räume links an der Wand")
     for nr in ["309", "305", "201", "202", "401", "114", "117", "130"]:
         pruefe(pg.locator("[data-hlnr='%s']" % nr).count() == 1, "Plan hat %s" % nr)
     z = pg.locator("[data-hlnr='121'] .hl-zahl")
@@ -76,9 +76,11 @@ with sync_playwright() as p:
     pg.mouse.move(5, 5); pg.screenshot(path=BILD + "/pm-halle.png"); pg.wait_for_timeout(600); pg.locator(".pm-halle__bild").screenshot(path=BILD + "/pm-halle-ganz.png")
     pg.click("[data-hlnr='121']"); pg.wait_for_timeout(300)
     box = pg.locator('#pm-maschinen-fenster [data-pmmaschine="%s"].pm-maschine' % mid)
-    pruefe(box.count() == 1 and "Prüfstift" in box.inner_text() and pg.locator("#pm-halle-alle").count() == 1, "Antippen zeigt Prüfmittel der 121")
+    pruefe(box.count() == 1 and "Prüfstift" in box.inner_text() and pg.locator("#pm-pop").count() == 1, "Antippen zeigt Prüfmittel der 121 im kleinen Fenster")
     pg.screenshot(path=BILD + "/pm-halle-wahl.png")
-    pg.click("#pm-halle-alle"); pg.wait_for_timeout(200)
+    pruefe("NaN" not in pg.inner_text("#pm-pop"), "kein NaN im Datum")
+    pg.click("#pm-maschinen-fenster .hinweis"); pg.wait_for_timeout(200)
+    pruefe(pg.locator("#pm-pop").count() == 0, "Tipp daneben schliesst das kleine Fenster")
     pg.locator("#pm-maschinen-fenster [data-zu]").click(); pg.wait_for_timeout(300)
     # Person
     p3 = [y for y in l if y.get("nr") == "PM-003"][0]["id"]
