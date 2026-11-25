@@ -178,7 +178,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.819.0";
+const APP_VERSION = "1.820.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3266,7 +3266,9 @@ function neuerLookSehen(u) {
   // Im Prüfstand nur mit Vermerk oder TEST.neuesMenue: die älteren Tests
   // bedienen noch das alte Menü (Bestellungen, Rechner … als eigene Punkte).
   if (window.TEST && !window.TEST.neuesMenue) return false;
-  return !istAndererNutzer(u);
+  // Seit 1.819.0 auch Gerätekonten („Andere Nutzer“ wie Planwand), Wunsch
+  // Patrick 25. November 2026: „sollen das gleiche Layout bekommen“
+  return true;
 }
 // Seit 1.786.0 sehen alle Admins alles (Wunsch Patrick 24. November 2026:
 // „alle admins alles sehen, ausser zahlen spiel“): Empfang, Kalkulation,

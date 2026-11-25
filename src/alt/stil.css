@@ -17315,7 +17315,7 @@ body.dunkel .fensterleiste__alle { background: #2a3342; color: #ff9b93 !importan
 .lp-ls-link { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: #003884; text-decoration: underline; cursor: pointer; }
 body.dunkel .lp-ls-link { color: #8fb6ff !important; }
 
-/* 1.819.0 · Zeichnung aus der HOCO Nr. im Artikelfenster und Bilder in der Notiz */
+/* 1.820.0 · Zeichnung aus der HOCO Nr. im Artikelfenster und Bilder in der Notiz */
 .erp-zvorschau { position: relative; width: 100%; height: 100%; min-height: 160px; background: #fff; border: 1px solid var(--linie, #d5dce4); border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
 .erp-zvorschau--gross { height: 70vh; min-height: 360px; }
 .erp-zvorschau iframe, .erp-zvorschau img { width: 100%; height: 100%; border: 0; object-fit: contain; display: block; }
@@ -17334,3 +17334,7 @@ body.dunkel .erp-zvorschau__gross { color: #003884 !important; -webkit-text-fill
 .erp-notiz__knopf { align-self: flex-start; font-size: 12px; padding: 3px 10px; border: 1px solid #b6c1cd; border-radius: 6px; background: #eef2f6; cursor: pointer; }
 .erp-notiz__knopf input { display: none; }
 body.dunkel .erp-notiz__knopf { background: #2a3340; border-color: #4a5666; }
+/* 1.819.1: Knopf „Spedition WBG“ orange, „Planbüro WBG“ bleibt blau (Wunsch Patrick 25. November 2026). */
+.druckwahl .knopf.knopf--spedition,
+body.dunkel .druckwahl .knopf.knopf--spedition { background: #e8730c !important; border-color: #c75f06 !important; color: #fff !important; }
+.druckwahl .knopf.knopf--spedition:hover { background: #d1660a !important; }

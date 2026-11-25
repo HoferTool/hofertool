@@ -1,5 +1,5 @@
 // =================================================================
-//  FENSTERVERWALTER (seit 1.819.0)
+//  FENSTERVERWALTER (seit 1.820.0)
 //  Wunsch Patrick 25. November 2026: „sämtliche geöffneten Fenster
 //  sollen verschiebbar sein, auch ausserhalb vom Test ERP“, „mehrere
 //  Fenster gleichzeitig geöffnet“, „oben ein Bereich Fenster, wo ich
