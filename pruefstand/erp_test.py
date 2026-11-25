@@ -372,6 +372,27 @@ with sync_playwright() as p:
     pruefe(pg.locator("[data-erp-bewegungen] tbody tr").count() == 2, "Filter Umbuchung")
     pg.screenshot(path=BILD + "/erp-bewegungen.png", full_page=True)
 
+    # Kalkulation: Kunde, Artikel und Material aus den Stammdaten wählen
+    for _ in range(4):
+        if pg.locator(".dialog-huelle").count() == 0: break
+        pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    pg.click("[data-erp-reiter='kalk']"); pg.wait_for_timeout(500)
+    pg.click("[data-erp-kalkreiter='modul']"); pg.wait_for_timeout(500)
+    pg.click("#kalk-neu"); pg.wait_for_selector("#kalk-kunde")
+    pg.fill("#kalk-kunde", "muster"); pg.wait_for_selector("[data-kalk-wahl='kalk-kunde'] [data-kalk-wahl-id='k1']")
+    pg.screenshot(path=BILD + "/erp-kalk-wahl.png")
+    pg.click("[data-kalk-wahl='kalk-kunde'] [data-kalk-wahl-id='k1']"); pg.wait_for_timeout(300)
+    pruefe(pg.input_value("#kalk-kunde") == "Muster AG" and pg.input_value("#kalk-adr-strasse") == "Weg 1"
+           and pg.input_value("#kalk-adr-ort") == "Lohn", "Kunde aus Stammdaten mit Adresse")
+    pg.fill("#kalk-artikel", "0589 bolzen"); pg.wait_for_selector("[data-kalk-wahl='kalk-artikel'] [data-kalk-wahl-id='a1']")
+    pg.click("[data-kalk-wahl='kalk-artikel'] [data-kalk-wahl-id='a1']"); pg.wait_for_timeout(300)
+    pruefe(pg.input_value("#kalk-artikel") == "10007-0589" and pg.input_value("#kalk-index") == "B"
+           and pg.input_value("#kalk-bez") == "Bolzen", "Artikel aus Stammdaten mit Index und Bezeichnung")
+    pg.click("[data-kalk-reiter='material']"); pg.wait_for_selector("#kalk-mat")
+    pg.fill("#kalk-mat", "x8cr"); pg.wait_for_selector("[data-kalk-wahl='kalk-mat'] [data-kalk-wahl-id='r1']")
+    pg.click("[data-kalk-wahl='kalk-mat'] [data-kalk-wahl-id='r1']"); pg.wait_for_timeout(300)
+    pruefe(pg.input_value("#kalk-mat") == "X8CrNiS18-9 rd 12", "Rohmaterial aus Stammdaten")
+
     pruefe(not pf, "keine Seitenfehler: %s" % pf)
     br.close()
 

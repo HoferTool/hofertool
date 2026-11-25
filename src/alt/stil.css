@@ -17226,3 +17226,17 @@ body:not(.dunkel) .erp-ap__kopf { background: #d9e5f2; color: #0d2f57; border-ra
 .erp-liste__zeile > .erp-feld--schmal { flex: 0 1 70px; }
 .erp-liste__zeile input[readonly] { background: #eef2f6; color: #33475b; }
 body.dunkel .erp-liste__zeile input[readonly] { background: #1c2836; color: #c9d6e3 !important; }
+
+/* 1.811.0: Stammdaten aus dem Test ERP in der Kalkulation wählen */
+.kalk-feld--wahl { position: relative; }
+.kalk-wahl { position: absolute; z-index: 30; left: 0; right: 0; top: 100%; margin-top: 2px; background: var(--karte, #fff);
+  border: 1px solid var(--linie, #c9d3de); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 20, 50, .18);
+  max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; }
+.kalk-kompakt .kalk-feld--wahl .kalk-wahl { left: 42%; }
+.kalk-wahl__zeile { all: unset; cursor: pointer; padding: 6px 10px; display: flex; flex-direction: column; gap: 1px;
+  border-bottom: 1px solid var(--linie, #e3e8ee); font-size: 13px; }
+.kalk-wahl__zeile:last-child { border-bottom: 0; }
+.kalk-wahl__zeile:hover, .kalk-wahl__zeile:focus { background: var(--hover, #eef4fb); }
+.kalk-wahl__zeile small { color: var(--gedaempft); font-size: 12px; }
+body.dunkel .kalk-wahl { background: #1d2733; border-color: #3a4756; }
+body.dunkel .kalk-wahl__zeile:hover { background: #2a3746; }
