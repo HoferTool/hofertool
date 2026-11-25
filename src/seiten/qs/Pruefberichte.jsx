@@ -38,7 +38,9 @@ const fehlerText = (f) => fehltTabelle(f)
 const heute = () => alt.isoDatum(new Date());
 const datumText = (d) => (d ? String(d).slice(0, 10).split("-").reverse().join(".") : "");
 const zeitText = (d) => { if (!d) return ""; const x = new Date(d); return datumText(alt.isoDatum(x)) + " " + String(x.getHours()).padStart(2, "0") + ":" + String(x.getMinutes()).padStart(2, "0"); };
-const darf = () => alt.darfSchreiben() && !alt.istExtern();
+// Ausfüllen, Freigabe und Abschliessen darf jeder ausser Externen und Dienst
+// (Wunsch Patrick 25. November 2026: „dafür brauchts keine Rechte, jeder darf das ausfüllen und Freigabe erteilen“)
+const darf = () => !alt.istExtern() && alt.meineRolle() !== "dienst";
 
 const ENTSCHEIDE = [["freigabe", "Freigabe"], ["nacharbeit", "Nacharbeit / Sortieren"], ["neu", "Neuanfertigung"]];
 const entscheidText = (e) => (ENTSCHEIDE.find((x) => x[0] === e) || [])[1] || "";
@@ -625,31 +627,43 @@ async function schrankLaden() {
 // Nach erledigter Erstteilprüfung (Freigabe) die Lehren aus dem Schrank auf den Auftrag ausbuchen
 // (Wunsch Patrick 24. November 2026): sie zählen ab „läuft“ Einsatztage und
 // kommen bei „fertig“ in die Rückgabekiste (Auslöser in sql/pruefmittel-rueckgabe.sql).
-// Nur Admins dürfen Prüfmittel ändern; sonst bleibt es still.
+// Gebucht über die Funktionen aus sql/pruefmittel-ausbuchen-alle.sql, damit es für alle
+// geht, die das Protokoll abschliessen dürfen; ohne sie (alter Stand) nur Admins direkt.
 async function ausbuchen(w, hoco) {
   try {
-    if (!w.job_id || !alt.istAdmin()) return;
+    if (!w.job_id) return;
     const { lehren } = lehrenAus({ zeilen: masse(w.kopf.zeilen) });
     if (!lehren.length) return;
-    const [{ data: pm }, { data: job }] = await Promise.all([
-      schrankLaden(),
-      alt.db.from("jobs").select("id, machine_id, plan_status").eq("id", w.job_id).maybeSingle(),
-    ]);
-    if (!pm || !job || !job.machine_id) return;
+    let { data: pm, error: fs } = await alt.db.rpc("pruefmittel_schrank_lesen");
+    const ohneRpc = !!fs;
+    if (ohneRpc) {
+      if (!alt.istAdmin()) return;
+      pm = (await schrankLaden()).data;
+    }
+    if (!pm || !pm.length) return;
     const ids = new Set();
     lehren.forEach((l) => { const x = pruefmittelFuer(l, pm.filter((p) => !ids.has(p.id)), hoco)[0]; if (x) ids.add(x.id); });
     if (!ids.size) return;
     const liste = [...ids];
     const vorher = [];
-    for (const id of liste) vorher.push(...await alt.rueckSichern("pruefmittel", { id }));
-    const neu = { ort_art: "maschine", machine_id: job.machine_id, job_id: job.id };
-    // Läuft der Auftrag schon, zählen die Tage ab jetzt (sonst ab „läuft“ über den Auslöser)
-    if (job.plan_status === "laeuft") neu.zaehlt_seit = new Date().toISOString();
-    const { error } = await alt.db.from("pruefmittel").update(neu)
-      .in("id", liste);
-    if (error) return;
-    alt.merkeSchritt(liste.length + " Prüfmittel ausgebucht", alt.rueckRein("pruefmittel", vorher));
-    alt.meldung(liste.length + " Prüfmittel auf den Auftrag ausgebucht.", "gut");
+    if (alt.istAdmin()) for (const id of liste) vorher.push(...await alt.rueckSichern("pruefmittel", { id }));
+    let n = 0;
+    if (!ohneRpc) {
+      const { data, error } = await alt.db.rpc("pruefmittel_ausbuchen", { p_job: w.job_id, p_ids: liste });
+      if (error) return;
+      n = Number(data) || 0;
+    } else {
+      const { data: job } = await alt.db.from("jobs").select("id, machine_id, plan_status").eq("id", w.job_id).maybeSingle();
+      if (!job || !job.machine_id) return;
+      const neu = { ort_art: "maschine", machine_id: job.machine_id, job_id: job.id };
+      if (job.plan_status === "laeuft") neu.zaehlt_seit = new Date().toISOString();
+      const { error } = await alt.db.from("pruefmittel").update(neu).in("id", liste);
+      if (error) return;
+      n = liste.length;
+    }
+    if (!n) return;
+    if (vorher.length) alt.merkeSchritt(n + " Prüfmittel ausgebucht", alt.rueckRein("pruefmittel", vorher));
+    alt.meldung(n + " Prüfmittel auf den Auftrag ausgebucht.", "gut");
   } catch (e) { /* still: ohne Prüfmittel geht es weiter */ }
 }
 
