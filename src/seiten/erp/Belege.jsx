@@ -5,7 +5,7 @@
 // Warum alles über Bewegungen: Bestand, Liefermengen und Herkunft rechnet
 // die App aus erp_bewegungen. So gibt es keinen zweiten Stand, der
 // auseinanderlaufen kann, und jede Charge lässt sich zurückverfolgen.
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { Feld, Tabelle, Suche, passt, tun, belegDrucken, LagerEingabe, lagerStart, lagerAus } from "./teile.jsx";
@@ -265,7 +265,7 @@ function BelegFenster({ start, id, vorlage, aussen, zu }) {
     <GFenster titel={titel} kopf={kopfTeil} reiter={[["positionen", "Positionen"], ["kopf", "Kopfdaten"]]} aktiv={reiter} setAktiv={setReiter}
       fuss={fuss} zu={schliessen} attr={{ "data-erp-beleg": b ? b.nr : "neu", "data-erp-typ": b ? b.typ : "" }}>
       {reiter === "positionen" && <>
-        <Positionen d={d} kopf={kopf} pos={pos} setPos={setPos} bearbeiten={bearbeiten} b={b} aussen={aussen} frisch={frisch} />
+        <Positionen d={d} kopf={kopf} pos={pos} setPos={setPos} bearbeiten={bearbeiten} b={b} aussen={aussen} frisch={frisch} starten={bearbeitenStarten} />
         {b && !bearbeiten && typ === "fertigung" && <Arbeitsgaenge d={d} b={b} frisch={frisch} />}
         {b && !bearbeiten && <Aktionen d={d} b={b} aussen={aussen} frisch={frisch} />}
         {b && !bearbeiten && <Buchungen d={d} b={b} />}
@@ -419,7 +419,21 @@ function ArtikelAngaben({ a, idx }) {
 }
 
 
-function Positionen({ d, kopf, pos, setPos, bearbeiten, b, aussen, frisch }) {
+function Positionen({ d, kopf, pos, setPos, bearbeiten, b, aussen, frisch, starten }) {
+  // Tipp auf eine Position in der Ansicht startet gleich das Bearbeiten und
+  // rollt zu dieser Position (Wunsch Patrick 25. November 2026: „die Übersicht,
+  // welche jetzt kommt, bringt mir nichts“).
+  const fokusId = useRef(null);
+  const listeRef = useRef(null);
+  useEffect(() => {
+    if (!bearbeiten || !fokusId.current || !listeRef.current) return;
+    const el = listeRef.current.querySelector('[data-erp-pos-id="' + fokusId.current + '"]');
+    fokusId.current = null;
+    if (!el) return;
+    el.scrollIntoView({ block: "start", behavior: "smooth" });
+    el.classList.add("erp-pos--fokus");
+    setTimeout(() => el.classList.remove("erp-pos--fokus"), 1600);
+  }, [bearbeiten]);
   const typ = kopf.typ;
   const preis = mitPreis(typ);
   const rahmen = kopf.art === "rahmen";
@@ -454,7 +468,7 @@ function Positionen({ d, kopf, pos, setPos, bearbeiten, b, aussen, frisch }) {
           zeilen={(d.posJe.get(b.id) || []).map((p) => {
             const a = d.artikelMap.get(p.artikel_id);
             return {
-              key: p.id, klick: () => positionOeffnen(d, aussen, b, p, frisch),
+              key: p.id, klick: () => { if (starten) { fokusId.current = p.id; starten(); } else positionOeffnen(d, aussen, b, p, frisch); },
               zellen: [p.pos, <>{a ? <b>{artikelIdxText(a, posIdx(d, p))}</b> : p.text}{a && a.zeichnung && <small> · Zeichnung {a.zeichnung}{posIdx(d, p) ? " Ind. " + posIdx(d, p) : ""}</small>}
                 {a && p.text && <><br /><small>{p.text}</small></>}{p.daten && p.daten.charge && <><br /><small>Charge {p.daten.charge}</small></>}
                 {(p.daten.abrufe || []).length > 0 && <Lieferplan d={d} p={p} />}</>,
@@ -475,12 +489,12 @@ function Positionen({ d, kopf, pos, setPos, bearbeiten, b, aussen, frisch }) {
     );
   }
   return (
-    <fieldset className="erp-liste erp-feld--breit"><legend>Positionen</legend>
+    <fieldset ref={listeRef} className="erp-liste erp-feld--breit"><legend>Positionen</legend>
       {pos.map((p, i) => {
         // Artikel änderbar, solange auf der Position nichts gebucht ist und kein Folgebeleg darauf zeigt
         const gesperrt = p.id && (d.bewegungen.some((x) => x.position_id === p.id) || folgePositionen(d, p.id).length > 0);
         return (
-          <div key={p.id || "n" + i} className="erp-pos">
+          <div key={p.id || "n" + i} className="erp-pos" data-erp-pos-id={p.id || ""}>
             <div className="erp-liste__zeile">
               <ArtikelWahl d={d} wert={p.artikel_id} setzen={(w) => setzen(i, "artikel_id", w)} gesperrt={gesperrt} />
               <ArtikelAngaben a={d.artikelMap.get(p.artikel_id)} idx={p.id && p.artikel_id === (d.posMap.get(p.id) || {}).artikel_id ? posIdx(d, p) : (d.artikelMap.get(p.artikel_id) || {}).idx} />
@@ -492,7 +506,10 @@ function Positionen({ d, kopf, pos, setPos, bearbeiten, b, aussen, frisch }) {
               {preis && <Feld f={{ name: "pe", label: "pro", auswahl: PE_AUSWAHL }} wert={String(posPe(p))} setzen={(w) => setzen(i, "pe", w)} />}
               {!rahmen && terminFelder(p, kw, (name, w) => setzen(i, name, w),
                 ({ key, name, label, typ, platzhalter, wert, setzen: s2 }) => <Feld key={key} f={{ name, label, typ, platzhalter }} wert={wert} setzen={s2} />)}
-              <button type="button" className="knopf knopf--klein knopf--gefahr" title="Entfernen"
+              {typ === "auftrag" && !rahmen && !(p.daten.abrufe || []).length && <button type="button" className="knopf knopf--klein" data-erp-pos-lpneu=""
+                title="Mehrere Fälligkeiten für diese Position"
+                onClick={() => setzen(i, "daten", { ...p.daten, abrufe: [{ termin: "", kw: "", menge: "", bemerkung: "" }] })}>+ Lieferplan</button>}
+              <button type="button" className="knopf knopf--klein knopf--gefahr" title="Entfernen" data-erp-pos-weg=""
                 onClick={() => setPos((l) => l.filter((_, j) => j !== i))}>✕</button>
             </div>
             <Feld f={{ name: "text", label: "Text (ohne Artikel: freie Position)", breit: true }} wert={p.text} setzen={(w) => setzen(i, "text", w)} />

@@ -17268,3 +17268,8 @@ body.dunkel .lp-summen > div { background: #1c2430; border-color: #34404f; }
 /* 1.812.0: Besuch bei Lieferanten im Bearbeitungsmodus (Dateien dazu nur dort) */
 .lk-besuch .bs-symbolknopf[aria-pressed="true"] { background: var(--marke); color: #fff; border-color: var(--marke); }
 .lk-besuch__bearb { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+
+/* 1.817.0 Test ERP: Tipp auf eine Position öffnet das Bearbeiten, die Position leuchtet kurz auf */
+.erp-pos { transition: box-shadow .4s, background-color .4s; }
+.erp-pos.erp-pos--fokus { box-shadow: 0 0 0 3px #f59e0b; background-color: #fff7e6; }
+body.dunkel .erp-pos.erp-pos--fokus { background-color: #3a2c10; }

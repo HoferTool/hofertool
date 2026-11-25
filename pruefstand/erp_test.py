@@ -263,11 +263,13 @@ with sync_playwright() as p:
     neuer_beleg(pg, "auftrag", "k1", "10007-0590 Ind. C · Hülse", "6000")
     ap = [x for x in tabelle(pg, "erp_positionen") if x["artikel_id"] == a["id"]]
     pruefe(ap and ap[-1]["preis"] == 200 and (ap[-1].get("daten") or {}).get("pe") == 1000, "Auftrag nimmt Staffelpreis: %s" % ap)
-    oben(pg).locator("[data-erp-zeile]").first.click(); pg.wait_for_selector("[data-erp-posfenster]")
+    # Tipp auf die Position öffnet gleich das Bearbeiten (1.817.0)
+    oben(pg).locator("[data-erp-zeile]").first.click(); pg.wait_for_selector("[data-erp-pos-lpneu]")
+    pruefe(pg.locator("[data-erp-posfenster]").count() == 0 and oben(pg).locator("[data-erp-speichern]").count() == 1, "Tipp auf Position öffnet Bearbeiten")
     pg.screenshot(path=BILD + "/erp-position.png")
     pruefe(len(ARTFELD) > 0, "Artikel-Nr. und Angaben in eigenen Feldern: %s" % ARTFELD)
-    pg.click("[data-erp-pos-lieferplan]"); pg.wait_for_selector("[data-erp-lieferplan]")
-    pg.click("[data-erp-lp-neu]"); pg.click("[data-erp-lp-neu]")
+    oben(pg).locator("[data-erp-pos-lpneu]").first.click(); pg.wait_for_selector("[data-erp-lp-zeile]")
+    pg.click("[data-erp-lp-neu]")
     z = pg.locator("[data-erp-lp-zeile]")
     z.nth(0).locator("input[data-erp-feld='menge']").fill("4000"); z.nth(0).locator("input[data-erp-feld='termin']").fill("2026-12-15")
     z.nth(1).locator("input[data-erp-feld='menge']").fill("2000"); z.nth(1).locator("input[data-erp-feld='termin']").fill("2027-02-01")
@@ -277,7 +279,7 @@ with sync_playwright() as p:
     pruefe(z.nth(0).locator("input[data-erp-feld='termin']").input_value() == "2026-12-11", "KW 50 im Auftrag = Freitag: %s" % z.nth(0).locator("input[data-erp-feld='termin']").input_value())
     z.nth(0).locator("input[data-erp-feld='termin']").fill("2026-12-15")
     pg.screenshot(path=BILD + "/erp-lieferplan.png")
-    pg.click("[data-erp-lieferplan] [data-erp-speichern]"); pg.wait_for_timeout(800)
+    oben(pg).locator("[data-erp-speichern]").click(); pg.wait_for_timeout(800)
     pos = [x for x in tabelle(pg, "erp_positionen") if x["artikel_id"] == a["id"]][-1]
     ab = (pos.get("daten") or {}).get("abrufe") or []
     pruefe([x["menge"] for x in ab] == [4000, 2000], "Lieferplan gespeichert: %s" % ab)
@@ -323,9 +325,9 @@ with sync_playwright() as p:
     be = sorted([b for b in tabelle(pg, "erp_belege") if b["typ"] == "bestellung"], key=lambda b: b["nr"])[-1]
     bp = [x for x in tabelle(pg, "erp_positionen") if x["beleg_id"] == be["id"]]
     pruefe(len(bp) == 2, "Bestellung mit zwei Positionen: %d" % len(bp))
-    oben(pg).locator("[data-erp-zeile]").first.click(); pg.wait_for_selector("[data-erp-posfenster]")
-    pg.click("[data-erp-pos-loeschen]"); pg.wait_for_selector(".dialog-huelle [data-ja]")
-    pg.locator(".dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(800)
+    oben(pg).locator("[data-erp-zeile]").first.click(); pg.wait_for_selector("[data-erp-pos-weg]")
+    oben(pg).locator("[data-erp-pos-weg]").first.click()
+    oben(pg).locator("[data-erp-speichern]").click(); pg.wait_for_timeout(800)
     bp2 = [x for x in tabelle(pg, "erp_positionen") if x["beleg_id"] == be["id"]]
     pruefe(len(bp2) == 1 and any(b["id"] == be["id"] for b in tabelle(pg, "erp_belege")), "Position gelöscht, Beleg bleibt: %d" % len(bp2))
     # Neue Position direkt in der Ansicht, ohne Bearbeiten (1.811.1)
