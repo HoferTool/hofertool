@@ -118,7 +118,7 @@ with sync_playwright() as p:
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(900)
     pruefe("Mitarbeiter: Plus da", pg.locator("#umf-neu").count() == 1)
-    pruefe("Mitarbeiter: fremde Umfrage nicht verwalten", pg.locator("[data-umfbearb='u-1']").count() == 0)
+    pruefe("Mitarbeiter: fremde Umfrage bearbeiten, nicht löschen", pg.locator("[data-umfbearb='u-1']").count() == 1 and pg.locator("[data-umfweg='u-1']").count() == 0)
     pg.click("[data-umfvorschlag='v-1']"); pg.fill("#umf-name-u-1", "Zoe"); pg.click("[data-umfabstimmen]"); pg.wait_for_timeout(700)
     pruefe("Mitarbeiter: Namen sichtbar", pg.locator(".umf-v__namen").count() >= 1)
     pg.click("#umf-neu"); pg.wait_for_selector(".umf-bearbeiten")

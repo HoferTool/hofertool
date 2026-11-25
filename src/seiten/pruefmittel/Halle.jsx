@@ -59,7 +59,7 @@ export const EXTRA = [
   { id: "x:fraese", name: "Fräse", such: /fr(ä|ae)se/i, ohne: /fehlmann/i, x: B - 190, y: 22, w: SW, h: 64 },
 ];
 // Werkbänke mit je einer Schäublin: nur zur Orientierung, ohne Prüfmittel und
-// nicht anwählbar; seit 1.820.2 ganz rechts direkt links neben Fehlmann
+// nicht anwählbar; seit 1.821.1 ganz rechts direkt links neben Fehlmann
 // (Patrick 25. November 2026: „ganz nach rechts geschoben an Fehlmann“)
 const BAENKE = [{ x: B - 360 - 2 * (SW + 16), y: 22 }, { x: B - 360 - (SW + 16), y: 22 }];
 export function extraVon(p) {
