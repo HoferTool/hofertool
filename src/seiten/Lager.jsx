@@ -13,6 +13,7 @@
 //  Rechnung in lager/logik.js, Fenster in lager/Buchen.jsx und
 //  lager/Stammdaten.jsx.
 // =================================================================
+import { teilMerken } from "../teile/wiederherstellen.js";
 import { useState } from "react";
 import { alt, useDaten, useGemerkt } from "../bruecke.jsx";
 import { useSeitenSuche, hinzeigen } from "../teile/seitenSuche.js";
@@ -25,6 +26,8 @@ import { buchenOeffnen, linieText } from "./lager/Buchen.jsx";
 import Stammdaten, { ablaufOeffnen, ablaufText } from "./lager/Stammdaten.jsx";
 
 const gemerkt = { suche: "", reiter: "bestand", offen: null };
+// Nach dem Neuladen wieder im selben Reiter und Unterreiter (Wunsch Patrick 25. November 2026)
+teilMerken("lager", () => ({ ...gemerkt }), (z) => { Object.assign(gemerkt, z); });
 const TAGE_ZURUECK = 90;
 
 const fehltTabelle = (e) => /lager_|relation|schema cache|column/i.test(String((e && e.message) || ""));

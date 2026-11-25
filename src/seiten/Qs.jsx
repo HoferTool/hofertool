@@ -8,6 +8,7 @@
 //  Reklamationsmanagement (qs/Reklamationen.jsx), seit 1.755.0 wieder
 //  Prüfmittelverwaltung (Pruefmittel.jsx, nur Admins).
 // =================================================================
+import { teilMerken } from "../teile/wiederherstellen.js";
 import { useReducer } from "react";
 import { alt } from "../bruecke.jsx";
 import { Reiter, Uebergang } from "../teile/Reiter.jsx";
@@ -19,6 +20,8 @@ import { qsSprung } from "./qs/qsSprung.js";
 
 // Gewählter Reiter; bleibt beim Seitenwechsel
 export const qsZustand = { ansicht: "ausschuss" };
+// Nach dem Neuladen wieder im selben Reiter und Unterreiter (Wunsch Patrick 25. November 2026)
+teilMerken("qs", () => ({ ...qsZustand }), (z) => { Object.assign(qsZustand, z); });
 
 export function qsReiter() {
   const r = [["ausschuss", "Ausschussmeldungen"]];
