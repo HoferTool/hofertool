@@ -223,7 +223,15 @@ export default function Pruefberichte() {
     const m = ids.length ? (await alt.db.from("machines").select("id, name").in("id", ids)).data || [] : [];
     const name = new Map(m.map((x) => [x.id, x.name]));
     for (const j of jobs) j.maschine = name.get(j.machine_id) || "";
-    return { protokolle, stamm, jobs, dateien };
+    // Index der Stammdaten für Berichte, aus denen die Aufgabe keinen lesen konnte
+    // (Patrick 25. November 2026: „es braucht immer einen Index“)
+    const ohne = [...new Set(dateien.filter((d) => !d.index_nr).map((d) => d.hoco_nr).filter(Boolean))];
+    const stammIndex = new Map();
+    for (let i = 0; i < ohne.length; i += 200) {
+      const r = await alt.db.from("hoco_parts").select("hoco_nr, index_nr").in("hoco_nr", ohne.slice(i, i + 200));
+      for (const x of r.data || []) if (x.index_nr) stammIndex.set(x.hoco_nr, String(x.index_nr));
+    }
+    return { protokolle, stamm, jobs, dateien, stammIndex };
   };
   const { daten, fehler, neu } = useDaten(laden, []);
 
@@ -300,8 +308,22 @@ function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
   // eine Zeile je Index (Wunsch Patrick 25. November 2026: „nicht so gebündelt“)
   const mitProtokoll = new Set(daten.protokolle.map((p) => p.hoco_nr));
   const jeIndex = new Map();
-  for (const d of daten.dateien || []) {
-    if (mitProtokoll.has(d.hoco_nr)) continue;
+  // Ohne gelesenen Index: der einzige Index der anderen Berichte dieser HOCO Nr., sonst der
+  // Index aus den Stammdaten, sonst rot „fehlt“ (nie mehr „–“)
+  const idxJeHoco = new Map();
+  for (const d of daten.dateien || []) if (d.index_nr) {
+    if (!idxJeHoco.has(d.hoco_nr)) idxJeHoco.set(d.hoco_nr, new Set());
+    idxJeHoco.get(d.hoco_nr).add(String(d.index_nr).toUpperCase());
+  }
+  const indexVon = (d) => {
+    if (d.index_nr) return String(d.index_nr);
+    const s = idxJeHoco.get(d.hoco_nr);
+    if (s && s.size === 1) return [...s][0];
+    return (daten.stammIndex && daten.stammIndex.get(d.hoco_nr)) || "";
+  };
+  for (const d0 of daten.dateien || []) {
+    if (mitProtokoll.has(d0.hoco_nr)) continue;
+    const d = { ...d0, index_nr: indexVon(d0) };
     const k = d.hoco_nr + "|" + String(d.index_nr || "").toUpperCase();
     const z = d.geaendert || d.erstellt_am || "";
     const v = jeIndex.get(k);
@@ -398,7 +420,7 @@ function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
                 {letzteZeigen.map((x) => (
                   <tr key={x.d.id} data-pbletzte={x.hoco} onClick={() => vorlageAnsehen(x)}>
                     <td className="nowrap"><b>{x.hoco}</b></td>
-                    <td className="nowrap">{x.idx || "–"}</td>
+                    <td className="nowrap">{x.idx || <b className="pb-idx-fehlt" title="Weder im Bericht noch in den Stammdaten ein Index">fehlt</b>}</td>
                     <td className="klein pb-letzte-name" title={x.dateien.map((d) => d.name).join(", ")}>{x.d.name}{x.dateien.length > 1 ? " · " + x.dateien.length + " Seiten" : ""}</td>
                     <td className="klein nowrap">{zeitText(x.zeit)}</td>
                     <td className="nowrap"><button type="button" className="knopf knopf--klein" data-pbletzteansehen={x.d.id}

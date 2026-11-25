@@ -17434,3 +17434,6 @@ body.dunkel .pb-pm-fehlt { color: #ff9a92 !important; }
 
 /* 1.839.0: Suchfeld je Spalte bei den anstehenden Prüfungen */
 .pb-todo__suche { flex: none; height: auto; align-self: stretch; display: block; width: 100%; box-sizing: border-box; margin: 4px 0 8px; padding: 6px 10px; font-size: 14px; }
+
+/* 1.839.3 Prüfberichte: Index fehlt rot */
+.pb-idx-fehlt { color: #c62828 !important; }
