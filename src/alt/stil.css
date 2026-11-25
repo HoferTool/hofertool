@@ -17409,3 +17409,13 @@ body.dunkel .ki-liste > li { background: #1d2733; }
 body.dunkel .ki-offen, body.dunkel .ki-art__preis { color: #8fb6ff !important; }
 body.dunkel .ki-bezahlt { color: #6fd38f !important; }
 body.dunkel .ki-unbezahlt { color: #ff8a80 !important; }
+
+/* 1.830.0 Kiosk: Bild und Beschreibung statt Emoji */
+.ki-artikel { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+.ki-art__bild { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; background: #f2f5f9; }
+.ki-art__ohne { font-size: 36px; line-height: 1; padding: 10px 0; }
+.ki-art__text { font-size: 12.5px; color: #5a6878; text-align: center; overflow-wrap: anywhere; }
+.ki-verw { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ki-verw__bild { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; flex: none; }
+.ki-verw__leer { display: grid; place-items: center; background: #f2f5f9; font-size: 22px; }
+body.dunkel .ki-art__bild, body.dunkel .ki-verw__leer { background: #263342; }

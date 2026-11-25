@@ -9,8 +9,8 @@ def pruefe(ok, text):
     print(("ok   " if ok else "FEHLT") + " " + text)
     if not ok: fehler.append(text)
 
-ART = [{"id": "a1", "name": "Kaffee", "preis": 1.5, "zeichen": "☕", "aktiv": True, "sort": 10},
-       {"id": "a2", "name": "Getränk", "preis": 2, "zeichen": "🥤", "aktiv": True, "sort": 20}]
+ART = [{"id": "a1", "name": "Kaffee", "preis": 1.5, "beschreibung": "Test", "aktiv": True, "sort": 10},
+       {"id": "a2", "name": "Getränk", "preis": 2, "beschreibung": "Test", "aktiv": True, "sort": 20}]
 KONTO = [{"id": 1, "daten": {"name": "Hofer + Co. Präzisionsdrehteile", "strasse": "Teststrasse 1", "plz": "4573", "ort": "Lohn-Ammannsegg", "land": "CH", "iban": "CH9300762011623852957"}}]
 RPC = """
 TEST.rpc.zeit_admin = () => %s;

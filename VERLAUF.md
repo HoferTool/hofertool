@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.830.0 (25. November 2026)
+
+- Kiosk in HOFERTIME: je Artikel ein Bild (unter Verwalten „+ Bild“) und eine Beschreibung statt Emoji (Wunsch Patrick).
+
 ## 1.829.0 (25. November 2026)
 
 HOFERTIME Kiosk statt Twint: Sachen kaufen aufs eigene Konto, „Abrechnen“ gibt eine Rechnung als PDF mit QR-Einzahlungsschein; Artikel, Konto und Bezahlt nur der Admin von HOFERTIME. SQL `sql/hofertime-20-kiosk.sql`, Prüfstand `kiosk.py`.

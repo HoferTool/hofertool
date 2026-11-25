@@ -16,6 +16,27 @@ import { rechnungNr, rechnungPdf, qrSvg, kontoFehlt, ibanSauber, ibanGut, istQrI
 
 const chf = (b) => Number(b || 0).toFixed(2);
 const RUECKNAHME_MS = 10 * 60 * 1000;
+const ABLAGE = "zeichnungen";
+
+// Bild eines Artikels verkleinert in die Ablage (seit 1.830.0, Wunsch Patrick
+// 25. November 2026: „man soll Bild einfügen können … statt Emoji Beschreibung“)
+async function artikelBildHochladen(datei) {
+  const blob = await alt.bildVerkleinern(datei, 800);
+  const pfad = "kiosk/" + Date.now() + "-" + Math.random().toString(36).slice(2, 8) + ".jpg";
+  const r = await alt.zeitlimit(alt.db.storage.from(ABLAGE).upload(pfad, blob, { contentType: "image/jpeg" }),
+    60000, "Bild hochladen");
+  if (r.error) throw r.error;
+  return alt.db.storage.from(ABLAGE).getPublicUrl(pfad).data.publicUrl;
+}
+function dateiWaehlen() {
+  return new Promise((ok) => {
+    const f = document.createElement("input");
+    f.type = "file"; f.accept = "image/*";
+    f.setAttribute("data-ablegen", "direkt");
+    f.onchange = () => ok(f.files && f.files[0]);
+    f.click();
+  });
+}
 
 async function holen(abfrage, name) {
   const { data, error } = await alt.zeitlimit(abfrage, 15000, name);
@@ -144,8 +165,9 @@ function Kaufen({ ich }) {
       {stand.artikel.length === 0 && <p className="klein">Noch keine Artikel. Der Admin legt sie unter „Verwalten“ an.</p>}
       {stand.artikel.map((a) => (
         <button key={a.id} className="ki-art" data-ki-artikel={a.name} onClick={() => kaufen(a)}>
-          <span className="ki-art__zeichen">{a.zeichen || "🛒"}</span>
+          {a.bild_url ? <img className="ki-art__bild" src={a.bild_url} alt="" /> : <span className="ki-art__ohne">🛒</span>}
           <span className="ki-art__name">{a.name}</span>
+          {a.beschreibung && <span className="ki-art__text">{a.beschreibung}</span>}
           <span className="ki-art__preis">CHF {chf(a.preis)}</span>
         </button>))}
     </section>
@@ -243,14 +265,14 @@ function Verwalten() {
       felder: [
         { name: "name", label: "Name", wert: a ? a.name : "", pflicht: true },
         { name: "preis", label: "Preis CHF", wert: a ? String(a.preis) : "", pflicht: true, dezimal: true },
-        { name: "zeichen", label: "Zeichen (Emoji, freiwillig)", wert: a ? a.zeichen || "" : "" },
+        { name: "beschreibung", label: "Beschreibung (freiwillig)", typ: "textarea", zeilen: 2, wert: a ? a.beschreibung || "" : "" },
       ],
       bestaetigen: "Speichern",
     });
     if (!w) return;
     const preis = Number(String(w.preis).replace(",", "."));
     if (!(preis >= 0)) { alt.meldung("Preis bitte als Zahl, z. B. 2.50.", "warn"); return; }
-    const zeile = { name: w.name, preis, zeichen: w.zeichen || null };
+    const zeile = { name: w.name, preis, beschreibung: (w.beschreibung || "").trim() || null };
     if (a) {
       const vorher = await alt.rueckSichern("kiosk_artikel", { id: a.id });
       const { error } = await alt.db.from("kiosk_artikel").update(zeile).eq("id", a.id);
@@ -262,6 +284,19 @@ function Verwalten() {
       if (error) { alt.meldung(error.message, "fehler"); return; }
       alt.merkeSchritt("Artikel " + w.name, [alt.rueckWeg("kiosk_artikel", { id: data.id })]);
     }
+    laden();
+  };
+  const bildSetzen = async (a, weg) => {
+    let url = null;
+    if (!weg) {
+      const datei = await dateiWaehlen();
+      if (!datei) return;
+      try { url = await artikelBildHochladen(datei); }
+      catch (f) { alt.meldung("Bild hochladen ging nicht: " + (f.message || f), "fehler"); return; }
+    }
+    const { error } = await alt.db.from("kiosk_artikel").update({ bild_url: url }).eq("id", a.id);
+    if (error) { alt.meldung(error.message, "fehler"); return; }
+    alt.merkeSchritt("Bild " + a.name, [alt.rueckSetz("kiosk_artikel", [{ id: a.id, bild_url: a.bild_url || null }])]);
     laden();
   };
   const artikelAktiv = async (a) => {
@@ -319,13 +354,18 @@ function Verwalten() {
       <ul className="ki-liste" id="ki-artikel-liste">
         {stand.artikel.map((a, i) => (
           <li key={a.id} className={a.aktiv ? "" : "ki-aus"} data-ki-verwalten={a.name}>
-            <span>{a.zeichen || "🛒"} {a.name}</span>
+            <span className="ki-verw">
+              {a.bild_url ? <img className="ki-verw__bild" src={a.bild_url} alt="" /> : <span className="ki-verw__bild ki-verw__leer">🛒</span>}
+              <span>{a.name}{a.beschreibung && <small className="klein"><br />{a.beschreibung}</small>}</span>
+            </span>
             <b>CHF {chf(a.preis)}</b>
             <span>{a.aktiv ? "" : "ausgeschaltet"}</span>
             <span className="ki-knoepfe">
               <button className="knopf knopf--klein knopf--still" onClick={() => schieben(i, -1)} disabled={i === 0}>↑</button>
               <button className="knopf knopf--klein knopf--still" onClick={() => schieben(i, 1)} disabled={i === stand.artikel.length - 1}>↓</button>
               <button className="knopf knopf--klein" onClick={() => artikelBearbeiten(a)}>Ändern</button>
+              <button className="knopf knopf--klein" data-ki-bild={a.name} onClick={() => bildSetzen(a)}>{a.bild_url ? "Bild ändern" : "+ Bild"}</button>
+              {a.bild_url && <button className="knopf knopf--klein knopf--still" title="Bild entfernen" onClick={() => bildSetzen(a, true)}>✕ Bild</button>}
               <button className="knopf knopf--klein knopf--still" onClick={() => artikelAktiv(a)}>{a.aktiv ? "Aus" : "Ein"}</button>
             </span>
           </li>))}
