@@ -86,7 +86,7 @@ function kurzBestand(e) {
     m.set(l.art, (m.get(l.art) || 0) + l.menge);
     je.set(k, m);
   });
-  return [...je.entries()].map(([i, m]) => (i ? "Index " + i : "ohne Index") + ": "
+  return [...je.entries()].map(([i, m]) => (i ? "Index " + i : "Index leer") + ": "
     + [...m.entries()].map(([a, n]) => alt.zahlText(n) + " " + artText(a).toLowerCase()).join(", ")).join(" · ");
 }
 
@@ -199,7 +199,7 @@ function Bestand({ bestand, daten, offen, setOffen, neu, alle, wer, extName, unt
                     const alterIndex = daten.index.get(e.hoco) && l.index_nr && l.index_nr !== daten.index.get(e.hoco);
                     return (
                       <div key={l.schluessel} className={"lager-linie" + (l.menge < 0 ? " lager-zeile--minus" : "")} data-linie={l.schluessel}>
-                        <b>{l.index_nr ? "Index " + l.index_nr : "ohne Index"}</b>
+                        <b>{l.index_nr ? "Index " + l.index_nr : "Index leer"}</b>
                         <span>{artText(l.art)}{stufeText(daten, l.hoco, l.art, l.stufe) ? " " + stufeText(daten, l.hoco, l.art, l.stufe) : ""}
                           {alterIndex ? <span className="lager-schild lager-schild--warn">alter Index</span> : null}</span>
                         <span className="klein">{l.ort || "ohne Platz"}</span>
@@ -217,7 +217,7 @@ function Bestand({ bestand, daten, offen, setOffen, neu, alle, wer, extName, unt
                   })}
                   {ext.map((x) => (
                     <div key={x.raus.id} className="lager-linie lager-linie--extern">
-                      <b>{x.raus.index_nr ? "Index " + x.raus.index_nr : "ohne Index"}</b>
+                      <b>{x.raus.index_nr ? "Index " + x.raus.index_nr : "Index leer"}</b>
                       <span>bei {extName(x.raus.ext_id)}</span>
                       <span className={"klein" + (x.raus.zurueck_bis && x.raus.zurueck_bis < heute() ? " lager-rot" : "")}>
                         {x.raus.zurueck_bis ? "zurück bis " + alt.kurzDatum(x.raus.zurueck_bis) : ""}</span>

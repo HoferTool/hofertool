@@ -404,6 +404,22 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   // Index aus der WBG (Wunsch Patrick 25. November 2026), nicht für Externe
   const wbgIndex = useWbgIndex(extern || typeof w.wbg !== "string" ? "" : w.wbg,
     !extern && auftrag && w.wbg === auftrag.wbg_url ? auftrag.wbg_index : null);
+  // Von Hand eingetragen (seit 1.841.0, Wunsch Patrick 25. November 2026:
+  // „wenn keiner da ist, soll es leer sein und man gibt ihn an“)
+  const [idxHand, setIdxHand] = useState(null);
+  const idxJetzt = idxHand !== null ? idxHand : (wbgIndex && wbgIndex !== "-" && wbgIndex !== "?" ? wbgIndex : "");
+  const indexEintragen = async () => {
+    const e = await alt.dialogFelder({ titel: "Index " + (auftrag.job_number || ""),
+      felder: [{ name: "idx", label: "Index (leer = noch keiner)", wert: idxJetzt }], bestaetigen: "Speichern" });
+    if (!e) return;
+    const neuIdx = String(e.idx || "").trim();
+    const u = await alt.db.from("jobs").update({ wbg_index: neuIdx || "-" }).eq("id", auftrag.id);
+    if (u.error) { alt.meldung("Index nicht gespeichert: " + u.error.message, "fehler"); return; }
+    alt.merkeSchritt("Index " + (auftrag.job_number || ""), [alt.rueckSetz("jobs", { wbg_index: auftrag.wbg_index || null }, { id: auftrag.id })]);
+    auftrag.wbg_index = neuIdx || "-";
+    setIdxHand(neuIdx);
+    alt.meldung("Index gespeichert.", "gut");
+  };
   const aktuell = useRef(w);
   aktuell.current = w;
   const tageVonHand = useRef(false);
@@ -971,8 +987,10 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                     (Wunsch Patrick, 12. Oktober 2026) */}
                 {waschprog && <span className="auf-waschprog" id="pl-waschprog">
                   Waschprog-Nr.: <b>{waschprog}</b></span>}
-                {wbgIndex && <span className="auf-waschprog" id="pl-wbgindex">
-                  Index: <b>{wbgIndex === "-" ? "keiner" : wbgIndex}</b></span>}</div></div>
+                {auftrag && !extern && <span className="auf-waschprog" id="pl-wbgindex" data-index={idxJetzt}>
+                  Index: {alt.darfSchreiben()
+                    ? <button type="button" className="knopf knopf--klein" id="pl-index-knopf" onClick={indexEintragen}>{idxJetzt || "eintragen"}</button>
+                    : <b>{idxJetzt}</b>}</span>}</div></div>
 
             {/* Den Knopf Spezialwerkzeuge gibt es seit 1.443.0 nicht mehr (Wunsch
                 Patrick 6. November 2026: „wird ja mit Stern gekennzeichnet“) */}
