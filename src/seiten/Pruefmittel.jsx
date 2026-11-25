@@ -15,7 +15,7 @@ import { useEffect, useState } from "react";
 import { alt, useDaten, useGemerkt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { useSeitenSuche, hinzeigen } from "../teile/seitenSuche.js";
-import Halle, { LAGE } from "./pruefmittel/Halle.jsx";
+import Halle, { LAGE, EXTRA, extraVon } from "./pruefmittel/Halle.jsx";
 import { pruefmittelLaden, verlaufLaden, ARTEN, artText, ORTE, STATUS, fehltTabelle,
   maschineText, naechstePruefung, istFaellig, ortText, suchText, zeilenLesen,
   gruppeVon, gruppeText, PRUEFUNG_WO, pruefWoText, baldFaellig, einsatzTage } from "../daten/pruefmittel.js";
@@ -66,7 +66,8 @@ export default function Pruefmittel({ auffrischen, eingebettet }) {
   const wert = SPALTEN.find((x) => x[0] === sort) || SPALTEN[1];
   const liste = daten.liste.filter(passt).map((p) => [p, wert[2](p, daten)])
     .sort((x, y) => vergleich(x[1], y[1]) * (ab ? -1 : 1) || vergleich(x[0].nr, y[0].nr)).map((x) => x[0]);
-  const anMaschinen = daten.liste.filter((p) => p.ort_art === "maschine" && p.status !== "weg");
+  // dazu Prüfmittel der Maschinen ohne Datenbank-Eintrag (Takamaz, Fräsen), am Text erkannt
+  const anMaschinen = daten.liste.filter((p) => p.status !== "weg" && (p.ort_art === "maschine" || (!p.machine_id && extraVon(p))));
   const sortieren = (k) => { if (k === sort) setAb(!ab); else { setSort(k); setAb(false); } };
   const gefiltert = !!(s || typ || ort || zustand);
 
@@ -201,14 +202,15 @@ function AnMaschinen({ liste, d, zu, neu }) {
   const [wahl, setWahl] = useState(null);
   const gewaehlt = wahl && wahl.id;
   const jeMaschine = new Map();
+  const ort = (p) => p.machine_id || extraVon(p);
   liste.forEach((p) => {
-    if (!jeMaschine.has(p.machine_id)) jeMaschine.set(p.machine_id, []);
-    jeMaschine.get(p.machine_id).push(p);
+    if (!jeMaschine.has(ort(p))) jeMaschine.set(ort(p), []);
+    jeMaschine.get(ort(p)).push(p);
   });
   const zahl = new Map([...jeMaschine].map(([id, l]) => [id, l.length]));
-  const faellig = new Set(liste.filter(istFaellig).map((p) => p.machine_id));
+  const faellig = new Set(liste.filter(istFaellig).map(ort));
   // Maschinen mit Prüfmitteln, die nicht im Hallenplan stehen (z.B. 303/304)
-  const ausserhalb = [...jeMaschine.keys()].map((id) => d.maschinen.find((m) => m.id === id))
+  const ausserhalb = [...jeMaschine.keys()].filter((id) => !EXTRA.some((e) => e.id === id)).map((id) => d.maschinen.find((m) => m.id === id))
     .filter((m) => !m || !LAGE[String(m.machine_number || "")]);
   const waehlen = (id, el) => setWahl(id ? { id, rect: el && el.getBoundingClientRect ? el.getBoundingClientRect() : null } : null);
   const oeffnen = (p) => { zu(); pmFenster(p, d, neu); };
@@ -252,7 +254,7 @@ function AnMaschinen({ liste, d, zu, neu }) {
       {wahl && (
         <div className="pm-pop" id="pm-pop" style={lage} data-pmmaschine-pop={gewaehlt}>
           <div className="pm-pop__kopf">
-            <b>{maschineText(mGew)}</b>
+            <b>{mGew ? maschineText(mGew) : (EXTRA.find((e) => e.id === gewaehlt) || {}).name}</b>
             <button className="knopf knopf--still knopf--klein" aria-label="Schliessen" onClick={() => setWahl(null)}>✕</button>
           </div>
           {pms.length ? <div className="pm-maschine" data-pmmaschine={gewaehlt}>
