@@ -776,7 +776,8 @@ function LieferplanAnsicht({ d, aussen, p, zeilen, setZeilen }) {
               {lieferungen.map(({ x, ls }, i) => <tr key={x.id} className="lp-gut lp-klick" onClick={() => belegOeffnen(d, aussen, ls)}>
                 <td><span className="lp-z lp-z--gut">●</span></td>
                 <td className="rechts">{i + 1}</td><td>{datumText(ls.datum)}</td><td>{ls.datum ? kwText(ls.datum) : ""}</td>
-                <td className="rechts">{mengeText(x.menge)}</td><td><b>{ls.nr}</b></td>
+                <td className="rechts">{mengeText(x.menge)}</td><td><button type="button" className="gf-verweis lp-ls-link" data-erp-lp-ls={ls.nr}
+                  title="Lieferschein öffnen" onClick={(e) => { e.stopPropagation(); belegOeffnen(d, aussen, ls); }}>{ls.nr} öffnen</button></td>
               </tr>)}
             </tbody>
           </table></div>

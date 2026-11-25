@@ -308,6 +308,15 @@ function fensterZumachen(el) {
   else el.remove();
 }
 
+// Holt die Fensterleiste ein Fenster nach vorne, schliesst Escape danach
+// genau dieses zuerst (src/teile/fensterVerwalter.js)
+function fensterStapelVorne(el) {
+  const i = fensterStapel.indexOf(el);
+  if (i === -1 || i === fensterStapel.length - 1) return;
+  fensterStapel.splice(i, 1);
+  fensterStapel.push(el);
+}
+
 function oberstesFensterSchliessen() {
   for (let i = fensterStapel.length - 1; i >= 0; i--) {
     const el = fensterStapel[i];
@@ -11224,7 +11233,7 @@ const neuerLook = () => document.documentElement.classList.contains("neues-menue
 
 // Was die neu gebauten React-Seiten vom alten Programm brauchen
 Object.assign(alt, {
-  LOGO_BRIEF, SIEGEL_BRIEF,
+  LOGO_BRIEF, SIEGEL_BRIEF, fensterStapelVorne,
   camSehen, SYM, neuerLook,
   meineProfilId, meinName: () => (profil ? personName(profil, "") : ""), meineMail: () => (profil && profil.email) || "", parkIstExtern, padParkVerborgen, leerlaufAktiv,
   zeitlimit, meldung, nachfragen, fehlertext, fehlerMerken, dialogFelder, auswahlDialog,

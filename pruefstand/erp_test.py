@@ -245,6 +245,7 @@ with sync_playwright() as p:
         pruefe(ap2 and ap2[0].get("code") == "WASCH" and len(ap2) == vorher + 2 and ap2[0].get("pos") == 10 and not any("_k" in x for x in ap2), "Arbeitsgang per Ziehen nach oben: %s" % [(x.get("pos"), x.get("code")) for x in ap2])
     pg.click("[data-erp-artfenster] [data-gf-reiter='dokumente']"); pg.wait_for_timeout(200)
     pruefe(pg.locator("[data-erp-art-modell]").count() == 1, "Reiter Dokumente mit Platz für 3D")
+    pruefe(pg.locator("[data-erp-artfenster] [data-erp-zeichnung]").count() >= 1, "Zeichnung der HOCO Nr. im Artikelfenster")
     # Blaue Felder: Menü mit Sprüngen, hier ins Artikel-Cockpit
     pg.click("[data-erp-artfenster] [data-erp-art-cockpit]"); pg.wait_for_selector("[data-erp-cockpit]")
     pruefe(pg.locator("[data-erp-cockpit-teil]").count() == 4, "Artikel-Cockpit mit vier Bereichen")
@@ -314,6 +315,8 @@ with sync_playwright() as p:
     pg.fill("[data-erp-nrstart='kalkulation-%d']" % j, "6001")
     naechst = pg.inner_text("[data-erp-nrnaechst='auftrag']")
     pruefe(naechst == "%d0458" % j, "Vorschau nächste Nummer: %s" % naechst)
+    folge = pg.inner_text("[data-erp-nrfolge='auftrag']")
+    pruefe(folge == "%d0458" % (j + 1), "Nächstes Jahr zählt weiter: %s" % folge)
     pg.screenshot(path=BILD + "/erp-nummern.png")
     pg.click("#erp-nr-speichern"); pg.wait_for_timeout(700)
     cfg = [x for x in tabelle(pg, "app_config") if x["schluessel"] == "erp_nummern"]
