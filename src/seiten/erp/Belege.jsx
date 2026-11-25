@@ -190,7 +190,7 @@ function BelegFenster({ start, id, vorlage, aussen, zu }) {
       }
       const w = { beleg_id: bel.id, pos: (i + 1) * 10, artikel_id: p.artikel_id || null, text: p.text || null,
         menge: zahl(p.menge), einheit: p.einheit || "Stk", preis: p.preis === "" || p.preis == null ? null : zahl(p.preis),
-        termin: p.termin || null, termin_kw: p.termin_kw || null, bezug_id: p.bezug_id || null, daten: p.daten || {} };
+        termin: p.termin || null, termin_kw: p.termin_kw || null, bezug_id: p.bezug_id || null, daten: (p.daten || {}).abrufe ? { ...p.daten, abrufe: lpAbrufe(p.daten.abrufe) } : (p.daten || {}) };
       if (p.id) await aendern("erp_positionen", p.id, w); else await einfuegen("erp_positionen", w);
     }
     alt.meldung(t.name + " " + bel.nr + " gespeichert.", "gut");
@@ -418,7 +418,6 @@ function ArtikelAngaben({ a, idx }) {
   </>;
 }
 
-const ABRUF = [{ name: "termin", label: "Termin", typ: "datum" }, { name: "kw", label: "oder KW" }, { name: "menge", label: "Menge", typ: "zahl" }];
 
 function Positionen({ d, kopf, pos, setPos, bearbeiten, b, aussen, frisch }) {
   const typ = kopf.typ;
@@ -465,6 +464,13 @@ function Positionen({ d, kopf, pos, setPos, bearbeiten, b, aussen, frisch }) {
             };
           })} />
         {preis && s && <div className="erp-summe"><span>Netto {chf(s.netto)}</span><span>MWST {s.satz} % {chf(s.steuer)}</span><b>Total CHF {chf(s.brutto)}</b></div>}
+        {/* Neue Position direkt in der Ansicht, ohne zuerst „Bearbeiten“ (Wunsch Patrick 25. November 2026) */}
+        <div><button type="button" className="knopf knopf--klein" data-erp-ansicht-neupos=""
+          onClick={() => {
+            const alle = d.posJe.get(b.id) || [];
+            const naechste = alle.reduce((m, x) => Math.max(m, zahl(x.pos)), 0) + 10;
+            positionOeffnen(d, aussen, b, { neu: true, pos: naechste, artikel_id: "", menge: "", einheit: "Stk", preis: null, text: "", daten: {} }, frisch);
+          }}>+ Position</button></div>
       </>
     );
   }
@@ -490,8 +496,10 @@ function Positionen({ d, kopf, pos, setPos, bearbeiten, b, aussen, frisch }) {
                 onClick={() => setPos((l) => l.filter((_, j) => j !== i))}>✕</button>
             </div>
             <Feld f={{ name: "text", label: "Text (ohne Artikel: freie Position)", breit: true }} wert={p.text} setzen={(w) => setzen(i, "text", w)} />
-            {rahmen && <Feld f={{ name: "abrufe", label: "Lieferplan (Abrufe)", typ: "liste", felder: ABRUF, neu: "Abruf" }}
-              wert={p.daten.abrufe || []} setzen={(w) => setzen(i, "daten", { ...p.daten, abrufe: w })} />}
+            {(rahmen || (p.daten.abrufe || []).length > 0) && <div className="erp-feld--breit"><div className="lp-legende">Lieferplan</div>
+              <LieferplanAnsicht d={d} aussen={aussen} p={p}
+                zeilen={(p.daten.abrufe || []).map((x) => ({ ...x, kw: x.kw || (x.termin ? kwText(x.termin) : ""), menge: x.menge ?? "" }))}
+                setZeilen={(z) => setzen(i, "daten", { ...p.daten, abrufe: z.map((x) => ({ ...x, menge: x.menge === "" ? "" : x.menge })) })} /></div>}
           </div>
         );
       })}
@@ -549,7 +557,7 @@ function PositionFenster({ d, aussen, b, p, frisch, zu }) {
     }
     return n;
   });
-  const artGesperrt = d.bewegungen.some((x) => x.position_id === p.id) || d.positionen.some((x) => x.bezug_id === p.id);
+  const artGesperrt = !p.neu && (d.bewegungen.some((x) => x.position_id === p.id) || d.positionen.some((x) => x.bezug_id === p.id));
   const ist = b.typ === "auftrag" ? geliefert(d, p) : b.typ === "bestellung" ? gebucht(d, p.id, "eingang")
     : b.typ === "fertigung" ? gebucht(d, p.id, "fertig") : 0;
   const istText = { auftrag: "Geliefert", bestellung: "Eingegangen", fertigung: "Fertig gemeldet" }[b.typ];
@@ -567,6 +575,16 @@ function PositionFenster({ d, aussen, b, p, frisch, zu }) {
       if (!w.artikel_id && !w.text.trim()) throw new Error("Artikel fehlt.");
       const na = d.artikelMap.get(w.artikel_id);
       daten.idx = na ? na.idx || "" : "";
+    }
+    if (p.neu) {
+      if (!w.artikel_id && !w.text.trim()) throw new Error("Artikel oder Text fehlt.");
+      const na = d.artikelMap.get(w.artikel_id);
+      await einfuegen("erp_positionen", { beleg_id: b.id, pos: p.pos, artikel_id: w.artikel_id || null, menge: zahl(w.menge), einheit: w.einheit || "Stk",
+        preis: w.preis === "" ? null : zahl(w.preis), termin: w.termin || null, termin_kw: w.termin_kw || null, text: w.text || null,
+        daten: { ...daten, idx: na ? na.idx || "" : "" } });
+      alt.meldung("Position " + p.pos + " hinzugefügt.", "gut");
+      await frisch(); zu();
+      return;
     }
     await aendern("erp_positionen", p.id, { ...(neuArt ? { artikel_id: w.artikel_id || null } : {}), menge: zahl(w.menge), einheit: w.einheit, preis: w.preis === "" ? null : zahl(w.preis),
       termin: w.termin || null, termin_kw: w.termin_kw || null, text: w.text || null, daten });
@@ -604,9 +622,9 @@ function PositionFenster({ d, aussen, b, p, frisch, zu }) {
     })()}
   </>;
   const fuss = <>
-    <button className="knopf knopf--gefahr" data-erp-pos-loeschen="" disabled={artGesperrt}
-      title={artGesperrt ? "Hat schon Buchungen oder Folgebelege" : "Nur diese Position löschen"} onClick={() => tun(posLoeschen)}>Position löschen</button>
-    {b.typ === "auftrag" && <button className="knopf" data-erp-pos-lieferplan="" onClick={() => lieferplanOeffnen(d, aussen, b, p, frisch)}>Lieferplan</button>}
+    {!p.neu && <button className="knopf knopf--gefahr" data-erp-pos-loeschen="" disabled={artGesperrt}
+      title={artGesperrt ? "Hat schon Buchungen oder Folgebelege" : "Nur diese Position löschen"} onClick={() => tun(posLoeschen)}>Position löschen</button>}
+    {b.typ === "auftrag" && !p.neu && <button className="knopf" data-erp-pos-lieferplan="" onClick={() => lieferplanOeffnen(d, aussen, b, p, frisch)}>Lieferplan</button>}
     <span className="gf-fuss__luecke" />
     {geaendert && <span className="klein gf-geaendert">nicht gespeichert</span>}
     <button className="knopf knopf--still" data-nein="" onClick={schliessen}>Beenden</button>
@@ -615,7 +633,7 @@ function PositionFenster({ d, aussen, b, p, frisch, zu }) {
     }}>Speichern</button>
   </>;
   return (
-    <GFenster titel={t.name + "-Position " + b.nr + " / " + p.pos} kopf={kopf} fuss={fuss} zu={schliessen} attr={{ "data-erp-posfenster": p.pos }}>
+    <GFenster titel={t.name + "-Position " + b.nr + " / " + p.pos + (p.neu ? " (neu)" : "")} kopf={kopf} fuss={fuss} zu={schliessen} attr={{ "data-erp-posfenster": p.pos }}>
       <div className="gf-spalten">
         <div>
           <KF label="Menge" name="menge" typ="zahl" rechts wert={w.menge} setzen={set("menge")} />
@@ -647,87 +665,135 @@ export function lieferplanOeffnen(d, aussen, b, p, frisch) {
   fensterOeffnen((zu) => <LieferplanFenster d={d} aussen={aussen} b={b} p={p} frisch={frisch} zu={zu} />);
 }
 
+// Fälligkeiten und Lieferungen nebeneinander wie im Gewatec (Wunsch Patrick
+// 25. November 2026, Bild „Auftrag: Lieferplan“): links Fälligkeiten mit
+// Zeichen erledigt / offen / im Rückstand und Offen aufgelaufen, rechts die
+// Lieferungen, unten die Summen. Gebraucht im Lieferplan-Fenster und beim
+// Bearbeiten des Auftrags.
+function lpZeileSetzen(z, name, x) {
+  if (name === "termin") return { ...z, termin: x, kw: x ? kwText(x) : "" };
+  if (name === "kw") { const t = kwZuDatum(x, new Date(), 4); return t ? { ...z, kw: x, termin: t } : { ...z, kw: x }; }
+  return { ...z, [name]: x };
+}
+
+function LieferplanAnsicht({ d, aussen, p, zeilen, setZeilen }) {
+  const setZ = (i, name, x) => setZeilen(zeilen.map((z, j) => (j === i ? lpZeileSetzen(z, name, x) : z)));
+  const lieferungen = p.id ? folgePositionen(d, p.id, "lieferschein").map((x) => ({ x, ls: d.belegMap.get(x.beleg_id) })).filter((z) => z.ls)
+    .sort((u, v) => (u.ls.datum || "").localeCompare(v.ls.datum || "")) : [];
+  const gesamt = lieferungen.reduce((s, z) => s + zahl(z.x.menge), 0);
+  const heute0 = heute();
+  let rest = gesamt, rueck = 0, kum = 0, faelligBis = 0;
+  const verteilt = zeilen.map((z) => {
+    const m = zahl(z.menge), da = Math.min(m, Math.max(0, rest)); rest -= da;
+    const faellig = z.termin ? z.termin <= heute0 : false;
+    if (faellig) faelligBis += m;
+    if (faellig && da < m) rueck += m - da;
+    kum += m - da;
+    return { m, da, faellig, offen: kum };
+  });
+  const summe = zeilen.reduce((s, z) => s + zahl(z.menge), 0);
+  const menge = zahl(p.menge);
+  const zeichen = (v) => (v.m && v.da >= v.m ? <span className="lp-z lp-z--gut" title="geliefert">✓</span>
+    : v.faellig ? <span className="lp-z lp-z--rot" title="im Rückstand">●</span> : <span className="lp-z lp-z--offen" title="offen">●</span>);
+  return (
+    <div className="lp" data-erp-lp="">
+      <div className="lp-seiten">
+        <div className="lp-teil">
+          <div className="lp-titel">Fälligkeiten</div>
+          <div className="gf-tab-huelle"><table className="gf-tab lp-tab">
+            <thead><tr><th /><th className="rechts">Pos.</th><th>Datum</th><th>KW</th><th className="rechts">Menge</th><th className="rechts">Offen</th><th>Bemerkung</th><th /></tr></thead>
+            <tbody>
+              {!zeilen.length && <tr><td colSpan={8} className="gf-tab__leer">Noch keine Fälligkeit.</td></tr>}
+              {zeilen.map((z, i) => {
+                const v = verteilt[i];
+                return <tr key={i} data-erp-lp-zeile={i} className={v.m && v.da >= v.m ? "lp-gut" : v.faellig ? "lp-rot" : "lp-offen"}>
+                  <td>{zeichen(v)}</td>
+                  <td className="rechts">{i + 1}</td>
+                  <td><input type="date" value={z.termin || ""} data-erp-feld="termin" onChange={(e) => setZ(i, "termin", e.target.value)} /></td>
+                  <td><input className="lp-kw" value={z.kw ?? (z.termin ? kwText(z.termin) : "")} placeholder="KW" data-erp-feld="kw" onChange={(e) => setZ(i, "kw", e.target.value)} /></td>
+                  <td><input className="gf-rechts lp-menge" inputMode="decimal" value={z.menge ?? ""} data-erp-feld="menge" onChange={(e) => setZ(i, "menge", e.target.value)} /></td>
+                  <td className="rechts">{v.offen > 0 ? mengeText(v.offen) : ""}</td>
+                  <td><input value={z.bemerkung || ""} data-erp-feld="bemerkung" onChange={(e) => setZ(i, "bemerkung", e.target.value)} /></td>
+                  <td><button type="button" className="knopf knopf--klein knopf--gefahr" title="Entfernen" onClick={() => setZeilen(zeilen.filter((_, j) => j !== i))}>✕</button></td>
+                </tr>;
+              })}
+            </tbody>
+          </table></div>
+          <div className="gf-zeile gf-knoepfe">
+            <button type="button" className="knopf knopf--klein" data-erp-lp-neu="" onClick={() => setZeilen(zeilen.concat([{ termin: "", kw: "", menge: "", bemerkung: "" }]))}>+ Fälligkeit</button>
+            <span className={"klein" + (Math.abs(summe - menge) > 1e-9 ? " gf-warn" : "")} data-erp-lp-summe="">
+              Summe Fälligkeiten {mengeText(summe)} von {mengeText(menge)}
+              {summe > menge + 1e-9 ? " · Überlieferung " + mengeText(summe - menge) : summe < menge - 1e-9 ? " · noch nicht eingeplant " + mengeText(menge - summe) : ""}</span>
+          </div>
+        </div>
+        <div className="lp-teil">
+          <div className="lp-titel">Lieferungen</div>
+          <div className="gf-tab-huelle"><table className="gf-tab lp-tab">
+            <thead><tr><th /><th className="rechts">Pos.</th><th>Datum</th><th>KW</th><th className="rechts">Menge</th><th>Lieferschein</th></tr></thead>
+            <tbody>
+              {!lieferungen.length && <tr><td colSpan={6} className="gf-tab__leer">Noch nichts geliefert.</td></tr>}
+              {lieferungen.map(({ x, ls }, i) => <tr key={x.id} className="lp-gut lp-klick" onClick={() => belegOeffnen(d, aussen, ls)}>
+                <td><span className="lp-z lp-z--gut">●</span></td>
+                <td className="rechts">{i + 1}</td><td>{datumText(ls.datum)}</td><td>{ls.datum ? kwText(ls.datum) : ""}</td>
+                <td className="rechts">{mengeText(x.menge)}</td><td><b>{ls.nr}</b></td>
+              </tr>)}
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+      <div className="lp-summen">
+        <div><span>Rückstände</span><b className={rueck > 0 ? "erp-rot" : ""} data-erp-lp-rueck="">{mengeText(rueck)}</b></div>
+        <div><span>Lieferungen</span><b>{mengeText(gesamt)}</b></div>
+        <div><span>Offen</span><b>{mengeText(Math.max(0, summe - gesamt))}</b></div>
+        <div><span>Unter-/Überlieferung</span><b title="Geliefert minus fällig bis heute">{mengeText(gesamt - faelligBis)}</b></div>
+        <div><span>Fälligkeiten</span><b>{mengeText(summe)}</b></div>
+      </div>
+    </div>
+  );
+}
+
+function lpAbrufe(zeilen) {
+  return zeilen.filter((z) => zahl(z.menge) > 0 || z.termin || z.kw)
+    .map((z) => ({ termin: z.termin || "", kw: z.kw || (z.termin ? kwText(z.termin) : ""), menge: zahl(z.menge), bemerkung: z.bemerkung || "" }))
+    .sort((u, v) => (u.termin || "9").localeCompare(v.termin || "9"));
+}
+
 function LieferplanFenster({ d, aussen, b, p, frisch, zu }) {
   const start = (p.daten.abrufe || []).map((x) => ({ termin: x.termin || "", kw: x.termin ? kwText(x.termin) : (x.kw || ""), menge: String(x.menge ?? ""), bemerkung: x.bemerkung || "" }));
   const [zeilen, setZeilen] = useState(start);
   const [laeuft, setLaeuft] = useState(false);
   const geaendert = JSON.stringify(zeilen) !== JSON.stringify(start);
-  // KW und Datum ziehen einander sofort nach: Datum → KW, gültige KW → Freitag
-  const setZ = (i, name, x) => setZeilen((l) => l.map((z, j) => {
-    if (j !== i) return z;
-    if (name === "termin") return { ...z, termin: x, kw: x ? kwText(x) : "" };
-    if (name === "kw") { const t = kwZuDatum(x, new Date(), 4); return t ? { ...z, kw: x, termin: t } : { ...z, kw: x }; }
-    return { ...z, [name]: x };
-  }));
   const a = d.artikelMap.get(p.artikel_id);
-  const lieferungen = folgePositionen(d, p.id, "lieferschein").map((x) => ({ x, ls: d.belegMap.get(x.beleg_id) })).filter((z) => z.ls)
-    .sort((u, v) => (u.ls.datum || "").localeCompare(v.ls.datum || ""));
-  const gesamt = lieferungen.reduce((s, z) => s + zahl(z.x.menge), 0);
-  const heute0 = heute();
-  let rest = gesamt, rueck = 0;
-  const verteilt = zeilen.map((z) => {
-    const m = zahl(z.menge), da = Math.min(m, Math.max(0, rest)); rest -= da;
-    const faellig = z.termin ? z.termin <= heute0 : false;
-    if (faellig && da < m) rueck += m - da;
-    return { m, da, faellig };
-  });
-  const summe = zeilen.reduce((s, z) => s + zahl(z.menge), 0);
-  const menge = zahl(p.menge);
-
+  const kunde = d.partnerMap.get(b.partner_id);
+  const bd = b.daten || {};
   const speichern = async () => {
-    const abrufe = zeilen.filter((z) => zahl(z.menge) > 0 || z.termin || z.kw)
-      .map((z) => ({ termin: z.termin || "", kw: z.kw || (z.termin ? kwText(z.termin) : ""), menge: zahl(z.menge), bemerkung: z.bemerkung || "" }))
-      .sort((u, v) => (u.termin || "9").localeCompare(v.termin || "9"));
-    await aendern("erp_positionen", p.id, { daten: { ...(p.daten || {}), abrufe } });
+    await aendern("erp_positionen", p.id, { daten: { ...(p.daten || {}), abrufe: lpAbrufe(zeilen) } });
     alt.meldung("Lieferplan gespeichert.", "gut");
     await frisch(); zu();
   };
   const schliessen = async () => { if (await schliessenFragen(geaendert, alt)) zu(); };
   const kopf = <>
-    <KF label="Auftrag" nurLesen wert={<b>{b.nr} / {p.pos}</b>} />
+    <KF label="Auftrag" nurLesen wert={<b>{b.nr}</b>} />
+    <KF label="Position" nurLesen wert={p.pos} />
     <KF label="Artikel" nurLesen wert={a ? artikelIdxText(a, posIdx(d, p)) : p.text || ""}
       menue={a && [["Artikel öffnen", () => artikelFensterOeffnen(d, aussen, a)], ["Artikel-Cockpit", () => cockpitOeffnen(d, aussen, a)]]} />
-    <KF label="Menge Position" nurLesen rechts wert={mengeText(menge) + " " + (p.einheit || "")} />
-    <KF label="Geliefert" nurLesen rechts wert={mengeText(gesamt)} />
-    <KF label="Rückstand" nurLesen rechts wert={<span className={rueck > 0 ? "erp-rot" : ""} data-erp-lp-rueck="">{mengeText(rueck)}</span>} />
-    <KF label="Offen" nurLesen rechts wert={mengeText(Math.max(0, menge - gesamt))} />
+    <KF label="Kunde" nurLesen wert={kunde ? partnerText(kunde) : ""} />
+    <KF label="Bestellnummer" nurLesen wert={bd.ihre_nr || ""} />
+    <KF label="Bestelldatum" nurLesen wert={bd.ihre_datum ? datumText(bd.ihre_datum) : datumText(b.datum)} />
+    {bd.zeichen && <KF label="Bestellzeichen" nurLesen wert={bd.zeichen} />}
+    <KF label="Menge Position" nurLesen rechts wert={mengeText(zahl(p.menge)) + " " + (p.einheit || "")} />
   </>;
   const fuss = <>
     <span className="gf-fuss__luecke" />
     {geaendert && <span className="klein gf-geaendert">nicht gespeichert</span>}
-    <button className="knopf knopf--still" data-nein="" onClick={schliessen}>Beenden</button>
+    <button className="knopf knopf--still" data-nein="" onClick={schliessen}>Schliessen</button>
     <button className="knopf knopf--haupt" disabled={laeuft || !geaendert} data-erp-speichern="" onClick={async () => {
       setLaeuft(true); await tun(speichern); setLaeuft(false);
     }}>Speichern</button>
   </>;
   return (
-    <GFenster titel={"Lieferplan " + b.nr + " / " + p.pos} kopf={kopf} fuss={fuss} zu={schliessen} attr={{ "data-erp-lieferplan": p.pos }}>
-      <h3 className="gf-zwischentitel">Fälligkeiten</h3>
-      <div className="gf-tab-huelle"><table className="gf-tab">
-        <thead><tr><th>Termin</th><th>KW</th><th className="rechts">Menge</th><th className="rechts">Geliefert</th><th className="rechts">Offen</th><th>Bemerkung</th><th /></tr></thead>
-        <tbody>
-          {!zeilen.length && <tr><td colSpan={7} className="gf-tab__leer">Noch keine Fälligkeit.</td></tr>}
-          {zeilen.map((z, i) => <tr key={i} data-erp-lp-zeile={i} className={verteilt[i].faellig && verteilt[i].da < verteilt[i].m ? "erp-minus" : verteilt[i].m && verteilt[i].da >= verteilt[i].m ? "erp-gut" : ""}>
-            <td><input type="date" value={z.termin} data-erp-feld="termin" onChange={(e) => setZ(i, "termin", e.target.value)} /></td>
-            <td><input value={z.kw ?? (z.termin ? kwText(z.termin) : "")} placeholder="KW" data-erp-feld="kw" onChange={(e) => setZ(i, "kw", e.target.value)} /></td>
-            <td><input className="gf-rechts" inputMode="decimal" value={z.menge} data-erp-feld="menge" onChange={(e) => setZ(i, "menge", e.target.value)} /></td>
-            <td className="rechts">{mengeText(verteilt[i].da)}</td>
-            <td className="rechts">{mengeText(Math.max(0, verteilt[i].m - verteilt[i].da))}</td>
-            <td><input value={z.bemerkung} data-erp-feld="bemerkung" onChange={(e) => setZ(i, "bemerkung", e.target.value)} /></td>
-            <td><button type="button" className="knopf knopf--klein knopf--gefahr" title="Entfernen" onClick={() => setZeilen((l) => l.filter((_, j) => j !== i))}>✕</button></td>
-          </tr>)}
-        </tbody>
-      </table></div>
-      <div className="gf-zeile gf-knoepfe">
-        <button type="button" className="knopf knopf--klein" data-erp-lp-neu="" onClick={() => setZeilen((l) => l.concat([{ termin: "", kw: "", menge: "", bemerkung: "" }]))}>+ Fälligkeit</button>
-        <span className={"klein" + (Math.abs(summe - menge) > 1e-9 ? " gf-warn" : "")} data-erp-lp-summe="">
-          Summe Fälligkeiten {mengeText(summe)} von {mengeText(menge)}
-          {summe > menge + 1e-9 ? " · Überlieferung " + mengeText(summe - menge) : summe < menge - 1e-9 ? " · noch nicht eingeplant " + mengeText(menge - summe) : ""}</span>
-      </div>
-      <h3 className="gf-zwischentitel">Lieferungen</h3>
-      <GTabelle kopf={["Lieferschein", "Datum", "Menge"]} rechts={[2]} leer="Noch nichts geliefert."
-        zeilen={lieferungen.map(({ x, ls }) => ({ key: x.id, klick: () => belegOeffnen(d, aussen, ls),
-          zellen: [<b>{ls.nr}</b>, datumText(ls.datum), mengeText(x.menge) + " " + (x.einheit || "")] }))} />
+    <GFenster titel={"Auftrag: Lieferplan " + b.nr + " / " + p.pos} kopf={kopf} fuss={fuss} zu={schliessen} attr={{ "data-erp-lieferplan": p.pos }}>
+      <LieferplanAnsicht d={d} aussen={aussen} p={p} zeilen={zeilen} setZeilen={setZeilen} />
     </GFenster>
   );
 }

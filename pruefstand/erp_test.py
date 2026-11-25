@@ -328,6 +328,14 @@ with sync_playwright() as p:
     pg.locator(".dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(800)
     bp2 = [x for x in tabelle(pg, "erp_positionen") if x["beleg_id"] == be["id"]]
     pruefe(len(bp2) == 1 and any(b["id"] == be["id"] for b in tabelle(pg, "erp_belege")), "Position gelöscht, Beleg bleibt: %d" % len(bp2))
+    # Neue Position direkt in der Ansicht, ohne Bearbeiten (1.811.1)
+    oben(pg).locator("[data-erp-ansicht-neupos]").click(); pg.wait_for_selector("[data-erp-posfenster]")
+    pfe = pg.locator("[data-erp-posfenster]").last
+    pfe.locator("input[data-erp-feld='artikel']").fill("X8CrNiS18-9 rd 12"); pg.wait_for_timeout(200)
+    pfe.locator("input[data-erp-feld='menge']").fill("30")
+    pfe.locator("[data-erp-speichern]").click(); pg.wait_for_timeout(800)
+    bp3 = [x for x in tabelle(pg, "erp_positionen") if x["beleg_id"] == be["id"]]
+    pruefe(len(bp3) == 2 and any(float(x["menge"]) == 30 and x.get("artikel_id") for x in bp3), "Position in der Ansicht hinzugefügt: %d" % len(bp3))
 
     # Pro HOCO Nr. nur ein Artikel: Neuer Index ändert denselben Artikel
     for _ in range(4):
