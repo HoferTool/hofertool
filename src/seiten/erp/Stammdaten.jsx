@@ -358,12 +358,12 @@ function Lager({ d, neu }) {
         <button className="knopf" onClick={korrektur}>Buchung von Hand</button>
         <Suche wert={suche} setzen={setSuche} platzhalter="Artikel, Index, Charge, Platz …" />
       </div>
-      <Tabelle kopf={["Artikel", "Index", "Bezeichnung", "Charge", "Lagerplatz", "Menge"]} leer="Kein Bestand."
+      <Tabelle kopf={["Artikel", "Index", "Bezeichnung", "Charge", "Lagerart", "Lagerplatz", "Menge"]} leer="Kein Bestand."
         zeilen={best.map((e) => {
           const a = d.artikelMap.get(e.artikel_id) || {};
           const l = d.lagerMap.get(e.lager_id);
           return { key: e.artikel_id + e.charge + e.lager_id, klasse: e.menge < 0 ? "erp-minus" : "",
-            zellen: [<b>{a.nr}</b>, a.idx || "", a.bezeichnung || "", e.charge, l ? l.lagerart + " " + l.platz : "–", mengeText(e.menge) + " " + (a.einheit || "")] };
+            zellen: [<b>{a.nr}</b>, a.idx || "", a.bezeichnung || "", e.charge, l ? l.lagerart : "–", l ? l.platz : "–", mengeText(e.menge) + " " + (a.einheit || "")] };
         })} />
     </>
   );

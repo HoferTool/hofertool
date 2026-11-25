@@ -652,9 +652,9 @@ function Buchungen({ d, b }) {
   return (
     <details className="erp-buchungen" open={b.typ === "fertigung"}>
       <summary>Lagerbuchungen ({liste.length})</summary>
-      <Tabelle kopf={["Art", "Artikel", "Charge", "Lager", "Menge", "Am"]}
+      <Tabelle kopf={["Art", "Artikel", "Charge", "Lagerart", "Lagerplatz", "Menge", "Am"]}
         zeilen={liste.map((x) => ({ key: x.id, klasse: x.menge < 0 ? "erp-minus" : "",
-          zellen: [x.art, artikelText(d.artikelMap.get(x.artikel_id)), x.charge, lagerText(d, x.lager_id), mengeText(x.menge), datumText(x.am)] }))} />
+          zellen: [x.art, artikelText(d.artikelMap.get(x.artikel_id)), x.charge, (d.lagerMap.get(x.lager_id) || {}).lagerart || "–", (d.lagerMap.get(x.lager_id) || {}).platz || "–", mengeText(x.menge), datumText(x.am)] }))} />
     </details>
   );
 }
