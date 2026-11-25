@@ -603,10 +603,10 @@ header.bar { align-items: center; }
       <details class="sec" open>
         <summary>Grundkörper</summary>
         <div class="secbody">
-          <div class="row"><label for="baseW">Breite (X)</label><div class="unit"><input id="baseW" type="number" min="20" max="1000" step="1" value="300"><span>mm</span></div></div>
-          <div class="row"><label for="baseH">Länge (Y)</label><div class="unit"><input id="baseH" type="number" min="20" max="1000" step="1" value="200"><span>mm</span></div></div>
-          <div class="row"><label for="baseT">Höhe</label><div class="unit"><input id="baseT" type="number" min="2" max="200" step="1" value="30"><span>mm</span></div></div>
-          <div class="row"><label for="baseR">Eckenradius</label><div class="unit"><input id="baseR" type="number" min="0" max="100" step="1" value="5"><span>mm</span></div></div>
+          <div class="row"><label for="baseW">Breite (X)</label><div class="unit"><input id="baseW" type="number" min="20" max="1000" step="0.25" value="300"><span>mm</span></div></div>
+          <div class="row"><label for="baseH">Länge (Y)</label><div class="unit"><input id="baseH" type="number" min="20" max="1000" step="0.25" value="200"><span>mm</span></div></div>
+          <div class="row"><label for="baseT">Höhe</label><div class="unit"><input id="baseT" type="number" min="2" max="200" step="0.25" value="30"><span>mm</span></div></div>
+          <div class="row"><label for="baseR">Eckenradius</label><div class="unit"><input id="baseR" type="number" min="0" max="100" step="0.25" value="5"><span>mm</span></div></div>
           <div class="row"><label for="kArt">Aussenkanten</label><select id="kArt"><option value="keine">scharfkantig</option><option value="fase">Fase 45°</option><option value="radius">Radius</option></select></div>
           <div class="contents" id="kBox" hidden>
             <div class="row"><label for="kS" id="kSLab">Fase</label><div class="unit"><input id="kS" type="number" min="0.2" max="20" step="0.1" value="1"><span>mm</span></div></div>
@@ -2481,8 +2481,32 @@ function connDefaults() {
     stack: { on: false, free: true, step: true, peg: false, rec: false, inset: 14, d: 8, h: 4, spiel: 0.3, rim: 6, fh: 6, st: 3, fit: 0.3 },
     mag: { on: false, top: true, bottom: true, d: 6.2, depth: 3.2, inset: 6 },
     key: { on: false, n: 1, first: 37.5, pitch: 75, y: 30, head: 9, shaft: 4.5, len: 10, lip: 3, headDepth: 4, tilt: 0, rows: 1, y2: 150 },
-    wedge: { a: 0, side: "b" }
+    wedge: { a: 0, side: "b" },
+    grid: { on: false, mag: false }
   };
+}
+// Gridfinity auf der Unterseite (Wunsch Patrick 25. November 2026: „auf der Unterseite der Einlage
+// das Gridfinity anwenden“): Raster 42 mm, je Feld ein Fuss mit dem Profil der Norm (unten 35.6 mm,
+// 0.8 Fase, 1.8 senkrecht, 2.15 Fase, zusammen 4.75 mm hoch). Der Fuss hört oben 0.25 mm je Seite
+// innerhalb von 41.5 mm auf, damit er nie die Aussenkante berührt (das Netz bleibt geschlossen);
+// in der Grundplatte liegt er so gleich. Die Füsse hängen unter z = 0, der Körper bleibt T hoch.
+const GF = { p: 42, h: 4.75, mag: { d: 6.5, t: 2.4, a: 13 } };
+const GF_PROFIL = [[0, 35.6, 0.8], [0.8, 37.2, 1.6], [2.6, 37.2, 1.6], [4.5, 41, 3.5], [4.75, 41, 3.5]];
+function gfRing(c, s, r) {
+  const h = s / 2, o = [], seg = 6;
+  [[h - r, -h + r, -90], [h - r, h - r, 0], [-h + r, h - r, 90], [-h + r, -h + r, 180]].forEach(([x, y, a0]) => {
+    for (let k = 0; k <= seg; k++) { const a = (a0 + 90 * k / seg) * Math.PI / 180; o.push([c[0] + x + r * Math.cos(a), c[1] + y + r * Math.sin(a)]); }
+  });
+  return o;
+}
+const gfAnzahl = L => Math.max(0, Math.floor((L + 0.5 + 1e-6) / GF.p));
+function gfInfo(cm) {
+  const G = lay.conn && lay.conn.grid; if (!G || !G.on) return "";
+  const B = lay.base, nx = gfAnzahl(B.W), ny = gfAnzahl(B.H), passt = Math.abs(nx * GF.p - 0.5 - B.W) < 0.05 && Math.abs(ny * GF.p - 0.5 - B.H) < 0.05;
+  if (!cm.grid) return "";
+  const de = v => String(Math.round(v * 100) / 100).replace(".", ",");
+  return esc(`${nx} × ${ny} Felder (${cm.grid.feet.length} Füsse). Gesamthöhe ${de(B.T + GF.h)} mm (${de(B.T)} mm Einlage + ${de(GF.h)} mm Füsse).`
+    + (passt ? "" : ` Die Grösse ist nicht genau auf dem Raster: für ${nx} × ${ny} Felder ${de(nx * GF.p - 0.5)} × ${de(ny * GF.p - 0.5)} mm, der Rand steht über.`));
 }
 // Einlage konisch (Wunsch Patrick 4. November 2026: „bei den Nagellöchern soll man
 // die Einlage konisch machen können, damit die Werkzeuge nicht rausfallen, wenn es
@@ -2569,7 +2593,7 @@ function kanteEff(cm) {
   const k = lay.base.kante; if (!k || (k.art !== "fase" && k.art !== "radius")) return null;
   const B = lay.base, T = B.T, zE = cm.step ? T - cm.step.st : T, warns = [];
   const seiten = f => { const o = {}; let any = false; KANT_SEITEN.forEach(x => { o[x] = !!(f && f[x]); any = any || o[x]; }); return any ? o : null; };
-  const so = seiten(k.oben), su = seiten(k.unten), s0 = Math.min(Math.max(+k.s || 0, 0), 20);
+  const so = seiten(k.oben), su = lay.conn && lay.conn.grid && lay.conn.grid.on ? null : seiten(k.unten), s0 = Math.min(Math.max(+k.s || 0, 0), 20);
   if ((!so && !su) || s0 < 0.2) return null;
   const ring0 = baseOutline(B, cm.notches), hasN = ["r", "b", "l", "t"].some(x => cm.notches[x].length);
   const abstand = (pts, sd) => { let d = Infinity; for (const q of pts) {
@@ -2652,6 +2676,22 @@ function connModel() {
     used[face].push({ poly: A }); return { z0 };
   };
   const corners = ins => [[ins, ins], [B.W - ins, ins], [B.W - ins, B.H - ins], [ins, B.H - ins]], cn = ["links oben", "rechts oben", "rechts unten", "links unten"];
+  const G = C.grid && C.grid.on; out.grid = null;
+  if (G) {
+    const nx = gfAnzahl(B.W), ny = gfAnzahl(B.H);
+    if (!nx || !ny) warns.push(`Gridfinity: Grundkörper zu klein, mindestens ${de(GF.p - 0.5)} × ${de(GF.p - 0.5)} mm.`);
+    else {
+      const x0 = (B.W - nx * GF.p) / 2 + GF.p / 2, y0 = (B.H - ny * GF.p) / 2 + GF.p / 2, feet = [];
+      for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+        const c = [x0 + i * GF.p, y0 + j * GF.p], top = gfRing(c, 41, 3.5);
+        if (top.some(q => !insideBase(q, 0.15)) || notchPolys.some(np => polyNear(top, np, 0.3))) { warns.push(`Gridfinity: Fuss ${j * nx + i + 1} ragt über die Aussenkante (Eckradius höchstens 3.75 mm oder Nut zu nah), übersprungen.`); continue; }
+        feet.push({ c, mag: !!C.grid.mag });
+      }
+      out.grid = { feet };
+    }
+    const ku = lay.base.kante && KANT_SEITEN.some(x => lay.base.kante.unten && lay.base.kante.unten[x]) && lay.base.kante.art !== "keine";
+    if (ku) warns.push("Gridfinity: Kantenbruch an der Unterseite fällt weg, unten sitzen die Füsse.");
+  }
   const St = C.stack;
   if (St.on && (St.free || St.step)) {
     const mg = k => St.rim + (S.on && S.sides[k] && out.notches[k].length ? S.s : 0);
@@ -2665,7 +2705,8 @@ function connModel() {
         else if (bad >= 0) warns.push(`Absatz: Werkzeug ${bad + 1} liegt zu nah am Rand (Randbreite ${de(St.rim)} mm), übersprungen.`);
         else out.step = { ring: ringP, st: St.st };
       }
-      if (St.free) {
+      if (St.free && G) warns.push("Unterseite vertieft: geht nicht mit Gridfinity, übersprungen.");
+      else if (St.free) {
         let fh = St.fh;
         if (out.step && fh < St.st + 0.5) { fh = St.st + 0.5; warns.push(`Unterseite: Tiefe auf ${de(fh)} mm erhöht, damit der Absatz hineinpasst.`); }
         const maxD = lay.items.reduce((m, it) => Math.max(m, Math.min(it.depth, T - 0.2)), 0);
@@ -2676,7 +2717,8 @@ function connModel() {
     }
   }
   if (St.on && St.peg) corners(St.inset).forEach((c, i) => { const z = tryC(c, St.d / 2, `Zapfen ${cn[i]}`, "top"); if (z) out.pegs.push({ c, r: St.d / 2, h: St.h, zt: z.z0 }); });
-  if (St.on && St.rec) {
+  if (St.on && St.rec && G) warns.push("Aussparungen unten: gehen nicht mit Gridfinity, übersprungen.");
+  else if (St.on && St.rec) {
     const dep = St.h + 0.3;
     if (dep > T - 1) warns.push("Aussparungen: Höhe der Zapfen ist zu groß für die Kistenhöhe, übersprungen.");
     else corners(St.inset).forEach((c, i) => { const r = St.d / 2 + St.spiel, z = tryC(c, r, `Aussparung ${cn[i]}`, "bot"); if (z) out.recs.push({ c, r, depth: dep, z0: z.z0 }); });
@@ -2686,11 +2728,13 @@ function connModel() {
     if (M.depth > T - 1) warns.push("Magnetlöcher: Tiefe ist zu groß für die Kistenhöhe, übersprungen.");
     else corners(M.inset).forEach((c, i) => {
       if (M.top) { const z = tryC(c, M.d / 2, `Magnetloch oben ${cn[i]}`, "top"); if (z) { if (z.z0 - M.depth < 1) warns.push(`Magnetloch oben ${cn[i]}: Boden zu dünn, übersprungen.`); else out.magT.push({ c, r: M.d / 2, depth: M.depth, zt: z.z0 }); } }
-      if (M.bottom) { const z = tryC(c, M.d / 2, `Magnetloch unten ${cn[i]}`, "bot"); if (z) out.magB.push({ c, r: M.d / 2, depth: M.depth, z0: z.z0 }); }
+      if (M.bottom && G) { if (i === 0) warns.push("Magnetlöcher unten: gehen nicht mit Gridfinity (dort gibt es die Magnetlöcher in den Füssen), übersprungen."); }
+      else if (M.bottom) { const z = tryC(c, M.d / 2, `Magnetloch unten ${cn[i]}`, "bot"); if (z) out.magB.push({ c, r: M.d / 2, depth: M.depth, z0: z.z0 }); }
     });
   }
   const K = C.key; out.keys = [];
-  if (K.on) {
+  if (K.on && G) warns.push("Schlüssellöcher: gehen nicht mit Gridfinity, übersprungen.");
+  else if (K.on) {
     const R = K.head / 2 + 0.5, hA = (K.shaft + 0.5) / 2, q = Math.sqrt(Math.max(0, R * R - hA * hA));
     const tl = Math.tan(K.tilt * Math.PI / 180), ys = [K.y]; if (K.rows >= 2) ys.push(K.y2);
     const sh = (P, d) => P.map(v => [v[0], v[1] + d]);
@@ -2723,8 +2767,8 @@ function connModel() {
   return out;
 }
 function connWarnRender(cw) {
-  const grp = { key: [], mag: [], stack: [], slots: [] };
-  cw.forEach(w => grp[/^Schlüsselloch/.test(w) ? "key" : /^Magnet/.test(w) ? "mag" : /^(Nut|Verbinder)/.test(w) ? "slots" : "stack"].push(w));
+  const grp = { key: [], mag: [], stack: [], slots: [], grid: [] };
+  cw.forEach(w => grp[/^Gridfinity/.test(w) ? "grid" : /^Schlüsselloch/.test(w) ? "key" : /^Magnet/.test(w) ? "mag" : /^(Nut|Verbinder)/.test(w) ? "slots" : "stack"].push(w));
   for (const k in grp) { const el = $("connWarn_" + k); if (el) { el.innerHTML = grp[k].map(esc).join("<br>"); el.hidden = !grp[k].length; } }
 }
 function keyInfo(cm) {
@@ -3143,7 +3187,7 @@ function layRenderList() {
   $("layStatus").innerHTML = `<strong>Grundkörper ${de(B.W, 0)} × ${de(B.H, 0)} × ${de(B.T)} mm</strong> · ${n} Werkzeug${n === 1 ? "" : "e"}`
     + (n ? ` · dünnster Boden ${de(B.T - maxD)} mm` : "") + (bad ? ` · <strong>${bad} mit Hinweis</strong>` : "");
   $("layStatus").classList.toggle("warn", !!bad);
-  { const cmx = connModel(), cw = cmx.warns; connWarnRender(cw); if ($("keyInfo")) $("keyInfo").innerHTML = keyInfo(cmx); if ($("wedgeInfo")) $("wedgeInfo").innerHTML = wedgeInfo(); }
+  { const cmx = connModel(), cw = cmx.warns; connWarnRender(cw); if ($("keyInfo")) $("keyInfo").innerHTML = keyInfo(cmx); if ($("wedgeInfo")) $("wedgeInfo").innerHTML = wedgeInfo(); if ($("gridInfo")) $("gridInfo").innerHTML = gfInfo(cmx); }
   if (!n) { $("layList").innerHTML = `<p class="help">Noch keine Werkzeuge. Über „Aktuellen Scan einfügen“ oder „Projekte importieren“ hinzufügen.</p>`; return; }
   const rows = lay.items.map((it, i) => {
     const gw = istGriff(it) ? griffWerkzeug(it) : null;
@@ -3353,7 +3397,18 @@ function buildTris() {
   const wallK = ke ? kantenRing(B, cm.notches, null4) : baseRing;
   const ringBot = kU ? kRing(kU.sd, kU.prof[0].off) : wallK, ringTop = kO ? kRing(kO.sd, kO.prof[0].off) : wallK;
   if (cm.free) { cap(ringBot, [cm.free.ring].concat(rimHoles), 0, false); wall(cm.free.ring, 0, cm.free.fh, true); cap(cm.free.ring, recHoles, cm.free.fh, false); }
-  else cap(ringBot, rimHoles, 0, false);
+  else {
+    // Gridfinity: Füsse unter z = 0, oben offen in die Unterseite der Einlage
+    const feet = cm.grid ? cm.grid.feet : [];
+    cap(ringBot, rimHoles.concat(feet.map(f => gfRing(f.c, GF_PROFIL[GF_PROFIL.length - 1][1], GF_PROFIL[GF_PROFIL.length - 1][2]))), 0, false);
+    feet.forEach(f => {
+      const R = GF_PROFIL.map(([h, sz, r]) => ({ ring: gfRing(f.c, sz, r), z: h - GF.h }));
+      for (let i = 0; i + 1 < R.length; i++) wall2(R[i].ring, R[i].z, R[i + 1].ring, R[i + 1].z, false);
+      const mh = f.mag ? [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => circ([f.c[0] + a * GF.mag.a, f.c[1] + b * GF.mag.a], GF.mag.d / 2, 24)) : [];
+      cap(R[0].ring, mh, -GF.h, false);
+      mh.forEach(c => { wall(c, -GF.h, -GF.h + GF.mag.t, true); cap(c, [], -GF.h + GF.mag.t, false); });
+    });
+  }
   if (kU) for (let i = 0; i + 1 < kU.prof.length; i++) { const a = kU.prof[i], b = kU.prof[i + 1]; wall2(kRing(kU.sd, a.off), a.h, kRing(kU.sd, b.off), b.h, false); }
   tg = 2; thr = zb; if (zt > zb + 1e-6) wall(wallK, zb, zt, false); thr = 0; tg = 1;
   if (kO) for (let i = kO.prof.length - 1; i > 0; i--) { const a = kO.prof[i], b = kO.prof[i - 1]; wall2(kRing(kO.sd, a.off), zE - a.h, kRing(kO.sd, b.off), zE - b.h, false); }
@@ -3839,6 +3894,12 @@ const CONN_SPEC = [
   ["s", "wedge.side", "Dicke Seite", [["b", "unten"], ["t", "oben"], ["l", "links"], ["r", "rechts"]]],
   ["i", "wedgeInfo"],
   ["p", "Die Rückseite bleibt flach an der Wand, die Einlage wird zur dicken Seite hin dicker. Damit die Werkzeuge beim Hängen nicht herausfallen, unter „Auswahl“ bei „Konisch zur dicken Seite“ die Taschen schräg stellen (alle mit „Konisch für alle“)."],
+  ["h", "grid", "Gridfinity-Unterseite"],
+  ["c", "grid.on", "Gridfinity-Füsse auf der Unterseite"],
+  ["c", "grid.mag", "Magnetlöcher in den Füssen (6.5 × 2.4 mm)"],
+  ["b", "gridFit", "Grösse aufs Gridfinity-Raster setzen"],
+  ["i", "gridInfo"],
+  ["p", "Unter die Einlage kommen Füsse im Gridfinity-Raster (42 mm je Feld), damit sie in eine Gridfinity-Grundplatte passt. Die Füsse kommen zu der Höhe dazu (4.75 mm), die Taschen bleiben wie sie sind. „Grösse aufs Raster setzen“ rundet Breite und Länge auf ganze Felder (42 mm × Anzahl − 0.5 mm) und setzt den Eckradius auf 3.75 mm. Vertiefte Unterseite, Aussparungen, Magnetlöcher unten und Schlüssellöcher gehen damit nicht."],
   ["h", "mag", "Magnetlöcher"],
   ["c", "mag.on", "Magnetlöcher an den vier Ecken"],
   ["g", [["mag.top", "Oben"], ["mag.bottom", "Unten"]]],
@@ -3913,6 +3974,12 @@ function cnSync() {
     $("lp1").addEventListener("click", () => preset(75, 75)); $("lp2").addEventListener("click", () => preset(75, 150)); $("lp3").addEventListener("click", () => preset(150, 150));
     $("lpSwap").addEventListener("click", () => { layPush(); const w = lay.base.W; lay.base.W = lay.base.H; lay.base.H = w; layChanged(); });
   }
+  $("gridFit").addEventListener("click", () => {
+    layPush(); const B = lay.base, n = L => Math.max(1, Math.round((L + 0.5) / GF.p));
+    lay.base = { ...B, W: n(B.W) * GF.p - 0.5, H: n(B.H) * GF.p - 0.5, R: 3.75 }; lay.conn.grid.on = true;
+    ["baseW", "baseH", "baseR"].forEach(id => { const e = $(id); if (e) e.value = lay.base[id.slice(4)]; });
+    layChanged(); cnSync(); toast(`Grösse ${de(lay.base.W)} × ${de(lay.base.H)} mm, ${n(B.W)} × ${n(B.H)} Felder.`);
+  });
   $("keyCenterX").addEventListener("click", () => { layPush(); const K = lay.conn.key; K.first = Math.max(5, Math.round((lay.base.W - (K.n - 1) * K.pitch) / 2 * 2) / 2); layChanged(); });
   $("keyMirror").addEventListener("click", () => { layPush(); const K = lay.conn.key; K.rows = 2; K.y2 = Math.max(10, lay.base.H - K.y); layChanged(); });
   $("layExportClip").addEventListener("click", () => {

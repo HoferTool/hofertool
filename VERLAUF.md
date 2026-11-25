@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.803.0 (25. November 2026)
+
+Einlagen Generator (Patrick: „auf der Unterseite der Einlage Gridfinity anwenden“): Gridfinity-Füsse nach Norm unter der Einlage, je 42-mm-Feld einer, wahlweise mit Magnetlöchern 6.5 × 2.4 mm, Knopf setzt die Grösse aufs Raster (n × 42 − 0.5, Radius 3.75).
+
 ## 1.796.0 (25. November 2026)
 
 Test ERP: Lagerarten FL, HFL, EXT, SPL für Hofer + Co Artikel (dazu RM, WZ). Lagerplätze der Hofer + Co Artikel sind keine Stammdaten mehr: beim Einbuchen Lagerart wählen und Platz frei eintippen, der Platz bleibt, solange aus der Buchung Teile am Lager sind (Wunsch Patrick).
