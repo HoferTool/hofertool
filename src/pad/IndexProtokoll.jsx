@@ -7,8 +7,9 @@
 //  Stückz.“ je Blatt, eine je Wechsel. Das Protokoll gehört zur HOCO Nr.
 //  auf dem Typ: kommt ein neuer FA desselben Teils, geht es weiter, eine
 //  rote Spaltenlinie mit „Neuer FA …“ darüber trennt die Aufträge.
-//  Behalten werden nur die letzten drei Blätter, Älteres löscht die App
-//  (Patrick: „rest wird nicht mehr gebraucht“).
+//  Bis 1.811.0 blieben nur die letzten drei Blätter, Älteres löschte die
+//  App; seit 1.814.0 bleibt alles (Wunsch Patrick 25. November 2026:
+//  „soll ab jetzt nicht automatisch gelöscht werden“, INDEX_LOESCHEN).
 //
 //  Eingetragen wird wie bei allen Typen über die Platzwahl (Werkzeugwechsel.jsx)
 //  in tool_changes, Path = „Revolver N“ in bezeichnung.
@@ -19,6 +20,8 @@ import { REVOLVER } from "../einrichtblatt/vorlagen.js";
 
 export const SPALTEN_JE_BLATT = 6;
 export const BLAETTER_BEHALTEN = 3;
+// Seit 1.814.0 aus: keine Wechsel mehr automatisch löschen
+export const INDEX_LOESCHEN = false;
 const PLAETZE = Array.from({ length: 10 }, (_, i) => "T" + (i + 1));
 
 export const istIndex = (typ) => /^\s*index/i.test((typ && typ.name) || "");
@@ -99,7 +102,7 @@ export function reihenBilden(blatt, runden, alle) {
 // Nach jedem Wechsel an einem Index: mehr als drei Blätter dieser HOCO Nr.,
 // dann die ältesten weg
 export async function indexAufraeumen(maschine, auftrag) {
-  if (!auftrag || !auftrag.job_number) return;
+  if (!INDEX_LOESCHEN || !auftrag || !auftrag.job_number) return;
   try {
     const typ = (await alt.ladeTypen()).find((t) => t.id === maschine.type_id);
     if (!istIndex(typ)) return;
@@ -151,7 +154,7 @@ function protokollHtml(maschine, auftrag, blatt, runden, titel) {
               + (c.kuerzel ? '<br><small>' + esc(c.kuerzel) + '</small>' : "") : "") + '</td>').join("")
           + '</tr>').join("")).join("")
       + '</tbody></table>'
-      + '<div class="fuss"><span>Blatt ' + nr + ' von ' + blaetter.length + ' · behalten werden die letzten ' + BLAETTER_BEHALTEN + ' Blätter</span>'
+      + '<div class="fuss"><span>Blatt ' + nr + ' von ' + blaetter.length + '</span>'
       + '<span>Erstellt ' + esc(alt.datumZeitKurz(new Date().toISOString())) + '</span></div></div>';
   };
 

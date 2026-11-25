@@ -26,9 +26,10 @@
 #  2026), und legt Kopf und Mess-
 #  werte in die Tabelle messberichte. Die HOCO Nr. kommt aus dem Namen der
 #  Messeinstellung (sonst aus dem Dateinamen). Nur neue oder geänderte
-#  Dateien werden geschickt (keyence-stand-2.json). Berichte bleiben 30 Tage
-#  in der Datenbank, danach löscht das Programm sie dort (die Dateien im
-#  Ordner bleiben). Ältere Dateien schickt es gar nicht erst.
+#  Dateien werden geschickt (keyence-stand-2.json). Seit 1.814.0
+#  bleiben die Berichte in der Datenbank, nichts wird mehr gelöscht
+#  (Wunsch Patrick 25. November 2026). Dateien älter als 30 Tage schickt
+#  es weiterhin nicht erst.
 #
 #  DAS PROGRAMM LIEST NUR. Im Ordner wird nie etwas gelöscht,
 #  verschoben, umbenannt oder geändert.
@@ -343,7 +344,8 @@ function Durchlauf {
   StandSichern
 }
 
-# Berichte älter als 30 Tage aus der Datenbank (Wunsch Patrick)
+# Löschte bis 1.811.0 Berichte älter als 30 Tage aus der Datenbank.
+# Seit 1.814.0 nicht mehr aufgerufen (Wunsch Patrick 25. November 2026)
 function Aufraeumen {
   $grenze = (Get-Date).ToUniversalTime().AddDays(-$tageBehalten).ToString("o")
   Anmelden
@@ -364,15 +366,10 @@ try { $frei = $sperre.WaitOne(20000) } catch [Threading.AbandonedMutexException]
 if (-not $frei) { Schreibe "Läuft schon"; exit 0 }
 $start = Get-Date
 $eigeneFassung = (Get-Item -LiteralPath $ichSelbst).LastWriteTimeUtc
-$naechstesAufraeumen = Get-Date
 Schreibe "Gestartet"
 try {
   while ($true) {
     Durchlauf
-    if ((Get-Date) -ge $naechstesAufraeumen) {
-      try { Aufraeumen } catch { Schreibe ("Aufräumen ging nicht: " + $_.Exception.Message) }
-      $naechstesAufraeumen = (Get-Date).AddHours(1)
-    }
     Start-Sleep -Seconds 60
     # Neue Fassung von GitHub (hofertool.ps1 legt sie hin) oder nach
     # zwölf Stunden: sich selbst neu starten

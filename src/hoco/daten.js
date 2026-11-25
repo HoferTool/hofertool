@@ -75,8 +75,8 @@ export async function teilLaden(t, darf) {
       .order("planned_from", { ascending: false }).limit(50);
     faListe = (r.data || []).filter((x) => x.fa_nr);
     // Protokoll WW bei jedem Auftrag mit Werkzeugwechseln, nicht nur dort,
-    // wo noch eine abgelegte Datei hängt (die fällt 5 Tage nach dem Ende
-    // weg). Patrick 22. November 2026: „ich will alle WW Protokolle sehen“.
+    // wo noch eine abgelegte Datei hängt (die fiel bis 1.814.0 5 Tage nach dem
+    // Ende weg). Patrick 22. November 2026: „ich will alle WW Protokolle sehen“.
     if (faListe.length) {
       try {
         const w = await db.from("tool_changes").select("job_id").in("job_id", faListe.map((x) => x.id));

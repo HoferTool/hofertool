@@ -564,6 +564,7 @@ header.bar { align-items: center; }
           <button class="ltool" type="button" data-lmode="move" aria-pressed="true" title="Werkzeuge und Beschriftung verschieben und drehen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg>Verschieben</button>
           <button class="ltool" type="button" data-lmode="grip" aria-pressed="false" title="Griffmulden an die Taschen setzen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="8" rx="4"/></svg>Griffmulde</button>
           <button class="ltool" type="button" data-lmode="key" aria-pressed="false" title="Nagellöcher an der Rückseite verschieben"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M12 12v9"/></svg>Nagel</button>
+          <button class="ltool" type="button" data-lmode="draw" aria-pressed="false" title="Eigene Taschen direkt in die Einlage zeichnen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l3-1 11-11-2-2L5 17z"/><path d="M14 6l2 2"/><path d="M4 4h6M4 4v6"/></svg>Zeichnen</button>
         </div>
         <div class="seg" role="group" aria-label="Auswahl">
           <button class="tool" id="layRot" type="button" disabled title="Um 90° drehen (Taste R)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>Drehen</button>
@@ -587,6 +588,17 @@ header.bar { align-items: center; }
           <label>Breite <input id="lgW" type="number" min="4" max="150" step="1" value="22"> mm</label>
           <label>Tiefe <input id="lgD" type="number" min="0.5" max="200" step="any" placeholder="20"> mm</label>
           <button class="btn small" id="lgDel" type="button" disabled>Griffmulde löschen</button>
+        </div>
+        <div class="griptools" id="layDrawTools" hidden>
+          <div class="seg" role="group" aria-label="Form zeichnen">
+            <button class="tool" type="button" data-ldart="linie" aria-pressed="true">Linienzug</button>
+            <button class="tool" type="button" data-ldart="rechteck" aria-pressed="false">Rechteck</button>
+            <button class="tool" type="button" data-ldart="kreis" aria-pressed="false">Kreis</button>
+          </div>
+          <label id="ldRLab" hidden>Eckradius <input id="ldR" type="number" min="0" max="100" step="any" value="0"> mm</label>
+          <label>Tiefe <input id="ldD" type="number" min="0.5" max="200" step="any" placeholder="20"> mm</label>
+          <button class="btn small primary" id="ldFertig" type="button" disabled>Form schliessen</button>
+          <button class="btn small" id="ldWeg" type="button" disabled>Abbrechen</button>
         </div>
       </div>
       <p class="edithint" id="layHint">Werkzeug antippen und ziehen verschiebt es, der runde Anfasser dreht es stufenlos, Winkel auch mit Komma eintippen. Die Zahl auf einer Tasche (Tiefe) oder „Höhe“ unten antippen ändert sie. „Spiegeln“ (Taste M) spiegelt das gewählte Teil. Am PC: Pfeiltasten verschieben um 1 mm (mit Umschalt 10 mm), R dreht um 90°.</p>
@@ -2179,6 +2191,7 @@ const lay = { base: { W: 300, H: 200, T: 30, R: 5 }, conn: connDefaults(), newDe
 const LAY_HINTS = {
   move: "Werkzeug antippen und ziehen verschiebt es, der runde Anfasser dreht es stufenlos, Winkel auch mit Komma eintippen. Die Zahl auf einer Tasche (Tiefe) oder „Höhe“ unten antippen ändert sie. „Spiegeln“ (Taste M) spiegelt das gewählte Teil. Am PC: Pfeiltasten verschieben um 1 mm (mit Umschalt 10 mm), R dreht um 90°.",
   key: "Nagel: Schlüsselloch antippen und ziehen. Hilfslinien zeigen die Mitte und alle Abstände, nahe der Mitte rastet es ein. Das erste Loch verschiebt die ganze Reihe, die weiteren ändern den Abstand der Löcher.",
+  draw: "Zeichnen: Linienzug Punkt für Punkt antippen, ersten Punkt antippen, Doppelklick, Enter oder „Form schliessen“ schliesst ihn, Rücktaste nimmt den letzten Punkt weg. Rechteck: zwei Ecken antippen. Kreis: Mitte, dann Rand. Nahe der Waagrechten oder Senkrechten rastet die Linie ein. Die Form wird eine Tasche mit der Tiefe oben und bleibt nur in dieser Einlage, nicht als Werkzeug. Verschieben, drehen und löschen unter „Verschieben“.",
   grip: "Irgendwo auf die Einlage tippen setzt eine Griffmulde, frei und unabhängig von den Werkzeugen. Tiefe, Form, Länge und Breite oben eintippen. Mulde ziehen verschiebt sie, eckige Anfasser ändern Länge und Breite, der runde dreht stufenlos. Liegt sie an einem Werkzeug, wird die Tasche abgestuft: die Mulde behält ihre Tiefe."
 };
 // Werkzeugtasche plus Griffmulden als eine Kontur (über ein feines Raster vereinigt, Ergebnis wird zwischengespeichert)
@@ -3143,6 +3156,7 @@ function layRender() {
       });
     }
   }));
+  if (lay.mode === "draw") layDrawZeigen(g, px, accent);
   const it = lay.items[lay.sel];
   if (it && lay.mode === "move") {
     const h = layHandle(it);
@@ -3193,7 +3207,7 @@ function layRenderList() {
     const gw = istGriff(it) ? griffWerkzeug(it) : null;
     const [a, b, c, d] = gw ? [0, 0, it.griff.L, it.griff.W] : itemBB(it);
     const ng = (it.grips || []).length;
-    return `<tr data-i="${i}" class="${i === lay.sel ? "sel" : ""}"><td>${i + 1}</td><td>${it.text ? "Beschriftung „" + esc(it.text.s.replace(/\n/g, " ")) + "“" : esc(it.name)}${it.off ? ` <span class="help">${it.off > 0 ? "+" : ""}${de(it.off)} mm</span>` : ""}${it.lean ? ` <span class="help">schräg ${de(it.lean, 0)}°</span>` : ""}${ng ? ` <span class="help">+ ${ng} Griffmulde${ng > 1 ? "n" : ""}</span>` : ""}</td><td class="num">${de(c - a)} × ${de(d - b)}</td><td class="num">${gw ? `wie ${lay.items.indexOf(gw) + 1}` : de(it.depth)}</td><td>${iss[i].length ? `<span class="warn">${esc(iss[i].join(", "))}</span>` : "ok"}</td></tr>`;
+    return `<tr data-i="${i}" class="${i === lay.sel ? "sel" : ""}"><td>${i + 1}</td><td>${it.text ? "Beschriftung „" + esc(it.text.s.replace(/\n/g, " ")) + "“" : esc(it.name)}${it.gezeichnet ? ` <span class="help">gezeichnet, nur in dieser Einlage</span>` : ""}${it.off ? ` <span class="help">${it.off > 0 ? "+" : ""}${de(it.off)} mm</span>` : ""}${it.lean ? ` <span class="help">schräg ${de(it.lean, 0)}°</span>` : ""}${ng ? ` <span class="help">+ ${ng} Griffmulde${ng > 1 ? "n" : ""}</span>` : ""}</td><td class="num">${de(c - a)} × ${de(d - b)}</td><td class="num">${gw ? `wie ${lay.items.indexOf(gw) + 1}` : de(it.depth)}</td><td>${iss[i].length ? `<span class="warn">${esc(iss[i].join(", "))}</span>` : "ok"}</td></tr>`;
   }).join("");
   $("layList").innerHTML = `<table><thead><tr><th>Nr.</th><th>Name</th><th>Größe (mm)</th><th>Tiefe (mm)</th><th>Prüfung</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
@@ -3201,6 +3215,13 @@ function layKey(e) {
   if (lay.view3d) return;
   const it = lay.items[lay.sel];
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); layUndo(); return; }
+  if (lay.mode === "draw") {
+    const z = lay.zeich;
+    if (e.key === "Enter" && z && ldArt === "linie") { e.preventDefault(); ldFertig(); }
+    else if (e.key === "Backspace" && z && z.pts.length) { e.preventDefault(); z.pts.pop(); if (!z.pts.length) lay.zeich = null; ldSync(); layRender(); }
+    else if (e.key === "Escape" && z) { e.preventDefault(); ldAbbrechen(); }
+    return;
+  }
   if (lay.mode === "grip") {
     if ((e.key === "Delete" || e.key === "Backspace") && curGrip()) { e.preventDefault(); delLayGrip(); }
     else if (e.key === "Escape") { lay.gsel = null; layRender(); syncLayGrip(); }
@@ -3219,6 +3240,7 @@ function toLay(e) { const r = lcv.getBoundingClientRect(); return [(e.clientX - 
 lcv.addEventListener("pointerdown", e => {
   if (lay.mode === "grip") { layGripDown(e); return; }
   if (lay.mode === "key") { layKeyDown(e); return; }
+  if (lay.mode === "draw") { layDrawDown(e); return; }
   const mm = toLay(e), tol = (e.pointerType === "touch" ? 24 : 12) / lay.scale, cur = lay.items[lay.sel];
   const lab = (lay.etiketten || []).slice().reverse().find(l => mm[0] >= l.r[0] && mm[0] <= l.r[2] && mm[1] >= l.r[1] && mm[1] <= l.r[3]);
   if (lab && lab.hoehe) { e.preventDefault(); masszahlBearbeiten(lab); return; }
@@ -3238,6 +3260,7 @@ lcv.addEventListener("pointerdown", e => {
   layRender(); layRenderList(); laySyncInputs();
 });
 lcv.addEventListener("pointermove", e => {
+  if (lay.mode === "draw") { layDrawMove(e); return; }
   if (lay.drag && lay.drag.grip) { layGripMove(e); return; }
   if (lay.drag && lay.drag.key) { layKeyMove(e); return; }
   const d = lay.drag, it = lay.items[lay.sel]; if (!d || !it) return;
@@ -3276,6 +3299,83 @@ function masszahlBearbeiten(lab) {
   inp.addEventListener("blur", () => zu(true));
   vw.appendChild(inp); inp.focus(); inp.select();
 }
+// Zeichnen direkt in der Einlage (seit 1.811.0, Wunsch Patrick 25. November 2026: „In dem Reiter Einlage soll man auch
+// nachzeichnen können und in der Einlage platzieren. diese werden in der einlage gespeichert aber nicht als werkzeug.“):
+// Linienzug, Rechteck (mit Eckradius) oder Kreis werden ein Teil der Einlage mit `gezeichnet: true`, Umriss in `polys`
+// um die Mitte, eigener Tiefe, danach wie ein Werkzeug verschieb-, dreh- und löschbar. Gespeichert nur in der Einlage
+// (layData), nie in den gespeicherten Werkzeugen.
+let ldArt = "linie";
+function ldPunkt(e, mitFang) {
+  const mm = toLay(e), z = lay.zeich, r5 = v => Math.round(v * 2) / 2;
+  let p = [r5(mm[0]), r5(mm[1])];
+  const last = z && z.pts.length ? z.pts[z.pts.length - 1] : null, tol = (e.pointerType === "touch" ? 16 : 8) / lay.scale;
+  if (mitFang && last) { if (Math.abs(mm[1] - last[1]) < tol) p[1] = last[1]; else if (Math.abs(mm[0] - last[0]) < tol) p[0] = last[0]; }
+  return p;
+}
+function ldRundRechteck(a, b, r) {
+  const x0 = Math.min(a[0], b[0]), y0 = Math.min(a[1], b[1]), x1 = Math.max(a[0], b[0]), y1 = Math.max(a[1], b[1]);
+  r = Math.max(0, Math.min(r || 0, (x1 - x0) / 2 - 0.01, (y1 - y0) / 2 - 0.01));
+  if (r < 0.05) return [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+  const pts = [], n = 8, ecken = [[x1 - r, y0 + r, -90], [x1 - r, y1 - r, 0], [x0 + r, y1 - r, 90], [x0 + r, y0 + r, 180]];
+  ecken.forEach(([cx, cy, w0]) => { for (let k = 0; k <= n; k++) { const t = (w0 + 90 * k / n) * Math.PI / 180; pts.push([cx + r * Math.cos(t), cy + r * Math.sin(t)]); } });
+  return pts;
+}
+function ldKreis(m, q) { const r = dist(m, q), n = Math.max(24, Math.min(96, Math.round(r * 2))), pts = []; for (let k = 0; k < n; k++) { const t = k / n * 2 * Math.PI; pts.push([m[0] + r * Math.cos(t), m[1] + r * Math.sin(t)]); } return pts; }
+function ldVorschau() {
+  const z = lay.zeich; if (!z || !z.pts.length) return null;
+  const cur = z.cur || z.pts[z.pts.length - 1];
+  if (ldArt === "rechteck") return { ring: ldRundRechteck(z.pts[0], cur, num("ldR", 0)), zu: true, txt: `${de(Math.abs(cur[0] - z.pts[0][0]))} × ${de(Math.abs(cur[1] - z.pts[0][1]))} mm` };
+  if (ldArt === "kreis") return { ring: ldKreis(z.pts[0], cur), zu: true, txt: `Ø ${de(2 * dist(z.pts[0], cur))} mm` };
+  const last = z.pts[z.pts.length - 1];
+  return { ring: [...z.pts, cur], zu: false, txt: `${de(dist(last, cur))} mm` };
+}
+function ldSync() {
+  const z = lay.zeich, n = z ? z.pts.length : 0;
+  document.querySelectorAll("[data-ldart]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.ldart === ldArt)));
+  $("ldRLab").hidden = ldArt !== "rechteck"; $("ldD").placeholder = de(lay.newDepth, 1).replace(",0", "");
+  $("ldFertig").disabled = !(ldArt === "linie" && n >= 3); $("ldWeg").disabled = !n;
+}
+function ldAbbrechen() { lay.zeich = null; ldSync(); layRender(); }
+function ldFertig(ring) {
+  const z = lay.zeich; lay.zeich = null; ldSync();
+  if (!ring) { if (!z || z.pts.length < 3) { layRender(); return; } ring = z.pts.slice(); }
+  // Umlaufsinn wie Rechteck und Kreis, sonst ist das Netz mit gemischten Formen nicht geschlossen.
+  if (ringArea(ring) < 0) ring = ring.slice().reverse();
+  const [a, b, c, d] = bbox(ring);
+  if (c - a < 1 || d - b < 1 || Math.abs(ringArea(ring)) < 1) { toast("Die Form ist zu klein."); layRender(); return; }
+  const cx = Math.round((a + c) / 2 * 10) / 10, cy = Math.round((b + d) / 2 * 10) / 10;
+  const outer = ring.map(q => [Math.round((q[0] - cx) * 1000) / 1000, Math.round((q[1] - cy) * 1000) / 1000]);
+  const art = { linie: "Form", rechteck: "Rechteck", kreis: "Kreis" }[ldArt], nr = lay.items.filter(it => it.gezeichnet).length + 1;
+  layPush();
+  lay.items.push({ id: lay.nextId++, name: `${art} gezeichnet ${nr}`, gezeichnet: true, polys: [{ outer, holes: [] }], grips: [], x: cx, y: cy, ang: 0, depth: Math.max(0.5, num("ldD", lay.newDepth)) });
+  lay.sel = lay.items.length - 1; layChanged();
+}
+function ringArea(r) { let s = 0; for (let i = 0; i < r.length; i++) { const p = r[i], q = r[(i + 1) % r.length]; s += p[0] * q[1] - q[0] * p[1]; } return s / 2; }
+function layDrawDown(e) {
+  e.preventDefault();
+  const z = lay.zeich || (lay.zeich = { pts: [], cur: null }), tol = (e.pointerType === "touch" ? 20 : 10) / lay.scale;
+  const p = ldPunkt(e, ldArt === "linie");
+  if (ldArt === "linie") {
+    if (z.pts.length >= 3 && dist(toLay(e), z.pts[0]) < tol) { ldFertig(); return; }
+    const last = z.pts[z.pts.length - 1]; if (!last || dist(last, p) > 0.2) z.pts.push(p);
+  } else if (!z.pts.length) z.pts.push(p);
+  else { z.cur = p; const v = ldVorschau(); ldFertig(v.ring); return; }
+  z.cur = p; ldSync(); layRender();
+}
+function layDrawMove(e) { const z = lay.zeich; if (!z || !z.pts.length) return; z.cur = ldPunkt(e, ldArt === "linie"); layRender(); }
+function layDrawZeigen(g, px, accent) {
+  const v = ldVorschau(); if (!v) return;
+  g.save(); g.beginPath(); v.ring.forEach((q, k) => k ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1])); if (v.zu) g.closePath();
+  if (v.zu) { g.fillStyle = "rgba(23,32,28,.25)"; g.fill(); }
+  g.setLineDash([5 * px, 3 * px]); g.lineWidth = 2 * px; g.strokeStyle = accent; g.stroke(); g.setLineDash([]);
+  (ldArt === "linie" ? lay.zeich.pts : [lay.zeich.pts[0]]).forEach((q, k) => { g.beginPath(); g.arc(q[0], q[1], (k === 0 ? 5 : 3.5) * px, 0, 7); g.fillStyle = k === 0 ? accent : "#fff"; g.fill(); g.lineWidth = 1.5 * px; g.strokeStyle = accent; g.stroke(); });
+  const c = lay.zeich.cur; if (c && v.txt) { g.font = `600 ${11 * px}px Barlow, sans-serif`; const tw = g.measureText(v.txt).width; g.fillStyle = "rgba(255,255,255,.92)"; g.fillRect(c[0] + 8 * px, c[1] - 20 * px, tw + 8 * px, 15 * px); g.fillStyle = "#17201C"; g.fillText(v.txt, c[0] + 12 * px, c[1] - 9 * px); }
+  g.restore();
+}
+document.querySelectorAll("[data-ldart]").forEach(b => b.addEventListener("click", () => { ldArt = b.dataset.ldart; lay.zeich = null; ldSync(); layRender(); }));
+$("ldFertig").addEventListener("click", () => ldFertig());
+$("ldWeg").addEventListener("click", ldAbbrechen);
+$("ldR").addEventListener("input", () => layRender());
 function delLayGrip() {
   const cg = curGrip(); if (!cg) return;
   layPush(); if (cg.frei) { lay.items.splice(lay.gsel.i, 1); lay.sel = -1; } else cg.it.grips.splice(lay.gsel.g, 1); lay.gsel = null; layChanged(); syncLayGrip();
@@ -3283,7 +3383,7 @@ function delLayGrip() {
 document.querySelectorAll(".ltool").forEach(b => b.addEventListener("click", () => {
   lay.mode = b.dataset.lmode; lay.gsel = null;
   document.querySelectorAll(".ltool").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
-  $("layGripTools").hidden = lay.mode !== "grip"; $("layHint").textContent = LAY_HINTS[lay.mode];
+  $("layGripTools").hidden = lay.mode !== "grip"; $("layDrawTools").hidden = lay.mode !== "draw"; lay.zeich = null; ldSync(); $("layHint").textContent = LAY_HINTS[lay.mode];
   if (lay.mode === "key" && !lay.conn.key.on) { layPush(); lay.conn.key.on = true; layChanged(); toast("Schlüssellöcher eingeschaltet."); }
   layRender(); syncLayGrip();
 }));
@@ -3298,6 +3398,7 @@ $("lgD").addEventListener("change", () => {
   layPush(); const g = cg.frei ? cg.it.griff : cg.gp; g.shape = $("lgShape").value; g.L = Math.max(4, num("lgL", 40)); g.W = Math.max(4, num("lgW", 22)); if (cg.frei) griffSetzen(cg.it); layChanged();
 }));
 lcv.addEventListener("pointerup", layEnd);
+lcv.addEventListener("dblclick", e => { if (lay.mode === "draw" && ldArt === "linie" && lay.zeich) { e.preventDefault(); ldFertig(); } });
 lcv.addEventListener("pointercancel", layEnd);
 
 // ---------- Einlage: Export ----------

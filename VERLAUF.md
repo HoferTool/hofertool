@@ -3,6 +3,14 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.813.0 (25. November 2026)
+
+WBGs werden nie mehr gelöscht, weder beim Ersetzen noch beim Aufräumen (Wunsch Patrick: „alle WBGs speichern, keine löschen“). Zweiter WBG-Drucker „Drucker Spedition WBG“ unter Einstellungen → Dokumente; bei einer WBG stehen dann die Knöpfe „Planbüro WBG“ und „Spedition WBG“. Prüfstand `wbg_zweiter_drucker.py`.
+
+## 1.811.0 (25. November 2026)
+
+Einlagen Generator: im Schritt Einlage neuer Modus „Zeichnen“ (Linienzug, Rechteck mit Eckradius, Kreis, mit Tiefe). Die Formen werden Taschen der Einlage, nur dort gespeichert, nicht als Werkzeug (Wunsch Patrick). Prüfstand `einlagen_zeichnen.py`.
+
 ## 1.803.0 (25. November 2026)
 
 Einlagen Generator (Patrick: „auf der Unterseite der Einlage Gridfinity anwenden“): Gridfinity-Füsse nach Norm unter der Einlage, je 42-mm-Feld einer, wahlweise mit Magnetlöchern 6.5 × 2.4 mm, Knopf setzt die Grösse aufs Raster (n × 42 − 0.5, Radius 3.75).

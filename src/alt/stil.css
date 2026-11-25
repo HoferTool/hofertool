@@ -17241,7 +17241,7 @@ body.dunkel .erp-liste__zeile input[readonly] { background: #1c2836; color: #c9d
 body.dunkel .kalk-wahl { background: #1d2733; border-color: #3a4756; }
 body.dunkel .kalk-wahl__zeile:hover { background: #2a3746; }
 
-/* 1.812.0 Lieferplan wie im Gewatec: links Fälligkeiten, rechts Lieferungen, unten Summen */
+/* 1.816.0 Lieferplan wie im Gewatec: links Fälligkeiten, rechts Lieferungen, unten Summen */
 .lp { display: flex; flex-direction: column; gap: 10px; }
 .lp-seiten { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 12px; align-items: start; }
 @media (max-width: 900px) { .lp-seiten { grid-template-columns: 1fr; } }
@@ -17265,3 +17265,6 @@ body.dunkel .lp-tab tr.lp-gut td { background: #1f3a26; }
 body.dunkel .lp-tab tr.lp-offen td { background: #3a3418; }
 body.dunkel .lp-tab tr.lp-rot td { background: #43221f; }
 body.dunkel .lp-summen > div { background: #1c2430; border-color: #34404f; }
+/* 1.812.0: Besuch bei Lieferanten im Bearbeitungsmodus (Dateien dazu nur dort) */
+.lk-besuch .bs-symbolknopf[aria-pressed="true"] { background: var(--marke); color: #fff; border-color: var(--marke); }
+.lk-besuch__bearb { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 10px; }

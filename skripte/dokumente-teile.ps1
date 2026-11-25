@@ -374,7 +374,8 @@ function Hochladen($datei, $z, [string]$quelle) {
     Aendern "Patch" ("jobs?job_number=eq." + (W $hoco) + "&ended_at=is.null") @{ wbg_url = $adresse } $null
   }
 
-  AblageLoeschen ($alteAdressen | Where-Object { $_ -and $_ -ne $adresse })
+  # WBGs bleiben auch beim Ersetzen in der Ablage (Wunsch Patrick 25.11.2026)
+  if ($art -ne "wbg") { AblageLoeschen ($alteAdressen | Where-Object { $_ -and $_ -ne $adresse }) }
 
   try {
     Aendern "Post" "dokumente_verlauf" @{ dateiname = $datei.Name; art = $art; hoco_nr = $hoco;

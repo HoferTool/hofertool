@@ -229,7 +229,7 @@ async function eintragen(maschine, auftrag, liste) {
   try { await alt.einfuegenOhneUnbekannte("tool_changes", zeilen); }
   catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return false; }
   alt.meldung(anzahlText(liste.length) + " bei " + alt.zahlText(stand) + " Stück eingetragen (" + w.kuerzel + ").");
-  // Beim Index bleiben je HOCO Nr. nur die letzten drei Protokollblätter
+  // Löschte beim Index alte Protokollblätter, seit 1.814.0 abgeschaltet
   await indexAufraeumen(maschine, auftrag);
   return true;
 }

@@ -10,6 +10,7 @@
 //    sicherung.json      Kopf: wann, wer, welche Tabellen und Dateien
 //    tabellen/<t>.json   alle Zeilen einer Tabelle (aus sicherung_lesen,
 //                        ein Augenblick für alle Tabellen)
+//    schema.sql          Aufbau der Datenbank (sicherung_schema, seit 1.815.0)
 //    dateien/<b>/<p>     jede hochgeladene Datei (WBGs, Bilder,
 //                        Notizbuch-Seiten …), ausser Zeichnungen und
 //                        Einrichtblätter (auch Vorlagen der Typen) und alter
@@ -291,6 +292,14 @@ export async function sichern(h, grund, fortschritt) {
     await eintragen("sicherung.json", strToU8(JSON.stringify({ art: "hofer-sicherung", version: 2,
       erstellt: jetzt.toISOString(), geraet: geraetName(), grund, tabellen: kopfTabellen, dateien: liste, ausgelassen }, null, 1)), true);
     for (const x of tabellen) await eintragen("tabellen/" + x.t + ".json", strToU8(JSON.stringify(x.zeilen || [])), true);
+    // Plan B (seit 1.815.0): der ganze Aufbau der Datenbank (Tabellen, Regeln,
+    // Funktionen, Auslöser) als SQL, damit sich aus der ZIP auch auf einem
+    // neuen Server eine leere Datenbank bauen lässt. Fehlt die Funktion
+    // (sql/sicherung-schema.sql nicht eingespielt), geht die Sicherung trotzdem.
+    try {
+      const s = await alt.db.rpc("sicherung_schema");
+      if (!s.error && typeof s.data === "string" && s.data.length > 1000) await eintragen("schema.sql", strToU8(s.data), true);
+    } catch (f) { /* ohne Aufbau weiter */ }
 
     let n = 0, fehlt = 0;
     for (const o of liste) {

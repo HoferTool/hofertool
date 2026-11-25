@@ -40,11 +40,12 @@ with sync_playwright() as p:
     text = pg.inner_text("#temp-seite")
     if "Messprotokoll.pdf" not in text: fehler.append("eigene Datei fehlt")
     if "Fremd" in text: fehler.append("fremde Datei sichtbar")
-    if "gelöscht (noch 22 Std.)" not in text: fehler.append("Frist nicht angezeigt: " + text[:300])
-    if "Nach 24 Stunden" not in text: fehler.append("Hinweis 24 Stunden fehlt")
-    if "Alt.jpg" in text: fehler.append("abgelaufene Datei sichtbar")
-    if pg.evaluate("TEST.protokoll.filter(x => x.art === 'remove').map(x => x.pfade)") != [["u1/1791700000000-Alt.jpg"]]:
-        fehler.append("abgelaufene Datei nicht weggeräumt")
+    # Seit 1.814.0 löscht nichts mehr von selbst (Wunsch Patrick 25. November 2026)
+    if "bis du sie löschst" not in text: fehler.append("Hinweis „bleiben“ fehlt: " + text[:300])
+    if "Nach 24 Stunden" in text or "noch 22 Std." in text: fehler.append("noch Hinweis auf Löschen nach 24 Stunden")
+    if "Alt.jpg" not in text: fehler.append("ältere Datei nicht mehr sichtbar")
+    if pg.evaluate("TEST.protokoll.filter(x => x.art === 'remove').length"):
+        fehler.append("hat von selbst gelöscht")
     if pg.locator("#temp-foto").count(): fehler.append("Foto-Knopf am Computer")
     lst = pg.evaluate("TEST.protokoll.filter(x => x.art === 'list').map(x => x.ordner)")
     if not lst or any(o != "u1" for o in lst): fehler.append("liest fremden Ordner: %s" % lst)

@@ -95,7 +95,7 @@ export function PadKopf({ titel, zurueck, meldungen }) {
       <span className="pad__titel">{titel}</span>
       <GeraetMarke />
       {meldungen && !alt.istExtern() && <button className="pad__meldungen pad__keyence" data-padkeyence=""
-        title="Keyence Berichte der letzten 30 Tage" onClick={keyenceOeffnen}>
+        title="Keyence Berichte" onClick={keyenceOeffnen}>
         <span className="pad__meldungen-text">Keyence Berichte</span></button>}
       {meldungen && <PadMeldungenKnopf />}
       <PadNeuLadenKnopf />
