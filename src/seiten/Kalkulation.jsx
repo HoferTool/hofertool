@@ -18,7 +18,7 @@ import { teilMerken } from "../teile/wiederherstellen.js";
 import { materialZerlegen, werkstoffGenau } from "../daten/material.js";
 import { naechsteNummer, nummernLaden } from "../daten/erp.js";
 import {
-  z, chf, stundensatz, staffelRechnen, leereKalkulation, kalkulationenLaden, maschinenLaden,
+  z, chf, stundensatz, staffelRechnen, leereKalkulation, kalkulationenLaden, kalkulationLaden, kalkVorschau, maschinenLaden,
   kalkulationSpeichern, maschineSpeichern, BEISPIEL_MASCHINEN, beispielKalkulation, START_MASCHINEN, startArbeitsplan, WAEHRUNGEN, kursHolen, PREISEINHEITEN, peWert, peText, EXTERN_NEBEN, FGK_DREHEN, SPEZ_GEWICHT, PREIS_JE_STAFFEL, preisInStaffeln, adresseVon, adresseZeilen,
 } from "../daten/kalkulation.js";
 
@@ -56,7 +56,7 @@ export default function Kalkulation({ auffrischen }) {
     name: "Kalkulation", platzhalter: "Nummer, Kunde oder Artikel …",
     eintraege: () => (liste.daten || []).map((k) => ({
       gruppe: "Kalkulationen", zeichen: "∑", titel: (k.nr || "ohne Nr.") + " · " + (k.kunde || "ohne Kunde"),
-      zeile: [k.artikel, k.daten && k.daten.kopf && k.daten.kopf.bezeichnung].filter(Boolean).join(" · "), id: k.id })),
+      zeile: [k.artikel, k.kopf && k.kopf.bezeichnung].filter(Boolean).join(" · "), id: k.id })),
     springen: (x) => { setSaetze(false); setOffen(x.id); },
   });
 
@@ -72,13 +72,31 @@ export default function Kalkulation({ auffrischen }) {
   if (saetze) {
     return <Stundensaetze maschinen={masch.daten} neu={masch.neu} zurueck={() => setSaetze(false)} />;
   }
-  const eintrag = offen && liste.daten.find((k) => k.id === offen);
-  if (eintrag) {
-    return <Bearbeiten key={eintrag.id} eintrag={eintrag} maschinen={masch.daten}
+  if (offen) {
+    return <Offen key={offen} id={offen} maschinen={masch.daten}
       zurueck={() => { setOffen(null); liste.neu(); }} neu={liste.neu} oeffnen={setOffen} liste={liste.daten} />;
   }
   return <Liste liste={liste.daten} maschinen={masch.daten} oeffnen={setOffen}
     neu={() => { liste.neu(); masch.neu(); }} saetze={() => setSaetze(true)} />;
+}
+
+// Die Liste hat nur Kopf und Vorschau (über 7'000 Kalkulationen aus WinKalk),
+// darum holt eine geöffnete Kalkulation ihre ganzen Daten erst hier (seit 1.837.0)
+function Offen({ id, zurueck, ...rest }) {
+  const eintrag = useDaten(() => kalkulationLaden(id), [id]);
+  const alle = <button className="knopf" onClick={zurueck}>← Alle</button>;
+  if (eintrag.fehler) {
+    return <><h1 className="seitentitel">Kalkulation</h1>
+      <div className="karte karte--fehler"><p>{alt.fehlertext(eintrag.fehler)}</p>{alle}</div></>;
+  }
+  if (eintrag.daten === null && eintrag.laedt !== false) {
+    return <><h1 className="seitentitel">Kalkulation</h1><div className="laedt">Wird geladen …</div></>;
+  }
+  if (!eintrag.daten) {
+    return <><h1 className="seitentitel">Kalkulation</h1>
+      <div className="karte karte--hinweis"><p>Kalkulation nicht gefunden.</p>{alle}</div></>;
+  }
+  return <Bearbeiten eintrag={eintrag.daten} zurueck={zurueck} {...rest} />;
 }
 
 // ---------- Liste aller Kalkulationen ----------
@@ -89,7 +107,7 @@ function Liste({ liste, maschinen, oeffnen, neu, saetze }) {
   useGemerkt(gemerkt, { suche });
   const woerter = suche.toLowerCase().split(/\s+/).filter(Boolean);
   const gefunden = !woerter.length ? liste : liste.filter((k) => {
-    const kopf = (k.daten && k.daten.kopf) || {};
+    const kopf = k.kopf || {};
     const text = [k.nr, k.kunde, k.artikel, ...Object.values(kopf)].filter((x) => typeof x === "string").join(" ").toLowerCase();
     return woerter.every((w) => text.includes(w));
   });
@@ -133,23 +151,22 @@ function Liste({ liste, maschinen, oeffnen, neu, saetze }) {
             <table className="tabelle kalk-liste">
               <thead><tr><th>Nr.</th><th>Kunde</th><th>Artikel</th><th>Staffeln</th><th className="rechts">Preis</th><th>Geändert</th></tr></thead>
               <tbody>
-                {gefunden.map((k) => {
-                  const d = k.daten || {};
-                  const staffeln = (d.staffeln || []).filter((s) => z(s.menge) > 0);
-                  const erste = staffeln.length ? staffelRechnen(d, staffeln[0], maschinen) : null;
+                {gefunden.slice(0, 200).map((k) => {
+                  const v = k.vorschau || {};
                   return (
                     // Die Klassen je Zelle braucht das Handy: dort wird jede Zeile ein Kärtchen (seit 1.237.1)
                     <tr key={k.id} data-kalk={k.id} className="kalk-liste__zeile" onClick={() => oeffnen(k.id)}>
                       <td className="kalk-liste__nr"><b>{k.nr || "–"}</b></td>
                       <td className="kalk-liste__kunde">{k.kunde || "–"}</td>
-                      <td className="kalk-liste__artikel">{k.artikel || ""}{d.kopf && d.kopf.bezeichnung ? <span className="kalk-klein">{d.kopf.bezeichnung}</span> : null}</td>
-                      <td className="kalk-liste__staffeln">{staffeln.map((s) => chf(z(s.menge), 0)).join(" / ")}</td>
-                      <td className="rechts kalk-liste__preis">{erste ? chf(erste.angebotPe) + (erste.waehrung !== "CHF" ? " " + erste.waehrung : "") + (erste.pe > 1 ? " / " + peText(erste.pe) : "") : "–"}</td>
+                      <td className="kalk-liste__artikel">{k.artikel || ""}{k.kopf && k.kopf.bezeichnung ? <span className="kalk-klein">{k.kopf.bezeichnung}</span> : null}</td>
+                      <td className="kalk-liste__staffeln">{(v.mengen || []).map((m) => chf(m, 0)).join(" / ")}</td>
+                      <td className="rechts kalk-liste__preis">{v.preis != null ? chf(v.preis) + (v.waehrung && v.waehrung !== "CHF" ? " " + v.waehrung : "") + (v.pe > 1 ? " / " + peText(v.pe) : "") : "–"}</td>
                       <td className="kalk-liste__datum">{alt.datumZeitKurz ? alt.datumZeitKurz(k.geaendert_am) : ""}</td>
                     </tr>);
                 })}
               </tbody>
             </table>}
+            {gefunden.length > 200 && <p className="hinweis" id="kalk-mehr">200 von {gefunden.length.toLocaleString("de-CH").replace(/[’,]/g, "'")} gezeigt, Suche eingrenzen.</p>}
           </section>}
       <p className="hinweis">Testprogramm, nur für freigegebene Personen sichtbar. Gerechnet wird genau wie im Gewatec,
         aber mit beliebig vielen Staffelmengen.</p>
@@ -167,12 +184,13 @@ function Bearbeiten({ eintrag, maschinen, zurueck, neu, oeffnen, liste }) {
 
   // Von selbst speichern, eine Sekunde nach der letzten Eingabe
   const erstes = useRef(true);
+  const rechnungRef = useRef([]);
   useEffect(() => {
     if (erstes.current) { erstes.current = false; return; }
     setStand("ungespeichert");
     const t = setTimeout(async () => {
       setStand("speichert");
-      try { await kalkulationSpeichern({ id: eintrag.id, nr, daten: k }); setStand("gespeichert"); neu(); }
+      try { await kalkulationSpeichern({ id: eintrag.id, nr, daten: k, vorschau: kalkVorschau(k, rechnungRef.current) }); setStand("gespeichert"); }
       catch (f) { setStand("fehler"); alt.meldung(alt.fehlertext(f), "fehler"); }
     }, 1000);
     return () => clearTimeout(t);
@@ -190,10 +208,11 @@ function Bearbeiten({ eintrag, maschinen, zurueck, neu, oeffnen, liste }) {
 
   const staffeln = k.staffeln.filter((s) => z(s.menge) > 0);
   const rechnung = staffeln.map((s) => staffelRechnen(k, s, maschinen));
+  rechnungRef.current = rechnung;
 
   async function kopieren() {
     try {
-      const id = await kalkulationSpeichern({ nr: await kalkNr(liste), daten: structuredClone(k) });
+      const id = await kalkulationSpeichern({ nr: await kalkNr(liste), daten: structuredClone(k), vorschau: kalkVorschau(k, rechnung) });
       alt.meldung("Kopie angelegt.", "gut");
       neu(); oeffnen(id);
     } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
