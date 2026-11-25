@@ -44,6 +44,23 @@ export function poolDruckerName(k) {
   return (k.einst && k.einst.drucker) || "";
 }
 
+// Alle Drucker, die WBGs drucken: der erste und, wenn gewählt, ein
+// zweiter (Wunsch Patrick 25. November 2026: „einen weiteren Drucker,
+// welcher auch WBG drucken kann“). Der Betrachter zeigt je einen Knopf.
+export function poolWbgDrucker(k) {
+  const erster = poolDruckerName(k);
+  if (!erster) return [];
+  const zweiter = (k || konfig).einst.drucker2 || "";
+  return zweiter && zweiter !== erster ? [erster, zweiter] : [erster];
+}
+
+// Kurzer Name für Knopf und Meldung: was nach dem letzten \ steht
+// (\\hof-chso-fs01\WBG → „WBG“)
+export function druckerKurz(name) {
+  const t = String(name || "").split("\\").filter(Boolean).pop() || "";
+  return t.trim();
+}
+
 // Drucker für alles andere als WBGs, normal auf A4 (Wunsch Patrick
 // 30. Oktober 2026: „der Drucker ist so eingerichtet, dass er das Papier
 // für die WBG nimmt, die anderen Sachen sollen normal A4 drucken“).
@@ -118,9 +135,12 @@ export async function pdfSeitenAlsJpg(lib, daten) {
 //  art "bilder": bilder = [Blob, …] (je Seite eines)
 //  art "excel":  quelle = Adresse der Datei, blatt = Name des Blatts
 //  a4: nicht der WBG-Drucker, sondern normal auf A4 (poolA4Drucker)
-export async function poolDrucken({ art, bilder, quelle, blatt, titel, kopien, a4 }) {
+//  drucker: einer der WBG-Drucker (poolWbgDrucker), sonst der erste
+export async function poolDrucken({ art, bilder, quelle, blatt, titel, kopien, a4, drucker: gewaehlt }) {
   const k = await poolDruckLaden();
-  const drucker = a4 ? poolA4Drucker(k) : poolDruckerName(k);
+  const wbgListe = poolWbgDrucker(k);
+  const drucker = a4 ? poolA4Drucker(k)
+    : (gewaehlt && wbgListe.includes(gewaehlt) ? gewaehlt : poolDruckerName(k));
   if (!drucker) throw new Error(a4 ? "Der Pool-Rechner meldet keinen Drucker für A4."
     : "Unter Einstellungen → Dokumente ist kein Drucker gewählt.");
   const id = (crypto.randomUUID && crypto.randomUUID())
@@ -151,7 +171,9 @@ export async function poolDrucken({ art, bilder, quelle, blatt, titel, kopien, a
     r = await alt.zeitlimit(alt.db.from("druckauftraege").insert([zeile]), 10000, "Druckauftrag");
   }
   if (r && r.error) throw r.error;
-  verfolgen(id, a4 ? "Büro" : "Planbüro", poolLebt(k));
+  // Mit zwei WBG-Druckern sagt die Meldung, auf welchem
+  const ort = a4 ? "Büro" : (wbgListe.length > 1 && drucker === wbgListe[1] ? "Spedition" : "Planbüro");
+  verfolgen(id, ort, poolLebt(k));
   return id;
 }
 

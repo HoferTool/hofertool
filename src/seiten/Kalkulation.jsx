@@ -16,10 +16,15 @@ import { ZiehListe } from "../teile/ZiehListe.jsx";
 import { useSeitenSuche } from "../teile/seitenSuche.js";
 import { teilMerken } from "../teile/wiederherstellen.js";
 import { materialZerlegen, werkstoffGenau } from "../daten/material.js";
+import { naechsteNummer, nummernLaden } from "../daten/erp.js";
 import {
   z, chf, stundensatz, staffelRechnen, leereKalkulation, kalkulationenLaden, maschinenLaden,
-  kalkulationSpeichern, maschineSpeichern, naechsteNr, BEISPIEL_MASCHINEN, beispielKalkulation, START_MASCHINEN, startArbeitsplan, WAEHRUNGEN, kursHolen, PREISEINHEITEN, peWert, peText, EXTERN_NEBEN, FGK_DREHEN, SPEZ_GEWICHT, PREIS_JE_STAFFEL, preisInStaffeln,
+  kalkulationSpeichern, maschineSpeichern, BEISPIEL_MASCHINEN, beispielKalkulation, START_MASCHINEN, startArbeitsplan, WAEHRUNGEN, kursHolen, PREISEINHEITEN, peWert, peText, EXTERN_NEBEN, FGK_DREHEN, SPEZ_GEWICHT, PREIS_JE_STAFFEL, preisInStaffeln, adresseVon, adresseZeilen,
 } from "../daten/kalkulation.js";
+
+// Nummer der Kalkulation: Jahr + laufende Nr., mit Startwert aus den
+// Nummernkreisen des Test ERP (app_config.erp_nummern, Wunsch Patrick 25. November 2026)
+const kalkNr = async (liste) => naechsteNummer(await nummernLaden().catch(() => ({})), "kalkulation", liste.map((k) => k.nr));
 
 const REITER = [
   ["kopf", "Kopfdaten"], ["material", "Staffeln und Material"], ["ags", "Arbeitsgänge"],
@@ -101,7 +106,7 @@ function Liste({ liste, maschinen, oeffnen, neu, saetze }) {
       if (fehlt.length) masch = await maschinenLaden();
       if (beispiel) daten = beispielKalkulation(masch);
       else daten.ags = startArbeitsplan(masch);
-      const id = await kalkulationSpeichern({ nr: beispiel ? "20225174" : naechsteNr(liste), daten });
+      const id = await kalkulationSpeichern({ nr: beispiel ? "20225174" : await kalkNr(liste), daten });
       neu();
       oeffnen(id);
       gemerkt.reiter = beispiel ? "ergebnis" : "kopf";
@@ -188,7 +193,7 @@ function Bearbeiten({ eintrag, maschinen, zurueck, neu, oeffnen, liste }) {
 
   async function kopieren() {
     try {
-      const id = await kalkulationSpeichern({ nr: naechsteNr(liste), daten: structuredClone(k) });
+      const id = await kalkulationSpeichern({ nr: await kalkNr(liste), daten: structuredClone(k) });
       alt.meldung("Kopie angelegt.", "gut");
       neu(); oeffnen(id);
     } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
@@ -299,21 +304,123 @@ function mitVorgaben(d) {
 }
 
 // Ein Eingabefeld; Zahlen als Text, damit Komma und Apostroph gehen
-function F({ label, wert, setzen, einheit, id, text, mehrzeilig, hinweis, typ, platz, liste, breit }) {
+function F({ label, wert, setzen, einheit, id, text, mehrzeilig, hinweis, typ, platz, liste, breit, wahl }) {
   return (
-    <label className={"feld kalk-feld" + (breit ? " kalk-feld--breit" : "")}>
+    <label className={"feld kalk-feld" + (breit ? " kalk-feld--breit" : "") + (wahl ? " kalk-feld--wahl" : "")}>
       <span>{label}{einheit ? <em> {einheit}</em> : null}</span>
       {mehrzeilig
         ? <textarea id={id} rows={3} value={wert || ""} onChange={(e) => setzen(e.target.value)} />
         : <input id={id} type={typ || "text"} inputMode={text || typ ? undefined : "decimal"} value={wert == null ? "" : wert}
-            placeholder={platz} list={liste} onChange={(e) => setzen(e.target.value)} />}
+            placeholder={platz} list={liste} autoComplete={wahl ? "off" : undefined}
+            onFocus={wahl ? () => wahl.auf(true) : undefined} onBlur={wahl ? () => setTimeout(() => wahl.auf(false), 200) : undefined}
+            onKeyDown={wahl ? (e) => { if (e.key === "Escape" && wahl.offen) { e.preventDefault(); e.stopPropagation(); wahl.auf(false); } } : undefined}
+            onChange={(e) => { setzen(e.target.value); if (wahl) wahl.auf(true); }} />}
+      {wahl && wahl.offen && wahl.treffer.length > 0 && (
+        <span className="kalk-wahl" data-kalk-wahl={id}>
+          {wahl.treffer.map((t) => (
+            <button type="button" key={t.id} className="kalk-wahl__zeile" data-kalk-wahl-id={t.id}
+              onMouseDown={(e) => { e.preventDefault(); wahl.nehmen(t); wahl.auf(false); }}>
+              <b>{t.titel}</b>{t.unter ? <small>{t.unter}</small> : null}
+            </button>))}
+        </span>)}
       {hinweis ? <span className="feldhinweis">{hinweis}</span> : null}
     </label>
   );
 }
 
-function Kopf({ k, setze, nr, setNr }) {
+// Stammdaten aus dem Test ERP (Kunden, Artikel, Rohmaterial) zum Hineinziehen
+// in die Kalkulation (Wunsch Patrick 25. November 2026: „bestehende
+// Stammdaten hineinziehen können, wie Kunde, Artikel“). Einmal je Laden der
+// Seite geholt; ohne Leserecht im ERP bleiben die Listen leer und man tippt
+// wie bisher.
+let stammVorrat = null;
+function useErpStamm() {
+  const [st, setSt] = useState(stammVorrat || { partner: [], artikel: [] });
+  useEffect(() => {
+    if (stammVorrat) return undefined;
+    let weg = false;
+    (async () => {
+      try {
+        const [p, a] = await Promise.all([
+          alt.db.from("erp_partner").select("id, art, nr, name, aktiv, daten").eq("art", "kunde").limit(5000),
+          alt.db.from("erp_artikel").select("id, art, nr, idx, bezeichnung, zeichnung, kunde_id, aktiv, daten").limit(20000)]);
+        const neu = {
+          partner: p && !p.error && Array.isArray(p.data) ? p.data.filter((x) => x.aktiv !== false) : [],
+          artikel: a && !a.error && Array.isArray(a.data) ? a.data.filter((x) => x.aktiv !== false) : [] };
+        stammVorrat = neu;
+        if (!weg) setSt(neu);
+      } catch (e) { /* ohne Verbindung oder Recht: von Hand tippen */ }
+    })();
+    return () => { weg = true; };
+  }, []);
+  return st;
+}
+
+// Treffer für ein Suchfeld: jedes Wort muss irgendwo vorkommen, Bindestriche
+// und Punkte zählen nicht
+function stammTreffer(liste, text, felder, max = 8) {
+  const norm = (x) => String(x || "").toLowerCase().replace(/[-.\s]/g, "");
+  const woerter = String(text || "").toLowerCase().split(/\s+/).map(norm).filter(Boolean);
+  if (!woerter.length) return [];
+  const aus = [];
+  for (const x of liste) {
+    const t = felder(x).map(norm).join(" ");
+    if (woerter.every((w) => t.includes(w))) { aus.push(x); if (aus.length >= max) break; }
+  }
+  return aus;
+}
+
+function useWahl(treffer, nehmen) {
+  const [offen, auf] = useState(false);
+  return { offen, auf, treffer, nehmen };
+}
+
+// Adresse eines Partners für die Felder der Kalkulation
+function partnerAdresse(p) {
+  const d = (p && p.daten) || {};
+  const ad = d.adresse || {};
+  return { zusatz: ad.name2 || "", strasse: ad.strasse || "", land: ad.land || "", plz: ad.plz || "", ort: ad.ort || "" };
+}
+
+function Kopf({ k, setze, setK, nr, setNr }) {
   const f = (name) => ({ wert: k.kopf[name], setzen: (w) => setze("kopf." + name, w) });
+  // Adresse in einzelnen Feldern; ein alter Block `adresse` wird beim ersten
+  // Ändern in die Felder übernommen und fällt dann weg
+  const adr = adresseVon(k.kopf);
+  const a = (name) => ({ wert: adr[name], setzen: (w) => setK((x) => {
+    const kopf = { ...x.kopf, ...adresseVon(x.kopf), [name]: w };
+    delete kopf.adresse;
+    return { ...x, kopf };
+  }) });
+  const stamm = useErpStamm();
+  const kundeSetzen = (p) => setK((x) => {
+    const kopf = { ...x.kopf, kunde: p.name || "", kunde_id: p.id, ...partnerAdresse(p) };
+    delete kopf.adresse;
+    return { ...x, kopf };
+  });
+  const kundeWahl = useWahl(stammTreffer(stamm.partner, k.kopf.kunde, (p) => [p.nr, p.name]).map((p) => ({
+    id: p.id, titel: p.name, unter: [p.nr, partnerAdresse(p).ort].filter(Boolean).join(" · "), p })), (t) => kundeSetzen(t.p));
+  const hofer = stamm.artikel.filter((x) => x.art === "hofer");
+  const artikelSetzen = (a) => {
+    const d = a.daten || {};
+    const roh = d.rohmaterial_id ? stamm.artikel.find((x) => x.id === d.rohmaterial_id) : null;
+    const matBez = roh ? (roh.bezeichnung || roh.nr) : (d.material || "");
+    const kunde = a.kunde_id ? stamm.partner.find((p) => p.id === a.kunde_id) : null;
+    setK((x) => {
+      const kopf = { ...x.kopf, artikel: a.nr || "", index: a.idx || "", zeichnung: a.zeichnung || "",
+        ident: d.ident || x.kopf.ident || "", bezeichnung: a.bezeichnung || x.kopf.bezeichnung || "", artikel_id: a.id };
+      if (kunde) { Object.assign(kopf, { kunde: kunde.name || "", kunde_id: kunde.id, ...partnerAdresse(kunde) }); delete kopf.adresse; }
+      let material = x.material;
+      if (matBez && !String(x.material.bez || "").trim()) {
+        const w = werkstoffGenau(matBez); const t = materialZerlegen(matBez);
+        material = { ...x.material, bez: matBez, nr: (w && w.nr) || x.material.nr, d: t && t.d ? String(t.d) : x.material.d };
+      }
+      return { ...x, kopf, material };
+    });
+  };
+  const artikelWahl = useWahl(stammTreffer(hofer, k.kopf.artikel, (a) => [a.nr, a.idx, a.bezeichnung, a.zeichnung, (a.daten || {}).ident])
+    .map((a) => ({ id: a.id, titel: a.nr + (a.idx ? " Ind. " + a.idx : ""), unter: [a.bezeichnung, a.zeichnung].filter(Boolean).join(" · "), a })),
+  (t) => artikelSetzen(t.a));
   // Ist der Artikel-Code eine bekannte HOCO Nr., kommt das Material des
   // jüngsten Auftrags von selbst, solange noch keins eingetragen ist
   // (Wunsch Patrick 27. Oktober 2026)
@@ -344,9 +451,13 @@ function Kopf({ k, setze, nr, setNr }) {
       <section className="karte">
         <h2>Kunde und Artikel</h2>
         <F label="Kalkulation Nr." id="kalk-nr" text wert={nr} setzen={setNr} />
-        <F label="Kunde" id="kalk-kunde" text {...f("kunde")} />
-        <F label="Adresse" id="kalk-adresse" mehrzeilig {...f("adresse")} />
-        <F label="Artikel-Code" id="kalk-artikel" text {...f("artikel")} />
+        <F label="Kunde" id="kalk-kunde" text platz={stamm.partner.length ? "Name oder Nr. tippen, Vorschlag wählen" : undefined} wahl={kundeWahl} {...f("kunde")} />
+        <F label="Zusatz" id="kalk-adr-zusatz" text platz="Abteilung, z. Hd. …" {...a("zusatz")} />
+        <F label="Strasse" id="kalk-adr-strasse" text {...a("strasse")} />
+        <F label="Land" id="kalk-adr-land" text platz="CH" {...a("land")} />
+        <F label="PLZ" id="kalk-adr-plz" text {...a("plz")} />
+        <F label="Ort" id="kalk-adr-ort" text {...a("ort")} />
+        <F label="Artikel-Code" id="kalk-artikel" text platz={hofer.length ? "HOCO Nr. oder Bezeichnung tippen" : undefined} wahl={artikelWahl} {...f("artikel")} />
         {matHinweis && <p className="hinweis" id="kalk-mat-hinweis">{matHinweis}</p>}
         <F label="Zeichnung" id="kalk-zeichnung" text {...f("zeichnung")} />
         <F label="Kunden Ident-Nr." id="kalk-ident" text {...f("ident")} />
@@ -366,6 +477,15 @@ function Material({ k, setze, setK, rechnung }) {
   const m = k.material;
   const f = (name) => ({ wert: m[name], setzen: (w) => setze("material." + name, w) });
   const r0 = rechnung[0];
+  // Rohmaterial aus den Stammdaten des Test ERP wählen
+  const stamm = useErpStamm();
+  const roh = stamm.artikel.filter((x) => x.art === "rohmaterial");
+  const matWahl = useWahl(stammTreffer(roh, m.bez, (a) => [a.nr, a.bezeichnung]).map((a) => ({
+    id: a.id, titel: a.bezeichnung || a.nr, unter: a.bezeichnung && a.bezeichnung !== a.nr ? a.nr : "", a })), (t) => {
+    const bez = t.a.bezeichnung || t.a.nr;
+    const w = werkstoffGenau(bez); const z = materialZerlegen(bez);
+    setK((x) => ({ ...x, material: { ...x.material, bez, nr: (w && w.nr) || x.material.nr, d: z && z.d ? String(z.d) : x.material.d } }));
+  });
   return (
     <>
       {/* Staffeln nebeneinander, Lose darunter, damit nichts rollt
@@ -392,7 +512,7 @@ function Material({ k, setze, setK, rechnung }) {
       <section className="karte">
         <h2>Material</h2>
         <div className="kalk-reihe">
-          <F label="Materialbezeichnung" id="kalk-mat" text breit {...f("bez")} />
+          <F label="Materialbezeichnung" id="kalk-mat" text breit wahl={matWahl} {...f("bez")} />
           <F label="Werkstoff-Nr." id="kalk-matnr" text {...f("nr")} />
         </div>
         <div className="kalk-reihe">
@@ -922,7 +1042,7 @@ function Angebot({ k, setze, nr, rechnung }) {
         <div className="kalk-blatt__oben">
           <div><h3>Angebot</h3><div>Angebots-Nr. {nr}</div><div>Datum {heuteText()}</div>
             </div>
-          <div className="kalk-blatt__an">{k.kopf.kunde}{k.kopf.adresse ? "\n" + k.kopf.adresse : ""}</div>
+          <div className="kalk-blatt__an">{[k.kopf.kunde, ...adresseZeilen(k.kopf)].filter(Boolean).join("\n")}</div>
         </div>
         {k.kopf.anfrage && <p><b>Ihre Anfrage vom {datumText(k.kopf.anfrage)}</b></p>}
         <dl className="kalk-blatt__teil">

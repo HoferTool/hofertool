@@ -66,9 +66,9 @@ function Cockpit({ d, aussen, a, zu }) {
       })}
       <section className="gf-abschnitt" data-erp-cockpit-teil="lager">
         <h3>Lagerbestand <small>{mengeText(lagerSumme)} {a.einheit}</small></h3>
-        <GTabelle kopf={["Charge", "Lagerart", "Lagerplatz", "Menge"]} rechts={[3]} leer="Kein Bestand."
+        <GTabelle kopf={["Index", "Charge", "Lagerart", "Lagerplatz", "Menge"]} rechts={[4]} leer="Kein Bestand."
           zeilen={lager.map((e) => { const l = d.lagerMap.get(e.lager_id);
-            return { key: e.charge + e.lager_id, zellen: [e.charge, l ? l.lagerart : "–", l ? l.platz : "–", mengeText(e.menge)] }; })} />
+            return { key: e.charge + e.lager_id + (e.idx || ""), zellen: [e.idx || "–", e.charge, l ? l.lagerart : "–", l ? l.platz : "–", mengeText(e.menge)] }; })} />
       </section>
     </GFenster>
   );

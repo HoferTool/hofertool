@@ -3,8 +3,8 @@
 //  Ein eigener Ordner je Person, um Dateien, Fotos und Videos vom
 //  Handy oder Tablet auf den Computer zu bringen: dort hochladen oder
 //  direkt aufnehmen, am Computer herunterladen und löschen. Nur die
-//  Person selbst sieht ihn (geprüft in der Datenbank). Nach 24 Stunden
-//  ist alles von selbst weg. Daten in src/daten/temp.js.
+//  Person selbst sieht ihn (geprüft in der Datenbank). Seit 1.814.0
+//  löscht nichts mehr von selbst (Wunsch Patrick 25. November 2026). Daten in src/daten/temp.js.
 //  Seit 1.310.0 ein Reiter der Einstellungen statt eigener Seite im
 //  Menü (Wunsch Patrick 30. Oktober 2026). Die Suche je Seite meldet
 //  er darum nicht mehr an: im Fenster würde sie die der Seite dahinter
@@ -13,7 +13,7 @@
 import { useEffect, useRef, useState } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
 import { betrachter } from "../teile/Betrachter.jsx";
-import { TEMP_STUNDEN, wegAm, TEMP_MAX, TEMP_MAX_MB, tempListe, tempHochladen, tempLoeschen, tempAdresse, tempVorschauen } from "../daten/temp.js";
+import { TEMP_MAX, TEMP_MAX_MB, tempListe, tempHochladen, tempLoeschen, tempAdresse, tempVorschauen } from "../daten/temp.js";
 
 const ruehrbar = () => window.matchMedia("(hover: none) and (pointer: coarse)").matches;
 
@@ -21,17 +21,6 @@ function groesseText(b) {
   if (b >= 1024 * 1024) return (b / 1024 / 1024).toFixed(1).replace(".0", "") + " MB";
   if (b >= 1024) return Math.round(b / 1024) + " KB";
   return b + " Byte";
-}
-
-// Bei jeder Datei steht, wann sie weg ist, damit sich niemand fragt
-// (Wunsch Patrick, 13. Oktober 2026)
-function restText(am) {
-  const weg = wegAm(am);
-  const min = Math.max(0, Math.round((weg.getTime() - Date.now()) / 60000));
-  const p = (n) => String(n).padStart(2, "0");
-  const heute = new Date().toDateString() === weg.toDateString();
-  const wann = (heute ? "heute" : "morgen") + " " + p(weg.getHours()) + ":" + p(weg.getMinutes());
-  return "wird " + wann + " gelöscht (noch " + (min >= 60 ? Math.floor(min / 60) + " Std." : min + " Min.") + ")";
 }
 
 const istBild = (d) => /^image\//.test(d.typ) || /\.(jpe?g|png|gif|webp|heic)$/i.test(d.name);
@@ -142,7 +131,7 @@ export default function Temp() {
     <div className={"temp" + (ziehen ? " temp--ziehen" : "")} id="temp-seite" {...zieh}>
       <h2 className="temp__titel">Mein Temp-Ordner</h2>
       <p className="temp__hinweis">
-        Nur du siehst diese Dateien. Nach {TEMP_STUNDEN} Stunden werden sie von selbst gelöscht. Höchstens {TEMP_MAX_MB} MB je Datei.
+        Nur du siehst diese Dateien. Sie bleiben, bis du sie löschst. Höchstens {TEMP_MAX_MB} MB je Datei.
       </p>
       <div className="temp__knoepfe">
         {touch && <>
@@ -188,7 +177,7 @@ export default function Temp() {
                       </button>
                       <button className="temp__text" onClick={() => ansehen(d)} title="Ansehen">
                         <b>{d.name}</b>
-                        <span className="klein">{groesseText(d.groesse)} · {alt.datumZeitKurz(d.am)} · {restText(d.am)}</span>
+                        <span className="klein">{groesseText(d.groesse)} · {alt.datumZeitKurz(d.am)}</span>
                       </button>
                       <button className="knopf knopf--klein temp__runter" data-temprunter={d.name} title="Herunterladen"
                         onClick={() => herunterladen(d)}><Zeichen art="runter" /><span>Herunterladen</span></button>

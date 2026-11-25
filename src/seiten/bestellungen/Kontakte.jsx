@@ -130,11 +130,13 @@ function KontakteFenster({ l, zu }) {
 function Kontakt({ k, l, darf, neu }) {
   const loeschen = async () => {
     const ok = await alt.nachfragen({ titel: "Kontakt löschen",
-      text: "„" + k.name + "“ wird bei " + l.name + " gelöscht. Besuche bleiben, ohne diesen Namen.",
+      text: "„" + k.name + "“ wird bei " + l.name + " gelöscht. Die Besuche behalten den Namen.",
       bestaetigen: "Löschen", gefahr: true });
     if (!ok) return;
     const vorher = await alt.rueckSichern("lieferant_kontakte", { id: k.id });
     const besuche = (await alt.rueckSichern("lieferant_besuche", { kontakt_id: k.id })).map((x) => x.id);
+    // Vor dem Löschen den Namen in die Besuche schreiben, damit er dort bleibt (Wunsch Patrick 25. November 2026)
+    if (besuche.length) await alt.db.from("lieferant_besuche").update({ kontakt_name: k.name }).in("id", besuche);
     const { error } = await alt.db.from("lieferant_kontakte").delete().eq("id", k.id);
     if (error) { alt.meldung(fehlerText(error), "fehler"); return; }
     // Zurück: Kontakt wieder rein, dann die Besuche wieder auf ihn
@@ -190,7 +192,12 @@ async function profilZuschneiden(datei) {
 
 function Besuch({ b, l, kontakte, darf, neu }) {
   const k = kontakte.find((x) => x.id === b.kontakt_id);
+  // Name der Kontaktperson: lebt sie noch, ihr aktueller Name, sonst der beim Besuch gemerkte
+  const kName = k ? k.name : (b.kontakt_name || "");
   const wer = alt.personOderSystem(b.erstellt_von);
+  // Dateien dazu oder weg nur im Bearbeitungsmodus, sonst macht das Feld „+ PDF / Bild“ die Ansicht eng
+  // (Wunsch Patrick 25. November 2026)
+  const [bearb, setBearb] = useState(false);
   const loeschen = async () => {
     const ok = await alt.nachfragen({ titel: "Besuch löschen",
       text: "Der Besuch vom " + alt.langDatum(b.datum) + " wird gelöscht.", bestaetigen: "Löschen", gefahr: true });
@@ -206,15 +213,20 @@ function Besuch({ b, l, kontakte, darf, neu }) {
       <div className="lk-besuch__kopf">
         <Zeichen name="kalender" groesse={15} />
         <b>{alt.langDatum(b.datum)}</b>
-        {k && <span className="klein">· {k.name}</span>}
+        {kName && <span className="klein" data-lbname={b.id}>· {kName}</span>}
         <span className="lk-besuch__wer klein">{wer ? "eingetragen von " + wer : ""}</span>
         {darf && <span className="bs-pos__aktionen">
-          <Symbolknopf zeichen="stift" text="Ändern" data-lbbearb={b.id} onClick={() => besuchDialog(l, b, kontakte, neu)} />
+          <Symbolknopf zeichen="stift" text={bearb ? "Bearbeiten beenden" : "Bearbeiten"} data-lbbearb={b.id}
+            aria-pressed={bearb} onClick={() => setBearb(!bearb)} />
           <Symbolknopf zeichen="muell" text="Löschen" gefahr data-lbweg={b.id} onClick={loeschen} />
         </span>}
       </div>
       <div className="lk-notiz">{b.notiz}</div>
-      <BesuchDateien b={b} l={l} darf={darf} neu={neu} />
+      <BesuchDateien b={b} l={l} darf={darf && bearb} neu={neu} />
+      {darf && bearb && <div className="lk-besuch__bearb">
+        <button className="knopf" data-lbangaben={b.id} onClick={() => besuchDialog(l, b, kontakte, neu)}>Datum, Kontakt, Notiz ändern …</button>
+        <button className="knopf knopf--haupt" data-lbfertig={b.id} onClick={() => setBearb(false)}>Fertig</button>
+      </div>}
     </div>
   );
 }
@@ -295,14 +307,17 @@ async function dateienSetzen(b, dateien, schritt) {
 }
 
 async function besuchDialog(l, b, kontakte, neu) {
+  // Besuch mit gelöschter Kontaktperson: ihr Name bleibt wählbar, damit Ändern ihn nicht verliert
+  const altName = b && !b.kontakt_id && b.kontakt_name ? b.kontakt_name : "";
   const w = await alt.dialogFelder({
     titel: b ? "Besuch ändern" : "Besuch bei uns · " + l.name,
     felder: [
       { name: "datum", label: "Datum des Besuchs", typ: "date", pflicht: true,
         wert: b ? b.datum : alt.isoDatum(new Date()) },
-      ...(kontakte.length ? [{ name: "kontakt", label: "Wer war da?",
-        auswahl: [["", "– niemand Bestimmtes –"]].concat(kontakte.map((k) => [k.id, k.name + (k.funktion ? " · " + k.funktion : "")])),
-        wert: b ? (b.kontakt_id || "") : (kontakte.length === 1 ? kontakte[0].id : "") }] : []),
+      ...((kontakte.length || altName) ? [{ name: "kontakt", label: "Wer war da?",
+        auswahl: [["", "– niemand Bestimmtes –"]].concat(altName ? [["__alt", altName + " (Kontakt gelöscht)"]] : [],
+          kontakte.map((k) => [k.id, k.name + (k.funktion ? " · " + k.funktion : "")])),
+        wert: b ? (b.kontakt_id || (altName ? "__alt" : "")) : (kontakte.length === 1 ? kontakte[0].id : "") }] : []),
       { name: "notiz", label: "Notiz", typ: "textarea", zeilen: 7, pflicht: true, wert: b ? b.notiz : "",
         platzhalter: "Was wurde besprochen? Neuheiten, Preise, Muster, was ist zu tun …" },
     ],
@@ -310,12 +325,21 @@ async function besuchDialog(l, b, kontakte, neu) {
   });
   if (!w) return;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(w.datum || "")) { alt.meldung("Bitte ein Datum wählen.", "warn"); return; }
-  const daten = { supplier_id: l.id, datum: w.datum, kontakt_id: w.kontakt || null, notiz: w.notiz.trim() };
+  const gewaehlt = w.kontakt && w.kontakt !== "__alt" ? kontakte.find((k) => k.id === w.kontakt) : null;
+  const daten = { supplier_id: l.id, datum: w.datum, kontakt_id: gewaehlt ? gewaehlt.id : null,
+    kontakt_name: gewaehlt ? gewaehlt.name : (w.kontakt === "__alt" ? altName : null), notiz: w.notiz.trim() };
   if (b) daten.geaendert_am = new Date().toISOString();
   const vorher = b ? await alt.rueckSichern("lieferant_besuche", { id: b.id }) : [];
-  const { data, error } = b
+  let { data, error } = b
     ? await alt.db.from("lieferant_besuche").update(daten).eq("id", b.id)
     : await alt.db.from("lieferant_besuche").insert(daten).select("id");
+  if (error && /kontakt_name/.test(error.message || "")) {
+    // Datenbank kennt die Spalte noch nicht: ohne Namen speichern
+    delete daten.kontakt_name;
+    ({ data, error } = b
+      ? await alt.db.from("lieferant_besuche").update(daten).eq("id", b.id)
+      : await alt.db.from("lieferant_besuche").insert(daten).select("id"));
+  }
   if (error) { alt.meldung(fehlerText(error), "fehler"); return; }
   const neuId = !b && Array.isArray(data) && data[0] && data[0].id;
   if (b) alt.merkeSchritt("Ändern des Besuchs", alt.rueckRein("lieferant_besuche", vorher));

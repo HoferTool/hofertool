@@ -7,15 +7,17 @@ import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import {
   einfuegen, aendern, loeschen, naechstePartnerNr, ARTIKELART, HOFER_NR, bestand, mengeText, chf,
   mapsLink, artikelText, zahl, buchen, peKurz, LAGERARTEN, lagerartText, lagerName, istHoferLager, HOFER_LAGERARTEN, lagerplatzId,
+  NUMMERNKREISE, naechsteNummer, nummerText, nummernSpeichern,
 } from "../../daten/erp.js";
 import { stundensatz } from "../../daten/kalkulation.js";
-import { artikelFensterOeffnen } from "./ArtikelFenster.jsx";
+import { artikelFensterOeffnen, neuerIndex } from "./ArtikelFenster.jsx";
 import { partnerFensterOeffnen } from "./PartnerFenster.jsx";
+import { umbuchenOeffnen, BewegungListe } from "./Bewegungen.jsx";
 
 export const STAMM_REITER = [
   ["lieferant", "Lieferanten"], ["kunde", "Kunden"], ["artikel", "Artikel"], ["betriebsmittel", "Betriebsmittel"],
   ["liefer", "Lieferbedingungen"], ["zahlung", "Zahlungsbedingungen"],
-  ["lager", "Lager"], ["arbeitsplan", "Arbeitspläne"],
+  ["lager", "Lager"], ["arbeitsplan", "Arbeitspläne"], ["nummern", "Nummernkreise"],
 ];
 
 const gemerkt = { reiter: "kunde", artArt: "hofer" };
@@ -35,6 +37,7 @@ export default function Stammdaten({ d, neu }) {
       {(reiter === "liefer" || reiter === "zahlung") && <Bedingungen d={d} neu={neu} art={reiter} />}
       {reiter === "lager" && <Lager d={d} neu={neu} />}
       {reiter === "arbeitsplan" && <Arbeitsplaene d={d} neu={neu} />}
+      {reiter === "nummern" && <Nummernkreise d={d} neu={neu} />}
     </>
   );
 }
@@ -147,7 +150,7 @@ export function artikelBearbeiten(d, neu, art, a, neuerIndex) {
       : { nr: "", idx: "", bezeichnung: "", zeichnung: "", kunde_id: "", einheit: art === "rohmaterial" ? "kg" : "Stk", preis: "", aktiv: true },
     felder: [
       { name: "nr", label: hofer ? "Artikel-Nr. (xxxxx-xxxx)" : art === "rohmaterial" ? "Artikel-Nr. = Bezeichnung wie im HoferTool" : "Artikel-Nr. wie im HoferTool" },
-      hofer && { name: "idx", label: "Index", hinweis: "Jeder Index ist ein eigener Artikel. Bestand mit Index A beliefert nie Index B." },
+      hofer && { name: "idx", label: "Index", hinweis: "Pro HOCO Nr. gibt es nur einen Artikel. Der Bestand bleibt je Index getrennt." },
       { name: "bezeichnung", label: "Bezeichnung" },
       hofer && { name: "zeichnung", label: "Zeichnungsnummer" },
       hofer && { name: "kunde_id", label: "Kunde", auswahl: kunden },
@@ -179,7 +182,9 @@ export function artikelBearbeiten(d, neu, art, a, neuerIndex) {
 }
 
 async function ausHoferTool(art, d, neu) {
-  const da = new Set(d.artikel.filter((a) => a.art === art).map((a) => a.nr + "|" + a.idx));
+  // Hofer + Co: pro HOCO Nr. nur ein Artikel, der Index zählt dafür nicht
+  const schl = (x) => art === "hofer" ? x.nr : x.nr + "|" + (x.idx || "");
+  const da = new Set(d.artikel.filter((a) => a.art === art).map(schl));
   let neue = [];
   if (art === "werkzeug") {
     const r = await alt.db.from("articles").select("article_number, name, description").limit(5000);
@@ -198,7 +203,7 @@ async function ausHoferTool(art, d, neu) {
     }
   }
   const sicht = new Set();
-  neue = neue.filter((x) => { const k = x.nr + "|" + x.idx; if (da.has(k) || sicht.has(k)) return false; sicht.add(k); return true; });
+  neue = neue.filter((x) => { const k = schl(x); if (da.has(k) || sicht.has(k)) return false; sicht.add(k); return true; });
   if (!neue.length) { alt.meldung("Nichts Neues im HoferTool gefunden.", "gut"); return; }
   const ok = await alt.nachfragen({ titel: "Aus HoferTool übernehmen",
     text: alt.zahlText(neue.length) + " " + ARTIKELART[art] + " übernehmen?" + (art === "hofer" ? " Index bleibt leer, bitte bei Bedarf ergänzen." : ""),
@@ -242,8 +247,8 @@ function Artikel({ d, neu }) {
             ? [<b>{a.nr}</b>, a.idx || "–", a.bezeichnung || "", a.zeichnung || "", (d.partnerMap.get(a.kunde_id) || {}).name || "",
               a.preis != null ? <>{chf(a.preis)} <small>{peKurz((a.daten || {}).pe)}</small>{((a.daten || {}).preisliste || {}).kalkulation_nr ? <small> · {a.daten.preisliste.kalkulation_nr}</small> : null}</> : "",
               mengeText(best.get(a.id) || 0), (a.arbeitsplan || []).length || "",
-              <button className="knopf knopf--klein" title="Neuen Index anlegen"
-                onClick={(e) => { e.stopPropagation(); artikelFensterOeffnen(d, neu, a, { index: true }); }}>+ Index</button>]
+              <button className="knopf knopf--klein" title="Neuen Index setzen, der Artikel bleibt derselbe"
+                onClick={(e) => { e.stopPropagation(); neuerIndex(d, a, neu); }}>Neuer Index</button>]
             : [<b>{a.nr}</b>, a.bezeichnung || "", a.einheit, a.preis != null ? chf(a.preis) : "", mengeText(best.get(a.id) || 0)] }))} />
       {liste.length > anzahl && <button className="knopf" onClick={() => setAnzahl(anzahl + 200)}>Mehr zeigen</button>}
     </>
@@ -265,6 +270,64 @@ function Betriebsmittel() {
         {" "}<a href="#/kalkulation">Zur Kalkulation</a></p>
       <Tabelle kopf={["Betriebsmittel", "Stundensatz CHF/h", "Rüstsatz CHF/h"]}
         zeilen={daten.map((m) => { const s = stundensatz(m); return { key: m.id, zellen: [<b>{m.name}</b>, chf(s.eff), chf(s.ruest)] }; })} />
+    </>
+  );
+}
+
+// ---------- Nummernkreise ----------
+// Fortlaufend je Jahr, das neue Jahr beginnt von selbst bei 1 bzw. beim
+// Startwert. Startwerte für den Wechsel vom alten ERP (Wunsch Patrick 25. November 2026).
+function Nummernkreise({ d, neu }) {
+  const jahr = new Date().getFullYear();
+  const jahre = [jahr, jahr + 1];
+  const { daten: kalk } = useDaten(async () => {
+    const r = await alt.db.from("kalkulationen").select("nr");
+    return r.error ? [] : (r.data || []).map((k) => k.nr);
+  }, []);
+  const [w, setW] = useState(() => {
+    const v = {};
+    NUMMERNKREISE.forEach((k) => { v[k.typ] = {}; jahre.forEach((j) => { const s = (d.nummern || {})[k.typ]?.[j]; v[k.typ][j] = s ? String(s) : ""; }); });
+    return v;
+  });
+  const [laeuft, setLaeuft] = useState(false);
+  const geaendert = NUMMERNKREISE.some((k) => jahre.some((j) => (w[k.typ][j] || "") !== String((d.nummern || {})[k.typ]?.[j] || "")));
+  const vorhandene = (typ) => typ === "kalkulation" ? (kalk || []) : d.belege.filter((b) => b.typ === typ).map((b) => b.nr);
+  const speichern = async () => {
+    const neuW = { ...(d.nummern || {}) };
+    for (const k of NUMMERNKREISE) {
+      const e = { ...(neuW[k.typ] || {}) };
+      for (const j of jahre) {
+        const t = String(w[k.typ][j] || "").replace(/['’\s]/g, "");
+        if (!t) { delete e[j]; continue; }
+        const n = parseInt(t, 10);
+        if (!(n > 0) || String(n) !== t.replace(/^0+/, "")) { alt.meldung(k.name + " " + j + ": nur eine ganze Zahl ab 1.", "warn"); return; }
+        if (String(n).length > k.stellen + 2) { alt.meldung(k.name + " " + j + ": Zahl zu gross.", "warn"); return; }
+        e[j] = n;
+      }
+      if (Object.keys(e).length) neuW[k.typ] = e; else delete neuW[k.typ];
+    }
+    setLaeuft(true);
+    await tun(async () => { await nummernSpeichern(neuW); alt.meldung("Nummernkreise gespeichert.", "gut"); neu(); });
+    setLaeuft(false);
+  };
+  return (
+    <>
+      <p className="klein">Die Nummern laufen je Jahr fortlaufend weiter, am 1. Januar beginnt das neue Jahr von selbst
+        wieder bei 1. Für den Wechsel vom alten ERP hier den <b>Startwert</b> eintragen: die nächste Nummer ist dann
+        mindestens dieser Wert (sind schon höhere vergeben, geht es dort weiter). Leer = ab 1.</p>
+      <Tabelle kopf={["Nummernkreis", "Beispiel", ...jahre.map((j) => "Startwert " + j), "Nächste Nummer"]}
+        zeilen={NUMMERNKREISE.map((k) => ({
+          key: k.typ,
+          zellen: [<b>{k.name}</b>, <span className="klein">{nummerText(k, jahr, 1)}</span>,
+            ...jahre.map((j) => <input key={j} className="erp-nr-start" inputMode="numeric" data-erp-nrstart={k.typ + "-" + j}
+              value={w[k.typ][j]} placeholder="1" style={{ width: 90 }}
+              onChange={(e) => setW({ ...w, [k.typ]: { ...w[k.typ], [j]: e.target.value } })} />),
+            <b data-erp-nrnaechst={k.typ}>{k.typ === "kalkulation" && !kalk ? "…"
+              : naechsteNummer({ [k.typ]: { [jahr]: parseInt(w[k.typ][jahr], 10) || 0 } }, k.typ, vorhandene(k.typ), jahr)}</b>],
+        }))} />
+      <div className="knopfreihe" style={{ marginTop: 10 }}>
+        <button className="knopf knopf--haupt" id="erp-nr-speichern" disabled={!geaendert || laeuft} onClick={speichern}>Speichern</button>
+      </div>
     </>
   );
 }
@@ -337,7 +400,7 @@ function Lager({ d, neu }) {
         if (!w.charge.trim() || !zahl(w.menge)) throw new Error("Charge und Menge werden benötigt.");
         const lagerId = String(w.lager_id).startsWith("art:") ? await lagerplatzId(d, w.lager_id.slice(4), w.platz) : (w.lager_id || null);
         await buchen({ artikel_id: w.artikel_id, lager_id: lagerId, charge: w.charge.trim(), menge: zahl(w.menge),
-          art: "korrektur", notiz: w.notiz || null });
+          art: "korrektur", notiz: w.notiz || null, idx: (d.artikelMap.get(w.artikel_id) || {}).idx || "" });
         neu();
       },
     });
@@ -345,7 +408,7 @@ function Lager({ d, neu }) {
   const best = bestand(d).filter((e) => {
     const a = d.artikelMap.get(e.artikel_id) || {};
     const l = d.lagerMap.get(e.lager_id) || {};
-    return passt(suche, [a.nr, a.idx, a.bezeichnung, e.charge, l.platz, l.lagerart].join(" "));
+    return passt(suche, [a.nr, e.idx, a.bezeichnung, e.charge, l.platz, l.lagerart].join(" "));
   });
   return (
     <>
@@ -362,9 +425,13 @@ function Lager({ d, neu }) {
         zeilen={best.map((e) => {
           const a = d.artikelMap.get(e.artikel_id) || {};
           const l = d.lagerMap.get(e.lager_id);
-          return { key: e.artikel_id + e.charge + e.lager_id, klasse: e.menge < 0 ? "erp-minus" : "",
-            zellen: [<b>{a.nr}</b>, a.idx || "", a.bezeichnung || "", e.charge, l ? l.lagerart : "–", l ? l.platz : "–", mengeText(e.menge) + " " + (a.einheit || "")] };
+          return { key: e.artikel_id + "|" + e.idx + e.charge + e.lager_id, klasse: e.menge < 0 ? "erp-minus" : "",
+            klick: e.menge > 0 ? () => umbuchenOeffnen(d, e, neu) : undefined,
+            zellen: [<b>{a.nr}</b>, e.idx || "", a.bezeichnung || "", e.charge, l ? l.lagerart : "–", l ? l.platz : "–", mengeText(e.menge) + " " + (a.einheit || "")] };
         })} />
+      <p className="klein">Zeile antippen zum Umbuchen (z. B. HFL → FL, FL → SPL), mit Vermerk.</p>
+      <h3>Lagerbewegungen</h3>
+      <BewegungListe d={d} aussen={neu} />
     </>
   );
 }

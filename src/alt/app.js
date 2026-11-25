@@ -178,7 +178,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.800.3";
+const APP_VERSION = "1.819.2";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -2624,7 +2624,8 @@ async function dokHochladen(datei, zuordnung, quelle) {
   } catch (f) { /* Hauptsache, der Eintrag steht */ }
 
   // Alte Dateien wegräumen — aber nie die, die gerade hochgeladen wurde
-  await ablageLoeschen(alteAdressen.filter((u) => u && u !== adresse));
+  // WBGs bleiben auch beim Ersetzen in der Ablage (seit 1.813.0)
+  if (art !== "wbg") await ablageLoeschen(alteAdressen.filter((u) => u && u !== adresse));
 
   await dokVerlauf({ dateiname: datei.name, art: art, hoco_nr: hocoNr, type_id: typId,
                      ziel: dokZielText(zuordnung), quelle: quelle || "hand",
@@ -2634,13 +2635,16 @@ async function dokHochladen(datei, zuordnung, quelle) {
 
 // =================================================================
 //  WBG AUFRÄUMEN
-//  Eine WBG bleibt, solange ihr Auftrag läuft, und noch fünf Tage
-//  danach. Dann verschwinden Datei und Eintrag. Ebenso die
-//  Werkzeugwechsel-Historie am Auftrag. Läuft einmal am Tag,
-//  sobald jemand mit Schreibrecht die App öffnet.
+//  WBGs bleiben seit 1.813.0 für immer. Hier verschwindet nur noch
+//  die Werkzeugwechsel-Historie von Aufträgen, die seit über fünf
+//  Tagen fertig sind, und seit 1.814.0 nur noch von Hand mit dem Knopf
+//  unter Einstellungen → Dokumente, nicht mehr von selbst (Wunsch
+//  Patrick 25. November 2026: „soll ab jetzt nicht automatisch
+//  gelöscht werden“).
 // =================================================================
 
 async function wbgAufraeumen(sofort) {
+  if (!sofort) return 0;
   if (!profil || !(istAdmin() || darfSchreiben())) return 0;
   const heute = isoDatum(new Date());
   try {
@@ -2651,22 +2655,11 @@ async function wbgAufraeumen(sofort) {
   const grenze = new Date(Date.now() - 5 * 86400000).toISOString();
   let weg = 0;
   try {
-    // 1. WBG an Aufträgen, die seit mehr als fünf Tagen beendet sind
-    const r = await db.from("jobs").select("id, job_number, wbg_url")
-      .not("wbg_url", "is", null).lt("ended_at", grenze).limit(500);
-    const alt = (r && r.data) || [];
-    if (alt.length) {
-      // Dieselbe Datei hängt vielleicht noch an einem offenen Auftrag
-      const noch = await db.from("jobs").select("wbg_url").is("ended_at", null).not("wbg_url", "is", null);
-      const inBenutzung = new Set(((noch && noch.data) || []).map((j) => j.wbg_url));
-      // Adressen vorher festhalten, danach stehen sie nicht mehr am Auftrag
-      const adressen = alt.map((j) => j.wbg_url).filter((u) => !inBenutzung.has(u));
-      await db.from("jobs").update({ wbg_url: null }).in("id", alt.map((j) => j.id));
-      await ablageLoeschen(adressen);
-      weg += alt.length;
-    }
-    // 1b. Werkzeugwechsel-Historie genauso: fünf Tage nach dem Ende weg
-    // (Wunsch Patrick 14. Oktober 2026). Jede Datei gehört nur zu einem
+    // WBGs bleiben alle für immer, Datei und Eintrag (Wunsch Patrick
+    // 25. November 2026: „es soll alle WBGs speichern, keine löschen“).
+    // Bis 1.811.x verschwanden sie hier fünf Tage nach dem Auftragsende.
+    // Werkzeugwechsel-Historie: fünf Tage nach dem Ende weg, seit
+    // 1.814.0 nur noch mit dem Knopf. Jede Datei gehört nur zu einem
     // Auftrag, darum ohne Prüfung auf andere Aufträge.
     const h = await db.from("jobs").select("id, wz_historie_url")
       .not("wz_historie_url", "is", null).lt("ended_at", grenze).limit(500);
@@ -2675,25 +2668,6 @@ async function wbgAufraeumen(sofort) {
       await db.from("jobs").update({ wz_historie_url: null }).in("id", hist.map((j) => j.id));
       await ablageLoeschen(hist.map((j) => j.wz_historie_url));
       weg += hist.length;
-    }
-    // 2. WBG in den Dokumenten, zu denen kein offener Auftrag mehr läuft
-    const d = await db.from("dokumente").select("id, hoco_nr, datei_url, erstellt_am").eq("art", "wbg");
-    const liste = (d && d.data) || [];
-    for (const w of liste) {
-      if (!w.hoco_nr) continue;
-      const offen = await db.from("jobs").select("id").eq("job_number", w.hoco_nr).is("ended_at", null).limit(1);
-      if (offen && offen.data && offen.data.length) continue;
-      const zuletzt = await db.from("jobs").select("ended_at").eq("job_number", w.hoco_nr)
-        .not("ended_at", "is", null).order("ended_at", { ascending: false }).limit(1);
-      const ende = zuletzt && zuletzt.data && zuletzt.data[0] ? zuletzt.data[0].ended_at : w.erstellt_am;
-      if (ende && ende < grenze) {
-        await db.from("dokumente").delete().eq("id", w.id);
-        await ablageLoeschen([w.datei_url]);
-        await dokVerlauf({ dateiname: null, art: "wbg", hoco_nr: w.hoco_nr,
-                           ziel: "WBG entfernt — Auftrag seit über fünf Tagen beendet",
-                           quelle: "aufräumen" });
-        weg++;
-      }
     }
   } catch (f) { fehlerMerken("WBG aufräumen", fehlertext(f)); }
   return weg;
@@ -3283,7 +3257,9 @@ function neuerLookSehen(u) {
   // Im Prüfstand nur mit Vermerk oder TEST.neuesMenue: die älteren Tests
   // bedienen noch das alte Menü (Bestellungen, Rechner … als eigene Punkte).
   if (window.TEST && !window.TEST.neuesMenue) return false;
-  return !istAndererNutzer(u);
+  // Seit 1.819.0 auch Gerätekonten („Andere Nutzer“ wie Planwand), Wunsch
+  // Patrick 25. November 2026: „sollen das gleiche Layout bekommen“
+  return true;
 }
 // Seit 1.786.0 sehen alle Admins alles (Wunsch Patrick 24. November 2026:
 // „alle admins alles sehen, ausser zahlen spiel“): Empfang, Kalkulation,
@@ -4849,7 +4825,7 @@ async function farbzuteilungLaden() {
   // Betriebsferien vor dem ersten Zeichnen der Planwand
   await betriebsferienLaden();
   // Alte WBG wegräumen, einmal am Tag, im Hintergrund
-  setTimeout(() => { wbgAufraeumen().catch(() => {}); }, 4000);
+  // Seit 1.814.0 kein Aufräumen mehr beim Start (nur noch von Hand)
   // Tägliche Sicherung, wenn dieses Gerät das Sicherungsgerät ist (src/teile/sicherung.js)
   // und tägliche Planwand-Datei zum Nachschauen (src/teile/planwandArchiv.js);
   // beides nicht in einer Backup-Datei
@@ -11250,7 +11226,7 @@ const neuerLook = () => document.documentElement.classList.contains("neues-menue
 Object.assign(alt, {
   LOGO_BRIEF, SIEGEL_BRIEF,
   camSehen, SYM, neuerLook,
-  meineProfilId, parkIstExtern, padParkVerborgen, leerlaufAktiv,
+  meineProfilId, meinName: () => (profil ? personName(profil, "") : ""), meineMail: () => (profil && profil.email) || "", parkIstExtern, padParkVerborgen, leerlaufAktiv,
   zeitlimit, meldung, nachfragen, fehlertext, fehlerMerken, dialogFelder, auswahlDialog,
   merkeSchritt, rueckWeg, rueckRein, rueckSetz, rueckStand, rueckSichern, rueckLeeren, personName, zielPersonFinden, darfSchreiben,
   reiterUebergang,

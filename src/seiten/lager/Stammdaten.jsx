@@ -114,7 +114,7 @@ function AblaufFenster({ hoco, daten, zu, neu }) {
               </span>
             </li>);
         })}
-        <li className="lager-ablauf__fest">Ganz fertig, Auslieferung</li>
+        <li className="lager-ablauf__fest">Fertigteil, Auslieferung</li>
       </ol>
       {liste.length
         ? <div className="lager-zwei">
@@ -140,7 +140,7 @@ function AblaufFenster({ hoco, daten, zu, neu }) {
 export function ablaufText(daten, hoco) {
   const a = daten.ablaeufe.get(hoco);
   const s = (a ? a.schritte || [] : []).map((id) => daten.extern.get(id)).filter(Boolean);
-  return ["Produktion"].concat(s.map((x) => x.schritt + (x.firma ? " (" + x.firma + ")" : ""))).concat("fertig").join(" → ");
+  return ["Produktion"].concat(s.map((x) => x.schritt + (x.firma ? " (" + x.firma + ")" : ""))).concat("Fertigteil").join(" → ");
 }
 
 export default function Stammdaten({ daten, neu, passt }) {
@@ -177,7 +177,7 @@ export default function Stammdaten({ daten, neu, passt }) {
           <button className="knopf knopf--haupt knopf--klein" id="lager-ablauf-neu" onClick={() => neuerAblauf(daten, neu)}>+ Ablauf</button>
         </div>
         <p className="klein">Was nach der Produktion mit den Teilen passiert. Danach schlägt das Lager beim Ausbuchen den nächsten Schritt vor
-          und zeigt unter „Vorbereiten“, wann welche Firma Bescheid braucht. Ohne Ablauf sind Teile aus der Produktion gleich ganz fertig.</p>
+          und zeigt unter „Vorbereiten“, wann welche Firma Bescheid braucht. Ohne Ablauf sind Teile aus der Produktion gleich Fertigteile.</p>
         {!ablaeufe.length
           ? <p className="klein">Noch kein Ablauf hinterlegt.</p>
           : ablaeufe.map((a) => (
