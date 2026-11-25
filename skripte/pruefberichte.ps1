@@ -63,12 +63,12 @@ $KEY = $E.anon_key
 
 # dateien: voller Pfad → Kennung der zuletzt hochgeladenen Fassung
 # index: Kennung der Datei → Index aus dem Excel (gemerkt, damit jede Datei nur einmal geöffnet wird)
-$stand = @{ token = $null; ablauf = 0; auffrischen = $null; dateien = @{}; zuletzt = $null; index = @{} }
+$stand = @{ token = $null; ablauf = 0; auffrischen = $null; dateien = @{}; zuletzt = $null; index = @{}; neu = $null }
 if (Test-Path $standDatei) {
   try {
     $g = Get-Content -Raw -Path $standDatei -Encoding UTF8 | ConvertFrom-Json
     $stand.token = $g.token; $stand.ablauf = [double]$g.ablauf; $stand.auffrischen = $g.auffrischen
-    $stand.zuletzt = $g.zuletzt
+    $stand.zuletzt = $g.zuletzt; $stand.neu = $g.neu
     if ($g.dateien) { $g.dateien.PSObject.Properties | ForEach-Object { $stand.dateien[$_.Name] = [string]$_.Value } }
     if ($g.index) { $g.index.PSObject.Properties | ForEach-Object { $stand.index[$_.Name] = [string]$_.Value } }
   } catch { }
@@ -261,6 +261,27 @@ try {
     ForEach-Object { if ($_.wert) { try { $konf = $_.wert | ConvertFrom-Json } catch { } } }
   if (-not $konf -or -not $konf.ordner -or @($konf.ordner | Where-Object { $_.pfad }).Count -eq 0) {
     throw "In der App sind noch keine Prüfbericht-Ordner eingetragen (Einstellungen → Dokumente)."
+  }
+
+  # Alles neu: steht in app_config "pruefbericht_neu" ein neuer Wert (etwa
+  # Datum und Zeit), löscht die Aufgabe einmal alle aus den Ordnern
+  # hochgeladenen Berichte samt Dateien in der Ablage und lädt danach sauber
+  # neu hoch (Wunsch Patrick 25. November 2026: „alles löschen und neu sauber
+  # hochladen“). Welcher Wert erledigt ist, merkt sich der Stand.
+  $neu = $null
+  Lesen "app_config?select=wert&schluessel=eq.pruefbericht_neu" |
+    ForEach-Object { if ($_.wert) { $neu = [string]$_.wert } }
+  if ($neu -and $neu -ne [string]$stand.neu -and $status.scharf) {
+    $weg = @(LesenAlle "pruefbericht_dateien?select=id,ablage&quelle=eq.ordner&order=id")
+    for ($i = 0; $i -lt $weg.Count; $i += 100) {
+      $ende = [Math]::Min($i + 99, $weg.Count - 1)
+      ZeilenWeg @($weg[$i..$ende])
+    }
+    $stand.dateien = @{}
+    $stand.neu = $neu
+    StandSichern
+    $status.geleert = $weg.Count
+    Schreibe ("Alles neu: " + $weg.Count + " Berichte gelöscht")
   }
 
   # Was in der App schon aus den Ordnern kam
