@@ -17181,3 +17181,41 @@ body.dunkel .erp-ap__kopf { background: #243142; }
 body.dunkel .erp-ap .ziehliste__zeile { border-top-color: #2e3b4c; }
 body.dunkel .erp-ap .ziehliste__zeile:hover .erp-ap__zeile { background: #1f2a38; }
 body.dunkel .erp-ap .erp-ap__zeile.gewaehlt { background: #2a3d57; }
+
+/* 1.805.0 Test ERP im Stil von HOFERCAM (Wunsch Patrick 25. November 2026):
+   graublauer Grund, Bereiche als weisse Karten, Gruppentitel als blaue Schilder,
+   graue Felder mit dunklem Rand, blaugraue Knöpfe. Nur hell, dunkel bleibt wie bisher. */
+body:not(.dunkel) .erp { background: #dfe6ee; border: 1px solid #c2cedb; border-radius: 12px; padding: 12px 14px 16px; }
+body:not(.dunkel) .erp .reiter { background: #fff; border: 1px solid #bccad8; border-radius: 8px; padding: 4px; box-shadow: 0 1px 3px rgba(20,50,90,.08); }
+body:not(.dunkel) .erp .mat-kopf { background: #fff; border: 1px solid #bccad8; border-radius: 8px; padding: 8px 10px; box-shadow: 0 1px 3px rgba(20,50,90,.08); }
+body:not(.dunkel) .erp-tabelle-huelle, body:not(.dunkel) .gf-tab-huelle { background: #fff; border: 1px solid #bccad8; border-radius: 8px; box-shadow: 0 1px 3px rgba(20,50,90,.08); }
+body:not(.dunkel) .erp-tabelle th, body:not(.dunkel) .gf-tab th { background: #d9e5f2; color: #0d2f57; }
+body:not(.dunkel) .erp-tabelle td, body:not(.dunkel) .gf-tab td { border-color: #dde4ec; }
+body:not(.dunkel) .erp-tabelle tr.erp-klick:hover td, body:not(.dunkel) .gf-tab tr.erp-klick:hover td { background: #eef4fb; }
+body:not(.dunkel) .erp .karte, body:not(.dunkel) .gf .karte { border-color: #bccad8; box-shadow: 0 1px 3px rgba(20,50,90,.08); }
+
+/* Fenster */
+body:not(.dunkel) .gf { background: #dfe6ee; }
+body:not(.dunkel) .gf-titel { background: #fff; border-color: #c2cedb; }
+body:not(.dunkel) .gf-kopf, body:not(.dunkel) .gf-fuss { background: #d4dde8; border-color: #c2cedb; }
+body:not(.dunkel) .gf-reiter { background: #fff; border-bottom: 1px solid #c2cedb; }
+body:not(.dunkel) .gf-gruppe, body:not(.dunkel) .erp-liste { background: #fff; border: 1px solid #bccad8; border-radius: 8px; box-shadow: 0 1px 3px rgba(20,50,90,.08); padding: 4px 12px 10px; }
+body:not(.dunkel) .gf-gruppe legend, body:not(.dunkel) .erp-liste legend {
+  background: #003884; color: #fff; border-radius: 5px; padding: 1px 8px; font-size: 12px; font-weight: 600; }
+body:not(.dunkel) .gf-l, body:not(.dunkel) .erp-feld > span { color: #23303d; font-weight: 600; }
+body:not(.dunkel) .gf-wert { background: #f4f7fa; border: 1px solid #c4d0dc; border-radius: 4px; padding: 3px 8px; color: #111c27; min-height: 1.5em; }
+body:not(.dunkel) :is(.erp, .gf, .erp-fenster) :is(input:not([type=checkbox]):not([type=radio]), select, textarea) {
+  background: #e9eef4; border: 1px solid #8ea2b8; color: #111c27; border-radius: 4px; }
+body:not(.dunkel) :is(.erp, .gf, .erp-fenster) :is(input:not([type=checkbox]):not([type=radio]), select, textarea):focus {
+  background: #fff; border-color: #003884; box-shadow: 0 0 0 2px rgba(0,56,132,.18); outline: none; }
+body:not(.dunkel) :is(.erp, .gf, .erp-fenster) .knopf:not(.knopf--haupt):not(.knopf--gefahr):not(.knopf--still) {
+  background: #dce6f1; border-color: #8fa7c2; color: #0d2f57; }
+body:not(.dunkel) :is(.erp, .gf, .erp-fenster) .knopf:not(.knopf--haupt):not(.knopf--gefahr):not(.knopf--still):hover { background: #c9d8ea; }
+body:not(.dunkel) .erp-ap__liste .zieh-zeile, body:not(.dunkel) .erp-ap__zeile:not(.erp-ap__kopf) { background: #fff; }
+body:not(.dunkel) .erp-ap__kopf { background: #d9e5f2; color: #0d2f57; border-radius: 6px; }
+/* kompakt wie HOFERCAM */
+:is(.erp, .gf, .erp-fenster) :is(input:not([type=checkbox]):not([type=radio]), select) { min-height: 0; height: 30px; padding: 3px 8px; font-size: 14px; }
+:is(.gf, .erp-fenster) textarea { padding: 4px 8px; font-size: 14px; }
+.gf .gf-f { margin: 2px 0; }
+.gf .gf-wert { padding: 3px 8px; font-size: 14px; }
+.gf .gf-l { font-size: 13px; }
