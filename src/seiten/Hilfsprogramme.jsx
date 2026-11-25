@@ -14,6 +14,7 @@ import Rechner from "./Rechner.jsx";
 const BESCHREIBUNG = {
   einlagen: "Werkzeuge fotografieren, Einlage mit Taschen für den 3D-Drucker",
   hofer2dto3d: "Fertigungszeichnung als PDF, daneben das STEP in 3D",
+  modell3d: "SketchUp-Modell (.dae, .glb, .obj …) in 3D ansehen",
   bildschirme: "Infoboard, Empfang und Pausenraum",
   rechner: "Drehzahl, Winkel und Fase",
   reihen: "Reihen üben im Affenwald",

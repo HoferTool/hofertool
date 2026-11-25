@@ -17056,3 +17056,23 @@ body.dunkel .handymenue__unterpunkt.aktiv, body.dunkel .handymenue__unterpunkt.a
 @media (prefers-reduced-motion: reduce) {
   .handymenue__ebene, .handymenue__unterpunkt { animation: none !important; }
 }
+
+/* 1.797.0 3D-Viewer für SketchUp-Exporte (Modell3d.jsx, modell3d/Ansicht.jsx) */
+.m3d-kopf { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.m3d-kopf .seitentitel { margin: 0; margin-right: auto; }
+.m3d-fehler { background: #fdecea; color: #8a1c12; border: 1px solid #f3b8b0; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+body.dunkel .m3d-fehler { background: #3a1714; border-color: #7a2a22; }
+.m3d-leer { max-width: 640px; padding: 18px 20px; line-height: 1.5; }
+.m3d-leer h2 { margin: 0 0 8px; font-size: 18px; }
+.m3d-leer ol { margin: 8px 0 10px 20px; padding: 0; }
+.m3d-ansicht { display: flex; flex-direction: column; gap: 8px; }
+.m3d-zwei { display: flex; gap: 10px; align-items: stretch; }
+.m3d-flaeche { flex: 1; min-width: 0; height: calc(100vh - 230px); min-height: 320px; }
+.m3d-teile { width: 240px; flex: none; padding: 10px; overflow-y: auto; height: calc(100vh - 230px); min-height: 320px; box-sizing: border-box; }
+.m3d-teile-kopf { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
+.m3d-teil { display: flex; gap: 6px; align-items: flex-start; padding: 3px 0; font-size: 13px; overflow-wrap: anywhere; cursor: pointer; }
+@media (max-width: 780px) {
+  .m3d-zwei { flex-direction: column; }
+  .m3d-flaeche { height: 62vh; }
+  .m3d-teile { width: auto; height: auto; max-height: 220px; }
+}
