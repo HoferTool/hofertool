@@ -18,7 +18,7 @@ import { teilMerken } from "../teile/wiederherstellen.js";
 import { materialZerlegen, werkstoffGenau } from "../daten/material.js";
 import {
   z, chf, stundensatz, staffelRechnen, leereKalkulation, kalkulationenLaden, maschinenLaden,
-  kalkulationSpeichern, maschineSpeichern, naechsteNr, BEISPIEL_MASCHINEN, beispielKalkulation, START_MASCHINEN, startArbeitsplan, WAEHRUNGEN, kursHolen, PREISEINHEITEN, peWert, peText, EXTERN_NEBEN, FGK_DREHEN, SPEZ_GEWICHT, PREIS_JE_STAFFEL, preisInStaffeln,
+  kalkulationSpeichern, maschineSpeichern, naechsteNr, BEISPIEL_MASCHINEN, beispielKalkulation, START_MASCHINEN, startArbeitsplan, WAEHRUNGEN, kursHolen, PREISEINHEITEN, peWert, peText, EXTERN_NEBEN, FGK_DREHEN, SPEZ_GEWICHT, PREIS_JE_STAFFEL, preisInStaffeln, adresseVon, adresseZeilen,
 } from "../daten/kalkulation.js";
 
 const REITER = [
@@ -312,8 +312,16 @@ function F({ label, wert, setzen, einheit, id, text, mehrzeilig, hinweis, typ, p
   );
 }
 
-function Kopf({ k, setze, nr, setNr }) {
+function Kopf({ k, setze, setK, nr, setNr }) {
   const f = (name) => ({ wert: k.kopf[name], setzen: (w) => setze("kopf." + name, w) });
+  // Adresse in einzelnen Feldern; ein alter Block `adresse` wird beim ersten
+  // Ändern in die Felder übernommen und fällt dann weg
+  const adr = adresseVon(k.kopf);
+  const a = (name) => ({ wert: adr[name], setzen: (w) => setK((x) => {
+    const kopf = { ...x.kopf, ...adresseVon(x.kopf), [name]: w };
+    delete kopf.adresse;
+    return { ...x, kopf };
+  }) });
   // Ist der Artikel-Code eine bekannte HOCO Nr., kommt das Material des
   // jüngsten Auftrags von selbst, solange noch keins eingetragen ist
   // (Wunsch Patrick 27. Oktober 2026)
@@ -345,7 +353,11 @@ function Kopf({ k, setze, nr, setNr }) {
         <h2>Kunde und Artikel</h2>
         <F label="Kalkulation Nr." id="kalk-nr" text wert={nr} setzen={setNr} />
         <F label="Kunde" id="kalk-kunde" text {...f("kunde")} />
-        <F label="Adresse" id="kalk-adresse" mehrzeilig {...f("adresse")} />
+        <F label="Zusatz" id="kalk-adr-zusatz" text platz="Abteilung, z. Hd. …" {...a("zusatz")} />
+        <F label="Strasse" id="kalk-adr-strasse" text {...a("strasse")} />
+        <F label="Land" id="kalk-adr-land" text platz="CH" {...a("land")} />
+        <F label="PLZ" id="kalk-adr-plz" text {...a("plz")} />
+        <F label="Ort" id="kalk-adr-ort" text {...a("ort")} />
         <F label="Artikel-Code" id="kalk-artikel" text {...f("artikel")} />
         {matHinweis && <p className="hinweis" id="kalk-mat-hinweis">{matHinweis}</p>}
         <F label="Zeichnung" id="kalk-zeichnung" text {...f("zeichnung")} />
@@ -922,7 +934,7 @@ function Angebot({ k, setze, nr, rechnung }) {
         <div className="kalk-blatt__oben">
           <div><h3>Angebot</h3><div>Angebots-Nr. {nr}</div><div>Datum {heuteText()}</div>
             </div>
-          <div className="kalk-blatt__an">{k.kopf.kunde}{k.kopf.adresse ? "\n" + k.kopf.adresse : ""}</div>
+          <div className="kalk-blatt__an">{[k.kopf.kunde, ...adresseZeilen(k.kopf)].filter(Boolean).join("\n")}</div>
         </div>
         {k.kopf.anfrage && <p><b>Ihre Anfrage vom {datumText(k.kopf.anfrage)}</b></p>}
         <dl className="kalk-blatt__teil">

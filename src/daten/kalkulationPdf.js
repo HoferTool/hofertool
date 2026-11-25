@@ -7,7 +7,7 @@
 // =================================================================
 import { jsPDF } from "jspdf";
 import { briefkopfAufSeite } from "../teile/briefkopf.js";
-import { chf } from "./kalkulation.js";
+import { chf, adresseZeilen } from "./kalkulation.js";
 import { heuteText, datumText } from "../seiten/Kalkulation.jsx";
 
 export async function angebotPdf(k, nr, rechnung) {
@@ -27,7 +27,7 @@ export async function angebotPdf(k, nr, rechnung) {
   links.forEach(([a, b]) => { pdf.text(a, L, yl); pdf.text(": " + b, L + 30, yl); yl += 5; });
 
   // Kunde rechts
-  const an = [k.kopf.kunde].concat(String(k.kopf.adresse || "").split("\n")).filter(Boolean);
+  const an = [k.kopf.kunde].concat(adresseZeilen(k.kopf)).filter(Boolean);
   pdf.text(an, 120, y - 5);
   let yr = y - 5 + an.length * 5 + 4;
   if (k.kopf.zeichen) { pdf.text("Ihr Zeichen", 120, yr); pdf.text(": " + k.kopf.zeichen, 145, yr); yr += 5; }

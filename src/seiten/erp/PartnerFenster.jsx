@@ -23,6 +23,8 @@ export function partnerFensterOeffnen(d, aussen, p, art, reiter) {
 const LAENDER = [["CH", "Schweiz"], ["DE", "Deutschland"], ["AT", "Österreich"], ["FR", "Frankreich"], ["IT", "Italien"],
   ["LI", "Liechtenstein"], ["NL", "Niederlande"], ["US", "USA"]];
 const SPRACHEN = [["de", "Deutsch"], ["fr", "Französisch"], ["it", "Italienisch"], ["en", "Englisch"]];
+// Sammelrechnung: eine Rechnung über alle gewählten Lieferscheine des Kunden, sonst eine je Lieferschein
+const RECHNUNGSARTEN = [["einzel", "Einzelrechnung je Lieferschein"], ["sammel", "Sammelrechnung über mehrere Lieferscheine"]];
 const WAEHRUNGEN = [["CHF", "Schweizer Franken"], ["EUR", "Euro"], ["USD", "US-Dollar"]];
 
 function formAus(p, d, art) {
@@ -149,6 +151,10 @@ function PartnerFenster({ start, aussen, p0, art, reiter0, zu }) {
         </div>
       </div>}
 
+      {reiter === "rechnung" && kunde && <div className="gf-spalten"><div>
+        <KF label="Rechnungsart" name="sammel" wert={w.sammel ? "sammel" : "einzel"} setzen={(x) => set("sammel")(x === "sammel")}
+          auswahl={RECHNUNGSARTEN} />
+      </div></div>}
       {(reiter === "liefer" || reiter === "rechnung") && <Anschriften w={w} setW={setW} typ={reiter} />}
 
       {reiter === "parameter" && <div className="gf-spalten">
@@ -159,7 +165,8 @@ function PartnerFenster({ start, aussen, p0, art, reiter0, zu }) {
           <KF label={kunde ? "Unsere Lieferanten-Nr." : "Unsere Kunden-Nr."} name="unsere_nr" wert={w.unsere_nr} setzen={set("unsere_nr")} />
         </div>
         <div>
-          {kunde && <KF label="Sammelrechnung" typ="haken" name="sammel" wert={w.sammel} setzen={set("sammel")} />}
+          {kunde && <KF label="Rechnungsart" name="sammel" wert={w.sammel ? "sammel" : "einzel"} setzen={(x) => set("sammel")(x === "sammel")}
+            auswahl={RECHNUNGSARTEN} />}
           {kunde && <KF label="Termin als KW drucken" typ="haken" name="termin_kw" wert={w.termin_art === "kw"}
             setzen={(x) => set("termin_art")(x ? "kw" : "datum")} />}
           {kunde && <KF label="MWST %" name="mwst" wert={w.mwst} setzen={set("mwst")} platzhalter="leer = 8.1, Ausland 0" />}
