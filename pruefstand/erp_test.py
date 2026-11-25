@@ -220,6 +220,20 @@ with sync_playwright() as p:
     ap_ = a.get("arbeitsplan") or []
     pruefe(len(ap_) == vorher + 1 and ap_[-1].get("code") == "ENTGR", "Arbeitsgang angelegt: %s" % ap_)
     pg.screenshot(path=BILD + "/erp-arbeitsplan.png")
+    # Ziehen: letzten Arbeitsgang ganz nach oben
+    pg.click("[data-erp-ag-neu='int']"); pg.wait_for_selector(".dialog:has-text('Arbeitsgang') input[data-erp-feld='code']")
+    dlg = pg.locator(".dialog:has(input[data-erp-feld='code'])").last
+    dlg.locator("input[data-erp-feld='code']").fill("WASCH"); dlg.locator("textarea[data-erp-feld='bez']").fill("Waschen"); dlg.locator("[data-erp-speichern]").click(); pg.wait_for_timeout(300)
+    zeilen = pg.locator("#erp-ap-liste .ziehliste__zeile")
+    if zeilen.count() >= 2:
+        q = zeilen.last.bounding_box(); z = zeilen.first.bounding_box()
+        pg.mouse.move(q["x"] + 60, q["y"] + q["height"] / 2); pg.mouse.down()
+        for i in range(1, 16): pg.mouse.move(q["x"] + 60, q["y"] + q["height"] / 2 + (z["y"] - q["y"] - 8) * i / 15); pg.wait_for_timeout(20)
+        pg.mouse.up(); pg.wait_for_timeout(500)
+        pg.click("[data-erp-artfenster] [data-erp-speichern]"); pg.wait_for_timeout(800)
+        a = [x for x in tabelle(pg, "erp_artikel") if x["id"] == a["id"]][0]
+        ap2 = a.get("arbeitsplan") or []
+        pruefe(ap2 and ap2[0].get("code") == "WASCH" and len(ap2) == vorher + 2 and ap2[0].get("pos") == 10 and not any("_k" in x for x in ap2), "Arbeitsgang per Ziehen nach oben: %s" % [(x.get("pos"), x.get("code")) for x in ap2])
     pg.click("[data-erp-artfenster] [data-gf-reiter='dokumente']"); pg.wait_for_timeout(200)
     pruefe(pg.locator("[data-erp-art-modell]").count() == 1, "Reiter Dokumente mit Platz für 3D")
     # Blaue Felder: Menü mit Sprüngen, hier ins Artikel-Cockpit

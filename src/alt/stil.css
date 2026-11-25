@@ -17163,3 +17163,21 @@ body.dunkel .pm-kurz__zahl.pm-kurz__zahl--rot { background: #a32020; border-colo
 .pm-pop__kopf { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; font-size: 16px; }
 .pm-pop .pm-maschine { border: 0; padding: 0; background: transparent; }
 body.dunkel .pm-pop { background: #1f2630; border-color: #3a4552; }
+
+/* 1.803.0 Arbeitsplan im Artikel: Arbeitsgänge per Ziehen umsortieren (ZiehListe statt Tabelle) */
+.erp-ap { font-size: 0.9rem; }
+.erp-ap__liste { list-style: none; margin: 0; padding: 0; }
+.erp-ap .ziehliste__zeile { border-top: 1px solid #e3e8ee; align-items: stretch; }
+.erp-ap .ziehliste__zeile > :last-child { flex: 1; min-width: 0; }
+.erp-ap__zeile { display: grid; grid-template-columns: 44px 40px 90px minmax(120px, 2fr) minmax(90px, 1fr) 64px 64px; gap: 6px; padding: 5px 8px; align-items: start; }
+.erp-ap__zeile > span { overflow-wrap: anywhere; }
+.erp-ap__zeile .rechts { text-align: right; }
+.erp-ap__kopf { background: #e8eef5; font-weight: 600; padding-left: 38px; white-space: nowrap; }
+.erp-ap__zeile.erp-klick { cursor: pointer; }
+.erp-ap .ziehliste__zeile:hover .erp-ap__zeile { background: #f0f5fb; }
+.erp-ap .erp-ap__zeile.gewaehlt { background: #d6e4f5; }
+.erp-ap .gf-tab__leer { padding: 8px; }
+body.dunkel .erp-ap__kopf { background: #243142; }
+body.dunkel .erp-ap .ziehliste__zeile { border-top-color: #2e3b4c; }
+body.dunkel .erp-ap .ziehliste__zeile:hover .erp-ap__zeile { background: #1f2a38; }
+body.dunkel .erp-ap .erp-ap__zeile.gewaehlt { background: #2a3d57; }

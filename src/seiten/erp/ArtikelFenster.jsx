@@ -20,6 +20,10 @@ import {
 import { cockpitOeffnen } from "./Cockpit.jsx";
 import { belegOeffnen, belegStand } from "./Belege.jsx";
 import { partnerFensterOeffnen } from "./PartnerFenster.jsx";
+import { ZiehListe } from "../../teile/ZiehListe.jsx";
+
+let agZaehler = 0;
+const agKey = () => "ag" + Date.now().toString(36) + "-" + (++agZaehler);
 
 // a: bestehender Artikel oder null; was: { art, index (neuer Index von a), kopie, reiter }
 export function artikelFensterOeffnen(d, neu, a, was) {
@@ -39,7 +43,7 @@ function formAus(a, art, was) {
     kunden_nr: ad.kunden_nr || "", rohmaterial_id: ad.rohmaterial_id || "", material: ad.material || "",
     materialbedarf: ad.materialbedarf != null ? String(ad.materialbedarf) : "", lieferant_id: ad.lieferant_id || "", lieferant_nr: ad.lieferant_nr || "", text: ad.text || "", notiz: ad.notiz || "",
     pe: String(pl.pe), staffeln: pl.staffeln.map((x) => ({ ab: String(x.ab), preis: String(x.preis) })),
-    arbeitsplan: ((a && a.arbeitsplan) || []).map((x) => ({ ...x })),
+    arbeitsplan: ((a && a.arbeitsplan) || []).map((x) => ({ ...x, _k: agKey() })),
   };
 }
 
@@ -97,7 +101,7 @@ function ArtikelFenster({ start, aussen, a0, was, zu }) {
     const zeile = { art: w.art, nr, idx: hofer ? w.idx.trim() : "", bezeichnung: w.bezeichnung.trim() || null,
       zeichnung: hofer ? w.zeichnung.trim() || null : null, kunde_id: hofer ? w.kunde_id || null : null, einheit: w.einheit,
       preis: hofer ? (st0.length ? st0[0].preis : null) : w.preis === "" ? null : zahl(w.preis), aktiv: !!w.aktiv,
-      arbeitsplan: w.arbeitsplan.map((x, i) => ({ ...x, pos: (i + 1) * 10 })), geaendert_am: new Date().toISOString(), daten };
+      arbeitsplan: w.arbeitsplan.map(({ _k, ...x }, i) => ({ ...x, pos: (i + 1) * 10 })), geaendert_am: new Date().toISOString(), daten };
     let r;
     // aendern kann ohne Zeile zurückkommen; dann gilt der Stand, den wir geschrieben haben,
     // sonst verlöre das Fenster seinen Artikel und hiesse wieder „neu“
@@ -224,7 +228,7 @@ function ArbeitsplanReiter({ w, setW, set, roh }) {
       felder: AG_FORM, wert: x, breit: true,
       speichern: (neuW) => {
         if (!String(neuW.bez || "").trim()) throw new Error("Beschreibung fehlt.");
-        if (i == null) { setAp(ap.concat([neuW])); setWahl(ap.length); } else setAp(ap.map((y, j) => (j === i ? neuW : y)));
+        if (i == null) { setAp(ap.concat([{ ...neuW, _k: agKey() }])); setWahl(ap.length); } else setAp(ap.map((y, j) => (j === i ? { ...neuW, _k: y._k } : y)));
       },
       loeschen: i == null ? null : () => { setAp(ap.filter((_, j) => j !== i)); setWahl(null); } });
   };
@@ -238,10 +242,26 @@ function ArbeitsplanReiter({ w, setW, set, roh }) {
       <KF label="Material" nurLesen wert={roh ? roh.nr + (roh.bezeichnung && roh.bezeichnung !== roh.nr ? " · " + roh.bezeichnung : "") : w.material || "–"} breit />
       <KF label="Materialbedarf kg pro Fertigteil" name="materialbedarf" typ="zahl" rechts wert={w.materialbedarf} setzen={set("materialbedarf")} />
     </div>
-    <GTabelle kopf={["Pos", "I/E", "AG-Code", "Beschreibung", "Arbeitsplatz", "SZ s", "RZ h"]} rechts={[5, 6]}
-      leer="Noch kein Arbeitsgang. Meist kommt er aus der Kalkulation." wahl={wahl} setWahl={setWahl}
-      zeilen={ap.map((x, i) => ({ key: i, klick: () => bearbeiten(i),
-        zellen: [(i + 1) * 10, x.extern ? "E" : "I", x.code || "", x.bez || "", x.maschine || "", x.te || "", x.ruest || ""] }))} />
+    {/* Reihenfolge mit Ziehen wie in der Kalkulation (seit 1.803.0, Wunsch Patrick 25. November 2026) */}
+    <div className="gf-tab-huelle erp-ap">
+      <div className="erp-ap__zeile erp-ap__kopf" aria-hidden="true">
+        <span>Pos</span><span>I/E</span><span>AG-Code</span><span>Beschreibung</span><span>Arbeitsplatz</span><span className="rechts">SZ s</span><span className="rechts">RZ h</span>
+      </div>
+      {!ap.length && <div className="gf-tab__leer">Noch kein Arbeitsgang. Meist kommt er aus der Kalkulation.</div>}
+      <ZiehListe id="erp-ap-liste" className="erp-ap__liste" darf={true}
+        ordnen={(reihe) => {
+          const gewaehlt = wahl == null ? null : ap[wahl] && ap[wahl]._k;
+          const neu = reihe.map((k) => ap.find((x) => x._k === k)).filter(Boolean);
+          setAp(neu);
+          if (gewaehlt) setWahl(neu.findIndex((x) => x._k === gewaehlt));
+        }}
+        eintraege={ap.map((x, i) => ({ key: x._k, inhalt:
+          <div className={"erp-ap__zeile erp-klick" + (wahl === i ? " gewaehlt" : "")} data-erp-zeile={i}
+            onClick={() => setWahl(i)} onDoubleClick={() => bearbeiten(i)}>
+            <span>{(i + 1) * 10}</span><span>{x.extern ? "E" : "I"}</span><span>{x.code || ""}</span><span>{x.bez || ""}</span>
+            <span>{x.maschine || ""}</span><span className="rechts">{x.te || ""}</span><span className="rechts">{x.ruest || ""}</span>
+          </div> }))} />
+    </div>
     <div className="gf-zeile gf-knoepfe">
       <button type="button" className="knopf knopf--klein" data-erp-ag-neu="int" onClick={() => bearbeiten(null, { extern: false })}>Neu intern</button>
       <button type="button" className="knopf knopf--klein" data-erp-ag-neu="ext" onClick={() => bearbeiten(null, { extern: true })}>Neu extern</button>
@@ -250,7 +270,7 @@ function ArbeitsplanReiter({ w, setW, set, roh }) {
         onClick={() => { setAp(ap.filter((_, j) => j !== wahl)); setWahl(null); }}>Löschen</button>
       <button type="button" className="knopf knopf--klein" disabled={wahl == null || wahl === 0} title="Nach oben" onClick={() => schieben(-1)}>↑</button>
       <button type="button" className="knopf knopf--klein" disabled={wahl == null || wahl === ap.length - 1} title="Nach unten" onClick={() => schieben(1)}>↓</button>
-      <span className="klein">Fertigungsaufträge übernehmen diesen Arbeitsplan. Doppelklick bearbeitet. Gespeichert mit „Speichern“.</span>
+      <span className="klein">Fertigungsaufträge übernehmen diesen Arbeitsplan. Am Griff ziehen ändert die Reihenfolge, Doppelklick bearbeitet. Gespeichert mit „Speichern“.</span>
     </div>
   </>;
 }
