@@ -5,6 +5,8 @@ Patrick, 9. Oktober 2026: „wenn der Fall kommt, gebe ich dir die ZIP-Datei
 und du machst draus ein SQL“). Die Dateien laufen der Reihe nach im
 Supabase SQL Editor oder über die Supabase-Verbindung:
 
+  000-schema.sql  nur auf einem neuen, leeren Server zuerst: baut die ganze
+              Datenbank auf (aus schema.sql der Sicherung, seit 1.815.0)
   001.sql …   legen die Tabellen stückweise im Puffer ab (sicherung_puffer)
   NNN.sql     die letzte ruft sicherung_einspielen auf: ersetzt alles in
               einem Zug und legt fehlende Konten wieder an
@@ -39,6 +41,10 @@ def main():
     kopf = json.loads(z.read("sicherung.json"))
     if kopf.get("art") != "hofer-sicherung":
         sys.exit("Das ist keine Sicherung des Hofer Tools.")
+    if "schema.sql" in z.namelist():
+        with open(os.path.join(aus, "000-schema.sql"), "wb") as f:
+            f.write(z.read("schema.sql"))
+        print("000-schema.sql geschrieben (nur auf einem neuen, leeren Server ausführen)")
     lauf = str(uuid.uuid4())
     dateien = []
     teile = ["delete from public.sicherung_puffer where lauf = '%s';\n" % lauf]
