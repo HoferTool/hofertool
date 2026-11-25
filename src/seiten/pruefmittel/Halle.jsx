@@ -32,13 +32,15 @@ const paar = (i, l, r) => ({
 const IH = 190, IO = 40, IU = IO + IH + LADER, IV = LADER_B + 14;
 export const LAGE = {
   309: { art: "index", x: 40, y: IO + LADER, lader: "oben" },
-  308: { art: "index", x: 210, y: IO, lader: "unten" },
-  307: { art: "index", x: 210 + IV, y: IU, lader: "oben" },
-  305: { art: "index", x: 420, y: IO, lader: "unten" },
-  306: { art: "index", x: 420 + IV, y: IU, lader: "oben" },
+  // Seit 1.841.1 enger zusammen (Patrick 25. November 2026: „index alle etwas näher zusammen“)
+  308: { art: "index", x: 175, y: IO, lader: "unten" },
+  307: { art: "index", x: 175 + IV, y: IU, lader: "oben" },
+  305: { art: "index", x: 350, y: IO, lader: "unten" },
+  306: { art: "index", x: 350 + IV, y: IU, lader: "oben" },
   // Hanwha gekreuzt wie die Index (Patrick 25. November 2026)
-  201: { art: "hanwha", x: 640, y: 30, lader: "unten" },
-  202: { art: "hanwha", x: 640 + LADER_B + 14, y: 30 + 150 + LADER, lader: "oben" },
+  // seit 1.841.1 fast direkt neben den Index, 201 und 202 weiter auseinander
+  201: { art: "hanwha", x: 520, y: 30, lader: "unten" },
+  202: { art: "hanwha", x: 520 + LADER_B + 44, y: 30 + 150 + LADER, lader: "oben" },
   ...paar(0, 121, 130), ...paar(1, 128, 129), ...paar(2, 127, 126),
   ...paar(3, 122, 123), ...paar(4, 111, 124), ...paar(5, 120, 125),
   ...paar(6, 119, 116), ...paar(7, 115, 113), ...paar(8, 114, 117),

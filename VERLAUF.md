@@ -3,9 +3,13 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
-## 1.841.0 (25. November 2026)
+## 1.842.0 (25. November 2026)
 
 Index überall eintragbar: ohne Index steht das Feld leer statt „ohne Index“, mit Schreibrecht eintragen bei der HOCO Nr. (Stammdaten und je FA Nr.), im Auftragsfenster und beim Einbuchen ins Lager, mit Rückgängig, nicht für Externe (Wunsch Patrick: „alles muss einen Index haben, wenn keiner da ist, soll es leer sein und man gibt ihn an“).
+
+## 1.841.x (25. November 2026)
+
+Planer: Todo-Spalte am PC schmaler und mit kleinerer Schrift, das Material bekommt mehr Platz (Wunsch Patrick).
 
 ## 1.835.0 (25. November 2026)
 
