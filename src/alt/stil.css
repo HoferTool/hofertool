@@ -17353,3 +17353,4 @@ body.dunkel .druckwahl .knopf.knopf--spedition { background: #e8730c !important;
 .stk-korr__feld { width: 110px; }
 .stk-korr__knoepfe { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
 .stk-korr-huelle { z-index: 1200; }
+.rk-erfasst { font-size: inherit; padding: 1px 4px; border: 1px solid var(--rand, #c8d2e2); border-radius: 6px; }
