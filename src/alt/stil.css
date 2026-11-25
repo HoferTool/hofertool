@@ -17219,3 +17219,10 @@ body:not(.dunkel) .erp-ap__kopf { background: #d9e5f2; color: #0d2f57; border-ra
 .gf .gf-f { margin: 2px 0; }
 .gf .gf-wert { padding: 3px 8px; font-size: 14px; }
 .gf .gf-l { font-size: 13px; }
+
+/* 1.809.0 Positionen im Test ERP: Artikel-Nr. und Angaben in eigenen Feldern */
+.erp-liste__zeile > .erp-feld--artnr { flex: 1 1 150px; }
+.erp-liste__zeile > .erp-feld--bez { flex: 2 1 220px; }
+.erp-liste__zeile > .erp-feld--schmal { flex: 0 1 70px; }
+.erp-liste__zeile input[readonly] { background: #eef2f6; color: #33475b; }
+body.dunkel .erp-liste__zeile input[readonly] { background: #1c2836; color: #c9d6e3 !important; }

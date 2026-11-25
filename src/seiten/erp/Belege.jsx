@@ -12,7 +12,7 @@ import { Feld, Tabelle, Suche, passt, tun, belegDrucken, LagerEingabe, lagerStar
 import {
   allesLaden, einfuegen, aendern, loeschen, naechsteBelegNr, BELEGTYP, MWST, zahl, chf, mengeText, artikelText,
   partnerText, datumText, terminText, bestand, buchen, gebucht, folgePositionen, belegSumme, chargeVerfolgen, fibuText,
-  posPe, posBetrag, peKurz, peZahl, preisFuerMenge, PE_AUSWAHL, kwText, lagerName, posIdx, artikelIdxText,
+  posPe, posBetrag, peKurz, peZahl, preisFuerMenge, PE_AUSWAHL, kwText, kwZuDatum, kwTag, lagerName, posIdx, artikelIdxText,
 } from "../../daten/erp.js";
 import { GFenster, KF, GTabelle, schliessenFragen } from "./Stamm.jsx";
 import { partnerFensterOeffnen } from "./PartnerFenster.jsx";
@@ -25,6 +25,25 @@ const lagerText = (d, id) => lagerName(d.lagerMap.get(id));
 
 // ---------- Stand eines Belegs ----------
 // Gerechnet aus den Folgebelegen und Bewegungen, nicht gespeichert
+// Termin und KW einer Position ziehen einander nach (Wunsch Patrick 25. November
+// 2026). Bei Kunden mit Termin als KW wird termin_kw gespeichert, sonst steht
+// die KW nur zum Ansehen und Eintippen da (_kw, wird nicht gespeichert), damit
+// Drucke dort weiter das Datum zeigen.
+// Eine eingetippte KW setzt bei Aufträgen den Freitag, bei Bestellungen den Montag.
+function terminNachziehen(n, name, w, kw, typ) {
+  if (name === "termin") { if (kw) n.termin_kw = w ? kwText(w) : ""; else delete n._kw; }
+  if (name === "termin_kw" || name === "_kw") { const t = kwZuDatum(w, new Date(), kwTag(typ)); if (t) n.termin = t; }
+  return n;
+}
+// feld(props) zeichnet ein Feld; als Funktion, nicht als Komponente, sonst
+// verlöre das Feld beim Tippen den Fokus
+function terminFelder(p, kw, setzen, feld) {
+  const kwWert = kw ? p.termin_kw : (p._kw ?? (p.termin ? kwText(p.termin) : ""));
+  const kwFeld = feld({ key: "kw", name: kw ? "termin_kw" : "_kw", label: kw ? "Termin KW" : "KW", wert: kwWert || "", platzhalter: "48", setzen: (w) => setzen(kw ? "termin_kw" : "_kw", w) });
+  const datum = feld({ key: "d", name: "termin", label: "Termin", typ: "datum", wert: p.termin, setzen: (w) => setzen("termin", w) });
+  return kw ? [kwFeld, datum] : [datum, kwFeld];
+}
+
 export function belegStand(d, b) {
   const pos = (d.posJe.get(b.id) || []).filter((p) => p.artikel_id || zahl(p.menge));
   const anteil = (fn) => {
@@ -146,8 +165,8 @@ function BelegFenster({ start, id, vorlage, aussen, zu }) {
     // Index durchgängig: eine Position mit Buchungen behält ihren Artikel
     for (const p of echte.filter((x) => x.id)) {
       const vorher = alte.find((x) => x.id === p.id);
-      if (vorher && vorher.artikel_id !== (p.artikel_id || null) && d.bewegungen.some((x) => x.position_id === p.id)) {
-        throw new Error("Position " + vorher.pos + " hat schon Buchungen, der Artikel (samt Index) lässt sich nicht mehr ändern.");
+      if (vorher && vorher.artikel_id !== (p.artikel_id || null) && (d.bewegungen.some((x) => x.position_id === p.id) || folgePositionen(d, p.id).length)) {
+        throw new Error("Position " + vorher.pos + " hat schon Buchungen oder Folgebelege, der Artikel (samt Index) lässt sich nicht mehr ändern.");
       }
     }
     for (const p of alte.filter((x) => !echte.some((y) => y.id === x.id))) {
@@ -298,15 +317,41 @@ function KopfFelder({ d, kopf, setKopf, setDaten, teil }) {
       {typ !== "fertigung" && <>
         <Feld f={{ name: "liefer", label: "Lieferbedingung", auswahl: bedAuswahl(d, "liefer") }} wert={kopf.daten.liefer} setzen={(w) => setDaten("liefer", w)} />
         <Feld f={{ name: "zahlung", label: "Zahlungsbedingung", auswahl: bedAuswahl(d, "zahlung") }} wert={kopf.daten.zahlung} setzen={(w) => setDaten("zahlung", w)} />
-        {partner && <Feld f={{ name: "anschrift", label: anschriftTyp === "rechnung" ? "Rechnungsanschrift" : "Lieferanschrift",
-          auswahl: wahl.map(([k, a], i) => [k, (i === 0 ? "Hauptadresse: " : "") + [a.name, a.ort].filter(Boolean).join(", ")]) }}
-          wert={(wahl.find(([, a]) => JSON.stringify(a) === JSON.stringify(kopf.daten.anschrift)) || wahl[0])[0]}
-          setzen={(w) => setDaten("anschrift", (wahl.find(([k]) => k === w) || wahl[0])[1])} />}
+        {partner && <AnschriftFeld titel={anschriftTyp === "rechnung" ? "Rechnungsanschrift" : "Lieferanschrift"} name="anschrift"
+          wahl={wahl} wert={kopf.daten.anschrift} setzen={(a) => setDaten("anschrift", a)} />}
+        {partner && (typ === "auftrag" || typ === "lieferschein") && <AnschriftFeld titel="Rechnungsanschrift" name="rechnung_an"
+          wahl={anschriften(partner, "rechnung")} wert={kopf.daten.rechnung_an} setzen={(a) => setDaten("rechnung_an", a)} />}
       </>}
       {mitPreis(typ) && <Feld f={{ name: "mwst", label: "MWST %", typ: "zahl", platzhalter: String(MWST) }}
         wert={kopf.daten.mwst} setzen={(w) => setDaten("mwst", w)} />}
       <Feld f={{ name: "text", label: "Text auf dem Beleg", typ: "textarea", breit: true }} wert={kopf.daten.text} setzen={(w) => setDaten("text", w)} />
     </div>
+  );
+}
+
+// Anschrift im Beleg: aus den Anschriften des Partners wählen und danach
+// frei ändern (Wunsch Patrick 25. November 2026: „im Auftrag die Kopfdaten
+// noch ändern können, z. B. Lieferanschrift“). Geändert gilt nur für diesen Beleg.
+const ANSCHRIFT_TEILE = [["name", "Name"], ["zusatz", "Zusatz"], ["strasse", "Strasse"], ["plz", "PLZ"], ["ort", "Ort"], ["land", "Land"]];
+function anschriftKurz(a) {
+  if (!a) return "";
+  return [a.name, a.zusatz || a.name2, a.strasse, [a.plz, a.ort].filter(Boolean).join(" "), a.land && a.land !== "CH" ? a.land : ""].filter(Boolean).join(", ");
+}
+function AnschriftFeld({ titel, name, wahl, wert, setzen }) {
+  const jetzt = wert || wahl[0][1];
+  const gleich = wahl.find(([, a]) => JSON.stringify(a) === JSON.stringify(jetzt));
+  const auswahl = wahl.map(([k, a], i) => [k, (i === 0 ? "Hauptadresse: " : "") + [a.werk, a.name, a.ort].filter(Boolean).join(", ")])
+    .concat(gleich ? [] : [["_eigen", "Von Hand geändert"]]);
+  return (
+    <fieldset className="erp-anschrift feld--breit" data-erp-anschrift={name}>
+      <legend>{titel}</legend>
+      <Feld f={{ name: name + "_wahl", label: "Aus Stammdaten", auswahl }} wert={gleich ? gleich[0] : "_eigen"}
+        setzen={(w) => { const g = wahl.find(([k]) => k === w); if (g) setzen({ ...g[1] }); }} />
+      {ANSCHRIFT_TEILE.map(([k, l]) => (
+        <Feld key={k} f={{ name: name + "_" + k, label: l }} wert={(k === "zusatz" ? jetzt.zusatz ?? jetzt.name2 : jetzt[k]) || ""}
+          setzen={(w) => setzen({ ...jetzt, [k]: w })} />
+      ))}
+    </fieldset>
   );
 }
 
@@ -320,6 +365,8 @@ function KopfAnsicht({ d, b }) {
     ["Datum", datumText(b.datum)],
     bez && ["Aus", BELEGTYP[bez.typ].name + " " + bez.nr],
     bd.ihre_nr && [b.typ === "bestellung" ? "AB Lieferant" : "Ihre Bestellung", bd.ihre_nr],
+    bd.anschrift && [b.typ === "rechnung" || b.typ === "gutschrift" || b.typ === "proforma" ? "Rechnungsanschrift" : "Lieferanschrift", anschriftKurz(bd.anschrift)],
+    bd.rechnung_an && ["Rechnungsanschrift", anschriftKurz(bd.rechnung_an)],
     bed(bd.liefer) && ["Lieferung", bed(bd.liefer)],
     bed(bd.zahlung) && ["Zahlung", bed(bd.zahlung)],
     p && p.art === "kunde" && b.typ === "rechnung" && [ "Rechnung", (p.daten || {}).sammel ? "Sammelrechnung" : "Einzelrechnung"],
@@ -327,7 +374,10 @@ function KopfAnsicht({ d, b }) {
     bd.fibu_am && ["Fibu", "exportiert am " + datumText(bd.fibu_am)],
     bd.text && ["Text", bd.text],
   ].filter(Boolean);
-  return <dl className="erp-kopf">{zeilen.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>;
+  return <>
+    <dl className="erp-kopf">{zeilen.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
+    <p className="klein">Ändern: unten auf „Bearbeiten“ drücken, dann hier im Reiter Kopfdaten.</p>
+  </>;
 }
 
 // Artikel per Eingabe mit Vorschlägen: bei tausenden Artikeln ist eine Auswahl zu lang
@@ -335,19 +385,37 @@ let listenNr = 0;
 function ArtikelWahl({ d, wert, setzen, gesperrt }) {
   const [nr] = useState(() => "erp-art-" + (++listenNr));
   const a = d.artikelMap.get(wert);
-  const [text, setText] = useState(a ? artikelText(a) : "");
+  // Im Feld steht nur die Artikel-Nr., die übrigen Angaben in eigenen Feldern daneben
+  // (Wunsch Patrick 25. November 2026); die Vorschläge zeigen weiter Nr. und Bezeichnung
+  const [text, setText] = useState(a ? a.nr : "");
   const liste = d.artikel.filter((x) => x.aktiv).slice(0, 5000);
   return (
-    <label className="feld erp-feld erp-feld--artikel"><span>Artikel</span>
+    <label className="feld erp-feld erp-feld--artnr"><span>Artikel-Nr.</span>
       <input list={nr} value={text} disabled={gesperrt} data-erp-feld="artikel" placeholder="Nr. tippen …"
         onChange={(e) => {
-          setText(e.target.value);
-          const f = liste.find((x) => artikelText(x) === e.target.value) || liste.find((x) => x.nr === e.target.value.trim());
+          const v = e.target.value;
+          const f = liste.find((x) => artikelText(x) === v) || liste.find((x) => x.nr === v.trim());
+          setText(f ? f.nr : v);
           setzen(f ? f.id : "");
         }} />
       <datalist id={nr}>{liste.map((x) => <option key={x.id} value={artikelText(x)} />)}</datalist>
     </label>
   );
+}
+
+// Angaben zum gewählten Artikel als eigene Felder nur zum Lesen
+function ArtikelAngaben({ a, idx }) {
+  const ad = (a && a.daten) || {};
+  const f = (k, label, wert, klasse) => (
+    <label key={k} className={"feld erp-feld " + (klasse || "")}><span>{label}</span>
+      <input value={wert || ""} readOnly tabIndex={-1} data-erp-artfeld={k} /></label>
+  );
+  return <>
+    {f("idx", "Index", a ? idx : "", "erp-feld--schmal")}
+    {f("bez", "Bezeichnung", a ? a.bezeichnung : "", "erp-feld--bez")}
+    {f("zeichnung", "Zeichnung", a ? a.zeichnung : "")}
+    {f("ident", "Ident-Nr. Kunde", a ? ad.kunden_nr || ad.ident : "")}
+  </>;
 }
 
 const ABRUF = [{ name: "termin", label: "Termin", typ: "datum" }, { name: "kw", label: "oder KW" }, { name: "menge", label: "Menge", typ: "zahl" }];
@@ -359,7 +427,7 @@ function Positionen({ d, kopf, pos, setPos, bearbeiten, b, aussen, frisch }) {
   const kw = ((d.partnerMap.get(kopf.partner_id) || {}).daten || {}).termin_art === "kw";
   const setzen = (i, name, w) => setPos((l) => l.map((p, j) => {
     if (j !== i) return p;
-    const n = { ...p, [name]: w };
+    const n = terminNachziehen({ ...p, [name]: w }, name, w, kw, typ);
     if (name === "artikel_id") {
       const a = d.artikelMap.get(w);
       if (a) n.einheit = a.einheit || n.einheit;
@@ -403,18 +471,21 @@ function Positionen({ d, kopf, pos, setPos, bearbeiten, b, aussen, frisch }) {
   return (
     <fieldset className="erp-liste erp-feld--breit"><legend>Positionen</legend>
       {pos.map((p, i) => {
-        const gesperrt = p.id && d.bewegungen.some((x) => x.position_id === p.id);
+        // Artikel änderbar, solange auf der Position nichts gebucht ist und kein Folgebeleg darauf zeigt
+        const gesperrt = p.id && (d.bewegungen.some((x) => x.position_id === p.id) || folgePositionen(d, p.id).length > 0);
         return (
           <div key={p.id || "n" + i} className="erp-pos">
             <div className="erp-liste__zeile">
               <ArtikelWahl d={d} wert={p.artikel_id} setzen={(w) => setzen(i, "artikel_id", w)} gesperrt={gesperrt} />
+              <ArtikelAngaben a={d.artikelMap.get(p.artikel_id)} idx={p.id && p.artikel_id === (d.posMap.get(p.id) || {}).artikel_id ? posIdx(d, p) : (d.artikelMap.get(p.artikel_id) || {}).idx} />
+            </div>
+            <div className="erp-liste__zeile">
               <Feld f={{ name: "menge", label: rahmen ? "Rahmenmenge" : "Menge", typ: "zahl" }} wert={p.menge} setzen={(w) => setzen(i, "menge", w)} />
               <Feld f={{ name: "einheit", label: "Einheit" }} wert={p.einheit} setzen={(w) => setzen(i, "einheit", w)} />
               {preis && <Feld f={{ name: "preis", label: "Preis CHF", typ: "zahl" }} wert={p.preis} setzen={(w) => setzen(i, "preis", w)} />}
               {preis && <Feld f={{ name: "pe", label: "pro", auswahl: PE_AUSWAHL }} wert={String(posPe(p))} setzen={(w) => setzen(i, "pe", w)} />}
-              {!rahmen && (kw
-                ? <Feld f={{ name: "termin_kw", label: "Termin KW", platzhalter: "48/2026" }} wert={p.termin_kw} setzen={(w) => setzen(i, "termin_kw", w)} />
-                : <Feld f={{ name: "termin", label: "Termin", typ: "datum" }} wert={p.termin} setzen={(w) => setzen(i, "termin", w)} />)}
+              {!rahmen && terminFelder(p, kw, (name, w) => setzen(i, name, w),
+                ({ key, name, label, typ, platzhalter, wert, setzen: s2 }) => <Feld key={key} f={{ name, label, typ, platzhalter }} wert={wert} setzen={s2} />)}
               <button type="button" className="knopf knopf--klein knopf--gefahr" title="Entfernen"
                 onClick={() => setPos((l) => l.filter((_, j) => j !== i))}>✕</button>
             </div>
@@ -460,12 +531,25 @@ function PositionFenster({ d, aussen, b, p, frisch, zu }) {
   const t = BELEGTYP[b.typ];
   const preis = mitPreis(b.typ);
   const a = d.artikelMap.get(p.artikel_id);
-  const start = { menge: String(p.menge ?? ""), einheit: p.einheit || "Stk", preis: p.preis == null ? "" : String(p.preis),
+  const start = { artikel_id: p.artikel_id || "", menge: String(p.menge ?? ""), einheit: p.einheit || "Stk", preis: p.preis == null ? "" : String(p.preis),
     pe: String(posPe(p)), termin: p.termin || "", termin_kw: p.termin_kw || "", text: p.text || "" };
   const [w, setW] = useState(start);
   const [laeuft, setLaeuft] = useState(false);
   const geaendert = JSON.stringify(w) !== JSON.stringify(start);
-  const set = (name) => (x) => setW((v) => ({ ...v, [name]: x }));
+  const set = (name) => (x) => setW((v) => {
+    const n = terminNachziehen({ ...v, [name]: x }, name, x, kw, b.typ);
+    // Neuer Artikel: Einheit und Preis aus seiner Preisliste mitnehmen
+    if (name === "artikel_id") {
+      const na = d.artikelMap.get(x);
+      if (na) {
+        n.einheit = na.einheit || n.einheit;
+        const vp = preis ? preisFuerMenge(na, zahl(n.menge)) : null;
+        if (vp) { n.preis = String(vp.preis); n.pe = String(vp.pe || 1); }
+      }
+    }
+    return n;
+  });
+  const artGesperrt = d.bewegungen.some((x) => x.position_id === p.id) || d.positionen.some((x) => x.bezug_id === p.id);
   const ist = b.typ === "auftrag" ? geliefert(d, p) : b.typ === "bestellung" ? gebucht(d, p.id, "eingang")
     : b.typ === "fertigung" ? gebucht(d, p.id, "fertig") : 0;
   const istText = { auftrag: "Geliefert", bestellung: "Eingegangen", fertigung: "Fertig gemeldet" }[b.typ];
@@ -477,9 +561,25 @@ function PositionFenster({ d, aussen, b, p, frisch, zu }) {
     if (!(zahl(w.menge) > 0) && b.typ !== "proforma") throw new Error("Menge fehlt.");
     const daten = { ...(p.daten || {}), pe: peZahl(w.pe) };
     if (w.preis !== start.preis || w.pe !== start.pe) daten.preisAuto = false;
-    await aendern("erp_positionen", p.id, { menge: zahl(w.menge), einheit: w.einheit, preis: w.preis === "" ? null : zahl(w.preis),
+    const neuArt = w.artikel_id !== start.artikel_id;
+    if (neuArt) {
+      if (artGesperrt) throw new Error("Die Position hat schon Buchungen oder Folgebelege, der Artikel lässt sich nicht mehr ändern.");
+      if (!w.artikel_id && !w.text.trim()) throw new Error("Artikel fehlt.");
+      const na = d.artikelMap.get(w.artikel_id);
+      daten.idx = na ? na.idx || "" : "";
+    }
+    await aendern("erp_positionen", p.id, { ...(neuArt ? { artikel_id: w.artikel_id || null } : {}), menge: zahl(w.menge), einheit: w.einheit, preis: w.preis === "" ? null : zahl(w.preis),
       termin: w.termin || null, termin_kw: w.termin_kw || null, text: w.text || null, daten });
     alt.meldung("Position " + p.pos + " gespeichert.", "gut");
+    await frisch(); zu();
+  };
+  // Einzelne Position löschen, der Kopf bleibt (Wunsch Patrick 25. November 2026)
+  const posLoeschen = async () => {
+    if (artGesperrt) { alt.meldung("Position " + p.pos + " hat schon Buchungen oder Folgebelege und bleibt.", "warn"); return; }
+    if (!(await alt.nachfragen({ titel: "Position löschen", gefahr: true, bestaetigen: "Löschen",
+      text: "Position " + p.pos + " aus " + t.name + " " + b.nr + " löschen? Der Beleg bleibt." }))) return;
+    await loeschen("erp_positionen", p.id);
+    alt.meldung("Position " + p.pos + " gelöscht.", "gut");
     await frisch(); zu();
   };
   const schliessen = async () => { if (await schliessenFragen(geaendert, alt)) zu(); };
@@ -488,10 +588,24 @@ function PositionFenster({ d, aussen, b, p, frisch, zu }) {
   const kopf = <>
     <KF label={t.name} nurLesen wert={<b>{b.nr}</b>} />
     <KF label="Position" nurLesen wert={p.pos} />
-    <KF label="Artikel" nurLesen wert={a ? artikelIdxText(a, posIdx(d, p)) : p.text || "freie Position"} menue={artMenue} />
-    <KF label="Matchcode" nurLesen wert={a ? a.bezeichnung || "" : ""} />
+    {artGesperrt
+      ? <KF label="Artikel" nurLesen wert={a ? artikelIdxText(a, posIdx(d, p)) : p.text || "freie Position"} menue={artMenue} />
+      : <ArtikelWahl d={d} wert={w.artikel_id} setzen={set("artikel_id")} />}
+    <KF label="Matchcode" nurLesen wert={(d.artikelMap.get(w.artikel_id) || {}).bezeichnung || ""} />
+    {(() => {
+      const na = d.artikelMap.get(w.artikel_id);
+      if (!na) return null;
+      const nd = na.daten || {};
+      return <>
+        <KF label="Index" nurLesen wert={w.artikel_id === p.artikel_id ? posIdx(d, p) : na.idx || ""} />
+        <KF label="Zeichnung" nurLesen wert={na.zeichnung || ""} />
+        <KF label="Ident-Nr. Kunde" nurLesen wert={nd.kunden_nr || nd.ident || ""} />
+      </>;
+    })()}
   </>;
   const fuss = <>
+    <button className="knopf knopf--gefahr" data-erp-pos-loeschen="" disabled={artGesperrt}
+      title={artGesperrt ? "Hat schon Buchungen oder Folgebelege" : "Nur diese Position löschen"} onClick={() => tun(posLoeschen)}>Position löschen</button>
     {b.typ === "auftrag" && <button className="knopf" data-erp-pos-lieferplan="" onClick={() => lieferplanOeffnen(d, aussen, b, p, frisch)}>Lieferplan</button>}
     <span className="gf-fuss__luecke" />
     {geaendert && <span className="klein gf-geaendert">nicht gespeichert</span>}
@@ -509,8 +623,7 @@ function PositionFenster({ d, aussen, b, p, frisch, zu }) {
           {preis && <KF label="Preis CHF" name="preis" typ="zahl" rechts wert={w.preis} setzen={set("preis")} />}
           {preis && <KF label="pro" name="pe" wert={w.pe} setzen={set("pe")} auswahl={PE_AUSWAHL} />}
           {preis && <KF label="Wert CHF" nurLesen rechts wert={chf(wert)} />}
-          {kw ? <KF label="Termin KW" name="termin_kw" wert={w.termin_kw} setzen={set("termin_kw")} platzhalter="48/2026" />
-            : <KF label="Termin" name="termin" typ="datum" wert={w.termin} setzen={set("termin")} />}
+          {terminFelder(w, kw, (name, x) => set(name)(x), ({ key, ...r }) => <KF key={key} {...r} />)}
         </div>
         <div>
           {istText && <KF label={istText} nurLesen rechts wert={mengeText(ist) + " " + (p.einheit || "")} />}
@@ -535,11 +648,17 @@ export function lieferplanOeffnen(d, aussen, b, p, frisch) {
 }
 
 function LieferplanFenster({ d, aussen, b, p, frisch, zu }) {
-  const start = (p.daten.abrufe || []).map((x) => ({ termin: x.termin || "", kw: x.kw || "", menge: String(x.menge ?? ""), bemerkung: x.bemerkung || "" }));
+  const start = (p.daten.abrufe || []).map((x) => ({ termin: x.termin || "", kw: x.termin ? kwText(x.termin) : (x.kw || ""), menge: String(x.menge ?? ""), bemerkung: x.bemerkung || "" }));
   const [zeilen, setZeilen] = useState(start);
   const [laeuft, setLaeuft] = useState(false);
   const geaendert = JSON.stringify(zeilen) !== JSON.stringify(start);
-  const setZ = (i, name, x) => setZeilen((l) => l.map((z, j) => (j === i ? { ...z, [name]: x } : z)));
+  // KW und Datum ziehen einander sofort nach: Datum → KW, gültige KW → Freitag
+  const setZ = (i, name, x) => setZeilen((l) => l.map((z, j) => {
+    if (j !== i) return z;
+    if (name === "termin") return { ...z, termin: x, kw: x ? kwText(x) : "" };
+    if (name === "kw") { const t = kwZuDatum(x, new Date(), 4); return t ? { ...z, kw: x, termin: t } : { ...z, kw: x }; }
+    return { ...z, [name]: x };
+  }));
   const a = d.artikelMap.get(p.artikel_id);
   const lieferungen = folgePositionen(d, p.id, "lieferschein").map((x) => ({ x, ls: d.belegMap.get(x.beleg_id) })).filter((z) => z.ls)
     .sort((u, v) => (u.ls.datum || "").localeCompare(v.ls.datum || ""));
@@ -590,7 +709,7 @@ function LieferplanFenster({ d, aussen, b, p, frisch, zu }) {
           {!zeilen.length && <tr><td colSpan={7} className="gf-tab__leer">Noch keine Fälligkeit.</td></tr>}
           {zeilen.map((z, i) => <tr key={i} data-erp-lp-zeile={i} className={verteilt[i].faellig && verteilt[i].da < verteilt[i].m ? "erp-minus" : verteilt[i].m && verteilt[i].da >= verteilt[i].m ? "erp-gut" : ""}>
             <td><input type="date" value={z.termin} data-erp-feld="termin" onChange={(e) => setZ(i, "termin", e.target.value)} /></td>
-            <td><input value={z.kw || (z.termin ? kwText(z.termin) : "")} placeholder="KW/JJ" data-erp-feld="kw" onChange={(e) => setZ(i, "kw", e.target.value)} /></td>
+            <td><input value={z.kw ?? (z.termin ? kwText(z.termin) : "")} placeholder="KW" data-erp-feld="kw" onChange={(e) => setZ(i, "kw", e.target.value)} /></td>
             <td><input className="gf-rechts" inputMode="decimal" value={z.menge} data-erp-feld="menge" onChange={(e) => setZ(i, "menge", e.target.value)} /></td>
             <td className="rechts">{mengeText(verteilt[i].da)}</td>
             <td className="rechts">{mengeText(Math.max(0, verteilt[i].m - verteilt[i].da))}</td>
@@ -712,7 +831,7 @@ function kopieVorlage(d, b, typ) {
   const rechnungAn = anschriften(p, "rechnung");
   return {
     typ, partner_id: b.partner_id, bezug_id: b.id,
-    daten: { ...b.daten, fibu_am: null, anschrift: typ === "lieferschein" ? b.daten.anschrift : (rechnungAn[1] || rechnungAn[0])[1],
+    daten: { ...b.daten, fibu_am: null, anschrift: typ === "lieferschein" ? b.daten.anschrift : b.daten.rechnung_an || (rechnungAn[1] || rechnungAn[0])[1],
       mwst: b.daten.mwst ?? pd.mwst, text: typ === "gutschrift" ? "Gutschrift zu Rechnung " + b.nr : b.daten.text },
     positionen: (d.posJe.get(b.id) || []).map((x) => ({ ...x, id: null, bezug_id: x.id, termin: null })),
   };
@@ -771,7 +890,7 @@ function LieferscheinFenster({ d, b, zu, fertig }) {
     }
     setLaeuft(true);
     const ls = await einfuegen("erp_belege", { typ: "lieferschein", nr: naechsteBelegNr(d, "lieferschein"), partner_id: b.partner_id,
-      datum: heute(), bezug_id: b.id, daten: { anschrift: b.daten.anschrift, ihre_nr: b.daten.ihre_nr, liefer: b.daten.liefer } });
+      datum: heute(), bezug_id: b.id, daten: { anschrift: b.daten.anschrift, rechnung_an: b.daten.rechnung_an, ihre_nr: b.daten.ihre_nr, liefer: b.daten.liefer } });
     let n = 10;
     for (const x of wahl) {
       const [charge, lager] = x.charge.split("|");
@@ -975,7 +1094,7 @@ function AusLsFenster({ d, zu, neu }) {
       const an2 = anschriften(p, "rechnung");
       const re = await einfuegen("erp_belege", { typ: "rechnung", nr: naechsteBelegNr(d2, "rechnung"), partner_id: ls0.partner_id, datum: heute(),
         bezug_id: lsListe.length === 1 ? ls0.id : null,
-        daten: { liefer: pd.liefer || ls0.daten.liefer, zahlung: pd.zahlung, mwst: pd.mwst, anschrift: (an2[1] || an2[0])[1],
+        daten: { liefer: pd.liefer || ls0.daten.liefer, zahlung: pd.zahlung, mwst: pd.mwst, anschrift: ls0.daten.rechnung_an || (an2[1] || an2[0])[1],
           ihre_nr: [...new Set(lsListe.map((x) => x.daten.ihre_nr).filter(Boolean))].join(", "),
           text: "Lieferschein " + lsListe.map((x) => x.nr + " vom " + datumText(x.datum)).join(", ") } });
       // Damit die nächste Nummer weiterzählt, ohne neu zu laden

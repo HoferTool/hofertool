@@ -59,11 +59,16 @@ def neuer_beleg(pg, typ, partner, artikel, menge, preis=None):
     f.locator("select[data-erp-feld='partner_id']").select_option(partner)
     f.locator("[data-erp-neupos]").click()
     f.locator("input[data-erp-feld='artikel']").last.fill(artikel)
+    # seit 1.809.0 im Feld nur die Nr., Index, Bezeichnung, Zeichnung, Ident daneben
+    nr = artikel.split(" ")[0]
+    if f.locator("input[data-erp-feld='artikel']").last.input_value() == nr and f.locator("[data-erp-artfeld='bez']").count():
+        ARTFELD.append(nr)
     f.locator("input[data-erp-feld='menge']").last.fill(menge)
     if preis: f.locator("input[data-erp-feld='preis']").last.fill(preis)
     f.locator("[data-erp-speichern]").click(); pg.wait_for_timeout(700)
     pg.screenshot(path=BILD + "/erp-nach-%s.png" % typ)
 
+ARTFELD = []
 def tabelle(pg, t): return pg.evaluate("() => TEST.daten.%s" % t)
 
 with sync_playwright() as p:
@@ -260,11 +265,17 @@ with sync_playwright() as p:
     pruefe(ap and ap[-1]["preis"] == 200 and (ap[-1].get("daten") or {}).get("pe") == 1000, "Auftrag nimmt Staffelpreis: %s" % ap)
     oben(pg).locator("[data-erp-zeile]").first.click(); pg.wait_for_selector("[data-erp-posfenster]")
     pg.screenshot(path=BILD + "/erp-position.png")
+    pruefe(len(ARTFELD) > 0, "Artikel-Nr. und Angaben in eigenen Feldern: %s" % ARTFELD)
     pg.click("[data-erp-pos-lieferplan]"); pg.wait_for_selector("[data-erp-lieferplan]")
     pg.click("[data-erp-lp-neu]"); pg.click("[data-erp-lp-neu]")
     z = pg.locator("[data-erp-lp-zeile]")
     z.nth(0).locator("input[data-erp-feld='menge']").fill("4000"); z.nth(0).locator("input[data-erp-feld='termin']").fill("2026-12-15")
     z.nth(1).locator("input[data-erp-feld='menge']").fill("2000"); z.nth(1).locator("input[data-erp-feld='termin']").fill("2027-02-01")
+    pruefe(z.nth(0).locator("input[data-erp-feld='kw']").input_value() == "51", "KW im laufenden Jahr ohne /JJ: %s" % z.nth(0).locator("input[data-erp-feld='kw']").input_value())
+    pruefe(z.nth(1).locator("input[data-erp-feld='kw']").input_value() == "05/27", "KW im nächsten Jahr mit /JJ: %s" % z.nth(1).locator("input[data-erp-feld='kw']").input_value())
+    z.nth(0).locator("input[data-erp-feld='kw']").fill("50")
+    pruefe(z.nth(0).locator("input[data-erp-feld='termin']").input_value() == "2026-12-11", "KW 50 im Auftrag = Freitag: %s" % z.nth(0).locator("input[data-erp-feld='termin']").input_value())
+    z.nth(0).locator("input[data-erp-feld='termin']").fill("2026-12-15")
     pg.screenshot(path=BILD + "/erp-lieferplan.png")
     pg.click("[data-erp-lieferplan] [data-erp-speichern]"); pg.wait_for_timeout(800)
     pos = [x for x in tabelle(pg, "erp_positionen") if x["artikel_id"] == a["id"]][-1]
@@ -291,6 +302,32 @@ with sync_playwright() as p:
     neuer_beleg(pg, "auftrag", "k1", "10007-0589 Ind. B · Bolzen", "10", "2.40")
     nrn = [b["nr"] for b in tabelle(pg, "erp_belege") if b["typ"] == "auftrag"]
     pruefe("AU%s-0458" % str(j)[2:] in nrn, "Neuer Auftrag mit Startwert: %s" % nrn)
+
+    # Bestellung: KW gibt den Montag; einzelne Position löschen, der Beleg bleibt
+    for _ in range(4):
+        if pg.locator(".dialog-huelle").count() == 0: break
+        pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+        if pg.locator(".dialog-huelle [data-ja]").count(): pg.locator(".dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(200)
+    pg.click("[data-erp-reiter='bestellung']"); pg.click("[data-erp-neu='bestellung']")
+    f = oben(pg); f.wait_for()
+    f.locator("select[data-erp-feld='partner_id']").select_option("l1")
+    for _ in range(2):
+        f.locator("[data-erp-neupos]").click()
+        f.locator("input[data-erp-feld='artikel']").last.fill("X8CrNiS18-9 rd 12")
+        f.locator("input[data-erp-feld='menge']").last.fill("50")
+    kwf = f.locator("input[data-erp-feld='_kw'], input[data-erp-feld='termin_kw']").last
+    kwf.fill("50"); pg.wait_for_timeout(200)
+    tf = f.locator("input[data-erp-feld='termin']").last.input_value()
+    pruefe(tf == "2026-12-07", "KW 50 in der Bestellung = Montag: %s" % tf)
+    f.locator("[data-erp-speichern]").click(); pg.wait_for_timeout(700)
+    be = sorted([b for b in tabelle(pg, "erp_belege") if b["typ"] == "bestellung"], key=lambda b: b["nr"])[-1]
+    bp = [x for x in tabelle(pg, "erp_positionen") if x["beleg_id"] == be["id"]]
+    pruefe(len(bp) == 2, "Bestellung mit zwei Positionen: %d" % len(bp))
+    oben(pg).locator("[data-erp-zeile]").first.click(); pg.wait_for_selector("[data-erp-posfenster]")
+    pg.click("[data-erp-pos-loeschen]"); pg.wait_for_selector(".dialog-huelle [data-ja]")
+    pg.locator(".dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(800)
+    bp2 = [x for x in tabelle(pg, "erp_positionen") if x["beleg_id"] == be["id"]]
+    pruefe(len(bp2) == 1 and any(b["id"] == be["id"] for b in tabelle(pg, "erp_belege")), "Position gelöscht, Beleg bleibt: %d" % len(bp2))
 
     # Pro HOCO Nr. nur ein Artikel: Neuer Index ändert denselben Artikel
     for _ in range(4):

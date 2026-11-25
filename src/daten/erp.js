@@ -201,20 +201,51 @@ export function datumText(iso) {
   const [j, m, t] = String(iso).slice(0, 10).split("-");
   return t + "." + m + "." + j;
 }
-// Kalenderwoche nach ISO wie im Gewatec: „25/26“
-export function kwText(iso) {
-  if (!iso) return "";
+// Kalenderwoche nach ISO wie im Gewatec: „25/27“, im laufenden Jahr nur „25“
+// (Wunsch Patrick 25. November 2026: im aktuellen Jahr ohne Zusatz /JJ)
+function kwUndJahr(iso) {
   const t = new Date(String(iso).slice(0, 10) + "T12:00:00");
-  if (isNaN(t)) return "";
+  if (isNaN(t)) return null;
   const tag = (t.getDay() + 6) % 7;
   t.setDate(t.getDate() - tag + 3);
   const jahr = t.getFullYear();
   const erster = new Date(jahr, 0, 4, 12);
   const kw = 1 + Math.round(((t - erster) / 86400000 - 3 + ((erster.getDay() + 6) % 7)) / 7);
-  return String(kw).padStart(2, "0") + "/" + String(jahr).slice(2);
+  return { kw, jahr };
 }
+export function kwText(iso, heute = new Date()) {
+  if (!iso) return "";
+  const k = kwUndJahr(iso);
+  if (!k) return "";
+  const nr = String(k.kw).padStart(2, "0");
+  return k.jahr === heute.getFullYear() ? nr : nr + "/" + String(k.jahr).slice(2);
+}
+// Umgekehrt: „48“ (dieses Jahr), „KW 48“, „05/27“ oder „05/2027“ → ISO-Datum
+// dieser Woche, sonst "". tag: 0 = Montag (Bestellungen), 4 = Freitag (Aufträge),
+// Wunsch Patrick 25. November 2026
+export function kwZuDatum(text, heute = new Date(), tag = 0) {
+  const m = /^\s*(?:kw\s*)?(\d{1,2})\s*(?:[/.\-\s]\s*(\d{2}|\d{4}))?\s*$/i.exec(String(text || ""));
+  if (!m) return "";
+  const kw = +m[1];
+  let jahr = m[2] ? +m[2] : heute.getFullYear();
+  if (jahr < 100) jahr += 2000;
+  if (kw < 1 || kw > 53) return "";
+  // 4. Januar liegt immer in KW 1
+  const vier = new Date(jahr, 0, 4, 12);
+  const d = new Date(vier);
+  d.setDate(vier.getDate() - ((vier.getDay() + 6) % 7) + (kw - 1) * 7);
+  const iso = (x) => x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0");
+  // KW 53 gibt es nicht in jedem Jahr
+  const k = kwUndJahr(iso(d));
+  if (!k || k.kw !== kw || k.jahr !== jahr) return "";
+  d.setDate(d.getDate() + tag);
+  return iso(d);
+}
+// Wochentag für eine KW: Aufträge Freitag, Bestellungen Montag
+export function kwTag(typ) { return typ === "auftrag" ? 4 : 0; }
 export function terminText(p) {
-  if (p.termin_kw) return "KW " + p.termin_kw;
+  // Aus dem Datum gerechnet, damit „48“ nächstes Jahr wieder „48/26“ heisst
+  if (p.termin_kw) return "KW " + (p.termin ? kwText(p.termin) : p.termin_kw);
   return p.termin ? datumText(p.termin) : "";
 }
 
