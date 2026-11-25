@@ -370,6 +370,13 @@ export const ARTEN = [
   { id: "ll", name: "LL Langläufer", kurz: "LL", text: "Wichtige Masse, Stichproben laufend" },
 ];
 export const artVon = (id) => ARTEN.find((a) => a.id === id) || ARTEN[0];
+// Bei der Endkontrolle wählt die QS-Leitung, ob es eine End- oder eine
+// Zwischenkontrolle ist (seit 1.826.0, Wunsch Patrick 25. November 2026),
+// gespeichert in kopf.kontrolle ("zwischen", sonst End)
+export const istZwischen = (kopf) => (kopf || {}).art === "endkontrolle" && (kopf || {}).kontrolle === "zwischen";
+export const artName = (kopf) => istZwischen(kopf)
+  ? { id: "endkontrolle", name: "Zwischenkontrolle", kurz: "Zwischen", text: "Nur was jetzt zu prüfen ist" }
+  : artVon((kopf || {}).art);
 export const TEILE = 5;
 
 // ---------- AQL nach ISO 2859-1, Einfach-Stichprobe, normale Prüfung ----------
