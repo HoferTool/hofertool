@@ -460,6 +460,10 @@ function Protokoll({ p, zurueck }) {
     // Erstteil mit Freigabe stellt den Auftrag auf „läuft“ (seit 1.785.0,
     // Wunsch Patrick 24. November 2026), nur den Auftrag dieses Protokolls
     if (art === "erstteil" && n.entscheid === "freigabe" && n.job_id) {
+      // Erst nach erledigter Erstteilprüfung ist geprüft, dass die richtigen
+      // Lehren da sind: dann ausbuchen, vor „läuft“, damit die Tage gleich zählen
+      // (seit 1.828.0, Wunsch Patrick 25. November 2026)
+      await ausbuchen(n, hoco);
       try {
         const { data: j } = await alt.db.from("jobs").select("*").eq("id", n.job_id).maybeSingle();
         if (j && j.plan_status !== "laeuft" && j.plan_status !== "fertig" && !j.ended_at) {
@@ -499,7 +503,7 @@ function Protokoll({ p, zurueck }) {
   // Ältere Protokolle mit schon eingetragenen Werten brauchen sie nicht.
   const braucheCheck = art === "erstteil" && !zu && !(w.kopf.checkliste || {}).am && !(e.gut + e.schlecht);
   if (braucheCheck) return <Checkliste w={w} hoco={hoco} schreibt={schreibt} zurueck={zurueck}
-    quittieren={(c) => { const n = { ...w, kopf: { ...w.kopf, checkliste: c } }; setW(n); speichern(n); ausbuchen(w, hoco); }} />;
+    quittieren={(c) => { const n = { ...w, kopf: { ...w.kopf, checkliste: c } }; setW(n); speichern(n); }} />;
   return (
     <div className="pb pb-blattseite" data-pbprotokolloffen={w.id}>
       <div className="pb-kopfzeile pb-werkzeug">
@@ -575,7 +579,19 @@ function checkPunkte(kopf) {
     .concat([["sauber", "Prüfmittel sauber, Prüfdatum gültig", ""]]);
 }
 
-// Nach der Checkliste die Lehren aus dem Schrank auf den Auftrag ausbuchen
+// Schrank seitenweise, die Datenbank gibt höchstens 1'000 auf einmal
+async function schrankLaden() {
+  const alle = [];
+  for (let ab = 0; ab < 50000; ab += 1000) {
+    const { data, error } = await alt.db.from("pruefmittel").select("*").eq("ort_art", "schrank").order("id").range(ab, ab + 999);
+    if (error) break;
+    alle.push(...(data || []));
+    if (!data || data.length < 1000) break;
+  }
+  return { data: alle };
+}
+
+// Nach erledigter Erstteilprüfung (Freigabe) die Lehren aus dem Schrank auf den Auftrag ausbuchen
 // (Wunsch Patrick 24. November 2026): sie zählen ab „läuft“ Einsatztage und
 // kommen bei „fertig“ in die Rückgabekiste (Auslöser in sql/pruefmittel-rueckgabe.sql).
 // Nur Admins dürfen Prüfmittel ändern; sonst bleibt es still.
@@ -585,8 +601,8 @@ async function ausbuchen(w, hoco) {
     const { lehren } = lehrenAus({ zeilen: masse(w.kopf.zeilen) });
     if (!lehren.length) return;
     const [{ data: pm }, { data: job }] = await Promise.all([
-      alt.db.from("pruefmittel").select("*").eq("ort_art", "schrank"),
-      alt.db.from("jobs").select("id, machine_id").eq("id", w.job_id).maybeSingle(),
+      schrankLaden(),
+      alt.db.from("jobs").select("id, machine_id, plan_status").eq("id", w.job_id).maybeSingle(),
     ]);
     if (!pm || !job || !job.machine_id) return;
     const ids = new Set();
@@ -595,7 +611,10 @@ async function ausbuchen(w, hoco) {
     const liste = [...ids];
     const vorher = [];
     for (const id of liste) vorher.push(...await alt.rueckSichern("pruefmittel", { id }));
-    const { error } = await alt.db.from("pruefmittel").update({ ort_art: "maschine", machine_id: job.machine_id, job_id: job.id })
+    const neu = { ort_art: "maschine", machine_id: job.machine_id, job_id: job.id };
+    // Läuft der Auftrag schon, zählen die Tage ab jetzt (sonst ab „läuft“ über den Auslöser)
+    if (job.plan_status === "laeuft") neu.zaehlt_seit = new Date().toISOString();
+    const { error } = await alt.db.from("pruefmittel").update(neu)
       .in("id", liste);
     if (error) return;
     alt.merkeSchritt(liste.length + " Prüfmittel ausgebucht", alt.rueckRein("pruefmittel", vorher));

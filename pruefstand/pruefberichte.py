@@ -28,6 +28,7 @@ with sync_playwright() as p:
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
     pg.evaluate("""s => { TEST.daten.pruef_stamm = [s]; TEST.daten.pruefbericht_dateien = []; TEST.daten.pruefprotokolle = [];
+        TEST.daten.pruefmittel = [{ id: 'pmx', nr: 'PM-9', bezeichnung: 'Grenzlehrdorn', mass: '5.45 / 5.55', ort_art: 'schrank', status: 'aktiv' }];
         const m = (TEST.daten.machines || [])[0];
         TEST.daten.jobs.push({ id: 'jpb1', job_number: '99999-0001', fa_nr: '2026000111', plan_status: 'ruesten', planned_from: '2026-11-20', target_quantity: 800, machine_id: m && m.id, material_bez: 'X10CrNiS18-9 rd 011 mm h8', material_dm: 11 },
                              { id: 'jpb2', job_number: '99999-0001', fa_nr: '2025000999', plan_status: 'fertig', planned_from: '2026-11-01', ended_at: new Date(Date.now() - 3*86400000).toISOString(), target_quantity: 500 }); }""", STAMM)
@@ -46,6 +47,8 @@ with sync_playwright() as p:
     pruefe(pg.locator("#pb-check-quittieren").is_disabled(), "Quittieren erst wenn alles abgehakt")
     for c in pg.locator("[data-pbcheck]").all(): c.check()
     pg.click("#pb-check-quittieren"); pg.wait_for_selector("#pb-blatt"); pg.wait_for_timeout(300)
+    pmo = pg.evaluate("() => TEST.daten.pruefmittel.find(p => p.id === 'pmx').ort_art")
+    pruefe(pmo == "schrank", "Checkliste quittieren bucht noch nicht aus: %s" % pmo)
     bb = pg.evaluate("() => { const r = document.querySelector('#pb-blatt').getBoundingClientRect(); return [r.width, r.height]; }")
     pruefe(780 < bb[0] < 810 and bb[1] > 1000, "A4-Blatt: %s" % bb)
     pg.fill("[data-pbist='n1-0']", "5.52"); pg.fill("[data-pbist='n1-1']", "5.60"); pg.mouse.move(5, 5); pg.wait_for_timeout(300)
@@ -66,6 +69,8 @@ with sync_playwright() as p:
     pruefe(pg.locator("#pb-liste [data-pbprotokoll]").count() == 1, "in der Liste zuletzt bearbeitet")
     st1 = pg.evaluate("() => TEST.daten.jobs.find(j => j.id === 'jpb1').plan_status")
     pruefe(st1 == "laeuft", "Freigabe stellt jpb1 auf läuft: %s" % st1)
+    pmx = pg.evaluate("() => TEST.daten.pruefmittel.find(p => p.id === 'pmx')")
+    pruefe(pmx.get("ort_art") == "maschine" and pmx.get("job_id") == "jpb1", "nach Freigabe ausgebucht: %s %s" % (pmx.get("ort_art"), pmx.get("job_id")))
     pruefe(pg.locator("[data-pbtodo=aql] [data-pbtodoauftrag=jpb1]").count() == 1, "AQL steht an bei läuft")
     # Endkontrolle als Zwischenkontrolle: nichts muss ausgefüllt sein, Auftrag bleibt bei Endkontrolle
     pg.click("[data-pbtodo=endkontrolle] [data-pbtodoauftrag=jpb2]"); pg.wait_for_selector("#pb-kontrolle")
