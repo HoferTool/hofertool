@@ -511,9 +511,12 @@ function Material({ k, setze, setK, rechnung }) {
           (Wunsch Patrick 27. Oktober 2026) */}
       <section className="karte kalk-rolle">
         <h2>Staffelmengen <small className="kalk-einheit">Lose: wie oft gerüstet wird, jedes weitere Los mit „Folgerüsten“</small></h2>
+        {/* Preis pro 1, 100 oder 1000 Stk (Wunsch Patrick 21. November 2026),
+            seit 1.844.0 vorne bei den Staffeln (Wunsch Patrick 25. November 2026);
+            Angebots- und Zielpreis gelten dann für diese Menge */}
         <table className="kalk-tab kalk-eng kalk-staffeltab" id="kalk-staffeln">
           <tbody>
-            <tr><td></td>{k.staffeln.map((s, i) => <th key={i} className="rechts" data-staffel-zeile={i}>Staffel {i + 1}
+            <tr><td><label className="kalk-mini kalk-pe-vorne"><span>Preis pro</span>           <select id="kalk-pe" value={String(peWert(k.preis.pe))} onChange={(e) => setze("preis.pe", e.target.value)}>             {PREISEINHEITEN.map((x) => <option key={x} value={String(x)}>{peText(x)}</option>)}           </select>         </label></td>{k.staffeln.map((s, i) => <th key={i} className="rechts" data-staffel-zeile={i}>Staffel {i + 1}
               {k.staffeln.length > 1 && <button className="linkknopf linkknopf--gefahr kalk-staffel-weg" data-staffel-weg={i} title="Staffel entfernen"
                 onClick={() => setK((x) => ({ ...x, staffeln: x.staffeln.filter((_, j) => j !== i) }))}>✕</button>}</th>)}
               <td rowSpan={3}><button className="knopf knopf--klein" id="kalk-staffel-neu"
@@ -900,7 +903,7 @@ function Preis({ k, setze, setK, rechnung }) {
   const E = (name) => {
     const [, titel, einheit] = PREIS_JE_STAFFEL.find(([n]) => n === name);
     return (
-      <tr key={name} className="kalk-eingabe"><td>{titel} <span className="kalk-einheit">{name === "eil" ? (k.preis.eilArt === "prozent" ? "%" : "CHF/Stk") : einheit}</span></td>
+      <tr key={name} className="kalk-eingabe"><td>{titel} <span className="kalk-einheit">{einheit}</span></td>
         {rechnung.map((r, i) => {
           const eigen = (k.staffeln[staffelIdx[i]].preis || {})[name] || "";
           const erst = (k.staffeln[staffelIdx[0]].preis || {})[name] || "";
@@ -918,18 +921,6 @@ function Preis({ k, setze, setK, rechnung }) {
       {/* Alles Gemeinsame in einer Zeile, damit der Reiter ohne Rollen
           Platz hat (Wunsch Patrick 27. Oktober 2026) */}
       <div className="kalk-preis-leiste">
-        <label className="kalk-mini"><span>Eilzuschlag</span>
-          <select id="kalk-eilart" value={k.preis.eilArt || "pauschal"} onChange={(e) => setze("preis.eilArt", e.target.value)}>
-            <option value="pauschal">Pauschal CHF/Stk</option><option value="prozent">Prozent</option>
-          </select>
-        </label>
-        {/* Preis pro 1, 100 oder 1000 Stk (Wunsch Patrick 21. November 2026),
-            Angebots- und Zielpreis gelten dann für diese Menge */}
-        <label className="kalk-mini"><span>Preis pro</span>
-          <select id="kalk-pe" value={String(peWert(k.preis.pe))} onChange={(e) => setze("preis.pe", e.target.value)}>
-            {PREISEINHEITEN.map((x) => <option key={x} value={String(x)}>{peText(x)}</option>)}
-          </select>
-        </label>
         <label className="kalk-mini"><span>Runden auf</span>
           <select id="kalk-rundung" value={k.preis.rundung || "0.01"} onChange={(e) => setze("preis.rundung", e.target.value)}>
             <option value="0.01">1 Rappen</option><option value="0.05">5 Rappen</option>
@@ -971,7 +962,7 @@ function Preis({ k, setze, setK, rechnung }) {
               <Zeile titel="Transportkosten gesamt" einheit="CHF/Stk" werte={R((r) => r.transport, 4)} />
               {E("verpackung")}{E("verpPct")}{E("verpPausch")}
               <Zeile titel="Verpackungskosten gesamt" einheit="CHF/Stk" werte={R((r) => r.verpackung, 4)} />
-              {E("gewinn")}{E("prov")}{E("skonto")}{E("rabatt")}{E("eil")}
+              {E("gewinn")}{E("prov")}{E("skonto")}{E("rabatt")}
               <Zeile titel="Grenzkosten GK" einheit="CHF/Stk" werte={R((r) => r.grenz, 4)} klein />
               <Zeile titel="Marge VK" einheit="CHF" werte={R((r) => r.margeVk, 4)} />
               <Zeile titel="Verkaufspreis VK" einheit="CHF/Stk" werte={R((r) => r.vk, 4)} fett />

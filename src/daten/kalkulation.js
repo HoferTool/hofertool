@@ -178,7 +178,6 @@ export const PREIS_JE_STAFFEL = [
   ["sek", "Sondereinzelkosten Vertrieb", "CHF/Stk"], ["vwgk", "Vw/Vt-Gemeinkosten", "%"],
   ["zinsPct", "Verzinsung", "%"], ["zinsMonate", "Verzinsung über Monate", ""],
   ["gewinn", "Gewinn", "%"], ["prov", "Provision", "%"], ["skonto", "Skonto", "%"], ["rabatt", "Rabatt", "%"],
-  ["eil", "Eilzuschlag", ""],
   ["transport", "Transportkosten", "CHF/Stk"], ["transPct", "Transport Zuschlag", "%"], ["transPausch", "Transport pauschal", "CHF je Lieferlos"],
   ["verpackung", "Verpackungskosten", "CHF/Stk"], ["verpPct", "Verpackung Zuschlag", "%"], ["verpPausch", "Verpackung pauschal", "CHF"],
 ];
@@ -257,8 +256,8 @@ export function staffelRechnen(k, staffel, maschinen) {
   const fracht = transport + verpackung;
   const abzug = (z(p.prov) + z(p.skonto) + z(p.rabatt)) / 100;
   let vk = (selbstVerz + fracht) * (1 + z(p.gewinn) / 100) / (abzug < 1 ? 1 - abzug : 1);
-  // Eilzuschlag pauschal in CHF je Stück oder in Prozent auf den VK
-  vk = p.eilArt === "prozent" ? vk * (1 + z(p.eil) / 100) : vk + z(p.eil);
+  // Den Eilzuschlag gibt es nicht mehr (Wunsch Patrick 25. November 2026),
+  // ein gespeicherter Wert in älteren Kalkulationen zählt nicht
   const schritt = z(p.rundung) || 0.01;
   // Ein eingetragener Angebotspreis der Staffel gilt vor dem gerundeten VK
   // Ausgabe in CHF, EUR oder USD: gerechnet wird in CHF, das Angebot
