@@ -17437,3 +17437,20 @@ body.dunkel .pb-pm-fehlt { color: #ff9a92 !important; }
 
 /* 1.839.3 Prüfberichte: Index fehlt rot */
 .pb-idx-fehlt { color: #c62828 !important; }
+
+/* 1.841.0 Planer: Todo-Spalte schmaler und kleiner, damit das Material mehr Platz hat
+   (Wunsch Patrick 25. November 2026). Nur im Planer, nicht die Todos der Seitenleiste. */
+@media (min-width: 1001px) {
+  :is(#pad, .pl-seite) .pl { grid-template-columns: minmax(230px, 290px) 1fr; }
+}
+:is(#pad, .pl-seite) .pl-links .pl-zahlen { gap: 6px; }
+:is(#pad, .pl-seite) .pl-links .pl-zahl { padding: 6px 4px; }
+:is(#pad, .pl-seite) .pl-links .pl-zahl span { font-size: .66rem; }
+:is(#pad, .pl-seite) .pl-links .pl-zahl b { font-size: 1.3rem; }
+:is(#pad, .pl-seite) .pl-links .pl-todo__eintrag { gap: 7px; padding: 6px 7px; }
+:is(#pad, .pl-seite) .pl-links .pl-todo__titel { font-size: .8rem; }
+:is(#pad, .pl-seite) .pl-links .pl-todo__unter { font-size: .7rem; }
+:is(#pad, .pl-seite) .pl-links .pl-kopf h2 { font-size: .95rem; }
+:is(#pad, .pl-seite) .pl-links .pl-kopf { gap: 6px; }
+:is(#pad, .pl-seite) .pl-links #pl-abgeschlossen { font-size: .72rem; padding: 5px 8px; white-space: nowrap; }
+:is(#pad, .pl-seite) .pl-links .pl-plus { width: 30px; height: 30px; font-size: 1.1rem; }

@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.841.0 (25. November 2026)
+
+Planer: Todo-Spalte am PC schmaler und mit kleinerer Schrift, das Material bekommt mehr Platz (Wunsch Patrick).
+
 ## 1.835.0 (25. November 2026)
 
 Kiosk in HOFERTIME: je Artikel ein Bild (unter Verwalten „+ Bild“) und eine Beschreibung statt Emoji (Wunsch Patrick). SQL `sql/hofertime-21-kiosk-bild.sql`.
