@@ -1,3 +1,4 @@
+import json
 # Test ERP (1.672.0, Wunsch Patrick 20. November 2026): nur mit Vermerk
 # erpSehen, Kalkulation steht als Reiter im ERP statt im Menü. Ganzer
 # Ablauf: Bestellung → Wareneingang, Auftrag → FA → Material → Fertig →
@@ -269,6 +270,27 @@ with sync_playwright() as p:
     pos = [x for x in tabelle(pg, "erp_positionen") if x["artikel_id"] == a["id"]][-1]
     ab = (pos.get("daten") or {}).get("abrufe") or []
     pruefe([x["menge"] for x in ab] == [4000, 2000], "Lieferplan gespeichert: %s" % ab)
+
+    # Nummernkreise: Startwert für den Wechsel vom alten ERP
+    import datetime
+    j = datetime.date.today().year
+    for _ in range(4):
+        if pg.locator(".dialog-huelle").count() == 0: break
+        pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    pg.click("[data-erp-reiter='stamm']"); pg.wait_for_timeout(300)
+    pg.click("[data-erp-stamm='nummern']"); pg.wait_for_selector("[data-erp-nrstart='auftrag-%d']" % j)
+    pg.fill("[data-erp-nrstart='auftrag-%d']" % j, "458")
+    pg.fill("[data-erp-nrstart='kalkulation-%d']" % j, "6001")
+    naechst = pg.inner_text("[data-erp-nrnaechst='auftrag']")
+    pruefe(naechst == "AU%s-0458" % str(j)[2:], "Vorschau nächste Nummer: %s" % naechst)
+    pg.screenshot(path=BILD + "/erp-nummern.png")
+    pg.click("#erp-nr-speichern"); pg.wait_for_timeout(700)
+    cfg = [x for x in tabelle(pg, "app_config") if x["schluessel"] == "erp_nummern"]
+    w = json.loads(cfg[0]["wert"]) if cfg else {}
+    pruefe(w.get("auftrag", {}).get(str(j)) == 458 and w.get("kalkulation", {}).get(str(j)) == 6001, "Startwerte gespeichert: %s" % w)
+    neuer_beleg(pg, "auftrag", "k1", "10007-0589 Ind. B · Bolzen", "10", "2.40")
+    nrn = [b["nr"] for b in tabelle(pg, "erp_belege") if b["typ"] == "auftrag"]
+    pruefe("AU%s-0458" % str(j)[2:] in nrn, "Neuer Auftrag mit Startwert: %s" % nrn)
 
     pruefe(not pf, "keine Seitenfehler: %s" % pf)
     br.close()

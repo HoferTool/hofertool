@@ -16,10 +16,15 @@ import { ZiehListe } from "../teile/ZiehListe.jsx";
 import { useSeitenSuche } from "../teile/seitenSuche.js";
 import { teilMerken } from "../teile/wiederherstellen.js";
 import { materialZerlegen, werkstoffGenau } from "../daten/material.js";
+import { naechsteNummer, nummernLaden } from "../daten/erp.js";
 import {
   z, chf, stundensatz, staffelRechnen, leereKalkulation, kalkulationenLaden, maschinenLaden,
-  kalkulationSpeichern, maschineSpeichern, naechsteNr, BEISPIEL_MASCHINEN, beispielKalkulation, START_MASCHINEN, startArbeitsplan, WAEHRUNGEN, kursHolen, PREISEINHEITEN, peWert, peText, EXTERN_NEBEN, FGK_DREHEN, SPEZ_GEWICHT, PREIS_JE_STAFFEL, preisInStaffeln, adresseVon, adresseZeilen,
+  kalkulationSpeichern, maschineSpeichern, BEISPIEL_MASCHINEN, beispielKalkulation, START_MASCHINEN, startArbeitsplan, WAEHRUNGEN, kursHolen, PREISEINHEITEN, peWert, peText, EXTERN_NEBEN, FGK_DREHEN, SPEZ_GEWICHT, PREIS_JE_STAFFEL, preisInStaffeln, adresseVon, adresseZeilen,
 } from "../daten/kalkulation.js";
+
+// Nummer der Kalkulation: Jahr + laufende Nr., mit Startwert aus den
+// Nummernkreisen des Test ERP (app_config.erp_nummern, Wunsch Patrick 25. November 2026)
+const kalkNr = async (liste) => naechsteNummer(await nummernLaden().catch(() => ({})), "kalkulation", liste.map((k) => k.nr));
 
 const REITER = [
   ["kopf", "Kopfdaten"], ["material", "Staffeln und Material"], ["ags", "Arbeitsgänge"],
@@ -101,7 +106,7 @@ function Liste({ liste, maschinen, oeffnen, neu, saetze }) {
       if (fehlt.length) masch = await maschinenLaden();
       if (beispiel) daten = beispielKalkulation(masch);
       else daten.ags = startArbeitsplan(masch);
-      const id = await kalkulationSpeichern({ nr: beispiel ? "20225174" : naechsteNr(liste), daten });
+      const id = await kalkulationSpeichern({ nr: beispiel ? "20225174" : await kalkNr(liste), daten });
       neu();
       oeffnen(id);
       gemerkt.reiter = beispiel ? "ergebnis" : "kopf";
@@ -188,7 +193,7 @@ function Bearbeiten({ eintrag, maschinen, zurueck, neu, oeffnen, liste }) {
 
   async function kopieren() {
     try {
-      const id = await kalkulationSpeichern({ nr: naechsteNr(liste), daten: structuredClone(k) });
+      const id = await kalkulationSpeichern({ nr: await kalkNr(liste), daten: structuredClone(k) });
       alt.meldung("Kopie angelegt.", "gut");
       neu(); oeffnen(id);
     } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }

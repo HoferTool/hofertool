@@ -7,6 +7,7 @@ import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import {
   einfuegen, aendern, loeschen, naechstePartnerNr, ARTIKELART, HOFER_NR, bestand, mengeText, chf,
   mapsLink, artikelText, zahl, buchen, peKurz, LAGERARTEN, lagerartText, lagerName, istHoferLager, HOFER_LAGERARTEN, lagerplatzId,
+  NUMMERNKREISE, naechsteNummer, nummerText, nummernSpeichern,
 } from "../../daten/erp.js";
 import { stundensatz } from "../../daten/kalkulation.js";
 import { artikelFensterOeffnen } from "./ArtikelFenster.jsx";
@@ -15,7 +16,7 @@ import { partnerFensterOeffnen } from "./PartnerFenster.jsx";
 export const STAMM_REITER = [
   ["lieferant", "Lieferanten"], ["kunde", "Kunden"], ["artikel", "Artikel"], ["betriebsmittel", "Betriebsmittel"],
   ["liefer", "Lieferbedingungen"], ["zahlung", "Zahlungsbedingungen"],
-  ["lager", "Lager"], ["arbeitsplan", "Arbeitspläne"],
+  ["lager", "Lager"], ["arbeitsplan", "Arbeitspläne"], ["nummern", "Nummernkreise"],
 ];
 
 const gemerkt = { reiter: "kunde", artArt: "hofer" };
@@ -35,6 +36,7 @@ export default function Stammdaten({ d, neu }) {
       {(reiter === "liefer" || reiter === "zahlung") && <Bedingungen d={d} neu={neu} art={reiter} />}
       {reiter === "lager" && <Lager d={d} neu={neu} />}
       {reiter === "arbeitsplan" && <Arbeitsplaene d={d} neu={neu} />}
+      {reiter === "nummern" && <Nummernkreise d={d} neu={neu} />}
     </>
   );
 }
@@ -265,6 +267,64 @@ function Betriebsmittel() {
         {" "}<a href="#/kalkulation">Zur Kalkulation</a></p>
       <Tabelle kopf={["Betriebsmittel", "Stundensatz CHF/h", "Rüstsatz CHF/h"]}
         zeilen={daten.map((m) => { const s = stundensatz(m); return { key: m.id, zellen: [<b>{m.name}</b>, chf(s.eff), chf(s.ruest)] }; })} />
+    </>
+  );
+}
+
+// ---------- Nummernkreise ----------
+// Fortlaufend je Jahr, das neue Jahr beginnt von selbst bei 1 bzw. beim
+// Startwert. Startwerte für den Wechsel vom alten ERP (Wunsch Patrick 25. November 2026).
+function Nummernkreise({ d, neu }) {
+  const jahr = new Date().getFullYear();
+  const jahre = [jahr, jahr + 1];
+  const { daten: kalk } = useDaten(async () => {
+    const r = await alt.db.from("kalkulationen").select("nr");
+    return r.error ? [] : (r.data || []).map((k) => k.nr);
+  }, []);
+  const [w, setW] = useState(() => {
+    const v = {};
+    NUMMERNKREISE.forEach((k) => { v[k.typ] = {}; jahre.forEach((j) => { const s = (d.nummern || {})[k.typ]?.[j]; v[k.typ][j] = s ? String(s) : ""; }); });
+    return v;
+  });
+  const [laeuft, setLaeuft] = useState(false);
+  const geaendert = NUMMERNKREISE.some((k) => jahre.some((j) => (w[k.typ][j] || "") !== String((d.nummern || {})[k.typ]?.[j] || "")));
+  const vorhandene = (typ) => typ === "kalkulation" ? (kalk || []) : d.belege.filter((b) => b.typ === typ).map((b) => b.nr);
+  const speichern = async () => {
+    const neuW = { ...(d.nummern || {}) };
+    for (const k of NUMMERNKREISE) {
+      const e = { ...(neuW[k.typ] || {}) };
+      for (const j of jahre) {
+        const t = String(w[k.typ][j] || "").replace(/['’\s]/g, "");
+        if (!t) { delete e[j]; continue; }
+        const n = parseInt(t, 10);
+        if (!(n > 0) || String(n) !== t.replace(/^0+/, "")) { alt.meldung(k.name + " " + j + ": nur eine ganze Zahl ab 1.", "warn"); return; }
+        if (String(n).length > k.stellen + 2) { alt.meldung(k.name + " " + j + ": Zahl zu gross.", "warn"); return; }
+        e[j] = n;
+      }
+      if (Object.keys(e).length) neuW[k.typ] = e; else delete neuW[k.typ];
+    }
+    setLaeuft(true);
+    await tun(async () => { await nummernSpeichern(neuW); alt.meldung("Nummernkreise gespeichert.", "gut"); neu(); });
+    setLaeuft(false);
+  };
+  return (
+    <>
+      <p className="klein">Die Nummern laufen je Jahr fortlaufend weiter, am 1. Januar beginnt das neue Jahr von selbst
+        wieder bei 1. Für den Wechsel vom alten ERP hier den <b>Startwert</b> eintragen: die nächste Nummer ist dann
+        mindestens dieser Wert (sind schon höhere vergeben, geht es dort weiter). Leer = ab 1.</p>
+      <Tabelle kopf={["Nummernkreis", "Beispiel", ...jahre.map((j) => "Startwert " + j), "Nächste Nummer"]}
+        zeilen={NUMMERNKREISE.map((k) => ({
+          key: k.typ,
+          zellen: [<b>{k.name}</b>, <span className="klein">{nummerText(k, jahr, 1)}</span>,
+            ...jahre.map((j) => <input key={j} className="erp-nr-start" inputMode="numeric" data-erp-nrstart={k.typ + "-" + j}
+              value={w[k.typ][j]} placeholder="1" style={{ width: 90 }}
+              onChange={(e) => setW({ ...w, [k.typ]: { ...w[k.typ], [j]: e.target.value } })} />),
+            <b data-erp-nrnaechst={k.typ}>{k.typ === "kalkulation" && !kalk ? "…"
+              : naechsteNummer({ [k.typ]: { [jahr]: parseInt(w[k.typ][jahr], 10) || 0 } }, k.typ, vorhandene(k.typ), jahr)}</b>],
+        }))} />
+      <div className="knopfreihe" style={{ marginTop: 10 }}>
+        <button className="knopf knopf--haupt" id="erp-nr-speichern" disabled={!geaendert || laeuft} onClick={speichern}>Speichern</button>
+      </div>
     </>
   );
 }

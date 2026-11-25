@@ -103,6 +103,7 @@ export async function allesLaden() {
   });
   d.posMap = new Map(d.positionen.map((p) => [p.id, p]));
   d.belege.sort((a, b) => String(b.nr).localeCompare(String(a.nr)));
+  d.nummern = await nummernLaden().catch(() => ({}));
   return d;
 }
 
@@ -137,11 +138,44 @@ export function naechstePartnerNr(d, art) {
   return String(nrn.length ? Math.max(...nrn) + 1 : start + 1);
 }
 
-// Belege: Kürzel, Jahr, laufende Nr., z.B. AU26-0001
+// Belege: Kürzel, Jahr, laufende Nr., z.B. AU26-0001. Fortlaufend je Typ
+// und Jahr, beim Jahreswechsel beginnt das neue Jahr von selbst wieder vorne.
+// Startwerte (Wunsch Patrick 25. November 2026, für den Wechsel vom alten
+// ERP): app_config.erp_nummern {typ: {jahr: start}}, die nächste Nummer ist
+// nie kleiner als der Startwert und nie kleiner als die höchste + 1.
+export const NUMMERN_KONFIG = "erp_nummern";
+export const NUMMERNKREISE = [
+  ...Object.entries(BELEGTYP).map(([typ, t]) => ({ typ, name: t.mehr, muster: (j) => t.kurz + String(j).slice(2) + "-", stellen: 4 })),
+  { typ: "kalkulation", name: "Kalkulationen", muster: (j) => String(j), stellen: 4 },
+];
+export const nummerText = (kreis, jahr, n) => kreis.muster(jahr) + String(n).padStart(kreis.stellen, "0");
+export const startWert = (nummern, typ, jahr) => {
+  const n = parseInt((nummern || {})[typ]?.[jahr], 10);
+  return Number.isFinite(n) && n > 0 ? n : 1;
+};
+// nrn: alle vorhandenen Nummern dieses Kreises (Text)
+export function naechsteNummer(nummern, typ, vorhandene, jahr = new Date().getFullYear()) {
+  const kreis = NUMMERNKREISE.find((k) => k.typ === typ);
+  const vor = kreis.muster(jahr);
+  const hoch = vorhandene.map((n) => String(n || "")).filter((n) => n.startsWith(vor))
+    .map((n) => parseInt(n.slice(vor.length), 10) || 0);
+  const n = Math.max(hoch.length ? Math.max(...hoch) + 1 : 1, startWert(nummern, typ, jahr));
+  return nummerText(kreis, jahr, n);
+}
 export function naechsteBelegNr(d, typ) {
-  const vor = BELEGTYP[typ].kurz + String(new Date().getFullYear()).slice(2) + "-";
-  const nrn = d.belege.filter((b) => b.typ === typ && b.nr.startsWith(vor)).map((b) => parseInt(b.nr.slice(vor.length), 10) || 0);
-  return vor + String((nrn.length ? Math.max(...nrn) : 0) + 1).padStart(4, "0");
+  return naechsteNummer(d.nummern, typ, d.belege.filter((b) => b.typ === typ).map((b) => b.nr));
+}
+export async function nummernLaden() {
+  const r = await alt.zeitlimit(alt.db.from("app_config").select("wert").eq("schluessel", NUMMERN_KONFIG).maybeSingle(), 8000, "Nummernkreise");
+  if (r.error) throw r.error;
+  try { return r.data?.wert ? (typeof r.data.wert === "string" ? JSON.parse(r.data.wert) : r.data.wert) : {}; } catch { return {}; }
+}
+export async function nummernSpeichern(nummern) {
+  const vorher = await alt.rueckSichern("app_config", { schluessel: NUMMERN_KONFIG });
+  const r = await alt.db.from("app_config").upsert([{ schluessel: NUMMERN_KONFIG, wert: JSON.stringify(nummern) }], { onConflict: "schluessel" });
+  if (r.error) throw r.error;
+  alt.merkeSchritt("Nummernkreise ändern", vorher.length ? alt.rueckRein("app_config", vorher, "schluessel")
+    : alt.rueckWeg("app_config", { schluessel: NUMMERN_KONFIG }));
 }
 
 // ---------- Texte ----------
