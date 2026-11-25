@@ -1,5 +1,5 @@
 // =================================================================
-//  SEITE 3D-VIEWER (seit 1.797.0, Wunsch Patrick 25. November 2026:
+//  SEITE 3D-VIEWER (seit 1.798.0, Wunsch Patrick 25. November 2026:
 //  „kannst du mir im hofertool einen viewer machen für ein sketchup
 //  modell?“). Unter Hilfsprogramme, alle ausser Externen und Dienst.
 //  Die Datei bleibt im Gerät: nichts wird hochgeladen oder gespeichert.

@@ -28,9 +28,8 @@ with sync_playwright() as p:
     # seit 1.607.0 Reiter der Qualitätssicherung; #/pruefmittel führt dorthin
     pruefe(pg.locator('a[href="#/qs"]').count() > 0, "Menüpunkt Qualitätssicherung für Admin")
     pg.evaluate("location.hash='#/pruefmittel'"); pg.wait_for_selector("#pm-kurz-raus"); pg.wait_for_timeout(500)
-    # 1.793.0: zuerst nur die Übersicht, alles andere hinter „Alle Prüfmittel verwalten“
-    pruefe(pg.locator("#pm-neu").count() == 0 and pg.locator("#pm-kurz-kiste").count() == 1, "Übersicht ohne Verwaltung")
-    pg.click("#pm-alle"); pg.wait_for_selector("#pm-neu")
+    # 1.797.0: eine Seite, Zahlen oben und Liste darunter
+    pruefe(pg.locator("#pm-neu").count() == 1 and pg.locator("#pm-kurz-kiste").count() == 1 and pg.locator("#pm-filter").count() == 1, "Zahlen, Knöpfe und Filter auf einer Seite")
     pruefe("#/qs" in pg.url, "#/pruefmittel führt zur Qualitätssicherung " + pg.url)
     pruefe("Prüfmittel" in pg.inner_text(".reiter") and "Ausschussmeldungen" in pg.inner_text(".reiter"), "Reiter Ausschussmeldungen und Prüfmittel")
     # Einzeln erfassen
@@ -49,7 +48,9 @@ with sync_playwright() as p:
     p2 = [x for x in l if x.get("nr") == "PM-002"]
     pruefe(p2 and p2[0]["art"] == "pruefstift" and p2[0]["intervall_monate"] == 12 and p2[0]["mass"] == "Ø 2.50", "Spalten gelesen: %s" % p2)
     pruefe(p2 and p2[0].get("pruefung_wo") == "extern", "extern gelesen (1.765.0)")
-    pruefe(pg.locator("[data-pmort='schrank'] .pm-zeile").count() == 4, "alle im Prüfmittelschrank")
+    pruefe(pg.locator("#pm-tabelle tbody tr").count() == 4, "Liste mit 4")
+    kopf = pg.inner_text("#pm-tabelle thead")
+    pruefe(all(w in kopf for w in ["Nr", "Bezeichnung", "Typ", "Hersteller", "Nennmass", "Messbereich", "Lagerort"]), "Spalten wie Gewatec: %s" % kopf)
     # An Maschine austragen
     pid = p2[0]["id"]
     pg.click('[data-pm="%s"]' % pid); pg.wait_for_selector("#pm-fenster")
@@ -61,15 +62,29 @@ with sync_playwright() as p:
     pg.click("#pm-austragen-ok"); pg.wait_for_timeout(800)
     x = [y for y in pg.evaluate("() => TEST.daten.pruefmittel") if y["id"] == pid][0]
     pruefe(x["ort_art"] == "maschine" and x["machine_id"] == mid, "an Maschine ausgetragen: %s %s" % (x["ort_art"], mtext))
-    box = pg.locator('[data-pmmaschine="%s"]' % mid)
-    pruefe(box.count() == 1 and "Prüfstift" in box.inner_text(), "Wo ist was: bei der Maschine")
+    # Hallenplan: Maschine bekommt Nummer 121, Fenster An Maschinen
+    pg.evaluate("(id) => { const m = TEST.daten.machines.find(x => x.id === id); m.machine_number = '121'; m.name = 'Star SW-20'; }", mid)
+    pg.evaluate("location.hash='#/dashboard'"); pg.wait_for_timeout(600)
+    pg.evaluate("location.hash='#/pruefmittel'"); pg.wait_for_selector("#pm-maschinen"); pg.wait_for_timeout(600)
+    pg.click("#pm-maschinen"); pg.wait_for_selector("#pm-maschinen-fenster .pm-halle")
+    pruefe(pg.locator("[data-hlnr]").count() >= 26, "Hallenplan mit allen Maschinen (%d)" % pg.locator("[data-hlnr]").count())
+    pruefe(pg.locator(".hl-raum").count() == 4 and "Programmierzimmer" in (pg.locator(".hl-raeume").text_content() or ""), "Räume unter der Halle")
+    for nr in ["309", "305", "201", "202", "401", "114", "117", "130"]:
+        pruefe(pg.locator("[data-hlnr='%s']" % nr).count() == 1, "Plan hat %s" % nr)
+    z = pg.locator("[data-hlnr='121'] .hl-zahl")
+    pruefe(z.count() == 1 and "1" in (z.text_content() or ""), "121 zeigt Zahl 1")
+    pg.mouse.move(5, 5); pg.screenshot(path=BILD + "/pm-halle.png"); pg.wait_for_timeout(600); pg.locator(".pm-halle__bild").screenshot(path=BILD + "/pm-halle-ganz.png")
+    pg.click("[data-hlnr='121']"); pg.wait_for_timeout(300)
+    box = pg.locator('#pm-maschinen-fenster [data-pmmaschine="%s"].pm-maschine' % mid)
+    pruefe(box.count() == 1 and "Prüfstift" in box.inner_text() and pg.locator("#pm-halle-alle").count() == 1, "Antippen zeigt Prüfmittel der 121")
+    pg.screenshot(path=BILD + "/pm-halle-wahl.png")
+    pg.click("#pm-halle-alle"); pg.wait_for_timeout(200)
+    pg.locator("#pm-maschinen-fenster [data-zu]").click(); pg.wait_for_timeout(300)
     # Person
     p3 = [y for y in l if y.get("nr") == "PM-003"][0]["id"]
     pg.click('[data-pm="%s"]' % p3); pg.wait_for_selector("#pm-fenster"); pg.click("#pm-austragen")
     pg.click("[data-pmortwahl='person']"); pg.fill("#pm-orttext", "Tristan Ecker"); pg.click("#pm-austragen-ok"); pg.wait_for_timeout(800)
-    pruefe("Tristan Ecker" in pg.locator("[data-pmort='person']").inner_text(), "bei Person")
-    # 1.795.1: keine Zahlen-Kacheln mehr
-    pruefe(pg.locator(".pm-kachel, .pm-kacheln").count() == 0, "keine Zahlen-Kacheln")
+    pruefe("Tristan Ecker" in pg.inner_text('[data-pm="%s"]' % p3), "bei Person in der Liste")
     pg.screenshot(path=BILD + "/pm-wo.png", full_page=True)
     # Zurück in den Schrank
     pg.click('[data-pm="%s"]' % pid); pg.wait_for_selector("#pm-fenster")
@@ -77,14 +92,15 @@ with sync_playwright() as p:
     pg.click("#pm-zurueck"); pg.wait_for_timeout(800)
     x = [y for y in pg.evaluate("() => TEST.daten.pruefmittel") if y["id"] == pid][0]
     pruefe(x["ort_art"] == "schrank" and not x["machine_id"], "zurück im Schrank")
-    # Liste
-    pg.evaluate("document.querySelector(\"[data-pmreiter='liste']\").click()"); pg.wait_for_timeout(400)
-    pruefe(pg.locator(".pm-tabelle tbody tr").count() == 4, "Liste mit 4")
-    # 1.765.0: fällige zuoberst, extern als Kalibrierung, Gruppen
-    pg.evaluate("() => { TEST.daten.pruefmittel.find(x => x.nr === 'PM-002').letzte_pruefung = '2024-01-01'; }")
-    pg.fill("#pm-suche", "PM"); pg.wait_for_timeout(300); pg.fill("#pm-suche", ""); pg.wait_for_timeout(300)
-    erste = pg.locator(".pm-tabelle tbody tr").first.inner_text()
-    pruefe("PM-002" in erste and "Extern kalibrieren" in erste, "fällige zuoberst mit extern: %s" % erste)
+    # Filter und Sortieren
+    pg.fill("#pm-suche", "Prüfstift"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("#pm-tabelle tbody tr").count() == 1, "Suche filtert")
+    pg.click("#pm-f-weg"); pg.wait_for_timeout(300)
+    pg.click("th[data-pmsort='nr']"); pg.wait_for_timeout(200)
+    erste = pg.locator("#pm-tabelle tbody tr").first.inner_text()
+    pg.click("th[data-pmsort='nr']"); pg.wait_for_timeout(200)
+    zweite = pg.locator("#pm-tabelle tbody tr").first.inner_text()
+    pruefe(erste != zweite, "Sortieren nach Nr auf und ab")
     pg.screenshot(path=BILD + "/pm-liste.png")
     # 1.793.0 Rückgabekiste: zwei in die Kiste, eines zählt noch, alles quittieren
     pg.evaluate("""() => { const l = TEST.daten.pruefmittel;
@@ -117,9 +133,9 @@ with sync_playwright() as p:
     pg.evaluate("location.hash='#/pruefmittel'"); pg.wait_for_selector("#pm-kurz-raus"); pg.wait_for_timeout(500)
     sw = pg.evaluate("() => document.documentElement.scrollWidth - innerWidth")
     pruefe(sw <= 0, "Übersicht ohne seitliches Rollen Handy (%s)" % sw)
-    pg.click("#pm-alle"); pg.wait_for_selector("#pm-neu"); pg.wait_for_timeout(500)
+    pg.click("#pm-maschinen"); pg.wait_for_selector(".pm-halle"); pg.wait_for_timeout(400)
     sw = pg.evaluate("() => document.documentElement.scrollWidth - innerWidth")
-    pruefe(sw <= 0, "kein seitliches Rollen Handy (%s)" % sw)
+    pruefe(sw <= 0, "Hallenplan ohne seitliches Rollen Handy (%s)" % sw)
     pg.screenshot(path=BILD + "/pm-handy.png")
     pg.context.close()
 

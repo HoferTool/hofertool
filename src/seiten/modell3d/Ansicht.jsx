@@ -1,5 +1,5 @@
 // =================================================================
-//  3D-VIEWER FÜR SKETCHUP-MODELLE (seit 1.797.0, Wunsch Patrick
+//  3D-VIEWER FÜR SKETCHUP-MODELLE (seit 1.798.0, Wunsch Patrick
 //  25. November 2026: „einen Viewer für ein SketchUp-Modell“)
 //  Eine .skp-Datei kann der Browser nicht lesen (das Format ist nur mit
 //  dem SketchUp-SDK für Windows/Mac lesbar). Darum nimmt der Viewer, was

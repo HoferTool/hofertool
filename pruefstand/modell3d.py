@@ -1,4 +1,4 @@
-# 3D-Viewer (1.797.0, Wunsch Patrick 25. November 2026): SketchUp-Export
+# 3D-Viewer (1.798.0, Wunsch Patrick 25. November 2026): SketchUp-Export
 # (.dae, .obj, .stl …) im Browser ansehen, nichts wird hochgeladen.
 # Externe sehen den Menüpunkt nicht.
 import time, os, json
