@@ -68,7 +68,7 @@ with sync_playwright() as p:
     pg.evaluate("location.hash='#/pruefmittel'"); pg.wait_for_selector("#pm-maschinen"); pg.wait_for_timeout(600)
     pg.click("#pm-maschinen"); pg.wait_for_selector("#pm-maschinen-fenster .pm-halle")
     pruefe(pg.locator("[data-hlnr]").count() >= 26, "Hallenplan mit allen Maschinen (%d)" % pg.locator("[data-hlnr]").count())
-    pruefe(pg.locator(".hl-raum").count() == 4 and "Programmierzimmer" in (pg.locator(".hl-raeume").text_content() or ""), "Räume unter der Halle")
+    pruefe(pg.locator(".hl-raum").count() == 4 and "Programmier-zimmer" in (pg.locator(".hl-raeume").text_content() or ""), "Räume links an der Wand")
     for nr in ["309", "305", "201", "202", "401", "114", "117", "130"]:
         pruefe(pg.locator("[data-hlnr='%s']" % nr).count() == 1, "Plan hat %s" % nr)
     z = pg.locator("[data-hlnr='121'] .hl-zahl")

@@ -17102,6 +17102,37 @@ body.dunkel .handymenue__unterpunkt.aktiv, body.dunkel .handymenue__unterpunkt.a
 .pm-ausserhalb .aktiv { outline: 2px solid var(--marke); }
 .pm-halle__wahl { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 4px 0 8px; }
 .pm-halle .hl-nr--auf, .pm-halle .hl-typ--auf { paint-order: stroke; stroke: rgba(255,255,255,.85); stroke-width: 4px; }
+
+/* 1.797.2: An Maschinen als Kachel links bei den Zahlen, Filter als Kacheln mit Beschriftung (Wunsch Patrick 25.11.2026: „einfach und ansprechend“). */
+.pm-kurz { max-width: 1200px; }
+.pm-kurz__zahlen { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.pm-kurz__zahl--masch { background: var(--marke, #003884); border-color: transparent; color: #fff; }
+.pm-kurz__zahl--masch b, .pm-kurz__zahl--masch span { color: #fff !important; }
+.pm-kurz__zahl--masch:hover { filter: brightness(1.08); }
+.pm-leiste { margin: 14px 0 10px; }
+.pm-filter { display: grid; grid-template-columns: 1fr; gap: 10px; max-width: 1200px; padding: 14px; margin: 0 0 12px;
+  border: 1px solid var(--linie, #d6dde5); border-radius: 14px; background: var(--flaeche, #fff); }
+.pm-filter .mat-sucheingabe { width: 100%; font-size: 16px; padding: 10px 12px; }
+.pm-fk-reihe { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.pm-fk { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border: 1px solid var(--linie, #d6dde5);
+  border-radius: 10px; background: var(--grund, #f4f6f9); cursor: pointer; min-width: 0; }
+.pm-fk > span { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--gedaempft); }
+.pm-fk select { width: 100%; border: 0 !important; background: transparent !important; padding: 2px 0 !important;
+  font-size: 15px; font-weight: 600; color: var(--tinte); cursor: pointer; min-width: 0; }
+.pm-fk--an { border-color: var(--marke, #003884); box-shadow: inset 0 0 0 1px var(--marke, #003884); }
+.pm-filter__zahl { margin-left: 0; }
+body.dunkel .pm-filter { background: #1a2028; border-color: #3a4552; }
+body.dunkel .pm-fk { background: #222a34; border-color: #3a4552; }
+body.dunkel .pm-fk select option { background: #222a34; }
+@media (max-width: 700px) {
+  .pm-fk-reihe { grid-template-columns: 1fr 1fr; }
+  .pm-kurz__zahl { padding: 14px 16px; }
+  .pm-kurz__zahl b { font-size: 40px; }
+  .pm-kurz__zahl span { font-size: 15px; }
+  .pm-kurz__zahlen { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .pm-kurz__zahl--masch { grid-column: 1 / -1; }
+}
+
 /* 1.798.0 3D-Viewer für SketchUp-Exporte (Modell3d.jsx, modell3d/Ansicht.jsx) */
 .m3d-kopf { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
 .m3d-kopf .seitentitel { margin: 0; margin-right: auto; }
