@@ -115,7 +115,7 @@ function AusAblageWeg($pfade) {
 
 $jetztIso = (Get-Date).ToUniversalTime().ToString("o")
 $status = @{ immer = $true; zeit = $jetztIso; gesehen = $jetztIso; rechner = $env:COMPUTERNAME; scharf = (-not $Probe);
-             ordner = @(); excel = 0; ohneNr = 0; rest = 0; hochgeladen = 0; entfernt = 0; fehler = $null }
+             ordner = @(); excel = 0; ohneNr = 0; rest = 0; hochgeladen = 0; entfernt = 0; abgeloest = 0; fehler = $null }
 
 try {
   Anmelden
@@ -132,6 +132,15 @@ try {
     $k = [string]$r.pfad
     if (-not $inApp.ContainsKey($k)) { $inApp[$k] = @() }
     $inApp[$k] += $r
+  }
+
+  # HOCO Nummern mit Prüfprotokoll in der App (seit 1.799.0, Wunsch Patrick
+  # 24. November 2026: „sobald eine neuere dazu kommt, soll das Original weg“):
+  # dort gilt nur noch die App, das Excel aus dem Ordner kommt aus der App weg
+  # und wird nie mehr hochgeladen. Der Ordner selbst wird nie angefasst.
+  $mitApp = @{}
+  foreach ($r in (Lesen "pruefprotokolle?select=hoco_nr")) {
+    if ($r.hoco_nr) { $mitApp[[string]$r.hoco_nr] = $true }
   }
 
   $gesehen = @{}
@@ -160,6 +169,18 @@ try {
       $gesehen[$d.FullName] = $true
       $h = HocoAusPfad $d $pfad
       if (-not $h) { $status.ohneNr++; continue }
+      if ($mitApp.ContainsKey($h)) {
+        if ($inApp.ContainsKey($d.FullName) -and $status.scharf) {
+          $weg = @($inApp[$d.FullName])
+          try {
+            Aendern "Delete" ("pruefbericht_dateien?id=in.(" + (($weg | ForEach-Object { $_.id }) -join ",") + ")") $null $null
+            AusAblageWeg @($weg | ForEach-Object { [string]$_.ablage })
+            $status.abgeloest++
+            Schreibe ("Original abgelöst (Protokoll in der App): " + $d.FullName)
+          } catch { Schreibe ("Fehler beim Ablösen von " + $d.FullName + ": " + $_.Exception.Message) }
+        }
+        continue
+      }
       $kennung = Kennung $d
       $vorher = @()
       if ($inApp.ContainsKey($d.FullName)) { $vorher = @($inApp[$d.FullName]) }

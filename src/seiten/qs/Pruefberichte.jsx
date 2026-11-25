@@ -11,6 +11,13 @@
 //  darunter die zuletzt bearbeiteten Protokolle als Liste, „+ Protokoll“
 //  mit der Wahl der Art. Ein Protokoll sieht aus wie ein A4-Blatt und
 //  lässt sich drucken und löschen.
+//  Seit 1.799.0 (Patrick 25. November 2026: „die Version aus dem Ordner als
+//  letzte Produktion ansehen, sobald eine neuere dazukommt, soll das
+//  Original weg … ab dann immer alle speichern“): solange es für eine HOCO
+//  Nr. noch kein Protokoll in der App gibt, steht ihr Excel aus dem Ordner
+//  unten unter „Letzte Produktion“ zum Ansehen. Mit dem ersten Protokoll
+//  fällt es hier weg, und pruefberichte.ps1 nimmt es aus der App und lädt es
+//  nie wieder hoch. Die Protokolle der App bleiben alle.
 // =================================================================
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
@@ -18,7 +25,7 @@ import { passtWoerter } from "../../teile/Suchfeld.jsx";
 import { useSeitenSuche } from "../../teile/seitenSuche.js";
 import { STIL, briefkopf } from "./achtdBlatt.js";
 import {
-  ARTEN, artVon, TEILE, AQL_WERTE, aqlPlan, fehltTabelle, protokolleLaden,
+  ARTEN, artVon, TEILE, AQL_WERTE, aqlPlan, fehltTabelle, protokolleLaden, dateienLaden, stammSpeichern,
   stammLaden, stammMitMassen, toleranz, toleranzText, istPruefen, lehrenAus, pruefmittelFuer,
 } from "../../daten/pruefbericht.js";
 
@@ -124,6 +131,11 @@ async function protokollAnlegen(hoco, art, j, protokolle) {
     if (ok) stammdatenOeffnen(hoco);
     return null;
   }
+  // Masse aus dem Excel in die Stammdaten, bevor das Original wegfällt
+  if (st.aus === "excel") {
+    try { await stammSpeichern(hoco, { arten: st.arten || [], aql: st.aql ?? null, niveau: st.niveau || null, zeilen: st.zeilen, kopf: st.kopf || {} }); }
+    catch (f) { if (alt.fehlerMerken) alt.fehlerMerken("Prüfung aus Excel speichern", String((f && f.message) || f)); }
+  }
   const kopf = { art, zeilen: st.zeilen, vorlage: st.kopf || {}, menge: j.target_quantity || "" };
   if (j.maschine) kopf.maschine = j.maschine;
   const mat = materialText(j);
@@ -159,17 +171,18 @@ export default function Pruefberichte() {
   const [, setF] = useState(0);
   const neuZeichnen = () => setF((x) => x + 1);
   const laden = async () => {
-    const [protokolle, stamm, jobsR] = await Promise.all([
+    const [protokolle, stamm, jobsR, dateien] = await Promise.all([
       protokolleLaden(),
       stammLaden().catch((f) => { if (fehltTabelle(f)) return []; throw f; }),
       alt.db.from("jobs").select("id, fa_nr, job_number, plan_status, target_quantity, machine_id, planned_from, material_bez, material_dm").in("plan_status", ["ruesten", "laeuft"]),
+      dateienLaden().catch(() => []),
     ]);
     const jobs = jobsR.data || [];
     const ids = [...new Set(jobs.map((j) => j.machine_id).filter(Boolean))];
     const m = ids.length ? (await alt.db.from("machines").select("id, name").in("id", ids)).data || [] : [];
     const name = new Map(m.map((x) => [x.id, x.name]));
     for (const j of jobs) j.maschine = name.get(j.machine_id) || "";
-    return { protokolle, stamm, jobs };
+    return { protokolle, stamm, jobs, dateien };
   };
   const { daten, fehler, neu } = useDaten(laden, []);
 
@@ -220,6 +233,22 @@ function Uebersicht({ daten, neu, oeffnen }) {
   const zeigen = suche ? liste.slice(0, 200) : liste.slice(0, 30);
 
   const loeschen = async (p) => { if (await protokollLoeschen(p)) neu(); };
+
+  // Letzte Produktion: Excel aus dem Ordner je HOCO Nr. ohne Protokoll in der App
+  const mitProtokoll = new Set(daten.protokolle.map((p) => p.hoco_nr));
+  const jeHoco = new Map();
+  for (const d of daten.dateien || []) {
+    if (mitProtokoll.has(d.hoco_nr)) continue;
+    if (!jeHoco.has(d.hoco_nr)) jeHoco.set(d.hoco_nr, []);
+    jeHoco.get(d.hoco_nr).push(d);
+  }
+  const letzte = [...jeHoco.entries()]
+    .map(([hoco, ds]) => ({ hoco, ds, zeit: ds.map((d) => d.geaendert || d.erstellt_am || "").sort().pop() || "" }))
+    .filter((x) => passtWoerter(suche, [x.hoco, ...x.ds.map((d) => d.name)]))
+    .sort((a, b) => String(b.zeit).localeCompare(String(a.zeit)));
+  const letzteZeigen = suche ? letzte.slice(0, 200) : letzte.slice(0, 30);
+  const excelAnsehen = (d) => alt.betrachter(d.url, "Prüfbericht " + d.hoco_nr + (d.seite ? " · Seite " + d.seite : ""), false, "excel",
+    (String(d.name || "").match(/\.([A-Za-z0-9]+)$/) || [])[1]);
 
   const SPALTEN = [
     ["erstteil", "Erstteilprüfung", "Aufträge in Rüsten oder läuft ohne abgeschlossene Erstteilprüfung"],
@@ -282,6 +311,34 @@ function Uebersicht({ daten, neu, oeffnen }) {
         )}
         {!suche && liste.length > zeigen.length ? <p className="klein">Die letzten {zeigen.length} von {liste.length}. Ältere findest du mit der Suche.</p> : null}
       </section>
+
+      {(daten.dateien || []).length ? (
+        <section className="pb-karte" id="pb-letzte">
+          <div className="pb-kopfzeile">
+            <h3 className="pb-titel">Letzte Produktion (Original aus dem Ordner)</h3>
+          </div>
+          <p className="klein">Der Prüfbericht der letzten Produktion, solange es für die HOCO Nr. noch kein Protokoll in der App gibt. Mit dem ersten Protokoll in der App fällt das Original weg, danach bleiben alle Protokolle gespeichert.</p>
+          {!letzteZeigen.length ? <p className="klein">{letzte.length ? "Nichts gefunden." : "Alle HOCO Nummern haben schon ein Protokoll in der App."}</p> : (
+            <table className="tabelle pb-zuletzt" id="pb-letzte-liste">
+              <thead><tr><th>HOCO Nr.</th><th>Datei</th><th>Stand</th><th /></tr></thead>
+              <tbody>
+                {letzteZeigen.map((x) => (
+                  <tr key={x.hoco} data-pbletzte={x.hoco} onClick={() => excelAnsehen(x.ds[0])}>
+                    <td><b>{x.hoco}</b></td>
+                    <td>{x.ds.map((d) => <div key={d.id} className="klein">{d.name}{d.seite ? " · Seite " + d.seite : ""}</div>)}</td>
+                    <td className="klein nowrap">{zeitText(x.zeit)}</td>
+                    <td className="nowrap">{x.ds.map((d) => (
+                      <button key={d.id} type="button" className="knopf knopf--klein" data-pbletzteansehen={d.id}
+                        onClick={(e) => { e.stopPropagation(); excelAnsehen(d); }}>Ansehen{x.ds.length > 1 && d.seite ? " " + d.seite : ""}</button>
+                    ))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {!suche && letzte.length > letzteZeigen.length ? <p className="klein">Die neusten {letzteZeigen.length} von {letzte.length}. Ältere findest du mit der Suche.</p> : null}
+        </section>
+      ) : null}
     </div>
   );
 }
