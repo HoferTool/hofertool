@@ -54,6 +54,16 @@ async function laden() {
       .then((x) => x, () => ({ data: [] }));
     teile.push(...(r.data || []));
   }
+  // Index aus der WBG je Auftrag (jobs.wbg_index seit 1.829.0, nicht in der
+  // Ansicht planwand); fehlt die Spalte, gilt der Index der Stammdaten
+  const wbgIndex = new Map();
+  const ids = auftraege.map((j) => j.id);
+  for (let i = 0; i < ids.length; i += 300) {
+    const r = await q(alt.db.from("jobs").select("id, wbg_index").in("id", ids.slice(i, i + 300)), 10000)
+      .then((x) => x, () => ({ data: [] }));
+    for (const x of r.data || []) if (x.wbg_index) wbgIndex.set(x.id, x.wbg_index);
+  }
+  for (const j of auftraege) if (wbgIndex.has(j.id)) j.wbg_index = wbgIndex.get(j.id);
   return {
     buchungen, ablaeufe, auftraege,
     extern: new Map((rx.data || []).map((x) => [x.id, x])),
