@@ -12,6 +12,8 @@ import { alt } from "../bruecke.jsx";
 
 export const ABLAGE = "temp";
 export const TEMP_STUNDEN = 24;
+// Seit 1.814.0 kein automatisches Löschen mehr (Wunsch Patrick 25. November 2026)
+export const TEMP_AUTO_LOESCHEN = false;
 export const TEMP_MS = TEMP_STUNDEN * 3600000;
 // Wann eine Datei gelöscht wird
 export const wegAm = (am) => new Date(new Date(am).getTime() + TEMP_MS);
@@ -49,11 +51,9 @@ export async function tempListe() {
       am: d.created_at,
     }));
   liste.sort((a, b) => String(b.am).localeCompare(String(a.am)));
-  // Abgelaufene eigene Dateien gleich selbst wegräumen, nicht erst beim
-  // nächsten Lauf der Server-Funktion: angezeigt wird nur, was noch gilt
-  const alt_ = liste.filter((d) => wegAm(d.am).getTime() <= Date.now());
-  if (alt_.length) tempLoeschen(alt_.map((d) => d.pfad)).catch(() => {});
-  return liste.filter((d) => !alt_.includes(d));
+  // Seit 1.814.0 löscht nichts mehr von selbst (Wunsch Patrick 25. November
+  // 2026: „soll ab jetzt nicht automatisch gelöscht werden“), nur von Hand
+  return liste;
 }
 
 export async function tempHochladen(datei) {
@@ -90,6 +90,8 @@ export async function tempVorschauen(pfade) {
 // die Abgelaufenes bei allen löscht (bei jedem Start der App, also auch
 // beim stündlichen Neuladen). Fehler sind egal: dann eben beim nächsten Mal.
 export function tempAufraeumenRegelmaessig() {
+  // Seit 1.814.0 abgeschaltet: Temp-Dateien bleiben, bis man sie löscht
+  if (TEMP_AUTO_LOESCHEN === false) return;
   let zuletzt = 0;
   try { zuletzt = +localStorage.getItem("hofer.tempAufgeraeumt") || 0; } catch (f) { /* egal */ }
   if (Date.now() - zuletzt < 3600000) return;

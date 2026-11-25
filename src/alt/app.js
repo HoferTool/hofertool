@@ -178,7 +178,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.813.0";
+const APP_VERSION = "1.814.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -2636,12 +2636,15 @@ async function dokHochladen(datei, zuordnung, quelle) {
 // =================================================================
 //  WBG AUFRÄUMEN
 //  WBGs bleiben seit 1.813.0 für immer. Hier verschwindet nur noch
-//  die Werkzeugwechsel-Historie am Auftrag fünf Tage nach dem
-//  Ende. Läuft einmal am Tag,
-//  sobald jemand mit Schreibrecht die App öffnet.
+//  die Werkzeugwechsel-Historie von Aufträgen, die seit über fünf
+//  Tagen fertig sind, und seit 1.814.0 nur noch von Hand mit dem Knopf
+//  unter Einstellungen → Dokumente, nicht mehr von selbst (Wunsch
+//  Patrick 25. November 2026: „soll ab jetzt nicht automatisch
+//  gelöscht werden“).
 // =================================================================
 
 async function wbgAufraeumen(sofort) {
+  if (!sofort) return 0;
   if (!profil || !(istAdmin() || darfSchreiben())) return 0;
   const heute = isoDatum(new Date());
   try {
@@ -2655,8 +2658,8 @@ async function wbgAufraeumen(sofort) {
     // WBGs bleiben alle für immer, Datei und Eintrag (Wunsch Patrick
     // 25. November 2026: „es soll alle WBGs speichern, keine löschen“).
     // Bis 1.811.x verschwanden sie hier fünf Tage nach dem Auftragsende.
-    // Werkzeugwechsel-Historie: fünf Tage nach dem Ende weg
-    // (Wunsch Patrick 14. Oktober 2026). Jede Datei gehört nur zu einem
+    // Werkzeugwechsel-Historie: fünf Tage nach dem Ende weg, seit
+    // 1.814.0 nur noch mit dem Knopf. Jede Datei gehört nur zu einem
     // Auftrag, darum ohne Prüfung auf andere Aufträge.
     const h = await db.from("jobs").select("id, wz_historie_url")
       .not("wz_historie_url", "is", null).lt("ended_at", grenze).limit(500);
@@ -4820,7 +4823,7 @@ async function farbzuteilungLaden() {
   // Betriebsferien vor dem ersten Zeichnen der Planwand
   await betriebsferienLaden();
   // Alte WBG wegräumen, einmal am Tag, im Hintergrund
-  setTimeout(() => { wbgAufraeumen().catch(() => {}); }, 4000);
+  // Seit 1.814.0 kein Aufräumen mehr beim Start (nur noch von Hand)
   // Tägliche Sicherung, wenn dieses Gerät das Sicherungsgerät ist (src/teile/sicherung.js)
   // und tägliche Planwand-Datei zum Nachschauen (src/teile/planwandArchiv.js);
   // beides nicht in einer Backup-Datei

@@ -7,8 +7,8 @@
 //  Werte kommen aus der letzten Messung, alles über Tage aus der
 //  Datenbank-Funktion solar_tage (sql/solar-tage.sql), die je Tag
 //  zusammenzählt: so holt das Fenster rund 90 Zeilen statt 25'000
-//  Messwerte. Messwerte bleiben in solar_werte nur 90 Tage, älter gibt
-//  es nicht. Gezeigt wird nur, was die Messungen hergeben; die CO₂-
+//  Messwerte. Messwerte in solar_werte wurden bis 1.814.0 nach 90 Tagen
+//  gelöscht, seither bleiben sie. Gezeigt wird nur, was die Messungen hergeben; die CO₂-
 //  Zahl ist eine Annahme und steht so da.
 // =================================================================
 import { useEffect, useMemo, useState } from "react";
@@ -198,7 +198,7 @@ function SolarFenster({ zu }) {
 
         <p className="klein solfenster__fuss">
           Gemessen alle 5 Minuten am Solar-Log{r.erster ? ", aufgezeichnet seit " + tagText(r.erster) : ""}.
-          Messwerte bleiben 90 Tage. Verbrauch und Netzbezug sind aus den Messungen hochgerechnet,
+          Verbrauch und Netzbezug sind aus den Messungen hochgerechnet,
           der Ertrag kommt direkt vom Solar-Log.
         </p>
       </>}

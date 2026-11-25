@@ -3,14 +3,14 @@
 //  6. November 2026). Das Programm skripte/keyence.ps1 am Pool-Rechner
 //  liest jede Minute die Teilberichte (CSV) aus W:\KONTROLLE\Keyence
 //  und legt sie in die Tabelle messberichte (sql/messberichte.sql), die
-//  HOCO Nr. aus dem Namen der Messeinstellung; nach 30 Tagen löscht es
-//  sie dort. Hier nur lesen. Nicht für Externe (Entscheid Patrick).
+//  HOCO Nr. aus dem Namen der Messeinstellung; seit 1.814.0 bleiben sie
+//  dort (vorher nach 30 Tagen gelöscht). Hier nur lesen. Nicht für Externe (Entscheid Patrick).
 // =================================================================
 import { alt } from "../bruecke.jsx";
 
 export const fehltMessTabelle = (f) => /messberichte/.test(alt.fehlertext(f));
 
-// Alle Berichte, der neueste zuerst (es sind nur die letzten 30 Tage da)
+// Alle Berichte, der neueste zuerst (höchstens 2000)
 export async function messberichteLaden() {
   const r = await alt.zeitlimit(alt.db.from("messberichte")
     .select("id,datei,hoco_nr,einstellung,gemessen_am,ergebnis,kopf,spalten,zeilen")

@@ -1,7 +1,7 @@
 // =================================================================
 //  KEYENCE BERICHTE (seit 1.443.0, Wunsch Patrick 6. November 2026:
 //  „bei Prod einen weiteren Unterreiter mit Keyence Berichten, nach
-//  HOCO Nr. abgespeichert mit Datum Zeit zum Nachschauen, 30 Tage“,
+//  HOCO Nr. abgespeichert mit Datum Zeit zum Nachschauen, 30 Tage“ (seit 1.814.0 bleiben sie),
 //  „bei Padmode QS oben neben Offene Meldungen der Button dafür“)
 //
 //  <KeyenceBerichte />: Suche, darunter je HOCO Nr. eine Zeile mit der
@@ -25,7 +25,6 @@ export function keyenceOeffnen(hoco) {
     <div className="dialog dialog--breit unterlagen messberichte" id="keyence-fenster">
       <div className="blatt__kopf">
         <h2>Keyence Berichte</h2>
-        <span className="klein">letzte 30 Tage</span>
         <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button>
       </div>
       <div className="unterlagen__rolle"><KeyenceBerichte nur={typeof hoco === "string" ? hoco : ""} /></div>
@@ -77,7 +76,7 @@ export function KeyenceBerichte({ nur = "" }) {
           </div>
         : <div className="keyence__leiste">
             <Suchfeld id="keyence-suche" wert={suche} setzen={setSuche} platzhalter="HOCO Nr. oder Messeinstellung …" />
-            <span className="klein">{liste ? liste.length + " Berichte · bleiben 30 Tage" : ""}</span>
+            <span className="klein">{liste ? liste.length + " Berichte" : ""}</span>
           </div>}
       {fehler && <p className="fehlertext">{fehler}</p>}
       {liste === null

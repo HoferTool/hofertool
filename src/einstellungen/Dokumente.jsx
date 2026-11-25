@@ -403,7 +403,7 @@ const poolLaden = () => configLaden(["dok_pool_pfad", "dok_pool_status"], "Pool"
 
 function PoolOrdner() {
   const { daten } = useNachsehen(poolLaden);
-  // Räumt nur noch alte Werkzeugwechsel weg, WBGs bleiben seit 1.813.0 alle (sonst einmal am Tag von selbst)
+  // Räumt nur noch alte Werkzeugwechsel weg, WBGs bleiben seit 1.813.0 alle (seit 1.814.0 nur noch mit diesem Knopf, nie von selbst)
   const aufraeumen = async () => {
     const n = await alt.wbgAufraeumen(true);
     alt.meldung(n ? n + " alte Werkzeugwechsel entfernt." : "Nichts aufzuräumen.");
