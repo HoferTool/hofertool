@@ -17277,3 +17277,8 @@ body.dunkel .erp-pos.erp-pos--fokus { background-color: #3a2c10; }
 /* 1.818.0: „Artikel-Nr.“ in der Position öffnet den Artikel */
 .erp-artnr-link { color: #1d5fbf; text-decoration: underline; cursor: pointer; }
 body.dunkel .erp-artnr-link { color: #8fbaff !important; }
+
+/* 1.819.1: Knopf „Spedition WBG“ orange, „Planbüro WBG“ bleibt blau (Wunsch Patrick 25. November 2026). */
+.druckwahl .knopf.knopf--spedition,
+body.dunkel .druckwahl .knopf.knopf--spedition { background: #e8730c !important; border-color: #c75f06 !important; color: #fff !important; }
+.druckwahl .knopf.knopf--spedition:hover { background: #d1660a !important; }

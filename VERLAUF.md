@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.819.1 (25. November 2026)
+
+Knopf „Spedition WBG“ orange, „Planbüro WBG“ bleibt blau (Wunsch Patrick).
+
 ## 1.813.0 (25. November 2026)
 
 WBGs werden nie mehr gelöscht, weder beim Ersetzen noch beim Aufräumen (Wunsch Patrick: „alle WBGs speichern, keine löschen“). Zweiter WBG-Drucker „Drucker Spedition WBG“ unter Einstellungen → Dokumente; bei einer WBG stehen dann die Knöpfe „Planbüro WBG“ und „Spedition WBG“. Prüfstand `wbg_zweiter_drucker.py`.
