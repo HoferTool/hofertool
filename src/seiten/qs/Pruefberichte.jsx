@@ -24,13 +24,15 @@ import { alt, useDaten } from "../../bruecke.jsx";
 import { passtWoerter } from "../../teile/Suchfeld.jsx";
 import { useSeitenSuche } from "../../teile/seitenSuche.js";
 import { STIL, briefkopf } from "./achtdBlatt.js";
+import { qsSprung, masseInQsOeffnen } from "./qsSprung.js";
+import Pruefung from "../../hoco/Pruefung.jsx";
 import {
   ARTEN, artVon, artName, istZwischen, TEILE, AQL_WERTE, aqlPlan, fehltTabelle, protokolleLaden, dateienLaden, vorlageLaden, stammSpeichern,
   stammLaden, stammMitMassen, toleranz, toleranzText, istPruefen, lehrenAus, pruefmittelFuer,
 } from "../../daten/pruefbericht.js";
 
 // Offenes Protokoll und Suche bleiben beim Reiterwechsel
-const pbZustand = { suche: "", protokoll: null, frisch: null, vorlage: null };
+const pbZustand = { suche: "", protokoll: null, frisch: null, vorlage: null, masse: null };
 
 const fehlerText = (f) => fehltTabelle(f)
   ? "Die Datenbank kennt die Prüfberichte noch nicht (sql/pruefberichte.sql oder sql/pruef-stamm.sql fehlt)."
@@ -75,11 +77,11 @@ function aqlStand(k, w) {
 
 const STAND = { laeuft: "läuft", ruesten: "Rüsten", geplant: "geplant", fertig: "fertig" };
 
-// Stammdaten der HOCO Nr. öffnen (Fenster HOCO Nr. beim Teil)
+// Prüfmasse der HOCO Nr. hier in der QS bearbeiten (seit 1.837.0, Wunsch
+// Patrick 25. November 2026: „prüfbericht soll im qs selber bearbeitet werden
+// nicht stammdaten“). Die Stammdaten haben nur noch die Häkchen der Arten.
 function stammdatenOeffnen(nr) {
-  alt.prod.hocoOffen = nr;
-  alt.prod.hocoSuche = nr;
-  alt.hocoFenster();
+  masseInQsOeffnen(nr);
 }
 
 // Gehört ein Protokoll zu diesem Auftrag? Über die Kennung, sonst die FA Nr.
@@ -162,7 +164,7 @@ function materialText(j) {
 async function protokollAnlegen(hoco, art, j, protokolle) {
   const st = await stammMitMassen(hoco);
   if (!st || !(st.zeilen || []).length) {
-    const ok = await alt.nachfragen({ titel: "Noch keine Masse", text: "Für " + hoco + " sind in den Stammdaten noch keine Masse erfasst. Dort unter „Prüfung“ eintragen oder einen Excel-Prüfbericht einlesen.", bestaetigen: "Stammdaten öffnen" });
+    const ok = await alt.nachfragen({ titel: "Noch keine Masse", text: "Für " + hoco + " sind noch keine Prüfmasse erfasst. Unter „Prüfmasse bearbeiten“ eintragen oder einen Excel-Prüfbericht einlesen.", bestaetigen: "Prüfmasse bearbeiten" });
     if (ok) stammdatenOeffnen(hoco);
     return null;
   }
@@ -204,6 +206,7 @@ async function protokollLoeschen(p) {
 // =================================================================
 const JOB_SPALTEN = "id, fa_nr, job_number, plan_status, target_quantity, machine_id, planned_from, ended_at, material_bez, material_dm";
 export default function Pruefberichte() {
+  if (qsSprung.masse) { pbZustand.masse = qsSprung.masse; qsSprung.masse = null; }
   const [, setF] = useState(0);
   const neuZeichnen = () => setF((x) => x + 1);
   const laden = async () => {
@@ -235,6 +238,9 @@ export default function Pruefberichte() {
   if (!daten) return <p className="klein">{fehler ? fehlerText(fehler) : "Wird geladen …"}</p>;
 
   const oeffnen = (p) => { pbZustand.protokoll = p.id; pbZustand.frisch = p; neuZeichnen(); };
+  if (pbZustand.masse) return <Pruefung key={pbZustand.masse} hoco={pbZustand.masse} modus="qs"
+    darf={alt.darfSchreiben() && !alt.istExtern()}
+    zurueck={() => { pbZustand.masse = null; neu(); neuZeichnen(); }} />;
   if (pbZustand.protokoll) {
     // Ein eben angelegtes Protokoll ist erst nach dem Neuladen in der Liste
     const f = pbZustand.frisch;
@@ -245,6 +251,19 @@ export default function Pruefberichte() {
   if (pbZustand.vorlage) return <VorlageLeer key={pbZustand.vorlage.hoco + "|" + pbZustand.vorlage.idx} v={pbZustand.vorlage}
     zurueck={() => { pbZustand.vorlage = null; neuZeichnen(); }} />;
   return <Uebersicht daten={daten} neu={neu} oeffnen={oeffnen} zeichnen={neuZeichnen} />;
+}
+
+// HOCO Nr. eintippen und ihre Prüfmasse hier bearbeiten
+function MasseAuf({ zeichnen }) {
+  const [nr, setNr] = useState("");
+  const auf = () => { const h = nr.trim(); if (!h) return; pbZustand.masse = h; zeichnen(); };
+  return (
+    <span className="pb-masse-auf">
+      <input className="pb-suche" id="pb-masse-hoco" placeholder="HOCO Nr." value={nr}
+        onChange={(e) => setNr(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") auf(); }} />
+      <button type="button" className="knopf knopf--klein" id="pb-masse-auf" onClick={auf}>Prüfmasse bearbeiten</button>
+    </span>
+  );
 }
 
 // ---------- Übersicht: was ansteht und die zuletzt bearbeiteten ----------
@@ -331,6 +350,7 @@ function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
           <h3 className="pb-titel">Zuletzt bearbeitet</h3>
           <input type="search" className="pb-suche" id="pb-suche" placeholder="HOCO Nr., FA Nr., Art suchen" value={suche}
             onChange={(e) => { setSuche(e.target.value); pbZustand.suche = e.target.value; }} />
+          <MasseAuf zeichnen={zeichnen} />
         </div>
         {!zeigen.length ? <p className="klein">{daten.protokolle.length ? "Nichts gefunden." : "Noch kein Protokoll."}</p> : (
           <table className="tabelle pb-zuletzt" id="pb-liste">
@@ -444,11 +464,11 @@ function VorlageLeer({ v, zurueck }) {
           <button type="button" className="knopf knopf--klein knopf--haupt" id="pb-vorlage-okay" disabled={speichert} onClick={okay}>
             {speichert ? "Wird gespeichert …" : "✓ Ist okay so"}</button>
         ) : null}
-        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(v.hoco)}>{hatMasse ? "Masse ändern" : "Stammdaten " + v.hoco}</button>
+        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(v.hoco)}>{hatMasse ? "Prüfmasse ändern" : "Prüfmasse " + v.hoco}</button>
       </div>
       {st.laedt ? <p className="klein">Vorlage wird gelesen …</p> : null}
       {st.fehler ? <p className="pb-rot" id="pb-vorlage-fehler">⚠ Datei konnte nicht gelesen werden: {st.fehler}</p> : null}
-      {teilweise.length ? <p className="pb-rot" id="pb-vorlage-teilweise">⚠ Datei konnte zum Teil nicht gelesen werden: {teilweise.join("; ")}. Bitte durchschauen und fehlende Masse unter „Stammdaten“ ergänzen.</p> : null}
+      {teilweise.length ? <p className="pb-rot" id="pb-vorlage-teilweise">⚠ Datei konnte zum Teil nicht gelesen werden: {teilweise.join("; ")}. Bitte durchschauen und fehlende Masse unter „Prüfmasse“ ergänzen.</p> : null}
       {vor ? (hatMasse
         ? <p className="klein" id="pb-vorlage-stand">✓ In den Stammdaten stehen {stamm.zeilen.length} Zeilen{stamm.geaendert_am ? " (Stand " + zeitText(stamm.geaendert_am) + ")" : ""}. Protokolle nehmen die Masse von dort.</p>
         : <p className="klein" id="pb-vorlage-stand">Durchschauen, ob alles stimmt, dann „✓ Ist okay so“. Danach kommen die Masse in die Stammdaten, und Erstteilprüfung und Endkontrolle nehmen sie von dort.</p>) : null}
@@ -573,7 +593,7 @@ function Protokoll({ p, zurueck }) {
         <button type="button" className="knopf knopf--klein" onClick={zurueck}>← Prüfberichte</button>
         <span className="klein" id="pb-stand">{stand}</span>
         <span className="pst-platz" />
-        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(hoco)}>Stammdaten {hoco}</button>
+        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(hoco)}>Prüfmasse {hoco}</button>
         <button type="button" className="knopf knopf--klein" id="pb-drucken" onClick={drucken}>🖨 Drucken</button>
         {darf() ? <button type="button" className="knopf knopf--klein knopf--gefahr-leise" id="pb-loeschen" onClick={loeschen}>Löschen</button> : null}
       </div>
@@ -706,7 +726,7 @@ function Checkliste({ w, hoco, schreibt, zurueck, quittieren }) {
       <div className="pb-kopfzeile pb-werkzeug">
         <button type="button" className="knopf knopf--klein" onClick={zurueck}>← Prüfberichte</button>
         <span className="pst-platz" />
-        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(hoco)}>Stammdaten {hoco}</button>
+        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(hoco)}>Prüfmasse {hoco}</button>
       </div>
       <div className="pb-check karte">
         <h2>Erstteilprüfung {hoco}{w.fa_nr ? " · FA " + w.fa_nr : ""}</h2>

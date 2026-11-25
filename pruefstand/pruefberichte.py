@@ -128,7 +128,7 @@ with sync_playwright() as p:
     # Stammdaten: Karte Prüfung mit Masse-Blatt
     pg.locator("#pb-liste [data-pbprotokoll]").first.click()
     pg.wait_for_selector("#pb-blatt"); pg.wait_for_timeout(300)
-    pg.locator("button:has-text('Stammdaten 99999-0001')").click()
+    pg.locator("button:has-text('Prüfmasse 99999-0001')").click()
     pg.wait_for_selector("#pst-blatt-auf", timeout=8000); pg.click("#pst-blatt-auf")
     pg.wait_for_selector("[data-pstblatt] [data-pstseite]")
     pruefe(pg.locator("[data-pstseite]").count() == 1 and pg.locator("[data-pstblatt] tbody tr").count() == 3, "Masse-Blatt mit 3 Massen")

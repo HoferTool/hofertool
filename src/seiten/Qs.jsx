@@ -15,6 +15,7 @@ import Ausschuss from "./qs/Ausschuss.jsx";
 import Reklamationen from "./qs/Reklamationen.jsx";
 import Pruefmittel from "./Pruefmittel.jsx";
 import Pruefberichte from "./qs/Pruefberichte.jsx";
+import { qsSprung } from "./qs/qsSprung.js";
 
 // Gewählter Reiter; bleibt beim Seitenwechsel
 export const qsZustand = { ansicht: "ausschuss" };
@@ -33,6 +34,8 @@ export function qsReiter() {
 
 export default function Qs({ auffrischen, behaelter }) {
   const [, zeichnen] = useReducer((x) => x + 1, 0);
+  // Sprung aus den Stammdaten (Prüfmasse bearbeiten, seit 1.837.0)
+  if (qsSprung.ansicht) { qsZustand.ansicht = qsSprung.ansicht; qsSprung.ansicht = null; }
   const reiter = qsReiter();
   if (!reiter.some(([w]) => w === qsZustand.ansicht)) qsZustand.ansicht = "ausschuss";
   const waehlen = (w) => { qsZustand.ansicht = w; zeichnen(); };
