@@ -178,7 +178,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.812.0";
+const APP_VERSION = "1.813.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -2624,7 +2624,7 @@ async function dokHochladen(datei, zuordnung, quelle) {
   } catch (f) { /* Hauptsache, der Eintrag steht */ }
 
   // Alte Dateien wegräumen — aber nie die, die gerade hochgeladen wurde
-  // WBGs bleiben auch beim Ersetzen in der Ablage (seit 1.812.0)
+  // WBGs bleiben auch beim Ersetzen in der Ablage (seit 1.813.0)
   if (art !== "wbg") await ablageLoeschen(alteAdressen.filter((u) => u && u !== adresse));
 
   await dokVerlauf({ dateiname: datei.name, art: art, hoco_nr: hocoNr, type_id: typId,
@@ -2635,7 +2635,7 @@ async function dokHochladen(datei, zuordnung, quelle) {
 
 // =================================================================
 //  WBG AUFRÄUMEN
-//  WBGs bleiben seit 1.812.0 für immer. Hier verschwindet nur noch
+//  WBGs bleiben seit 1.813.0 für immer. Hier verschwindet nur noch
 //  die Werkzeugwechsel-Historie am Auftrag fünf Tage nach dem
 //  Ende. Läuft einmal am Tag,
 //  sobald jemand mit Schreibrecht die App öffnet.

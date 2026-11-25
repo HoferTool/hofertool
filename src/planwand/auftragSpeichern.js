@@ -164,7 +164,7 @@ export async function auftragSpeichern({ auftrag, daten, geaendert, nr, b, zu })
     const altW = vor && vor.wbg_url, neuW = daten.wbg_url;
     try {
       if (neuZ && neuZ !== altZ && hocoNummer) await alt.zeichnungErsetzen(hocoNummer, neuZ, altZ);
-      // Die alte WBG bleibt in der Ablage, WBGs werden nie gelöscht (seit 1.812.0)
+      // Die alte WBG bleibt in der Ablage, WBGs werden nie gelöscht (seit 1.813.0)
     } catch (f) { /* die Datei bleibt eben liegen */ }
 
     // Rückgängig: neuer Auftrag wird wieder entfernt, ein geänderter

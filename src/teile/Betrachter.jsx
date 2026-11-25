@@ -153,7 +153,7 @@ export function Betrachter({ adresse: anfang, titel, art, endung, zu, hinweis, k
   // Firmennetz nicht, der Pool-Rechner schon (Wunsch Patrick, 9. Oktober 2026).
   const [pool, setPool] = useState(null);      // { drucker, excel } oder null
   const [wahl, setWahl] = useState(false);     // Auswahl offen?
-  // Die Knöpfe heissen „Planbüro WBG“ und „Spedition WBG“ (seit 1.812.0, Wunsch Patrick 25. November 2026; davor „Nur WBGs drucken“, seit 1.167.1, Wunsch Patrick
+  // Die Knöpfe heissen „Planbüro WBG“ und „Spedition WBG“ (seit 1.813.0, Wunsch Patrick 25. November 2026; davor „Nur WBGs drucken“, seit 1.167.1, Wunsch Patrick
   // 24. Oktober 2026, vorher „Planbüro“, seit 1.171.0 nur bei WBGs): der volle Name des Druckers
   // (\\hof-chso-fs01\SHARP … Planbüro) machte die Auswahl so breit, dass
   // sie im Pad über den Rand ragte. Kopien stehen bei jedem Öffnen der
@@ -193,7 +193,7 @@ export function Betrachter({ adresse: anfang, titel, art, endung, zu, hinweis, k
     if (poolGeht) { if (!wahl) setKopien(1); setWahl((w) => !w); return; }
     drucken();
   };
-  // ziel: einer der WBG-Drucker (zwei möglich seit 1.812.0), sonst der erste
+  // ziel: einer der WBG-Drucker (zwei möglich seit 1.813.0), sonst der erste
   const anPool = async (ziel) => {
     const drucker = typeof ziel === "string" ? ziel : undefined;
     setWahl(false);
