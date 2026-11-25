@@ -292,6 +292,24 @@ with sync_playwright() as p:
     nrn = [b["nr"] for b in tabelle(pg, "erp_belege") if b["typ"] == "auftrag"]
     pruefe("AU%s-0458" % str(j)[2:] in nrn, "Neuer Auftrag mit Startwert: %s" % nrn)
 
+    # Pro HOCO Nr. nur ein Artikel: Neuer Index ändert denselben Artikel
+    for _ in range(4):
+        if pg.locator(".dialog-huelle").count() == 0: break
+        pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    pg.click("[data-erp-reiter='stamm']"); pg.wait_for_timeout(300)
+    pg.click("[data-erp-stamm='artikel']"); pg.wait_for_timeout(300)
+    vorher = len([x for x in tabelle(pg, "erp_artikel") if x["nr"] == a["nr"]])
+    altidx = [x for x in tabelle(pg, "erp_artikel") if x["id"] == a["id"]][0].get("idx") or ""
+    pg.locator("[data-erp-zeile='%s']" % a["id"]).click(); pg.wait_for_selector("[data-erp-artfenster]")
+    pg.click("[data-erp-art-index]"); pg.wait_for_timeout(400)
+    dlg = pg.locator(".dialog-huelle").last
+    dlg.locator("input").first.fill("Z")
+    dlg.locator("button:has-text('Index ändern')").click(); pg.wait_for_timeout(900)
+    an = [x for x in tabelle(pg, "erp_artikel") if x["nr"] == a["nr"]]
+    ax = [x for x in an if x["id"] == a["id"]][0]
+    pruefe(len(an) == vorher and ax["idx"] == "Z" and (ax["daten"].get("indexe") or [{}])[-1].get("idx") == altidx,
+           "Neuer Index am selben Artikel, alter im Verlauf: %s %s" % (ax["idx"], ax["daten"].get("indexe")))
+
     pruefe(not pf, "keine Seitenfehler: %s" % pf)
     br.close()
 

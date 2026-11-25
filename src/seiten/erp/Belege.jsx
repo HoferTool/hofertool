@@ -12,7 +12,7 @@ import { Feld, Tabelle, Suche, passt, tun, belegDrucken, LagerEingabe, lagerStar
 import {
   allesLaden, einfuegen, aendern, loeschen, naechsteBelegNr, BELEGTYP, MWST, zahl, chf, mengeText, artikelText,
   partnerText, datumText, terminText, bestand, buchen, gebucht, folgePositionen, belegSumme, chargeVerfolgen, fibuText,
-  posPe, posBetrag, peKurz, peZahl, preisFuerMenge, PE_AUSWAHL, kwText, lagerName,
+  posPe, posBetrag, peKurz, peZahl, preisFuerMenge, PE_AUSWAHL, kwText, lagerName, posIdx, artikelIdxText,
 } from "../../daten/erp.js";
 import { GFenster, KF, GTabelle, schliessenFragen } from "./Stamm.jsx";
 import { partnerFensterOeffnen } from "./PartnerFenster.jsx";
@@ -82,7 +82,7 @@ export function BelegListe({ d, neu, typ, ohneNeu, hinweis }) {
         leer={"Noch keine " + t.mehr + "."}
         zeilen={liste.map(({ b, stand }) => {
           const pos = d.posJe.get(b.id) || [];
-          const art = pos.map((x) => { const a = d.artikelMap.get(x.artikel_id); return a ? a.nr + (a.idx ? " " + a.idx : "") : x.text; })
+          const art = pos.map((x) => { const a = d.artikelMap.get(x.artikel_id); const ix = posIdx(d, x); return a ? a.nr + (ix ? " " + ix : "") : x.text; })
             .filter(Boolean);
           return {
             key: b.id, klasse: stand[1], klick: () => belegOeffnen(d, neu, b),
@@ -162,6 +162,13 @@ function BelegFenster({ start, id, vorlage, aussen, zu }) {
     for (const p of alte.filter((x) => !echte.some((y) => y.id === x.id))) await loeschen("erp_positionen", p.id);
     for (let i = 0; i < echte.length; i++) {
       const p = echte[i];
+      // Index der Position festhalten: bekommt der Artikel später einen neuen Index,
+      // bleibt dieser Auftrag beim Index, mit dem er angelegt wurde
+      const vorher = p.id ? alte.find((x) => x.id === p.id) : null;
+      const art = p.artikel_id && d.artikelMap.get(p.artikel_id);
+      if (art && (!vorher || vorher.artikel_id !== p.artikel_id || !p.daten || p.daten.idx == null)) {
+        p.daten = { ...(p.daten || {}), idx: art.idx || "" };
+      }
       const w = { beleg_id: bel.id, pos: (i + 1) * 10, artikel_id: p.artikel_id || null, text: p.text || null,
         menge: zahl(p.menge), einheit: p.einheit || "Stk", preis: p.preis === "" || p.preis == null ? null : zahl(p.preis),
         termin: p.termin || null, termin_kw: p.termin_kw || null, bezug_id: p.bezug_id || null, daten: p.daten || {} };
@@ -335,7 +342,7 @@ function ArtikelWahl({ d, wert, setzen, gesperrt }) {
       <input list={nr} value={text} disabled={gesperrt} data-erp-feld="artikel" placeholder="Nr. tippen …"
         onChange={(e) => {
           setText(e.target.value);
-          const f = liste.find((x) => artikelText(x) === e.target.value) || liste.find((x) => x.nr === e.target.value.trim() && !x.idx);
+          const f = liste.find((x) => artikelText(x) === e.target.value) || liste.find((x) => x.nr === e.target.value.trim());
           setzen(f ? f.id : "");
         }} />
       <datalist id={nr}>{liste.map((x) => <option key={x.id} value={artikelText(x)} />)}</datalist>
@@ -381,7 +388,7 @@ function Positionen({ d, kopf, pos, setPos, bearbeiten, b, aussen, frisch }) {
             const a = d.artikelMap.get(p.artikel_id);
             return {
               key: p.id, klick: () => positionOeffnen(d, aussen, b, p, frisch),
-              zellen: [p.pos, <>{a ? <b>{artikelText(a)}</b> : p.text}{a && a.zeichnung && <small> · Zeichnung {a.zeichnung}{a.idx ? " Ind. " + a.idx : ""}</small>}
+              zellen: [p.pos, <>{a ? <b>{artikelIdxText(a, posIdx(d, p))}</b> : p.text}{a && a.zeichnung && <small> · Zeichnung {a.zeichnung}{posIdx(d, p) ? " Ind. " + posIdx(d, p) : ""}</small>}
                 {a && p.text && <><br /><small>{p.text}</small></>}{p.daten && p.daten.charge && <><br /><small>Charge {p.daten.charge}</small></>}
                 {(p.daten.abrufe || []).length > 0 && <Lieferplan d={d} p={p} />}</>,
               mengeText(p.menge) + " " + (p.einheit || ""), terminText(p)]
@@ -481,7 +488,7 @@ function PositionFenster({ d, aussen, b, p, frisch, zu }) {
   const kopf = <>
     <KF label={t.name} nurLesen wert={<b>{b.nr}</b>} />
     <KF label="Position" nurLesen wert={p.pos} />
-    <KF label="Artikel" nurLesen wert={a ? artikelText(a) : p.text || "freie Position"} menue={artMenue} />
+    <KF label="Artikel" nurLesen wert={a ? artikelIdxText(a, posIdx(d, p)) : p.text || "freie Position"} menue={artMenue} />
     <KF label="Matchcode" nurLesen wert={a ? a.bezeichnung || "" : ""} />
   </>;
   const fuss = <>
@@ -559,7 +566,7 @@ function LieferplanFenster({ d, aussen, b, p, frisch, zu }) {
   const schliessen = async () => { if (await schliessenFragen(geaendert, alt)) zu(); };
   const kopf = <>
     <KF label="Auftrag" nurLesen wert={<b>{b.nr} / {p.pos}</b>} />
-    <KF label="Artikel" nurLesen wert={a ? artikelText(a) : p.text || ""}
+    <KF label="Artikel" nurLesen wert={a ? artikelIdxText(a, posIdx(d, p)) : p.text || ""}
       menue={a && [["Artikel öffnen", () => artikelFensterOeffnen(d, aussen, a)], ["Artikel-Cockpit", () => cockpitOeffnen(d, aussen, a)]]} />
     <KF label="Menge Position" nurLesen rechts wert={mengeText(menge) + " " + (p.einheit || "")} />
     <KF label="Geliefert" nurLesen rechts wert={mengeText(gesamt)} />
@@ -739,8 +746,8 @@ async function faErstellen(d, b, aussen) {
 
 // Bestand eines Artikels als Auswahl. Nur genau dieser Artikel samt Index:
 // Bestand mit Index A kann einen Auftrag mit Index B nie beliefern.
-function chargenWahl(d, artikelId) {
-  return bestand(d, artikelId).filter((e) => e.menge > 0)
+function chargenWahl(d, artikelId, idx) {
+  return bestand(d, artikelId).filter((e) => e.menge > 0 && (idx == null || e.idx === idx))
     .map((e) => [e.charge + "|" + (e.lager_id || ""), "Charge " + e.charge + " · " + lagerText(d, e.lager_id) + " · " + mengeText(e.menge), e]);
 }
 
@@ -748,7 +755,7 @@ function LieferscheinFenster({ d, b, zu, fertig }) {
   const pos = (d.posJe.get(b.id) || []).filter((p) => p.artikel_id);
   const [w, setW] = useState(() => pos.map((p) => {
     const offen = Math.max(0, zahl(p.menge) - geliefert(d, p));
-    const ch = chargenWahl(d, p.artikel_id);
+    const ch = chargenWahl(d, p.artikel_id, posIdx(d, p));
     const vor = b.art === "rahmen" ? Math.min(offen, naechsterAbruf(d, p)) : offen;
     return { id: p.id, an: offen > 0 && ch.length > 0, menge: String(ch.length ? Math.min(vor, ch[0][2].menge) : vor), charge: ch.length ? ch[0][0] : "" };
   }));
@@ -758,7 +765,7 @@ function LieferscheinFenster({ d, b, zu, fertig }) {
     const wahl = w.map((x, i) => ({ ...x, p: pos[i] })).filter((x) => x.an && zahl(x.menge) > 0);
     if (!wahl.length) { alt.meldung("Keine Menge gewählt.", "warn"); return; }
     for (const x of wahl) {
-      const e = chargenWahl(d, x.p.artikel_id).find((c) => c[0] === x.charge);
+      const e = chargenWahl(d, x.p.artikel_id, posIdx(d, x.p)).find((c) => c[0] === x.charge);
       if (!e) throw new Error("Position " + x.p.pos + ": Charge wählen (nur Bestand mit gleichem Index).");
       if (zahl(x.menge) > e[2].menge + 1e-9) throw new Error("Position " + x.p.pos + ": nur " + mengeText(e[2].menge) + " an Lager in dieser Charge.");
     }
@@ -769,8 +776,8 @@ function LieferscheinFenster({ d, b, zu, fertig }) {
     for (const x of wahl) {
       const [charge, lager] = x.charge.split("|");
       const lp = await einfuegen("erp_positionen", { beleg_id: ls.id, pos: n, artikel_id: x.p.artikel_id, text: x.p.text, menge: zahl(x.menge),
-        einheit: x.p.einheit, bezug_id: x.p.id, daten: { charge } });
-      await buchen({ artikel_id: x.p.artikel_id, lager_id: lager || null, charge, menge: -zahl(x.menge), art: "lieferung",
+        einheit: x.p.einheit, bezug_id: x.p.id, daten: { charge, idx: posIdx(d, x.p) } });
+      await buchen({ artikel_id: x.p.artikel_id, idx: posIdx(d, x.p), lager_id: lager || null, charge, menge: -zahl(x.menge), art: "lieferung",
         beleg_id: ls.id, position_id: lp.id, herkunft: "LS " + ls.nr });
       n += 10;
     }
@@ -783,14 +790,14 @@ function LieferscheinFenster({ d, b, zu, fertig }) {
       <p className="klein">Geliefert wird nur aus Bestand desselben Artikels mit demselben Index. Ohne Bestand zuerst einen Fertigungsauftrag fertig melden.</p>
       {pos.map((p, i) => {
         const a = d.artikelMap.get(p.artikel_id);
-        const ch = chargenWahl(d, p.artikel_id);
+        const ch = chargenWahl(d, p.artikel_id, posIdx(d, p));
         return (
           <div key={p.id} className="erp-liste__zeile erp-wahlzeile" data-erp-lspos={p.pos}>
             <label className="feld-haken"><input type="checkbox" checked={w[i].an} onChange={(e) => setzen(i, "an", e.target.checked)} />
-              <span><b>{p.pos}</b> {artikelText(a)}<br /><small>bestellt {mengeText(p.menge)}, geliefert {mengeText(geliefert(d, p))}
+              <span><b>{p.pos}</b> {artikelIdxText(a, posIdx(d, p))}<br /><small>bestellt {mengeText(p.menge)}, geliefert {mengeText(geliefert(d, p))}
                 {b.art === "rahmen" && naechsterAbruf(d, p) ? ", nächster Abruf " + mengeText(naechsterAbruf(d, p)) : ""}</small></span></label>
             <Feld f={{ name: "menge", label: "Menge", typ: "zahl" }} wert={w[i].menge} setzen={(v) => setzen(i, "menge", v)} />
-            <Feld f={{ name: "charge", label: "Charge", auswahl: ch.length ? ch.map(([k, t]) => [k, t]) : [["", "kein Bestand mit Index " + (a.idx || "–")]] }}
+            <Feld f={{ name: "charge", label: "Charge", auswahl: ch.length ? ch.map(([k, t]) => [k, t]) : [["", "kein Bestand mit Index " + (posIdx(d, p) || "–")]] }}
               wert={w[i].charge} setzen={(v) => setzen(i, "charge", v)} />
           </div>);
       })}
@@ -819,7 +826,7 @@ function EingangFenster({ d, b, zu, fertig }) {
     }
     for (const x of wahl) x.lagerId = await lagerAus(d, d.artikelMap.get(x.p.artikel_id), x);
     for (const x of wahl) {
-      await buchen({ artikel_id: x.p.artikel_id, lager_id: x.lagerId, charge: x.charge.trim(), menge: zahl(x.menge), art: "eingang",
+      await buchen({ artikel_id: x.p.artikel_id, idx: posIdx(d, x.p), lager_id: x.lagerId, charge: x.charge.trim(), menge: zahl(x.menge), art: "eingang",
         beleg_id: b.id, position_id: x.p.id, herkunft: "Lieferant " + (lief.nr || "") + " " + (lief.name || ""),
         notiz: x.lief ? "Charge Lieferant " + x.lief : null });
     }
@@ -854,8 +861,8 @@ function MaterialFenster({ d, b, zu, fertig }) {
   const teil = p && d.artikelMap.get(p.artikel_id);
   const rang = (e) => ({ rohmaterial: 0, werkzeug: 2 }[(d.artikelMap.get(e.artikel_id) || {}).art] ?? 1);
   const wahl = bestand(d).filter((e) => e.menge > 0 && !(teil && (d.artikelMap.get(e.artikel_id) || {}).nr === teil.nr))
-    .map((e) => [e.artikel_id + "|" + e.charge + "|" + (e.lager_id || ""),
-      artikelText(d.artikelMap.get(e.artikel_id)) + " · Charge " + e.charge + " · " + lagerText(d, e.lager_id) + " · " + mengeText(e.menge), e])
+    .map((e) => [e.artikel_id + "|" + e.idx + "|" + e.charge + "|" + (e.lager_id || ""),
+      artikelIdxText(d.artikelMap.get(e.artikel_id), e.idx) + " · Charge " + e.charge + " · " + lagerText(d, e.lager_id) + " · " + mengeText(e.menge), e])
     .sort((x, y) => rang(x[2]) - rang(y[2]) || x[1].localeCompare(y[1]));
   const [w, setW] = useState({ wahl: wahl.length ? wahl[0][0] : "", menge: "" });
   const los = async () => {
@@ -863,7 +870,7 @@ function MaterialFenster({ d, b, zu, fertig }) {
     if (!e) throw new Error("Material wählen.");
     if (!(zahl(w.menge) > 0)) throw new Error("Menge fehlt.");
     if (zahl(w.menge) > e[2].menge + 1e-9) throw new Error("Nur " + mengeText(e[2].menge) + " an Lager.");
-    await buchen({ artikel_id: e[2].artikel_id, lager_id: e[2].lager_id || null, charge: e[2].charge, menge: -zahl(w.menge), art: "entnahme",
+    await buchen({ artikel_id: e[2].artikel_id, idx: e[2].idx, lager_id: e[2].lager_id || null, charge: e[2].charge, menge: -zahl(w.menge), art: "entnahme",
       beleg_id: b.id, position_id: p ? p.id : null, herkunft: "FA " + b.nr });
     alt.meldung("Material entnommen.", "gut");
     zu(); await fertig();
@@ -894,7 +901,7 @@ function FertigFenster({ d, b, zu, fertig }) {
     if (!d.bewegungen.some((x) => x.beleg_id === b.id && x.art === "entnahme")
       && !(await alt.nachfragen({ titel: "Ohne Material?", text: "Für diesen Fertigungsauftrag ist noch kein Material entnommen. Die Charge hat dann keine Herkunft. Trotzdem fertig melden?", bestaetigen: "Trotzdem" }))) return;
     const lagerId = await lagerAus(d, a, w);
-    await buchen({ artikel_id: a.id, lager_id: lagerId, charge: w.charge.trim() || b.nr, menge: zahl(w.menge), art: "fertig",
+    await buchen({ artikel_id: a.id, idx: posIdx(d, p), lager_id: lagerId, charge: w.charge.trim() || b.nr, menge: zahl(w.menge), art: "fertig",
       beleg_id: b.id, position_id: p.id, herkunft: "FA " + b.nr });
     alt.meldung("Fertig gemeldet, " + mengeText(w.menge) + " " + (p.einheit || "") + " an Lager.", "gut");
     zu(); await fertig();
@@ -902,7 +909,7 @@ function FertigFenster({ d, b, zu, fertig }) {
   return (
     <div className="dialog erp-fenster" role="dialog">
       <h2>Fertig melden {b.nr}</h2>
-      <p>{artikelText(a)} · offen {mengeText(offen)}</p>
+      <p>{artikelIdxText(a, posIdx(d, p))} · offen {mengeText(offen)}</p>
       <Feld f={{ name: "menge", label: "Menge gut", typ: "zahl" }} wert={w.menge} setzen={(v) => setW((x) => ({ ...x, menge: v }))} />
       <Feld f={{ name: "charge", label: "Charge" }} wert={w.charge} setzen={(v) => setW((x) => ({ ...x, charge: v }))} />
       <LagerEingabe d={d} artikel={a} w={w} id="fertig" setzen={(n, v) => setW((x) => ({ ...x, [n]: v }))} />

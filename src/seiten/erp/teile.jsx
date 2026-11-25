@@ -3,7 +3,7 @@ import { useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { briefBlatt } from "../../teile/briefkopf.js";
-import { adresseText, chf, datumText, mengeText, terminText, belegSumme, BELEGTYP, artikelText, posPe, posBetrag, peKurz,
+import { adresseText, chf, datumText, mengeText, terminText, belegSumme, BELEGTYP, artikelText, artikelIdxText, posIdx, posPe, posBetrag, peKurz,
   HOFER_LAGERARTEN, istHoferLager, lagerFuer, lagerName, lagerplatzId, bestand } from "../../daten/erp.js";
 
 // Felder eines Arbeitsgangs (Arbeitsplan beim Artikel und Fenster Arbeitsplan)
@@ -182,7 +182,8 @@ export function belegDrucken(d, b) {
   const bed = (id) => (d.bedingungen.find((x) => x.id === id) || {}).text || "";
   const zeilen = pos.map((x) => {
     const a = d.artikelMap.get(x.artikel_id);
-    const text = a ? esc(artikelText(a)) + (a.zeichnung ? "<br><small>Zeichnung " + esc(a.zeichnung) + (a.idx ? " Index " + esc(a.idx) : "") + "</small>" : "") : esc(x.text || "");
+    const ix = posIdx(d, x);
+    const text = a ? esc(artikelIdxText(a, ix)) + (a.zeichnung ? "<br><small>Zeichnung " + esc(a.zeichnung) + (ix ? " Index " + esc(ix) : "") + "</small>" : "") : esc(x.text || "");
     return "<tr><td>" + x.pos + "</td><td>" + text
       + (x.daten && x.daten.charge ? "<br><small>Charge " + esc(x.daten.charge) + "</small>" : "")
       + (x.text && a ? "<br><small>" + esc(x.text) + "</small>" : "") + "</td><td class='r'>" + mengeText(x.menge) + " " + esc(x.einheit || "")

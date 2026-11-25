@@ -25,7 +25,40 @@ import { ZiehListe } from "../../teile/ZiehListe.jsx";
 let agZaehler = 0;
 const agKey = () => "ag" + Date.now().toString(36) + "-" + (++agZaehler);
 
-// a: bestehender Artikel oder null; was: { art, index (neuer Index von a), kopie, reiter }
+// Pro HOCO Nr. gibt es nur einen Artikel (Patrick 25. November 2026: „es kann
+// pro hoco nr nur einen artikel geben“). Ein neuer Index ändert denselben
+// Artikel, der alte kommt in den Verlauf daten.indexe. Positionen und
+// Lagerbewegungen merken sich ihren Index selbst, so bleibt der Bestand je
+// Index getrennt.
+export function indexVerlauf(a, neuIdx, notiz) {
+  const daten = { ...((a && a.daten) || {}) };
+  const alt0 = (a && a.idx) || "";
+  if (alt0 !== (neuIdx || "")) {
+    daten.indexe = [...(daten.indexe || []), { idx: alt0, bis: new Date().toISOString().slice(0, 10), notiz: notiz || "" }];
+  }
+  return daten;
+}
+
+export async function neuerIndex(d, a, fertig) {
+  const w = await alt.dialogFelder({
+    titel: "Neuer Index für " + a.nr, bestaetigen: "Index ändern",
+    text: "Der Artikel bleibt derselbe, nur der Index ändert. Der bisherige Index „" + (a.idx || "–")
+      + "“ kommt in den Verlauf, sein Lagerbestand bleibt unter dem alten Index.",
+    felder: [
+      { name: "idx", label: "Neuer Index", wert: "", pflicht: true },
+      { name: "notiz", label: "Notiz (freiwillig)", wert: "" },
+    ],
+  });
+  if (!w) return null;
+  const neu = String(w.idx || "").trim();
+  if (neu === (a.idx || "")) { alt.meldung("Das ist schon der aktuelle Index.", "warn"); return null; }
+  const r = await tun(() => aendern("erp_artikel", a.id, { idx: neu, daten: indexVerlauf(a, neu, w.notiz), geaendert_am: new Date().toISOString() }),
+    "Index von " + a.nr + " ist jetzt " + neu + ".");
+  if (r !== null && fertig) await fertig();
+  return r;
+}
+
+// a: bestehender Artikel oder null; was: { art, kopie, reiter }
 export function artikelFensterOeffnen(d, neu, a, was) {
   fensterOeffnen((zu) => <ArtikelFenster start={d} aussen={neu} a0={a} was={was || {}} zu={zu} />);
 }
@@ -36,7 +69,7 @@ function formAus(a, art, was) {
   const ad = (a && a.daten) || {};
   const pl = a ? preisliste(a) : { pe: 1, staffeln: [] };
   return {
-    art: a ? a.art : art || "hofer", nr: a && !was.kopie ? a.nr : "", idx: a && !was.index ? a.idx || "" : "",
+    art: a ? a.art : art || "hofer", nr: a && !was.kopie ? a.nr : "", idx: a ? a.idx || "" : "",
     bezeichnung: (a && a.bezeichnung) || "", zeichnung: (a && a.zeichnung) || "", kunde_id: (a && a.kunde_id) || "",
     einheit: (a && a.einheit) || (art === "rohmaterial" ? "kg" : "Stk"), preis: a && a.preis != null ? String(a.preis) : "",
     aktiv: a ? a.aktiv !== false : true,
@@ -49,7 +82,7 @@ function formAus(a, art, was) {
 
 function ArtikelFenster({ start, aussen, a0, was, zu }) {
   const [d, setD] = useState(start);
-  const [id, setId] = useState(a0 && !was.index && !was.kopie ? a0.id : null);
+  const [id, setId] = useState(a0 && !was.kopie ? a0.id : null);
   const a = id ? d.artikelMap.get(id) || a0 : null;
   const [w, setW] = useState(() => formAus(a0, was.art, was));
   const [basis, setBasis] = useState(() => JSON.stringify(formAus(a0, was.art, was)));
@@ -73,10 +106,14 @@ function ArtikelFenster({ start, aussen, a0, was, zu }) {
     const nr = w.nr.trim();
     if (!nr) throw new Error("Artikel Code fehlt.");
     if (hofer && !HOFER_NR.test(nr)) throw new Error("Hofer + Co Artikel haben die Form xxxxx-xxxx.");
-    if (d.artikel.some((x) => x.id !== id && x.art === w.art && x.nr === nr && (x.idx || "") === w.idx.trim())) {
-      throw new Error("Diesen Artikel mit diesem Index gibt es schon.");
+    if (hofer && d.artikel.some((x) => x.id !== id && x.art === "hofer" && x.nr === nr)) {
+      throw new Error("Den Artikel " + nr + " gibt es schon. Pro HOCO Nr. gibt es nur einen Artikel, einen neuen Index setzt man dort mit „Neuer Index“.");
     }
-    const daten = { ...((a0 && a0.daten) || {}), kunden_nr: w.kunden_nr, text: w.text, notiz: w.notiz };
+    if (!hofer && d.artikel.some((x) => x.id !== id && x.art === w.art && x.nr === nr && (x.idx || "") === w.idx.trim())) {
+      throw new Error("Diesen Artikel gibt es schon.");
+    }
+    const basisDaten = hofer && a ? indexVerlauf(a, w.idx.trim(), "") : { ...((a0 && a0.daten) || {}) };
+    const daten = { ...basisDaten, kunden_nr: w.kunden_nr, text: w.text, notiz: w.notiz };
     if (hofer) {
       daten.rohmaterial_id = w.rohmaterial_id || null;
       daten.material = w.material;
@@ -106,7 +143,7 @@ function ArtikelFenster({ start, aussen, a0, was, zu }) {
     // aendern kann ohne Zeile zurückkommen; dann gilt der Stand, den wir geschrieben haben,
     // sonst verlöre das Fenster seinen Artikel und hiesse wieder „neu“
     if (id) r = (await aendern("erp_artikel", id, zeile)) || { ...a, ...zeile, id };
-    else r = await einfuegen("erp_artikel", { ...zeile, kalkulation_id: was.index && a0 ? a0.kalkulation_id : null });
+    else r = await einfuegen("erp_artikel", { ...zeile, kalkulation_id: null });
     const n = await frisch(r.id);
     setId(r.id);
     const f = formAus(n || r, w.art, {});
@@ -125,7 +162,7 @@ function ArtikelFenster({ start, aussen, a0, was, zu }) {
     if (r !== null) { aussen(); zu(); }
   };
 
-  const titel = (ARTIKELART[w.art] || "Artikel") + (id ? " " + artikelText(a) : was.index ? " · neuer Index für " + a0.nr : " neu");
+  const titel = (ARTIKELART[w.art] || "Artikel") + (id ? " " + artikelText(a) : " neu");
   const codeMenue = a && [["Artikel-Cockpit", () => cockpitOeffnen(d, aussen, a)], hofer && ["Preisliste drucken", () => preislisteDrucken(d, a)],
     ["Belege mit diesem Artikel", () => setReiter("belege")], ["Lagerbestand", () => setReiter("lager")]];
   const kundeMenue = kunde && [["Kunde öffnen", () => partnerFensterOeffnen(d, aussen, kunde)],
@@ -149,7 +186,9 @@ function ArtikelFenster({ start, aussen, a0, was, zu }) {
   const fuss = <>
     {id && <button className="knopf knopf--gefahr" onClick={artLoeschen}>Löschen</button>}
     {a && <button className="knopf" data-erp-art-kopie="" onClick={() => artikelFensterOeffnen(d, aussen, a, { kopie: true })}>Kopieren</button>}
-    {a && hofer && <button className="knopf" data-erp-art-index="" onClick={() => artikelFensterOeffnen(d, aussen, a, { index: true })}>+ Index</button>}
+    {a && hofer && <button className="knopf" data-erp-art-index="" onClick={() => neuerIndex(d, a, async () => {
+      const n = await frisch(a.id); const f = formAus(n, w.art, {}); setW(f); setBasis(JSON.stringify(f));
+    })}>Neuer Index</button>}
     {a && <button className="knopf" data-erp-art-cockpit="" onClick={() => cockpitOeffnen(d, aussen, a)}>Artikel-Cockpit</button>}
     <span className="gf-fuss__luecke" />
     {geaendert && <span className="klein gf-geaendert">nicht gespeichert</span>}
@@ -184,6 +223,10 @@ function ArtikelFenster({ start, aussen, a0, was, zu }) {
           <KF label="Notiz" name="notiz" typ="textarea" zeilen={8} wert={w.notiz} setzen={set("notiz")} breit />
           {a && <p className="klein">Zuletzt geändert {a.geaendert_am ? datumText(a.geaendert_am.slice(0, 10)) : "–"}
             {pl.kalkulation_nr ? " · aus Kalkulation " + pl.kalkulation_nr : ""}</p>}
+          {hofer && a && (a.daten?.indexe || []).length > 0 && <Gruppe titel="Frühere Indexe">
+            <div data-erp-art-indexe="">{a.daten.indexe.slice().reverse().map((x, i) => <p key={i} className="klein">
+              <b>{x.idx || "–"}</b>{x.bis || x.am ? " · bis " + datumText(x.bis || x.am) : ""}{x.notiz ? " · " + x.notiz : ""}</p>)}</div>
+          </Gruppe>}
         </div>
       </div>}
 
@@ -312,10 +355,11 @@ function LagerReiter({ d, a }) {
   const liste = bestand(d, a.id);
   const summe = liste.reduce((s, e) => s + e.menge, 0);
   return <>
-    <GTabelle kopf={["Charge", "Lagerart", "Lagerplatz", "Menge"]} rechts={[3]} leer="Kein Bestand."
+    <GTabelle kopf={["Index", "Charge", "Lagerart", "Lagerplatz", "Menge"]} rechts={[4]} leer="Kein Bestand."
       zeilen={liste.map((e) => { const l = d.lagerMap.get(e.lager_id);
-        return { key: e.charge + e.lager_id, klasse: e.menge < 0 ? "erp-minus" : "",
-          zellen: [e.charge, l ? l.lagerart : "–", l ? l.platz : "–", mengeText(e.menge) + " " + (a.einheit || "")] }; })} />
+        return { key: e.idx + "|" + e.charge + e.lager_id, klasse: e.menge < 0 ? "erp-minus" : "",
+          zellen: [(e.idx || "–") + (a.art === "hofer" && (e.idx || "") !== (a.idx || "") ? " (alt)" : ""), e.charge,
+            l ? l.lagerart : "–", l ? l.platz : "–", mengeText(e.menge) + " " + (a.einheit || "")] }; })} />
     <p className="gf-summe">Bestand gesamt <b>{mengeText(summe)} {a.einheit}</b></p>
   </>;
 }

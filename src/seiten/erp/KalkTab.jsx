@@ -5,6 +5,7 @@ import { useState } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
 import { Tabelle, Suche, passt, tun } from "./teile.jsx";
 import { einfuegen, aendern, chf, peKurz, HOFER_NR } from "../../daten/erp.js";
+import { indexVerlauf } from "./ArtikelFenster.jsx";
 import { kalkulationenLaden, maschinenLaden, staffelRechnen, stundensatz } from "../../daten/kalkulation.js";
 
 const indexVon = (x) => { const s = String(x || "").trim(); return s === "-" ? "" : s; };
@@ -47,8 +48,9 @@ async function uebernehmen(d, k, maschinen, neu) {
     daten: { kalkulation_nr: k.nr, material: matBez, ...(roh ? { rohmaterial_id: roh.id } : {}), pe,
       preisliste: { kalkulation_id: k.id, kalkulation_nr: k.nr, uebernommen_am: new Date().toISOString(), pe, waehrung: "CHF",
         aus_waehrung: waehrung !== "CHF" ? waehrung : undefined, von_hand: false, staffeln: liste } } };
-  const da = d.artikel.find((a) => a.art === "hofer" && a.nr === nr && a.idx === idx);
-  if (da) await aendern("erp_artikel", da.id, { ...zeile, daten: { ...(da.daten || {}), ...zeile.daten } });
+  // Pro HOCO Nr. nur ein Artikel: ein anderer Index ändert denselben Artikel, der alte kommt in seinen Verlauf.
+  const da = d.artikel.find((a) => a.art === "hofer" && a.nr === nr);
+  if (da) await aendern("erp_artikel", da.id, { ...zeile, daten: { ...indexVerlauf(da, idx, "aus Kalkulation " + k.nr), ...zeile.daten } });
   else await einfuegen("erp_artikel", { ...zeile, aktiv: true, einheit: "Stk" });
   neu();
   return (da ? "Artikel " : "Neuer Artikel ") + nr + (idx ? " Ind. " + idx : "") + " mit " + arbeitsplan.length + " Arbeitsgängen und "
@@ -72,7 +74,7 @@ export default function KalkTab({ d, neu }) {
         zeilen={liste.map((k) => {
           const kopf = (k.daten || {}).kopf || {};
           const nr = String(kopf.artikel || k.artikel || "").trim();
-          const da = d.artikel.find((a) => a.art === "hofer" && a.nr === nr && a.idx === indexVon(kopf.index));
+          const da = d.artikel.find((a) => a.art === "hofer" && a.nr === nr);
           return { key: k.id, zellen: [<b>{k.nr}</b>, k.kunde || "", nr, indexVon(kopf.index) || "–", kopf.bezeichnung || "",
             da ? "ja" + (da.preis != null ? " · ab " + chf(da.preis) + " " + peKurz((da.daten || {}).pe) : "")
               + (((da.daten || {}).preisliste || {}).kalkulation_id === k.id ? "" : ((da.daten || {}).preisliste ? " (Preise aus anderer Kalkulation)" : "")) : "",

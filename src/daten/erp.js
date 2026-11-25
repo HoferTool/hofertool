@@ -190,6 +190,11 @@ export function artikelText(a) {
   if (!a) return "–";
   return a.nr + (a.idx ? " Ind. " + a.idx : "") + (a.bezeichnung ? " · " + a.bezeichnung : "");
 }
+// Artikel mit einem bestimmten Index (Position, Bestand), nicht dem aktuellen
+export function artikelIdxText(a, idx) {
+  if (!a) return "–";
+  return artikelText({ ...a, idx: idx == null ? a.idx : idx });
+}
 export function partnerText(p) { return p ? p.nr + " " + p.name : "–"; }
 export function datumText(iso) {
   if (!iso) return "";
@@ -225,12 +230,27 @@ export function mapsLink(a) {
 
 // ---------- Lager ----------
 // Bestand je Artikel (samt Index), Charge und Lagerplatz
+// Pro HOCO Nr. gibt es nur einen Artikel (Patrick 25. November 2026). Der Index
+// steht darum an der Position (daten.idx) und an jeder Bewegung (idx); so bleibt
+// der Bestand je Index getrennt, auch wenn der Artikel einen neuen Index bekommt.
+export function posIdx(d, p) {
+  if (p && p.daten && p.daten.idx != null) return p.daten.idx;
+  const a = p && d.artikelMap.get(p.artikel_id);
+  return a ? a.idx || "" : "";
+}
+export function bewIdx(d, b) {
+  if (b.idx != null) return b.idx;
+  const a = d.artikelMap.get(b.artikel_id);
+  return a ? a.idx || "" : "";
+}
+
 export function bestand(d, artikelId) {
   const je = new Map();
   d.bewegungen.forEach((b) => {
     if (artikelId && b.artikel_id !== artikelId) return;
-    const k = b.artikel_id + "|" + b.charge + "|" + (b.lager_id || "");
-    const e = je.get(k) || { artikel_id: b.artikel_id, charge: b.charge, lager_id: b.lager_id, menge: 0 };
+    const idx = bewIdx(d, b);
+    const k = b.artikel_id + "|" + idx + "|" + b.charge + "|" + (b.lager_id || "");
+    const e = je.get(k) || { artikel_id: b.artikel_id, idx, charge: b.charge, lager_id: b.lager_id, menge: 0 };
     e.menge += Number(b.menge) || 0;
     je.set(k, e);
   });
@@ -238,7 +258,12 @@ export function bestand(d, artikelId) {
 }
 
 export async function buchen(zeile) {
-  return einfuegen("erp_bewegungen", zeile);
+  try { return await einfuegen("erp_bewegungen", zeile); }
+  catch (e) {
+    // Ohne sql/erp-artikel-je-hoco.sql kennt die Datenbank die Spalte idx noch nicht
+    if ("idx" in zeile && /idx/.test(String(e && e.message))) { const { idx, ...ohne } = zeile; return einfuegen("erp_bewegungen", ohne); }
+    throw e;
+  }
 }
 
 // Wie viel einer Position schon gebucht ist (Lieferung, Wareneingang, Fertigmeldung)
