@@ -53,6 +53,8 @@ export function belegStand(d, b) {
     return ist >= soll - 1e-9 ? 2 : 1;
   };
   if (b.status === "storniert") return ["storniert", "erp-blass"];
+  // Aus dem alten ERP übernommener Verlauf: erledigt, zählt nirgends als offen
+  if (b.status === "abgeschlossen") return ["abgeschlossen", "erp-gut"];
   if (b.typ === "auftrag") {
     const a = anteil((p) => folgePositionen(d, p.id, "lieferschein").reduce((s, x) => s + zahl(x.menge), 0));
     return [["offen", "teilgeliefert", "geliefert"][a], a === 2 ? "erp-gut" : ""];
@@ -86,7 +88,7 @@ export function BelegListe({ d, neu, typ, ohneNeu, hinweis }) {
     const pos = (d.posJe.get(b.id) || []).map((x) => artikelText(d.artikelMap.get(x.artikel_id)) + " " + (x.text || "")).join(" ");
     return passt(suche, [b.nr, p.nr, p.name, (b.daten || {}).ihre_nr, pos, datumText(b.datum)].join(" "));
   }).map((b) => ({ b, stand: belegStand(d, b) }))
-    .filter((x) => !nurOffen || !/^(geliefert|eingegangen|fertig|verrechnet|in Fibu|storniert)$/.test(x.stand[0]));
+    .filter((x) => !nurOffen || !/^(geliefert|eingegangen|fertig|verrechnet|in Fibu|storniert|abgeschlossen)$/.test(x.stand[0]));
   return (
     <>
       <div className="mat-kopf">
@@ -311,7 +313,7 @@ function KopfFelder({ d, kopf, setKopf, setDaten, teil }) {
     <KF label="Datum" typ="datum" name="datum" wert={kopf.datum} setzen={setK("datum")} />
     {(typ === "auftrag" || typ === "bestellung") && <KF label="Art" name="art" wert={kopf.art} setzen={setK("art")}
       auswahl={[["einzel", "Einzelauftrag"], ["rahmen", "Rahmenauftrag (Lieferplan)"]]} />}
-    <KF label="Status" name="status" wert={kopf.status} setzen={setK("status")} auswahl={[["offen", "offen"], ["storniert", "storniert"]]} />
+    <KF label="Status" name="status" wert={kopf.status} setzen={setK("status")} auswahl={[["offen", "offen"], ["abgeschlossen", "abgeschlossen"], ["storniert", "storniert"]]} />
     <KF label={typ === "bestellung" ? "AB Lieferant" : "Ihre Bestellung"} name="ihre_nr" wert={kopf.daten.ihre_nr} setzen={(w) => setDaten("ihre_nr", w)} />
     {typ === "auftrag" && <KF label="Bestelldatum" name="ihre_datum" typ="datum" wert={kopf.daten.ihre_datum} setzen={(w) => setDaten("ihre_datum", w)} />}
     {typ === "auftrag" && <KF label="Ihr Zeichen" name="zeichen" wert={kopf.daten.zeichen} setzen={(w) => setDaten("zeichen", w)} />}
@@ -898,7 +900,7 @@ function Aktionen({ d, b, aussen, frisch }) {
   // Jede Aktion holt zuerst den frischen Stand: in einem anderen Fenster
   // kann inzwischen gebucht worden sein (Fertigmeldung, Wareneingang)
   const k = [];
-  const offen = b.status !== "storniert";
+  const offen = b.status !== "storniert" && b.status !== "abgeschlossen";
   if (b.typ === "auftrag" && offen) {
     k.push(<button key="fa" className="knopf" data-erp-aktion="fa" onClick={async () => faErstellen(await frisch(), b, aussen)}>Fertigungsauftrag erstellen</button>);
     k.push(<button key="ls" className="knopf" data-erp-aktion="ls" onClick={async () => { const n = await frisch(); fensterOeffnen((zu) =>
@@ -1178,7 +1180,7 @@ export function Rechnungen({ d, neu }) {
 
 // Lieferscheine mit Positionen, die noch nicht verrechnet sind
 function lsOffen(d) {
-  return d.belege.filter((b) => b.typ === "lieferschein" && b.status !== "storniert"
+  return d.belege.filter((b) => b.typ === "lieferschein" && b.status !== "storniert" && b.status !== "abgeschlossen"
     && (d.posJe.get(b.id) || []).some((p) => !folgePositionen(d, p.id, "rechnung").length));
 }
 
@@ -1252,7 +1254,7 @@ function AusLsFenster({ d, zu, neu }) {
 export function Fibu({ d, neu }) {
   const [alle, setAlle] = useState(false);
   const liste = d.belege.filter((b) => (b.typ === "rechnung" || b.typ === "gutschrift") && b.status !== "storniert")
-    .filter((b) => alle || !(b.daten || {}).fibu_am);
+    .filter((b) => alle || (!(b.daten || {}).fibu_am && b.status !== "abgeschlossen"));
   const [an, setAn] = useState(() => new Set());
   const gewaehlt = liste.filter((b) => an.has(b.id));
   const exportieren = async () => {
