@@ -65,7 +65,7 @@ export default function Pruefmittel({ auffrischen, eingebettet }) {
     && (zustand ? zustandVon(p) === zustand : p.status !== "weg");
   const wert = SPALTEN.find((x) => x[0] === sort) || SPALTEN[1];
   const liste = daten.liste.filter(passt).map((p) => [p, wert[2](p, daten)])
-    .sort((x, y) => vergleich(x[1], y[1]) * (ab ? -1 : 1) || vergleich(x[0].nr, y[0].nr)).map((x) => x[0]);
+    .sort((x, y) => gruppe(x[0]) - gruppe(y[0]) || vergleich(x[1], y[1]) * (ab ? -1 : 1) || vergleich(x[0].nr, y[0].nr)).map((x) => x[0]);
   // dazu Prüfmittel der Maschinen ohne Datenbank-Eintrag (Takamaz, Fräsen), am Text erkannt
   const anMaschinen = daten.liste.filter((p) => p.status !== "weg" && (p.ort_art === "maschine" || (!p.machine_id && extraVon(p))));
   const sortieren = (k) => { if (k === sort) setAb(!ab); else { setSort(k); setAb(false); } };
@@ -122,6 +122,10 @@ function zustandVon(p) {
   if (baldFaellig(p)) return "bald";
   return "ok";
 }
+// Immer zuerst die gesperrten, dann die gelben (bald fällig), dann alle anderen in der
+// gewählten Sortierung (Patrick 25. November 2026: „alle, welche gesperrt sind, ganz nach
+// oben, dann alle, die gelb sind, dann die restlichen“)
+const gruppe = (p) => { const z = zustandVon(p); return z === "gesperrt" ? 0 : z === "bald" ? 1 : 2; };
 const ZUSTAND_RANG = { faellig: 0, gesperrt: 1, bald: 2, ok: 3, weg: 4 };
 const vergleich = (x, y) => {
   if (x == null || x === "") return y == null || y === "" ? 0 : 1;
