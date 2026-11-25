@@ -55,6 +55,8 @@ with sync_playwright() as p:
     pruefe(pg.locator("[data-pbtodo=endkontrolle] [data-pbtodoauftrag=jpb2]").count() == 0, "Suche blendet aus")
     pruefe(pg.locator("[data-pbtodo=erstteil] [data-pbtodoauftrag=jpb1]").count() == 1, "andere Spalte unberührt")
     pg.fill("[data-pbtodosuche=endkontrolle]", ""); pg.wait_for_timeout(200)
+    hoehen = pg.eval_on_selector_all("[data-pbtodosuche]", "els => els.map(e => e.offsetHeight)")
+    pruefe(len(hoehen) == 4 and max(hoehen) < 50, f"Suchfeld in allen Spalten, klein {hoehen}")
     # Erstteil aus dem Todo
     pg.click("[data-pbtodo=erstteil] [data-pbtodoauftrag=jpb1]"); pg.wait_for_selector("[data-pbcheckliste]"); pg.wait_for_timeout(300)
     pruefe(pg.locator("[data-pbcheck]").count() >= 3, "Checkliste mit Zeichnung, Lehren, sauber: %d" % pg.locator("[data-pbcheck]").count())

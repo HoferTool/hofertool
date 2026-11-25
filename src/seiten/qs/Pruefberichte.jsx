@@ -329,9 +329,9 @@ function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
         {SPALTEN.map(([id, titel, erkl]) => (
           <section key={id} className="pb-todo__spalte" data-pbtodo={id}>
             <h3>{titel} <span className={"marke" + (todo[id].length ? " pb-todo__zahl" : "")}>{todo[id].length}</span></h3>
-            {todo[id].length ? <input type="search" className="pb-suche pb-todo__suche" data-pbtodosuche={id} placeholder="Suchen …"
+            <input type="search" className="pb-suche pb-todo__suche" data-pbtodosuche={id} placeholder="Suchen …"
               value={sp[id] || ""} onChange={(x) => spSetzen(id, x.target.value)}
-              onKeyDown={(x) => { if (x.key === "Escape" && sp[id]) { x.preventDefault(); x.stopPropagation(); spSetzen(id, ""); } }} /> : null}
+              onKeyDown={(x) => { if (x.key === "Escape" && sp[id]) { x.preventDefault(); x.stopPropagation(); spSetzen(id, ""); } }} />
             {!todo[id].length ? <p className="klein">Nichts offen.</p> : !gefiltert(id).length ? <p className="klein">Nichts gefunden.</p> : (
               <ul>
                 {gefiltert(id).map((t) => (
