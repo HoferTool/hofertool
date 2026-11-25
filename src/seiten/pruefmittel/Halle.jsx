@@ -55,11 +55,13 @@ const DX = 110, B = SR + SW + 40 + DX, DY = 110, HALLE = 1180 + DY, H = HALLE + 
 export const EXTRA = [
   { id: "x:takamaz", name: "Takamaz", such: /takamaz/i, x: 22, y: 22, w: 64, h: 64 },
   { id: "x:gdw", name: "GDW", such: /gdw/i, x: 110 + DX, y: 22, w: SW, h: 64 },
-  { id: "x:fehlmann", name: "Fräse Fehlmann", such: /fehlmann/i, x: B - 360, y: 22, w: SW, h: 64 },
+  { id: "x:fehlmann", name: "Fehlmann", such: /fehlmann/i, x: B - 360, y: 22, w: SW, h: 64 },
   { id: "x:fraese", name: "Fräse", such: /fr(ä|ae)se/i, ohne: /fehlmann/i, x: B - 190, y: 22, w: SW, h: 64 },
 ];
-// Werkbänke: nur zur Orientierung, ohne Prüfmittel und nicht anwählbar
-const BAENKE = [{ x: 290 + DX, y: 22 }, { x: 460 + DX, y: 22 }];
+// Werkbänke mit je einer Schäublin: nur zur Orientierung, ohne Prüfmittel und
+// nicht anwählbar; seit 1.821.1 ganz rechts direkt links neben Fehlmann
+// (Patrick 25. November 2026: „ganz nach rechts geschoben an Fehlmann“)
+const BAENKE = [{ x: B - 360 - 2 * (SW + 16), y: 22 }, { x: B - 360 - (SW + 16), y: 22 }];
 export function extraVon(p) {
   const t = [p.notiz, p.ort_text, p.bezeichnung].filter(Boolean).join(" ");
   const e = EXTRA.find((x) => x.such.test(t) && !(x.ohne && x.ohne.test(t)));
@@ -76,8 +78,10 @@ export default function Halle({ maschinen, zahl, faellig, gewaehlt, waehlen }) {
         <rect x="0" y="0" width={B} height={HALLE} fill="url(#hl-boden)" />
         <rect x="6" y="6" width={B - 12} height={HALLE - 12} fill="none" stroke="#6b7076" strokeWidth="12" />
         {BAENKE.map((b, i) => <g key={"bank" + i} className="hl-bank">
-          <rect x={b.x} y={b.y} width={SW} height={44} rx="3" fill="#b98a58" stroke="#7a5532" strokeWidth="2" />
-          <text x={b.x + SW / 2} y={b.y + 28} textAnchor="middle" className="hl-typ" fill="#3d2a17">Werkbank</text>
+          <rect x={b.x} y={b.y} width={SW} height={64} rx="3" fill="#b98a58" stroke="#7a5532" strokeWidth="2" />
+          <rect x={b.x + 22} y={b.y + 8} width={SW - 44} height={30} rx="4" fill="url(#hl-blech)" stroke="#8d949b" strokeWidth="1.5" />
+          <text x={b.x + SW / 2} y={b.y + 28} textAnchor="middle" className="hl-typ">Schäublin</text>
+          <text x={b.x + SW / 2} y={b.y + 56} textAnchor="middle" className="hl-typ" fill="#3d2a17">Werkbank</text>
         </g>)}
         {EXTRA.map((e) => <Extra key={e.id} e={e} n={zahl.get(e.id) || 0} warn={faellig.has(e.id)}
           an={gewaehlt === e.id} waehlen={waehlen} />)}

@@ -168,6 +168,9 @@ function leisteSichtbar() {
   const b = document.body;
   if (b.classList.contains("pad-offen") || b.classList.contains("ib-anzeige")) return false;
   if (document.getElementById("pad")) return false;
+  // Blätter über den ganzen Bildschirm (Masse-Blatt der Prüfung) haben oben
+  // ihre eigene Leiste, die Fensterleiste läge sonst über deren Knöpfen
+  if (document.querySelector("[data-pstblatt]")) return false;
   return ordnung.length > 0;
 }
 

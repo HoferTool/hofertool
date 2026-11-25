@@ -177,13 +177,15 @@ function Umfrage({ u, neu, admin }) {
     <article className={"umf" + (u.offen ? "" : " umf--zu")} data-umfrage={u.id}>
       <div className="umf__kopf">
         <h3 className="umf__titel">{u.titel}</h3>
-        {verwalten && <div className="umf__admin">
-          {u.offen && <button className="linkknopf" data-umfqr={u.id} onClick={() => qrOeffnen(u, neu)}>QR-Code</button>}
+        <div className="umf__admin">
+          {verwalten && u.offen && <button className="linkknopf" data-umfqr={u.id} onClick={() => qrOeffnen(u, neu)}>QR-Code</button>}
+          {/* Bearbeiten (Text, Vorschläge, Stimmen) dürfen seit 1.821.0 alle, die Umfragen sehen,
+              Wunsch Patrick 25. November 2026: „jeder soll auch bearbeiten können diese“ */}
           <button className="linkknopf" data-umfbearb={u.id} onClick={() => bearbeitenOeffnen(u, neu)}>Bearbeiten</button>
-          <button className="linkknopf" data-umfoffen={u.id} onClick={() => offenSetzen(u, !u.offen, neu)}>
+          {verwalten && <><button className="linkknopf" data-umfoffen={u.id} onClick={() => offenSetzen(u, !u.offen, neu)}>
             {u.offen ? "Schliessen" : "Wieder öffnen"}</button>
-          <button className="linkknopf linkknopf--gefahr" data-umfweg={u.id} onClick={() => umfrageLoeschen(u, neu)}>Löschen</button>
-        </div>}
+          <button className="linkknopf linkknopf--gefahr" data-umfweg={u.id} onClick={() => umfrageLoeschen(u, neu)}>Löschen</button></>}
+        </div>
       </div>
       {u.beschreibung && <p className="umf__text">{u.beschreibung}</p>}
       {u.bild_url && <button type="button" className="umf__bild" onClick={() => alt.betrachter(u.bild_url, u.titel, false)}>

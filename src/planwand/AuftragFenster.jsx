@@ -27,12 +27,13 @@ import { auftragSpeichern, auftragLoeschen } from "./auftragSpeichern.js";
 import { materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { wiederOeffner } from "../teile/wiederherstellen.js";
-import { useWaschprog } from "../daten/waschprog.js";
+import { useWaschprog, useWbgIndex } from "../daten/waschprog.js";
 import { matInfo, MAT_INFO_ERKLAERUNG, materialImHaus, materialAbhoeren } from "../daten/material.js";
 import { ImHausEinblendung } from "./MaterialImHaus.jsx";
 import { mahnBilder } from "../daten/mahnbilder.js";
 import { inEigenesFenster, eigeneFensterZu } from "../teile/eigenesFenster.js";
 import { vorbereitenOeffnen } from "./Vorbereiten.jsx";
+import { stueckzahlKorrigierenOeffnen } from "./StueckzahlKorrigieren.jsx";
 import { problemArchivOeffnen, fruehereProblemeZahl } from "./ProblemArchiv.jsx";
 import { blattInProduktionBearbeiten } from "../einrichtblatt/Blatt.jsx";
 import { qsOeffnen } from "./QsMassnahmen.jsx";
@@ -400,6 +401,9 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   const anfang = useRef(w);
   const setze = (feld, wert) => setW((x) => ({ ...x, [feld]: wert }));
   const waschprog = useWaschprog(typeof w.wbg === "string" ? w.wbg : "");
+  // Index aus der WBG (Wunsch Patrick 25. November 2026), nicht für Externe
+  const wbgIndex = useWbgIndex(extern || typeof w.wbg !== "string" ? "" : w.wbg,
+    !extern && auftrag && w.wbg === auftrag.wbg_url ? auftrag.wbg_index : null);
   const aktuell = useRef(w);
   aktuell.current = w;
   const tageVonHand = useRef(false);
@@ -743,6 +747,11 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
           {/* QS-Massnahmen aus Reklamationen und nötige Prüfmittel (seit 1.790.0) */}
           {auftrag && !extern && <button type="button" className="knopf knopf--klein knopf--vorbereiten" id="pl-qs"
             onClick={() => qsOeffnen(auftrag)}>QS</button>}
+          {/* Gemeldete Stückzahlen ändern oder auf 0 setzen (seit 1.824.0,
+              Wunsch Patrick 25. November 2026), Schreibrecht, nicht Externe */}
+          {auftrag && !extern && alt.darfSchreiben() && <button type="button" className="knopf knopf--klein knopf--vorbereiten"
+            id="pl-stueckzahl" title="Gemeldete Stückzahlen ändern oder zurücksetzen"
+            onClick={() => stueckzahlKorrigierenOeffnen(auftrag, b)}>Stückzahl</button>}
           {!extern && eigenesFensterMoeglich() && <button type="button" className="dialog__schliessen-inline auf-kopf__eigen"
             id="pl-eigen" title="In eigenem Fenster öffnen, zum Verschieben auf einen anderen Bildschirm"
             aria-label="In eigenem Fenster öffnen"
@@ -961,7 +970,9 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                 {/* Die Zeile „Waschprog-Nr.“ der WBG, aus der PDF gelesen
                     (Wunsch Patrick, 12. Oktober 2026) */}
                 {waschprog && <span className="auf-waschprog" id="pl-waschprog">
-                  Waschprog-Nr.: <b>{waschprog}</b></span>}</div></div>
+                  Waschprog-Nr.: <b>{waschprog}</b></span>}
+                {wbgIndex && <span className="auf-waschprog" id="pl-wbgindex">
+                  Index: <b>{wbgIndex === "-" ? "keiner" : wbgIndex}</b></span>}</div></div>
 
             {/* Den Knopf Spezialwerkzeuge gibt es seit 1.443.0 nicht mehr (Wunsch
                 Patrick 6. November 2026: „wird ja mit Stern gekennzeichnet“) */}

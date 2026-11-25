@@ -1,6 +1,14 @@
 // Temp-Ordner: Claude legt eine Datei in den Temp-Ordner einer Person
-// (Wunsch Patrick 25. November 2026). Einmaliger Schlüssel in temp_upload,
-// Ablage „temp“ unter <Konto>/.
+// (Wunsch Patrick 25. November 2026: „Lade die drei Beispiele bei Michel
+// in Temp-Ordner“).
+//
+// Wie step-ablegen: Claude legt über die Datenbank-Verbindung einen
+// einmaligen Schlüssel in temp_upload ab (Konto der Person, eine Stunde
+// gültig, für niemanden lesbar) und schickt die Datei mit diesem
+// Schlüssel hierher. Die Funktion legt sie mit dem Dienstschlüssel in die
+// Ablage „temp“ unter <Konto>/ ab, genau wie die App. Nach 24 Stunden
+// löscht „temp-aufraeumen“ sie wie alles im Temp-Ordner.
+//
 // POST ?schluessel=…&name=<Dateiname>  Körper = Datei
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -18,6 +26,7 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return antwort({ fehler: "nur POST" }, 405);
   const u = new URL(req.url);
   const schluessel = u.searchParams.get("schluessel") || "";
+  // Gleicher Speichername wie speicherName in src/daten/temp.js
   const roh = u.searchParams.get("name") || "Datei";
   const sauber = roh.replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue")
     .replace(/Ä/g, "Ae").replace(/Ö/g, "Oe").replace(/Ü/g, "Ue").replace(/ß/g, "ss")
