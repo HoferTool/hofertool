@@ -3,7 +3,8 @@ import { useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { briefBlatt } from "../../teile/briefkopf.js";
-import { adresseText, chf, datumText, mengeText, terminText, belegSumme, BELEGTYP, artikelText, posPe, posBetrag, peKurz } from "../../daten/erp.js";
+import { adresseText, chf, datumText, mengeText, terminText, belegSumme, BELEGTYP, artikelText, posPe, posBetrag, peKurz,
+  HOFER_LAGERARTEN, istHoferLager, lagerFuer, lagerName, lagerplatzId, bestand } from "../../daten/erp.js";
 
 // Felder eines Arbeitsgangs (Arbeitsplan beim Artikel und Fenster Arbeitsplan)
 export const AG_FELDER = [
@@ -34,6 +35,55 @@ export function Feld({ f, wert, setzen }) {
   }
   return <label className={"feld erp-feld" + (f.breit ? " erp-feld--breit" : "")}><span>{f.label}</span>{eingabe}
     {f.hinweis && <span className="feldhinweis">{f.hinweis}</span>}</label>;
+}
+
+// ---------- Lager beim Buchen ----------
+// Hofer + Co Artikel: Lagerart (FL, HFL, EXT, SPL) wählen und Platz frei
+// eintippen, ohne Stammdaten (Patrick 25. November 2026). Rohmaterial und
+// Werkzeug: Lagerplatz aus den Stammdaten wie bisher.
+const istHofer = (artikel) => !artikel || artikel.art === "hofer";
+
+// Der Platz gehört zur Einbuchung und bleibt, solange aus ihr Teile am Lager
+// sind (Patrick 25. November 2026): Bestand je Charge und Platz. Ist alles weg,
+// erscheint der Platz nirgends mehr, auch nicht als Vorschlag.
+const plaetzeMitBestand = (d, lart, artikelId) => {
+  const ids = new Set(bestand(d).filter((e) => e.menge > 0 && (!artikelId || e.artikel_id === artikelId)).map((e) => e.lager_id));
+  return [...new Set(d.lager.filter((l) => ids.has(l.id) && l.lagerart === lart).map((l) => l.platz))].sort();
+};
+
+export function lagerStart(d, artikel) {
+  if (istHofer(artikel)) {
+    // Vorschlag: FL-Platz, an dem dieser Artikel schon liegt, sonst leer
+    const da = artikel ? plaetzeMitBestand(d, "FL", artikel.id) : [];
+    return { lart: "FL", lplatz: da[0] || "", lager: "" };
+  }
+  const l = lagerFuer(d.lager.filter((x) => !istHoferLager(x.lagerart)), artikel.art)[0];
+  return { lart: "", lplatz: "", lager: l ? l.id : "" };
+}
+
+export async function lagerAus(d, artikel, w) {
+  if (istHofer(artikel)) return lagerplatzId(d, w.lart, w.lplatz);
+  return w.lager || null;
+}
+
+export function LagerEingabe({ d, artikel, w, setzen, id }) {
+  if (istHofer(artikel)) {
+    const liste = "erp-lplaetze-" + (id || "x");
+    const plaetze = plaetzeMitBestand(d, w.lart);
+    return (
+      <>
+        <Feld f={{ name: "lart", label: "Lagerart", auswahl: HOFER_LAGERARTEN.map((a) => [a.code, a.code + " · " + a.text]) }}
+          wert={w.lart} setzen={(v) => setzen("lart", v)} />
+        <label className="feld erp-feld"><span>Lagerplatz</span>
+          <input type="text" value={w.lplatz || ""} list={liste} data-erp-feld="lplatz" placeholder="frei eintippen"
+            onChange={(e) => setzen("lplatz", e.target.value)} />
+          <datalist id={liste}>{plaetze.map((p) => <option key={p} value={p} />)}</datalist></label>
+      </>
+    );
+  }
+  const wahl = lagerFuer(d.lager.filter((x) => !istHoferLager(x.lagerart)), artikel.art)
+    .map((l) => [l.id, lagerName(l) + (l.bezeichnung ? " · " + l.bezeichnung : "")]);
+  return <Feld f={{ name: "lager", label: "Lager", auswahl: [["", "—"]].concat(wahl) }} wert={w.lager} setzen={(v) => setzen("lager", v)} />;
 }
 
 function Liste({ f, wert, setzen }) {

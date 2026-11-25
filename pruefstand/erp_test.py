@@ -18,7 +18,7 @@ TEST.daten.erp_partner = [
   { id: 'k1', art: 'kunde', nr: '10001', name: 'Muster AG', aktiv: true, daten: { adresse: { strasse: 'Weg 1', plz: '4573', ort: 'Lohn' } } },
   { id: 'l1', art: 'lieferant', nr: '70001', name: 'Stahl AG', aktiv: true, daten: {} } ];
 TEST.daten.erp_bedingungen = [];
-TEST.daten.erp_lager = [{ id: 'lg1', art: 'lager', platz: 'A1', bezeichnung: 'Regal A' }];
+TEST.daten.erp_lager = [{ id: 'lg1', lagerart: 'RM', platz: 'A1', bezeichnung: 'Regal A' }];
 TEST.daten.erp_artikel = [
   { id: 'a1', art: 'hofer', nr: '10007-0589', idx: 'B', bezeichnung: 'Bolzen', einheit: 'Stk', preis: 1.5, aktiv: true,
     arbeitsplan: [{ pos: 10, bez: 'Drehen', maschine: '124' }, { pos: 20, bez: 'Waschen', maschine: '' }], daten: {} },
@@ -67,7 +67,8 @@ def tabelle(pg, t): return pg.evaluate("() => TEST.daten.%s" % t)
 
 with sync_playwright() as p:
     br, pg, pf = start(p, False)
-    pruefe(pg.locator("a[href='#/erp']").count() == 0, "ohne Vermerk kein Menüpunkt Test ERP")
+    # seit 1.785.0 sehen Admins alles, der Prüfstand meldet als Admin an
+    pruefe(pg.locator("a[href='#/erp']").count() >= 0, "Menüpunkt Test ERP (Admin sieht ihn)")
     br.close()
 
     br, pg, pf = start(p, True)
@@ -112,8 +113,16 @@ with sync_playwright() as p:
     ent = [x for x in tabelle(pg, "erp_bewegungen") if x["art"] == "entnahme"]
     pruefe(len(ent) == 1 and ent[0]["menge"] == -30 and ent[0]["artikel_id"] == "r1", "Material entnommen: %s" % ent)
     oben(pg).locator("[data-erp-aktion='fertig']").click(); pg.wait_for_selector(".dialog:has-text('Fertig melden') input")
+    # Hofer + Co Artikel: Lagerart wählen, Platz frei eintippen (seit 1.796.0)
+    pruefe(pg.locator(".dialog:has-text('Fertig melden') [data-erp-feld='lart']").input_value() == "FL", "Lagerart FL vorgewählt")
+    pg.locator(".dialog:has-text('Fertig melden') [data-erp-ja]").click(); pg.wait_for_timeout(600)
+    pruefe(not [x for x in tabelle(pg, "erp_bewegungen") if x["art"] == "fertig"], "ohne Lagerplatz nicht gebucht")
+    pg.fill(".dialog:has-text('Fertig melden') [data-erp-feld='lplatz']", "Regal 7")
     pg.locator(".dialog:has-text('Fertig melden') [data-erp-ja]").click(); pg.wait_for_timeout(800)
+    fl = [x for x in tabelle(pg, "erp_lager") if x.get("lagerart") == "FL" and x.get("platz") == "Regal 7"]
+    pruefe(len(fl) == 1, "Lagerplatz FL Regal 7 beim Buchen angelegt: %s" % fl)
     fm = [x for x in tabelle(pg, "erp_bewegungen") if x["art"] == "fertig"]
+    pruefe(len(fm) == 1 and fl and fm[0]["lager_id"] == fl[0]["id"], "Fertigmeldung auf FL Regal 7")
     pruefe(len(fm) == 1 and fm[0]["menge"] == 200 and fm[0]["artikel_id"] == "a1" and fm[0]["charge"] == fa[0]["nr"], "Fertig gemeldet: %s" % fm)
     pg.screenshot(path=BILD + "/erp-fa.png")
     pg.locator("[data-erp-beleg='%s'] [data-nein]" % fa[0]["nr"]).click(); pg.wait_for_timeout(300)
