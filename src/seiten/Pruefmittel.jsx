@@ -11,11 +11,11 @@
 //  Nur Admins, nie Externe (seiteSichtbar in app.js, Regeln in der
 //  Datenbank). Daten in src/daten/pruefmittel.js.
 // =================================================================
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { alt, useDaten, useGemerkt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { useSeitenSuche, hinzeigen } from "../teile/seitenSuche.js";
-import Halle, { LAGE } from "./pruefmittel/Halle.jsx";
+import Halle, { LAGE, EXTRA, extraVon } from "./pruefmittel/Halle.jsx";
 import { pruefmittelLaden, verlaufLaden, ARTEN, artText, ORTE, STATUS, fehltTabelle,
   maschineText, naechstePruefung, istFaellig, ortText, suchText, zeilenLesen,
   gruppeVon, gruppeText, PRUEFUNG_WO, pruefWoText, baldFaellig, einsatzTage } from "../daten/pruefmittel.js";
@@ -66,31 +66,38 @@ export default function Pruefmittel({ auffrischen, eingebettet }) {
   const wert = SPALTEN.find((x) => x[0] === sort) || SPALTEN[1];
   const liste = daten.liste.filter(passt).map((p) => [p, wert[2](p, daten)])
     .sort((x, y) => vergleich(x[1], y[1]) * (ab ? -1 : 1) || vergleich(x[0].nr, y[0].nr)).map((x) => x[0]);
-  const anMaschinen = daten.liste.filter((p) => p.ort_art === "maschine" && p.status !== "weg");
+  // dazu Prüfmittel der Maschinen ohne Datenbank-Eintrag (Takamaz, Fräsen), am Text erkannt
+  const anMaschinen = daten.liste.filter((p) => p.status !== "weg" && (p.ort_art === "maschine" || (!p.machine_id && extraVon(p))));
   const sortieren = (k) => { if (k === sort) setAb(!ab); else { setSort(k); setAb(false); } };
   const gefiltert = !!(s || typ || ort || zustand);
 
   return (
     <>
       {!eingebettet && <h1 className="seitentitel">Prüfmittel</h1>}
-      <Kurz d={daten} neu={neu} offen={kurz} setOffen={setKurz} />
+      <Kurz d={daten} neu={neu} offen={kurz} setOffen={setKurz} vorne={
+        <button className="pm-kurz__zahl pm-kurz__zahl--masch" id="pm-maschinen" onClick={() => maschinenFenster(anMaschinen, daten, neu)}>
+          <b className="pm-kurz__bild" aria-hidden="true">🏭</b><span>Hallenplan ›</span></button>} />
       <div className="mat-kopf pm-leiste">
-        <button className="knopf knopf--haupt" id="pm-maschinen" onClick={() => maschinenFenster(anMaschinen, daten, neu)}>
-          ⚙️ An Maschinen ({anMaschinen.length})</button>
         <button className="knopf" id="pm-neu" onClick={() => bearbeiten(null, daten, neu)}>+ Prüfmittel</button>
         <button className="knopf knopf--still" id="pm-einfuegen" onClick={() => einfuegen(neu)}>Aus Gewatec / Excel einfügen</button>
       </div>
       <div className="pm-filter" id="pm-filter">
         <input className="mat-sucheingabe" id="pm-suche" type="search" value={suche}
           placeholder="Suchen: Nr., Bezeichnung, Typ, Hersteller, Mass, Maschine" onChange={(e) => setSuche(e.target.value)} />
-        <select id="pm-f-typ" value={typ} onChange={(e) => setTyp(e.target.value)}>
-          <option value="">Alle Typen</option>{typen.map((t) => <option key={t} value={t}>{t}</option>)}</select>
-        <select id="pm-f-status" value={zustand} onChange={(e) => setZustand(e.target.value)}>
-          <option value="">Alle Status</option>{ZUSTAENDE.map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select>
-        <select id="pm-f-ort" value={ort} onChange={(e) => setOrt(e.target.value)}>
-          <option value="">Alle Lagerorte</option>{ORTE.map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select>
-        <select id="pm-f-sort" value={sort + (ab ? "-" : "")} onChange={(e) => { const v = e.target.value; setSort(v.replace(/-$/, "")); setAb(v.endsWith("-")); }}>
-          {SPALTEN.map(([k, t]) => [<option key={k} value={k}>Sortieren: {t} ↑</option>, <option key={k + "-"} value={k + "-"}>Sortieren: {t} ↓</option>])}</select>
+        <div className="pm-fk-reihe">
+          <label className={"pm-fk" + (typ ? " pm-fk--an" : "")}><span>Typ</span>
+            <select id="pm-f-typ" value={typ} onChange={(e) => setTyp(e.target.value)}>
+              <option value="">Alle</option>{typen.map((t) => <option key={t} value={t}>{t}</option>)}</select></label>
+          <label className={"pm-fk" + (zustand ? " pm-fk--an" : "")}><span>Status</span>
+            <select id="pm-f-status" value={zustand} onChange={(e) => setZustand(e.target.value)}>
+              <option value="">Alle</option>{ZUSTAENDE.map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select></label>
+          <label className={"pm-fk" + (ort ? " pm-fk--an" : "")}><span>Lagerort</span>
+            <select id="pm-f-ort" value={ort} onChange={(e) => setOrt(e.target.value)}>
+              <option value="">Alle</option>{ORTE.map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select></label>
+          <label className="pm-fk"><span>Sortieren</span>
+            <select id="pm-f-sort" value={sort + (ab ? "-" : "")} onChange={(e) => { const v = e.target.value; setSort(v.replace(/-$/, "")); setAb(v.endsWith("-")); }}>
+              {SPALTEN.map(([k, t]) => [<option key={k} value={k}>{t} ↑</option>, <option key={k + "-"} value={k + "-"}>{t} ↓</option>])}</select></label>
+        </div>
         {gefiltert && <button className="knopf knopf--still" id="pm-f-weg" onClick={() => { setSuche(""); setTyp(""); setZustand(""); setOrt(""); }}>Filter weg</button>}
         <span className="klein pm-filter__zahl">{zahlText(liste.length)} {gefiltert ? "gefunden" : "Prüfmittel"}</span>
       </div>
@@ -142,16 +149,17 @@ function StatusPunkt({ p }) {
 
 export const fuerPruefung = (p) => p.status === "aktiv" && p.ort_art !== "extern" && istFaellig(p);
 
-function Kurz({ d, neu, offen, setOffen }) {
+function Kurz({ d, neu, offen, setOffen, vorne }) {
   const raus = d.liste.filter(fuerPruefung);
   const kiste = d.liste.filter((p) => p.ort_art === "rueckgabe");
   const liste = offen === "raus" ? raus : offen === "kiste" ? kiste : [];
   return (
     <div className="pm-kurz">
       <div className="pm-kurz__zahlen">
-        <button className={"pm-kurz__zahl" + (raus.length ? " pm-kurz__zahl--warn" : "") + (offen === "raus" ? " aktiv" : "")}
+        {vorne}
+        <button className={"pm-kurz__zahl pm-kurz__zahl--rot" + (offen === "raus" ? " aktiv" : "")}
           id="pm-kurz-raus" onClick={() => setOffen(offen === "raus" ? "" : "raus")}>
-          <b>{raus.length}</b><span>Müssen zur Prüfung raus</span></button>
+          <b>{raus.length}</b><span>Prüfmittel, die zur Prüfung raus müssen</span></button>
         <button className={"pm-kurz__zahl" + (offen === "kiste" ? " aktiv" : "")}
           id="pm-kurz-kiste" onClick={() => setOffen(offen === "kiste" ? "" : "kiste")}>
           <b>{kiste.length}</b><span>In der Rückgabekiste</span></button>
@@ -189,62 +197,70 @@ function maschinenFenster(liste, d, neu) {
 }
 
 function AnMaschinen({ liste, d, zu, neu }) {
-  const [gewaehlt, setGewaehlt] = useState(null);
+  // Gewählte Maschine samt Lage im Bild; ihre Prüfmittel stehen in einem kleinen
+  // Fenster gleich daneben wie die Schnellvorschau der Planwand (Patrick 25. November 2026)
+  const [wahl, setWahl] = useState(null);
+  const gewaehlt = wahl && wahl.id;
   const jeMaschine = new Map();
+  const ort = (p) => p.machine_id || extraVon(p);
   liste.forEach((p) => {
-    if (!jeMaschine.has(p.machine_id)) jeMaschine.set(p.machine_id, []);
-    jeMaschine.get(p.machine_id).push(p);
+    if (!jeMaschine.has(ort(p))) jeMaschine.set(ort(p), []);
+    jeMaschine.get(ort(p)).push(p);
   });
   const zahl = new Map([...jeMaschine].map(([id, l]) => [id, l.length]));
-  const faellig = new Set(liste.filter(istFaellig).map((p) => p.machine_id));
-  const reihe = (id) => { const i = d.maschinen.findIndex((m) => m.id === id); return i < 0 ? 9999 : i; };
+  const faellig = new Set(liste.filter(istFaellig).map(ort));
   // Maschinen mit Prüfmitteln, die nicht im Hallenplan stehen (z.B. 303/304)
-  const ausserhalb = [...jeMaschine.keys()].map((id) => d.maschinen.find((m) => m.id === id))
+  const ausserhalb = [...jeMaschine.keys()].filter((id) => !EXTRA.some((e) => e.id === id)).map((id) => d.maschinen.find((m) => m.id === id))
     .filter((m) => !m || !LAGE[String(m.machine_number || "")]);
-  const jePark = new Map();
-  [...jeMaschine.keys()].filter((id) => !gewaehlt || id === gewaehlt).sort((a, b) => reihe(a) - reihe(b)).forEach((id) => {
-    const m = d.maschinen.find((x) => x.id === id);
-    const park = m && d.parks.find((x) => x.id === m.park_id);
-    const k = park ? park.name : "Ohne Park";
-    if (!jePark.has(k)) jePark.set(k, []);
-    jePark.get(k).push([m, jeMaschine.get(id)]);
-  });
-  const mGew = gewaehlt && d.maschinen.find((m) => m.id === gewaehlt);
+  const waehlen = (id, el) => setWahl(id ? { id, rect: el && el.getBoundingClientRect ? el.getBoundingClientRect() : null } : null);
   const oeffnen = (p) => { zu(); pmFenster(p, d, neu); };
+  // Tipp daneben schliesst das kleine Fenster
+  useEffect(() => {
+    if (!wahl) return undefined;
+    const weg = (e) => {
+      if (e.target.closest && (e.target.closest(".pm-pop") || e.target.closest("[data-pmmaschine]") || e.target.closest(".pm-ausserhalb"))) return;
+      setWahl(null);
+    };
+    const taste = (e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setWahl(null); } };
+    document.addEventListener("pointerdown", weg, true);
+    document.addEventListener("keydown", taste, true);
+    return () => { document.removeEventListener("pointerdown", weg, true); document.removeEventListener("keydown", taste, true); };
+  }, [wahl]);
+  const mGew = gewaehlt && d.maschinen.find((m) => m.id === gewaehlt);
+  const pms = gewaehlt ? jeMaschine.get(gewaehlt) || [] : [];
+  let lage = { left: 16, top: 80 };
+  if (wahl && wahl.rect) {
+    const r = wahl.rect, B = 360, vw = window.innerWidth, vh = window.innerHeight;
+    const left = r.right + 10 + B <= vw ? r.right + 10 : Math.max(8, r.left - 10 - B);
+    lage = { left, top: Math.max(8, Math.min(r.top, vh - 80)), maxHeight: Math.max(160, vh - Math.max(8, Math.min(r.top, vh - 80)) - 12) };
+  }
   return (
     <div className="dialog dialog--breit pm-fenster pm-anmaschinen" role="dialog" aria-modal="true" id="pm-maschinen-fenster">
       <div className="blatt__kopf">
-        <h2>⚙️ Prüfmittel an Maschinen ({liste.length})</h2>
+        <h2>Hallenplan</h2>
         <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button>
       </div>
       <p className="hinweis">Maschine antippen zeigt ihre Prüfmittel. Die Zahl sagt, wie viele dort sind, rot = Prüfung fällig.</p>
-      <Halle maschinen={d.maschinen} zahl={zahl} faellig={faellig} gewaehlt={gewaehlt} waehlen={setGewaehlt} />
+      <Halle maschinen={d.maschinen} zahl={zahl} faellig={faellig} gewaehlt={gewaehlt} waehlen={waehlen} />
       {ausserhalb.length > 0 && (
         <div className="pm-ausserhalb">Nicht im Plan:{" "}
           {ausserhalb.map((m, i) => (
             <button key={m ? m.id : "x" + i} className={"knopf knopf--klein" + (m && gewaehlt === m.id ? " aktiv" : "")}
-              onClick={() => m && setGewaehlt(gewaehlt === m.id ? null : m.id)}>
+              onClick={(e) => m && waehlen(gewaehlt === m.id ? null : m.id, e.currentTarget)}>
               {maschineText(m)} ({jeMaschine.get(m ? m.id : null)?.length || 0})
             </button>))}
         </div>)}
-      {mGew && (
-        <div className="pm-halle__wahl">
-          <b>{maschineText(mGew)}</b>
-          <button className="knopf knopf--klein" id="pm-halle-alle" onClick={() => setGewaehlt(null)}>Alle Maschinen zeigen</button>
+      {!liste.length && <p className="hinweis">An keiner Maschine ist ein Prüfmittel ausgetragen.</p>}
+      {wahl && (
+        <div className="pm-pop" id="pm-pop" style={lage} data-pmmaschine-pop={gewaehlt}>
+          <div className="pm-pop__kopf">
+            <b>{mGew ? maschineText(mGew) : (EXTRA.find((e) => e.id === gewaehlt) || {}).name}</b>
+            <button className="knopf knopf--still knopf--klein" aria-label="Schliessen" onClick={() => setWahl(null)}>✕</button>
+          </div>
+          {pms.length ? <div className="pm-maschine" data-pmmaschine={gewaehlt}>
+            {pms.map((p) => <Zeile key={p.id} p={p} d={d} neu={neu} ohneOrt klick={oeffnen} />)}
+          </div> : <p className="hinweis">An dieser Maschine ist kein Prüfmittel ausgetragen.</p>}
         </div>)}
-      {!liste.length ? <p className="hinweis">An keiner Maschine ist ein Prüfmittel ausgetragen.</p>
-        : gewaehlt && !jeMaschine.has(gewaehlt) ? <p className="hinweis">An dieser Maschine ist kein Prüfmittel ausgetragen.</p>
-        : [...jePark.entries()].map(([park, ms]) => (
-          <div key={park} className="pm-park">
-            <h3 className="pm-park__titel">{park}</h3>
-            <div className="pm-maschinen">
-              {ms.map(([m, pms]) => (
-                <div key={m ? m.id : "?"} className="pm-maschine" data-pmmaschine={m ? m.id : ""}>
-                  <div className="pm-maschine__kopf">{maschineText(m)}</div>
-                  {pms.map((p) => <Zeile key={p.id} p={p} d={d} neu={neu} ohneOrt klick={oeffnen} />)}
-                </div>))}
-            </div>
-          </div>))}
     </div>);
 }
 
@@ -259,7 +275,7 @@ function Zeile({ p, d, neu, ohneOrt, klick }) {
         <span className="klein">
           {[p.ort_text && (ohneOrt ? p.ort_art === "maschine" : p.ort_art !== "person") ? p.ort_text : null,
             p.hoco ? "für " + p.hoco : null,
-            p.ort_art !== "schrank" && p.seit ? "seit " + alt.kurzDatum(p.seit) : null,
+            p.ort_art !== "schrank" && p.seit ? "seit " + alt.kurzDatum(String(p.seit).slice(0, 10)) : null,
             einsatzTage(p) >= 0.05 ? tageText(p) : null].filter(Boolean).join(" · ")}
         </span>
       </span>

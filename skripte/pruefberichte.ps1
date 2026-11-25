@@ -81,11 +81,39 @@ function HocoAusText([string]$text) {
 }
 
 # Gleich wie bei den Zeichnungen (zeichnungen.ps1)
+# Prüfberichte heissen fast immer wie das Teil, nur mit den letzten drei Ziffern
+# des Kunden: 10007\007-0710.xlsx = 10007-0710. Darüber stehen Ordner mit
+# Bereichen wie „10000-10020“ oder „0501 bis 0600“, die keine HOCO Nr. sind
+# (vorher landeten so 426 Berichte bei „10000-10020“).
+function HocoAusDateiname($d, [string]$wurzel) {
+  $w = $wurzel.TrimEnd('\').ToLower()
+  $m = [regex]::Match([string]$d.Name, '^\s*(\d{3,5})\s?-\s?(\d{4})(?!\d)')
+  if (-not $m.Success) { return $null }
+  $k = $m.Groups[1].Value; $t = $m.Groups[2].Value
+  if ($k.Length -eq 5) { return "$k-$t" }
+  # Kundenordner: fünf Ziffern, die auf die Ziffern aus dem Namen enden
+  $o = $d.Directory
+  while ($o -and $o.FullName.TrimEnd('\').Length -gt $w.Length) {
+    $kn = [regex]::Match([string]$o.Name, '^\s*(\d{5})\s*$')
+    if ($kn.Success -and $kn.Groups[1].Value.EndsWith($k)) { return $kn.Groups[1].Value + "-" + $t }
+    $o = $o.Parent
+  }
+  if ($k.Length -eq 3) { return "10$k-$t" }
+  return $null
+}
+
+function IstBereich([string]$name) {
+  return ($name -match '(?i)\bbis\b') -or ($name -match '^\s*\d{5}\s?-\s?\d{5}\s*$')
+}
+
 function HocoAusPfad($d, [string]$wurzel) {
+  $h = HocoAusDateiname $d $wurzel
+  if ($h) { return $h }
   $w = $wurzel.TrimEnd('\').ToLower()
   $o = $d.Directory
   while ($o -and $o.FullName.TrimEnd('\').Length -gt $w.Length) {
     $t = [regex]::Match([string]$o.Name, '^\s*(\d{3,5})(?!\d)')
+    if (IstBereich $o.Name) { $t = [regex]::Match("", "x") }
     $k = $o.Parent
     if ($t.Success -and $k -and $k.FullName.TrimEnd('\').Length -gt $w.Length) {
       $kn = [regex]::Match([string]$k.Name, '^\s*(\d{4,6})\s*$')
@@ -97,7 +125,8 @@ function HocoAusPfad($d, [string]$wurzel) {
   if ($h) { return $h }
   $o = $d.Directory
   while ($o -and $o.FullName.TrimEnd('\').Length -gt $w.Length) {
-    $h = HocoAusText $o.Name
+    $h = $null
+    if (-not (IstBereich $o.Name)) { $h = HocoAusText $o.Name }
     if ($h) { return $h }
     $o = $o.Parent
   }
@@ -115,7 +144,7 @@ function AusAblageWeg($pfade) {
 
 $jetztIso = (Get-Date).ToUniversalTime().ToString("o")
 $status = @{ immer = $true; zeit = $jetztIso; gesehen = $jetztIso; rechner = $env:COMPUTERNAME; scharf = (-not $Probe);
-             ordner = @(); excel = 0; ohneNr = 0; rest = 0; hochgeladen = 0; entfernt = 0; abgeloest = 0; fehler = $null }
+             ordner = @(); excel = 0; ohneNr = 0; rest = 0; hochgeladen = 0; entfernt = 0; abgeloest = 0; umgestellt = 0; fehler = $null }
 
 try {
   Anmelden
@@ -128,7 +157,7 @@ try {
 
   # Was in der App schon aus den Ordnern kam
   $inApp = @{}
-  foreach ($r in (Lesen "pruefbericht_dateien?select=id,pfad,ablage,kennung&quelle=eq.ordner")) {
+  foreach ($r in (Lesen "pruefbericht_dateien?select=id,pfad,ablage,kennung,hoco_nr&quelle=eq.ordner")) {
     $k = [string]$r.pfad
     if (-not $inApp.ContainsKey($k)) { $inApp[$k] = @() }
     $inApp[$k] += $r
@@ -168,7 +197,19 @@ try {
     foreach ($d in $alle) {
       $gesehen[$d.FullName] = $true
       $h = HocoAusPfad $d $pfad
-      if (-not $h) { $status.ohneNr++; continue }
+      if (-not $h) {
+        $status.ohneNr++
+        # Früher mit falscher Nummer hochgeladen (Vorlagen, Infos ohne Teil-Nr.): wieder weg
+        if ($inApp.ContainsKey($d.FullName) -and $status.scharf) {
+          $weg = @($inApp[$d.FullName])
+          try {
+            Aendern "Delete" ("pruefbericht_dateien?id=in.(" + (($weg | ForEach-Object { $_.id }) -join ",") + ")") $null $null
+            AusAblageWeg @($weg | ForEach-Object { [string]$_.ablage })
+            $status.entfernt++
+          } catch { Schreibe ("Fehler beim Entfernen von " + $d.FullName + ": " + $_.Exception.Message) }
+        }
+        continue
+      }
       if ($mitApp.ContainsKey($h)) {
         if ($inApp.ContainsKey($d.FullName) -and $status.scharf) {
           $weg = @($inApp[$d.FullName])
@@ -184,7 +225,20 @@ try {
       $kennung = Kennung $d
       $vorher = @()
       if ($inApp.ContainsKey($d.FullName)) { $vorher = @($inApp[$d.FullName]) }
-      if ($vorher.Count -gt 0 -and @($vorher | Where-Object { [string]$_.kennung -eq $kennung }).Count -gt 0) { continue }
+      $gleich = @($vorher | Where-Object { [string]$_.kennung -eq $kennung })
+      if ($gleich.Count -gt 0) {
+        # Schon hochgeladen, aber früher der falschen HOCO Nr. zugeordnet:
+        # nur die Nummer umstellen, nicht nochmals hochladen
+        $falsch = @($gleich | Where-Object { [string]$_.hoco_nr -ne $h })
+        if ($falsch.Count -gt 0 -and $status.scharf) {
+          try {
+            Aendern "Patch" ("pruefbericht_dateien?id=in.(" + (($falsch | ForEach-Object { $_.id }) -join ",") + ")") @{ hoco_nr = $h } $null
+            $status.umgestellt++
+            Schreibe ("neu zugeordnet: " + $d.FullName + "  →  " + $h)
+          } catch { Schreibe ("Fehler beim Zuordnen von " + $d.FullName + ": " + $_.Exception.Message) }
+        }
+        continue
+      }
       if (-not $status.scharf) { Schreibe ("Probe: " + $d.FullName + "  →  " + $h); continue }
       if ($nochFrei -le 0) { $status.rest++; continue }
       $kopie = $null

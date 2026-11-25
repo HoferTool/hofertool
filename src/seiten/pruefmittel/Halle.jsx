@@ -10,33 +10,62 @@
 //  Steht eine Maschine nicht im Plan (LAGE), kommt sie unter die Karte.
 // =================================================================
 
-// Lage je Maschinen-Nr.: x/y = Ecke oben links des Gehäuses, art = Zeichnung,
-// spiegel = Lademagazin nach rechts statt nach links
-const ZEILE = (i) => 70 + i * 112;
-const LINKS = 905, RECHTS = 1355;
+// Lage je Maschinen-Nr.: x/y = Ecke oben links des Gehäuses, art = Zeichnung.
+// Seit 1.799.3 (Patrick 25. November 2026: „die Lader stehen nebeneinander,
+// in der Mitte kein Weg, eine Maschine etwas höher, die andere tiefer“,
+// „Lader 3 m bei allen“, „Index viel länger … vertikal“, „Räume links an
+// der Wand“): Massstab rund 60 Punkte je Meter, jeder Lader 180 lang.
+// lader = Richtung des Stangenladers (links, rechts, oben, unten).
+const LADER = 180, LADER_B = 26;
+const ZEILE = (i) => 40 + i * 106;
+const SX = 870, SW = 150;                 // Star-Block: linkes Gehäuse, Gehäuselänge
+const SR = SX + SW + LADER;               // rechtes Gehäuse, Lader liegen dazwischen nebeneinander
+const VERSATZ = LADER_B + 4;              // rechte Maschine etwas tiefer
+const paar = (i, l, r) => ({
+  [l]: { art: "star", x: SX, y: ZEILE(i), lader: "rechts" },
+  [r]: { art: "star", x: SR, y: ZEILE(i) + VERSATZ, lader: "links" },
+});
+// Seit 1.800.0 (Patrick 25. November 2026: „Index auch ähnlich mit Lader
+// kreuzen, aber ein wenig mehr Lücke dazwischen als bei Star“): oben Lader
+// nach unten, unten Lader nach oben, die Lader nebeneinander, die untere
+// Maschine um IV nach rechts versetzt (14 Punkte Lücke statt 4).
+const IH = 190, IO = 40, IU = IO + IH + LADER, IV = LADER_B + 14;
 export const LAGE = {
-  309: { art: "index", x: 40, y: 30 },
-  308: { art: "index", x: 230, y: 30 },
-  307: { art: "index", x: 230, y: 270 },
-  305: { art: "index", x: 420, y: 30 },
-  306: { art: "index", x: 420, y: 270 },
-  201: { art: "hanwha", x: 575, y: 60 },
-  202: { art: "hanwha", x: 665, y: 60 },
-  121: { art: "star", x: LINKS, y: ZEILE(0) }, 130: { art: "star", x: RECHTS, y: ZEILE(0), spiegel: true },
-  128: { art: "star", x: LINKS, y: ZEILE(1) }, 129: { art: "star", x: RECHTS, y: ZEILE(1), spiegel: true },
-  127: { art: "star", x: LINKS, y: ZEILE(2) }, 126: { art: "star", x: RECHTS, y: ZEILE(2), spiegel: true },
-  122: { art: "star", x: LINKS, y: ZEILE(3) }, 123: { art: "star", x: RECHTS, y: ZEILE(3), spiegel: true },
-  111: { art: "star", x: LINKS, y: ZEILE(4) }, 124: { art: "star", x: RECHTS, y: ZEILE(4), spiegel: true },
-  120: { art: "star", x: LINKS, y: ZEILE(5) }, 125: { art: "star", x: RECHTS, y: ZEILE(5), spiegel: true },
-  119: { art: "star", x: LINKS, y: ZEILE(6) }, 116: { art: "star", x: RECHTS, y: ZEILE(6), spiegel: true },
-  115: { art: "star", x: LINKS, y: ZEILE(7) }, 113: { art: "star", x: RECHTS, y: ZEILE(7), spiegel: true },
-  114: { art: "star", x: LINKS, y: ZEILE(8) }, 117: { art: "star", x: RECHTS, y: ZEILE(8), spiegel: true },
-  401: { art: "macodel", x: LINKS, y: ZEILE(8) + 100 },
+  309: { art: "index", x: 40, y: IO + LADER, lader: "oben" },
+  308: { art: "index", x: 210, y: IO, lader: "unten" },
+  307: { art: "index", x: 210 + IV, y: IU, lader: "oben" },
+  305: { art: "index", x: 420, y: IO, lader: "unten" },
+  306: { art: "index", x: 420 + IV, y: IU, lader: "oben" },
+  // Hanwha gekreuzt wie die Index (Patrick 25. November 2026)
+  201: { art: "hanwha", x: 640, y: 30, lader: "unten" },
+  202: { art: "hanwha", x: 640 + LADER_B + 14, y: 30 + 150 + LADER, lader: "oben" },
+  ...paar(0, 121, 130), ...paar(1, 128, 129), ...paar(2, 127, 126),
+  ...paar(3, 122, 123), ...paar(4, 111, 124), ...paar(5, 120, 125),
+  ...paar(6, 119, 116), ...paar(7, 115, 113), ...paar(8, 114, 117),
+  401: { art: "macodel", x: SX, y: ZEILE(8) + 122, lader: "rechts" },
 };
-// Unter der Halle die Räume, links nach rechts wie auf Patricks Skizze (25. November 2026)
-const B = 1700, HALLE = 1250, H = 1470;
-const RAEUME = ["Schleuderei", "Wäscherei", "Lager", "Programmierzimmer"];
-const GROESSE = { star: [170, 72], index: [130, 200], hanwha: [70, 130], macodel: [270, 120] };
+const B = SR + SW + 40, DY = 110, HALLE = 1180 + DY, H = HALLE + 60;
+
+// Maschinen ohne Eintrag in der Datenbank (Patrick 25. November 2026: „oben
+// links soll noch Takamaz hin als kleines Viereck“, „an oberer Wand sind noch
+// konventionelle Maschinen, oben rechts Fräse, dann links davon Fräse
+// Fehlmann“). Ihre Prüfmittel findet die App am Text (Notiz, Ort, Bezeichnung).
+// Rechts von der Takamaz die GDW-Drehmaschinen und zwei Werkbänke, alle etwa
+// so gross wie eine Star („breite etwa wie Maschine CNC wie Star“).
+export const EXTRA = [
+  { id: "x:takamaz", name: "Takamaz", such: /takamaz/i, x: 22, y: 22, w: 64, h: 64 },
+  { id: "x:gdw", name: "GDW", such: /gdw/i, x: 110, y: 22, w: SW, h: 64 },
+  { id: "x:fehlmann", name: "Fräse Fehlmann", such: /fehlmann/i, x: B - 360, y: 22, w: SW, h: 64 },
+  { id: "x:fraese", name: "Fräse", such: /fr(ä|ae)se/i, ohne: /fehlmann/i, x: B - 190, y: 22, w: SW, h: 64 },
+];
+// Werkbänke: nur zur Orientierung, ohne Prüfmittel und nicht anwählbar
+const BAENKE = [{ x: 290, y: 22 }, { x: 460, y: 22 }];
+export function extraVon(p) {
+  const t = [p.notiz, p.ort_text, p.bezeichnung].filter(Boolean).join(" ");
+  const e = EXTRA.find((x) => x.such.test(t) && !(x.ohne && x.ohne.test(t)));
+  return e ? e.id : null;
+}
+const GROESSE = { star: [SW, 64], index: [120, IH], hanwha: [60, SW], macodel: [220, 110] };
 
 export default function Halle({ maschinen, zahl, faellig, gewaehlt, waehlen }) {
   const nachNr = new Map((maschinen || []).map((m) => [String(m.machine_number || ""), m]));
@@ -45,18 +74,20 @@ export default function Halle({ maschinen, zahl, faellig, gewaehlt, waehlen }) {
       <svg viewBox={`0 0 ${B} ${H}`} className="pm-halle__bild" role="img" aria-label="Hallenplan">
         <Vorlagen />
         <rect x="0" y="0" width={B} height={HALLE} fill="url(#hl-boden)" />
-        {/* Gehweg zwischen den Star-Reihen, gelb markiert wie in der Halle */}
-        <rect x="1085" y="10" width="260" height={HALLE - 20} fill="#ebe7de" />
-        <line x1="1085" y1="10" x2="1085" y2={HALLE - 10} className="hl-gelb" />
-        <line x1="1345" y1="10" x2="1345" y2={HALLE - 10} className="hl-gelb" />
         <rect x="6" y="6" width={B - 12} height={HALLE - 12} fill="none" stroke="#6b7076" strokeWidth="12" />
-        <Raeume />
-        <Treppe />
+        {BAENKE.map((b, i) => <g key={"bank" + i} className="hl-bank">
+          <rect x={b.x} y={b.y} width={SW} height={44} rx="3" fill="#b98a58" stroke="#7a5532" strokeWidth="2" />
+          <text x={b.x + SW / 2} y={b.y + 28} textAnchor="middle" className="hl-typ" fill="#3d2a17">Werkbank</text>
+        </g>)}
+        {EXTRA.map((e) => <Extra key={e.id} e={e} n={zahl.get(e.id) || 0} warn={faellig.has(e.id)}
+          an={gewaehlt === e.id} waehlen={waehlen} />)}
+        <g transform={`translate(0 ${DY})`}>
         {Object.entries(LAGE).map(([nr, l]) => {
           const m = nachNr.get(nr);
           return <Maschine key={nr} nr={nr} l={l} m={m} n={m ? zahl.get(m.id) || 0 : 0}
             warn={m ? faellig.has(m.id) : false} an={!!m && gewaehlt === m.id} waehlen={waehlen} />;
         })}
+        </g>
         <text x={B / 2} y={H - 22} textAnchor="middle" className="hl-qs">▼ Blick von der QS ▼</text>
       </svg>
     </div>
@@ -90,51 +121,16 @@ function Vorlagen() {
   );
 }
 
-function Raeume() {
-  const y = HALLE - 6, h = H - 60 - y, w = (B - 12) / RAEUME.length;
-  return (
-    <g className="hl-raeume">
-      {RAEUME.map((name, i) => {
-        const x = 6 + i * w;
-        return (
-          <g key={name}>
-            <rect x={x} y={y} width={w} height={h} fill="#e4e7ea" stroke="#6b7076" strokeWidth="12" />
-            {/* Türe zur Halle */}
-            <rect x={x + w / 2 - 45} y={y - 7} width="90" height="14" fill="#e4e7ea" />
-            <path d={`M${x + w / 2 - 45} ${y + 6} a90 90 0 0 1 90 0`} fill="none" stroke="#9aa1a8" strokeWidth="2" strokeDasharray="6 5" />
-            <text x={x + w / 2} y={y + h / 2 + 14} textAnchor="middle" className="hl-raum">{name}</text>
-          </g>
-        );
-      })}
-    </g>
-  );
-}
-
-function Treppe() {
-  const x = 620, y = 930, w = 150, h = 220, stufen = 11;
-  return (
-    <g className="hl-treppe">
-      <rect x={x} y={y} width={w} height={h} fill="#cfd3d6" stroke="#7b8187" strokeWidth="2" />
-      {Array.from({ length: stufen }, (_, i) => (
-        <rect key={i} x={x + 4} y={y + 4 + i * ((h - 8) / stufen)} width={w - 8} height={(h - 8) / stufen - 3}
-          fill={`hsl(210 6% ${86 - i * 3}%)`} />))}
-      <rect x={x - 6} y={y} width="6" height={h} fill="#8a6d3b" />
-      <rect x={x + w} y={y} width="6" height={h} fill="#8a6d3b" />
-      <path d={`M${x + w / 2} ${y + 40} v${h - 80} m-16 -18 l16 18 l16 -18`} fill="none" stroke="#3b4148" strokeWidth="5" strokeLinecap="round" />
-      <text x={x + w / 2} y={y - 12} textAnchor="middle" className="hl-schrift">Treppe hinaus</text>
-    </g>
-  );
-}
-
 function Maschine({ nr, l, m, n, warn, an, waehlen }) {
   const [w, h] = GROESSE[l.art];
-  const klick = m ? () => waehlen(an ? null : m.id) : undefined;
+  const klick = m ? (e) => waehlen(an ? null : m.id, e && e.currentTarget) : undefined;
   return (
     <g className={"hl-maschine" + (m ? "" : " hl-maschine--fehlt") + (an ? " hl-maschine--an" : "") + (n ? " hl-maschine--voll" : "")}
       data-hlnr={nr} data-pmmaschine={m ? m.id : undefined} onClick={klick} role={m ? "button" : undefined}
-      tabIndex={m ? 0 : undefined} onKeyDown={(e) => { if (m && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); klick(); } }}>
+      tabIndex={m ? 0 : undefined} onKeyDown={(e) => { if (m && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); klick(e); } }}>
       <g filter="url(#hl-schatten)">
-        {l.art === "star" && <Star x={l.x} y={l.y} w={w} h={h} spiegel={l.spiegel} />}
+        <Lader l={l} w={w} h={h} />
+        {l.art === "star" && <Star x={l.x} y={l.y} w={w} h={h} spiegel={l.lader === "rechts"} />}
         {l.art === "index" && <Index x={l.x} y={l.y} w={w} h={h} />}
         {l.art === "hanwha" && <Hanwha x={l.x} y={l.y} w={w} h={h} />}
         {l.art === "macodel" && <Macodel x={l.x} y={l.y} w={w} h={h} />}
@@ -149,20 +145,32 @@ function Maschine({ nr, l, m, n, warn, an, waehlen }) {
   );
 }
 
+// Konventionelle Maschine bzw. Takamaz: schlichter Kasten mit Namen
+function Extra({ e, n, warn, an, waehlen }) {
+  const klick = (ev) => waehlen(an ? null : e.id, ev && ev.currentTarget);
+  return (
+    <g className={"hl-maschine hl-extra" + (an ? " hl-maschine--an" : "") + (n ? " hl-maschine--voll" : "")}
+      data-hlnr={e.name} data-pmmaschine={e.id} onClick={klick} role="button" tabIndex={0}
+      onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); klick(ev); } }}>
+      <rect x={e.x} y={e.y} width={e.w} height={e.h} rx="6" fill="url(#hl-blech)" stroke="#8d949b" strokeWidth="2" filter="url(#hl-schatten)" />
+      {an && <rect x={e.x - 6} y={e.y - 6} width={e.w + 12} height={e.h + 12} rx="8" className="hl-rahmen" />}
+      <text x={e.x + e.w / 2} y={e.y + e.h / 2 + 7} textAnchor="middle" className="hl-nr hl-nr--auf"
+        style={{ fontSize: e.w < 100 ? 12 : e.name.length > 10 ? 16 : 20 }}>{e.name}</text>
+      {n > 0 && <g className={"hl-zahl" + (warn ? " hl-zahl--warn" : "")}>
+        <circle cx={e.x + e.w - 4} cy={e.y + 4} r="17" />
+        <text x={e.x + e.w - 4} y={e.y + 10} textAnchor="middle">{n}</text>
+      </g>}
+    </g>);
+}
+
 function Schild({ l, w, h, nr, m }) {
   const typ = m ? kurzTyp(m.name) : "";
-  if (l.art === "index" || l.art === "hanwha") {
-    return (
-      <g className="hl-schild" transform={`translate(${l.x + w / 2} ${l.y + h + 22})`}>
-        <text textAnchor="middle" className="hl-nr">{nr}</text>
-        {typ && <text textAnchor="middle" y="20" className="hl-typ">{typ}</text>}
-      </g>);
-  }
-  const mx = l.x + (l.art === "star" ? (l.spiegel ? 36 : w - 36) : w / 2);
+  const hoch = l.art === "index" || l.art === "hanwha";
+  const cx = l.x + w / 2, cy = l.y + h / 2 + (hoch ? 0 : 2);
   return (
     <g className="hl-schild">
-      <text x={l.art === "star" ? l.x + w / 2 : mx} y={l.y + h / 2 + 2} textAnchor="middle" className="hl-nr hl-nr--auf">{nr}</text>
-      {typ && <text x={l.art === "star" ? l.x + w / 2 : mx} y={l.y + h / 2 + 20} textAnchor="middle" className="hl-typ hl-typ--auf">{typ}</text>}
+      <text x={cx} y={cy} textAnchor="middle" className="hl-nr hl-nr--auf">{nr}</text>
+      {typ && !(l.art === "hanwha") && <text x={cx} y={cy + 18} textAnchor="middle" className="hl-typ hl-typ--auf">{typ}</text>}
     </g>);
 }
 
@@ -170,15 +178,31 @@ function kurzTyp(name) {
   return String(name || "").replace(/^Star\s*/i, "").replace(/\s*Zurbrügg$/i, "").replace(/^W&M\s*/, "Macodel ").replace(/\s*X1000$/, "");
 }
 
+// Stangenlader 3 m, an der Seite des Gehäuses, die l.lader nennt
+function Lader({ l, w, h }) {
+  const quer = l.lader === "links" || l.lader === "rechts";
+  const lx = l.lader === "links" ? l.x - LADER : l.lader === "rechts" ? l.x + w : l.x + w / 2 - LADER_B / 2;
+  const ly = l.lader === "oben" ? l.y - LADER : l.lader === "unten" ? l.y + h : l.y + h / 2 - LADER_B / 2;
+  const rw = quer ? LADER : LADER_B, rh = quer ? LADER_B : LADER;
+  // Endstück mit Motor auf der Seite weg vom Gehäuse
+  const ex = l.lader === "links" ? lx - 4 : l.lader === "rechts" ? lx + rw - 10 : lx - 4;
+  const ey = l.lader === "oben" ? ly - 4 : l.lader === "unten" ? ly + rh - 10 : ly - 4;
+  return (
+    <g>
+      <rect x={lx} y={ly} width={rw} height={rh} rx="4" fill="url(#hl-lader)" stroke="#8d949b" strokeWidth="1.5" />
+      {[0.3, 0.5, 0.7].map((f) => quer
+        ? <line key={f} x1={lx + 8} x2={lx + rw - 8} y1={ly + rh * f} y2={ly + rh * f} stroke="#9aa1a8" strokeWidth="1" />
+        : <line key={f} y1={ly + 8} y2={ly + rh - 8} x1={lx + rw * f} x2={lx + rw * f} stroke="#9aa1a8" strokeWidth="1" />)}
+      <rect x={ex} y={ey} width={quer ? 14 : rw + 8} height={quer ? rh + 8 : 14} rx="3" fill="url(#hl-dunkel)" />
+    </g>
+  );
+}
+
 // Langdreher Star: Gehäuse mit Haube, Tür mit Scheibe, Bedienpult zum Gang,
 // Signalsäule, dahinter das lange Stangenlademagazin
 function Star({ x, y, w, h, spiegel }) {
-  const lw = 132, lh = 28;
   return (
     <g transform={spiegel ? `translate(${2 * x + w} 0) scale(-1 1)` : undefined}>
-      <rect x={x - lw} y={y + h / 2 - lh / 2} width={lw} height={lh} rx="4" fill="url(#hl-lader)" stroke="#8d949b" strokeWidth="1.5" />
-      {[0.3, 0.5, 0.7].map((f) => <line key={f} x1={x - lw + 8} x2={x - 4} y1={y + h / 2 - lh / 2 + lh * f} y2={y + h / 2 - lh / 2 + lh * f} stroke="#9aa1a8" strokeWidth="1" />)}
-      <rect x={x - lw - 6} y={y + h / 2 - lh / 2 - 4} width="14" height={lh + 8} rx="3" fill="url(#hl-dunkel)" />
       <rect x={x} y={y} width={w} height={h} rx="6" fill="url(#hl-blech)" stroke="#7f878f" strokeWidth="1.5" />
       <rect x={x + 4} y={y + 4} width={w - 8} height="13" rx="3" fill="url(#hl-dunkel)" />
       <rect x={x + 6} y={y + 17} width={w - 12} height="4" fill="#0b5cab" />
@@ -197,7 +221,6 @@ function Star({ x, y, w, h, spiegel }) {
 function Index({ x, y, w, h }) {
   return (
     <g>
-      <rect x={x + w / 2 - 14} y={y - 24} width="28" height="26" rx="3" fill="#8f979e" stroke="#6b737a" />
       <rect x={x} y={y} width={w} height={h} rx="8" fill="url(#hl-blech)" stroke="#7a828a" strokeWidth="1.5" />
       <rect x={x + 5} y={y + 5} width={w - 10} height="26" rx="4" fill="url(#hl-dunkel)" />
       <text x={x + w / 2} y={y + 23} textAnchor="middle" className="hl-marke">INDEX</text>
@@ -215,7 +238,6 @@ function Index({ x, y, w, h }) {
 function Hanwha({ x, y, w, h }) {
   return (
     <g>
-      <rect x={x + w / 2 - 12} y={y - 50} width="24" height="52" rx="4" fill="url(#hl-lader)" stroke="#8d949b" />
       <rect x={x} y={y} width={w} height={h} rx="6" fill="url(#hl-blech)" stroke="#7a828a" strokeWidth="1.5" />
       <rect x={x + 4} y={y + 4} width={w - 8} height="14" rx="3" fill="#c0392b" />
       <rect x={x + 10} y={y + 26} width={w - 20} height={h - 66} rx="4" fill="url(#hl-glas)" stroke="#5d6b78" opacity=".92" />
