@@ -74,9 +74,22 @@ function pruefen(r) {
   return r.data;
 }
 
+// Der Server gibt je Abfrage höchstens 1'000 Zeilen zurück, egal welches limit.
+// Mit 1'000 Werkzeugen fehlten so die meisten Hofer + Co Artikel (Patrick
+// 25. November 2026: „warum sehe ich nur 9 Artikel?“). Darum seitenweise holen.
+const SEITE = 1000;
+async function alleZeilen(t) {
+  const alle = [];
+  for (let ab = 0; ab < 200000; ab += SEITE) {
+    const teil = pruefen(await alt.zeitlimit(alt.db.from(t).select("*").order("id").range(ab, ab + SEITE - 1), 15000, t)) || [];
+    alle.push(...teil);
+    if (teil.length < SEITE) break;
+  }
+  return alle;
+}
+
 export async function allesLaden() {
-  const teile = await Promise.all(TABELLEN.map((t) =>
-    alt.zeitlimit(alt.db.from(t).select("*").limit(10000), 15000, t).then(pruefen)));
+  const teile = await Promise.all(TABELLEN.map((t) => alleZeilen(t)));
   const d = {};
   TABELLEN.forEach((t, i) => { d[t.slice(4)] = teile[i] || []; });
   d.partnerMap = new Map(d.partner.map((p) => [p.id, p]));
