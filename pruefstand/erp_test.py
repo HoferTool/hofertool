@@ -310,6 +310,31 @@ with sync_playwright() as p:
     pruefe(len(an) == vorher and ax["idx"] == "Z" and (ax["daten"].get("indexe") or [{}])[-1].get("idx") == altidx,
            "Neuer Index am selben Artikel, alter im Verlauf: %s %s" % (ax["idx"], ax["daten"].get("indexe")))
 
+    # Umbuchen von Hand mit Vermerk und Liste der Lagerbewegungen
+    for _ in range(4):
+        if pg.locator(".dialog-huelle").count() == 0: break
+        pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    pg.click("[data-erp-stamm='lager']"); pg.wait_for_timeout(400)
+    pg.locator("tr[data-erp-zeile^='a1|']:has-text('Regal 7')").first.click(); pg.wait_for_selector("[data-erp-umbuchen]")
+    u = pg.locator("[data-erp-umbuchen]")
+    u.locator("[data-erp-feld='menge']").fill("20")
+    u.locator("select[data-erp-feld='lart']").select_option("SPL")
+    u.locator("[data-erp-feld='lplatz']").fill("Q1")
+    u.locator("[data-erp-speichern]").click(); pg.wait_for_timeout(500)
+    pruefe(pg.locator("[data-erp-umbuchen]").count() == 1, "ohne Vermerk nicht umgebucht")
+    u.locator("[data-erp-feld='grund']").fill("Masse prüfen, QS")
+    u.locator("[data-erp-speichern]").click(); pg.wait_for_timeout(900)
+    ub = [x for x in tabelle(pg, "erp_bewegungen") if x["art"] == "umbuchung"]
+    spl = [x for x in tabelle(pg, "erp_lager") if x.get("lagerart") == "SPL" and x.get("platz") == "Q1"]
+    pruefe(len(ub) == 2 and sorted(x["menge"] for x in ub) == [-20, 20] and all(x["notiz"] == "Masse prüfen, QS" for x in ub)
+           and spl and [x for x in ub if x["menge"] == 20][0]["lager_id"] == spl[0]["id"], "Umbuchung FL → SPL: %s" % ub)
+    pg.wait_for_selector("[data-erp-bewegungen]")
+    txt = pg.inner_text("[data-erp-bewegungen]")
+    pruefe("Umbuchung" in txt and "SPL Q1" in txt and "Masse prüfen, QS" in txt and fa[0]["nr"] in txt, "Bewegungen zeigen Umbuchung und FA")
+    pg.locator("select[data-erp-bew-art]").select_option("umbuchung"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-erp-bewegungen] tbody tr").count() == 2, "Filter Umbuchung")
+    pg.screenshot(path=BILD + "/erp-bewegungen.png", full_page=True)
+
     pruefe(not pf, "keine Seitenfehler: %s" % pf)
     br.close()
 

@@ -334,7 +334,7 @@ export function belegSumme(d, beleg) {
 export function chargeVerfolgen(d, charge, artikelId) {
   const bew = d.bewegungen.filter((b) => b.charge === charge && (!artikelId || b.artikel_id === artikelId))
     .sort((a, b) => String(a.am).localeCompare(String(b.am)));
-  const herkunft = bew.filter((b) => b.menge > 0 && b.art !== "korrektur");
+  const herkunft = bew.filter((b) => b.menge > 0 && b.art !== "korrektur" && b.art !== "umbuchung");
   const verwendung = bew.filter((b) => b.menge < 0);
   // Material des Fertigungsauftrags, aus dem die Charge stammt
   const material = [];

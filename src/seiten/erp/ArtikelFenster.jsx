@@ -20,6 +20,7 @@ import {
 import { cockpitOeffnen } from "./Cockpit.jsx";
 import { belegOeffnen, belegStand } from "./Belege.jsx";
 import { partnerFensterOeffnen } from "./PartnerFenster.jsx";
+import { umbuchenOeffnen, BewegungListe } from "./Bewegungen.jsx";
 import { ZiehListe } from "../../teile/ZiehListe.jsx";
 
 let agZaehler = 0;
@@ -199,7 +200,7 @@ function ArtikelFenster({ start, aussen, a0, was, zu }) {
   </>;
 
   const reiterListe = [["artikel", "Artikel"], hofer && ["verkauf", "Verkauf"], hofer && ["arbeitsplan", "Arbeitsplan"],
-    ["lager", "Lager"], ["belege", "Belege"], ["dokumente", "Dokumente"]];
+    ["lager", "Lager"], ["bewegungen", "Bewegungen"], ["belege", "Belege"], ["dokumente", "Dokumente"]];
 
   return (
     <GFenster titel={titel} kopf={kopf} bild={<BildFlaeche text={hofer ? "Zeichnung" : "Bild"} />} reiter={reiterListe}
@@ -234,7 +235,8 @@ function ArtikelFenster({ start, aussen, a0, was, zu }) {
 
       {reiter === "arbeitsplan" && <ArbeitsplanReiter w={w} setW={setW} set={set} roh={roh} />}
 
-      {reiter === "lager" && <LagerReiter d={d} a={a} />}
+      {reiter === "lager" && <LagerReiter d={d} a={a} neu={() => frisch()} />}
+      {reiter === "bewegungen" && (a ? <BewegungListe d={d} artikelId={a.id} aussen={aussen} /> : <p className="klein">Erst speichern.</p>)}
       {reiter === "belege" && <BelegeReiter d={d} a={a} aussen={aussen} />}
 
       {reiter === "dokumente" && <div className="erp-artfenster__rechts gf-doku">
@@ -350,7 +352,7 @@ function Verkauf({ d, a, w, setW }) {
   );
 }
 
-function LagerReiter({ d, a }) {
+function LagerReiter({ d, a, neu }) {
   if (!a) return <p className="klein">Erst speichern.</p>;
   const liste = bestand(d, a.id);
   const summe = liste.reduce((s, e) => s + e.menge, 0);
@@ -358,8 +360,10 @@ function LagerReiter({ d, a }) {
     <GTabelle kopf={["Index", "Charge", "Lagerart", "Lagerplatz", "Menge"]} rechts={[4]} leer="Kein Bestand."
       zeilen={liste.map((e) => { const l = d.lagerMap.get(e.lager_id);
         return { key: e.idx + "|" + e.charge + e.lager_id, klasse: e.menge < 0 ? "erp-minus" : "",
+          klick: e.menge > 0 ? () => umbuchenOeffnen(d, e, neu) : undefined,
           zellen: [(e.idx || "–") + (a.art === "hofer" && (e.idx || "") !== (a.idx || "") ? " (alt)" : ""), e.charge,
             l ? l.lagerart : "–", l ? l.platz : "–", mengeText(e.menge) + " " + (a.einheit || "")] }; })} />
+    {liste.some((e) => e.menge > 0) && <p className="klein">Zeile antippen zum Umbuchen (z. B. HFL → FL, FL → SPL).</p>}
     <p className="gf-summe">Bestand gesamt <b>{mengeText(summe)} {a.einheit}</b></p>
   </>;
 }

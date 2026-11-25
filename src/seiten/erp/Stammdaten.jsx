@@ -12,6 +12,7 @@ import {
 import { stundensatz } from "../../daten/kalkulation.js";
 import { artikelFensterOeffnen, neuerIndex } from "./ArtikelFenster.jsx";
 import { partnerFensterOeffnen } from "./PartnerFenster.jsx";
+import { umbuchenOeffnen, BewegungListe } from "./Bewegungen.jsx";
 
 export const STAMM_REITER = [
   ["lieferant", "Lieferanten"], ["kunde", "Kunden"], ["artikel", "Artikel"], ["betriebsmittel", "Betriebsmittel"],
@@ -425,8 +426,12 @@ function Lager({ d, neu }) {
           const a = d.artikelMap.get(e.artikel_id) || {};
           const l = d.lagerMap.get(e.lager_id);
           return { key: e.artikel_id + "|" + e.idx + e.charge + e.lager_id, klasse: e.menge < 0 ? "erp-minus" : "",
+            klick: e.menge > 0 ? () => umbuchenOeffnen(d, e, neu) : undefined,
             zellen: [<b>{a.nr}</b>, e.idx || "", a.bezeichnung || "", e.charge, l ? l.lagerart : "–", l ? l.platz : "–", mengeText(e.menge) + " " + (a.einheit || "")] };
         })} />
+      <p className="klein">Zeile antippen zum Umbuchen (z. B. HFL → FL, FL → SPL), mit Vermerk.</p>
+      <h3>Lagerbewegungen</h3>
+      <BewegungListe d={d} aussen={neu} />
     </>
   );
 }
