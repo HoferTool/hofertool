@@ -283,8 +283,10 @@ function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
   const [suche, setSuche] = useState(pbZustand.suche);
   const [legt, setLegt] = useState(false);
   // Je Spalte ein eigenes Suchfeld (seit 1.839.0, Patrick: „bei allen separat“)
-  const [sp, setSp] = useState(pbZustand.spSuche || {});
-  const spSetzen = (id, t) => setSp((v) => { const n = { ...v, [id]: t }; pbZustand.spSuche = n; return n; });
+  // Die Suche bleibt seit 1.843.1 nicht über das Neuladen stehen: ein vergessener
+  // Suchtext versteckte sonst still Aufträge (Patrick 25. November 2026).
+  const [sp, setSp] = useState({});
+  const spSetzen = (id, t) => setSp((v) => ({ ...v, [id]: t }));
   const todo = useMemo(() => anstehend(daten.jobs, daten.stamm, daten.protokolle), [daten]);
   const jobMaschine = useMemo(() => new Map((daten.jobs || []).map((j) => [j.id, j.maschine])), [daten]);
 
@@ -355,10 +357,13 @@ function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
       <div className="pb-todo" id="pb-todo">
         {SPALTEN.map(([id, titel, erkl]) => (
           <section key={id} className="pb-todo__spalte" data-pbtodo={id}>
-            <h3>{titel} <span className={"marke" + (todo[id].length ? " pb-todo__zahl" : "")}>{todo[id].length}</span></h3>
+            <h3>{titel} <span className={"marke" + (todo[id].length ? " pb-todo__zahl" : "")}>{(sp[id] || "").trim() ? gefiltert(id).length + " von " + todo[id].length : todo[id].length}</span></h3>
             <input type="search" className="pb-suche pb-todo__suche" data-pbtodosuche={id} placeholder="Suchen …"
               value={sp[id] || ""} onChange={(x) => spSetzen(id, x.target.value)}
               onKeyDown={(x) => { if (x.key === "Escape" && sp[id]) { x.preventDefault(); x.stopPropagation(); spSetzen(id, ""); } }} />
+            {(sp[id] || "").trim() && gefiltert(id).length < todo[id].length ? (
+              <button type="button" className="knopf klein" data-pbtodoalle={id} onClick={() => spSetzen(id, "")}>✕ Suche löschen, alle {todo[id].length} zeigen</button>
+            ) : null}
             {!todo[id].length ? <p className="klein">Nichts offen.</p> : !gefiltert(id).length ? <p className="klein">Nichts gefunden.</p> : (
               <ul>
                 {gefiltert(id).map((t) => (
