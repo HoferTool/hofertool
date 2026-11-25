@@ -17152,3 +17152,204 @@ body.dunkel .m3d-fehler { background: #3a1714; border-color: #7a2a22; }
   .m3d-flaeche { height: 62vh; }
   .m3d-teile { width: auto; height: auto; max-height: 220px; }
 }
+
+/* 1.800.0: Kachel "zur Prüfung raus" immer rot, Hallenplan ohne Zahl (Patrick 25. November 2026) */
+.pm-kurz__zahl.pm-kurz__zahl--rot { background: #c62828; border-color: transparent; color: #fff; }
+.pm-kurz__zahl.pm-kurz__zahl--rot b, .pm-kurz__zahl.pm-kurz__zahl--rot span { color: #fff; }
+body.dunkel .pm-kurz__zahl.pm-kurz__zahl--rot { background: #a32020; border-color: transparent; }
+.pm-kurz__zahl--masch .pm-kurz__bild { font-size: 48px; }
+.pm-pop { position: fixed; z-index: 3000; width: 360px; overflow: auto; background: #dfe5ec; color: #1c2630;
+  border: 1px solid #9aa7b4; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.28); padding: 10px; }
+.pm-pop__kopf { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; font-size: 16px; }
+.pm-pop .pm-maschine { border: 0; padding: 0; background: transparent; }
+body.dunkel .pm-pop { background: #1f2630; border-color: #3a4552; }
+
+/* 1.804.0 Arbeitsplan im Artikel: Arbeitsgänge per Ziehen umsortieren (ZiehListe statt Tabelle) */
+.erp-ap { font-size: 0.9rem; }
+.erp-ap__liste { list-style: none; margin: 0; padding: 0; }
+.erp-ap .ziehliste__zeile { border-top: 1px solid #e3e8ee; align-items: stretch; }
+.erp-ap .ziehliste__zeile > :last-child { flex: 1; min-width: 0; }
+.erp-ap__zeile { display: grid; grid-template-columns: 44px 40px 90px minmax(120px, 2fr) minmax(90px, 1fr) 64px 64px; gap: 6px; padding: 5px 8px; align-items: start; }
+.erp-ap__zeile > span { overflow-wrap: anywhere; }
+.erp-ap__zeile .rechts { text-align: right; }
+.erp-ap__kopf { background: #e8eef5; font-weight: 600; padding-left: 38px; white-space: nowrap; }
+.erp-ap__zeile.erp-klick { cursor: pointer; }
+.erp-ap .ziehliste__zeile:hover .erp-ap__zeile { background: #f0f5fb; }
+.erp-ap .erp-ap__zeile.gewaehlt { background: #d6e4f5; }
+.erp-ap .gf-tab__leer { padding: 8px; }
+body.dunkel .erp-ap__kopf { background: #243142; }
+body.dunkel .erp-ap .ziehliste__zeile { border-top-color: #2e3b4c; }
+body.dunkel .erp-ap .ziehliste__zeile:hover .erp-ap__zeile { background: #1f2a38; }
+body.dunkel .erp-ap .erp-ap__zeile.gewaehlt { background: #2a3d57; }
+
+/* 1.805.0 Test ERP im Stil von HOFERCAM (Wunsch Patrick 25. November 2026):
+   graublauer Grund, Bereiche als weisse Karten, Gruppentitel als blaue Schilder,
+   graue Felder mit dunklem Rand, blaugraue Knöpfe. Nur hell, dunkel bleibt wie bisher. */
+body:not(.dunkel) .erp { background: #dfe6ee; border: 1px solid #c2cedb; border-radius: 12px; padding: 12px 14px 16px; }
+body:not(.dunkel) .erp .reiter { background: #fff; border: 1px solid #bccad8; border-radius: 8px; padding: 4px; box-shadow: 0 1px 3px rgba(20,50,90,.08); }
+body:not(.dunkel) .erp .mat-kopf { background: #fff; border: 1px solid #bccad8; border-radius: 8px; padding: 8px 10px; box-shadow: 0 1px 3px rgba(20,50,90,.08); }
+body:not(.dunkel) .erp-tabelle-huelle, body:not(.dunkel) .gf-tab-huelle { background: #fff; border: 1px solid #bccad8; border-radius: 8px; box-shadow: 0 1px 3px rgba(20,50,90,.08); }
+body:not(.dunkel) .erp-tabelle th, body:not(.dunkel) .gf-tab th { background: #d9e5f2; color: #0d2f57; }
+body:not(.dunkel) .erp-tabelle td, body:not(.dunkel) .gf-tab td { border-color: #dde4ec; }
+body:not(.dunkel) .erp-tabelle tr.erp-klick:hover td, body:not(.dunkel) .gf-tab tr.erp-klick:hover td { background: #eef4fb; }
+body:not(.dunkel) .erp .karte, body:not(.dunkel) .gf .karte { border-color: #bccad8; box-shadow: 0 1px 3px rgba(20,50,90,.08); }
+
+/* Fenster */
+body:not(.dunkel) .gf { background: #dfe6ee; }
+body:not(.dunkel) .gf-titel { background: #fff; border-color: #c2cedb; }
+body:not(.dunkel) .gf-kopf, body:not(.dunkel) .gf-fuss { background: #d4dde8; border-color: #c2cedb; }
+body:not(.dunkel) .gf-reiter { background: #fff; border-bottom: 1px solid #c2cedb; }
+body:not(.dunkel) .gf-gruppe, body:not(.dunkel) .erp-liste { background: #fff; border: 1px solid #bccad8; border-radius: 8px; box-shadow: 0 1px 3px rgba(20,50,90,.08); padding: 4px 12px 10px; }
+body:not(.dunkel) .gf-gruppe legend, body:not(.dunkel) .erp-liste legend {
+  background: #003884; color: #fff; border-radius: 5px; padding: 1px 8px; font-size: 12px; font-weight: 600; }
+body:not(.dunkel) .gf-l, body:not(.dunkel) .erp-feld > span { color: #23303d; font-weight: 600; }
+body:not(.dunkel) .gf-wert { background: #f4f7fa; border: 1px solid #c4d0dc; border-radius: 4px; padding: 3px 8px; color: #111c27; min-height: 1.5em; }
+body:not(.dunkel) :is(.erp, .gf, .erp-fenster) :is(input:not([type=checkbox]):not([type=radio]), select, textarea) {
+  background: #e9eef4; border: 1px solid #8ea2b8; color: #111c27; border-radius: 4px; }
+body:not(.dunkel) :is(.erp, .gf, .erp-fenster) :is(input:not([type=checkbox]):not([type=radio]), select, textarea):focus {
+  background: #fff; border-color: #003884; box-shadow: 0 0 0 2px rgba(0,56,132,.18); outline: none; }
+body:not(.dunkel) :is(.erp, .gf, .erp-fenster) .knopf:not(.knopf--haupt):not(.knopf--gefahr):not(.knopf--still) {
+  background: #dce6f1; border-color: #8fa7c2; color: #0d2f57; }
+body:not(.dunkel) :is(.erp, .gf, .erp-fenster) .knopf:not(.knopf--haupt):not(.knopf--gefahr):not(.knopf--still):hover { background: #c9d8ea; }
+body:not(.dunkel) .erp-ap__liste .zieh-zeile, body:not(.dunkel) .erp-ap__zeile:not(.erp-ap__kopf) { background: #fff; }
+body:not(.dunkel) .erp-ap__kopf { background: #d9e5f2; color: #0d2f57; border-radius: 6px; }
+/* kompakt wie HOFERCAM */
+:is(.erp, .gf, .erp-fenster) :is(input:not([type=checkbox]):not([type=radio]), select) { min-height: 0; height: 30px; padding: 3px 8px; font-size: 14px; }
+:is(.gf, .erp-fenster) textarea { padding: 4px 8px; font-size: 14px; }
+.gf .gf-f { margin: 2px 0; }
+.gf .gf-wert { padding: 3px 8px; font-size: 14px; }
+.gf .gf-l { font-size: 13px; }
+
+/* 1.809.0 Positionen im Test ERP: Artikel-Nr. und Angaben in eigenen Feldern */
+.erp-liste__zeile > .erp-feld--artnr { flex: 1 1 150px; }
+.erp-liste__zeile > .erp-feld--bez { flex: 2 1 220px; }
+.erp-liste__zeile > .erp-feld--schmal { flex: 0 1 70px; }
+.erp-liste__zeile input[readonly] { background: #eef2f6; color: #33475b; }
+body.dunkel .erp-liste__zeile input[readonly] { background: #1c2836; color: #c9d6e3 !important; }
+
+/* 1.811.0: Stammdaten aus dem Test ERP in der Kalkulation wählen */
+.kalk-feld--wahl { position: relative; }
+.kalk-wahl { position: absolute; z-index: 30; left: 0; right: 0; top: 100%; margin-top: 2px; background: var(--karte, #fff);
+  border: 1px solid var(--linie, #c9d3de); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 20, 50, .18);
+  max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; }
+.kalk-kompakt .kalk-feld--wahl .kalk-wahl { left: 42%; }
+.kalk-wahl__zeile { all: unset; cursor: pointer; padding: 6px 10px; display: flex; flex-direction: column; gap: 1px;
+  border-bottom: 1px solid var(--linie, #e3e8ee); font-size: 13px; }
+.kalk-wahl__zeile:last-child { border-bottom: 0; }
+.kalk-wahl__zeile:hover, .kalk-wahl__zeile:focus { background: var(--hover, #eef4fb); }
+.kalk-wahl__zeile small { color: var(--gedaempft); font-size: 12px; }
+body.dunkel .kalk-wahl { background: #1d2733; border-color: #3a4756; }
+body.dunkel .kalk-wahl__zeile:hover { background: #2a3746; }
+
+/* 1.816.0 Lieferplan wie im Gewatec: links Fälligkeiten, rechts Lieferungen, unten Summen */
+.lp { display: flex; flex-direction: column; gap: 10px; }
+.lp-seiten { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 12px; align-items: start; }
+@media (max-width: 900px) { .lp-seiten { grid-template-columns: 1fr; } }
+.lp-teil { min-width: 0; }
+.lp-titel, .lp-legende { font-weight: 700; font-size: 13px; margin: 0 0 4px; color: var(--tinte, #1d2a3a); }
+.lp-tab input { width: 100%; min-width: 0; box-sizing: border-box; }
+.lp-tab input[type="date"] { min-width: 128px; }
+.lp-tab .lp-kw { width: 58px; }
+.lp-tab .lp-menge { width: 80px; }
+.lp-tab tr.lp-gut td { background: #e3f5e6; }
+.lp-tab tr.lp-offen td { background: #fff7d6; }
+.lp-tab tr.lp-rot td { background: #fde4e1; }
+.lp-tab tr.lp-klick { cursor: pointer; }
+.lp-z { display: inline-block; width: 16px; text-align: center; font-weight: 700; }
+.lp-z--gut { color: #1d8a3a; }
+.lp-z--offen { color: #c99a00; }
+.lp-z--rot { color: #c62828; }
+.lp-summen { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px; }
+.lp-summen > div { display: flex; justify-content: space-between; gap: 8px; padding: 6px 10px; border: 1px solid #d3dbe4; border-radius: 6px; background: #fff; font-size: 13px; }
+body.dunkel .lp-tab tr.lp-gut td { background: #1f3a26; }
+body.dunkel .lp-tab tr.lp-offen td { background: #3a3418; }
+body.dunkel .lp-tab tr.lp-rot td { background: #43221f; }
+body.dunkel .lp-summen > div { background: #1c2430; border-color: #34404f; }
+/* 1.812.0: Besuch bei Lieferanten im Bearbeitungsmodus (Dateien dazu nur dort) */
+.lk-besuch .bs-symbolknopf[aria-pressed="true"] { background: var(--marke); color: #fff; border-color: var(--marke); }
+.lk-besuch__bearb { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+
+/* 1.817.0 Test ERP: Tipp auf eine Position öffnet das Bearbeiten, die Position leuchtet kurz auf */
+.erp-pos { transition: box-shadow .4s, background-color .4s; }
+.erp-pos.erp-pos--fokus { box-shadow: 0 0 0 3px #f59e0b; background-color: #fff7e6; }
+body.dunkel .erp-pos.erp-pos--fokus { background-color: #3a2c10; }
+
+/* 1.818.0: „Artikel-Nr.“ in der Position öffnet den Artikel */
+.erp-artnr-link { color: #1d5fbf; text-decoration: underline; cursor: pointer; }
+body.dunkel .erp-artnr-link { color: #8fbaff !important; }
+
+/* 1.819.0: Fenster verschieben, mehrere offen, Fensterleiste oben */
+.dialog-huelle--frei { background: transparent !important; backdrop-filter: none !important; pointer-events: none; }
+.dialog-huelle--frei > * { pointer-events: auto; box-shadow: 0 18px 50px rgba(0, 20, 50, .28), 0 2px 8px rgba(0, 20, 50, .18); }
+body.fenster-zieht, body.fenster-zieht * { user-select: none !important; cursor: grabbing !important; }
+@media (hover: hover) and (pointer: fine) {
+  body > .dialog-huelle:not(.dialog-huelle--eigen) > * > :is(.gf-titel, h1, h2, h3, .dialog__kopfzeile, .dialog__kopf),
+  body > .dialog-huelle:not(.dialog-huelle--eigen) .gf-titel { cursor: move; }
+}
+.toast-bereich { z-index: 2100; }
+.fensterleiste {
+  position: fixed; top: 6px; left: 50%; transform: translateX(-50%); z-index: 2000;
+  display: flex; gap: 4px; align-items: center; max-width: calc(100vw - 360px); flex-wrap: wrap; justify-content: center;
+  padding: 4px; background: rgba(255, 255, 255, .96); border: 1px solid #c9d4e2; border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0, 30, 70, .18); font-size: 12px;
+}
+.fensterleiste__chip, .fensterleiste__alle {
+  border: 1px solid #c9d4e2; background: #eef3f9; color: #1c2a3a; border-radius: 7px;
+  padding: 3px 9px; font: inherit; cursor: pointer; max-width: 220px;
+}
+.fensterleiste__chip span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fensterleiste__chip:hover, .fensterleiste__alle:hover { background: #dfe9f5; }
+.fensterleiste__chip--vorne { background: #003884; border-color: #003884; color: #fff; }
+.fensterleiste__chip--vorne:hover { background: #0a4aa3; }
+.fensterleiste__chip--fest:not(.fensterleiste__chip--vorne) { border-style: dashed; }
+.fensterleiste__alle { background: #fff; color: #b3261e; border-color: #e3b9b5; font-weight: 600; }
+body.dunkel .fensterleiste { background: rgba(28, 34, 44, .96); border-color: #3a4556; }
+body.dunkel .fensterleiste__chip { background: #2a3342; border-color: #3a4556; }
+body.dunkel .fensterleiste__chip--vorne { background: #2f6fd1; border-color: #2f6fd1; }
+body.dunkel .fensterleiste__alle { background: #2a3342; color: #ff9b93 !important; border-color: #5a3a38; }
+@keyframes fenster-blitz { 0%, 100% { outline-color: transparent; } 30%, 70% { outline-color: #f29100; } }
+.fenster-blitz { outline: 3px solid transparent; outline-offset: 2px; animation: fenster-blitz .7s ease 1; }
+@media (prefers-reduced-motion: reduce) { .fenster-blitz { animation: none; outline-color: #f29100; } }
+
+/* 1.819.0: Lieferschein im Lieferplan direkt öffnen (Wunsch Patrick 25. November 2026) */
+.lp-ls-link { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: #003884; text-decoration: underline; cursor: pointer; }
+body.dunkel .lp-ls-link { color: #8fb6ff !important; }
+
+/* 1.820.0 · Zeichnung aus der HOCO Nr. im Artikelfenster und Bilder in der Notiz */
+.erp-zvorschau { position: relative; width: 100%; height: 100%; min-height: 160px; background: #fff; border: 1px solid var(--linie, #d5dce4); border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.erp-zvorschau--gross { height: 70vh; min-height: 360px; }
+.erp-zvorschau iframe, .erp-zvorschau img { width: 100%; height: 100%; border: 0; object-fit: contain; display: block; }
+.erp-zvorschau__leer { color: #6b7785; font-size: 13px; padding: 12px; text-align: center; }
+.erp-zvorschau__gross { position: absolute; top: 6px; right: 6px; z-index: 2; width: 32px; height: 32px; border-radius: 8px; border: 1px solid #c3ccd6; background: rgba(255,255,255,.92); color: #003884; font-size: 16px; cursor: pointer; }
+body.dunkel .erp-zvorschau { background: #fff; }
+body.dunkel .erp-zvorschau__leer { color: #333 !important; }
+body.dunkel .erp-zvorschau__gross { color: #003884 !important; -webkit-text-fill-color: #003884; }
+.erp-notiz { display: flex; flex-direction: column; gap: 6px; }
+.erp-notiz--ziel { outline: 2px dashed #3c7be0; outline-offset: 2px; border-radius: 6px; }
+.erp-notiz__bilder { display: flex; flex-wrap: wrap; gap: 8px; }
+.erp-notiz__bild { position: relative; width: 120px; height: 90px; border: 1px solid #c3ccd6; border-radius: 6px; overflow: hidden; background: #fff; display: flex; align-items: center; justify-content: center; }
+.erp-notiz__bild img { width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; }
+.erp-notiz__bild--laedt { color: #6b7785; font-size: 18px; }
+.erp-notiz__bild button { position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; border-radius: 50%; border: 0; background: rgba(0,0,0,.6); color: #fff; font-size: 12px; line-height: 22px; padding: 0; cursor: pointer; }
+.erp-notiz__knopf { align-self: flex-start; font-size: 12px; padding: 3px 10px; border: 1px solid #b6c1cd; border-radius: 6px; background: #eef2f6; cursor: pointer; }
+.erp-notiz__knopf input { display: none; }
+body.dunkel .erp-notiz__knopf { background: #2a3340; border-color: #4a5666; }
+/* 1.819.1: Knopf „Spedition WBG“ orange, „Planbüro WBG“ bleibt blau (Wunsch Patrick 25. November 2026). */
+.druckwahl .knopf.knopf--spedition,
+body.dunkel .druckwahl .knopf.knopf--spedition { background: #e8730c !important; border-color: #c75f06 !important; color: #fff !important; }
+.druckwahl .knopf.knopf--spedition:hover { background: #d1660a !important; }
+
+/* 1.820.0 Letzte Produktion: eine ruhige Zeile je HOCO Nr. und Index */
+#pb-letzte-liste td { vertical-align: middle; }
+#pb-letzte-liste .pb-letzte-name { overflow-wrap: anywhere; max-width: 420px; }
+
+/* 1.824.0 Stückzahl korrigieren im Auftragsfenster */
+.stk-korr { width: min(520px, calc(100vw - 32px)); max-width: none; }
+.stk-korr__kopf { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.stk-korr__info { margin: 4px 0 10px; }
+.stk-korr__fehler { color: #c62828; }
+.stk-korr__tabelle { width: 100%; border-collapse: collapse; }
+.stk-korr__tabelle th, .stk-korr__tabelle td { padding: 4px 6px; border-bottom: 1px solid rgba(0,0,0,.1); text-align: left; }
+.stk-korr__feld { width: 110px; }
+.stk-korr__knoepfe { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+.stk-korr-huelle { z-index: 1200; }

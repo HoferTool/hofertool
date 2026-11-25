@@ -18,32 +18,56 @@
 // lader = Richtung des Stangenladers (links, rechts, oben, unten).
 const LADER = 180, LADER_B = 26;
 const ZEILE = (i) => 40 + i * 106;
-const SX = 720, SW = 150;                 // Star-Block: linkes Gehäuse, Gehäuselänge
+const SX = 870, SW = 150;                 // Star-Block: linkes Gehäuse, Gehäuselänge
 const SR = SX + SW + LADER;               // rechtes Gehäuse, Lader liegen dazwischen nebeneinander
 const VERSATZ = LADER_B + 4;              // rechte Maschine etwas tiefer
 const paar = (i, l, r) => ({
   [l]: { art: "star", x: SX, y: ZEILE(i), lader: "rechts" },
   [r]: { art: "star", x: SR, y: ZEILE(i) + VERSATZ, lader: "links" },
 });
-const IO = 30 + LADER + 4, IU = IO + 190 + 26;   // Index oben (Lader oben) / unten (Lader unten)
+// Seit 1.800.0 (Patrick 25. November 2026: „Index auch ähnlich mit Lader
+// kreuzen, aber ein wenig mehr Lücke dazwischen als bei Star“): oben Lader
+// nach unten, unten Lader nach oben, die Lader nebeneinander, die untere
+// Maschine um IV nach rechts versetzt (14 Punkte Lücke statt 4).
+const IH = 190, IO = 40, IU = IO + IH + LADER, IV = LADER_B + 14;
 export const LAGE = {
-  309: { art: "index", x: 40, y: IO, lader: "oben" },
-  308: { art: "index", x: 200, y: IO, lader: "oben" },
-  307: { art: "index", x: 200, y: IU, lader: "unten" },
-  305: { art: "index", x: 360, y: IO, lader: "oben" },
-  306: { art: "index", x: 360, y: IU, lader: "unten" },
-  201: { art: "hanwha", x: 520, y: IO, lader: "oben" },
-  202: { art: "hanwha", x: 600, y: IO, lader: "oben" },
+  309: { art: "index", x: 40, y: IO + LADER, lader: "oben" },
+  308: { art: "index", x: 210, y: IO, lader: "unten" },
+  307: { art: "index", x: 210 + IV, y: IU, lader: "oben" },
+  305: { art: "index", x: 420, y: IO, lader: "unten" },
+  306: { art: "index", x: 420 + IV, y: IU, lader: "oben" },
+  // Hanwha gekreuzt wie die Index (Patrick 25. November 2026)
+  201: { art: "hanwha", x: 640, y: 30, lader: "unten" },
+  202: { art: "hanwha", x: 640 + LADER_B + 14, y: 30 + 150 + LADER, lader: "oben" },
   ...paar(0, 121, 130), ...paar(1, 128, 129), ...paar(2, 127, 126),
   ...paar(3, 122, 123), ...paar(4, 111, 124), ...paar(5, 120, 125),
   ...paar(6, 119, 116), ...paar(7, 115, 113), ...paar(8, 114, 117),
   401: { art: "macodel", x: SX, y: ZEILE(8) + 122, lader: "rechts" },
 };
-// Räume unten links an der Wand, links nach rechts: Schleuderei und Wäscherei
-// teilen sich ein Viereck, Lager und Programmierzimmer je eines
-const B = 1240, HALLE = 1180, H = HALLE + 60;
-const RAUM = 190;
-const GROESSE = { star: [SW, 64], index: [120, 190], hanwha: [60, SW], macodel: [220, 110] };
+const DX = 110, B = SR + SW + 40 + DX, DY = 110, HALLE = 1180 + DY, H = HALLE + 60;
+
+// Maschinen ohne Eintrag in der Datenbank (Patrick 25. November 2026: „oben
+// links soll noch Takamaz hin als kleines Viereck“, „an oberer Wand sind noch
+// konventionelle Maschinen, oben rechts Fräse, dann links davon Fräse
+// Fehlmann“). Ihre Prüfmittel findet die App am Text (Notiz, Ort, Bezeichnung).
+// Rechts von der Takamaz die GDW-Drehmaschinen und zwei Werkbänke, alle etwa
+// so gross wie eine Star („breite etwa wie Maschine CNC wie Star“).
+export const EXTRA = [
+  { id: "x:takamaz", name: "Takamaz", such: /takamaz/i, x: 22, y: 22, w: 64, h: 64 },
+  { id: "x:gdw", name: "GDW", such: /gdw/i, x: 110 + DX, y: 22, w: SW, h: 64 },
+  { id: "x:fehlmann", name: "Fehlmann", such: /fehlmann/i, x: B - 360, y: 22, w: SW, h: 64 },
+  { id: "x:fraese", name: "Fräse", such: /fr(ä|ae)se/i, ohne: /fehlmann/i, x: B - 190, y: 22, w: SW, h: 64 },
+];
+// Werkbänke mit je einer Schäublin: nur zur Orientierung, ohne Prüfmittel und
+// nicht anwählbar; seit 1.821.1 ganz rechts direkt links neben Fehlmann
+// (Patrick 25. November 2026: „ganz nach rechts geschoben an Fehlmann“)
+const BAENKE = [{ x: B - 360 - 2 * (SW + 16), y: 22 }, { x: B - 360 - (SW + 16), y: 22 }];
+export function extraVon(p) {
+  const t = [p.notiz, p.ort_text, p.bezeichnung].filter(Boolean).join(" ");
+  const e = EXTRA.find((x) => x.such.test(t) && !(x.ohne && x.ohne.test(t)));
+  return e ? e.id : null;
+}
+const GROESSE = { star: [SW, 64], index: [120, IH], hanwha: [60, SW], macodel: [220, 110] };
 
 export default function Halle({ maschinen, zahl, faellig, gewaehlt, waehlen }) {
   const nachNr = new Map((maschinen || []).map((m) => [String(m.machine_number || ""), m]));
@@ -53,13 +77,21 @@ export default function Halle({ maschinen, zahl, faellig, gewaehlt, waehlen }) {
         <Vorlagen />
         <rect x="0" y="0" width={B} height={HALLE} fill="url(#hl-boden)" />
         <rect x="6" y="6" width={B - 12} height={HALLE - 12} fill="none" stroke="#6b7076" strokeWidth="12" />
-        <Raeume />
-        <Treppe />
+        {BAENKE.map((b, i) => <g key={"bank" + i} className="hl-bank">
+          <rect x={b.x} y={b.y} width={SW} height={64} rx="3" fill="#b98a58" stroke="#7a5532" strokeWidth="2" />
+          <rect x={b.x + 22} y={b.y + 8} width={SW - 44} height={30} rx="4" fill="url(#hl-blech)" stroke="#8d949b" strokeWidth="1.5" />
+          <text x={b.x + SW / 2} y={b.y + 28} textAnchor="middle" className="hl-typ">Schäublin</text>
+          <text x={b.x + SW / 2} y={b.y + 56} textAnchor="middle" className="hl-typ" fill="#3d2a17">Werkbank</text>
+        </g>)}
+        {EXTRA.map((e) => <Extra key={e.id} e={e} n={zahl.get(e.id) || 0} warn={faellig.has(e.id)}
+          an={gewaehlt === e.id} waehlen={waehlen} />)}
+        <g transform={`translate(${DX} ${DY})`}>
         {Object.entries(LAGE).map(([nr, l]) => {
           const m = nachNr.get(nr);
           return <Maschine key={nr} nr={nr} l={l} m={m} n={m ? zahl.get(m.id) || 0 : 0}
             warn={m ? faellig.has(m.id) : false} an={!!m && gewaehlt === m.id} waehlen={waehlen} />;
         })}
+        </g>
         <text x={B / 2} y={H - 22} textAnchor="middle" className="hl-qs">▼ Blick von der QS ▼</text>
       </svg>
     </div>
@@ -93,54 +125,13 @@ function Vorlagen() {
   );
 }
 
-function Raeume() {
-  const y = HALLE - 6 - RAUM, x0 = 6;
-  const teile = [
-    { name: "Schleuderei", x: x0, y, w: RAUM, h: RAUM / 2 },
-    { name: "Wäscherei", x: x0, y: y + RAUM / 2, w: RAUM, h: RAUM / 2 },
-    { name: "Lager", x: x0 + RAUM, y, w: RAUM, h: RAUM },
-    { name: "Programmierzimmer", x: x0 + 2 * RAUM, y, w: RAUM, h: RAUM, zwei: ["Programmier-", "zimmer"] },
-  ];
-  return (
-    <g className="hl-raeume">
-      {teile.map((r) => (
-        <g key={r.name}>
-          <rect x={r.x} y={r.y} width={r.w} height={r.h} fill="#e4e7ea" stroke="#6b7076" strokeWidth="8" />
-          {/* Türe zur Halle */}
-          <rect x={r.x + r.w - 4} y={r.y + r.h / 2 - 24} width="8" height="48" fill="#e4e7ea" />
-          <text x={r.x + r.w / 2} y={r.y + r.h / 2 + (r.zwei ? -4 : 8)} textAnchor="middle" className="hl-raum"
-            style={{ fontSize: r.zwei || r.h < RAUM ? 22 : 26 }}>
-            {r.zwei ? r.zwei.map((t, i) => <tspan key={t} x={r.x + r.w / 2} dy={i ? 26 : 0}>{t}</tspan>) : r.name}
-          </text>
-        </g>
-      ))}
-    </g>
-  );
-}
-
-function Treppe() {
-  const x = 600, y = HALLE - 226, w = 100, h = 210, stufen = 11;
-  return (
-    <g className="hl-treppe">
-      <rect x={x} y={y} width={w} height={h} fill="#cfd3d6" stroke="#7b8187" strokeWidth="2" />
-      {Array.from({ length: stufen }, (_, i) => (
-        <rect key={i} x={x + 4} y={y + 4 + i * ((h - 8) / stufen)} width={w - 8} height={(h - 8) / stufen - 3}
-          fill={`hsl(210 6% ${86 - i * 3}%)`} />))}
-      <rect x={x - 6} y={y} width="6" height={h} fill="#8a6d3b" />
-      <rect x={x + w} y={y} width="6" height={h} fill="#8a6d3b" />
-      <path d={`M${x + w / 2} ${y + 40} v${h - 80} m-16 -18 l16 18 l16 -18`} fill="none" stroke="#3b4148" strokeWidth="5" strokeLinecap="round" />
-      <text x={x + w / 2} y={y - 12} textAnchor="middle" className="hl-schrift">Treppe hinaus</text>
-    </g>
-  );
-}
-
 function Maschine({ nr, l, m, n, warn, an, waehlen }) {
   const [w, h] = GROESSE[l.art];
-  const klick = m ? () => waehlen(an ? null : m.id) : undefined;
+  const klick = m ? (e) => waehlen(an ? null : m.id, e && e.currentTarget) : undefined;
   return (
     <g className={"hl-maschine" + (m ? "" : " hl-maschine--fehlt") + (an ? " hl-maschine--an" : "") + (n ? " hl-maschine--voll" : "")}
       data-hlnr={nr} data-pmmaschine={m ? m.id : undefined} onClick={klick} role={m ? "button" : undefined}
-      tabIndex={m ? 0 : undefined} onKeyDown={(e) => { if (m && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); klick(); } }}>
+      tabIndex={m ? 0 : undefined} onKeyDown={(e) => { if (m && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); klick(e); } }}>
       <g filter="url(#hl-schatten)">
         <Lader l={l} w={w} h={h} />
         {l.art === "star" && <Star x={l.x} y={l.y} w={w} h={h} spiegel={l.lader === "rechts"} />}
@@ -156,6 +147,24 @@ function Maschine({ nr, l, m, n, warn, an, waehlen }) {
       </g>}
     </g>
   );
+}
+
+// Konventionelle Maschine bzw. Takamaz: schlichter Kasten mit Namen
+function Extra({ e, n, warn, an, waehlen }) {
+  const klick = (ev) => waehlen(an ? null : e.id, ev && ev.currentTarget);
+  return (
+    <g className={"hl-maschine hl-extra" + (an ? " hl-maschine--an" : "") + (n ? " hl-maschine--voll" : "")}
+      data-hlnr={e.name} data-pmmaschine={e.id} onClick={klick} role="button" tabIndex={0}
+      onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); klick(ev); } }}>
+      <rect x={e.x} y={e.y} width={e.w} height={e.h} rx="6" fill="url(#hl-blech)" stroke="#8d949b" strokeWidth="2" filter="url(#hl-schatten)" />
+      {an && <rect x={e.x - 6} y={e.y - 6} width={e.w + 12} height={e.h + 12} rx="8" className="hl-rahmen" />}
+      <text x={e.x + e.w / 2} y={e.y + e.h / 2 + 7} textAnchor="middle" className="hl-nr hl-nr--auf"
+        style={{ fontSize: e.w < 100 ? 12 : e.name.length > 10 ? 16 : 20 }}>{e.name}</text>
+      {n > 0 && <g className={"hl-zahl" + (warn ? " hl-zahl--warn" : "")}>
+        <circle cx={e.x + e.w - 4} cy={e.y + 4} r="17" />
+        <text x={e.x + e.w - 4} y={e.y + 10} textAnchor="middle">{n}</text>
+      </g>}
+    </g>);
 }
 
 function Schild({ l, w, h, nr, m }) {

@@ -103,6 +103,7 @@ export async function allesLaden() {
   });
   d.posMap = new Map(d.positionen.map((p) => [p.id, p]));
   d.belege.sort((a, b) => String(b.nr).localeCompare(String(a.nr)));
+  d.nummern = await nummernLaden().catch(() => ({}));
   return d;
 }
 
@@ -137,11 +138,55 @@ export function naechstePartnerNr(d, art) {
   return String(nrn.length ? Math.max(...nrn) + 1 : start + 1);
 }
 
-// Belege: Kürzel, Jahr, laufende Nr., z.B. AU26-0001
+// Belege: Jahr und laufende Nr., z.B. 20260099 (seit 1.810.0, Wunsch Patrick
+// 25. November 2026: alle Belegarten im gleichen Format; vorher AU26-0001).
+// Jede Art zählt für sich, eine Bestellung darf dieselbe Nr. haben wie ein
+// Auftrag (unique je typ + nr). Fortlaufend je Typ über die Jahre, beim
+// Jahreswechsel ändert nur das Jahr vorne (seit 1.820.0).
+// Startwerte (Wunsch Patrick 25. November 2026, für den Wechsel vom alten
+// ERP): app_config.erp_nummern {typ: {jahr: start}}, die nächste Nummer ist
+// nie kleiner als der Startwert und nie kleiner als die höchste + 1.
+export const NUMMERN_KONFIG = "erp_nummern";
+export const NUMMERNKREISE = [
+  ...Object.entries(BELEGTYP).map(([typ, t]) => ({ typ, name: t.mehr, muster: (j) => String(j), stellen: 4 })),
+  { typ: "kalkulation", name: "Kalkulationen", muster: (j) => String(j), stellen: 4 },
+];
+export const nummerText = (kreis, jahr, n) => kreis.muster(jahr) + String(n).padStart(kreis.stellen, "0");
+export const startWert = (nummern, typ, jahr) => {
+  const n = parseInt((nummern || {})[typ]?.[jahr], 10);
+  return Number.isFinite(n) && n > 0 ? n : 1;
+};
+// vorhandene: alle vorhandenen Nummern dieses Kreises (Text).
+// Seit 1.820.0 (Wunsch Patrick 25. November 2026: „beim Startwert fürs
+// nächste Jahr soll nur das Jahr ändern, die fortlaufende Nr. geht weiter,
+// wo im letzten Jahr aufgehört wurde“): die laufende Nr. zählt über die
+// Jahre weiter, beim Jahreswechsel wechselt nur das Jahr vorne
+// (20260145 → 20270146). Startwerte früherer Jahre gelten weiter.
+export function naechsteNummer(nummern, typ, vorhandene, jahr = new Date().getFullYear()) {
+  const kreis = NUMMERNKREISE.find((k) => k.typ === typ);
+  let hoch = 0;
+  vorhandene.forEach((n) => {
+    const m = /^(20\d\d)(\d+)$/.exec(String(n || ""));
+    if (m && Number(m[1]) <= jahr) hoch = Math.max(hoch, parseInt(m[2], 10) || 0);
+  });
+  let start = 1;
+  Object.keys((nummern || {})[typ] || {}).forEach((j) => { if (Number(j) <= jahr) start = Math.max(start, startWert(nummern, typ, j)); });
+  return nummerText(kreis, jahr, Math.max(hoch + 1, start));
+}
 export function naechsteBelegNr(d, typ) {
-  const vor = BELEGTYP[typ].kurz + String(new Date().getFullYear()).slice(2) + "-";
-  const nrn = d.belege.filter((b) => b.typ === typ && b.nr.startsWith(vor)).map((b) => parseInt(b.nr.slice(vor.length), 10) || 0);
-  return vor + String((nrn.length ? Math.max(...nrn) : 0) + 1).padStart(4, "0");
+  return naechsteNummer(d.nummern, typ, d.belege.filter((b) => b.typ === typ).map((b) => b.nr));
+}
+export async function nummernLaden() {
+  const r = await alt.zeitlimit(alt.db.from("app_config").select("wert").eq("schluessel", NUMMERN_KONFIG).maybeSingle(), 8000, "Nummernkreise");
+  if (r.error) throw r.error;
+  try { return r.data?.wert ? (typeof r.data.wert === "string" ? JSON.parse(r.data.wert) : r.data.wert) : {}; } catch { return {}; }
+}
+export async function nummernSpeichern(nummern) {
+  const vorher = await alt.rueckSichern("app_config", { schluessel: NUMMERN_KONFIG });
+  const r = await alt.db.from("app_config").upsert([{ schluessel: NUMMERN_KONFIG, wert: JSON.stringify(nummern) }], { onConflict: "schluessel" });
+  if (r.error) throw r.error;
+  alt.merkeSchritt("Nummernkreise ändern", vorher.length ? alt.rueckRein("app_config", vorher, "schluessel")
+    : alt.rueckWeg("app_config", { schluessel: NUMMERN_KONFIG }));
 }
 
 // ---------- Texte ----------
@@ -156,26 +201,62 @@ export function artikelText(a) {
   if (!a) return "–";
   return a.nr + (a.idx ? " Ind. " + a.idx : "") + (a.bezeichnung ? " · " + a.bezeichnung : "");
 }
+// Artikel mit einem bestimmten Index (Position, Bestand), nicht dem aktuellen
+export function artikelIdxText(a, idx) {
+  if (!a) return "–";
+  return artikelText({ ...a, idx: idx == null ? a.idx : idx });
+}
 export function partnerText(p) { return p ? p.nr + " " + p.name : "–"; }
 export function datumText(iso) {
   if (!iso) return "";
   const [j, m, t] = String(iso).slice(0, 10).split("-");
   return t + "." + m + "." + j;
 }
-// Kalenderwoche nach ISO wie im Gewatec: „25/26“
-export function kwText(iso) {
-  if (!iso) return "";
+// Kalenderwoche nach ISO wie im Gewatec: „25/27“, im laufenden Jahr nur „25“
+// (Wunsch Patrick 25. November 2026: im aktuellen Jahr ohne Zusatz /JJ)
+function kwUndJahr(iso) {
   const t = new Date(String(iso).slice(0, 10) + "T12:00:00");
-  if (isNaN(t)) return "";
+  if (isNaN(t)) return null;
   const tag = (t.getDay() + 6) % 7;
   t.setDate(t.getDate() - tag + 3);
   const jahr = t.getFullYear();
   const erster = new Date(jahr, 0, 4, 12);
   const kw = 1 + Math.round(((t - erster) / 86400000 - 3 + ((erster.getDay() + 6) % 7)) / 7);
-  return String(kw).padStart(2, "0") + "/" + String(jahr).slice(2);
+  return { kw, jahr };
 }
+export function kwText(iso, heute = new Date()) {
+  if (!iso) return "";
+  const k = kwUndJahr(iso);
+  if (!k) return "";
+  const nr = String(k.kw).padStart(2, "0");
+  return k.jahr === heute.getFullYear() ? nr : nr + "/" + String(k.jahr).slice(2);
+}
+// Umgekehrt: „48“ (dieses Jahr), „KW 48“, „05/27“ oder „05/2027“ → ISO-Datum
+// dieser Woche, sonst "". tag: 0 = Montag (Bestellungen), 4 = Freitag (Aufträge),
+// Wunsch Patrick 25. November 2026
+export function kwZuDatum(text, heute = new Date(), tag = 0) {
+  const m = /^\s*(?:kw\s*)?(\d{1,2})\s*(?:[/.\-\s]\s*(\d{2}|\d{4}))?\s*$/i.exec(String(text || ""));
+  if (!m) return "";
+  const kw = +m[1];
+  let jahr = m[2] ? +m[2] : heute.getFullYear();
+  if (jahr < 100) jahr += 2000;
+  if (kw < 1 || kw > 53) return "";
+  // 4. Januar liegt immer in KW 1
+  const vier = new Date(jahr, 0, 4, 12);
+  const d = new Date(vier);
+  d.setDate(vier.getDate() - ((vier.getDay() + 6) % 7) + (kw - 1) * 7);
+  const iso = (x) => x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0");
+  // KW 53 gibt es nicht in jedem Jahr
+  const k = kwUndJahr(iso(d));
+  if (!k || k.kw !== kw || k.jahr !== jahr) return "";
+  d.setDate(d.getDate() + tag);
+  return iso(d);
+}
+// Wochentag für eine KW: Aufträge Freitag, Bestellungen Montag
+export function kwTag(typ) { return typ === "auftrag" ? 4 : 0; }
 export function terminText(p) {
-  if (p.termin_kw) return "KW " + p.termin_kw;
+  // Aus dem Datum gerechnet, damit „48“ nächstes Jahr wieder „48/26“ heisst
+  if (p.termin_kw) return "KW " + (p.termin ? kwText(p.termin) : p.termin_kw);
   return p.termin ? datumText(p.termin) : "";
 }
 
@@ -191,12 +272,27 @@ export function mapsLink(a) {
 
 // ---------- Lager ----------
 // Bestand je Artikel (samt Index), Charge und Lagerplatz
+// Pro HOCO Nr. gibt es nur einen Artikel (Patrick 25. November 2026). Der Index
+// steht darum an der Position (daten.idx) und an jeder Bewegung (idx); so bleibt
+// der Bestand je Index getrennt, auch wenn der Artikel einen neuen Index bekommt.
+export function posIdx(d, p) {
+  if (p && p.daten && p.daten.idx != null) return p.daten.idx;
+  const a = p && d.artikelMap.get(p.artikel_id);
+  return a ? a.idx || "" : "";
+}
+export function bewIdx(d, b) {
+  if (b.idx != null) return b.idx;
+  const a = d.artikelMap.get(b.artikel_id);
+  return a ? a.idx || "" : "";
+}
+
 export function bestand(d, artikelId) {
   const je = new Map();
   d.bewegungen.forEach((b) => {
     if (artikelId && b.artikel_id !== artikelId) return;
-    const k = b.artikel_id + "|" + b.charge + "|" + (b.lager_id || "");
-    const e = je.get(k) || { artikel_id: b.artikel_id, charge: b.charge, lager_id: b.lager_id, menge: 0 };
+    const idx = bewIdx(d, b);
+    const k = b.artikel_id + "|" + idx + "|" + b.charge + "|" + (b.lager_id || "");
+    const e = je.get(k) || { artikel_id: b.artikel_id, idx, charge: b.charge, lager_id: b.lager_id, menge: 0 };
     e.menge += Number(b.menge) || 0;
     je.set(k, e);
   });
@@ -204,7 +300,12 @@ export function bestand(d, artikelId) {
 }
 
 export async function buchen(zeile) {
-  return einfuegen("erp_bewegungen", zeile);
+  try { return await einfuegen("erp_bewegungen", zeile); }
+  catch (e) {
+    // Ohne sql/erp-artikel-je-hoco.sql kennt die Datenbank die Spalte idx noch nicht
+    if ("idx" in zeile && /idx/.test(String(e && e.message))) { const { idx, ...ohne } = zeile; return einfuegen("erp_bewegungen", ohne); }
+    throw e;
+  }
 }
 
 // Wie viel einer Position schon gebucht ist (Lieferung, Wareneingang, Fertigmeldung)
@@ -275,7 +376,7 @@ export function belegSumme(d, beleg) {
 export function chargeVerfolgen(d, charge, artikelId) {
   const bew = d.bewegungen.filter((b) => b.charge === charge && (!artikelId || b.artikel_id === artikelId))
     .sort((a, b) => String(a.am).localeCompare(String(b.am)));
-  const herkunft = bew.filter((b) => b.menge > 0 && b.art !== "korrektur");
+  const herkunft = bew.filter((b) => b.menge > 0 && b.art !== "korrektur" && b.art !== "umbuchung");
   const verwendung = bew.filter((b) => b.menge < 0);
   // Material des Fertigungsauftrags, aus dem die Charge stammt
   const material = [];

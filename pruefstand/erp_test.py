@@ -1,3 +1,4 @@
+import json
 # Test ERP (1.672.0, Wunsch Patrick 20. November 2026): nur mit Vermerk
 # erpSehen, Kalkulation steht als Reiter im ERP statt im Menü. Ganzer
 # Ablauf: Bestellung → Wareneingang, Auftrag → FA → Material → Fertig →
@@ -58,11 +59,16 @@ def neuer_beleg(pg, typ, partner, artikel, menge, preis=None):
     f.locator("select[data-erp-feld='partner_id']").select_option(partner)
     f.locator("[data-erp-neupos]").click()
     f.locator("input[data-erp-feld='artikel']").last.fill(artikel)
+    # seit 1.809.0 im Feld nur die Nr., Index, Bezeichnung, Zeichnung, Ident daneben
+    nr = artikel.split(" ")[0]
+    if f.locator("input[data-erp-feld='artikel']").last.input_value() == nr and f.locator("[data-erp-artfeld='bez']").count():
+        ARTFELD.append(nr)
     f.locator("input[data-erp-feld='menge']").last.fill(menge)
     if preis: f.locator("input[data-erp-feld='preis']").last.fill(preis)
     f.locator("[data-erp-speichern]").click(); pg.wait_for_timeout(700)
     pg.screenshot(path=BILD + "/erp-nach-%s.png" % typ)
 
+ARTFELD = []
 def tabelle(pg, t): return pg.evaluate("() => TEST.daten.%s" % t)
 
 with sync_playwright() as p:
@@ -79,11 +85,11 @@ with sync_playwright() as p:
     # Bestellung und Wareneingang
     neuer_beleg(pg, "bestellung", "l1", "X8CrNiS18-9 rd 12", "100")
     be = [b for b in tabelle(pg, "erp_belege") if b["typ"] == "bestellung"]
-    pruefe(len(be) == 1 and be[0]["nr"].startswith("BE26-"), "Bestellung gespeichert: %s" % [b["nr"] for b in be])
+    pruefe(len(be) == 1 and be[0]["nr"] == "20260001", "Bestellung gespeichert: %s" % [b["nr"] for b in be])
     oben(pg).locator("[data-erp-aktion='we']").click(); pg.wait_for_selector("[data-erp-wepos]")
     pg.locator(".dialog [data-erp-ja]").last.click(); pg.wait_for_timeout(800)
     we = [x for x in tabelle(pg, "erp_bewegungen") if x["art"] == "eingang"]
-    pruefe(len(we) == 1 and we[0]["menge"] == 100 and we[0]["charge"].startswith("WE-BE26-"), "Wareneingang gebucht: %s" % we)
+    pruefe(len(we) == 1 and we[0]["menge"] == 100 and we[0]["charge"].startswith("WE-20260001-"), "Wareneingang gebucht: %s" % we)
     pg.locator("[data-erp-beleg] [data-nein]").last.click(); pg.wait_for_timeout(300)
 
     # Auftrag Index B
@@ -125,7 +131,7 @@ with sync_playwright() as p:
     pruefe(len(fm) == 1 and fl and fm[0]["lager_id"] == fl[0]["id"], "Fertigmeldung auf FL Regal 7")
     pruefe(len(fm) == 1 and fm[0]["menge"] == 200 and fm[0]["artikel_id"] == "a1" and fm[0]["charge"] == fa[0]["nr"], "Fertig gemeldet: %s" % fm)
     pg.screenshot(path=BILD + "/erp-fa.png")
-    pg.locator("[data-erp-beleg='%s'] [data-nein]" % fa[0]["nr"]).click(); pg.wait_for_timeout(300)
+    pg.locator("[data-erp-beleg='%s'][data-erp-typ='fertigung'] [data-nein]" % fa[0]["nr"]).click(); pg.wait_for_timeout(300)
 
     # Lieferschein aus dem noch offenen Auftragsfenster (holt den frischen Bestand)
     oben(pg).locator("[data-erp-aktion='ls']").click(); pg.wait_for_selector("[data-erp-lspos]")
@@ -133,6 +139,9 @@ with sync_playwright() as p:
     pg.locator(".dialog:has([data-erp-lspos]) [data-erp-ja]").click(); pg.wait_for_timeout(1000)
     lf = [x for x in tabelle(pg, "erp_bewegungen") if x["art"] == "lieferung"]
     pruefe(len(lf) == 1 and lf[0]["menge"] == -150 and lf[0]["charge"] == fa[0]["nr"], "Lieferschein bucht 150 aus der FA-Charge: %s" % lf)
+    oben(pg).locator(".erp-folge button").last.click(); pg.wait_for_selector("[data-erp-typ='lieferschein']")
+    with pg.expect_popup() as pop: pg.locator("[data-erp-typ='lieferschein'] [data-erp-drucken]").last.click(timeout=5000)
+    w = pop.value; w.wait_for_load_state(); pruefe("Gelieferte Menge" in w.content(), "Lieferschein druckt wie Gewatec"); w.close()
     pg.locator("[data-erp-beleg] [data-nein]").last.click(); pg.wait_for_timeout(300)
     while pg.locator("[data-erp-beleg]").count(): pg.locator("[data-erp-beleg] [data-nein]").last.click(); pg.wait_for_timeout(200)
 
@@ -166,7 +175,7 @@ with sync_playwright() as p:
     # Rückverfolgung der FA-Charge bis zum Rohmaterial und Kunden
     pg.click("[data-erp-reiter='rueck']"); pg.locator(".erp-suche").fill(fa[0]["nr"]); pg.wait_for_timeout(400)
     spur = pg.inner_text("[data-erp-spur='%s']" % fa[0]["nr"])
-    pruefe("X8CrNiS18-9" in spur and "Muster AG" in spur and "WE-BE26-" in spur, "Spur zeigt Material-Charge und Kunde")
+    pruefe("X8CrNiS18-9" in spur and "Muster AG" in spur and "WE-20260001-" in spur, "Spur zeigt Material-Charge und Kunde")
     pg.screenshot(path=BILD + "/erp-rueck.png")
 
     # Kalkulation im ERP
@@ -220,8 +229,23 @@ with sync_playwright() as p:
     ap_ = a.get("arbeitsplan") or []
     pruefe(len(ap_) == vorher + 1 and ap_[-1].get("code") == "ENTGR", "Arbeitsgang angelegt: %s" % ap_)
     pg.screenshot(path=BILD + "/erp-arbeitsplan.png")
+    # Ziehen: letzten Arbeitsgang ganz nach oben
+    pg.click("[data-erp-ag-neu='int']"); pg.wait_for_selector(".dialog:has-text('Arbeitsgang') input[data-erp-feld='code']")
+    dlg = pg.locator(".dialog:has(input[data-erp-feld='code'])").last
+    dlg.locator("input[data-erp-feld='code']").fill("WASCH"); dlg.locator("textarea[data-erp-feld='bez']").fill("Waschen"); dlg.locator("[data-erp-speichern]").click(); pg.wait_for_timeout(300)
+    zeilen = pg.locator("#erp-ap-liste .ziehliste__zeile")
+    if zeilen.count() >= 2:
+        q = zeilen.last.bounding_box(); z = zeilen.first.bounding_box()
+        pg.mouse.move(q["x"] + 60, q["y"] + q["height"] / 2); pg.mouse.down()
+        for i in range(1, 16): pg.mouse.move(q["x"] + 60, q["y"] + q["height"] / 2 + (z["y"] - q["y"] - 8) * i / 15); pg.wait_for_timeout(20)
+        pg.mouse.up(); pg.wait_for_timeout(500)
+        pg.click("[data-erp-artfenster] [data-erp-speichern]"); pg.wait_for_timeout(800)
+        a = [x for x in tabelle(pg, "erp_artikel") if x["id"] == a["id"]][0]
+        ap2 = a.get("arbeitsplan") or []
+        pruefe(ap2 and ap2[0].get("code") == "WASCH" and len(ap2) == vorher + 2 and ap2[0].get("pos") == 10 and not any("_k" in x for x in ap2), "Arbeitsgang per Ziehen nach oben: %s" % [(x.get("pos"), x.get("code")) for x in ap2])
     pg.click("[data-erp-artfenster] [data-gf-reiter='dokumente']"); pg.wait_for_timeout(200)
     pruefe(pg.locator("[data-erp-art-modell]").count() == 1, "Reiter Dokumente mit Platz für 3D")
+    pruefe(pg.locator("[data-erp-artfenster] [data-erp-zeichnung]").count() >= 1, "Zeichnung der HOCO Nr. im Artikelfenster")
     # Blaue Felder: Menü mit Sprüngen, hier ins Artikel-Cockpit
     pg.click("[data-erp-artfenster] [data-erp-art-cockpit]"); pg.wait_for_selector("[data-erp-cockpit]")
     pruefe(pg.locator("[data-erp-cockpit-teil]").count() == 4, "Artikel-Cockpit mit vier Bereichen")
@@ -243,18 +267,162 @@ with sync_playwright() as p:
     neuer_beleg(pg, "auftrag", "k1", "10007-0590 Ind. C · Hülse", "6000")
     ap = [x for x in tabelle(pg, "erp_positionen") if x["artikel_id"] == a["id"]]
     pruefe(ap and ap[-1]["preis"] == 200 and (ap[-1].get("daten") or {}).get("pe") == 1000, "Auftrag nimmt Staffelpreis: %s" % ap)
-    oben(pg).locator("[data-erp-zeile]").first.click(); pg.wait_for_selector("[data-erp-posfenster]")
+    # Tipp auf die Position öffnet gleich das Bearbeiten (1.817.0)
+    oben(pg).locator("[data-erp-zeile]").first.click(); pg.wait_for_selector("[data-erp-pos-lpneu]")
+    pruefe(pg.locator("[data-erp-posfenster]").count() == 0 and oben(pg).locator("[data-erp-speichern]").count() == 1, "Tipp auf Position öffnet Bearbeiten")
     pg.screenshot(path=BILD + "/erp-position.png")
-    pg.click("[data-erp-pos-lieferplan]"); pg.wait_for_selector("[data-erp-lieferplan]")
-    pg.click("[data-erp-lp-neu]"); pg.click("[data-erp-lp-neu]")
+    pruefe(len(ARTFELD) > 0, "Artikel-Nr. und Angaben in eigenen Feldern: %s" % ARTFELD)
+    oben(pg).locator("[data-erp-pos-lpneu]").first.click(); pg.wait_for_selector("[data-erp-lp-zeile]")
+    pg.click("[data-erp-lp-neu]")
     z = pg.locator("[data-erp-lp-zeile]")
     z.nth(0).locator("input[data-erp-feld='menge']").fill("4000"); z.nth(0).locator("input[data-erp-feld='termin']").fill("2026-12-15")
     z.nth(1).locator("input[data-erp-feld='menge']").fill("2000"); z.nth(1).locator("input[data-erp-feld='termin']").fill("2027-02-01")
+    pruefe(z.nth(0).locator("input[data-erp-feld='kw']").input_value() == "51", "KW im laufenden Jahr ohne /JJ: %s" % z.nth(0).locator("input[data-erp-feld='kw']").input_value())
+    pruefe(z.nth(1).locator("input[data-erp-feld='kw']").input_value() == "05/27", "KW im nächsten Jahr mit /JJ: %s" % z.nth(1).locator("input[data-erp-feld='kw']").input_value())
+    z.nth(0).locator("input[data-erp-feld='kw']").fill("50")
+    pruefe(z.nth(0).locator("input[data-erp-feld='termin']").input_value() == "2026-12-11", "KW 50 im Auftrag = Freitag: %s" % z.nth(0).locator("input[data-erp-feld='termin']").input_value())
+    z.nth(0).locator("input[data-erp-feld='termin']").fill("2026-12-15")
     pg.screenshot(path=BILD + "/erp-lieferplan.png")
-    pg.click("[data-erp-lieferplan] [data-erp-speichern]"); pg.wait_for_timeout(800)
+    oben(pg).locator("[data-erp-speichern]").click(); pg.wait_for_timeout(800)
     pos = [x for x in tabelle(pg, "erp_positionen") if x["artikel_id"] == a["id"]][-1]
     ab = (pos.get("daten") or {}).get("abrufe") or []
     pruefe([x["menge"] for x in ab] == [4000, 2000], "Lieferplan gespeichert: %s" % ab)
+    # Auftragsbestätigung und Liefern je Position (1.818.0)
+    with pg.expect_popup() as pop: oben(pg).locator("[data-erp-ab-drucken]").click()
+    w = pop.value; w.wait_for_load_state(); pruefe("Auftragsbestätigung" in w.content(), "Auftragsbestätigung druckt"); w.close()
+    oben(pg).locator("[data-erp-zeile]").first.click(); pg.wait_for_selector("[data-erp-pos-ls]")
+    # „Artikel-Nr.“ in der Position öffnet das Artikelfenster
+    n0 = pg.locator(".gf").count()
+    oben(pg).locator("[data-erp-artnr-link]").first.click(); pg.wait_for_timeout(500)
+    pruefe(pg.locator(".gf").count() == n0 + 1, "Artikel-Nr. öffnet den Artikel: %d -> %d" % (n0, pg.locator(".gf").count()))
+    pg.locator(".gf").last.locator(".gf-zu").click(); pg.wait_for_timeout(300)
+    if pg.locator(".dialog-huelle [data-ja]").count(): pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(300)
+    oben(pg).locator("[data-erp-pos-ls]").first.click(); pg.wait_for_selector("[data-erp-lspos]")
+    pruefe(pg.locator("[data-erp-lspos]").count() == 1, "Liefern zeigt nur diese Position: %d" % pg.locator("[data-erp-lspos]").count())
+    pg.locator(".dialog:has([data-erp-lspos]) .knopf--still").click(); pg.wait_for_timeout(300)
+    if oben(pg).locator("[data-nein]").count(): oben(pg).locator("[data-nein]").last.click(); pg.wait_for_timeout(300)
+    if pg.locator(".dialog-huelle [data-ja]").count(): pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(300)
+
+    # Nummernkreise: Startwert für den Wechsel vom alten ERP
+    import datetime
+    j = datetime.date.today().year
+    for _ in range(4):
+        if pg.locator(".dialog-huelle").count() == 0: break
+        pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    pg.click("[data-erp-reiter='stamm']"); pg.wait_for_timeout(300)
+    pg.click("[data-erp-stamm='nummern']"); pg.wait_for_selector("[data-erp-nrstart='auftrag-%d']" % j)
+    pg.fill("[data-erp-nrstart='auftrag-%d']" % j, "458")
+    pg.fill("[data-erp-nrstart='kalkulation-%d']" % j, "6001")
+    naechst = pg.inner_text("[data-erp-nrnaechst='auftrag']")
+    pruefe(naechst == "%d0458" % j, "Vorschau nächste Nummer: %s" % naechst)
+    folge = pg.inner_text("[data-erp-nrfolge='auftrag']")
+    pruefe(folge == "%d0458" % (j + 1), "Nächstes Jahr zählt weiter: %s" % folge)
+    pg.screenshot(path=BILD + "/erp-nummern.png")
+    pg.click("#erp-nr-speichern"); pg.wait_for_timeout(700)
+    cfg = [x for x in tabelle(pg, "app_config") if x["schluessel"] == "erp_nummern"]
+    w = json.loads(cfg[0]["wert"]) if cfg else {}
+    pruefe(w.get("auftrag", {}).get(str(j)) == 458 and w.get("kalkulation", {}).get(str(j)) == 6001, "Startwerte gespeichert: %s" % w)
+    neuer_beleg(pg, "auftrag", "k1", "10007-0589 Ind. B · Bolzen", "10", "2.40")
+    nrn = [b["nr"] for b in tabelle(pg, "erp_belege") if b["typ"] == "auftrag"]
+    pruefe("%d0458" % j in nrn, "Neuer Auftrag mit Startwert: %s" % nrn)
+
+    # Bestellung: KW gibt den Montag; einzelne Position löschen, der Beleg bleibt
+    for _ in range(4):
+        if pg.locator(".dialog-huelle").count() == 0: break
+        pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+        if pg.locator(".dialog-huelle [data-ja]").count(): pg.locator(".dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(200)
+    pg.click("[data-erp-reiter='bestellung']"); pg.click("[data-erp-neu='bestellung']")
+    f = oben(pg); f.wait_for()
+    f.locator("select[data-erp-feld='partner_id']").select_option("l1")
+    for _ in range(2):
+        f.locator("[data-erp-neupos]").click()
+        f.locator("input[data-erp-feld='artikel']").last.fill("X8CrNiS18-9 rd 12")
+        f.locator("input[data-erp-feld='menge']").last.fill("50")
+    kwf = f.locator("input[data-erp-feld='_kw'], input[data-erp-feld='termin_kw']").last
+    kwf.fill("50"); pg.wait_for_timeout(200)
+    tf = f.locator("input[data-erp-feld='termin']").last.input_value()
+    pruefe(tf == "2026-12-07", "KW 50 in der Bestellung = Montag: %s" % tf)
+    f.locator("[data-erp-speichern]").click(); pg.wait_for_timeout(700)
+    be = sorted([b for b in tabelle(pg, "erp_belege") if b["typ"] == "bestellung"], key=lambda b: b["nr"])[-1]
+    bp = [x for x in tabelle(pg, "erp_positionen") if x["beleg_id"] == be["id"]]
+    pruefe(len(bp) == 2, "Bestellung mit zwei Positionen: %d" % len(bp))
+    oben(pg).locator("[data-erp-zeile]").first.click(); pg.wait_for_selector("[data-erp-pos-weg]")
+    oben(pg).locator("[data-erp-pos-weg]").first.click()
+    oben(pg).locator("[data-erp-speichern]").click(); pg.wait_for_timeout(800)
+    bp2 = [x for x in tabelle(pg, "erp_positionen") if x["beleg_id"] == be["id"]]
+    pruefe(len(bp2) == 1 and any(b["id"] == be["id"] for b in tabelle(pg, "erp_belege")), "Position gelöscht, Beleg bleibt: %d" % len(bp2))
+    # Neue Position direkt in der Ansicht, ohne Bearbeiten (1.811.1)
+    oben(pg).locator("[data-erp-ansicht-neupos]").click(); pg.wait_for_selector("[data-erp-posfenster]")
+    pfe = pg.locator("[data-erp-posfenster]").last
+    pfe.locator("input[data-erp-feld='artikel']").fill("X8CrNiS18-9 rd 12"); pg.wait_for_timeout(200)
+    pfe.locator("input[data-erp-feld='menge']").fill("30")
+    pfe.locator("[data-erp-speichern]").click(); pg.wait_for_timeout(800)
+    bp3 = [x for x in tabelle(pg, "erp_positionen") if x["beleg_id"] == be["id"]]
+    pruefe(len(bp3) == 2 and any(float(x["menge"]) == 30 and x.get("artikel_id") for x in bp3), "Position in der Ansicht hinzugefügt: %d" % len(bp3))
+
+    # Pro HOCO Nr. nur ein Artikel: Neuer Index ändert denselben Artikel
+    for _ in range(4):
+        if pg.locator(".dialog-huelle").count() == 0: break
+        pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    pg.click("[data-erp-reiter='stamm']"); pg.wait_for_timeout(300)
+    pg.click("[data-erp-stamm='artikel']"); pg.wait_for_timeout(300)
+    vorher = len([x for x in tabelle(pg, "erp_artikel") if x["nr"] == a["nr"]])
+    altidx = [x for x in tabelle(pg, "erp_artikel") if x["id"] == a["id"]][0].get("idx") or ""
+    pg.locator("[data-erp-zeile='%s']" % a["id"]).click(); pg.wait_for_selector("[data-erp-artfenster]")
+    pg.click("[data-erp-art-index]"); pg.wait_for_timeout(400)
+    dlg = pg.locator(".dialog-huelle").last
+    dlg.locator("input").first.fill("Z")
+    dlg.locator("button:has-text('Index ändern')").click(); pg.wait_for_timeout(900)
+    an = [x for x in tabelle(pg, "erp_artikel") if x["nr"] == a["nr"]]
+    ax = [x for x in an if x["id"] == a["id"]][0]
+    pruefe(len(an) == vorher and ax["idx"] == "Z" and (ax["daten"].get("indexe") or [{}])[-1].get("idx") == altidx,
+           "Neuer Index am selben Artikel, alter im Verlauf: %s %s" % (ax["idx"], ax["daten"].get("indexe")))
+
+    # Umbuchen von Hand mit Vermerk und Liste der Lagerbewegungen
+    for _ in range(4):
+        if pg.locator(".dialog-huelle").count() == 0: break
+        pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    pg.click("[data-erp-stamm='lager']"); pg.wait_for_timeout(400)
+    pg.locator("tr[data-erp-zeile^='a1|']:has-text('Regal 7')").first.click(); pg.wait_for_selector("[data-erp-umbuchen]")
+    u = pg.locator("[data-erp-umbuchen]")
+    u.locator("[data-erp-feld='menge']").fill("20")
+    u.locator("select[data-erp-feld='lart']").select_option("SPL")
+    u.locator("[data-erp-feld='lplatz']").fill("Q1")
+    u.locator("[data-erp-speichern]").click(); pg.wait_for_timeout(500)
+    pruefe(pg.locator("[data-erp-umbuchen]").count() == 1, "ohne Vermerk nicht umgebucht")
+    u.locator("[data-erp-feld='grund']").fill("Masse prüfen, QS")
+    u.locator("[data-erp-speichern]").click(); pg.wait_for_timeout(900)
+    ub = [x for x in tabelle(pg, "erp_bewegungen") if x["art"] == "umbuchung"]
+    spl = [x for x in tabelle(pg, "erp_lager") if x.get("lagerart") == "SPL" and x.get("platz") == "Q1"]
+    pruefe(len(ub) == 2 and sorted(x["menge"] for x in ub) == [-20, 20] and all(x["notiz"] == "Masse prüfen, QS" for x in ub)
+           and spl and [x for x in ub if x["menge"] == 20][0]["lager_id"] == spl[0]["id"], "Umbuchung FL → SPL: %s" % ub)
+    pg.wait_for_selector("[data-erp-bewegungen]")
+    txt = pg.inner_text("[data-erp-bewegungen]")
+    pruefe("Umbuchung" in txt and "SPL Q1" in txt and "Masse prüfen, QS" in txt and fa[0]["nr"] in txt, "Bewegungen zeigen Umbuchung und FA")
+    pg.locator("select[data-erp-bew-art]").select_option("umbuchung"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-erp-bewegungen] tbody tr").count() == 2, "Filter Umbuchung")
+    pg.screenshot(path=BILD + "/erp-bewegungen.png", full_page=True)
+
+    # Kalkulation: Kunde, Artikel und Material aus den Stammdaten wählen
+    for _ in range(4):
+        if pg.locator(".dialog-huelle").count() == 0: break
+        pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    pg.click("[data-erp-reiter='kalk']"); pg.wait_for_timeout(500)
+    pg.click("[data-erp-kalkreiter='modul']"); pg.wait_for_timeout(500)
+    pg.click("#kalk-neu"); pg.wait_for_selector("#kalk-kunde")
+    pg.fill("#kalk-kunde", "muster"); pg.wait_for_selector("[data-kalk-wahl='kalk-kunde'] [data-kalk-wahl-id='k1']")
+    pg.screenshot(path=BILD + "/erp-kalk-wahl.png")
+    pg.click("[data-kalk-wahl='kalk-kunde'] [data-kalk-wahl-id='k1']"); pg.wait_for_timeout(300)
+    pruefe(pg.input_value("#kalk-kunde") == "Muster AG" and pg.input_value("#kalk-adr-strasse") == "Weg 1"
+           and pg.input_value("#kalk-adr-ort") == "Lohn", "Kunde aus Stammdaten mit Adresse")
+    pg.fill("#kalk-artikel", "0589 bolzen"); pg.wait_for_selector("[data-kalk-wahl='kalk-artikel'] [data-kalk-wahl-id='a1']")
+    pg.click("[data-kalk-wahl='kalk-artikel'] [data-kalk-wahl-id='a1']"); pg.wait_for_timeout(300)
+    pruefe(pg.input_value("#kalk-artikel") == "10007-0589" and pg.input_value("#kalk-index") == "B"
+           and pg.input_value("#kalk-bez") == "Bolzen", "Artikel aus Stammdaten mit Index und Bezeichnung")
+    pg.click("[data-kalk-reiter='material']"); pg.wait_for_selector("#kalk-mat")
+    pg.fill("#kalk-mat", "x8cr"); pg.wait_for_selector("[data-kalk-wahl='kalk-mat'] [data-kalk-wahl-id='r1']")
+    pg.click("[data-kalk-wahl='kalk-mat'] [data-kalk-wahl-id='r1']"); pg.wait_for_timeout(300)
+    pruefe(pg.input_value("#kalk-mat") == "X8CrNiS18-9 rd 12", "Rohmaterial aus Stammdaten")
 
     pruefe(not pf, "keine Seitenfehler: %s" % pf)
     br.close()

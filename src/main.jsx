@@ -6,6 +6,8 @@
 // src/bruecke.jsx in die alte Hülle eingehängt.
 import "./alt/stil.css";
 import "./alt/app.js";
+// Fenster verschieben, mehrere offen, Fensterleiste oben
+import "./teile/fensterVerwalter.js";
 // Profilbilder grau, sehr helle mässig umgekehrt
 import "./teile/profilbilder.js";
 // Dateien vom Computer in jedes Dateifeld ziehen
@@ -13,6 +15,7 @@ import "./teile/dateiAblegen.js";
 // Über jedem Textfeld der Knopf Ø, in Feldern mit Format auch Farben
 import "./teile/schreibleiste.js";
 import "./teile/datumTasten.js";
+import "./teile/kwAnzeige.js";
 // Mehr Bewegung: gleitende Markierungen, Licht, Welle, Seitenwechsel
 import "./effekte/effekte.css";
 import "./effekte/effekte.js";

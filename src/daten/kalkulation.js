@@ -300,10 +300,42 @@ export function peText(pe) {
   return n === 1000 ? "1'000 Stk" : n === 100 ? "100 Stk" : "Stk";
 }
 
+// ---------- Adresse in einzelnen Feldern ----------
+// Seit 1.800.0 Zusatz, Strasse, Land, PLZ und Ort einzeln (Wunsch Patrick
+// 25. November 2026: „hier will ich einzelne Felder“). Ältere Kalkulationen
+// haben nur den Block `adresse`; adresseTeilen liest ihn in die Felder.
+export const ADRESS_FELDER = ["zusatz", "strasse", "land", "plz", "ort"];
+export function adresseTeilen(text) {
+  const zeilen = String(text || "").split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+  const t = { zusatz: "", strasse: "", land: "", plz: "", ort: "" };
+  let i = zeilen.length - 1;
+  const m = i >= 0 ? zeilen[i].match(/^(?:([A-Za-z]{1,3})\s*[- ]\s*)?(\d{4,5})\s+(.+)$/) : null;
+  if (m) { t.land = (m[1] || "").toUpperCase(); t.plz = m[2]; t.ort = m[3]; i--; }
+  if (i >= 0 && /\d/.test(zeilen[i]) || i >= 0 && /(strasse|str\.|weg|gasse|platz|postfach)/i.test(zeilen[i])) { t.strasse = zeilen[i]; i--; }
+  t.zusatz = zeilen.slice(0, i + 1).join("\n");
+  return t;
+}
+// Die Felder der Adresse, aus den neuen Feldern oder aus dem alten Block
+export function adresseVon(kopf) {
+  const k = kopf || {};
+  if (ADRESS_FELDER.some((n) => String(k[n] || "").trim())) {
+    const t = {};
+    ADRESS_FELDER.forEach((n) => { t[n] = k[n] || ""; });
+    return t;
+  }
+  return adresseTeilen(k.adresse);
+}
+// Zeilen für Angebot und PDF
+export function adresseZeilen(kopf) {
+  const t = adresseVon(kopf);
+  const ort = [t.land ? t.land + (t.plz ? "-" : " ") : "", t.plz, t.plz && t.ort ? " " : "", t.ort].join("").trim();
+  return [...String(t.zusatz || "").split("\n"), t.strasse, ort].map((x) => String(x || "").trim()).filter(Boolean);
+}
+
 // ---------- Neue Kalkulation ----------
 export function leereKalkulation() {
   return {
-    kopf: { kunde: "", adresse: "", artikel: "", zeichnung: "", index: "", ident: "", bezeichnung: "", anfrage: "", zeichen: "" },
+    kopf: { kunde: "", zusatz: "", strasse: "", land: "", plz: "", ort: "", artikel: "", zeichnung: "", index: "", ident: "", bezeichnung: "", anfrage: "", zeichen: "" },
     staffeln: [{ menge: "1000", lose: "1" }],
     material: { bez: "", nr: "", preis: "", gk: "", modus: "hand", einsatz: "", d: "", dichte: "7.85", stange: "3000", rest: "", laenge: "" },
     ags: [],
@@ -398,7 +430,7 @@ export function startArbeitsplan(maschinen) {
 export function beispielKalkulation(maschinen) {
   const id = (name) => (maschinen.find((m) => m.name.startsWith(name)) || {}).id || "";
   const k = leereKalkulation();
-  k.kopf = { kunde: "Genge & Thoma AG", adresse: "joysticks & sensors\nBürenstrasse 10\nCH 2543 Lengnau",
+  k.kopf = { kunde: "Genge & Thoma AG", zusatz: "joysticks & sensors", strasse: "Bürenstrasse 10", land: "CH", plz: "2543", ort: "Lengnau",
     artikel: "10789-0055", zeichnung: "484-260", index: "-", bezeichnung: "Stange Ø 12.7 x 55 poliert",
     anfrage: "2022-04-06", zeichen: "Rohmat.", sachbearbeiter: "" };
   k.staffeln = [{ menge: "8000", lose: "2" }, { menge: "2500", lose: "1" }];

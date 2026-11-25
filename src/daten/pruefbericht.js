@@ -36,43 +36,85 @@ const KOPF = [
   [/^nummer/i, "maschine"], [/^allg/i, "alltol"],
 ];
 
-// Aus den Rohdaten (excelRoh) ein Bericht: { kopf, zeilen, seite, seiten }
+// Index wie „B“, „Ind. B“, „– –“: Striche, Punkte und Bezeichnungen sind kein Index
+export function indexNorm(t) {
+  const s = String(t ?? "").trim().replace(/^ind(ex)?\.?\s*:?\s*/i, "").trim();
+  if (!s || /^[\s\-–—_.\/]+$/.test(s) || /:$/.test(s)) return "";
+  return s.toUpperCase().slice(0, 12);
+}
+
+// Aus den Rohdaten (excelRoh mit formeln) ein Bericht:
+// { kopf, zeilen, seite, seiten, teilweise: [Gründe] }
+// Seit 1.821.0 (Patrick 25. November 2026: „manche Excel kann man nicht
+// lesen“, „Index wichtig“): Index irgendwo im Kopf (rechts, darunter oder
+// in derselben Zelle), Ist- und Prüfmittel-Spalten aus der Kopfzeile der
+// Tabelle (alte .xls haben das Prüfmittel in I statt H).
 export function berichtAusExcel(roh) {
   const z = roh.zellen || {};
   const zelle = (r, s) => (z[r + ":" + s] || {}).text || "";
   const zeilenNr = [...new Set(Object.values(z).map((c) => c.z))].sort((a, b) => a - b);
   const kopf = {};
-  let tabStart = null, ende = null, seite = null, seiten = null;
+  const teilweise = [];
+  let tabStart = null, ende = null, seite = null, seiten = null, indexGesehen = false;
   for (const r of zeilenNr) {
     const a = zelle(r, 1).trim();
     if (tabStart === null && /^nr\.?$/i.test(a) && /soll/i.test(zelle(r, 2))) { tabStart = r; continue; }
-    if (/^prüf-?\s*entscheid/i.test(a)) ende = ende || r;
-    for (let s = 1; s <= 12; s++) {
-      const t = zelle(r, s);
-      const sm = /seite\s*(\d+)\s*\/\s*(\d+)/i.exec(t);
+    // Ende der Tabelle: „Prüf-Entscheid“, bei älteren Blättern „Freigabe Maschine …“, „Datum / Visum“ oder „Bemerkungen“
+    if (tabStart !== null && (/^prüf\s*-?\s*entscheid|^bemerkung/i.test(a) || /^(freigabe\s+maschine|datum\s*\/\s*visum)/i.test(zelle(r, 2).trim()))) ende = ende || r;
+    else if (/^prüf\s*-?\s*entscheid/i.test(a)) ende = ende || r;
+    for (let s = 1; s <= 14; s++) {
+      const t = zelle(r, s).trim();
+      const sm = /seite\s*(\d+)\s*(?:\/|von)\s*(\d+)/i.exec(t);
       if (sm) { seite = Number(sm[1]); seiten = Number(sm[2]); }
       if (tabStart !== null) continue;
-      const k = KOPF.find(([re]) => re.test(t.trim()));
-      if (!k) continue;
+      if (/^ind(ex)?\.?(\s|:|$)/i.test(t) && !kopf.index) {
+        indexGesehen = true;
+        let v = indexNorm(t);
+        if (!v && /^ind(ex)?\.?\s*:?\s*$/i.test(t)) {
+          let rechts = "";
+          for (let w = s + 1; w <= s + 3; w++) { const x = zelle(r, w).trim(); if (x) { rechts = x; break; } }
+          // rechts ein Wert, sonst die Zelle darunter (wenn dort keine Bezeichnung steht)
+          if (rechts && !/:$/.test(rechts)) v = indexNorm(rechts);
+          else if (!rechts) v = indexNorm(zelle(r + 1, s));
+        }
+        if (v) kopf.index = v;
+        continue;
+      }
+      const k = KOPF.find(([re]) => re.test(t));
+      if (!k || kopf[k[1]]) continue;
       // Der Wert steht in der nächsten belegten Zelle rechts davon
       for (let w = s + 1; w <= s + 3; w++) {
-        const v = zelle(r, w);
-        if (v && !KOPF.some(([re]) => re.test(v.trim())) && !/^index$/i.test(v)) { kopf[k[1]] = v.trim(); break; }
+        const v = zelle(r, w).trim();
+        if (!v) continue;
+        if (!KOPF.some(([re]) => re.test(v)) && !/^ind(ex)?\b/i.test(v) && !/:$/.test(v)) kopf[k[1]] = v;
+        break;
       }
     }
-    if (tabStart === null && /^index$/i.test(zelle(r, 9))) kopf.index = zelle(r + 1, 9);
   }
   if (tabStart === null) throw new Error("Kein Prüfbericht: Zeile „Nr. / Soll“ fehlt");
+  // Spalten aus der Kopfzeile der Tabelle
+  let istSp = [], pmSp = 0;
+  for (let s = 3; s <= 14; s++) {
+    const t = zelle(tabStart, s);
+    if (/^ist/i.test(t.trim())) istSp.push(s);
+    else if (!pmSp && /bemerk|prüfm|pruefm|mittel/i.test(t)) pmSp = s;
+  }
+  if (!istSp.length) istSp = [3, 4, 5, 6, 7];
+  if (!pmSp) pmSp = Math.max(...istSp) + 1;
   const zeilen = [];
+  let ohneSoll = 0;
   for (const r of zeilenNr) {
     if (r <= tabStart || (ende && r >= ende)) continue;
-    const nr = zelle(r, 1).trim(), soll = zelle(r, 2).trim(), pm = zelle(r, 8).trim();
-    const ist = [3, 4, 5, 6, 7].map((s) => zelle(r, s));
+    const nr = zelle(r, 1).trim(), soll = zelle(r, 2).trim(), pm = zelle(r, pmSp).trim();
+    const ist = istSp.map((s) => zelle(r, s));
     if (!nr && !soll && !pm) continue;
     if (!nr && soll && !pm && ist.every((x) => !x)) { zeilen.push({ abschnitt: soll }); continue; }
+    if (nr && !soll) { ohneSoll++; continue; }   // leere Zeile mit Nummer: nichts zu prüfen
     zeilen.push({ nr, soll, pm });
   }
-  return { kopf, zeilen, seite, seiten };
+  if (!zeilen.some((x) => x.soll)) teilweise.push("keine Masse gefunden");
+  if (!ende) teilweise.push("Ende der Tabelle (Prüf-Entscheid) fehlt");
+  return { kopf, zeilen, seite, seiten, teilweise };
 }
 
 // Mehrere Seiten einer HOCO Nr. zu einer Vorlage, Seite 1 zuerst
@@ -83,7 +125,9 @@ export function vorlageAus(berichte) {
   const zeilen = [];
   let frei = 0;
   for (const x of b) for (const zl of x.zeilen) zeilen.push({ ...zl, id: zl.nr ? "n" + zl.nr : "x" + (++frei) });
-  return { kopf, zeilen };
+  // Teilweise nicht lesbar: Gründe aller Seiten zusammen, ohne doppelte
+  const teilweise = [...new Set(b.flatMap((x) => x.teilweise || []))];
+  return { kopf, zeilen, teilweise };
 }
 
 // ---------- Toleranz ----------
@@ -187,12 +231,18 @@ export function pruefmittelFuer(lehre, liste, hoco) {
 }
 
 // ---------- Datenbank ----------
+// Seitenweise je 1'000, die Datenbank gibt nie mehr auf einmal (25. November 2026)
 export async function dateienLaden(hoco) {
-  let q = alt.db.from("pruefbericht_dateien").select("*").order("hoco_nr").order("seite", { nullsFirst: false });
-  if (hoco) q = q.eq("hoco_nr", hoco);
-  const { data, error } = await alt.zeitlimit(q, 15000, "Prüfberichte");
-  if (error) throw error;
-  return data || [];
+  const alle = [];
+  for (let ab = 0; ab < 50000; ab += 1000) {
+    let q = alt.db.from("pruefbericht_dateien").select("*").order("hoco_nr").order("id").range(ab, ab + 999);
+    if (hoco) q = q.eq("hoco_nr", hoco);
+    const { data, error } = await alt.zeitlimit(q, 15000, "Prüfberichte");
+    if (error) throw error;
+    alle.push(...(data || []));
+    if (!data || data.length < 1000) break;
+  }
+  return alle;
 }
 
 export async function protokolleLaden(hoco) {
@@ -211,7 +261,7 @@ export async function dateiLesen(d) {
     const r = await fetch(d.url, { cache: "no-cache" });
     if (!r.ok) throw new Error("Datei nicht ladbar (" + r.status + ")");
     const { excelRoh } = await import("../einrichtblatt/excelEinlesen.js");
-    const b = berichtAusExcel(await excelRoh(new Uint8Array(await r.arrayBuffer())));
+    const b = berichtAusExcel(await excelRoh(new Uint8Array(await r.arrayBuffer()), { formeln: true }));
     if (!b.seite && d.seite) b.seite = d.seite;
     return b;
   })();
@@ -220,15 +270,22 @@ export async function dateiLesen(d) {
   return p;
 }
 
+// Eine Seite, die sich nicht lesen lässt, verdirbt nicht die anderen: sie steht
+// dann nur unter „teilweise“
 export async function vorlageLaden(dateien) {
-  return vorlageAus(await Promise.all(dateien.map(dateiLesen)));
+  const r = await Promise.allSettled(dateien.map(dateiLesen));
+  const gut = r.filter((x) => x.status === "fulfilled").map((x) => x.value);
+  if (!gut.length) throw (r[0] && r[0].reason) || new Error("keine Datei");
+  const v = vorlageAus(gut);
+  r.forEach((x, i) => { if (x.status === "rejected") v.teilweise.push((dateien[i].name || "Seite") + " nicht lesbar"); });
+  return v;
 }
 
 // Von Hand hochladen: liest die Datei zuerst, damit HOCO Nr. und Seite stimmen
 export async function dateiHochladen(datei) {
   const { excelRoh } = await import("../einrichtblatt/excelEinlesen.js");
   const daten = new Uint8Array(await datei.arrayBuffer());
-  const b = berichtAusExcel(await excelRoh(daten));
+  const b = berichtAusExcel(await excelRoh(daten, { formeln: true }));
   const hoco = hocoAus(b.kopf.hoco) || hocoAus(datei.name);
   if (!hoco) throw new Error(datei.name + ": keine HOCO Nr. gefunden");
   const endung = (datei.name.split(".").pop() || "xlsx").toLowerCase();
@@ -289,7 +346,7 @@ export async function stammSpeichern(hoco, felder) {
 export async function excelMasse(dateien) {
   const { excelRoh } = await import("../einrichtblatt/excelEinlesen.js");
   const berichte = [];
-  for (const d of dateien) berichte.push(berichtAusExcel(await excelRoh(new Uint8Array(await d.arrayBuffer()))));
+  for (const d of dateien) berichte.push(berichtAusExcel(await excelRoh(new Uint8Array(await d.arrayBuffer()), { formeln: true })));
   return vorlageAus(berichte);
 }
 

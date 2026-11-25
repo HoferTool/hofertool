@@ -63,7 +63,8 @@ with sync_playwright() as p:
     pruefe("zwei neu mit Revolver " + str([(z["tool_nr"], z["bezeichnung"]) for z in neu]),
            sorted((z["tool_nr"], z["bezeichnung"]) for z in neu) == [("T3", "Revolver 1"), ("T4", "Revolver 3")])
     runden = len(set((z["gewechselt_am"], z["stueckzahl"]) for z in tc))
-    pruefe("älteste Blatt gelöscht, 13 Runden übrig: " + str(runden), runden == 13)
+    # Seit 1.814.0 bleibt alles (Wunsch Patrick 25. November 2026)
+    pruefe("nichts gelöscht, 19 Runden: " + str(runden), runden == 19)
 
     # Historie bleibt, ihr PDF ist beim Index das Protokoll
     pg.locator(".pad-knopf--wz").click(); pg.wait_for_selector("[data-wzhistorie]")
@@ -71,14 +72,14 @@ with sync_playwright() as p:
     pg.wait_for_selector("[data-wzbplatz]", timeout=10000); pg.wait_for_timeout(300)
     zeilen = pg.locator("[data-wzbplatz]").evaluate_all("e => e.map(x => x.dataset.wzbplatz)")
     pruefe("Historie als Blatt ohne Anschlag R1-T1 " + str(zeilen), zeilen == ["R1-T3", "R2-T2", "R3-T4"])
-    pruefe("Historie Blatt 3 von 3", pg.locator("[data-wzbblatt]").inner_text() == "Blatt 3 von 3")
+    pruefe("Historie Blatt 4 von 4", pg.locator("[data-wzbblatt]").inner_text() == "Blatt 4 von 4")
     # Vorne blass die letzten zwei Wechsel von Blatt 2 (seit 1.439.0)
     pruefe("zwei vorherige vorne", pg.locator("[data-wzbvor]").count() == 2)
     pruefe("vorherige nicht antippbar", pg.locator("td.wzb-sp--vor.wzb-tipp").count() == 0)
     pg.screenshot(path="/tmp/claude-0/ixp-vorher.png")
-    pg.click("[data-wzbzurueck]"); pg.click("[data-wzbzurueck]"); pg.wait_for_timeout(200)
+    pg.click("[data-wzbzurueck]"); pg.click("[data-wzbzurueck]"); pg.click("[data-wzbzurueck]"); pg.wait_for_timeout(200)
     pruefe("Blatt 1 ohne vorherige", pg.locator("[data-wzbvor]").count() == 0)
-    pg.click("[data-wzbweiter]"); pg.click("[data-wzbweiter]"); pg.wait_for_timeout(200)
+    pg.click("[data-wzbweiter]"); pg.click("[data-wzbweiter]"); pg.click("[data-wzbweiter]"); pg.wait_for_timeout(200)
     stk = lambda n: pg.evaluate("n => TEST.daten.tool_changes.filter(z => z.stueckzahl === n).length", n)
     # Werkzeug in den Wechsel bei 2'500 dazu
     pg.locator("[data-wzbplatz='R2-T2'] td.wzb-sp:not(.wzb-sp--vor)").first.click(); pg.wait_for_timeout(800)
@@ -110,7 +111,7 @@ with sync_playwright() as p:
         pg.click("[data-wzpdf]")
     blatt = neu_seite.value
     blatt.wait_for_selector(".seite", timeout=15000); blatt.wait_for_timeout(500)
-    pruefe("drei Blätter im PDF", blatt.locator(".seite").count() == 3)
+    pruefe("vier Blätter im PDF", blatt.locator(".seite").count() == 4)
     pruefe("Titel Werkzeugwechselprotokoll", "Werkzeugwechselprotokoll" in blatt.locator("h1").first.inner_text())
     pruefe("nur Plätze mit Werkzeug", blatt.locator(".seite").first.locator("td.nr").all_inner_texts() == ["T3", "T2", "T4"])
     lab = blatt.locator(".neu").all_inner_texts()

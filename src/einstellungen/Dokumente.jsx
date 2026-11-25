@@ -322,12 +322,14 @@ function DruckerFormular({ werte }) {
   const einst = jsonOder(werte.druck, null) || {};
   const st = jsonOder(werte.druck_status, null);
   const [drucker, setDrucker] = useState(einst.drucker || "");
+  const [drucker2, setDrucker2] = useState(einst.drucker2 || "");
   const [druckerA4, setDruckerA4] = useState(einst.drucker_a4 || "");
   const [fachA4, setFachA4] = useState(einst.fach_a4 || "");
   const darf = alt.darfDokumenteUndSicherung();
   const liste = (st && st.drucker) || [];
   // Gewählter Drucker auch dann in der Liste, wenn der Pool-Rechner ihn (noch) nicht meldet
   const namen = drucker && !liste.includes(drucker) ? [drucker, ...liste] : liste;
+  const namen2 = drucker2 && !liste.includes(drucker2) ? [drucker2, ...liste] : liste;
   const namenA4 = druckerA4 && !liste.includes(druckerA4) ? [druckerA4, ...liste] : liste;
   // Fächer meldet der Pool-Rechner je Drucker; gewähltes Fach bleibt auch ohne Meldung in der Liste
   const faecherDa = (st && st.faecher && st.faecher[druckerA4 || st.standard]) || [];
@@ -335,7 +337,7 @@ function DruckerFormular({ werte }) {
 
   const speichern = async () => {
     const r = await alt.db.from("app_config").upsert([{ schluessel: "druck",
-      wert: JSON.stringify(Object.assign({}, einst, { drucker, drucker_a4: druckerA4, fach_a4: fachA4 })) }]);
+      wert: JSON.stringify(Object.assign({}, einst, { drucker, drucker2: drucker ? drucker2 : "", drucker_a4: druckerA4, fach_a4: fachA4 })) }]);
     if (r.error) { alt.meldung(alt.fehlertext(r.error), "fehler"); return; }
     poolDruckLaden(true);
     alt.meldung(drucker ? "Drucker gespeichert. „Drucken“ fragt jetzt, wohin." : "Drucken über den Pool-Rechner ist aus.");
@@ -344,11 +346,18 @@ function DruckerFormular({ werte }) {
   const sek = st && st.gesehen ? (Date.now() - new Date(st.gesehen).getTime()) / 1000 : null;
   return (
     <>
-      <Zeile titel="Drucker" text="So heisst er auf dem Pool-Rechner. Leer = nur auf dem eigenen Gerät drucken.">
+      <Zeile titel="Drucker Planbüro WBG" text="So heisst er auf dem Pool-Rechner. Leer = nur auf dem eigenen Gerät drucken.">
         <select id="pooldrucker" aria-label="Drucker am Pool-Rechner" value={drucker} disabled={!darf}
           onChange={(e) => setDrucker(e.target.value)}>
           <option value="">Keiner</option>
           {namen.map((n) => <option key={n} value={n}>{n}{st && st.standard === n ? " (Standard)" : ""}</option>)}
+        </select>
+      </Zeile>
+      <Zeile titel="Drucker Spedition WBG" text="Freiwillig. Dann zeigt „Drucken“ bei einer WBG die Knöpfe „Planbüro WBG“ und „Spedition WBG“.">
+        <select id="pooldrucker-2" aria-label="Drucker Spedition WBG" value={drucker2} disabled={!darf || !drucker}
+          onChange={(e) => setDrucker2(e.target.value)}>
+          <option value="">Keiner</option>
+          {namen2.filter((n) => n !== drucker).map((n) => <option key={n} value={n}>{n}{st && st.standard === n ? " (Standard)" : ""}</option>)}
         </select>
       </Zeile>
       <Zeile titel="Drucker für alles andere" text={"Für alles ausser WBGs, vom iPad und Handy aus. Gedruckt wird mit den "
@@ -394,16 +403,16 @@ const poolLaden = () => configLaden(["dok_pool_pfad", "dok_pool_status"], "Pool"
 
 function PoolOrdner() {
   const { daten } = useNachsehen(poolLaden);
-  // Nimmt WBGs von Aufträgen weg, die seit über fünf Tagen fertig sind (sonst einmal am Tag von selbst)
+  // Räumt nur noch alte Werkzeugwechsel weg, WBGs bleiben seit 1.813.0 alle (seit 1.814.0 nur noch mit diesem Knopf, nie von selbst)
   const aufraeumen = async () => {
     const n = await alt.wbgAufraeumen(true);
-    alt.meldung(n ? n + " alte WBG und Werkzeugwechsel entfernt." : "Nichts aufzuräumen.");
+    alt.meldung(n ? n + " alte Werkzeugwechsel entfernt." : "Nichts aufzuräumen.");
   };
   return (
     <Gruppe titel="Pool-Ordner" id="pool-ordner"
-      aktionen={<button className="knopf knopf--klein" id="wbg-aufraeumen" onClick={aufraeumen}>Alte WBG aufräumen</button>}
+      aktionen={<button className="knopf knopf--klein" id="wbg-aufraeumen" onClick={aufraeumen}>Alte Werkzeugwechsel aufräumen</button>}
       text={"Nur für WBGs. Die Aufgabe „HoferTool“ lädt alle fünf Minuten die WBGs aus diesem Ordner hoch und "
-        + "löscht sie dort. Anderes kommt in den Unterordner „nicht zugeordnet“. Eine WBG ohne geplanten Auftrag "
+        + "löscht sie dort, in der App bleiben alle WBGs gespeichert, auch nach dem Auftrag. Anderes kommt in den Unterordner „nicht zugeordnet“. Eine WBG ohne geplanten Auftrag "
         + "bleibt bis zu sieben Tage liegen und kommt mit, sobald er geplant ist. Was in „nicht zugeordnet“ liegt, "
         + "liest die Aufgabe nicht mehr. Für einen neuen Versuch die Datei von dort in den Pool-Ordner kopieren und "
         + "einfügen, nicht ausschneiden: Nur eine Kopie zählt als neu und wartet wieder sieben Tage, eine "

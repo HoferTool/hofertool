@@ -9,12 +9,13 @@
 // =================================================================
 import { alt } from "../../bruecke.jsx";
 
+// Nur zwei Arten (Patrick 25. November 2026: „es gibt Halbfabrikate und
+// Fertigteile, sonst nichts“). Alte Buchungen mit „roh“ gelten als Halbfabrikat.
 export const ARTEN = [
-  ["roh", "Rohteil"],
-  ["teil", "Teilfertig"],
-  ["fertig", "Ganz fertig"],
+  ["teil", "Halbfabrikat"],
+  ["fertig", "Fertigteil"],
 ];
-export const artText = (a) => (ARTEN.find((x) => x[0] === a) || ARTEN[2])[1];
+export const artText = (a) => (a === "fertig" ? "Fertigteil" : "Halbfabrikat");
 
 export const GRUENDE_EIN = [
   ["produktion", "Aus der Produktion"],
@@ -57,7 +58,7 @@ export function naechsterSchritt(daten, hoco, stufe) {
   return ablaufVon(daten, hoco)[stufe || 0] || null;
 }
 
-// Art nach dem Einbuchen: sind noch externe Schritte offen, teilfertig
+// Art nach dem Einbuchen: sind noch externe Schritte offen, Halbfabrikat
 export function artFuerStufe(daten, hoco, stufe) {
   const n = ablaufVon(daten, hoco).length;
   return (stufe || 0) < n ? "teil" : "fertig";
