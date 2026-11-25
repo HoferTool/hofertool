@@ -43,7 +43,17 @@ export function wiederOeffner(art, fn) { oeffner[art] = fn; }
 export function teilMerken(name, lesen, setzen, nachher) {
   if (teile.some((t) => t.name === name)) return;
   teile.push({ name, lesen, setzen, nachher: !!nachher });
+  // Seiten, die erst beim Öffnen nachladen (QS, Lager, Test ERP …),
+  // melden sich nach dem Wiederherstellen an. Ihr gemerkter Stand kommt
+  // dann gleich hier zurück, bevor die Seite zeichnet (seit 1.840.0,
+  // Patrick 25. November 2026: „bei QS springt es einfach zum obersten“).
+  if (spaet && name in spaet) {
+    const w = spaet[name];
+    delete spaet[name];
+    try { setzen(w); } catch (f) { console.warn("Wiederherstellen", name, f); }
+  }
 }
+let spaet = null;      // gemerkte Teile, die noch nicht angemeldet waren
 
 export function zustandSichern() {
   if (!bereit || !nutzer) return;
@@ -59,6 +69,7 @@ export function zustandSichern() {
 // Beim Abmelden: Die nächste Person fängt frisch an
 export function zustandVergessen() {
   bereit = false;
+  spaet = null;
   nutzer = null;
   offen.length = 0;
   try { sessionStorage.removeItem(SCHLUESSEL); } catch (f) { /* egal */ }
@@ -127,6 +138,8 @@ export function zustandVorher(id) {
     try { t.setzen(z.teile[t.name]); } catch (f) { console.warn("Wiederherstellen", t.name, f); }
   };
   teile.filter((t) => !t.nachher).forEach(setzen);
+  spaet = {};
+  Object.keys(z.teile).forEach((k) => { if (!teile.some((t) => t.name === k)) spaet[k] = z.teile[k]; });
   return () => {
     try {
       teile.filter((t) => t.nachher).forEach(setzen);

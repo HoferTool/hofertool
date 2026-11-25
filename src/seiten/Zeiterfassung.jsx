@@ -12,6 +12,7 @@
 //  Sollzeit, Pensum und Saldo-Übertrag ein. Nicht für Externe, Dienst
 //  und Gerätekonten. Rechnung in src/daten/zeit.js.
 // =================================================================
+import { teilMerken } from "../teile/wiederherstellen.js";
 import { useEffect, useState } from "react";
 import { alt, useDaten, useGemerkt } from "../bruecke.jsx";
 import {
@@ -29,6 +30,8 @@ import Kiosk from "./zeit/Kiosk.jsx";
 import { ABWESENHEITEN } from "../daten/abwesenheit.js";
 
 const gemerkt = { reiter: "ich", person: null, ansicht: "woche", bezug: null, offen: null };
+// Nach dem Neuladen wieder im selben Reiter und Unterreiter (Wunsch Patrick 25. November 2026)
+teilMerken("zeit", () => ({ ...gemerkt }), (z) => { Object.assign(gemerkt, z); });
 const WT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 const LOHNART = { monat: "Monatslohn", stunde: "Stundenlohn" };
 const ABW = { feiertag: "Feiertag (bezahlt)", ferien: "Ferien", kompensieren: "Kompensieren", militaer: "Militär/ZS", feuerwehr: "Feuerwehr", schule: "Schule", krankheit: "Krankheit", unfall: "Unfall" };

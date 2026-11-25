@@ -19,6 +19,7 @@
 //  fällt es hier weg, und pruefberichte.ps1 nimmt es aus der App und lädt es
 //  nie wieder hoch. Die Protokolle der App bleiben alle.
 // =================================================================
+import { teilMerken } from "../../teile/wiederherstellen.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
 import { passtWoerter } from "../../teile/Suchfeld.jsx";
@@ -33,6 +34,9 @@ import {
 
 // Offenes Protokoll und Suche bleiben beim Reiterwechsel
 const pbZustand = { suche: "", protokoll: null, frisch: null, vorlage: null, masse: null };
+// Nach dem Neuladen wieder im selben Reiter und Unterreiter (Wunsch Patrick 25. November 2026)
+teilMerken("qsPruefberichte", () => ({ suche: pbZustand.suche, protokoll: pbZustand.protokoll, vorlage: pbZustand.vorlage, masse: pbZustand.masse }),
+  (z) => { Object.assign(pbZustand, z); });
 
 const fehlerText = (f) => fehltTabelle(f)
   ? "Die Datenbank kennt die Prüfberichte noch nicht (sql/pruefberichte.sql oder sql/pruef-stamm.sql fehlt)."

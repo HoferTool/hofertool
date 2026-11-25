@@ -12,6 +12,7 @@
 //  „zeichnungen“ unter reklamationen/<id>/. Nicht für Externe (die
 //  sehen die Qualitätssicherung nicht, die Datenbank sperrt sie auch).
 // =================================================================
+import { teilMerken } from "../../teile/wiederherstellen.js";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
@@ -325,6 +326,8 @@ const fehlerKurz = (r) => [...fehlerartVon(r), ...angekreuzt(r, "fa")].filter((x
 
 // Gewählte Filter; bleiben beim Reiterwechsel
 const filter = { stand: "offen", art: "", suche: "" };
+// Nach dem Neuladen wieder im selben Reiter und Unterreiter (Wunsch Patrick 25. November 2026)
+teilMerken("qsReklamationen", () => ({ ...filter }), (z) => { Object.assign(filter, z); });
 
 export default function Reklamationen() {
   const { daten, fehler, neu } = useDaten(laden, []);

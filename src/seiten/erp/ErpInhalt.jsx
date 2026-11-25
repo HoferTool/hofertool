@@ -1,5 +1,6 @@
 // Test ERP: Hauptseite mit Reitern. Lädt alle ERP-Tabellen auf einmal,
 // für die Testversion sind es wenige Zeilen.
+import { teilMerken } from "../../teile/wiederherstellen.js";
 import { useState } from "react";
 import { useDaten, useGemerkt } from "../../bruecke.jsx";
 import { allesLaden } from "../../daten/erp.js";
@@ -16,6 +17,8 @@ const REITER = [
   ["rechnung", "Rechnungen"], ["fibu", "Fibu"], ["rueck", "Rückverfolgung"],
 ];
 const gemerkt = { reiter: "kalk", kalk: "modul" };
+// Nach dem Neuladen wieder im selben Reiter und Unterreiter (Wunsch Patrick 25. November 2026)
+teilMerken("erp", () => ({ ...gemerkt }), (z) => { Object.assign(gemerkt, z); });
 
 export default function ErpInhalt({ auffrischen }) {
   const [reiter, setReiter] = useState(gemerkt.reiter);
