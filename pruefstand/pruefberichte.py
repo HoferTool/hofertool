@@ -48,9 +48,17 @@ with sync_playwright() as p:
     pruefe(pg.locator("[data-pbtodo=endkontrolle] [data-pbtodoauftrag=jpb2]").count() == 1, "fertiger Auftrag bei Endkontrolle")
     pruefe(pg.locator("#pb-hochladen").count() == 0, "kein Excel-Hochladen im Reiter")
     pruefe(pg.locator("#pb-neu").count() == 0, "kein Knopf + Protokoll")
+    # Suche je Spalte filtert nur ihre Spalte
+    pg.fill("[data-pbtodosuche=endkontrolle]", "2025000999"); pg.wait_for_timeout(200)
+    pruefe(pg.locator("[data-pbtodo=endkontrolle] [data-pbtodoauftrag=jpb2]").count() == 1, "Suche findet FA in Endkontrolle")
+    pg.fill("[data-pbtodosuche=endkontrolle]", "gibtsnicht"); pg.wait_for_timeout(200)
+    pruefe(pg.locator("[data-pbtodo=endkontrolle] [data-pbtodoauftrag=jpb2]").count() == 0, "Suche blendet aus")
+    pruefe(pg.locator("[data-pbtodo=erstteil] [data-pbtodoauftrag=jpb1]").count() == 1, "andere Spalte unberührt")
+    pg.fill("[data-pbtodosuche=endkontrolle]", ""); pg.wait_for_timeout(200)
     # Erstteil aus dem Todo
     pg.click("[data-pbtodo=erstteil] [data-pbtodoauftrag=jpb1]"); pg.wait_for_selector("[data-pbcheckliste]"); pg.wait_for_timeout(300)
-    pruefe(pg.locator("[data-pbcheck]").count() >= 5, "Checkliste mit Zeichnung, Lehren, Messmittel: %d" % pg.locator("[data-pbcheck]").count())
+    pruefe(pg.locator("[data-pbcheck]").count() >= 3, "Checkliste mit Zeichnung, Lehren, sauber: %d" % pg.locator("[data-pbcheck]").count())
+    pruefe(pg.locator("[data-pbcheck^='m']").count() == 0, "keine Messmittel als Prüfpunkt")
     pruefe(pg.locator("[data-pbcheckliste] [data-pbpm='PM-9']").count() >= 1, "Checkliste zeigt Prüfmittel PM-9 aus der Verwaltung")
     ct = pg.inner_text("[data-pbcheckliste]")
     pruefe("Isoma" not in ct and "Prüfstift" not in ct, "Isoma und Prüfstift nicht zum Checken")

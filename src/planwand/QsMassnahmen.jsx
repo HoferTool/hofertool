@@ -140,13 +140,12 @@ function QsFenster({ auftrag, zu }) {
           : pm.ohne ? <p className="klein vb-hinweis" id="qs-ohne-stamm">In den Stammdaten der HOCO Nr. sind noch keine Masse mit Prüfmitteln.</p>
           : <ul className="qs-liste" id="qs-pruefmittel">
               {pm.lehren.map((x) => <li key={x.name + x.mass} className="qs-pm">
-                <b>{x.name}</b> <span>{x.mass}</span> <span className="vb-klein">Nr. {x.nr.join(", ")}</span>
+                <b>{x.name}</b> <span>{x.mass}</span>
                 {x.treffer && (x.treffer.length
                   ? <span className="qs-pm__ok">{x.treffer.slice(0, 3).map((p) => (p.nr || p.bezeichnung) + " · " + pmOrtText(p)).join(" / ") + (x.treffer.length > 3 ? " … (" + x.treffer.length + ")" : "")}</span>
                   : <span className="qs-pm__fehlt">nicht in der Prüfmittelverwaltung</span>)}
               </li>)}
-              {pm.messmittel.map((x) => <li key={"m" + x.name} className="qs-pm"><b>{x.name}</b> <span className="vb-klein">Nr. {x.nr.join(", ")}</span></li>)}
-              {!pm.lehren.length && !pm.messmittel.length && <li className="klein vb-hinweis">Keine Prüfmittel angegeben.</li>}
+              {!pm.lehren.length && <li className="klein vb-hinweis">Keine Prüfmittel angegeben.</li>}
             </ul>}
       </div>
     </div>

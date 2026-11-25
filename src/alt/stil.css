@@ -17431,3 +17431,6 @@ body.dunkel .pb-todo__alt { border-color: #4a6078; }
 .pb-pm-fehlt { color: #b3261e; }
 body.dunkel .pb-pm-ok { color: #7fd69a !important; }
 body.dunkel .pb-pm-fehlt { color: #ff9a92 !important; }
+
+/* 1.839.0: Suchfeld je Spalte bei den anstehenden Prüfungen */
+.pb-todo__suche { display: block; width: 100%; box-sizing: border-box; margin: 4px 0 8px; padding: 6px 10px; font-size: 14px; }

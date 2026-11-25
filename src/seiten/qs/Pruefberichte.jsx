@@ -270,6 +270,9 @@ function MasseAuf({ zeichnen }) {
 function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
   const [suche, setSuche] = useState(pbZustand.suche);
   const [legt, setLegt] = useState(false);
+  // Je Spalte ein eigenes Suchfeld (seit 1.839.0, Patrick: „bei allen separat“)
+  const [sp, setSp] = useState(pbZustand.spSuche || {});
+  const spSetzen = (id, t) => setSp((v) => { const n = { ...v, [id]: t }; pbZustand.spSuche = n; return n; });
   const todo = useMemo(() => anstehend(daten.jobs, daten.stamm, daten.protokolle), [daten]);
 
   const anlegen = async (hoco, art, j) => {
@@ -313,6 +316,7 @@ function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
   // Das Excel selbst zeigt die App nie: daraus wird eine leere Vorlage (seit 1.823.0)
   const vorlageAnsehen = (x) => { pbZustand.vorlage = { hoco: x.hoco, idx: x.idx, dateien: x.dateien }; zeichnen(); };
 
+  const gefiltert = (id) => todo[id].filter((t) => passtWoerter(sp[id], [t.j.job_number, t.j.fa_nr, t.j.maschine, STAND[t.j.plan_status], t.j.material_bez, t.j.material_dm]));
   const SPALTEN = [
     ["erstteil", "Erstteilprüfung", "Aufträge mit FA Nr. in Rüsten ohne freigegebene Erstteilprüfung"],
     ["endkontrolle", "Endkontrolle", "Fertige Aufträge (60 Tage) ohne abgeschlossene Endkontrolle, wählbar End- oder Zwischenkontrolle"],
@@ -325,9 +329,12 @@ function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
         {SPALTEN.map(([id, titel, erkl]) => (
           <section key={id} className="pb-todo__spalte" data-pbtodo={id}>
             <h3>{titel} <span className={"marke" + (todo[id].length ? " pb-todo__zahl" : "")}>{todo[id].length}</span></h3>
-            {!todo[id].length ? <p className="klein">Nichts offen.</p> : (
+            {todo[id].length ? <input type="search" className="pb-suche pb-todo__suche" data-pbtodosuche={id} placeholder="Suchen …"
+              value={sp[id] || ""} onChange={(x) => spSetzen(id, x.target.value)}
+              onKeyDown={(x) => { if (x.key === "Escape" && sp[id]) { x.preventDefault(); x.stopPropagation(); spSetzen(id, ""); } }} /> : null}
+            {!todo[id].length ? <p className="klein">Nichts offen.</p> : !gefiltert(id).length ? <p className="klein">Nichts gefunden.</p> : (
               <ul>
-                {todo[id].map((t) => (
+                {gefiltert(id).map((t) => (
                   <li key={t.j.id}>
                     <button type="button" className="pb-todo__eintrag" data-pbtodoauftrag={t.j.id} disabled={!darf() && !t.p} onClick={() => todoTippen(t)}>
                       <b>{t.j.job_number}</b>
@@ -654,11 +661,13 @@ function Protokoll({ p, zurueck }) {
 // (Zeichnung mit Index, Lehren und Messmittel der Masse), unten quittieren.
 function checkPunkte(kopf) {
   const v = kopf.vorlage || {};
-  const { lehren, messmittel } = lehrenAus({ zeilen: masse(kopf.zeilen) });
-  const nr = (x) => "Nr. " + x.nr.join(", ");
+  // Seit 1.839.0 nur echte Prüfmittel (Lehren, Grenzlehrdorne, Gewinde), immer mit der
+  // Nr. aus der Prüfmittelverwaltung; Messschieber und Beschriftungen der Masse wie
+  // L2 oder Planfläche zählen nicht (Patrick 25. November 2026: „das sind alles keine
+  // Prüfmittel … also immer mit Nr.“)
+  const { lehren } = lehrenAus({ zeilen: masse(kopf.zeilen) });
   return [["zeichnung", "Zeichnung" + (v.zeichnung ? " " + v.zeichnung : "") + (v.index ? ", Index " + v.index : ""), "richtige Fassung bereit"]]
-    .concat(lehren.map((l, i) => ["l" + i, l.name + (l.mass ? " " + l.mass : ""), nr(l), l]))
-    .concat(messmittel.map((m, i) => ["m" + i, m.name, nr(m)]))
+    .concat(lehren.map((l, i) => ["l" + i, l.name + (l.mass ? " " + l.mass : ""), "", l]))
     .concat([["sauber", "Prüfmittel sauber, Prüfdatum gültig", ""]]);
 }
 
