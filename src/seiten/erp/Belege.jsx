@@ -263,7 +263,7 @@ function BelegFenster({ start, id, vorlage, aussen, zu }) {
   </>;
   return (
     <GFenster titel={titel} kopf={kopfTeil} reiter={[["positionen", "Positionen"], ["kopf", "Kopfdaten"]]} aktiv={reiter} setAktiv={setReiter}
-      fuss={fuss} zu={schliessen} attr={{ "data-erp-beleg": b ? b.nr : "neu" }}>
+      fuss={fuss} zu={schliessen} attr={{ "data-erp-beleg": b ? b.nr : "neu", "data-erp-typ": b ? b.typ : "" }}>
       {reiter === "positionen" && <>
         <Positionen d={d} kopf={kopf} pos={pos} setPos={setPos} bearbeiten={bearbeiten} b={b} aussen={aussen} frisch={frisch} />
         {b && !bearbeiten && typ === "fertigung" && <Arbeitsgaenge d={d} b={b} frisch={frisch} />}

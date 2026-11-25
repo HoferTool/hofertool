@@ -138,14 +138,17 @@ export function naechstePartnerNr(d, art) {
   return String(nrn.length ? Math.max(...nrn) + 1 : start + 1);
 }
 
-// Belege: Kürzel, Jahr, laufende Nr., z.B. AU26-0001. Fortlaufend je Typ
+// Belege: Jahr und laufende Nr., z.B. 20260099 (seit 1.810.0, Wunsch Patrick
+// 25. November 2026: alle Belegarten im gleichen Format; vorher AU26-0001).
+// Jede Art zählt für sich, eine Bestellung darf dieselbe Nr. haben wie ein
+// Auftrag (unique je typ + nr). Fortlaufend je Typ
 // und Jahr, beim Jahreswechsel beginnt das neue Jahr von selbst wieder vorne.
 // Startwerte (Wunsch Patrick 25. November 2026, für den Wechsel vom alten
 // ERP): app_config.erp_nummern {typ: {jahr: start}}, die nächste Nummer ist
 // nie kleiner als der Startwert und nie kleiner als die höchste + 1.
 export const NUMMERN_KONFIG = "erp_nummern";
 export const NUMMERNKREISE = [
-  ...Object.entries(BELEGTYP).map(([typ, t]) => ({ typ, name: t.mehr, muster: (j) => t.kurz + String(j).slice(2) + "-", stellen: 4 })),
+  ...Object.entries(BELEGTYP).map(([typ, t]) => ({ typ, name: t.mehr, muster: (j) => String(j), stellen: 4 })),
   { typ: "kalkulation", name: "Kalkulationen", muster: (j) => String(j), stellen: 4 },
 ];
 export const nummerText = (kreis, jahr, n) => kreis.muster(jahr) + String(n).padStart(kreis.stellen, "0");
@@ -157,7 +160,7 @@ export const startWert = (nummern, typ, jahr) => {
 export function naechsteNummer(nummern, typ, vorhandene, jahr = new Date().getFullYear()) {
   const kreis = NUMMERNKREISE.find((k) => k.typ === typ);
   const vor = kreis.muster(jahr);
-  const hoch = vorhandene.map((n) => String(n || "")).filter((n) => n.startsWith(vor))
+  const hoch = vorhandene.map((n) => String(n || "")).filter((n) => n.startsWith(vor) && /^\d+$/.test(n.slice(vor.length)))
     .map((n) => parseInt(n.slice(vor.length), 10) || 0);
   const n = Math.max(hoch.length ? Math.max(...hoch) + 1 : 1, startWert(nummern, typ, jahr));
   return nummerText(kreis, jahr, n);

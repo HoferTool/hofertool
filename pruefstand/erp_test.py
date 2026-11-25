@@ -85,11 +85,11 @@ with sync_playwright() as p:
     # Bestellung und Wareneingang
     neuer_beleg(pg, "bestellung", "l1", "X8CrNiS18-9 rd 12", "100")
     be = [b for b in tabelle(pg, "erp_belege") if b["typ"] == "bestellung"]
-    pruefe(len(be) == 1 and be[0]["nr"].startswith("BE26-"), "Bestellung gespeichert: %s" % [b["nr"] for b in be])
+    pruefe(len(be) == 1 and be[0]["nr"] == "20260001", "Bestellung gespeichert: %s" % [b["nr"] for b in be])
     oben(pg).locator("[data-erp-aktion='we']").click(); pg.wait_for_selector("[data-erp-wepos]")
     pg.locator(".dialog [data-erp-ja]").last.click(); pg.wait_for_timeout(800)
     we = [x for x in tabelle(pg, "erp_bewegungen") if x["art"] == "eingang"]
-    pruefe(len(we) == 1 and we[0]["menge"] == 100 and we[0]["charge"].startswith("WE-BE26-"), "Wareneingang gebucht: %s" % we)
+    pruefe(len(we) == 1 and we[0]["menge"] == 100 and we[0]["charge"].startswith("WE-20260001-"), "Wareneingang gebucht: %s" % we)
     pg.locator("[data-erp-beleg] [data-nein]").last.click(); pg.wait_for_timeout(300)
 
     # Auftrag Index B
@@ -131,7 +131,7 @@ with sync_playwright() as p:
     pruefe(len(fm) == 1 and fl and fm[0]["lager_id"] == fl[0]["id"], "Fertigmeldung auf FL Regal 7")
     pruefe(len(fm) == 1 and fm[0]["menge"] == 200 and fm[0]["artikel_id"] == "a1" and fm[0]["charge"] == fa[0]["nr"], "Fertig gemeldet: %s" % fm)
     pg.screenshot(path=BILD + "/erp-fa.png")
-    pg.locator("[data-erp-beleg='%s'] [data-nein]" % fa[0]["nr"]).click(); pg.wait_for_timeout(300)
+    pg.locator("[data-erp-beleg='%s'][data-erp-typ='fertigung'] [data-nein]" % fa[0]["nr"]).click(); pg.wait_for_timeout(300)
 
     # Lieferschein aus dem noch offenen Auftragsfenster (holt den frischen Bestand)
     oben(pg).locator("[data-erp-aktion='ls']").click(); pg.wait_for_selector("[data-erp-lspos]")
@@ -172,7 +172,7 @@ with sync_playwright() as p:
     # Rückverfolgung der FA-Charge bis zum Rohmaterial und Kunden
     pg.click("[data-erp-reiter='rueck']"); pg.locator(".erp-suche").fill(fa[0]["nr"]); pg.wait_for_timeout(400)
     spur = pg.inner_text("[data-erp-spur='%s']" % fa[0]["nr"])
-    pruefe("X8CrNiS18-9" in spur and "Muster AG" in spur and "WE-BE26-" in spur, "Spur zeigt Material-Charge und Kunde")
+    pruefe("X8CrNiS18-9" in spur and "Muster AG" in spur and "WE-20260001-" in spur, "Spur zeigt Material-Charge und Kunde")
     pg.screenshot(path=BILD + "/erp-rueck.png")
 
     # Kalkulation im ERP
@@ -293,7 +293,7 @@ with sync_playwright() as p:
     pg.fill("[data-erp-nrstart='auftrag-%d']" % j, "458")
     pg.fill("[data-erp-nrstart='kalkulation-%d']" % j, "6001")
     naechst = pg.inner_text("[data-erp-nrnaechst='auftrag']")
-    pruefe(naechst == "AU%s-0458" % str(j)[2:], "Vorschau nächste Nummer: %s" % naechst)
+    pruefe(naechst == "%d0458" % j, "Vorschau nächste Nummer: %s" % naechst)
     pg.screenshot(path=BILD + "/erp-nummern.png")
     pg.click("#erp-nr-speichern"); pg.wait_for_timeout(700)
     cfg = [x for x in tabelle(pg, "app_config") if x["schluessel"] == "erp_nummern"]
@@ -301,7 +301,7 @@ with sync_playwright() as p:
     pruefe(w.get("auftrag", {}).get(str(j)) == 458 and w.get("kalkulation", {}).get(str(j)) == 6001, "Startwerte gespeichert: %s" % w)
     neuer_beleg(pg, "auftrag", "k1", "10007-0589 Ind. B · Bolzen", "10", "2.40")
     nrn = [b["nr"] for b in tabelle(pg, "erp_belege") if b["typ"] == "auftrag"]
-    pruefe("AU%s-0458" % str(j)[2:] in nrn, "Neuer Auftrag mit Startwert: %s" % nrn)
+    pruefe("%d0458" % j in nrn, "Neuer Auftrag mit Startwert: %s" % nrn)
 
     # Bestellung: KW gibt den Montag; einzelne Position löschen, der Beleg bleibt
     for _ in range(4):
