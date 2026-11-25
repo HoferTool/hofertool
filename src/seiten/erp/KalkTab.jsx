@@ -6,11 +6,14 @@ import { alt, useDaten } from "../../bruecke.jsx";
 import { Tabelle, Suche, passt, tun } from "./teile.jsx";
 import { einfuegen, aendern, chf, peKurz, HOFER_NR } from "../../daten/erp.js";
 import { indexVerlauf } from "./ArtikelFenster.jsx";
-import { kalkulationenLaden, maschinenLaden, staffelRechnen, stundensatz } from "../../daten/kalkulation.js";
+import { kalkulationenLaden, kalkulationLaden, maschinenLaden, staffelRechnen, stundensatz } from "../../daten/kalkulation.js";
 
 const indexVon = (x) => { const s = String(x || "").trim(); return s === "-" ? "" : s; };
 
-async function uebernehmen(d, k, maschinen, neu) {
+async function uebernehmen(d, kurz, maschinen, neu) {
+  // Die Liste hat nur Kopf und Vorschau (seit 1.837.0, über 7'000 Kalkulationen
+  // aus WinKalk), die ganze Kalkulation erst hier holen.
+  const k = (await kalkulationLaden(kurz.id)) || kurz;
   const kd = k.daten || {};
   const kopf = kd.kopf || {};
   const nr = String(kopf.artikel || k.artikel || "").trim();
@@ -65,14 +68,15 @@ export default function KalkTab({ d, neu }) {
   const masch = useDaten(maschinenLaden, []);
   if (kalk.fehler) return <div className="karte karte--fehler"><p>{String(kalk.fehler.message || kalk.fehler)}</p></div>;
   if (!kalk.daten || !masch.daten) return <div className="laedt">Kalkulationen laden …</div>;
-  const liste = kalk.daten.filter((k) => passt(suche, [k.nr, k.kunde, k.artikel, ((k.daten || {}).kopf || {}).bezeichnung].join(" ")));
+  const liste = kalk.daten.filter((k) => passt(suche, [k.nr, k.kunde, k.artikel, (k.kopf || {}).bezeichnung].join(" ")));
+  const gezeigt = liste.slice(0, 200);
   return (
     <>
       <p className="klein">Übernimmt Artikel-Code, Index, Zeichnung, Bezeichnung, Kunde, Rohmaterial (wenn es den Rohmaterial-Artikel schon gibt, sonst als Text), alle Staffelpreise als Preisliste (mit „Preis pro“ der Kalkulation) und die Arbeitsgänge als Arbeitsplan. Nochmals übernehmen ersetzt die Preisliste.</p>
       <div className="mat-kopf"><Suche wert={suche} setzen={setSuche} platzhalter="Kalkulation suchen …" /></div>
       <Tabelle kopf={["Nr.", "Kunde", "Artikel", "Index", "Bezeichnung", "Im ERP", ""]} leer="Keine Kalkulationen."
-        zeilen={liste.map((k) => {
-          const kopf = (k.daten || {}).kopf || {};
+        zeilen={gezeigt.map((k) => {
+          const kopf = k.kopf || {};
           const nr = String(kopf.artikel || k.artikel || "").trim();
           const da = d.artikel.find((a) => a.art === "hofer" && a.nr === nr);
           return { key: k.id, zellen: [<b>{k.nr}</b>, k.kunde || "", nr, indexVon(kopf.index) || "–", kopf.bezeichnung || "",

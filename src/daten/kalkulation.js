@@ -354,9 +354,32 @@ function pruefen(r, was) {
   return r.data;
 }
 
+// Die Liste holt nur Kopf und Vorschau, nicht die ganzen Daten: seit dem Import aus
+// WinKalk sind es über 7'000 Kalkulationen, ganz geladen wären das viele MB.
+// Seitenweise je 1'000, weil die Datenbank nie mehr auf einmal liefert.
 export async function kalkulationenLaden() {
+  const alle = [];
+  for (let ab = 0; ab < 200000; ab += 1000) {
+    const teil = pruefen(await alt.zeitlimit(alt.db.from("kalkulationen")
+      .select("id, nr, kunde, artikel, geaendert_am, kopf:daten->kopf, vorschau")
+      .order("geaendert_am", { ascending: false }).order("id").range(ab, ab + 999), 20000, "Kalkulationen")) || [];
+    alle.push(...teil);
+    if (teil.length < 1000) break;
+  }
+  return alle;
+}
+
+// Eine Kalkulation ganz, erst beim Öffnen.
+export async function kalkulationLaden(id) {
   return pruefen(await alt.zeitlimit(alt.db.from("kalkulationen")
-    .select("id, nr, kunde, artikel, geaendert_am, daten").order("geaendert_am", { ascending: false }), 10000, "Kalkulationen")) || [];
+    .select("id, nr, kunde, artikel, geaendert_am, daten").eq("id", id).maybeSingle(), 15000, "Kalkulation"));
+}
+
+// Kurzfassung für die Liste: Mengen der Staffeln und Angebotspreis der ersten.
+export function kalkVorschau(daten, rechnung) {
+  const mengen = (daten.staffeln || []).map((s) => z(s.menge)).filter((m) => m > 0);
+  const r = (rechnung || [])[0];
+  return { mengen, preis: r ? r.angebotPe : null, waehrung: r ? r.waehrung : null, pe: r ? r.pe : null };
 }
 
 export async function maschinenLaden() {
@@ -367,6 +390,7 @@ export async function maschinenLaden() {
 export async function kalkulationSpeichern(k) {
   const zeile = { nr: k.nr || null, kunde: k.daten.kopf.kunde || null, artikel: k.daten.kopf.artikel || null,
     daten: k.daten, geaendert_am: new Date().toISOString(), geaendert_von: alt.meineProfilId() };
+  if (k.vorschau) zeile.vorschau = k.vorschau;
   if (k.id) {
     const r = await alt.zeitlimit(alt.db.from("kalkulationen").update(zeile).eq("id", k.id).select("id").maybeSingle(), 10000, "Kalkulation");
     pruefen(r);
