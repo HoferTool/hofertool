@@ -17424,3 +17424,10 @@ body.dunkel .ki-art__bild, body.dunkel .ki-verw__leer { background: #263342; }
 .pb-todo__alt { margin-top: 3px; padding: 3px 8px; border: 1px dashed #9fb3c8; border-radius: 6px; background: transparent; color: #3b5a75; font: inherit; font-size: 12px; cursor: pointer; }
 .pb-todo__alt:hover { background: #eef4fa; }
 body.dunkel .pb-todo__alt { border-color: #4a6078; }
+
+/* 1.838.0: Prüfmittel aus der Verwaltung in der Checkliste */
+.pb-pm-ok, .pb-pm-fehlt { display: block; font-size: 12px; margin-top: 2px; }
+.pb-pm-ok { color: #1e7a3c; }
+.pb-pm-fehlt { color: #b3261e; }
+body.dunkel .pb-pm-ok { color: #7fd69a !important; }
+body.dunkel .pb-pm-fehlt { color: #ff9a92 !important; }

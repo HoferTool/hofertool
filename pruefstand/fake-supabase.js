@@ -571,7 +571,11 @@ export function createClient(_url, _key, optionen) {
     rpc: (name, args) => {
       TEST.protokoll.push({ art: "rpc", name, args });
       const f = TEST.rpc && TEST.rpc[name];
-      return Promise.resolve({ data: f ? f(args) : null, error: null });
+      const daten = f ? f(args) : null;
+      const pr = Promise.resolve({ data: daten, error: null });
+      // Wie bei Supabase: .range() auf einer Funktion mit Liste
+      pr.range = (von, bis) => Promise.resolve({ data: Array.isArray(daten) ? daten.slice(von, bis + 1) : daten, error: null });
+      return pr;
     },
     functions: { invoke: (name, opt) => {
       TEST.protokoll.push({ art: "funktion", name, body: opt && opt.body });

@@ -23,7 +23,7 @@
 import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
-import { stammMitMassen, lehrenAus, pruefmittelFuer } from "../daten/pruefbericht.js";
+import { stammMitMassen, lehrenAus, pruefmittelFuer, pruefmittelAlleLaden, pmOrtText } from "../daten/pruefbericht.js";
 
 export const QS_MASSNAHMEN = "qs_massnahmen";
 const QUITT = "qs_quittungen";
@@ -103,11 +103,8 @@ function QsFenster({ auftrag, zu }) {
         const st = await stammMitMassen(hoco);
         if (!st || !(st.zeilen || []).length) { if (!weg) setPm({ lehren: [], messmittel: [], ohne: true }); return; }
         const l = lehrenAus(st);
-        let liste = [];
-        if (alt.istAdmin()) {
-          const r = await alt.db.from("pruefmittel").select("*").limit(5000);
-          if (!r.error) liste = r.data || [];
-        }
+        // seit 1.838.0 für alle (ausser Externe) aus der ganzen Prüfmittelverwaltung
+        const liste = await pruefmittelAlleLaden();
         l.lehren.forEach((x) => { x.treffer = liste.length ? pruefmittelFuer(x, liste, hoco) : null; });
         if (!weg) setPm(l);
       } catch (f) { if (!weg) setPm({ lehren: [], messmittel: [], fehler: alt.fehlertext(f) }); }
@@ -145,7 +142,7 @@ function QsFenster({ auftrag, zu }) {
               {pm.lehren.map((x) => <li key={x.name + x.mass} className="qs-pm">
                 <b>{x.name}</b> <span>{x.mass}</span> <span className="vb-klein">Nr. {x.nr.join(", ")}</span>
                 {x.treffer && (x.treffer.length
-                  ? <span className="qs-pm__ok">{x.treffer.map((p) => p.nummer || p.bezeichnung).join(", ")}</span>
+                  ? <span className="qs-pm__ok">{x.treffer.slice(0, 3).map((p) => (p.nr || p.bezeichnung) + " · " + pmOrtText(p)).join(" / ") + (x.treffer.length > 3 ? " … (" + x.treffer.length + ")" : "")}</span>
                   : <span className="qs-pm__fehlt">nicht in der Prüfmittelverwaltung</span>)}
               </li>)}
               {pm.messmittel.map((x) => <li key={"m" + x.name} className="qs-pm"><b>{x.name}</b> <span className="vb-klein">Nr. {x.nr.join(", ")}</span></li>)}

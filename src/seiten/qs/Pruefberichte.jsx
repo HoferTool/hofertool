@@ -28,7 +28,7 @@ import { qsSprung, masseInQsOeffnen } from "./qsSprung.js";
 import Pruefung from "../../hoco/Pruefung.jsx";
 import {
   ARTEN, artVon, artName, istZwischen, TEILE, AQL_WERTE, aqlPlan, fehltTabelle, protokolleLaden, dateienLaden, vorlageLaden, stammSpeichern,
-  stammLaden, stammMitMassen, toleranz, toleranzText, istPruefen, lehrenAus, pruefmittelFuer,
+  stammLaden, stammMitMassen, toleranz, toleranzText, istPruefen, lehrenAus, pruefmittelFuer, pruefmittelAlleLaden, pmOrtText,
 } from "../../daten/pruefbericht.js";
 
 // Offenes Protokoll und Suche bleiben beim Reiterwechsel
@@ -657,7 +657,7 @@ function checkPunkte(kopf) {
   const { lehren, messmittel } = lehrenAus({ zeilen: masse(kopf.zeilen) });
   const nr = (x) => "Nr. " + x.nr.join(", ");
   return [["zeichnung", "Zeichnung" + (v.zeichnung ? " " + v.zeichnung : "") + (v.index ? ", Index " + v.index : ""), "richtige Fassung bereit"]]
-    .concat(lehren.map((l, i) => ["l" + i, l.name + (l.mass ? " " + l.mass : ""), nr(l)]))
+    .concat(lehren.map((l, i) => ["l" + i, l.name + (l.mass ? " " + l.mass : ""), nr(l), l]))
     .concat(messmittel.map((m, i) => ["m" + i, m.name, nr(m)]))
     .concat([["sauber", "Prüfmittel sauber, Prüfdatum gültig", ""]]);
 }
@@ -684,12 +684,12 @@ async function ausbuchen(w, hoco) {
     if (!w.job_id) return;
     const { lehren } = lehrenAus({ zeilen: masse(w.kopf.zeilen) });
     if (!lehren.length) return;
-    let { data: pm, error: fs } = await alt.db.rpc("pruefmittel_schrank_lesen");
+    // seit 1.838.0 aus allen Prüfmitteln der Verwaltung, nur was im Schrank und aktiv ist
+    const { error: fs } = await alt.db.rpc("pruefmittel_schrank_lesen");
     const ohneRpc = !!fs;
-    if (ohneRpc) {
-      if (!alt.istAdmin()) return;
-      pm = (await schrankLaden()).data;
-    }
+    if (ohneRpc && !alt.istAdmin()) return;
+    let pm = (await pruefmittelAlleLaden()).filter((p) => (!p.ort_art || p.ort_art === "schrank") && (p.status || "aktiv") === "aktiv");
+    if (!pm.length && ohneRpc) pm = (await schrankLaden()).data;
     if (!pm || !pm.length) return;
     const ids = new Set();
     lehren.forEach((l) => { const x = pruefmittelFuer(l, pm.filter((p) => !ids.has(p.id)), hoco)[0]; if (x) ids.add(x.id); });
@@ -721,6 +721,19 @@ function Checkliste({ w, hoco, schreibt, zurueck, quittieren }) {
   const punkte = useMemo(() => checkPunkte(w.kopf), [w.kopf]);
   const [haken, setHaken] = useState({});
   const alle = punkte.every(([id]) => haken[id]);
+  // Welches Prüfmittel der Verwaltung passt zu jeder Lehre? (seit 1.838.0, Wunsch Patrick:
+  // „das nr vom prüfmittel dort auch steht … es soll das mittel selber suchen“)
+  const [pm, setPm] = useState(null);
+  useEffect(() => { let weg = false; pruefmittelAlleLaden().then((l) => { if (!weg) setPm(l); }); return () => { weg = true; }; }, []);
+  const pmText = (l) => {
+    if (!l || !pm) return null;
+    if (!pm.length) return null;
+    const t = pruefmittelFuer(l, pm, hoco);
+    if (!t.length) return <small className="pb-pm-fehlt" data-pbpm="">nicht in der Prüfmittelverwaltung</small>;
+    return <small className="pb-pm-ok" data-pbpm={t[0].nr || ""}>
+      {t.slice(0, 3).map((p) => "Prüfmittel " + (p.nr || p.bezeichnung) + " · " + pmOrtText(p)).join(" / ")}
+      {t.length > 3 ? " … (" + t.length + ")" : ""}</small>;
+  };
   return (
     <div className="pb pb-blattseite" data-pbcheckliste={w.id}>
       <div className="pb-kopfzeile pb-werkzeug">
@@ -732,12 +745,12 @@ function Checkliste({ w, hoco, schreibt, zurueck, quittieren }) {
         <h2>Erstteilprüfung {hoco}{w.fa_nr ? " · FA " + w.fa_nr : ""}</h2>
         <p className="klein">Zuerst prüfen, ob alles Richtige hervorgenommen ist. Danach kommt das Protokoll.</p>
         <ul className="pb-check__liste">
-          {punkte.map(([id, text, unter]) => (
+          {punkte.map(([id, text, unter, lehre]) => (
             <li key={id}>
               <label className={haken[id] ? "pb-check--an" : ""}>
                 <input type="checkbox" data-pbcheck={id} checked={!!haken[id]} disabled={!schreibt}
                   onChange={(x) => setHaken((h) => ({ ...h, [id]: x.target.checked }))} />
-                <span><b>{text}</b>{unter ? <small>{unter}</small> : null}</span>
+                <span><b>{text}</b>{unter ? <small>{unter}</small> : null}{pmText(lehre)}</span>
               </label>
             </li>
           ))}

@@ -193,14 +193,20 @@ export function istPruefen(ist, t) {
 }
 
 // ---------- Lehren und Messmittel aus der letzten Spalte ----------
-const LEHRE_RE = /lehr|kontrollring|grenzdorn|gewinde-?\s*(ring|dorn)|prüfstift|pruefstift|stifte?\b/i;
+const LEHRE_RE = /lehr|kontrollring|grenzdorn|gewinde-?\s*(ring|dorn)/i;
 const KEIN_MESSMITTEL = /^(material|kernbohrung|siehe|vgl|ø|visuell|sichtprüfung)/i;
+// Seit 1.838.0 (Patrick 25. November 2026): Prüfstifte gibt es einfach, sie
+// zählen weder beim Checken noch beim Ausbuchen. Messgeräte, die sowieso an
+// ihrem Platz stehen (Isoma, Mikrometer, Messuhr, Fühlhebelmessuhr, Keyence),
+// müssen nicht extra zum Checken in der Liste stehen.
+const STIFT_RE = /prüfstift|pruefstift|\bstifte?\b/i;
+const SELBST_RE = /isoma|mikrometer|messschraube|messuhr|fühlhebel|fuehlhebel|keyence|messmikroskop/i;
 
 export function lehrenAus(vorlage) {
   const lehren = new Map(), mess = new Map();
   for (const zl of vorlage.zeilen || []) {
     const pm = String(zl.pm || "").trim();
-    if (!pm) continue;
+    if (!pm || STIFT_RE.test(pm)) continue;
     if (LEHRE_RE.test(pm)) {
       const name = pm.replace(/\s*[ØøD]?\s*\d+(?:[.,]\d+)?\s*(\/\s*\d+(?:[.,]\d+)?)?\s*$/, "").trim() || pm;
       let mass = (/(\d+(?:[.,]\d+)?\s*\/\s*\d+(?:[.,]\d+)?)/.exec(pm) || [])[1] || "";
@@ -216,7 +222,7 @@ export function lehrenAus(vorlage) {
       const vonHand = /\d\s*\/\s*\d/.test(pm);
       if (da) { da.nr.push(zl.nr || "–"); if (vonHand && !da.vonHand) { da.mass = mass; da.vonHand = true; } }
       else lehren.set(key, { name, mass, soll: zl.soll, nr: [zl.nr || "–"], vonHand });
-    } else if (!KEIN_MESSMITTEL.test(pm)) {
+    } else if (!KEIN_MESSMITTEL.test(pm) && !SELBST_RE.test(pm)) {
       const w = pm.split(/[\/Ø(]/)[0].trim();
       if (!w) continue;
       const k = w.toLowerCase();
@@ -228,16 +234,96 @@ export function lehrenAus(vorlage) {
 }
 
 // Passt ein Prüfmittel aus der Prüfmittelverwaltung zu einer Lehre?
-// Gleiche Zahlen im Mass (oder die HOCO Nr. am Prüfmittel).
+// Seit 1.838.0 sucht die App selbst in allen Prüfmitteln (Patrick 25.
+// November 2026: „es soll das Mittel selber suchen aus allen Mitteln, die wir
+// haben“): Grenzlehrdorne über die Grenzen aus dem Nennmass („15 H9 +0.043“
+// = 15.000 … 15.043, „10.1 E9 +0.075/+0.032“ = 10.132 … 10.175), Gewinde über
+// M-Grösse und Steigung, Ring oder Dorn, sonst gleiche Zahlen (Kontrollring).
+// Im Schrank zuerst.
+const zahlenIn = (t) => (String(t || "").match(/\d+(?:[.,]\d+)?/g) || []).map((x) => n(x));
+function gewindeVon(t) {
+  const m = /\bM\s*(\d+(?:[.,]\d+)?)(?:\s*x\s*(\d+(?:[.,]\d+)?))?/i.exec(String(t || ""));
+  return m ? "M" + n(m[1]) + (m[2] ? "x" + n(m[2]) : "") : "";
+}
+function grenzenPm(p) {
+  const s = String(p.nennmass || p.mass || "").trim();
+  const m = /^Ø?\s*(\d+(?:[.,]\d+)?)\s*(?:[A-Za-z]{1,2}\d{1,2})?\s*(.*)$/.exec(s);
+  if (!m) return null;
+  const nenn = n(m[1]);
+  const pm = /(?:\+\s*\/\s*-|±)\s*(\d+(?:[.,]\d+)?)/.exec(m[2]);
+  if (pm) return { min: rund(nenn - n(pm[1])), max: rund(nenn + n(pm[1])) };
+  const ab = [...m[2].matchAll(/([+-])\s*(\d+(?:[.,]\d+)?)/g)].map((x) => (x[1] === "-" ? -1 : 1) * n(x[2]));
+  if (!ab.length) return null;
+  if (ab.length === 1) ab.push(0);
+  return { min: rund(nenn + Math.min(...ab)), max: rund(nenn + Math.max(...ab)) };
+}
+function grenzenLehre(lehre) {
+  const m = /(\d+(?:[.,]\d+)?)\s*\/\s*(\d+(?:[.,]\d+)?)/.exec(String(lehre.mass || ""));
+  if (m) {
+    const stellen = Math.max(...[m[1], m[2]].map((x) => (x.split(/[.,]/)[1] || "").length));
+    return { min: n(m[1]), max: n(m[2]), spiel: 0.5 * Math.pow(10, -stellen) + 0.0006 };
+  }
+  const t = toleranz(lehre.soll);
+  return t && t.min !== null ? { min: t.min, max: t.max, spiel: 0.0011 } : null;
+}
+const istStift = (p) => STIFT_RE.test((p.typ || "") + " " + (p.bezeichnung || ""));
+
 export function pruefmittelFuer(lehre, liste, hoco) {
-  const zahlen = (t) => (String(t || "").match(/\d+(?:[.,]\d+)?/g) || []).map((x) => n(x));
-  const soll = zahlen(lehre.mass);
-  return (liste || []).filter((p) => {
+  const name = String(lehre.name || "");
+  const gew = /gewinde/i.test(name) || /^M\d/i.test(String(lehre.mass || "")) ? gewindeVon(lehre.mass || lehre.soll) : "";
+  const ring = /ring/i.test(name) ? true : /dorn/i.test(name) ? false : null;
+  const g = gew ? null : grenzenLehre(lehre);
+  const soll = zahlenIn(lehre.mass);
+  const treffer = (liste || []).filter((p) => {
     if (p.status && p.status !== "aktiv") return false;
+    if (istStift(p)) return false;
+    const art = (p.typ || "") + " " + (p.bezeichnung || "");
     if (hoco && p.hoco && String(p.hoco).includes(hoco)) return true;
-    const ist = zahlen((p.mass || "") + " " + (p.bezeichnung || ""));
+    if (gew) {
+      if (!/gewinde/i.test(art)) return false;
+      if (ring !== null && /ring/i.test(art) !== ring) return false;
+      const pg = gewindeVon(p.nennmass || p.mass || p.bezeichnung);
+      if (!pg) return false;
+      // „M5“ in der Lehre passt zu „M5“ und „M5x0.8“ (Regelgewinde)
+      return pg === gew || (!/x/.test(gew) && pg.split("x")[0] === gew);
+    }
+    if (g && /lehrdorn|grenzdorn/i.test(art) && !/gewinde/i.test(art)) {
+      const pg = grenzenPm(p);
+      if (pg) return Math.abs(pg.min - g.min) <= g.spiel && Math.abs(pg.max - g.max) <= g.spiel;
+    }
+    if (/gewinde/i.test(art)) return false;
+    const ist = zahlenIn((p.nennmass || "") + " " + (p.mass || "") + " " + (p.bezeichnung || ""));
     return soll.length > 0 && soll.every((v) => ist.some((x) => Math.abs(x - v) < 0.0005));
   });
+  const rang = (p) => (p.ort_art === "schrank" ? 0 : p.ort_art ? 1 : 0);
+  return treffer.sort((a, b) => rang(a) - rang(b) || String(a.nr || "").localeCompare(String(b.nr || "")));
+}
+
+// Wo liegt ein Prüfmittel? Kurzer Text für Checkliste und QS-Fenster
+export function pmOrtText(p) {
+  return { schrank: "im Schrank", maschine: "an einer Maschine", rueckgabe: "in der Rückgabekiste", extern: "extern" }[p && p.ort_art] || "";
+}
+
+// Alle Prüfmittel lesen, für alle ausser Externen und Dienst (Funktion
+// pruefmittel_suchen_lesen, nur Nr., Mass und Ort), seitenweise je 1'000.
+// Admins notfalls direkt aus der Tabelle.
+export async function pruefmittelAlleLaden() {
+  const holen = async (q) => {
+    const alle = [];
+    for (let ab = 0; ab < 20000; ab += 1000) {
+      const { data, error } = await alt.zeitlimit(q().range(ab, ab + 999), 15000, "Prüfmittel");
+      if (error) throw error;
+      alle.push(...(data || []));
+      if (!data || data.length < 1000) break;
+    }
+    return alle;
+  };
+  try { return await holen(() => alt.db.rpc("pruefmittel_suchen_lesen")); }
+  catch (e) {
+    if (!alt.istAdmin()) return [];
+    try { return await holen(() => alt.db.from("pruefmittel").select("*").order("id")); }
+    catch (_) { return []; }
+  }
 }
 
 // ---------- Datenbank ----------

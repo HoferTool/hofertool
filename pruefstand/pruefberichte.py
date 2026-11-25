@@ -15,7 +15,9 @@ STAMM = {"hoco_nr": "99999-0001", "arten": ["erstteil", "endkontrolle", "aql", "
          "kopf": {"bezeichnung": "Testwelle", "zeichnung": "Z-123", "index": "B"},
          "zeilen": [{"id": "n1", "nr": "1", "soll": "Ø5.5 ±0.05", "pm": "Grenzlehrdorn Ø5.5", "ll": True},
                     {"id": "n2", "nr": "2", "soll": "12.0 +0.1/-0", "pm": "Messschieber"},
-                    {"id": "n3", "nr": "3", "soll": "M6", "pm": "Gewindelehrdorn M6 6H", "ll": True}]}
+                    {"id": "n3", "nr": "3", "soll": "M6", "pm": "Gewindelehrdorn M6 6H", "ll": True},
+                    {"id": "n4", "nr": "4", "soll": "8.0 ±0.02", "pm": "Isoma"},
+                    {"id": "n5", "nr": "5", "soll": "Ø3.0 H7", "pm": "Prüfstift Ø3.00"}]}
 
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
@@ -31,6 +33,7 @@ with sync_playwright() as p:
         TEST.daten.pruefmittel = [{ id: 'pmx', nr: 'PM-9', bezeichnung: 'Grenzlehrdorn', mass: '5.45 / 5.55', ort_art: 'schrank', status: 'aktiv' }];
         const m = (TEST.daten.machines || [])[0];
         // Nachbau der Funktionen aus sql/pruefmittel-ausbuchen-alle.sql
+        TEST.rpc.pruefmittel_suchen_lesen = () => TEST.daten.pruefmittel;
         TEST.rpc.pruefmittel_schrank_lesen = () => TEST.daten.pruefmittel.filter(p => p.ort_art === 'schrank');
         TEST.rpc.pruefmittel_ausbuchen = (a) => { const j = TEST.daten.jobs.find(x => x.id === a.p_job); let n = 0;
           TEST.daten.pruefmittel.forEach(p => { if (a.p_ids.includes(p.id) && p.ort_art === 'schrank') { p.ort_art = 'maschine'; p.machine_id = j.machine_id; p.job_id = j.id; n++; } }); return n; };
@@ -48,6 +51,9 @@ with sync_playwright() as p:
     # Erstteil aus dem Todo
     pg.click("[data-pbtodo=erstteil] [data-pbtodoauftrag=jpb1]"); pg.wait_for_selector("[data-pbcheckliste]"); pg.wait_for_timeout(300)
     pruefe(pg.locator("[data-pbcheck]").count() >= 5, "Checkliste mit Zeichnung, Lehren, Messmittel: %d" % pg.locator("[data-pbcheck]").count())
+    pruefe(pg.locator("[data-pbcheckliste] [data-pbpm='PM-9']").count() >= 1, "Checkliste zeigt Prüfmittel PM-9 aus der Verwaltung")
+    ct = pg.inner_text("[data-pbcheckliste]")
+    pruefe("Isoma" not in ct and "Prüfstift" not in ct, "Isoma und Prüfstift nicht zum Checken")
     pruefe(pg.locator("#pb-check-quittieren").is_disabled(), "Quittieren erst wenn alles abgehakt")
     for c in pg.locator("[data-pbcheck]").all(): c.check()
     pg.click("#pb-check-quittieren"); pg.wait_for_selector("#pb-blatt"); pg.wait_for_timeout(300)
@@ -131,8 +137,8 @@ with sync_playwright() as p:
     pg.locator("button:has-text('Prüfmasse 99999-0001')").click()
     pg.wait_for_selector("#pst-blatt-auf", timeout=8000); pg.click("#pst-blatt-auf")
     pg.wait_for_selector("[data-pstblatt] [data-pstseite]")
-    pruefe(pg.locator("[data-pstseite]").count() == 1 and pg.locator("[data-pstblatt] tbody tr").count() == 3, "Masse-Blatt mit 3 Massen")
-    for i in range(20):
+    pruefe(pg.locator("[data-pstseite]").count() == 1 and pg.locator("[data-pstblatt] tbody tr").count() == 5, "Masse-Blatt mit 5 Massen")
+    for i in range(18):
         pg.click("#pst-mass-neu")
     pg.wait_for_timeout(300)
     pruefe(pg.locator("[data-pstseite]").count() == 2, "zweite Seite bei 23 Massen: %d" % pg.locator("[data-pstseite]").count())
