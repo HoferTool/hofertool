@@ -157,14 +157,14 @@ export async function auftragSpeichern({ auftrag, daten, geaendert, nr, b, zu })
   const verschoben = festId ? await alt.planKonflikteLoesen(daten.machine_id, festId) : [];
 
   // Neue Zeichnung ersetzt die alte für die ganze Nummer, eine neue WBG
-  // die alte — was nicht mehr gebraucht wird, verschwindet aus der Ablage
+  // die alte am Auftrag (die alte WBG-Datei bleibt aber in der Ablage)
   if (festId) {
     const vor = vorherSelbst || auftrag;
     const altZ = vor && vor.drawing_url, neuZ = daten.drawing_url;
     const altW = vor && vor.wbg_url, neuW = daten.wbg_url;
     try {
       if (neuZ && neuZ !== altZ && hocoNummer) await alt.zeichnungErsetzen(hocoNummer, neuZ, altZ);
-      if (altW && altW !== neuW) await alt.ablageLoeschen([altW]);
+      // Die alte WBG bleibt in der Ablage, WBGs werden nie gelöscht (seit 1.812.0)
     } catch (f) { /* die Datei bleibt eben liegen */ }
 
     // Rückgängig: neuer Auftrag wird wieder entfernt, ein geänderter

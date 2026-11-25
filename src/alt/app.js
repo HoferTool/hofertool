@@ -178,7 +178,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.811.0";
+const APP_VERSION = "1.812.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -2624,7 +2624,8 @@ async function dokHochladen(datei, zuordnung, quelle) {
   } catch (f) { /* Hauptsache, der Eintrag steht */ }
 
   // Alte Dateien wegräumen — aber nie die, die gerade hochgeladen wurde
-  await ablageLoeschen(alteAdressen.filter((u) => u && u !== adresse));
+  // WBGs bleiben auch beim Ersetzen in der Ablage (seit 1.812.0)
+  if (art !== "wbg") await ablageLoeschen(alteAdressen.filter((u) => u && u !== adresse));
 
   await dokVerlauf({ dateiname: datei.name, art: art, hoco_nr: hocoNr, type_id: typId,
                      ziel: dokZielText(zuordnung), quelle: quelle || "hand",
@@ -2634,9 +2635,9 @@ async function dokHochladen(datei, zuordnung, quelle) {
 
 // =================================================================
 //  WBG AUFRÄUMEN
-//  Eine WBG bleibt, solange ihr Auftrag läuft, und noch fünf Tage
-//  danach. Dann verschwinden Datei und Eintrag. Ebenso die
-//  Werkzeugwechsel-Historie am Auftrag. Läuft einmal am Tag,
+//  WBGs bleiben seit 1.812.0 für immer. Hier verschwindet nur noch
+//  die Werkzeugwechsel-Historie am Auftrag fünf Tage nach dem
+//  Ende. Läuft einmal am Tag,
 //  sobald jemand mit Schreibrecht die App öffnet.
 // =================================================================
 
@@ -2651,21 +2652,10 @@ async function wbgAufraeumen(sofort) {
   const grenze = new Date(Date.now() - 5 * 86400000).toISOString();
   let weg = 0;
   try {
-    // 1. WBG an Aufträgen, die seit mehr als fünf Tagen beendet sind
-    const r = await db.from("jobs").select("id, job_number, wbg_url")
-      .not("wbg_url", "is", null).lt("ended_at", grenze).limit(500);
-    const alt = (r && r.data) || [];
-    if (alt.length) {
-      // Dieselbe Datei hängt vielleicht noch an einem offenen Auftrag
-      const noch = await db.from("jobs").select("wbg_url").is("ended_at", null).not("wbg_url", "is", null);
-      const inBenutzung = new Set(((noch && noch.data) || []).map((j) => j.wbg_url));
-      // Adressen vorher festhalten, danach stehen sie nicht mehr am Auftrag
-      const adressen = alt.map((j) => j.wbg_url).filter((u) => !inBenutzung.has(u));
-      await db.from("jobs").update({ wbg_url: null }).in("id", alt.map((j) => j.id));
-      await ablageLoeschen(adressen);
-      weg += alt.length;
-    }
-    // 1b. Werkzeugwechsel-Historie genauso: fünf Tage nach dem Ende weg
+    // WBGs bleiben alle für immer, Datei und Eintrag (Wunsch Patrick
+    // 25. November 2026: „es soll alle WBGs speichern, keine löschen“).
+    // Bis 1.811.x verschwanden sie hier fünf Tage nach dem Auftragsende.
+    // Werkzeugwechsel-Historie: fünf Tage nach dem Ende weg
     // (Wunsch Patrick 14. Oktober 2026). Jede Datei gehört nur zu einem
     // Auftrag, darum ohne Prüfung auf andere Aufträge.
     const h = await db.from("jobs").select("id, wz_historie_url")
@@ -2675,25 +2665,6 @@ async function wbgAufraeumen(sofort) {
       await db.from("jobs").update({ wz_historie_url: null }).in("id", hist.map((j) => j.id));
       await ablageLoeschen(hist.map((j) => j.wz_historie_url));
       weg += hist.length;
-    }
-    // 2. WBG in den Dokumenten, zu denen kein offener Auftrag mehr läuft
-    const d = await db.from("dokumente").select("id, hoco_nr, datei_url, erstellt_am").eq("art", "wbg");
-    const liste = (d && d.data) || [];
-    for (const w of liste) {
-      if (!w.hoco_nr) continue;
-      const offen = await db.from("jobs").select("id").eq("job_number", w.hoco_nr).is("ended_at", null).limit(1);
-      if (offen && offen.data && offen.data.length) continue;
-      const zuletzt = await db.from("jobs").select("ended_at").eq("job_number", w.hoco_nr)
-        .not("ended_at", "is", null).order("ended_at", { ascending: false }).limit(1);
-      const ende = zuletzt && zuletzt.data && zuletzt.data[0] ? zuletzt.data[0].ended_at : w.erstellt_am;
-      if (ende && ende < grenze) {
-        await db.from("dokumente").delete().eq("id", w.id);
-        await ablageLoeschen([w.datei_url]);
-        await dokVerlauf({ dateiname: null, art: "wbg", hoco_nr: w.hoco_nr,
-                           ziel: "WBG entfernt — Auftrag seit über fünf Tagen beendet",
-                           quelle: "aufräumen" });
-        weg++;
-      }
     }
   } catch (f) { fehlerMerken("WBG aufräumen", fehlertext(f)); }
   return weg;

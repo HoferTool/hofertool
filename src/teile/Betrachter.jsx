@@ -18,7 +18,7 @@ import { ExcelAnsicht, excelDrucken } from "./ExcelAnsicht.jsx";
 import { istExcel } from "./excelLesen.js";
 import { wiederOeffner } from "./wiederherstellen.js";
 import { istZeichnung, darfDrehen, drehungSpeichern, pdfDrehen } from "../daten/zeichnungDrehen.js";
-import { poolDruckLaden, poolDruckerName, poolA4Drucker, poolKannExcel, poolDrucken, pdfSeitenAlsJpg } from "./poolDruck.js";
+import { poolDruckLaden, poolDruckerName, poolA4Drucker, poolKannExcel, poolDrucken, pdfSeitenAlsJpg, poolWbgDrucker } from "./poolDruck.js";
 
 // „art“ nur, wenn die Adresse nichts verrät (Datei vom Gerät): "pdf",
 // "excel" oder "bild". Sonst entscheidet die Endung, und Excel gewinnt
@@ -153,7 +153,7 @@ export function Betrachter({ adresse: anfang, titel, art, endung, zu, hinweis, k
   // Firmennetz nicht, der Pool-Rechner schon (Wunsch Patrick, 9. Oktober 2026).
   const [pool, setPool] = useState(null);      // { drucker, excel } oder null
   const [wahl, setWahl] = useState(false);     // Auswahl offen?
-  // Der Knopf heisst „Nur WBGs drucken“ (seit 1.167.1, Wunsch Patrick
+  // Die Knöpfe heissen „Planbüro WBG“ und „Spedition WBG“ (seit 1.812.0, Wunsch Patrick 25. November 2026; davor „Nur WBGs drucken“, seit 1.167.1, Wunsch Patrick
   // 24. Oktober 2026, vorher „Planbüro“, seit 1.171.0 nur bei WBGs): der volle Name des Druckers
   // (\\hof-chso-fs01\SHARP … Planbüro) machte die Auswahl so breit, dass
   // sie im Pad über den Rand ragte. Kopien stehen bei jedem Öffnen der
@@ -164,7 +164,7 @@ export function Betrachter({ adresse: anfang, titel, art, endung, zu, hinweis, k
     let weg = false;
     poolDruckLaden().then((k) => {
       if (!weg) setPool(poolDruckerName(k) || poolA4Drucker(k)
-        ? { drucker: poolDruckerName(k), a4: poolA4Drucker(k), excel: poolKannExcel(k) } : null);
+        ? { drucker: poolDruckerName(k), wbg: poolWbgDrucker(k), a4: poolA4Drucker(k), excel: poolKannExcel(k) } : null);
     });
     return () => { weg = true; };
   }, []);
@@ -193,21 +193,23 @@ export function Betrachter({ adresse: anfang, titel, art, endung, zu, hinweis, k
     if (poolGeht) { if (!wahl) setKopien(1); setWahl((w) => !w); return; }
     drucken();
   };
-  const anPool = async () => {
+  // ziel: einer der WBG-Drucker (zwei möglich seit 1.812.0), sonst der erste
+  const anPool = async (ziel) => {
+    const drucker = typeof ziel === "string" ? ziel : undefined;
     setWahl(false);
     if (pdf.art === "laden") { alt.meldung("Die Datei ist noch nicht geladen.", "warn"); return; }
     setDruckt(true);
     try {
       if (istXl) {
         const reiter = wurzel.current && wurzel.current.querySelector("[data-blattreiter][aria-selected='true']");
-        await poolDrucken({ art: "excel", quelle: adresse, blatt: reiter ? reiter.textContent : null, titel, kopien, a4 });
+        await poolDrucken({ art: "excel", quelle: adresse, blatt: reiter ? reiter.textContent : null, titel, kopien, a4, drucker });
       } else if (istPdf) {
         if (!pdf.daten) throw new Error("Die PDF liess sich nicht laden.");
         const seiten = await pdfSeitenAlsJpg(await pdfjs(), pdf.daten);
-        await poolDrucken({ art: "bilder", bilder: seiten.map((x) => x.blob), titel, kopien, a4 });
+        await poolDrucken({ art: "bilder", bilder: seiten.map((x) => x.blob), titel, kopien, a4, drucker });
       } else {
         if (!pdf.blob) throw new Error("Das Bild liess sich nicht laden.");
-        await poolDrucken({ art: "bilder", bilder: [pdf.blob], titel, kopien, a4 });
+        await poolDrucken({ art: "bilder", bilder: [pdf.blob], titel, kopien, a4, drucker });
       }
     } catch (f) {
       alt.meldung("Drucken ging nicht: " + alt.fehlertext(f), "fehler");
@@ -297,7 +299,11 @@ export function Betrachter({ adresse: anfang, titel, art, endung, zu, hinweis, k
             <button className="knopf knopf--klein" data-drucken="" onClick={knopfDrucken} disabled={druckt}
               aria-expanded={poolGeht ? wahl : undefined}>{druckt ? "Druckt …" : "Drucken"}</button>
             {wahl && <div className="druckwahl" data-druckwahl="" role="menu">
-              <button className="knopf knopf--haupt" data-pooldruck="" onClick={anPool}>{a4 ? "Im Büro drucken" : "Nur WBGs drucken"}</button>
+              {!a4 && pool.wbg && pool.wbg.length > 1
+                ? pool.wbg.map((n, i) => <button key={n} className={"knopf" + (i === 0 ? " knopf--haupt" : "")}
+                    data-pooldruck={i === 0 ? "" : undefined} data-pooldrucker={n}
+                    onClick={() => anPool(n)}>{i === 0 ? "Planbüro WBG" : "Spedition WBG"}</button>)
+                : <button className="knopf knopf--haupt" data-pooldruck="" onClick={() => anPool()}>{a4 ? "Im Büro drucken" : "Planbüro WBG"}</button>}
               <div className="druckwahl__kopien">
                 <span>Kopien</span>
                 <button className="knopf knopf--klein" aria-label="Weniger" data-kopienweniger=""

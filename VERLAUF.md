@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.812.0 (25. November 2026)
+
+WBGs werden nie mehr gelöscht, weder beim Ersetzen noch beim Aufräumen (Wunsch Patrick: „alle WBGs speichern, keine löschen“). Zweiter WBG-Drucker „Drucker Spedition WBG“ unter Einstellungen → Dokumente; bei einer WBG stehen dann die Knöpfe „Planbüro WBG“ und „Spedition WBG“. Prüfstand `wbg_zweiter_drucker.py`.
+
 ## 1.811.0 (25. November 2026)
 
 Einlagen Generator: im Schritt Einlage neuer Modus „Zeichnen“ (Linienzug, Rechteck mit Eckradius, Kreis, mit Tiefe). Die Formen werden Taschen der Einlage, nur dort gespeichert, nicht als Werkzeug (Wunsch Patrick). Prüfstand `einlagen_zeichnen.py`.
