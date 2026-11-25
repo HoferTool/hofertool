@@ -1,7 +1,7 @@
 # Lager mit Logik (1.791.0, Wunsch Patrick 24. November 2026): nur Admins,
 # externe Arbeitsschritte und Ablauf je HOCO Nr. in den Stammdaten,
-# einbuchen aus der Produktion als teilfertig mit Index, „→ Schritt“ an die
-# externe Firma, zurück einbuchen wird ganz fertig, Vorbereiten mit
+# einbuchen aus der Produktion als Halbfabrikat mit Index, „→ Schritt“ an die
+# externe Firma, zurück einbuchen wird Fertigteil, Vorbereiten mit
 # Ankündigung, Index wird nie zusammengezählt.
 import time, os
 from pruefstand import server_starten, FAKE, CH, PORT
@@ -73,10 +73,10 @@ with sync_playwright() as p:
     ab = pg.evaluate("() => TEST.daten.lager_ablauf")
     pruefe(len(ab) == 1 and ab[0]["hoco_nr"] == hoco and ab[0]["schritte"] == [ext[0]["id"]], "Ablauf gespeichert: %s" % ab)
 
-    # Einbuchen aus der Produktion: teilfertig mit Index B
+    # Einbuchen aus der Produktion: Halbfabrikat mit Index B
     pg.click("#lager-ein"); pg.wait_for_selector("[data-lager-buchen] #lb-job")
     pg.select_option("#lb-job", jid); pg.wait_for_timeout(200)
-    pruefe(pg.locator("#lb-art [data-art='teil'].knopf--haupt").count() == 1, "Art teilfertig vorgeschlagen (Ablauf hat Härten)")
+    pruefe(pg.locator("#lb-art [data-art='teil'].knopf--haupt").count() == 1, "Art Halbfabrikat vorgeschlagen (Ablauf hat Härten)")
     pruefe(pg.input_value("#lb-index") == "B", "Index aus den Stammdaten")
     pg.fill("#lb-menge", "1'000"); pg.fill("#lb-ort", "Regal A")
     pg.screenshot(path=BILD + "/lager-einbuchen.png")
@@ -110,7 +110,7 @@ with sync_playwright() as p:
     pruefe("1'000 Stk" in pg.inner_text("[data-unterwegs]"), "Bei externen Firmen: 1'000 Stk")
     pg.screenshot(path=BILD + "/lager-extern.png")
     pg.locator("[data-unterwegs] .knopf--haupt").click(); pg.wait_for_selector("[data-lager-buchen='ein']")
-    pruefe(pg.locator("#lb-art [data-art='fertig'].knopf--haupt").count() == 1, "zurück: ganz fertig vorgeschlagen")
+    pruefe(pg.locator("#lb-art [data-art='fertig'].knopf--haupt").count() == 1, "zurück: Fertigteil vorgeschlagen")
     pg.click("[data-lager-buchen] [data-ja]"); pg.wait_for_timeout(800)
     zur = [x for x in pg.evaluate("() => TEST.daten.lager_buchungen") if x.get("grund") == "extern_zurueck"]
     pruefe(len(zur) == 1 and zur[0]["menge"] == 1000 and zur[0]["art"] == "fertig" and zur[0]["stufe"] == 1 and zur[0]["bezug_id"] == raus[0]["id"], "zurück eingebucht: %s" % zur)

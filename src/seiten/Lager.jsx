@@ -2,7 +2,7 @@
 //  SEITE LAGER (seit 1.791.0, Wunsch Patrick 24. November 2026:
 //  „einbuchen aus Produktion, von externen Arbeitsschritten oder von
 //  Kundenrückgaben, ausbuchen wegen externer Arbeitsschritte und
-//  Auslieferung, Arten von Teilen (Rohteile, teilfertig, ganz fertig),
+//  Auslieferung, Arten von Teilen (Halbfabrikat, Fertigteil),
 //  jede HOCO Nr. nach Index, … externe Arbeitsschritte hinterlegen,
 //  welche Firma und wie lange es normalerweise dauert, … in Stammdaten
 //  angeben, was mit dem Artikel passiert, und je nachdem wird es
@@ -64,7 +64,7 @@ async function laden() {
   };
 }
 
-// Kurz je HOCO Nr.: „Index B: 500 fertig, 200 teilfertig · Index A: 20 fertig“
+// Kurz je HOCO Nr.: „Index B: 500 fertigteil, 200 halbfabrikat · Index A: 20 fertigteil“
 function kurzBestand(e) {
   const je = new Map();
   linienMitBestand(e).forEach((l) => {
