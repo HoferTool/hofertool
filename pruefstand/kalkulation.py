@@ -145,7 +145,12 @@ with sync_playwright() as p:
     band = pg.locator("#kalk-band .kalk-band__staffel").count()
     pruefe(band == 3, "dritte Staffel im Band: %d" % band)
     gesp = pg.evaluate("() => TEST.daten.kalkulationen[0].daten.staffeln")
-    pruefe(len(gesp) == 3 and gesp[2]["lose"] == "4", "von selbst gespeichert mit eigenen Losen: %s" % gesp)
+    pruefe(len(gesp) == 2, "nicht mehr von selbst gespeichert: %d Staffeln" % len(gesp))
+    pruefe("Nicht gespeichert" in pg.inner_text("#kalk-stand"), "Stand zeigt Nicht gespeichert")
+    pg.click("#kalk-speichern"); pg.wait_for_timeout(800)
+    gesp = pg.evaluate("() => TEST.daten.kalkulationen[0].daten.staffeln")
+    pruefe(len(gesp) == 3 and gesp[2]["lose"] == "4", "mit Speichern gespeichert mit eigenen Losen: %s" % gesp)
+    pruefe("Gespeichert" in pg.inner_text("#kalk-stand"), "Stand nach Speichern")
 
     with pg.expect_download() as dl:
         pg.locator("[data-kalk-reiter='angebot']").click(); pg.click("#kalk-pdf")
@@ -153,8 +158,17 @@ with sync_playwright() as p:
     pg.screenshot(path=BILD + "/kalk-angebot.png", full_page=True)
 
     # Escape: zurück zur Liste
+    pg.locator("[data-kalk-reiter='material']").click()
+    pg.fill("#kalk-menge-2", "21000"); pg.wait_for_timeout(300)
     pg.evaluate("document.activeElement && document.activeElement.blur()"); pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
-    pruefe(pg.locator(".kalk-liste").count() > 0, "Escape zurück zur Liste")
+    pruefe(pg.locator("button[data-w='ja']").count() == 1, "Escape mit Änderung fragt nach Speichern")
+    pg.click("[data-nein]"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("#kalk-band").count() == 1, "Abbrechen bleibt in der Kalkulation")
+    pg.click("#kalk-zurueck"); pg.wait_for_timeout(400)
+    pg.click("button[data-w='nein']"); pg.wait_for_timeout(500)
+    pruefe(pg.locator(".kalk-liste").count() > 0, "Nicht speichern: zurück zur Liste")
+    gesp = pg.evaluate("() => TEST.daten.kalkulationen[0].daten.staffeln")
+    pruefe(gesp[1]["menge"] != "21000", "Nicht speichern verwirft: %s" % gesp[1].get("menge"))
     # Neue Kalkulation startet mit dem Dummy-Arbeitsplan
     pg.click("#kalk-neu"); pg.wait_for_timeout(1200)
     neu = pg.evaluate("() => TEST.daten.kalkulationen.find(k => k.nr !== '20225174')")
@@ -172,6 +186,8 @@ with sync_playwright() as p:
     pruefe(pg.input_value("#kalk-mat") == "X8CrNiS18-9 rd 012 mm h9", "Material aus HOCO Nr.: %s" % pg.input_value("#kalk-mat"))
     pruefe(pg.input_value("#kalk-matnr") == "1.4305", "Werkstoff-Nr. dazu: %s" % pg.input_value("#kalk-matnr"))
     if pg.locator("#kalk-zurueck").count(): pg.click("#kalk-zurueck")
+    pg.wait_for_timeout(400)
+    if pg.locator("button[data-w='ja']").count(): pg.click("button[data-w='ja']")
     pg.wait_for_selector("#kalk-saetze")
     # Suche in der Liste
     pg.fill("#kalk-suche", "genge 10789"); pg.wait_for_timeout(200)
@@ -188,7 +204,9 @@ with sync_playwright() as p:
     pg.screenshot(path=BILD + "/kalk-saetze.png", full_page=True)
 
     pg.set_viewport_size({"width": 390, "height": 844})
-    pg.click("#kalk-zurueck"); pg.click(".kalk-liste__zeile >> nth=0"); pg.wait_for_selector("#kalk-band")
+    pg.click("#kalk-zurueck"); pg.wait_for_timeout(400)
+    if pg.locator("button[data-w='ja']").count(): pg.click("button[data-w='ja']")
+    pg.click(".kalk-liste__zeile >> nth=0"); pg.wait_for_selector("#kalk-band")
     breite = pg.evaluate("() => document.documentElement.scrollWidth")
     pruefe(breite <= 391, "Handy ohne seitliches Rollen: %d" % breite)
     pg.screenshot(path=BILD + "/kalk-handy.png", full_page=True)

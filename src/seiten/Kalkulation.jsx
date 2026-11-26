@@ -15,6 +15,7 @@ import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import { ZiehListe } from "../teile/ZiehListe.jsx";
 import { useSeitenSuche } from "../teile/seitenSuche.js";
 import { teilMerken } from "../teile/wiederherstellen.js";
+import { auswahlDialog } from "../teile/Dialoge.jsx";
 import { materialZerlegen, werkstoffGenau } from "../daten/material.js";
 import { naechsteNummer, nummernLaden } from "../daten/erp.js";
 import { artikelAusKalkulation } from "./erp/KalkTab.jsx";
@@ -38,6 +39,17 @@ teilMerken("kalkulation", () => ({ ...gemerkt }), (x) => { Object.assign(gemerkt
 
 // Escape: aus der Kalkulation oder den Stundensätzen zurück zur Liste
 let zurueckFn = null;
+// Die offene Kalkulation meldet hier, ob sie ungespeicherte Änderungen hat
+let offeneKalk = null;
+// Vor dem Verlassen einer geänderten Kalkulation fragen: true = weiter, false = bleiben
+async function verlassenOk() {
+  if (!offeneKalk || !offeneKalk.geaendert()) return true;
+  const wahl = await auswahlDialog("Änderungen speichern?",
+    [{ wert: "ja", text: "Speichern" }, { wert: "nein", text: "Nicht speichern" }],
+    "Diese Kalkulation wurde geändert und ist noch nicht gespeichert.");
+  if (wahl === "ja") return offeneKalk.speichern();
+  return wahl === "nein";
+}
 export function kalkulationZurueck() { return zurueckFn ? zurueckFn() : false; }
 
 export default function Kalkulation({ auffrischen }) {
@@ -48,7 +60,8 @@ export default function Kalkulation({ auffrischen }) {
   const masch = useDaten(maschinenLaden, [auffrischen]);
 
   zurueckFn = () => {
-    if (offen || saetze) { setOffen(null); setSaetze(false); return true; }
+    if (saetze) { setSaetze(false); return true; }
+    if (offen) { verlassenOk().then((ok) => { if (ok) { setOffen(null); liste.neu(); } }); return true; }
     return false;
   };
   useEffect(() => () => { zurueckFn = null; }, []);
@@ -58,7 +71,7 @@ export default function Kalkulation({ auffrischen }) {
     eintraege: () => (liste.daten || []).map((k) => ({
       gruppe: "Kalkulationen", zeichen: "∑", titel: (k.nr || "ohne Nr.") + " · " + (k.kunde || "ohne Kunde"),
       zeile: [k.artikel, k.kopf && k.kopf.bezeichnung].filter(Boolean).join(" · "), id: k.id })),
-    springen: (x) => { setSaetze(false); setOffen(x.id); },
+    springen: async (x) => { if (!(await verlassenOk())) return; setSaetze(false); setOffen(x.id); },
   });
 
   const fehler = liste.fehler || masch.fehler;
@@ -183,19 +196,28 @@ function Bearbeiten({ eintrag, maschinen, zurueck, neu, oeffnen, liste }) {
   const [stand, setStand] = useState("gespeichert");
   useGemerkt(gemerkt, { reiter });
 
-  // Von selbst speichern, eine Sekunde nach der letzten Eingabe
-  const erstes = useRef(true);
+  // Nicht mehr von selbst speichern (Wunsch Patrick 26. November 2026): Knopf
+  // Speichern, und beim Schliessen fragt die App, ob gespeichert werden soll.
   const rechnungRef = useRef([]);
+  const basis = useRef(JSON.stringify({ nr, k }));
+  const geaendert = JSON.stringify({ nr, k }) !== basis.current;
+  const zustand = useRef();
+  async function speichern() {
+    const jetzt = JSON.stringify({ nr, k });
+    setStand("speichert");
+    try {
+      await kalkulationSpeichern({ id: eintrag.id, nr, daten: k, vorschau: kalkVorschau(k, rechnungRef.current) });
+      basis.current = jetzt; setStand("gespeichert"); return true;
+    } catch (f) { setStand("fehler"); alt.meldung(alt.fehlertext(f), "fehler"); return false; }
+  }
+  zustand.current = { geaendert, speichern };
   useEffect(() => {
-    if (erstes.current) { erstes.current = false; return; }
-    setStand("ungespeichert");
-    const t = setTimeout(async () => {
-      setStand("speichert");
-      try { await kalkulationSpeichern({ id: eintrag.id, nr, daten: k, vorschau: kalkVorschau(k, rechnungRef.current) }); setStand("gespeichert"); }
-      catch (f) { setStand("fehler"); alt.meldung(alt.fehlertext(f), "fehler"); }
-    }, 1000);
-    return () => clearTimeout(t);
-  }, [k, nr]);
+    offeneKalk = { geaendert: () => zustand.current.geaendert, speichern: () => zustand.current.speichern() };
+    const warnen = (e) => { if (zustand.current.geaendert) { e.preventDefault(); e.returnValue = ""; } };
+    window.addEventListener("beforeunload", warnen);
+    return () => { offeneKalk = null; window.removeEventListener("beforeunload", warnen); };
+  }, []);
+  const schliessen = async () => { if (await verlassenOk()) zurueck(); };
 
   // Ein Feld irgendwo in der Kalkulation ändern: setze("kopf.kunde", wert)
   const setze = (pfad, wert) => setK((alt0) => {
@@ -212,6 +234,7 @@ function Bearbeiten({ eintrag, maschinen, zurueck, neu, oeffnen, liste }) {
   rechnungRef.current = rechnung;
 
   async function kopieren() {
+    if (!(await verlassenOk())) return;
     try {
       const id = await kalkulationSpeichern({ nr: await kalkNr(liste), daten: structuredClone(k), vorschau: kalkVorschau(k, rechnung) });
       alt.meldung("Kopie angelegt.", "gut");
@@ -221,7 +244,7 @@ function Bearbeiten({ eintrag, maschinen, zurueck, neu, oeffnen, liste }) {
   async function loeschen() {
     const weg = await alt.loeschen({ titel: "Kalkulation löschen?", text: "Kalkulation " + (nr || "") + " wird gelöscht.",
       tabelle: "kalkulationen", id: eintrag.id, rueckText: "Kalkulation löschen" });
-    if (weg) zurueck();
+    if (weg) { basis.current = JSON.stringify({ nr, k }); zurueck(); }
   }
 
   const Inhalt = { kopf: Kopf, material: Material, ags: Arbeitsgaenge, preis: Preis, ergebnis: Ergebnis, angebot: Angebot }[reiter] || Kopf;
@@ -229,14 +252,16 @@ function Bearbeiten({ eintrag, maschinen, zurueck, neu, oeffnen, liste }) {
     <div className="kalk-kompakt" onKeyDown={enterWeiter}>
       <div className="kalk-kopf">
         <div className="kalk-kopf__links">
-          <button className="knopf knopf--klein kalk-zurueck" id="kalk-zurueck" onClick={zurueck}>← Alle</button>
+          <button className="knopf knopf--klein kalk-zurueck" id="kalk-zurueck" onClick={schliessen}>← Alle</button>
           <h1 className="seitentitel">Kalkulation {nr}</h1>
           <div className="kalk-kopf__unter">{[k.kopf.kunde, k.kopf.artikel, k.kopf.bezeichnung].filter(Boolean).join(" · ") || "Noch ohne Kunde und Artikel"}</div>
         </div>
         <div className="kalk-kopf__rechts">
-          <span className={"kalk-stand kalk-stand--" + stand} id="kalk-stand">
-            {{ gespeichert: "Gespeichert", ungespeichert: "Wird gleich gespeichert …", speichert: "Speichert …", fehler: "Nicht gespeichert" }[stand]}
+          <span className={"kalk-stand kalk-stand--" + (stand === "speichert" ? stand : geaendert ? "ungespeichert" : stand)} id="kalk-stand">
+            {stand === "speichert" ? "Speichert …" : geaendert ? "Nicht gespeichert" : stand === "fehler" ? "Nicht gespeichert" : "Gespeichert"}
           </span>
+          <button className={"knopf knopf--klein" + (geaendert ? " knopf--haupt" : "")} id="kalk-speichern"
+            disabled={stand === "speichert"} onClick={speichern}>Speichern</button>
           <button className="knopf knopf--klein" id="kalk-erp-uebernehmen" title="Artikel, Preisliste und Arbeitsplan dieser Kalkulation ins Test ERP übernehmen" onClick={async () => {
             try { const r = await artikelAusKalkulation({ id: eintrag.id, nr, daten: k }, maschinen); if (r) { alt.meldung(r, "gut"); window.dispatchEvent(new Event("hofer-erp-neu")); } }
             catch (e) { alt.meldung(String(e?.message || e), "fehler"); }
