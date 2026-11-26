@@ -61,7 +61,7 @@ with sync_playwright() as p:
     pruefe("Zugeordnet und erkannt", "nicht erkannt" not in zeile.inner_text() and pg.input_value("[data-werkstoff='Zauberstahl XY 12']") == gruppe)
     farbe_von = lambda bez: pg.evaluate("b => getComputedStyle(document.querySelector(`[data-werkstoff='${b}']`).closest('tr').querySelector('.ws-farbe')).backgroundColor", bez)
     print("Ecobrass:", farbe_von("CuZn21Si3 rd 013 mm h9"), "Messing:", farbe_von("CuZn39Pb3 rd 010 mm h9"))
-    pruefe("Ecobrass gleiche Farbe wie Messing", farbe_von("CuZn21Si3 rd 013 mm h9") == farbe_von("CuZn39Pb3 rd 010 mm h9") == "rgb(194, 101, 15)")
+    pruefe("Ecobrass braun, Messing orange", farbe_von("CuZn21Si3 rd 013 mm h9") == "rgb(122, 82, 48)" and farbe_von("CuZn39Pb3 rd 010 mm h9") == "rgb(194, 101, 15)")
     pruefe("Einstellungen noch offen", pg.locator(".dialog--einstellungen").count() == 1)
     fehler += f
     br.close()
