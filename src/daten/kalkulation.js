@@ -88,39 +88,54 @@ export const SPEZ_GEWICHT = [
   ["POM-H", "1.43"], ["Neusilber Rohr", "8.70"],
 ];
 
+// Körper wie in der Einsatzgewichtsberechnung des Gewatec (seit 1.856.0,
+// Wunsch Patrick 26. November 2026: „brauche nur Rund, Vierkant, Sechskant
+// und Rohr“): Querschnitt in mm²; leer = Rund.
+export const MAT_FORMEN = [["rund", "Rund"], ["vierkant", "Vierkant"], ["sechskant", "Sechskant"], ["rohr", "Rohr"]];
+export function querschnitt(mat) {
+  const d = z(mat.d);
+  if (mat.form === "vierkant") return d * (z(mat.b) || d);
+  if (mat.form === "sechskant") return Math.sqrt(3) / 2 * d * d;
+  if (mat.form === "rohr") { const i = Math.min(z(mat.di), d); return Math.PI / 4 * (d * d - i * i); }
+  return Math.PI / 4 * d * d;
+}
+
 export function materialRechnen(mat, menge) {
-  const d = z(mat.d), dichte = z(mat.dichte) || 7.85;
-  const kgJeM = Math.PI / 4 * d * d * dichte / 1000;
+  const dichte = z(mat.dichte) || 7.85;
+  const kgJeM = querschnitt(mat) * dichte / 1000;
   const stange = z(mat.stange) || 3000;
+  const ausschuss = Math.max(0, z(mat.ausschuss));
+  const faktor = 1 + ausschuss / 100;
   let kg, stangen, meter;
-  let jeStange = 0, einsatzKg = 0;
+  let jeStange = 0, einsatzKg = 0, restStange = 0, stangeKg = kgJeM * stange / 1000, kgOhneAusschuss;
   if (mat.modus === "rechnen") {
-    // Wie im Gewatec (seit 1.849.0): Teile je Stange aus Länge Fertigteil +
-    // Abstich/Planieren, das Einsatzgewicht je Stück = Gewicht der Stange
-    // geteilt durch die Teile darauf. Der Rest der Stange steckt so im Preis.
-    const lges = z(mat.laenge) + z(mat.abstich);
+    // Genau wie im Gewatec: Stück je Stange = (Stange − Reststück) / (Länge Teil
+    // + Abstechbreite + Plandrehzugabe), abgerundet; Rest je Stange = was übrig
+    // bleibt; Einsatz je Stück = Stangengewicht / Stück je Stange × (1 + Ausschuss),
+    // auf 4 Stellen gerundet; kg gesamt = Stück × Einsatz, Stangen = Stück /
+    // Stück je Stange × (1 + Ausschuss).
+    const lges = z(mat.laenge) + z(mat.abstich) + z(mat.plan);
     const nutzbar = stange - z(mat.rest);
-    jeStange = lges > 0 ? Math.floor(nutzbar / lges) : 0;
-    einsatzKg = jeStange > 0 ? kgJeM * stange / 1000 / jeStange : 0;
+    jeStange = lges > 0 ? Math.max(0, Math.floor(nutzbar / lges + 1e-9)) : 0;
+    restStange = jeStange > 0 ? stange - jeStange * lges : 0;
+    einsatzKg = jeStange > 0 ? Math.round(stangeKg / jeStange * faktor * 10000) / 10000 : 0;
     kg = menge * einsatzKg;
-    stangen = jeStange > 0 ? menge / jeStange : 0;
+    kgOhneAusschuss = kg / faktor;
+    stangen = jeStange > 0 ? menge / jeStange * faktor : 0;
     meter = stangen * stange / 1000;
   } else {
     kg = menge * z(mat.einsatz);
     meter = kgJeM > 0 ? kg / kgJeM : 0;
     stangen = meter / (stange / 1000);
     einsatzKg = z(mat.einsatz);
+    // Ausschuss in % am Schluss auf kg, Meter und Stangen (wie seit 1.238.0)
+    kgOhneAusschuss = kg;
+    kg *= faktor; meter *= faktor; stangen *= faktor;
   }
-  // Ausschuss in % ganz am Schluss auf kg, Meter und Stangen, leer = 0
-  // (seit 1.238.0, Wunsch Patrick 27. Oktober 2026, wie im Materialrechner)
-  const kgOhneAusschuss = kg;
-  const ausschuss = Math.max(0, z(mat.ausschuss));
-  const faktor = 1 + ausschuss / 100;
-  kg *= faktor; meter *= faktor; stangen *= faktor;
   // Wie im Gewatec: Mat-Kosten = kg gesamt × Preis, dann Gemeinkosten in % und pauschal
   const roh = kg * z(mat.preis);
   const kosten = roh * (1 + z(mat.gk) / 100) + z(mat.gkPausch);
-  return { kg, meter, stangen, kgJeM, jeStange, einsatzKg, roh, kosten, ausschuss, jeStk: menge > 0 ? kosten / menge : 0, kgJeStk: menge > 0 ? kg / menge : 0,
+  return { kg, meter, stangen, kgJeM, jeStange, einsatzKg, restStange, stangeKg, roh, kosten, ausschuss, jeStk: menge > 0 ? kosten / menge : 0, kgJeStk: menge > 0 ? kg / menge : 0,
     // Gewicht je Gutteil ohne Ausschuss, für externe Arbeitsgänge je kg
     kgJeStkNetto: menge > 0 ? kgOhneAusschuss / menge : 0 };
 }
