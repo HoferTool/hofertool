@@ -37,6 +37,7 @@ import { stueckzahlKorrigierenOeffnen } from "./StueckzahlKorrigieren.jsx";
 import { problemArchivOeffnen, fruehereProblemeZahl } from "./ProblemArchiv.jsx";
 import { blattInProduktionBearbeiten } from "../einrichtblatt/Blatt.jsx";
 import { qsOeffnen } from "./QsMassnahmen.jsx";
+import { QS_NEU } from "../daten/pruefbericht.js";
 
 // Hinweis auf erledigte Probleme dieser HOCO Nr. (seit 1.634.0, Wunsch
 // Patrick 18. November 2026); nur wenn es welche gibt, nie für Externe
@@ -777,7 +778,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
           {auftrag && <button type="button" className="knopf knopf--klein knopf--vorbereiten" id="pl-vorbereiten"
             onClick={() => vorbereitenOeffnen(auftrag)}>Vorbereiten</button>}
           {/* QS-Massnahmen aus Reklamationen und nötige Prüfmittel (seit 1.790.0) */}
-          {auftrag && !extern && <button type="button" className="knopf knopf--klein knopf--vorbereiten" id="pl-qs"
+          {QS_NEU && auftrag && !extern && <button type="button" className="knopf knopf--klein knopf--vorbereiten" id="pl-qs"
             onClick={() => qsOeffnen(auftrag)}>QS</button>}
           {/* Gemeldete Stückzahlen ändern oder auf 0 setzen (seit 1.824.0,
               Wunsch Patrick 25. November 2026), Schreibrecht, nicht Externe */}

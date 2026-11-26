@@ -11,6 +11,7 @@ import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { einrichtblattAppOeffnen } from "../einrichtblatt/Blatt.jsx";
 import { protokollWwZeigen } from "../pad/Werkzeugwechsel.jsx";
 import Pruefung from "./Pruefung.jsx";
+import { QS_NEU } from "../daten/pruefbericht.js";
 import { stueckzeitText, stueckzeitFragen, stueckzeitSetzen, laengeText, laengeSetzen, artInfoFragen }
   from "../daten/stueckzahl.js";
 
@@ -247,7 +248,7 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
               hinterlegst du je Maschinentyp — entweder als Vorlage beim Typ oder hier für genau dieses Teil.</p>}
       </section>
 
-      <Pruefung hoco={t.hoco_nr} darf={darf} />
+      {QS_NEU && <Pruefung hoco={t.hoco_nr} darf={darf} />}
       {/* „Gelaufen auf“ ist weg (Wunsch 8. Oktober 2026) */}
       {faListe.length > 0 && <section className="karte hocoteil__karte">
         <div className="karte__kopf"><h2>FA Nummern</h2><span className="marke">{faListe.length}</span></div>

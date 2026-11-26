@@ -12,6 +12,12 @@
 // =================================================================
 import { alt } from "../bruecke.jsx";
 
+// Schalter für die ganze neue QS (Prüfberichte, Reklamationen, Prüfmittel-
+// verwaltung, QS-Massnahmen, Sperre vor „läuft“). Seit 1.860.0 aus, Wunsch
+// Patrick 26. November 2026: „alles neue QS aus, nur Ausschuss wie früher“.
+// Daten bleiben; true schaltet alles wieder ein.
+export const QS_NEU = false;
+
 export const fehltTabelle = (e) =>
   /pruefbericht_dateien|pruefprotokolle|pruef_stamm|does not exist|schema cache/i.test(String((e && e.message) || e || ""));
 
@@ -524,6 +530,7 @@ export function aqlPlan(los, aql, niveau = "II") {
 // FA Nr.) eine abgeschlossen ist. Gestellt wird nie von selbst, nur von Hand.
 // Fehlen Tabelle oder Leserecht (Externe), hält nichts auf.
 export async function erstteilVorLaeuft(j) {
+  if (!QS_NEU) return;
   if (!j || !j.id || !j.job_number || j.plan_status === "laeuft") return;
   let st = null;
   try { st = await stammLaden(j.job_number); } catch (f) { return; }
