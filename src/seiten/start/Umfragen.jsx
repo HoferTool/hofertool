@@ -23,6 +23,7 @@ const ABLAGE = "zeichnungen";
 const PLUS = "M12 5v14M5 12h14";
 const NAME_SPEICHER = "hofer.umfrage.name";
 const STIMME_SPEICHER = "hofer.umfrage.stimmen";
+const KLAPP_SPEICHER = "hofer.umfrage.zu";
 
 function lesen(schluessel, standard) {
   try { const w = localStorage.getItem(schluessel); return w == null ? standard : JSON.parse(w); }
@@ -139,10 +140,22 @@ function Umfrage({ u, neu, admin }) {
   const verwalten = admin || meine;
   const gemerkt = lesen(STIMME_SPEICHER, {})[u.id];
   const [wahl, setWahl] = useState(() => new Set());
-  const [name, setName] = useState(() => lesen(NAME_SPEICHER, "") || "");
+  // Beim ersten Mal steht der Name der angemeldeten Person schon da (Wunsch Patrick
+  // 26.11.2026), nicht bei Gerätekonten wie Pad oder Infoboard, wo viele abstimmen.
+  const [name, setName] = useState(() => lesen(NAME_SPEICHER, "")
+    || ((alt.istAndererNutzer && alt.istAndererNutzer()) ? "" : (alt.meinName && alt.meinName()) || ""));
   const [nochmals, setNochmals] = useState(false);
   const [sendet, setSendet] = useState(false);
   const [fehlt, setFehlt] = useState("");
+  // Zuklappen bis auf den Titel (seit 1.867.0, Wunsch Patrick 26. November
+  // 2026: „so zuklappen, dass nur noch der Titel da ist, oder wenn
+  // abgestimmt worden ist, soll es zugehen. Neue sind immer offen“).
+  // Gemerkt je Gerät; ohne Eintrag ist zu, wer hier schon abgestimmt hat.
+  const [zu, setZuState] = useState(() => {
+    const m = lesen(KLAPP_SPEICHER, {});
+    return u.id in m ? !!m[u.id] : !!gemerkt;
+  });
+  const setZu = (w) => { setZuState(w); ablegen(KLAPP_SPEICHER, { ...lesen(KLAPP_SPEICHER, {}), [u.id]: w }); };
   const { je, leute, max } = auswerten(u);
   const abgestimmt = !!gemerkt && !nochmals;
   const ergebnis = !u.offen || abgestimmt || verwalten;
@@ -168,15 +181,20 @@ function Umfrage({ u, neu, admin }) {
     if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
     ablegen(NAME_SPEICHER, n);
     ablegen(STIMME_SPEICHER, { ...lesen(STIMME_SPEICHER, {}), [u.id]: n });
-    setNochmals(false); setWahl(new Set());
+    setNochmals(false); setWahl(new Set()); setZu(true);
     alt.meldung("Danke, " + n + "! Deine Stimme ist gezählt.", "gut");
     neu();
   };
 
   return (
-    <article className={"umf" + (u.offen ? "" : " umf--zu")} data-umfrage={u.id}>
+    <article className={"umf" + (u.offen ? "" : " umf--zu") + (zu ? " umf--klapp" : "")} data-umfrage={u.id}>
       <div className="umf__kopf">
-        <h3 className="umf__titel">{u.titel}</h3>
+        <button type="button" className="umf__klapp" data-umfklapp={u.id} aria-expanded={!zu}
+          title={zu ? "Aufklappen" : "Zuklappen"} onClick={() => setZu(!zu)}>
+          <span className="umf__pfeil" aria-hidden="true">{zu ? "▸" : "▾"}</span>
+          <h3 className="umf__titel">{u.titel}</h3>
+          {zu && gemerkt && u.offen && <span className="umf__klapp-info klein">✓ abgestimmt</span>}
+        </button>
         <div className="umf__admin">
           {verwalten && u.offen && <button className="linkknopf" data-umfqr={u.id} onClick={() => qrOeffnen(u, neu)}>QR-Code</button>}
           {/* Bearbeiten (Text, Vorschläge, Stimmen) dürfen seit 1.821.0 alle, die Umfragen sehen,
@@ -187,6 +205,7 @@ function Umfrage({ u, neu, admin }) {
           <button className="linkknopf linkknopf--gefahr" data-umfweg={u.id} onClick={() => umfrageLoeschen(u, neu)}>Löschen</button></>}
         </div>
       </div>
+      {!zu && <>
       {u.beschreibung && <p className="umf__text">{u.beschreibung}</p>}
       {u.bild_url && <button type="button" className="umf__bild" onClick={() => alt.betrachter(u.bild_url, u.titel, false)}>
         <img src={u.bild_url} alt="" loading="lazy" /></button>}
@@ -238,6 +257,7 @@ function Umfrage({ u, neu, admin }) {
             Jemand anderes stimmt ab</button>
           <button className="linkknopf" onClick={() => { setNochmals(true); setName(gemerkt); }}>Meine Stimme ändern</button>
         </p>)}
+      </>}
     </article>
   );
 }

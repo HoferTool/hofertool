@@ -17515,3 +17515,11 @@ body.dunkel .pb-pm-fehlt { color: #ff9a92 !important; }
   /* Mit dem Finger am Titel ziehen verschiebt das Fenster */
   body > .dialog-huelle .gf-titel, body > .dialog-huelle [data-ziehgriff] { touch-action: none; }
 }
+
+/* 1.867.0: Umfrage bis auf den Titel zuklappen */
+.umf__klapp { display: flex; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0;
+  background: none; border: 0; padding: 0; margin: 0; text-align: left; cursor: pointer; color: inherit; font: inherit; }
+.umf__klapp .umf__titel { margin: 0; }
+.umf__pfeil { flex: 0 0 auto; width: 1em; opacity: .7; }
+.umf__klapp-info { flex: 0 0 auto; color: #2e7d32; white-space: nowrap; }
+.umf--klapp { padding-bottom: 8px; }
