@@ -43,6 +43,7 @@ Alle Tabellen liegen im Schema `public`, alle haben Zeilenschutz (RLS).
 |---|---|---|
 | `order_items` | Bestellpositionen | `article_id`, `supplier_id`, `quantity`, `status` (`offen`, `bestellt`, `teilweise_geliefert`, `geliefert`), `status_am` (Zeitpunkt des letzten Statuswechsels), `ordered_at`, `delivered_at`, `completed_at`, `geliefert_menge`, `ziel_art`, `ziel_text`, `needed_by` |
 | `articles` | Artikel | `article_number`, `name`, `unit`, `supplier_id`, `foto_merkmale` (gelernte Codes und Nummern der Verpackung), `foto_bilder` (Beispielfotos `[{url, pfad, am, von}]`, Ablage `zeichnungen/artikel/`; beide `sql/artikel-foto.sql`, 1.109.0) |
+| `werkzeug_gelernt` | Werkzeugwahl lernt (1.872.0) | `alt_norm` + `article_id` (Schlüssel), `alt_text`, `alt_hersteller`, `anzahl`, `zuletzt_am`, `zuletzt_von`; RPC `werkzeug_lernen`, `sql/werkzeug-lernen.sql` |
 | `artikel_bild` | Bild des Artikels auf dem Einrichtblatt | `article_id` (Schlüssel), `bild` (`eigen:<id>` aus `eb_bilder`). `sql/einrichtblatt-bilder.sql` |
 | `eb_bilder` | Hochgeladene Bilder für das Einrichtblatt | `name`, `url`, `pfad` (Ablage `zeichnungen`, `einrichtblatt/bilder/`). `sql/einrichtblatt-bilder.sql` |
 | `eb_spezial` | Spezialwerkzeuge auf dem Einrichtblatt, kein Artikel | `name`, `hersteller`, `bild`. `sql/einrichtblatt-bilder.sql` |

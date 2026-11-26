@@ -783,7 +783,9 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
       spezial_id: null, ungeprueft: false, spezial: !!a.spezial, bild: artikelBilder[a.id] || p.bild || null }));
   };
   const waehlen = async () => {
-    const a = await werkzeugWaehlen({ suche: p.article_id && !p.ungeprueft ? "" : (p.werkzeug || ""), spezial: !!(artikel && artikel.spezial) });
+    const a = await werkzeugWaehlen({ suche: p.article_id && !p.ungeprueft ? "" : (p.werkzeug || ""), spezial: !!(artikel && artikel.spezial),
+      // Wie es bisher hiess, zum Lernen und für „Könnte das sein?“ (seit 1.872.0)
+      alt: p.werkzeug || "", altHersteller: p.hersteller || "", ohne: p.article_id && !p.ungeprueft ? p.article_id : null });
     if (a) nehmen(a);
   };
   // Was offen ist, nimmt das Blatt auch ohne „Übernehmen“ mit, wenn man
