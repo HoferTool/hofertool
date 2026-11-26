@@ -261,6 +261,7 @@ select.gespeichert{animation:blitz .8s}
 /* Leiste: Handy unten, immer da */
 body.mit-leiste #app{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
 .unten{grid-template-columns:repeat(5,1fr)}
+.unten .kurz{white-space:nowrap;font-size:11px}
 .unten .nur-pc,.unten .lang{display:none}
 .unten button{position:relative;padding:2px 0;transition:color .2s}
 .unten button svg{transition:transform .2s}
@@ -516,10 +517,10 @@ function leiste(an) {
   return `<nav class="unten">
     <div class="nav-marke nur-pc">${marke(40)}</div>
     ${k("liste", "haus", "Bestellungen", "Übersicht")}
-    ${k("uebersicht", "grafik", "Auswertung", "", true)}
-    ${k("kommissionen", "ordner", "Kommissionen", "", true)}
+    ${k("uebersicht", "grafik", "Auswertung")}
+    ${k("kommissionen", "ordner", "Kommissionen")}
     ${k("mitarbeitende", "leute", "Mitarbeitende", "Team")}
-    ${k("einstellungen", "zahnrad", "Einstellungen", "Einst.")}
+    ${k("einstellungen", "zahnrad", "Einstellungen", "", true)}
     ${k("profil", "person", "Profil")}
     <div class="nav-ich nur-pc">${ich ? `${ava(ich, 34)}<div><b>${esc(ich)}</b><small>${esc(person(ich)?.funktion || "")}</small></div>` : ""}<button data-a="abmelden" aria-label="Abmelden" title="Abmelden">${sym("abmelden", 20)}</button></div>
   </nav>`;
@@ -636,8 +637,7 @@ function vWahl() {
 function vMenue() {
   const p = (a, icon, t) => `<button data-a="${a}" class="${S.zurueck.at(-1)?.ansicht === a ? "an" : ""}">${sym(icon, 24)}<span>${t}</span>${sym("rechts", 20)}</button>`;
   return `<div class="menue"><div class="marke-gross">${marke(44)}<button data-a="zu" aria-label="Schliessen">${sym("x", 26)}</button></div>
-    <nav>${p("liste", "paket", "Bestellungen")}${p("uebersicht", "grafik", "Auswertung")}
-    ${p("kommissionen", "ordner", "Kommissionen")}${p("mitarbeitende", "leute", "Mitarbeitende")}<hr>
+    <nav><!-- nur, was nicht schon unten in der Leiste steht -->
     <button data-a="einstellungen">${sym("zahnrad", 24)}<span>Einstellungen</span></button>
     <button data-a="abmelden">${sym("abmelden", 24)}<span>Abmelden</span></button></nav></div>`;
 }
