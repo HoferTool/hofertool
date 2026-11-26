@@ -259,7 +259,7 @@ function Bearbeiten({ eintrag, maschinen, zurueck, neu, oeffnen, liste }) {
       <Reiter reiter={REITER} aktiv={reiter} waehlen={setReiter} merkmal="kalk-reiter" />
       <Uebergang key={reiter}>
         <div id="kalk-inhalt">
-          <Inhalt k={k} setze={setze} setK={setK} nr={nr} setNr={setNr} maschinen={maschinen} rechnung={rechnung} />
+          <Inhalt k={k} setze={setze} setK={setK} nr={nr} setNr={setNr} maschinen={maschinen} rechnung={rechnung} winkalk={eintrag.winkalk} />
         </div>
       </Uebergang>
      </div>
@@ -562,7 +562,7 @@ function Kopf({ k, setze, setK, nr, setNr }) {
   );
 }
 
-function Material({ k, setze, setK, rechnung }) {
+function Material({ k, setze, setK, rechnung, winkalk }) {
   const [matJe, setMatJe] = useState(false);
   const m = k.material;
   const f = (name) => ({ wert: m[name], setzen: (w) => setze("material." + name, w) });
@@ -676,7 +676,46 @@ function Material({ k, setze, setK, rechnung }) {
             {r0.mat.ausschuss > 0 && <>kg, Meter und Stangen inkl. {chf(r0.mat.ausschuss, z(m.ausschuss) % 1 ? 1 : 0)} % Ausschuss. </>}
             {r0.mat.kgJeM > 0 && <>{chf(r0.mat.kgJeM, 3)} kg je Meter Stange.</>}</p>}
         </section>}
+      <GewatecMaterial winkalk={winkalk} />
     </>
+  );
+}
+
+// Materialrechnung, wie sie im Gewatec (WinKalk) gespeichert war, nur zum Ansehen.
+// Wunsch Patrick 25. November 2026: „ich will sehen wie gerechnet wurde“.
+function GewatecMaterial({ winkalk }) {
+  const st = (winkalk?.staffeln || []).filter((s) => Number(s?.Stueckzahl) > 0);
+  if (!st.length) return null;
+  const kopf = winkalk.kopf || {};
+  const n = (s, f) => { const v = Number(s?.[f]); return isFinite(v) ? v : null; };
+  const kgStk = (s) => n(s, "Stueckzahl") ? n(s, "EinsatzKilogramm") / n(s, "Stueckzahl") : null;
+  const mJe = (s) => n(s, "AnzahlStangen") ? n(s, "EinsatzMeter") / n(s, "AnzahlStangen") : null;
+  const zeile = (titel, werte, extra) => <Zeile titel={titel} werte={werte} {...extra} />;
+  const s0 = st[0];
+  const einsatz = Number(kopf.MaterialEinsatz), fertig = Number(kopf.Fertiggewicht);
+  return (
+    <section className="karte kalk-rolle" id="kalk-gewatec-mat">
+      <h3>So hat Gewatec gerechnet</h3>
+      <p className="hinweis">Werte aus dem Gewatec, nur zum Ansehen. {kopf.MatTextZeile1 ? <>Material: <b>{kopf.MatTextZeile1}</b>. </> : null}
+        {einsatz > 0 && <>Einsatz {chf(einsatz, 4)} kg/Stk. </>}{fertig > 0 && <>Fertiggewicht {chf(fertig, 4)} kg/Stk.</>}</p>
+      <table className="tabelle kalk-tab kalk-eng">
+        <thead><tr><th>Menge</th>{st.map((s, i) => <th key={i} className="rechts">{chf(n(s, "Stueckzahl"), 0)}</th>)}</tr></thead>
+        <tbody>
+          {zeile("Fertigungslose", st.map((s) => chf(n(s, "FertigungsLose"), 0)))}
+          {zeile("Stangen", st.map((s) => chf(n(s, "AnzahlStangen"), 2)))}
+          {zeile("Einsatz Meter", st.map((s) => chf(n(s, "EinsatzMeter"), 2)))}
+          {zeile("Meter je Stange", st.map((s) => chf(mJe(s), 3)), { klein: true })}
+          {zeile("Einsatz kg", st.map((s) => chf(n(s, "EinsatzKilogramm"), 2)))}
+          {zeile("kg je Stück = kg ÷ Menge", st.map((s) => chf(kgStk(s), 4)))}
+          {zeile("Materialpreis CHF/kg", st.map((s) => chf(n(s, "Materialpreis"), 4)))}
+          {zeile("Einzelkosten je Stück", st.map((s) => chf(n(s, "MaterialEinzelkosten"), 4)))}
+          {zeile("Mat.-GK %", st.map((s) => chf(n(s, "MaterialGemeinkosten"), 2)))}
+          {zeile("Mat.-GK pauschal CHF", st.map((s) => chf(n(s, "MaterialkostenGemPauschal"), 2)))}
+          {zeile("Material gesamt je Stück", st.map((s) => chf(n(s, "MaterialGesamtkosten1") ?? n(s, "MaterialGesamtkosten2"), 4)), { fett: true })}
+        </tbody>
+      </table>
+      <p className="hinweis" id="kalk-gewatec-formel">Staffel 1: {chf(n(s0, "EinsatzKilogramm"), 2)} kg ÷ {chf(n(s0, "Stueckzahl"), 0)} Stk = {chf(kgStk(s0), 4)} kg/Stk × {chf(n(s0, "Materialpreis"), 2)} CHF/kg = {chf(kgStk(s0) * n(s0, "Materialpreis"), 4)} CHF/Stk</p>
+    </section>
   );
 }
 

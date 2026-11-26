@@ -382,7 +382,7 @@ export async function kalkulationenLaden() {
 // Eine Kalkulation ganz, erst beim Öffnen.
 export async function kalkulationLaden(id) {
   return pruefen(await alt.zeitlimit(alt.db.from("kalkulationen")
-    .select("id, nr, kunde, artikel, geaendert_am, daten").eq("id", id).maybeSingle(), 15000, "Kalkulation"));
+    .select("id, nr, kunde, artikel, geaendert_am, daten, winkalk").eq("id", id).maybeSingle(), 15000, "Kalkulation"));
 }
 
 // Kurzfassung für die Liste: Mengen der Staffeln und Angebotspreis der ersten.
