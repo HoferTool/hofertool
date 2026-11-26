@@ -178,7 +178,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.864.1";
+const APP_VERSION = "1.866.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4589,9 +4589,10 @@ const WERKSTOFFGRUPPEN = {
                 spaene: "1608 Neusilber Späne Pb", schrott: "1606 Neusilber Schrott Pb" },
   messing:    { name: "Messing",        farbe: "orange", zusatz: "",
                 spaene: "1427 MS 58 Späne", schrott: "1414 MS 58 Schrott" },
-  // Ecobrass auf der Planwand gleich wie Messing (Wunsch Patrick
-  // 15. Oktober 2026, vorher Senf); getrennt bleibt es bei den Spänen
-  messing_ohne_pb: { name: "Messing ohne Blei", farbe: "orange",
+  // Ecobrass auf der Planwand braun seit 1.866.0 (Wunsch Patrick 26. November 2026:
+  // „so ein hässliches Gelb“; 15. Oktober bis 26. November wie Messing
+  // orange, davor Senf); getrennt bleibt es bei den Spänen
+  messing_ohne_pb: { name: "Messing ohne Blei", farbe: "braun",
                 zusatz: "unbedingt separat halten",
                 spaene: "1499 MS ohne Pb", schrott: "1499 MS ohne Pb" },
   titan:      { name: "Titan",          farbe: "violett", zusatz: "" },
@@ -4669,7 +4670,8 @@ function werkstoffErkennen(bez) {
   }
 
   // 3. Regeln
-  if (/ecobrass|cuzn21si3p|\bsw1\b/.test(ganz)) return mit("messing_ohne_pb");
+  // CuZn21Si3 auch ohne P, sonst fiel es unter Messing (cuzn)
+  if (/ecobrass|cuzn21si3|cw724r|\bsw1\b/.test(ganz)) return mit("messing_ohne_pb");
   if (/neusilber|cuni\d*zn|cw4\d\dj|2\.07\d\d/.test(ganz)) return mit("neusilber");
   if (/messing|\bms\s?58|cuzn|cw[5-7]\d\d[a-z]|2\.0[34]\d\d/.test(ganz)) return mit("messing");
   if (/\ben\s?aw|\baw-?\d{4}|\bal(mg|cu|si|zn|99)|3\.[0-3]\d{3}|aluminium/.test(ganz)) return mit("alu");
