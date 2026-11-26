@@ -134,8 +134,14 @@ export function materialRechnen(mat, menge) {
   }
   // Wie im Gewatec: Mat-Kosten = kg gesamt × Preis, dann Gemeinkosten in % und pauschal
   const roh = kg * z(mat.preis);
-  const kosten = roh * (1 + z(mat.gk) / 100) + z(mat.gkPausch);
-  return { kg, meter, stangen, kgJeM, jeStange, einsatzKg, restStange, stangeKg, roh, kosten, ausschuss, jeStk: menge > 0 ? kosten / menge : 0, kgJeStk: menge > 0 ? kg / menge : 0,
+  // Spänegutschrift (seit 1.857.0): Späne = Einsatz inkl. Ausschuss − Fertiggewicht × Menge,
+  // mal Spänepreis; geht als Gutschrift von den Materialkosten weg
+  const fertigKg = menge * z(mat.fertig);
+  const spaeneKg = z(mat.fertig) > 0 ? Math.max(0, kg - fertigKg) : 0;
+  const gutschrift = spaeneKg * z(mat.spanPreis);
+  const kosten = roh * (1 + z(mat.gk) / 100) + z(mat.gkPausch) - gutschrift;
+  return { kg, meter, stangen, kgJeM, jeStange, einsatzKg, restStange, stangeKg, roh, kosten, ausschuss, fertigKg, spaeneKg, gutschrift,
+    spaeneJeStk: menge > 0 ? spaeneKg / menge : 0, jeStk: menge > 0 ? kosten / menge : 0, kgJeStk: menge > 0 ? kg / menge : 0,
     // Gewicht je Gutteil ohne Ausschuss, für externe Arbeitsgänge je kg
     kgJeStkNetto: menge > 0 ? kgOhneAusschuss / menge : 0 };
 }

@@ -137,7 +137,7 @@ with sync_playwright() as p:
     pg.set_viewport_size({"width": 1440, "height": 900}); pg.wait_for_timeout(300)
     pg.screenshot(path=BILD + "/kalk-staffeln.png")
     hoch = pg.evaluate("document.scrollingElement.scrollHeight")
-    pruefe(hoch <= 930,  # seit der Wahl „Einsatzgewicht / Aus Länge“ eine Zeile mehr
+    pruefe(hoch <= 960,  # Einsatzgewicht / Aus Länge und Fertiggewicht / Spänepreis je eine Zeile mehr
            "Reiter Staffeln und Material ohne Rollen: %s" % hoch)
     pg.click("#kalk-staffel-neu")
     pruefe(pg.locator("#kalk-spez").input_value() == "Stahl", "Spez. Gewicht 7.85 = Stahl")
