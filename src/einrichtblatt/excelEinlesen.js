@@ -125,6 +125,11 @@ export async function excelRoh(daten, wahl = {}) {
       if (!von) continue;
       const s = Number((erstes(von, "col") || {}).textContent) + 1;
       const z = Number((erstes(von, "row") || {}).textContent) + 1;
+      // Bis-Zelle (nur bei twoCellAnchor): für Bilder, die über mehrere
+      // Zeilen reichen, etwa Masse aus der Zeichnung im Prüfbericht
+      const bis = erstes(a, "to");
+      const s2 = bis ? Number((erstes(bis, "col") || {}).textContent) + 1 : s;
+      const z2 = bis ? Number((erstes(bis, "row") || {}).textContent) + 1 : z;
       for (const blip of alle(a, "blip")) {
         const id = blip.getAttributeNS(R_NS, "embed")
           || blip.getAttribute("r:embed");
@@ -132,7 +137,7 @@ export async function excelRoh(daten, wahl = {}) {
         if (!datei || !zip.file(datei)) continue;
         const endung = (datei.split(".").pop() || "").toLowerCase();
         if (!TYP_BILD[endung]) continue;     // EMF/WMF zeigt der Browser nicht
-        bilder.push({ s, z, pfad: datei, typ: TYP_BILD[endung], endung: endung === "jpeg" ? "jpg" : endung,
+        bilder.push({ s, z, s2, z2, pfad: datei, typ: TYP_BILD[endung], endung: endung === "jpeg" ? "jpg" : endung,
           lesen: () => zip.file(datei).async("uint8array") });
       }
       for (const sp of alle(a, "sp")) {
