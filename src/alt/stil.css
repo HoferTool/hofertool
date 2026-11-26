@@ -17460,3 +17460,8 @@ body.dunkel .pb-pm-fehlt { color: #ff9a92 !important; }
    (Prüfstand auftrag_layout, waschprog, doppelklick) */
 .dialog--auftrag #pl-wbgindex { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .dialog--auftrag #pl-index-knopf { min-height: 0 !important; height: auto; padding: 0 8px; font-size: .78rem; line-height: 1.5; flex: 0 0 auto; }
+
+/* 1.849.0: Wahl „Aus Länge und Stange / Einsatzgewicht“ neben der Überschrift Material, damit der Reiter ohne Rollen bleibt */
+.kalk-mat-kopf { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
+.kalk-mat-kopf h2 { margin: 0; }
+.kalk-mat-kopf .moduswahl__knopf { padding: 5px 12px; font-size: 13px; }

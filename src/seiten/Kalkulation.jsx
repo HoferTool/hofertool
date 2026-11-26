@@ -517,6 +517,23 @@ function Kopf({ k, setze, setK, nr, setNr }) {
     }, 500);
     return () => { weg = true; clearTimeout(zeit); };
   }, [artikel, matLeer, mitErp]);
+  // Länge Fertigteil aus den Stammdaten der HOCO Nr., nur wenn das Feld leer ist:
+  // so rechnet „Aus Länge und Stange“ gleich, wie im Gewatec mit Länge + Abstich.
+  const laengeLeer = !String((k.material || {}).laenge || "").trim();
+  useEffect(() => {
+    if (!/^\d{4,6}-\d{3,4}$/.test(artikel) || !laengeLeer) return undefined;
+    let weg = false;
+    const zeit = setTimeout(async () => {
+      try {
+        const r = await alt.db.from("hoco_parts").select("teil_laenge_mm").eq("hoco_nr", artikel).maybeSingle();
+        const l = r && !r.error && r.data ? Number(r.data.teil_laenge_mm) : 0;
+        if (weg || !(l > 0)) return;
+        setze("material.laenge", String(l));
+        setMatHinweis("Länge Fertigteil " + String(l) + " mm aus HOCO Nr. " + artikel + " übernommen.");
+      } catch (e) { /* ohne Verbindung bleibt das Feld leer */ }
+    }, 600);
+    return () => { weg = true; clearTimeout(zeit); };
+  }, [artikel, laengeLeer]);
   return (
     <div className="kalk-zwei">
       <section className="karte">
@@ -595,7 +612,14 @@ function Material({ k, setze, setK, rechnung }) {
       </section>
 
       <section className="karte">
-        <h2>Material</h2>
+        <div className="kalk-mat-kopf">
+          <h2>Material</h2>
+          <div className="moduswahl kalk-modus">
+            {[["rechnen", "Aus Länge und Stange rechnen"], ["hand", "Einsatzgewicht je Stück eintragen"]].map(([w, t]) => (
+              <button key={w} className={"moduswahl__knopf" + (m.modus === w ? " aktiv" : "")} data-matmodus={w}
+                onClick={() => setze("material.modus", w)}>{t}</button>))}
+          </div>
+        </div>
         <div className="kalk-reihe">
           <F label="Materialbezeichnung" id="kalk-mat" text breit wahl={matWahl} {...f("bez")} />
           <F label="Werkstoff-Nr." id="kalk-matnr" text {...f("nr")} />
@@ -604,6 +628,7 @@ function Material({ k, setze, setK, rechnung }) {
           <F label="Materialpreis" einheit="CHF/kg" id="kalk-matpreis" {...f("preis")} />
           <F label="Material-Gemeinkosten" einheit="%" id="kalk-matgk" {...f("gk")} />
           <F label="Material-Gemeinkosten pauschal" einheit="CHF" id="kalk-matgkp" {...f("gkPausch")} />
+          <F label="Ausschuss" einheit="%" id="kalk-ausschuss" platz="0" {...f("ausschuss")} />
         </div>
         <div className="kalk-reihe">
           <F label="Abmessung" id="kalk-abmessung" text platz="Stange Ø 12.7 x 73.5 geschliffen" {...f("abmessung")} />
@@ -615,26 +640,20 @@ function Material({ k, setze, setK, rechnung }) {
             </select>
           </label>
         </div>
-        <div className="moduswahl kalk-modus">
-          {[["hand", "Einsatzgewicht je Stück eintragen"], ["rechnen", "Aus Länge und Stangen rechnen"]].map(([w, t]) => (
-            <button key={w} className={"moduswahl__knopf" + (m.modus === w ? " aktiv" : "")} data-matmodus={w}
-              onClick={() => setze("material.modus", w)}>{t}</button>))}
-        </div>
         {m.modus === "rechnen"
           ? <div className="kalk-reihe">
               <F label="Ø" einheit="mm" id="kalk-d" {...f("d")} />
-              <F label="Länge je Teil mit Abstich" einheit="mm" id="kalk-laenge" {...f("laenge")} />
+              <F label="Länge Fertigteil" einheit="mm" id="kalk-laenge" {...f("laenge")} />
+              <F label="Abstich + Planieren" einheit="mm" id="kalk-abstich" {...f("abstich")} />
               <F label="Stangenlänge" einheit="mm" id="kalk-stange" platz="3000" {...f("stange")} />
               <F label="Reststück" einheit="mm" id="kalk-rest" {...f("rest")} />
               <F label="Dichte" einheit="kg/dm³" id="kalk-dichte" {...f("dichte")} />
-              <F label="Ausschuss" einheit="%" id="kalk-ausschuss" platz="0" {...f("ausschuss")} />
             </div>
           : <div className="kalk-reihe">
               <F label="Materialeinsatz" einheit="kg/Stk" id="kalk-einsatz" {...f("einsatz")} />
               <F label="Ø für Meter und Stangen" einheit="mm" id="kalk-d" {...f("d")} />
               <F label="Stangenlänge" einheit="mm" id="kalk-stange" platz="3000" {...f("stange")} />
               <F label="Dichte" einheit="kg/dm³" id="kalk-dichte" {...f("dichte")} />
-              <F label="Ausschuss" einheit="%" id="kalk-ausschuss" platz="0" {...f("ausschuss")} />
             </div>}
       </section>
 
@@ -645,15 +664,17 @@ function Material({ k, setze, setK, rechnung }) {
             <tbody>
               <Zeile titel="kg gesamt" werte={rechnung.map((r) => chf(r.mat.kg, 1))} />
               <Zeile titel="Meter gesamt" werte={rechnung.map((r) => chf(r.mat.meter, 1))} />
-              <Zeile titel="Stangen" werte={rechnung.map((r) => chf(r.mat.stangen, m.modus === "rechnen" && !(z(m.ausschuss) > 0) ? 0 : 1))} />
+              <Zeile titel="Stangen" werte={rechnung.map((r) => chf(r.mat.stangen, 1))} />
+              {m.modus === "rechnen" && <Zeile titel="Teile je Stange · Einsatz kg/Stk" werte={rechnung.map((r) => chf(r.mat.jeStange, 0) + " · " + chf(r.mat.einsatzKg, 4))} />}
               <Zeile titel="kg je Stück" werte={rechnung.map((r) => chf(r.mat.kgJeStk, 4))} />
               <Zeile titel="Mat-Kosten = kg gesamt × Preis" einheit="CHF" werte={rechnung.map((r) => chf(r.mat.roh))} klein />
               <Zeile titel="Materialkosten mit Gemeinkosten" einheit="CHF" werte={rechnung.map((r) => chf(r.mat.kosten))} />
               <Zeile titel="Material je Stück" einheit="CHF" fett werte={rechnung.map((r) => chf(r.matStk, 4))} />
             </tbody>
           </table>
-          {r0 && r0.mat.ausschuss > 0 && <p className="hinweis" id="kalk-ausschuss-hinweis">kg, Meter und Stangen inkl. {chf(r0.mat.ausschuss, z(m.ausschuss) % 1 ? 1 : 0)} % Ausschuss.</p>}
-          {r0 && r0.mat.kgJeM > 0 && <p className="hinweis">{chf(r0.mat.kgJeM, 3)} kg je Meter Stange.</p>}
+          {r0 && (r0.mat.ausschuss > 0 || r0.mat.kgJeM > 0) && <p className="hinweis" id="kalk-ausschuss-hinweis">
+            {r0.mat.ausschuss > 0 && <>kg, Meter und Stangen inkl. {chf(r0.mat.ausschuss, z(m.ausschuss) % 1 ? 1 : 0)} % Ausschuss. </>}
+            {r0.mat.kgJeM > 0 && <>{chf(r0.mat.kgJeM, 3)} kg je Meter Stange.</>}</p>}
         </section>}
     </>
   );

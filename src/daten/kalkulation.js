@@ -93,16 +93,23 @@ export function materialRechnen(mat, menge) {
   const kgJeM = Math.PI / 4 * d * d * dichte / 1000;
   const stange = z(mat.stange) || 3000;
   let kg, stangen, meter;
+  let jeStange = 0, einsatzKg = 0;
   if (mat.modus === "rechnen") {
+    // Wie im Gewatec (seit 1.849.0): Teile je Stange aus Länge Fertigteil +
+    // Abstich/Planieren, das Einsatzgewicht je Stück = Gewicht der Stange
+    // geteilt durch die Teile darauf. Der Rest der Stange steckt so im Preis.
+    const lges = z(mat.laenge) + z(mat.abstich);
     const nutzbar = stange - z(mat.rest);
-    const jeStange = z(mat.laenge) > 0 ? Math.floor(nutzbar / z(mat.laenge)) : 0;
-    stangen = jeStange > 0 ? Math.ceil(menge / jeStange) : 0;
+    jeStange = lges > 0 ? Math.floor(nutzbar / lges) : 0;
+    einsatzKg = jeStange > 0 ? kgJeM * stange / 1000 / jeStange : 0;
+    kg = menge * einsatzKg;
+    stangen = jeStange > 0 ? menge / jeStange : 0;
     meter = stangen * stange / 1000;
-    kg = meter * kgJeM;
   } else {
     kg = menge * z(mat.einsatz);
     meter = kgJeM > 0 ? kg / kgJeM : 0;
     stangen = meter / (stange / 1000);
+    einsatzKg = z(mat.einsatz);
   }
   // Ausschuss in % ganz am Schluss auf kg, Meter und Stangen, leer = 0
   // (seit 1.238.0, Wunsch Patrick 27. Oktober 2026, wie im Materialrechner)
@@ -113,7 +120,7 @@ export function materialRechnen(mat, menge) {
   // Wie im Gewatec: Mat-Kosten = kg gesamt × Preis, dann Gemeinkosten in % und pauschal
   const roh = kg * z(mat.preis);
   const kosten = roh * (1 + z(mat.gk) / 100) + z(mat.gkPausch);
-  return { kg, meter, stangen, kgJeM, roh, kosten, ausschuss, jeStk: menge > 0 ? kosten / menge : 0, kgJeStk: menge > 0 ? kg / menge : 0,
+  return { kg, meter, stangen, kgJeM, jeStange, einsatzKg, roh, kosten, ausschuss, jeStk: menge > 0 ? kosten / menge : 0, kgJeStk: menge > 0 ? kg / menge : 0,
     // Gewicht je Gutteil ohne Ausschuss, für externe Arbeitsgänge je kg
     kgJeStkNetto: menge > 0 ? kgOhneAusschuss / menge : 0 };
 }
@@ -340,7 +347,7 @@ export function leereKalkulation() {
   return {
     kopf: { kunde: "", zusatz: "", strasse: "", land: "", plz: "", ort: "", artikel: "", zeichnung: "", index: "", ident: "", bezeichnung: "", anfrage: "", zeichen: "" },
     staffeln: [{ menge: "1000", lose: "1" }],
-    material: { bez: "", nr: "", preis: "", gk: "", modus: "hand", einsatz: "", d: "", dichte: "7.85", stange: "3000", rest: "", laenge: "" },
+    material: { bez: "", nr: "", preis: "", gk: "", modus: "rechnen", einsatz: "", d: "", dichte: "7.85", stange: "3000", rest: "", laenge: "", abstich: "" },
     ags: [],
     preis: { sek: "", vwgk: "", zinsPct: "", zinsMonate: "", transport: "", transPct: "", transPausch: "", eil: "", eilArt: "pauschal", verpackung: "", verpPct: "", verpPausch: "", gewinn: "30", prov: "", skonto: "", rabatt: "", rundung: "0.01", waehrung: "CHF", kurs: "", kursDatum: "", kursQuelle: "" },
     angebot: { lieferzeit: "nach Absprache", lieferbed: "franko Domizil, inkl. Verpackung", versand: "", zahlung: "30 Tage netto", gueltig: "Offerte freibleibend, gültig 1 Monat ab Offertdatum. (Materialpreisveränderungen ausgenommen)" },
