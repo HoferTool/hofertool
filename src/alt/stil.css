@@ -17469,3 +17469,17 @@ body.dunkel .pb-pm-fehlt { color: #ff9a92 !important; }
 /* 1.854.0 Lagerjournal im Test ERP */
 .erp-journal-datum { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; }
 .erp-journal-summe { margin: 8px 0; font-size: 13px; }
+
+/* 1.859.0: Zeichnung im Artikel grösser, daneben 3D-Modell */
+.erp-artfenster .gf-kopf--bild { grid-template-columns: 1fr 380px; }
+.erp-artfenster .gf-kopf__bild { min-height: 240px; }
+.erp-artfenster .gf-doku { grid-template-columns: 1fr 1fr; }
+.erp-artfenster .erp-art-zeichnung, .erp-artfenster .erp-art-modell { min-height: 65vh; }
+@media (max-width: 900px) { .erp-artfenster .gf-doku { grid-template-columns: 1fr; } }
+.erp-modell { display: flex; flex-direction: column; gap: 6px; height: 100%; min-height: 60vh; }
+.erp-modell__kopf { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.erp-modell__knoepfe { margin-left: auto; display: flex; gap: 6px; }
+.erp-modell__flaeche { flex: 1; min-height: 60vh; position: relative; border: 1px solid var(--linie, #ccd); border-radius: 8px; overflow: hidden; background: #f4f6f9; }
+.erp-modell__flaeche > * { width: 100%; height: 100%; }
+.dialog.erp-modell-gross { width: 90vw; max-width: 90vw; height: 85vh; display: flex; flex-direction: column; gap: 8px; }
+.dialog.erp-modell-gross .erp-modell__flaeche { min-height: 0; }

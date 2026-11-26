@@ -219,6 +219,11 @@ with sync_playwright() as p:
     pruefe("K-1" in pg.inner_text("[data-erp-pl-herkunft]") and pg.locator("[data-erp-pl-zeile]").count() == 2,
            "Reiter Verkauf zeigt Preisliste und Herkunft")
     pg.wait_for_timeout(500); pg.screenshot(path=BILD + "/erp-artikelfenster.png")
+    pg.click("[data-erp-artfenster] [data-gf-reiter='dokumente']"); pg.wait_for_timeout(300)
+    hz = pg.evaluate("() => { const z = document.querySelector('[data-erp-art-zeichnung]'); return z ? z.getBoundingClientRect().height : 0 }")
+    pruefe(pg.locator("[data-erp-modell]").count() == 1 and pg.locator("[data-erp-modell-neu]").count() == 1 and hz > 400,
+           "Dokumente: Zeichnung gross (%d) und Feld 3D-Modell" % hz)
+    pg.click("[data-erp-artfenster] [data-gf-reiter='verkauf']"); pg.wait_for_timeout(200)
     pg.locator("[data-erp-pl-zeile='0'] input[data-erp-feld='preis']").fill("240")
     pg.click("[data-erp-artfenster] [data-erp-speichern]"); pg.wait_for_timeout(800)
     a = [x for x in tabelle(pg, "erp_artikel") if x["id"] == a["id"]][0]
