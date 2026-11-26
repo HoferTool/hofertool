@@ -16,7 +16,10 @@ import { alt } from "../bruecke.jsx";
 // verwaltung, QS-Massnahmen, Sperre vor „läuft“). Seit 1.860.0 aus, Wunsch
 // Patrick 26. November 2026: „alles neue QS aus, nur Ausschuss wie früher“.
 // Daten bleiben; true schaltet alles wieder ein.
-export const QS_NEU = false;
+export const QS_NEU = true;
+// Seit 1.861.0 sperrt die QS nichts (Wunsch Patrick 26. November 2026: „nicht irgendwo blockieren … davon ausgehen, dass es gemacht wurde“):
+// Erstteil und Endkontrolle stehen weiter an, aber läuft und Rüsten gehen ohne Prüfbericht und ohne „Achtung QS“. true = Sperren wieder an.
+export const QS_SPERRE = false;
 
 export const fehltTabelle = (e) =>
   /pruefbericht_dateien|pruefprotokolle|pruef_stamm|does not exist|schema cache/i.test(String((e && e.message) || e || ""));
@@ -530,7 +533,7 @@ export function aqlPlan(los, aql, niveau = "II") {
 // FA Nr.) eine abgeschlossen ist. Gestellt wird nie von selbst, nur von Hand.
 // Fehlen Tabelle oder Leserecht (Externe), hält nichts auf.
 export async function erstteilVorLaeuft(j) {
-  if (!QS_NEU) return;
+  if (!QS_NEU || !QS_SPERRE) return;
   if (!j || !j.id || !j.job_number || j.plan_status === "laeuft") return;
   let st = null;
   try { st = await stammLaden(j.job_number); } catch (f) { return; }

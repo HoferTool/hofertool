@@ -1,4 +1,4 @@
-import { QS_NEU } from "../daten/pruefbericht.js";
+import { QS_NEU, QS_SPERRE } from "../daten/pruefbericht.js";
 // =================================================================
 //  QS-MASSNAHMEN IN DER FERTIGUNG (seit 1.790.0, Wunsch Patrick
 //  24. November 2026: „per QS-Knopf dort wie Vorbereiten, und dort auch
@@ -157,7 +157,7 @@ function QsFenster({ auftrag, zu }) {
 // Gibt true zurück, wenn quittiert (oder nichts zu quittieren). Mit
 // pflicht wirft Abbrechen einen Fehler, damit der Zustand bleibt.
 export async function qsQuittierenFragen(j, anlass, pflicht) {
-  if (!QS_NEU) return;
+  if (!QS_NEU || !QS_SPERRE) return;
   if (!j || !j.id || !j.job_number || alt.istExtern()) return true;
   const liste = await massnahmenFuer(j.job_number, true);
   if (!liste.length) return true;
