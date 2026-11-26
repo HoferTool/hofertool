@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.873.1 (27. November 2026)
+
+Sicherung nur noch stückweise (`sicherung_liste` / `sicherung_teil`), der alte Weg `sicherung_lesen` ist in App und Datenbank abgeschaltet (`sql/sicherung-lesen-aus.sql`, eingespielt): alte Tabs riefen ihn am Abend des 26. November 2026 nochmals auf, die Datenbank fiel dreimal aus.
+
 ## 1.873.0 (26. November 2026)
 
 Prüfberichte: Vorlage aus der letzten Produktion gleich bearbeitbar als Masse-Blatt, Speichern in die Stammdaten, Drucken, Titel „Prüfbericht · Index X“ (Wunsch Patrick).

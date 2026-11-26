@@ -74,7 +74,7 @@ TEST.rpc.sicherung_dateien = () => TEST.dateienJetzt || [
   { b: 'zeichnungen', p: 'maschinen/m1/notiz.pdf', g: 14, a: 'application/pdf' }];
 TEST.rpc.sicherung_puffern = (a) => a.p_zeilen.length;
 // Seit 1.871.0 liest die Sicherung stückweise; mit STUECK=1 antworten sicherung_liste und sicherung_teil
-// (je Stück eine Zeile), sonst nur das alte sicherung_lesen.
+// (je Stück eine Zeile); seit 1.873.1 immer.
 if (window.__STUECK) {
   TEST.rpc.sicherung_liste = () => TEST.rpc.sicherung_lesen().map(x => x.t);
   TEST.rpc.sicherung_teil = (a) => { const t = TEST.rpc.sicherung_lesen().find(x => x.t === a.p_tabelle); const i = a.p_ab ? Number(a.p_ab) : 0;
@@ -82,7 +82,7 @@ if (window.__STUECK) {
 }
 TEST.rpc.sicherung_einspielen = (a) => ({ tabellen: a.p_tabellen.length, zeilen: 3, ohne_konto: 0 });
 """
-F = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;", "if (typeof window !== \"undefined\") window.TEST = TEST;\n" + ("window.__STUECK = true;\n" if os.environ.get("STUECK") else "") + K)
+F = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;", "if (typeof window !== \"undefined\") window.TEST = TEST;\n" + "window.__STUECK = true;\n" + K)
 
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
@@ -176,7 +176,7 @@ with sync_playwright() as p:
     print(pg.inner_text("#si-auftrag"))
     prot = pg.evaluate("TEST.protokoll.filter(x => x.art === 'rpc' || x.art === 'upload').map(x => x.art === 'upload' ? 'upload:' + x.ablage + '/' + x.pfad : x.name + (x.name === 'sicherung_puffern' ? ':' + x.args.p_tabelle + ':' + x.args.p_zeilen.length : ''))")
     print(prot)
-    _l = "sicherung_liste" if os.environ.get("STUECK") else "sicherung_lesen"
+    _l = "sicherung_liste"
     pruefe("Vorher gesichert", _l in prot and prot.index(_l) < prot.index("sicherung_einspielen")
            and any("vor-Zurueckspielen" in n for n in pg.evaluate("[...window.ORDNER.keys()]")))
     pruefe("Alle Tabellen gepuffert", "sicherung_puffern:jobs:2" in prot and "sicherung_puffern:dokumente:4" in prot and "sicherung_puffern:leer:0" in prot)

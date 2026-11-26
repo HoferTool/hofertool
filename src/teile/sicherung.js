@@ -264,18 +264,16 @@ export async function sichern(h, grund, fortschritt) {
     const melde = (t) => { try { if (fortschritt) fortschritt(t); } catch (f) { /* egal */ } };
     // Seit 1.871.0 Tabelle für Tabelle in kleinen Stücken (sql/sicherung-stueckweise.sql):
     // sicherung_lesen holte alles auf einmal in den Speicher der Datenbank,
-    // am 25. und 26. November 2026 stürzte sie dabei mehrmals ab. Fehlt die
-    // neue Funktion, geht es wie vorher.
+    // am 25. und 26. November 2026 stürzte sie dabei mehrmals ab. Seit 1.873.1
+    // gibt es den alten Weg nicht mehr (in der Nacht auf den 27. November 2026
+    // legten ihn alte Tabs nochmals an und die Datenbank fiel dreimal aus).
     melde("Daten werden gelesen …");
-    let namen = null, ganz = null;
+    let namen = null;
+    const ganz = null;
     const l = await alt.db.rpc("sicherung_liste");
-    if (!l.error && Array.isArray(l.data) && l.data.length) namen = l.data.filter((x) => typeof x === "string" && x);
-    if (!namen) {
-      const r = await alt.db.rpc("sicherung_lesen");
-      if (r.error) throw r.error;
-      ganz = (r.data || []).filter((x) => x && x.t);
-      namen = ganz.map((x) => x.t);
-    }
+    if (l.error) throw new Error("Sicherung braucht sql/sicherung-stueckweise.sql: " + (l.error.message || l.error));
+    if (Array.isArray(l.data)) namen = l.data.filter((x) => typeof x === "string" && x);
+    if (!namen) namen = [];
     if (!namen.length) throw new Error("Die Datenbank hat keine Tabellen geliefert (sql/sicherung.sql ausgeführt?).");
     const pause = (ms) => new Promise((ok) => setTimeout(ok, ms));
 
