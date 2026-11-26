@@ -17483,3 +17483,6 @@ body.dunkel .pb-pm-fehlt { color: #ff9a92 !important; }
 .erp-modell__flaeche > * { width: 100%; height: 100%; }
 .dialog.erp-modell-gross { width: 90vw; max-width: 90vw; height: 85vh; display: flex; flex-direction: column; gap: 8px; }
 .dialog.erp-modell-gross .erp-modell__flaeche { min-height: 0; }
+
+/* 1.860.0: Video nach dem Stempeln (Zwerg beim Kommen von Renz) steht hochkant. */
+video.ze-bestaetigt__video { aspect-ratio: 9 / 16; width: auto; height: min(70vh, 640px); max-width: 90vw; object-fit: cover; background: #000; }

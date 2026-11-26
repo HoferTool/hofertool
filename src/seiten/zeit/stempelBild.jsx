@@ -4,7 +4,7 @@
 // Seit 1.752.0: Animationen mit dem Foto einer Person stehen nur in der Datenbank
 // (app_config „zeit_stempel_foto“, Funktion zeit_stempel_foto), nie im Repository;
 // gibt es dort eine, gilt sie vor der Datei.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 
 // Ton zur Animation (Wunsch Patrick 24. November 2026: „bei Renz Shotgun soll auch Sound sein“).
@@ -135,7 +135,8 @@ function fotoHolen(name, art) {
       try {
         const r = await alt.zeitlimit(alt.db.rpc("zeit_stempel_foto", { p_name: name, p_art: art }), 4000, "Stempelfoto");
         const d = r && !r.error && typeof r.data === "string" ? r.data : "";
-        return d.startsWith("data:image/") ? d : null;
+        // Seit 1.860.0 auch ein Video (Zwerg beim Kommen von Nathanael Renz, Wunsch Patrick 26. November 2026).
+        return d.startsWith("data:image/") || d.startsWith("data:video/") ? d : null;
       } catch { fotos.delete(k); return null; }
     })());
   }
@@ -146,7 +147,10 @@ function fotoHolen(name, art) {
 // rund 3.6 s bis zum Schlussbild, das soll danach länger stehen (Wunsch Patrick
 // 24. November 2026: „lass den Schluss ein paar Sekunden länger eingeblendet“).
 export function stempelBildDauer(name, art) {
-  return name === "schreck" && art !== "gehen" ? 14000 : 9000;
+  if (name === "schreck" && art !== "gehen") return 14000;
+  // Das Video beim Kommen von Renz dauert gut 7 s, danach steht sein letztes Bild noch kurz.
+  if (name === "renz" && art !== "gehen") return 10000;
+  return 9000;
 }
 
 export async function stempelBildHolen(personId) {
@@ -164,6 +168,11 @@ export async function stempelBildHolen(personId) {
 export function StempelBild({ name, art }) {
   const a = art === "gehen" ? "gehen" : "kommen";
   const [src, setSrc] = useState(null);
+  const [video, setVideo] = useState(false);
+  // Ton eines Videos: Safari am iPad spielt ein Video nach dem Warten auf den Server
+  // nur stumm von selbst ab. Der Ton läuft darum über WebAudio, das beim Tipp
+  // freigegeben wurde, und startet, sobald das Bild läuft.
+  const tonRef = useRef({ puffer: null, quelle: null, laeuft: false, el: null });
   useEffect(() => {
     if (!name) return;
     let weg = false;
@@ -178,25 +187,62 @@ export function StempelBild({ name, art }) {
     fotoHolen(name, a).then(async (d) => {
       if (weg) return;
       if (!d) { setSrc(datei); return; }
+      const istVideo = d.startsWith("data:video/");
       try {
-        blob = URL.createObjectURL(await (await fetch(d)).blob());
+        const b = await (await fetch(d)).blob();
+        blob = URL.createObjectURL(b);
         if (weg) { URL.revokeObjectURL(blob); return; }
+        clearTimeout(t);
+        setVideo(istVideo);
         setSrc(blob);
-      } catch { setSrc(d); }
+        if (istVideo) {
+          const c = audio();
+          if (c) {
+            c.decodeAudioData(await b.arrayBuffer()).then((p) => {
+              if (weg) return;
+              tonRef.current.puffer = p;
+              if (tonRef.current.laeuft) videoTonStarten();
+            }, () => { const v = tonRef.current.el; if (v) { v.muted = false; v.play().catch(() => { v.muted = true; v.play().catch(() => {}); }); } });
+          }
+        }
+      } catch { setVideo(istVideo); setSrc(d); }
     });
-    return () => { weg = true; clearTimeout(t); if (blob) setTimeout(() => URL.revokeObjectURL(blob), 1000); };
+    return () => {
+      weg = true; clearTimeout(t);
+      const q = tonRef.current.quelle; if (q) { try { q.stop(); } catch { /* egal */ } }
+      tonRef.current = { puffer: null, quelle: null, laeuft: false, el: null };
+      if (blob) setTimeout(() => URL.revokeObjectURL(blob), 1000);
+    };
   }, [name, a]);
+  function videoTonStarten() {
+    const r = tonRef.current, c = audio();
+    if (!c || !r.puffer || r.quelle) return;
+    const v = r.el, ab = v ? v.currentTime : 0;
+    if (ab >= r.puffer.duration) return;
+    try {
+      const q = c.createBufferSource(); q.buffer = r.puffer; q.connect(c.destination);
+      q.start(0, ab); r.quelle = q;
+    } catch { /* ohne Ton */ }
+  }
   const ton = TOENE[name + "-" + a];
   // Die Animation läuft alle 3 s im Kreis: der Ton läuft im selben Takt mit, solange sie zu sehen ist
   useEffect(() => {
-    if (!src || !ton) return undefined;
+    // Ein Video bringt seinen eigenen Ton mit, die Flinte dazu wäre zu viel.
+    if (!src || !ton || video) return undefined;
     ton();
     if (ton.einmal) return undefined;
     const t = setInterval(ton, 3000);
     return () => clearInterval(t);
-  }, [!!src, ton]);
+  }, [!!src, ton, video]);
   if (!name || !src) return null;
   // Gibt es für diese Art kein Bild (z. B. crossfit nur beim Gehen), steht der normale Haken.
   if (src === "haken") return <div className="ze-bestaetigt__haken">✓</div>;
+  if (video) {
+    return <video className="ze-bestaetigt__bild ze-bestaetigt__video" src={src} autoPlay muted playsInline
+      data-ze-stempelbild={name}
+      ref={(el) => { tonRef.current.el = el; }}
+      onPlaying={() => { tonRef.current.laeuft = true; videoTonStarten(); }}
+      onError={() => setSrc("haken")} />;
+  }
   return <img className="ze-bestaetigt__bild" src={src} alt="" data-ze-stempelbild={name} onError={() => setSrc("haken")} />;
 }
