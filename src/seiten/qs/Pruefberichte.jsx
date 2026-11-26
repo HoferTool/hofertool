@@ -29,7 +29,7 @@ import { qsSprung, masseInQsOeffnen } from "./qsSprung.js";
 import Pruefung from "../../hoco/Pruefung.jsx";
 import {
   ARTEN, artVon, artName, istZwischen, TEILE, AQL_WERTE, aqlPlan, fehltTabelle, protokolleLaden, dateienLaden, vorlageLaden, stammSpeichern,
-  stammLaden, stammMitMassen, toleranz, toleranzText, istPruefen, lehrenAus, pruefmittelFuer, pruefmittelAlleLaden, pmOrtText,
+  stammLaden, stammMitMassen, toleranz, toleranzText, istPruefen, lehrenAus, pruefmittelFuer, pruefmittelAlleLaden, pmOrtText, bildVon,
 } from "../../daten/pruefbericht.js";
 
 // Offenes Protokoll und Suche bleiben beim Reiterwechsel
@@ -818,7 +818,7 @@ function IstFeld({ wert, t, an, setzen, name }) {
 
 function SollZelle({ z }) {
   const t = toleranz(z.soll);
-  return <><td className="pb-nr">{z.nr}</td><td className="pb-soll" title={t ? "Toleranz " + toleranzText(t) : ""}>{z.soll}</td></>;
+  return <><td className="pb-nr">{z.nr}</td><td className="pb-soll" title={t ? "Toleranz " + toleranzText(t) : ""}>{bildVon(z) ? <img className="pb-massbild" src={bildVon(z)} alt="" data-pbbild /> : null}{z.soll}</td></>;
 }
 
 // Erstteilprüfung / Endkontrolle: 5 Teile, alle Masse
@@ -976,6 +976,8 @@ function LlTabelle({ zeilen, w, schreibt, aendern }) {
 }
 
 // ---------- PDF mit dem Briefkopf ----------
+// Soll im PDF, mit dem Bild des Masses aus dem alten Bericht oder von Hand
+const sollHtml = (z) => (bildVon(z) ? '<img class="pb-massbild" style="max-height:12mm;max-width:45mm;display:block" src="' + h(bildVon(z)) + '" alt="">' : "") + h(z.soll);
 const h = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 function protokollHtml(w, hoco) {
   const k = w.kopf || {}, art = k.art || "erstteil", v = k.vorlage || {};
@@ -988,7 +990,7 @@ function protokollHtml(w, hoco) {
     koerper = zeilen.map((z) => {
       if (z.abschnitt) return "<tr class='ab'><td colspan='7'>" + h(z.abschnitt) + "</td></tr>";
       const x = w.werte[z.id] || {}, t = toleranz(z.soll);
-      return "<tr><td>" + h(z.nr) + "</td><td>" + h(z.soll) + "</td><td>" + h(x.geprueft || (plan ? plan.n : "")) + "</td><td"
+      return "<tr><td>" + h(z.nr) + "</td><td>" + sollHtml(z) + "</td><td>" + h(x.geprueft || (plan ? plan.n : "")) + "</td><td"
         + (Number(x.nio) > 0 ? " style='color:#c00;font-weight:700'" : "") + ">" + h(x.nio) + "</td><td" + farbe(x.min, t) + ">" + h(x.min) + "</td><td" + farbe(x.max, t) + ">" + h(x.max) + "</td><td>" + h(z.pm) + "</td></tr>";
     }).join("");
   } else if (art === "ll") {
@@ -996,7 +998,7 @@ function protokollHtml(w, hoco) {
     kopfZ = proben.map((p) => "<th>" + h(datumText(p.datum)) + "<br>" + h(p.zeit) + "</th>").join("");
     koerper = zeilen.filter((z) => !z.abschnitt && aus.has(z.id)).map((z) => {
       const t = toleranz(z.soll);
-      return "<tr><td>" + h(z.nr) + "</td><td>" + h(z.soll) + "</td>"
+      return "<tr><td>" + h(z.nr) + "</td><td>" + sollHtml(z) + "</td>"
         + proben.map((p) => "<td" + farbe((p.w || {})[z.id], t) + ">" + h((p.w || {})[z.id]) + "</td>").join("") + "<td>" + h(z.pm) + "</td></tr>";
     }).join("") + "<tr><td colspan='2'>Visum</td>" + proben.map((p) => "<td>" + h(p.visum) + "</td>").join("") + "<td></td></tr>";
   } else {
@@ -1004,7 +1006,7 @@ function protokollHtml(w, hoco) {
     koerper = zeilen.map((z) => {
       if (z.abschnitt) return "<tr class='ab'><td colspan='" + (TEILE + 3) + "'>" + h(z.abschnitt) + "</td></tr>";
       const t = toleranz(z.soll), a = w.werte[z.id] || [];
-      return "<tr><td>" + h(z.nr) + "</td><td>" + h(z.soll) + "</td>"
+      return "<tr><td>" + h(z.nr) + "</td><td>" + sollHtml(z) + "</td>"
         + [...Array(TEILE)].map((_, i) => "<td" + farbe(a[i], t) + ">" + h(a[i]) + "</td>").join("") + "<td>" + h(z.pm) + "</td></tr>";
     }).join("");
   }

@@ -17516,6 +17516,32 @@ body.dunkel .pb-pm-fehlt { color: #ff9a92 !important; }
   body > .dialog-huelle .gf-titel, body > .dialog-huelle [data-ziehgriff] { touch-action: none; }
 }
 
-/* 1.867.0: Lagerbewegungen aus dem Gewatec nur zum Ansehen, leicht gedämpft */
+/* 1.867.0: Umfrage bis auf den Titel zuklappen */
+.umf__klapp { display: flex; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0;
+  background: none; border: 0; padding: 0; margin: 0; text-align: left; cursor: pointer; color: inherit; font: inherit; }
+.umf__klapp .umf__titel { margin: 0; }
+.umf__pfeil { flex: 0 0 auto; width: 1em; opacity: .7; }
+.umf__klapp-info { flex: 0 0 auto; color: #2e7d32; white-space: nowrap; }
+.umf--klapp { padding-bottom: 8px; }
+/* 1.868.0 Massbilder aus den Prüfberichten und Symbole Form- und Lagetoleranz
+   (Wunsch Patrick 26. November 2026) */
+.schreibleiste__formlage { display: flex; flex-wrap: wrap; gap: 2px; max-width: 320px; padding: 4px; background: #fff; border: 1px solid #c9d3de; border-radius: 6px; }
+.schreibleiste__formlage[hidden] { display: none; }
+.schreibleiste__formlage button { min-width: 28px; height: 28px; font-size: 16px; }
+.formlage { position: relative; display: inline-flex; }
+.formlage > button { min-width: 34px; }
+.formlage__liste { position: absolute; top: 100%; left: 0; z-index: 50; display: grid; grid-template-columns: repeat(5, 34px); gap: 3px; padding: 6px; margin-top: 4px; background: #fff; border: 1px solid #c9d3de; border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.18); }
+.formlage__liste button { width: 34px; height: 32px; font-size: 18px; line-height: 1; border: 1px solid #d6dde5; border-radius: 6px; background: #f6f8fa; cursor: pointer; color: #1d2733; }
+.formlage__liste button:hover { background: #e3ecf6; border-color: #003884; }
+body.dunkel .formlage__liste, body.dunkel .schreibleiste__formlage { background: #1f2630; border-color: #3a4554; }
+body.dunkel .formlage__liste button { background: #2a3340; border-color: #3a4554; }
+.pst-zeichen { display: inline-flex; gap: 4px; align-items: center; }
+.pst-sollzelle { display: flex; align-items: center; gap: 4px; }
+.pst-sollzelle .pst-soll { flex: 1; min-width: 0; }
+.pst-massbild { max-height: 34px; max-width: 120px; object-fit: contain; background: #fff; border: 1px solid #d6dde5; border-radius: 3px; cursor: zoom-in; flex: none; }
+.pst-bildknopf { flex: none; width: 26px; height: 26px; padding: 0; border: 1px solid #d6dde5; border-radius: 5px; background: #f6f8fa; cursor: pointer; font-size: 13px; }
+body.dunkel .pst-bildknopf { background: #2a3340; border-color: #3a4554; }
+.pb-massbild { display: block; max-height: 40px; max-width: 160px; object-fit: contain; margin-bottom: 2px; }
+/* 1.869.0: Lagerbewegungen aus dem Gewatec nur zum Ansehen, leicht gedämpft */
 tr.erp-gewatec td { color: #5b6573; background: #f7f8fa; }
 body.dunkel tr.erp-gewatec td { background: #1c2128; }

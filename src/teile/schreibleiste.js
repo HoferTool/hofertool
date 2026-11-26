@@ -26,8 +26,7 @@
 //  Anmeldung; ein Bereich mit data-ohne-leiste schaltet sie ab.
 // =================================================================
 import { alt } from "../bruecke.jsx";
-
-const ZEICHEN = [["Ø", "Durchmesserzeichen Ø einfügen"], ["±", "Plus/Minus ± einfügen"]];
+import { ZEICHEN, FORM_LAGE } from "./zeichenListe.js";
 const TEXT_TYPEN = new Set(["text", "search", ""]);
 const FARBEN = [["Schwarz", null, "#000000"], ["Rot", "#e03030"], ["Blau", "#1f5fd6"], ["Grün", "#1a8f3c"], ["Orange", "#e07a00"]];
 // Flächen, deren Inhalt FettText.jsx mit Farbe und Grösse speichert
@@ -248,6 +247,16 @@ export function schreibleisteAnbinden(d) {
     zg.className = "schreibleiste__zeichengruppe";
     zg.innerHTML = '<span class="schreibleiste__titel">Zeichen</span>';
     ZEICHEN.forEach(([z, titel]) => zg.appendChild(knopf(z, titel, () => zeichenEinfuegen(z), "schreibleiste__zeichen")));
+    // Form- und Lagetoleranzen (seit 1.867.0) aufklappbar, sonst wird die
+    // Leiste zu lang
+    const fl = d.createElement("span");
+    fl.className = "schreibleiste__formlage";
+    fl.hidden = true;
+    FORM_LAGE.forEach(([z, titel]) => fl.appendChild(knopf(z, titel + " einfügen", () => zeichenEinfuegen(z), "schreibleiste__zeichen")));
+    const flKnopf = knopf("⌖▾", "Form- und Lagetoleranzen", () => { fl.hidden = !fl.hidden; }, "schreibleiste__zeichen schreibleiste__flknopf");
+    flKnopf.setAttribute("data-sl-formlage", "");
+    zg.appendChild(flKnopf);
+    zg.appendChild(fl);
     fmt.appendChild(zg);
     leiste.appendChild(fmt);
     leiste.addEventListener("mousedown", (e) => { if (e.target.tagName !== "INPUT") e.preventDefault(); });

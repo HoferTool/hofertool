@@ -10,8 +10,9 @@
 // steht daneben als kleines HTML (nur <span> mit Farbe, Dicke, Grösse
 // und <br>) unter fmt. Passt das HTML nicht mehr zum Text (etwa weil die
 // Stammdaten anderswo geändert wurden), gilt nur der Text.
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
+import { ZEICHEN, FORM_LAGE } from "../teile/zeichenListe.js";
 
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const gleich = (s) => String(s == null ? "" : s).replace(/ /g, " ").replace(/\r/g, "").trim();
@@ -361,9 +362,10 @@ export function MarkierLeiste({ ohneMarkierung, hinweis, feld, start = 12, min =
       </span>
       <span className="eba-pf-zeichen" data-pf-zeichen="">
         <span>Zeichen</span>
-        {[["Ø", "Durchmesserzeichen Ø einfügen"], ["±", "Plus/Minus ± einfügen"]].map(([z, titel]) => <button key={z} type="button"
+        {ZEICHEN.map(([z, titel]) => <button key={z} type="button"
           title={titel} aria-label={titel} data-pf-zeichen-knopf={z} onMouseDown={behalten}
           onClick={() => { if (!zeichenEinsetzen(z, feld)) alt.meldung("Zuerst ins Feld tippen, dann das Zeichen wählen.", "warn"); }}>{z}</button>)}
+        <FormLage behalten={behalten} einsetzen={(z) => { if (!zeichenEinsetzen(z, feld)) alt.meldung("Zuerst ins Feld tippen, dann das Zeichen wählen.", "warn"); }} />
       </span>
     </span>
   );
@@ -416,4 +418,20 @@ export function AusrZeichen({ a }) {
 // Text mit Formatierung als HTML zum Hineinsetzen (gültig oder nur Text)
 export function formatHtml(html, text) {
   return fmtGueltig(html, text) ? anzeigeHtml(htmlSauber(html).html) : textHtml(text);
+}
+
+// Form- und Lagetoleranzen aufklappbar (seit 1.867.0, Wunsch Patrick
+// 26. November 2026), auch beim Soll der Prüfmasse gebraucht
+export function FormLage({ behalten, einsetzen }) {
+  const [auf, setAuf] = useState(false);
+  return (
+    <span className="formlage">
+      <button type="button" title="Form- und Lagetoleranzen" aria-label="Form- und Lagetoleranzen" data-formlage-auf=""
+        className={auf ? "an" : ""} onMouseDown={behalten} onClick={() => setAuf(!auf)}>⌖▾</button>
+      {auf && <span className="formlage__liste" data-formlage-liste="">
+        {FORM_LAGE.map(([z, titel]) => <button key={z} type="button" title={titel + " einfügen"} aria-label={titel}
+          data-formlage-knopf={z} onMouseDown={behalten} onClick={() => einsetzen(z)}>{z}</button>)}
+      </span>}
+    </span>
+  );
 }

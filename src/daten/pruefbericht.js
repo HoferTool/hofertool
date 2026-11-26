@@ -120,18 +120,34 @@ export function berichtAusExcel(roh) {
   }
   if (!istSp.length) istSp = [o + 2, o + 3, o + 4, o + 5, o + 6];
   if (!pmSp) pmSp = Math.max(...istSp) + 1;
+  // Seit 1.867.0 (Patrick 26. November 2026: „Prüfberichte sind mit einem
+  // Tool entstanden, das Masse aus der Zeichnung gesnippt und eingefügt hat“):
+  // Bilder in der Tabelle links von den Ist-Spalten gehören zur Zeile mit
+  // Nummer, über die sie reichen (sonst der letzten Zeile mit Nummer davor).
+  const nrZeilen = zeilenNr.filter((r) => r > tabStart && (!ende || r < ende) && zelle(r, o).trim());
+  const bildJe = {};
+  const ersteIst = Math.min(...istSp);
+  for (const b of roh.bilder || []) {
+    if (b.s >= ersteIst || (b.s2 || b.s) < o) continue;
+    const z1 = b.z, z2 = Math.max(b.z2 || b.z, b.z);
+    if (z2 <= tabStart || (ende && z1 >= ende)) continue;
+    let r = nrZeilen.find((x) => x >= z1 && x <= z2);
+    if (!r) r = [...nrZeilen].reverse().find((x) => x <= z1);
+    if (r && !bildJe[r]) bildJe[r] = { typ: b.typ, endung: b.endung, lesen: b.lesen };
+  }
   const zeilen = [];
   let ohneSoll = 0;
   for (const r of zeilenNr) {
     if (r <= tabStart || (ende && r >= ende)) continue;
     const nr = zelle(r, o).trim(), soll = zelle(r, o + 1).trim(), pm = zelle(r, pmSp).trim();
     const ist = istSp.map((s) => zelle(r, s));
+    const bild = nr ? bildJe[r] : null;
     if (!nr && !soll && !pm) continue;
     if (!nr && soll && !pm && ist.every((x) => !x)) { zeilen.push({ abschnitt: soll }); continue; }
-    if (nr && !soll) { ohneSoll++; continue; }   // leere Zeile mit Nummer: nichts zu prüfen
-    zeilen.push({ nr, soll, pm });
+    if (nr && !soll && !bild) { ohneSoll++; continue; }   // leere Zeile mit Nummer: nichts zu prüfen
+    zeilen.push(bild ? { nr, soll, pm, _bild: bild } : { nr, soll, pm });
   }
-  if (!zeilen.some((x) => x.soll)) teilweise.push("keine Masse gefunden");
+  if (!zeilen.some((x) => x.soll || x._bild)) teilweise.push("keine Masse gefunden");
   if (!ende) teilweise.push("Ende der Tabelle (Prüf-Entscheid) fehlt");
   return { kopf, zeilen, seite, seiten, teilweise };
 }
@@ -382,6 +398,7 @@ export async function vorlageLaden(dateien) {
   const gut = r.filter((x) => x.status === "fulfilled").map((x) => x.value);
   if (!gut.length) throw (r[0] && r[0].reason) || new Error("keine Datei");
   const v = vorlageAus(gut);
+  await bilderZeigen(v.zeilen);
   r.forEach((x, i) => { if (x.status === "rejected") v.teilweise.push((dateien[i].name || "Seite") + " nicht lesbar"); });
   return v;
 }
@@ -441,6 +458,7 @@ export async function stammMitMassen(hoco) {
 export async function stammSpeichern(hoco, felder) {
   const vorher = await alt.rueckSichern("pruef_stamm", { hoco_nr: hoco });
   const zeile = { hoco_nr: hoco, ...felder };
+  if (zeile.zeilen) zeile.zeilen = await zeilenFuerAblage(hoco, zeile.zeilen);
   const { error } = await alt.db.from("pruef_stamm").upsert(zeile, { onConflict: "hoco_nr" });
   if (error) throw error;
   alt.merkeSchritt("Prüfung " + hoco + " ändern",
@@ -452,7 +470,45 @@ export async function excelMasse(dateien) {
   const { excelRoh } = await import("../einrichtblatt/excelEinlesen.js");
   const berichte = [];
   for (const d of dateien) berichte.push(berichtAusExcel(await excelRoh(new Uint8Array(await d.arrayBuffer()), { formeln: true })));
-  return vorlageAus(berichte);
+  const v = vorlageAus(berichte);
+  await bilderZeigen(v.zeilen);
+  return v;
+}
+
+// ---------- Bilder der Masse (seit 1.867.0) ----------
+// Aus dem Excel gelesen hat eine Zeile _bild {typ, endung, lesen}; zum
+// Ansehen bekommt sie _bildUrl (blob:), gespeichert wird erst beim
+// Speichern der Stammdaten (bild = Adresse in der Ablage).
+export const bildVon = (z) => (z && (z.bild || z._bildUrl)) || "";
+export async function bilderZeigen(zeilen) {
+  for (const z of zeilen || []) {
+    if (!z._bild || z._bildUrl) continue;
+    try { z._bildUrl = URL.createObjectURL(new Blob([await z._bild.lesen()], { type: z._bild.typ })); } catch (_) { /* ohne Bild */ }
+  }
+}
+// Ein Bild (Datei oder Blob) in die Ablage, gibt die Adresse
+export async function massBildHochladen(hoco, datei, endung) {
+  const e = endung || ((datei.type || "").split("/")[1] || "png").replace("jpeg", "jpg");
+  const ablage = "pruefberichte/bilder/" + (hoco || "ohne") + "/" + Date.now() + "-" + Math.random().toString(36).slice(2, 7) + "." + e;
+  const { error } = await alt.db.storage.from("zeichnungen").upload(ablage, datei, { upsert: false, contentType: datei.type || undefined });
+  if (error) throw error;
+  return alt.db.storage.from("zeichnungen").getPublicUrl(ablage).data.publicUrl;
+}
+// Vor dem Speichern: gelesene Bilder hochladen, Hilfsfelder weg
+async function zeilenFuerAblage(hoco, zeilen) {
+  const aus = [];
+  for (const z of zeilen || []) {
+    const x = { ...z };
+    if (!x.bild && x._bild) {
+      try {
+        const daten = await x._bild.lesen();
+        x.bild = await massBildHochladen(hoco, new Blob([daten], { type: x._bild.typ }), x._bild.endung);
+      } catch (f) { alt.fehlerMerken && alt.fehlerMerken("Prüfmass Bild", String((f && f.message) || f)); }
+    }
+    for (const k of Object.keys(x)) if (k.startsWith("_")) delete x[k];
+    aus.push(x);
+  }
+  return aus;
 }
 
 // Neue Kennung für eine von Hand dazugefügte Zeile

@@ -15,7 +15,9 @@ import { alt } from "../bruecke.jsx";
 import { masseInQsOeffnen } from "../seiten/qs/qsSprung.js";
 import {
   ARTEN, AQL_WERTE, stammMitMassen, stammSpeichern, excelMasse, zeilenId, toleranz, toleranzText, fehltTabelle, lehrenAus,
+  bildVon, massBildHochladen,
 } from "../daten/pruefbericht.js";
+import { FormLage } from "../einrichtblatt/markiert.jsx";
 
 const KOPF = [["bezeichnung", "Artikel"], ["zeichnung", "Zeichnung"], ["index", "Index"], ["alltol", "Allg. Toleranz"]];
 
@@ -279,6 +281,43 @@ function MasseBlatt({ w, hoco, schreibt, zeileSetzen, zeileWeg, zeilenLeeren, ze
     neuFokus.current = null;
     if (el) { el.focus(); if (el.value === "Neuer Abschnitt") el.select(); el.scrollIntoView({ block: "nearest" }); }
   });
+  // Zeichen und Form- und Lagetoleranzen ins zuletzt angetippte Feld Soll
+  // (seit 1.867.0, Wunsch Patrick 26. November 2026: „die form und lage
+  // toleranzen … als symbol einfügbar“)
+  const sollFeld = useRef(null);
+  const zeichenEinsetzen = (zeichen) => {
+    const el = sollFeld.current;
+    if (!el || !el.isConnected) { alt.meldung("Zuerst ins Feld Soll tippen.", "warn"); return; }
+    const id = el.getAttribute("data-pstfokus");
+    const a = el.selectionStart ?? el.value.length, b = el.selectionEnd ?? a;
+    const neu = el.value.slice(0, a) + zeichen + el.value.slice(b);
+    zeileSetzen(id, "soll", neu);
+    requestAnimationFrame(() => { try { el.focus(); el.setSelectionRange(a + zeichen.length, a + zeichen.length); } catch (_) { /* egal */ } });
+  };
+  // Bild je Mass: aus dem Excel gelesen, hochgeladen oder mit Strg + V
+  const [laedt, setLaedt] = useState(null);
+  const bildSetzen = async (id, datei) => {
+    if (!datei || !/^image\//.test(datei.type || "")) { alt.meldung("Nur Bilder gehen hier.", "warn"); return; }
+    setLaedt(id);
+    try {
+      const url = await massBildHochladen(hoco, datei);
+      zeileSetzen(id, "_bild", null); zeileSetzen(id, "_bildUrl", null); zeileSetzen(id, "bild", url);
+    } catch (f) { alt.meldung("Bild liess sich nicht hochladen: " + ((f && f.message) || f), "fehler"); }
+    setLaedt(null);
+  };
+  const bildWeg = (id) => { zeileSetzen(id, "bild", ""); zeileSetzen(id, "_bild", null); zeileSetzen(id, "_bildUrl", null); };
+  const bildWaehlen = (id) => {
+    const inp = document.createElement("input");
+    inp.type = "file"; inp.accept = "image/*";
+    inp.onchange = () => bildSetzen(id, inp.files && inp.files[0]);
+    inp.click();
+  };
+  const einfuegen = (id) => (e) => {
+    const f = [...((e.clipboardData && e.clipboardData.files) || [])].find((x) => /^image\//.test(x.type));
+    if (!f) return;
+    e.preventDefault();
+    bildSetzen(id, f);
+  };
   const seiten = seitenTeilen(w.zeilen);
   const v = w.kopf || {};
   const enter = (i) => (e) => { if (e.key === "Enter") { e.preventDefault(); zeileDazu(false, i + 1); } };
@@ -295,6 +334,11 @@ function MasseBlatt({ w, hoco, schreibt, zeileSetzen, zeileWeg, zeilenLeeren, ze
             <button type="button" className="knopf knopf--klein" id="pst-mark-weg" onClick={loeschen}>Löschen</button>
             <button type="button" className="knopf knopf--klein" onClick={() => setMark(new Set())}>Aufheben</button>
           </span> : null}
+          <span className="pst-zeichen" data-pstzeichen="">
+            {["Ø", "±"].map((z) => <button key={z} type="button" className="knopf knopf--klein" data-pstzeichen-knopf={z}
+              title={z + " einfügen"} onMouseDown={(e) => e.preventDefault()} onClick={() => zeichenEinsetzen(z)}>{z}</button>)}
+            <FormLage behalten={(e) => e.preventDefault()} einsetzen={zeichenEinsetzen} />
+          </span>
           <button type="button" className="knopf knopf--klein" id="pst-mass-neu" onClick={() => zeileDazu(false)}>+ Mass</button>
           <button type="button" className="knopf knopf--klein" id="pst-abschnitt-neu" onClick={() => zeileDazu(true)}>+ Abschnitt</button>
           {geaendert ? <span className="klein pb-rot">Noch nicht gespeichert</span> : null}
@@ -324,7 +368,16 @@ function MasseBlatt({ w, hoco, schreibt, zeileSetzen, zeileWeg, zeilenLeeren, ze
                   <tr key={z.id} className={mark.has(z.id) ? "pst-markiert" : ""} data-pstzeile={z.id}>
                     {schreibt ? <td className="pst-c-kopf" data-pstkopf={z.id} onPointerDown={kopfDown(z.id)}>{i + 1}</td> : null}
                     <td className="pst-c-nr"><input value={z.nr || ""} disabled={!schreibt} onChange={(e) => zeileSetzen(z.id, "nr", e.target.value)} /></td>
-                    <td><input data-pstfokus={z.id} className="pst-soll" value={z.soll || ""} disabled={!schreibt} placeholder="z.B. Ø 6.00 ±0.02" onChange={(e) => zeileSetzen(z.id, "soll", e.target.value)} /></td>
+                    <td><div className="pst-sollzelle">
+                      {bildVon(z) ? <img className="pst-massbild" src={bildVon(z)} alt="Mass" data-pstbild={z.id}
+                        onClick={() => alt.betrachter && alt.betrachter(bildVon(z), "Mass " + (z.nr || ""), false)} /> : null}
+                      <input data-pstfokus={z.id} className="pst-soll" value={z.soll || ""} disabled={!schreibt} placeholder={bildVon(z) ? "Soll (frei)" : "z.B. Ø 6.00 ±0.02"}
+                        onFocus={(e) => { sollFeld.current = e.target; }} onPaste={schreibt ? einfuegen(z.id) : undefined}
+                        onChange={(e) => zeileSetzen(z.id, "soll", e.target.value)} />
+                      {schreibt ? (laedt === z.id ? <span className="klein">…</span> : bildVon(z)
+                        ? <button type="button" className="pst-bildknopf" title="Bild entfernen" data-pstbildweg={z.id} onClick={() => bildWeg(z.id)}>✕</button>
+                        : <button type="button" className="pst-bildknopf" title="Bild des Masses einfügen (oder Strg + V im Feld)" data-pstbildneu={z.id} onClick={() => bildWaehlen(z.id)}>🖼</button>) : null}
+                    </div></td>
                     <td className="pst-c-tol">{(() => { const t = toleranz(z.soll); return t ? toleranzText(t) : "—"; })()}</td>
                     <td><input value={z.pm || ""} disabled={!schreibt} onChange={(e) => zeileSetzen(z.id, "pm", e.target.value)} onKeyDown={enter(i)} /></td>
                     <td className="pst-c-ll"><input type="checkbox" checked={!!z.ll} disabled={!schreibt} onChange={() => zeileSetzen(z.id, "ll", !z.ll)} /></td>
