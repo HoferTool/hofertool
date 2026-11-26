@@ -292,6 +292,22 @@ function anfangswerte(auftrag, v, vorgabeMaschine, vorgabeDatum, leer) {
 // werden eingebettet. Die Fläche bleibt bedienbar (blättern, rollen);
 // zum Vergrössern gibt es den Knopf in der Ecke.
 function Vorschau({ adresse, titel }) {
+  // Das PDF im Vorschaubild holt sich beim Laden den Fokus (Chromium), dann
+  // erreicht Escape die App nicht mehr und das Fenster bleibt offen
+  // (Prüfstand waschprog). Kurz nach dem Öffnen geben wir ihn zurück.
+  const rahmen = useRef(null);
+  useEffect(() => {
+    const ende = Date.now() + 2500;
+    const zurueck = () => {
+      const f = rahmen.current;
+      if (!f || document.activeElement !== f) return;
+      f.blur();
+      const d = f.closest(".dialog");
+      if (d) { if (!d.hasAttribute("tabindex")) d.setAttribute("tabindex", "-1"); d.focus({ preventScroll: true }); }
+    };
+    const t = setInterval(() => { zurueck(); if (Date.now() > ende) clearInterval(t); }, 100);
+    return () => clearInterval(t);
+  }, [adresse]);
   if (!adresse) {
     return <div className="auf-vorschau" id="pl-vorschau">
       <span className="auf-vorschau__leer">Keine Zeichnung hinterlegt</span></div>;
@@ -301,7 +317,7 @@ function Vorschau({ adresse, titel }) {
     <div className="auf-vorschau auf-vorschau--da" id="pl-vorschau">
       {bild
         ? <img src={adresse} alt="Zeichnung" />
-        : <iframe src={adresse + "#navpanes=0&view=Fit"} title="Zeichnung" loading="lazy" />}
+        : <iframe ref={rahmen} src={adresse + "#navpanes=0&view=Fit"} title="Zeichnung" loading="lazy" />}
       <button type="button" className="auf-vorschau__gross" title="Gross ansehen"
         onClick={() => alt.betrachter(adresse, titel, !bild)}>⤢</button>
     </div>

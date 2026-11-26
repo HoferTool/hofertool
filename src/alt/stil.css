@@ -17454,3 +17454,9 @@ body.dunkel .pb-pm-fehlt { color: #ff9a92 !important; }
 :is(#pad, .pl-seite) .pl-links .pl-kopf { gap: 6px; }
 :is(#pad, .pl-seite) .pl-links #pl-abgeschlossen { font-size: .72rem; padding: 5px 8px; white-space: nowrap; }
 :is(#pad, .pl-seite) .pl-links .pl-plus { width: 30px; height: 30px; font-size: 1.1rem; }
+
+/* 1.846.1: Knopf „Index“ im Auftragsfenster klein wie die Zeile
+   Waschprog-Nr., sonst schob er die Zeile WBG unter die Zeichnung
+   (Prüfstand auftrag_layout, waschprog, doppelklick) */
+.dialog--auftrag #pl-wbgindex { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.dialog--auftrag #pl-index-knopf { min-height: 0 !important; height: auto; padding: 0 8px; font-size: .78rem; line-height: 1.5; flex: 0 0 auto; }

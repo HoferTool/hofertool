@@ -6301,10 +6301,27 @@ function balkenKlick(auftrag, b) {
     // Der Doppelklick markiert sonst Text auf dem Balken
     const auswahl = window.getSelection && window.getSelection();
     if (auswahl) auswahl.removeAllRanges();
+    geisterKlickSchlucken();
     planAuftragDialog(auftrag, b);
     return;
   }
   plan.klickWarten = { id: auftrag.id, am: Date.now() };
+}
+
+// Das Fenster geht schon beim Loslassen auf (pointerup). Der Browser
+// schickt danach noch einen Klick an dieselbe Stelle, der sonst im eben
+// geöffneten Fenster landet, etwa auf „Problem“ (seit 1.824.0 sitzt der
+// Knopf dort am Tablet quer, Prüfstand doppelklick). Den schlucken wir.
+function geisterKlickSchlucken() {
+  const bis = Date.now() + 700;
+  const weg = (e) => {
+    window.removeEventListener("click", weg, true);
+    if (Date.now() > bis) return;
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  window.addEventListener("click", weg, true);
+  setTimeout(() => window.removeEventListener("click", weg, true), 800);
 }
 
 // Der zuletzt angeklickte Balken bleibt markiert, auch nach dem
