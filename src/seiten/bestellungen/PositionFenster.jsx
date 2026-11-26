@@ -15,6 +15,7 @@ import { ArtikelAngaben } from "./teile.jsx";
 import { betrachter } from "../../teile/Betrachter.jsx";
 import { spezialPdfsLaden } from "../../daten/spezialwerkzeuge.js";
 import { padGeraet, istPadKonto } from "../../pad/geraet.jsx";
+import { lernen, vorschlaege } from "../../daten/werkzeugLernen.js";
 
 // Bestellt man im Pad Mode, gehört die Lieferung fast immer an die
 // Maschine dieses iPads (Wunsch Patrick 9. November 2026: „automatisch
@@ -108,6 +109,21 @@ function PositionFenster({ zu, fertig, vorgabe }) {
   // damit man das Werkzeug gleich ansehen kann (seit 1.299.0, Wunsch
   // Patrick 30. Oktober 2026: „Werkzeug ansehen“, auch aus dem Einrichtblatt)
   const [pdfs, setPdfs] = useState([]);
+  // „Könnte das sein?“: was früher zu diesem alten Namen gewählt wurde
+  // (seit 1.872.0, src/daten/werkzeugLernen.js). Der alte Name kommt
+  // vom Einrichtblatt (Excel-Text oder bisheriger Artikel) oder ist
+  // das Eingetippte
+  const [vorschlag, setVorschlag] = useState([]);
+  const vorschlagNr = useRef(0);
+  const vorschlagHolen = (text, hersteller) => {
+    const nr = ++vorschlagNr.current;
+    vorschlaege(text, hersteller, vorgabe.ohne || null).then((l) => {
+      if (nr === vorschlagNr.current) setVorschlag(l);
+    }, () => {});
+  };
+  useEffect(() => {
+    if (vorgabe.alt || vorgabe.altHersteller) vorschlagHolen(vorgabe.alt || "", vorgabe.altHersteller || "");
+  }, []);
 
   useEffect(() => () => clearTimeout(taste.current), []);
   // Mit Vorgabe (etwa der Text aus dem alten Excel) gleich suchen
@@ -128,6 +144,10 @@ function PositionFenster({ zu, fertig, vorgabe }) {
 
   const suchen = async (text) => {
     const t = text.trim();
+    // Getippt: dazu Vorschläge zum Eingetippten, sonst wieder die zum alten Namen
+    if (t) vorschlagHolen(t, "");
+    else if (vorgabe.alt || vorgabe.altHersteller) vorschlagHolen(vorgabe.alt || "", vorgabe.altHersteller || "");
+    else setVorschlag([]);
     if (!t) { setTreffer(null); return; }
     const nr = ++suchNr.current;
     setSucht(true);
@@ -144,6 +164,13 @@ function PositionFenster({ zu, fertig, vorgabe }) {
   };
 
   const waehlen = (a) => {
+    // Lernen, wie es vorher hiess und was gewählt wurde
+    if (a && alt.darfSchreiben() && !alt.istExtern()) {
+      if (vorgabe.alt) lernen(vorgabe.alt, vorgabe.altHersteller, a);
+      const getippt = suche.trim();
+      if (getippt && getippt !== String(vorgabe.alt || "").trim()) lernen(getippt, "", a);
+    }
+    setVorschlag([]);
     setGewaehlt(a);
     setTreffer(null);
     setSuche("");
@@ -272,6 +299,17 @@ function PositionFenster({ zu, fertig, vorgabe }) {
             if (e.key === "Enter") { e.preventDefault(); clearTimeout(taste.current); suchen(suche); }
           }} />
       </div>
+      {!gewaehlt && vorschlag.length > 0 && (
+        <div className="pd-vorschlag" id="pd-vorschlag">
+          <div className="pd-vorschlag__titel">Könnte das sein?</div>
+          {vorschlag.map((v) => (
+            <button key={v.artikel.id} className="pd-zeile pd-zeile--vorschlag" data-vorschlag={v.artikel.id}
+              onClick={() => waehlen(v.artikel)}>
+              <ArtikelAngaben a={v.artikel} />
+              <span className="klein pd-vorschlag__grund">{v.grund}</span></button>
+          ))}
+        </div>
+      )}
       <div id="pd-treffer" className="pd-treffer">
         {sucht && !treffer && <div className="laedt">Wird gesucht …</div>}
         {suchFehler && <p className="hinweis">{suchFehler}</p>}
