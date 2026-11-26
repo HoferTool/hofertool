@@ -305,6 +305,7 @@ button.zeile-verw{width:100%;text-align:left}
 .zeile-verw span.ava{flex:none;overflow:visible}
 .marke img{display:block;border-radius:4px}
 .start-banner{width:min(520px,88vw);display:block;margin:0 auto}
+.start-knopf{width:auto;min-width:220px;padding:14px 40px;margin:0 auto}
 .feld.block .kopfzeile .fi{flex:1;min-width:0}
 .seg{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
 .seg button{flex:1;min-width:64px;padding:9px 10px;border-radius:10px;border:1.5px solid var(--rand);background:var(--flaeche2,transparent);font-size:14px;color:var(--text);transition:background .15s,border-color .15s}
@@ -618,7 +619,7 @@ function leiste(an) {
 // ---------- Ansichten ----------
 function vStart() {
   return `<div class="start"><img class="start-banner st1" src="${LOGO_BANNER}" alt="SÜMI Schreinerei – Wir begeistern mit Lösungen"><div class="strich st4"></div>
-    <button class="knopf st5" data-a="anmelden">Zur Bestellung</button></div>`;
+    <button class="knopf st5 start-knopf" data-a="anmelden">Zur Bestellung</button></div>`;
 }
 
 // Anmelden ohne Passwort: nur Person antippen (für den Anfang)
