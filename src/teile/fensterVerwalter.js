@@ -17,6 +17,7 @@
 //  „Alle schliessen“, nur am Computer (ab 780 Punkten) und nicht im Pad.
 // =================================================================
 import { alt } from "../bruecke.jsx";
+import { inEigenesFenster } from "./eigenesFenster.js";
 
 const ordnung = [];
 let leiste = null;
@@ -126,6 +127,41 @@ document.addEventListener("pointerdown", (e) => {
   zug = { h, f, x0: e.clientX, y0: e.clientY, vx: v.x, vy: v.y, r, los: false };
 }, true);
 
+// Über den Rand des Browsers hinaus gezogen: das Fenster zieht in ein
+// eigenes Browserfenster um, das man auf jeden Bildschirm stellen kann
+// (Wunsch Patrick 26. November 2026: „die geöffneten Fenster auch aus dem
+// HoferTool ziehen“). Wie beim Auftragsfenster nur am Computer mit Maus,
+// nicht im Pad, im Archiv und für Externe.
+const herausMoeglich = () => window.matchMedia("(pointer: fine)").matches
+  && !document.body.classList.contains("pad-offen")
+  && !(alt.istArchiv && alt.istArchiv())
+  && !(alt.istExtern && alt.istExtern())
+  && !(alt.isMobil && alt.isMobil());
+
+function zuFuer(h) {
+  return () => {
+    if (typeof h.__hoferZu === "function") { try { h.__hoferZu(); return; } catch (f) { /* weiter */ } }
+    const knopf = h.querySelector("[data-nein], .gf-zu, [data-zu], .dialog__knoepfe .knopf--still");
+    if (knopf) knopf.click();
+    else if (h.isConnected) h.remove();
+  };
+}
+
+function herausziehen(z, e) {
+  const { h, f, x0, y0, r } = z;
+  zug = null;
+  document.body.classList.remove("fenster-zieht");
+  const griff = { x: x0 - r.left, y: y0 - r.top };
+  setzen(f, 0, 0);
+  entfernen(h);
+  const ok = inEigenesFenster(h, zuFuer(h), {
+    titel: titelVon(h) + " – HoferTool",
+    lage: { x: e.screenX - griff.x, y: e.screenY - griff.y - 30 },
+  });
+  if (!ok) aufnehmen(h);
+  leisteZeichnen();
+}
+
 document.addEventListener("pointermove", (e) => {
   if (!zug) return;
   const dx = e.clientX - zug.x0, dy = e.clientY - zug.y0;
@@ -135,6 +171,9 @@ document.addEventListener("pointermove", (e) => {
     document.body.classList.add("fenster-zieht");
     freiMachen(zug.h);
   }
+  const draussen = e.clientX <= 0 || e.clientY <= 0
+    || e.clientX >= innerWidth - 1 || e.clientY >= innerHeight - 1;
+  if (draussen && herausMoeglich()) { herausziehen(zug, e); e.preventDefault(); return; }
   // Der Titel bleibt immer erreichbar: oben nicht über den Rand,
   // seitlich und unten mindestens 80 Punkte sichtbar
   const { r } = zug;
