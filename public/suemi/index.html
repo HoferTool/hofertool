@@ -347,15 +347,24 @@ button.zeile-verw{width:100%;text-align:left}
 
 /* Anmeldung: nur Bild und Name, am Handy kompakt; Schreiner-Animation (Hobelspäne, Hobel) */
 .anmelden{position:relative;overflow:hidden}
-.an-logo,.anmelden h1,.anmelden>p,.an-raster{position:relative;z-index:1}
-.an-spaene{position:absolute;inset:0;pointer-events:none;z-index:0}
-.an-span{position:absolute;top:-50px;opacity:.35;animation:span-fall var(--d) var(--v) linear infinite}
-@keyframes span-fall{0%{transform:translate(0,0) rotate(0)}50%{transform:translate(30px,55vh) rotate(calc(var(--r)/2))}100%{transform:translate(-20px,110vh) rotate(var(--r))}}
-.an-kachel{position:relative;overflow:visible}
-.an-hobel{position:absolute;top:-14px;left:-30%;z-index:3;pointer-events:none;filter:drop-shadow(0 4px 6px #0008);animation:hobel-fahrt .6s cubic-bezier(.4,0,.2,1) forwards}
-@keyframes hobel-fahrt{0%{left:-40%;opacity:0}15%{opacity:1}85%{opacity:1}100%{left:110%;opacity:0}}
-.an-flug{position:absolute;top:0;width:20px;height:20px;z-index:2;pointer-events:none;opacity:0;animation:span-flug .7s var(--t) ease-out forwards}
-@keyframes span-flug{0%{opacity:1;transform:translate(0,0) rotate(0) scale(.6)}100%{opacity:0;transform:translate(var(--x),var(--y)) rotate(var(--r)) scale(1.1)}}
+.an-kachel{position:relative}
+/* Säge-Anmeldung: die anderen fliegen weg, die gewählte in die Mitte, Säge, Seite teilt sich */
+.an-raster.saegt .an-kachel{animation:none!important;transition:transform .5s cubic-bezier(.5,0,.75,0),opacity .5s ease-in,filter .5s}
+.an-raster.saegt .an-kachel.an-weg{transform:translate(var(--x),var(--y)) scale(.15) rotate(var(--r));opacity:0;filter:blur(3px)}
+.an-raster.saegt .an-kachel.gewaehlt{z-index:5;transition:transform .45s cubic-bezier(.2,.8,.2,1),box-shadow .3s}
+.an-raster.saegt ~ *,.anmelden.saegt>:not(.an-raster){transition:opacity .4s;opacity:0}
+.an-saege{position:fixed;left:0;right:0;height:0;z-index:60;pointer-events:none}
+.an-schnitt{position:absolute;left:0;top:-1px;height:2px;width:0;background:linear-gradient(90deg,transparent,#fff,var(--pink));box-shadow:0 0 12px var(--pink);animation:schnitt .65s cubic-bezier(.45,0,.55,1) forwards}
+@keyframes schnitt{to{width:100%}}
+.an-blatt{position:absolute;top:-46px;left:-100px;width:92px;height:92px;filter:drop-shadow(0 6px 10px #000a);animation:blatt-fahrt .65s cubic-bezier(.45,0,.55,1) forwards}
+.an-blatt svg{width:100%;height:100%;animation:blatt-dreh .18s linear infinite}
+@keyframes blatt-fahrt{to{left:calc(100% + 10px)}}
+@keyframes blatt-dreh{to{transform:rotate(360deg)}}
+.an-staub{position:absolute;top:-3px;width:6px;height:6px;border-radius:50%;background:#e8c08a;opacity:0;animation:staub .6s var(--t) ease-out forwards}
+@keyframes staub{0%{opacity:1;transform:translate(0,0)}100%{opacity:0;transform:translate(var(--x),var(--y)) scale(.4)}}
+.an-haelfte{position:fixed;inset:0;z-index:55;overflow:hidden;pointer-events:none;transition:transform .7s cubic-bezier(.6,0,.3,1)}
+.an-haelfte.oben{clip-path:inset(0 0 50% 0)}.an-haelfte.unten{clip-path:inset(50% 0 0 0)}
+.an-haelfte.oben.weg{transform:translateY(-100%)}.an-haelfte.unten.weg{transform:translateY(100%)}
 @media (max-width:600px){
   .anmelden{gap:8px;padding-top:calc(20px + env(safe-area-inset-top))}
   .anmelden h1{font-size:20px}
@@ -544,21 +553,38 @@ const initialen = (n) => String(n || "?").split(/\s+/).map((w) => w[0]).join("")
 const ava = (name, gr = 40) => { const p = person(name); const f = p?.farbe || "#555b63";
   return `<span class="ava" style="--f:${f};--g:${gr}px;width:${gr}px;height:${gr}px;font-size:${Math.round(gr * 0.38)}px">${esc(initialen(name))}</span>`; };
 // Schreiner-Stimmung bei der Anmeldung: Hobelspäne schweben langsam durchs Bild
-const SPAN_SVG = (f) => `<svg viewBox="0 0 40 40" width="100%" height="100%"><path d="M6 30c2-14 14-24 26-20 6 2 5 10-1 11-6 1-9-5-5-8" fill="none" stroke="${f}" stroke-width="3.2" stroke-linecap="round"/><path d="M8 31c3-11 12-18 21-16" fill="none" stroke="#fff3" stroke-width="1.2" stroke-linecap="round"/></svg>`;
-const HOLZ = ["#d9a066", "#c98b4f", "#e8c08a", "#b8763d"];
-function spaeneHtml() {
-  if (!animAn()) return "";
-  let h = ""; for (let i = 0; i < 14; i++) { const x = (i * 37 + 11) % 100, g = 18 + (i * 13) % 22, d = 9 + (i * 7) % 9, v = -((i * 5.3) % d);
-    h += `<span class="an-span" style="left:${x}%;width:${g}px;height:${g}px;--d:${d}s;--v:${v}s;--r:${(i % 2 ? 1 : -1) * (200 + i * 20)}deg">${SPAN_SVG(HOLZ[i % 4])}</span>`; }
-  return `<div class="an-spaene" aria-hidden="true">${h}</div>`;
-}
-// Antippen: ein Hobel fährt über die Kachel, Späne fliegen weg
-function hobeln(el) {
-  const h = document.createElement("span"); h.className = "an-hobel"; h.innerHTML = `<svg viewBox="0 0 64 30" width="64" height="30"><rect x="4" y="12" width="56" height="14" rx="3" fill="#c98b4f"/><rect x="4" y="12" width="56" height="4" rx="2" fill="#e8c08a"/><path d="M22 12c0-8 6-10 12-10s9 4 9 10" fill="none" stroke="#e5175f" stroke-width="5" stroke-linecap="round"/><circle cx="50" cy="8" r="5" fill="#8a5a2b"/><rect x="2" y="25" width="60" height="3" rx="1.5" fill="#9aa3ad"/></svg>`;
-  el.appendChild(h);
-  for (let i = 0; i < 12; i++) { const s = document.createElement("span"); s.className = "an-flug";
-    s.style.cssText = `--x:${(Math.random() * 2 - 1) * 90}px;--y:${-40 - Math.random() * 80}px;--r:${(Math.random() * 2 - 1) * 540}deg;--t:${i * 18}ms;left:${10 + i * 7}%`;
-    s.innerHTML = SPAN_SVG(HOLZ[i % 4]); el.appendChild(s); }
+// Anmeldung: die anderen Kacheln fliegen weg, die gewählte kommt in die Mitte,
+// eine Kreissäge fährt von links nach rechts durch, dann teilt sich die Seite nach oben und unten.
+const SAEGE_SVG = `<svg viewBox="0 0 100 100"><g fill="#cfd6dd" stroke="#8a949e" stroke-width="1.5">${Array.from({ length: 16 }, (_, i) => `<path d="M50 4 L57 16 L43 16 Z" transform="rotate(${i * 22.5} 50 50)"/>`).join("")}<circle cx="50" cy="50" r="36"/></g><circle cx="50" cy="50" r="27" fill="none" stroke="#9aa3ab" stroke-width="1"/><circle cx="50" cy="50" r="9" fill="#e5175f"/><circle cx="50" cy="50" r="3.5" fill="#fff"/></svg>`;
+function saegen(el, fertig) {
+  const raster = app.querySelector(".an-raster"), seite = app.querySelector(".anmelden");
+  raster.classList.add("saegt"); seite.classList.add("saegt");
+  raster.querySelectorAll(".an-kachel").forEach((k) => {
+    if (k === el) return;
+    const w = Math.random() * Math.PI * 2, d = 600 + Math.random() * 500;
+    k.style.setProperty("--x", Math.round(Math.cos(w) * d) + "px"); k.style.setProperty("--y", Math.round(Math.sin(w) * d) + "px");
+    k.style.setProperty("--r", Math.round(Math.random() * 360 - 180) + "deg"); k.classList.add("an-weg");
+  });
+  const r = el.getBoundingClientRect(), mx = innerWidth / 2, my = innerHeight / 2;
+  el.style.transform = `translate(${Math.round(mx - (r.left + r.width / 2))}px,${Math.round(my - (r.top + r.height / 2))}px) scale(1.4)`;
+  setTimeout(() => {
+    const s = document.createElement("div"); s.className = "an-saege"; s.style.top = my + "px";
+    s.innerHTML = `<div class="an-schnitt"></div><div class="an-blatt">${SAEGE_SVG}</div>`;
+    for (let i = 0; i < 18; i++) { const p = document.createElement("span"); p.className = "an-staub"; p.style.left = (8 + i * 5) + "%";
+      p.style.setProperty("--t", (i * 0.034) + "s"); p.style.setProperty("--x", Math.round(Math.random() * 40 - 30) + "px"); p.style.setProperty("--y", Math.round((Math.random() < .5 ? -1 : 1) * (20 + Math.random() * 50)) + "px"); s.appendChild(p); }
+    document.body.appendChild(s);
+    setTimeout(() => {
+      const grund = getComputedStyle(document.body).backgroundColor, sy = scrollY;
+      const haelften = ["oben", "unten"].map((art) => {
+        const h = document.createElement("div"); h.className = "an-haelfte " + art; h.style.background = grund;
+        const c = app.cloneNode(true); c.removeAttribute("id"); c.style.cssText = `position:absolute;left:0;top:${-sy}px;width:${app.offsetWidth}px`;
+        h.appendChild(c); document.body.appendChild(h); return h;
+      });
+      s.remove(); fertig(); scrollTo(0, 0);
+      requestAnimationFrame(() => requestAnimationFrame(() => haelften.forEach((h) => h.classList.add("weg"))));
+      setTimeout(() => haelften.forEach((h) => h.remove()), 800);
+    }, 700);
+  }, 520);
 }
 const kopf = () => `<header class="kopf haupt">${marke()}</header>`;
 const titel = (t, mitZurueck = true, rechts = "") =>
@@ -592,7 +618,7 @@ function vStart() {
 
 // Anmelden ohne Passwort: nur Person antippen (für den Anfang)
 function vAnmelden() {
-  return `<div class="anmelden">${spaeneHtml()}<div class="an-logo">${marke(46)}</div>
+  return `<div class="anmelden"><div class="an-logo">${marke(46)}</div>
     <h1>Wer meldet sich an?</h1><p class="text-leise">Tippe auf deinen Namen.</p>
     <div class="an-raster">${D.leute.slice().sort((a, b) => a.name.localeCompare(b.name, "de")).map((p, i) => `<button class="an-kachel" data-a="wer" data-w="${esc(p.name)}" style="--i:${i}">${ava(p.name, 96)}<b>${esc(p.name)}</b></button>`).join("")
       || `<div class="leer">Noch keine Mitarbeitenden.</div>`}</div>
@@ -944,9 +970,10 @@ app.addEventListener("click", (e) => {
   switch (a) {
     case "anmelden": S.ansicht = "anmelden"; S.richtung = "vor"; zeichne(); break;
     case "wer": {
-      el.classList.add("gewaehlt"); app.querySelector(".an-raster").classList.add("gewaehlt-da");
-      if (animAn()) hobeln(el);
-      setTimeout(() => { D.ich = w; speichern(); S.zurueck = []; S.ansicht = "liste"; S.richtung = "vor"; zeichne(); meldung("Hallo " + w.split(" ")[0] + " 👋"); }, animAn() ? 750 : 0);
+      const weiter = () => { D.ich = w; speichern(); S.zurueck = []; S.ansicht = "liste"; S.richtung = "vor"; zeichne(); meldung("Hallo " + w.split(" ")[0] + " 👋"); };
+      if (app.querySelector(".an-raster.saegt")) break;
+      el.classList.add("gewaehlt");
+      if (animAn()) saegen(el, weiter); else weiter();
       break;
     }
     case "liste": case "uebersicht": case "kommissionen": case "mitarbeitende": case "einstellungen": case "profil": reiter(a); break;
