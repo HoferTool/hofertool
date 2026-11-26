@@ -17,6 +17,7 @@ import { useSeitenSuche } from "../teile/seitenSuche.js";
 import { teilMerken } from "../teile/wiederherstellen.js";
 import { materialZerlegen, werkstoffGenau } from "../daten/material.js";
 import { naechsteNummer, nummernLaden } from "../daten/erp.js";
+import { artikelAusKalkulation } from "./erp/KalkTab.jsx";
 import {
   z, chf, stundensatz, staffelRechnen, leereKalkulation, kalkulationenLaden, kalkulationLaden, kalkVorschau, maschinenLaden,
   kalkulationSpeichern, maschineSpeichern, BEISPIEL_MASCHINEN, beispielKalkulation, START_MASCHINEN, startArbeitsplan, WAEHRUNGEN, kursHolen, PREISEINHEITEN, peWert, peText, EXTERN_NEBEN, FGK_DREHEN, SPEZ_GEWICHT, PREIS_JE_STAFFEL, preisInStaffeln, adresseVon, adresseZeilen,
@@ -236,6 +237,10 @@ function Bearbeiten({ eintrag, maschinen, zurueck, neu, oeffnen, liste }) {
           <span className={"kalk-stand kalk-stand--" + stand} id="kalk-stand">
             {{ gespeichert: "Gespeichert", ungespeichert: "Wird gleich gespeichert …", speichert: "Speichert …", fehler: "Nicht gespeichert" }[stand]}
           </span>
+          <button className="knopf knopf--klein" id="kalk-erp-uebernehmen" title="Artikel, Preisliste und Arbeitsplan dieser Kalkulation ins Test ERP übernehmen" onClick={async () => {
+            try { const r = await artikelAusKalkulation({ id: eintrag.id, nr, daten: k }, maschinen); if (r) { alt.meldung(r, "gut"); window.dispatchEvent(new Event("hofer-erp-neu")); } }
+            catch (e) { alt.meldung(String(e?.message || e), "fehler"); }
+          }}>Artikel und Arbeitsplan übernehmen</button>
           <button className="knopf knopf--klein" id="kalk-kopieren" onClick={kopieren}>Kopieren</button>
           <button className="knopf knopf--klein knopf--gefahr-leise" id="kalk-loeschen" onClick={loeschen}>Löschen</button>
         </div>

@@ -475,7 +475,7 @@ function Arbeitsplaene({ d, neu }) {
     <>
       <div className="mat-kopf"><Suche wert={suche} setzen={setSuche} platzhalter="Artikel suchen, um einen Arbeitsplan anzulegen …" /></div>
       <Tabelle kopf={["Artikel", "Index", "Bezeichnung", "Arbeitsgänge", "Aus Kalkulation"]}
-        leer="Noch keine Arbeitspläne. In der Kalkulation „Artikel und Arbeitsplan anlegen“ oder hier einen Artikel suchen."
+        leer="Noch keine Arbeitspläne. In der offenen Kalkulation „Artikel und Arbeitsplan übernehmen“ oder hier einen Artikel suchen."
         zeilen={liste.map((a) => ({ key: a.id, klick: () => artikelFensterOeffnen(d, neu, a, { reiter: "arbeitsplan" }),
           zellen: [<b>{a.nr}</b>, a.idx || "–", a.bezeichnung || "", (a.arbeitsplan || []).map((x) => x.bez).join(" → "), a.kalkulation_id ? "ja" : ""] }))} />
     </>

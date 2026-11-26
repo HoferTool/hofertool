@@ -181,8 +181,9 @@ with sync_playwright() as p:
     # Kalkulation im ERP
     pg.click("[data-erp-reiter='kalk']"); pg.wait_for_timeout(800)
     pruefe(pg.locator(".erp-kalk").count() == 1 and "K-1" in pg.inner_text(".erp-kalk"), "Modul Kalkulation im Reiter")
-    pg.click("[data-erp-kalkreiter='artikel']"); pg.wait_for_selector("[data-erp-kalk='K-1']")
-    pg.click("[data-erp-kalk='K-1']"); pg.wait_for_timeout(800)
+    pruefe(pg.locator("[data-erp-kalkreiter]").count() == 0, "Kein eigener Reiter Artikel und Arbeitsplan mehr")
+    pg.click("tr[data-kalk='kk1']"); pg.wait_for_selector("#kalk-erp-uebernehmen")
+    pg.click("#kalk-erp-uebernehmen"); pg.wait_for_timeout(1200)
     neu = [a for a in tabelle(pg, "erp_artikel") if a["nr"] == "10007-0590"]
     pruefe(len(neu) == 1 and neu[0]["idx"] == "C" and neu[0]["kunde_id"] == "k1", "Artikel aus Kalkulation angelegt: %s" % neu)
     pg.screenshot(path=BILD + "/erp-kalk.png")
@@ -192,7 +193,14 @@ with sync_playwright() as p:
            and [(x["ab"], x["preis"]) for x in pl.get("staffeln", [])] == [(1000, 250), (5000, 200)] and a.get("preis") == 250,
            "Preisliste aus Kalkulation: %s" % pl)
     pruefe((a.get("daten") or {}).get("rohmaterial_id") == "r1", "Rohmaterial zugewiesen: %s" % a.get("daten"))
-    pg.click("[data-erp-kalk='K-2']"); pg.wait_for_timeout(800)
+    # Nochmals übernehmen: Artikel besteht, Fenster fragt nach Index, Preisliste, Arbeitsplan
+    pg.click("#kalk-erp-uebernehmen"); pg.wait_for_selector(".dialog-huelle")
+    pruefe("gibt es schon" in pg.inner_text(".dialog-huelle"), "Fragt beim bestehenden Artikel nach")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
+    pg.click("#kalk-zurueck"); pg.wait_for_selector("tr[data-kalk='kk2']")
+    pg.click("tr[data-kalk='kk2']"); pg.wait_for_selector("#kalk-erp-uebernehmen")
+    pg.click("#kalk-erp-uebernehmen"); pg.wait_for_timeout(1200)
+    pg.click("#kalk-zurueck"); pg.wait_for_timeout(500)
     a2 = [x for x in tabelle(pg, "erp_artikel") if x["nr"] == "10007-0591"]
     pruefe(len(a2) == 1 and not (a2[0]["daten"] or {}).get("rohmaterial_id") and a2[0]["daten"]["material"] == "CuZn39Pb3 rd 8"
            and not [x for x in tabelle(pg, "erp_artikel") if x["art"] == "rohmaterial" and "CuZn" in x["nr"]],
@@ -408,7 +416,6 @@ with sync_playwright() as p:
         if pg.locator(".dialog-huelle").count() == 0: break
         pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
     pg.click("[data-erp-reiter='kalk']"); pg.wait_for_timeout(500)
-    pg.click("[data-erp-kalkreiter='modul']"); pg.wait_for_timeout(500)
     pg.click("#kalk-neu"); pg.wait_for_selector("#kalk-kunde")
     pg.fill("#kalk-kunde", "muster"); pg.wait_for_selector("[data-kalk-wahl='kalk-kunde'] [data-kalk-wahl-id='k1']")
     pg.screenshot(path=BILD + "/erp-kalk-wahl.png")

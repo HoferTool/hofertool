@@ -407,7 +407,7 @@ function Verkauf({ d, a, w, setW }) {
         {pl.kalkulation_nr ? <>Preise aus Kalkulation <b>{pl.kalkulation_nr}</b>{pl.uebernommen_am ? " vom " + datumText(pl.uebernommen_am.slice(0, 10)) : ""}
           {pl.aus_waehrung ? " (aus " + pl.aus_waehrung + " in CHF umgerechnet)" : ""}
           {pl.von_hand ? <> · <b className="erp-rot">von Hand geändert{pl.geaendert_am ? " am " + datumText(pl.geaendert_am.slice(0, 10)) : ""}</b></> : ""}</>
-          : pl.staffeln.length ? "Preise von Hand eingetragen." : "Noch keine Preisliste. In der Kalkulation „Artikel und Arbeitsplan anlegen“ oder hier eintragen."}
+          : pl.staffeln.length ? "Preise von Hand eingetragen." : "Noch keine Preisliste. In der offenen Kalkulation „Artikel und Arbeitsplan übernehmen“ oder hier eintragen."}
       </p>
       <div className="gf-zeile">
         <KF label="Preis pro" name="pe" wert={w.pe} setzen={(x) => setW((v) => ({ ...v, pe: x }))} auswahl={PE_AUSWAHL} />
