@@ -101,9 +101,9 @@ export function anstehend(jobs, stamm, protokolle) {
   const t = heute();
   const aus = { erstteil: [], endkontrolle: [], aql: [], ll: [] };
   for (const j of jobs || []) {
+    // Ohne Stamm gelten Erstteil und Endkontrolle wie bei allen HOCO Nr. (seit 1.869.0)
     const s = st.get(j.job_number);
-    if (!s) continue;
-    const arten = s.arten || [];
+    const arten = s ? (s.arten || []) : ["erstteil", "endkontrolle"];
     const meine = (protokolle || []).filter((p) => gehoertZu(p, j));
     const von = (art) => meine.filter((p) => (p.kopf || {}).art === art);
     const offenes = (art) => von(art).find((p) => !p.abgeschlossen_am) || null;
@@ -111,11 +111,14 @@ export function anstehend(jobs, stamm, protokolle) {
     const altDa = (art) => von(art).some((p) => p.abgeschlossen_am && (p.kopf || {}).alt);
     // Erstteil gilt erst mit Freigabe als erledigt (seit 1.785.0)
     const fertig = (art) => von(art).some((p) => p.abgeschlossen_am && (art !== "erstteil" || p.entscheid === "freigabe"));
-    const fa = String(j.fa_nr || "").trim();
-    if (j.plan_status === "ruesten" && fa && arten.includes("erstteil") && !fertig("erstteil")) aus.erstteil.push({ j, art: "erstteil", p: offenes("erstteil") });
+    // Jeder Auftrag auf Rüsten, auch ohne FA Nr. (seit 1.869.0, Wunsch Patrick 26. November 2026)
+    if (j.plan_status === "ruesten" && arten.includes("erstteil") && !fertig("erstteil")) aus.erstteil.push({ j, art: "erstteil", p: offenes("erstteil") });
     // Eine Zwischenkontrolle erledigt die Endkontrolle nicht
     const endFertig = von("endkontrolle").some((p) => p.abgeschlossen_am && !istZwischen(p.kopf));
     if (j.plan_status === "fertig" && arten.includes("endkontrolle") && !endFertig) aus.endkontrolle.push({ j, art: "endkontrolle", p: offenes("endkontrolle") });
+    // Läuft er, steht er als Zwischenkontrolle an, bis eine abgeschlossen ist (seit 1.869.0)
+    const zwDa = von("endkontrolle").some((p) => p.abgeschlossen_am);
+    if (j.plan_status === "laeuft" && arten.includes("endkontrolle") && !zwDa) aus.endkontrolle.push({ j, art: "endkontrolle", zwischen: true, p: offenes("endkontrolle") });
     if (j.plan_status !== "laeuft") continue;
     if (arten.includes("aql") && !fertig("aql")) aus.aql.push({ j, art: "aql", p: offenes("aql") });
     if (arten.includes("ll") && !altDa("ll")) {
@@ -165,7 +168,7 @@ function materialText(j) {
 
 // ---------- Neues Protokoll ----------
 // Masse und Vorgaben kommen aus den Stammdaten der HOCO Nr.
-async function protokollAnlegen(hoco, art, j, protokolle) {
+async function protokollAnlegen(hoco, art, j, protokolle, zwischen) {
   const st = await stammMitMassen(hoco);
   if (!st || !(st.zeilen || []).length) {
     const ok = await alt.nachfragen({ titel: "Noch keine Masse", text: "Für " + hoco + " sind noch keine Prüfmasse erfasst. Unter „Prüfmasse bearbeiten“ eintragen oder einen Excel-Prüfbericht einlesen.", bestaetigen: "Prüfmasse bearbeiten" });
@@ -178,6 +181,7 @@ async function protokollAnlegen(hoco, art, j, protokolle) {
     catch (f) { if (alt.fehlerMerken) alt.fehlerMerken("Prüfung aus Excel speichern", String((f && f.message) || f)); }
   }
   const kopf = { art, zeilen: st.zeilen, vorlage: st.kopf || {}, menge: j.target_quantity || "" };
+  if (zwischen) kopf.kontrolle = "zwischen";
   if (j.maschine) kopf.maschine = j.maschine;
   const mat = materialText(j);
   if (mat) kopf.material = mat;
@@ -290,11 +294,11 @@ function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
   const todo = useMemo(() => anstehend(daten.jobs, daten.stamm, daten.protokolle), [daten]);
   const jobMaschine = useMemo(() => new Map((daten.jobs || []).map((j) => [j.id, j.maschine])), [daten]);
 
-  const anlegen = async (hoco, art, j) => {
+  const anlegen = async (hoco, art, j, zwischen) => {
     if (!darf() || legt) return;
     setLegt(true);
     try {
-      const p = await protokollAnlegen(hoco, art, j, daten.protokolle);
+      const p = await protokollAnlegen(hoco, art, j, daten.protokolle, zwischen);
       if (p) oeffnen(p);
     } catch (f) { alt.meldung(fehlerText(f), "fehler"); }
     finally { setLegt(false); }
@@ -302,7 +306,7 @@ function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
 
   // Seit 1.784.0 kein „+ Protokoll“ mehr: Protokolle entstehen nur aus dem, was
   // die Stammdaten verlangen und hier ansteht (Wunsch Patrick 24. November 2026).
-  const todoTippen = (t) => { if (t.p) oeffnen(t.p); else anlegen(t.j.job_number, t.art, t.j); };
+  const todoTippen = (t) => { if (t.p) oeffnen(t.p); else anlegen(t.j.job_number, t.art, t.j, t.zwischen); };
 
   const liste = [...daten.protokolle]
     .sort((a, b) => String(b.geaendert_am || b.erstellt_am).localeCompare(String(a.geaendert_am || a.erstellt_am)))
@@ -345,10 +349,10 @@ function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
   // Das Excel selbst zeigt die App nie: daraus wird eine leere Vorlage (seit 1.823.0)
   const vorlageAnsehen = (x) => { pbZustand.vorlage = { hoco: x.hoco, idx: x.idx, dateien: x.dateien }; zeichnen(); };
 
-  const gefiltert = (id) => todo[id].filter((t) => passtWoerter(sp[id], [t.j.job_number, t.j.fa_nr, t.j.maschine, STAND[t.j.plan_status], t.j.material_bez, t.j.material_dm]));
+  const gefiltert = (id) => todo[id].filter((t) => passtWoerter(sp[id], [t.j.job_number]));
   const SPALTEN = [
-    ["erstteil", "Erstteilprüfung", "Aufträge mit FA Nr. in Rüsten ohne freigegebene Erstteilprüfung"],
-    ["endkontrolle", "Endkontrolle", "Fertige Aufträge (60 Tage) ohne abgeschlossene Endkontrolle, wählbar End- oder Zwischenkontrolle"],
+    ["erstteil", "Erstteilprüfung", "Aufträge auf Rüsten ohne freigegebene Erstteilprüfung"],
+    ["endkontrolle", "End- / Zwischenkontrolle", "Laufende Aufträge als Zwischenkontrolle, fertige (60 Tage) als Endkontrolle"],
     ["aql", "AQL", "Laufende Aufträge ohne abgeschlossene AQL-Stichprobe"],
     ["ll", "LL Langläufer", "Laufende Aufträge ohne Stichprobe von heute"],
   ];
@@ -357,21 +361,19 @@ function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
       <div className="pb-todo" id="pb-todo">
         {SPALTEN.map(([id, titel, erkl]) => (
           <section key={id} className="pb-todo__spalte" data-pbtodo={id}>
-            <h3>{titel} <span className={"marke" + (todo[id].length ? " pb-todo__zahl" : "")}>{(sp[id] || "").trim() ? gefiltert(id).length + " von " + todo[id].length : todo[id].length}</span></h3>
-            <input type="search" className="pb-suche pb-todo__suche" data-pbtodosuche={id} placeholder="Suchen …"
+            <h3>{titel} <span className={"marke" + (todo[id].length ? " pb-todo__zahl" : "")}>{todo[id].length}</span></h3>
+            <input type="search" className="pb-suche pb-todo__suche" data-pbtodosuche={id} placeholder="HOCO Nr. suchen …"
               value={sp[id] || ""} onChange={(x) => spSetzen(id, x.target.value)}
               onKeyDown={(x) => { if (x.key === "Escape" && sp[id]) { x.preventDefault(); x.stopPropagation(); spSetzen(id, ""); } }} />
-            {(sp[id] || "").trim() && gefiltert(id).length < todo[id].length ? (
-              <button type="button" className="knopf klein" data-pbtodoalle={id} onClick={() => spSetzen(id, "")}>✕ Suche löschen, alle {todo[id].length} zeigen</button>
-            ) : null}
-            {!todo[id].length ? <p className="klein">Nichts offen.</p> : !gefiltert(id).length ? <p className="klein">Nichts gefunden.</p> : (
+            {/* Seit 1.869.0 steht nichts da, bis man sucht (Wunsch Patrick 26. November 2026:
+                „man soll danach suchen … per HOCO Nr., kein FA Nr., so einfach wie möglich“) */}
+            {!todo[id].length ? <p className="klein">Nichts offen.</p> : !(sp[id] || "").trim() ? <p className="klein">HOCO Nr. eintippen.</p> : !gefiltert(id).length ? <p className="klein">Nichts gefunden.</p> : (
               <ul>
-                {gefiltert(id).map((t) => (
+                {gefiltert(id).slice(0, 30).map((t) => (
                   <li key={t.j.id}>
                     <button type="button" className="pb-todo__eintrag" data-pbtodoauftrag={t.j.id} disabled={!darf() && !t.p} onClick={() => todoTippen(t)}>
                       <b>{t.j.job_number}</b>
-                      <span>{t.j.fa_nr ? "FA " + t.j.fa_nr : "ohne FA"} · {t.j.maschine || "?"} · {STAND[t.j.plan_status] || ""}</span>
-                      <small>{t.p ? (t.art === "ll" ? "heute noch keine Stichprobe" : "in Arbeit, weiterführen") : "noch nicht angefangen"}</small>
+                      <small>{t.j.maschine || "?"} · {t.zwischen ? "Zwischenkontrolle" : (STAND[t.j.plan_status] || "")}{t.p ? " · in Arbeit" : ""}</small>
                     </button>
                     {darf() ? <button type="button" className="pb-todo__alt" data-pbalt={t.j.id} title="Wurde mit dem bisherigen System geprüft, nur weitergeben"
                       onClick={async () => { if (await altGeprueft(t)) neu(); }}>✓ Im alten System geprüft</button> : null}

@@ -8,7 +8,7 @@
 //
 //  Eine Sicherung ist eine ZIP-Datei Hofer-Sicherung-JJJJ-MM-TT-HHMM.zip:
 //    sicherung.json      Kopf: wann, wer, welche Tabellen und Dateien
-//    tabellen/<t>.json   alle Zeilen einer Tabelle (seit 1.870.0 stückweise
+//    tabellen/<t>.json   alle Zeilen einer Tabelle (seit 1.871.0 stückweise
 //                        aus sicherung_teil mit Pausen, vorher sicherung_lesen
 //                        auf einmal, das brachte die Datenbank zum Absturz)
 //    schema.sql          Aufbau der Datenbank (sicherung_schema, seit 1.815.0)
@@ -211,7 +211,7 @@ export function ohneDateien(tabellen, dateien) {
 
 // Dasselbe Stück für Stück: add(tabelle, zeilen) je gelesenes Stück, am
 // Schluss fertig(dateien). So muss die Sicherung nie alle Tabellen auf
-// einmal im Speicher halten (seit 1.870.0).
+// einmal im Speicher halten (seit 1.871.0).
 export function ohneSammler() {
   const ohne = new Map();
   const verwendet = new Set();
@@ -262,7 +262,7 @@ export async function sichern(h, grund, fortschritt) {
   if (laeuft) throw new Error("Es läuft schon eine Sicherung.");
   laeuft = (async () => {
     const melde = (t) => { try { if (fortschritt) fortschritt(t); } catch (f) { /* egal */ } };
-    // Seit 1.870.0 Tabelle für Tabelle in kleinen Stücken (sql/sicherung-stueckweise.sql):
+    // Seit 1.871.0 Tabelle für Tabelle in kleinen Stücken (sql/sicherung-stueckweise.sql):
     // sicherung_lesen holte alles auf einmal in den Speicher der Datenbank,
     // am 25. und 26. November 2026 stürzte sie dabei mehrmals ab. Fehlt die
     // neue Funktion, geht es wie vorher.
@@ -350,7 +350,7 @@ export async function sichern(h, grund, fortschritt) {
     const liste = alle.filter((x) => !ohne.has(x.b + "|" + x.p));
     const ausgelassen = alle.filter((x) => ohne.has(x.b + "|" + x.p)).map((x) => ({ b: x.b, p: x.p, art: ohne.get(x.b + "|" + x.p) }));
     const ohneZahl = ohneZaehlen(ausgelassen);
-    // Der Kopf steht seit 1.870.0 nach den Tabellen; das Einlesen sucht nach Namen
+    // Der Kopf steht seit 1.871.0 nach den Tabellen; das Einlesen sucht nach Namen
     await eintragen("sicherung.json", strToU8(JSON.stringify({ art: "hofer-sicherung", version: 2,
       erstellt: jetzt.toISOString(), geraet: geraetName(), grund, tabellen: kopfTabellen, dateien: liste, ausgelassen }, null, 1)), true);
     // Plan B (seit 1.815.0): der ganze Aufbau der Datenbank (Tabellen, Regeln,

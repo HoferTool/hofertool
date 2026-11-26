@@ -73,7 +73,7 @@ TEST.rpc.sicherung_dateien = () => TEST.dateienJetzt || [
   { b: 'zeichnungen', p: 'maschinen/m1/hb.pdf', g: 11, a: 'application/pdf' },
   { b: 'zeichnungen', p: 'maschinen/m1/notiz.pdf', g: 14, a: 'application/pdf' }];
 TEST.rpc.sicherung_puffern = (a) => a.p_zeilen.length;
-// Seit 1.870.0 liest die Sicherung stückweise; mit STUECK=1 antworten sicherung_liste und sicherung_teil
+// Seit 1.871.0 liest die Sicherung stückweise; mit STUECK=1 antworten sicherung_liste und sicherung_teil
 // (je Stück eine Zeile), sonst nur das alte sicherung_lesen.
 if (window.__STUECK) {
   TEST.rpc.sicherung_liste = () => TEST.rpc.sicherung_lesen().map(x => x.t);
