@@ -2,7 +2,7 @@
 // Prüfmittel, Liefer- und Zahlungsbedingungen, Lager, Arbeitspläne)
 import { useState } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
-import { formular, Tabelle, Suche, passt, tun, Feld, AG_FELDER } from "./teile.jsx";
+import { formular, Tabelle, Suche, passt, tun, Feld, AG_FELDER, ohneSuche, sucheLeer } from "./teile.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import {
   einfuegen, aendern, loeschen, naechstePartnerNr, ARTIKELART, HOFER_NR, bestand, mengeText, chf,
@@ -109,17 +109,17 @@ export function partnerBearbeiten(d, neu, art, p) {
 
 function Partner({ d, neu, art }) {
   const [suche, setSuche] = useState("");
-  const liste = d.partner.filter((p) => p.art === art).sort((a, b) => a.nr.localeCompare(b.nr))
+  const liste = ohneSuche(suche) ? [] : d.partner.filter((p) => p.art === art).sort((a, b) => a.nr.localeCompare(b.nr))
     .filter((p) => passt(suche, [p.nr, p.name, p.gruppe, JSON.stringify(p.daten)].join(" ")));
   return (
     <>
       <div className="mat-kopf">
         <button className="knopf knopf--haupt" data-erp-neu={art} onClick={() => partnerFensterOeffnen(d, neu, null, art)}>
           + {art === "kunde" ? "Kunde" : "Lieferant"}</button>
-        <Suche wert={suche} setzen={setSuche} platzhalter="Nr., Name, Ort, Ansprechpartner …" />
+        <Suche wert={suche} setzen={setSuche} platzhalter="Nr., Name, Ort, Ansprechpartner …" fokus />
       </div>
       <Tabelle kopf={["Nr.", "Name", art === "kunde" ? "Kundenart" : "Lieferantenart", "Ort", "Telefon", "E-Mail", "Links"]}
-        leer={"Noch keine " + (art === "kunde" ? "Kunden" : "Lieferanten") + "."}
+        leer={ohneSuche(suche) ? sucheLeer(art === "kunde" ? "Kunden" : "Lieferanten") : "Keine " + (art === "kunde" ? "Kunden" : "Lieferanten") + " gefunden."}
         zeilen={liste.map((p) => {
           const pd = p.daten || {}, ad = pd.adresse || {};
           const karte = mapsLink(ad);
@@ -224,7 +224,7 @@ function Artikel({ d, neu }) {
   gemerkt.artArt = art;
   const best = new Map();
   bestand(d).forEach((e) => best.set(e.artikel_id, (best.get(e.artikel_id) || 0) + e.menge));
-  const liste = d.artikel.filter((a) => a.art === art)
+  const liste = ohneSuche(suche) ? [] : d.artikel.filter((a) => a.art === art)
     .filter((a) => passt(suche, [a.nr, a.idx, a.bezeichnung, a.zeichnung, (d.partnerMap.get(a.kunde_id) || {}).name].join(" ")))
     .sort((a, b) => a.nr.localeCompare(b.nr) || a.idx.localeCompare(b.idx));
   return (
@@ -236,10 +236,10 @@ function Artikel({ d, neu }) {
       <div className="mat-kopf">
         <button className="knopf knopf--haupt" data-erp-neu="artikel" onClick={() => artikelFensterOeffnen(d, neu, null, { art })}>+ Artikel</button>
         <button className="knopf" onClick={() => tun(() => ausHoferTool(art, d, neu))}>Aus HoferTool übernehmen</button>
-        <Suche wert={suche} setzen={setSuche} platzhalter="Nr., Bezeichnung, Zeichnung, Kunde …" />
+        <Suche wert={suche} setzen={setSuche} platzhalter="Nr., Bezeichnung, Zeichnung, Kunde …" fokus />
       </div>
-      <p className="klein">{alt.zahlText(liste.length)} Artikel</p>
-      <Tabelle kopf={art === "hofer" ? ["Artikel-Nr.", "Index", "Bezeichnung", "Zeichnung", "Kunde", "Preis", "Bestand", "AP", ""]
+      {!ohneSuche(suche) && <p className="klein">{alt.zahlText(liste.length)} Artikel</p>}
+      <Tabelle leer={ohneSuche(suche) ? sucheLeer("Artikel") : "Keine Artikel gefunden."} kopf={art === "hofer" ? ["Artikel-Nr.", "Index", "Bezeichnung", "Zeichnung", "Kunde", "Preis", "Bestand", "AP", ""]
         : ["Artikel-Nr.", "Bezeichnung", "Einheit", "Preis", "Bestand"]}
         zeilen={liste.slice(0, anzahl).map((a) => ({ key: a.id, klasse: a.aktiv ? "" : "erp-blass",
           klick: () => artikelFensterOeffnen(d, neu, a),
@@ -410,7 +410,7 @@ function Lager({ d, neu }) {
       },
     });
   };
-  const best = bestand(d).filter((e) => {
+  const best = ohneSuche(suche) ? [] : bestand(d).filter((e) => {
     const a = d.artikelMap.get(e.artikel_id) || {};
     const l = d.lagerMap.get(e.lager_id) || {};
     return passt(suche, [a.nr, e.idx, a.bezeichnung, e.charge, l.platz, l.lagerart].join(" "));
@@ -426,7 +426,7 @@ function Lager({ d, neu }) {
         <button className="knopf" onClick={korrektur}>Buchung von Hand</button>
         <Suche wert={suche} setzen={setSuche} platzhalter="Artikel, Index, Charge, Platz …" />
       </div>
-      <Tabelle kopf={["Artikel", "Index", "Bezeichnung", "Charge", "Lagerart", "Lagerplatz", "Menge"]} leer="Kein Bestand."
+      <Tabelle kopf={["Artikel", "Index", "Bezeichnung", "Charge", "Lagerart", "Lagerplatz", "Menge"]} leer={ohneSuche(suche) ? sucheLeer("Bestände") : "Kein Bestand gefunden."}
         zeilen={best.map((e) => {
           const a = d.artikelMap.get(e.artikel_id) || {};
           const l = d.lagerMap.get(e.lager_id);

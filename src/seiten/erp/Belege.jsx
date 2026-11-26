@@ -8,7 +8,7 @@
 import { useState, useRef, useEffect } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
-import { Feld, Tabelle, Suche, passt, tun, belegDrucken, abDrucken, lsDrucken, LagerEingabe, lagerStart, lagerAus } from "./teile.jsx";
+import { Feld, Tabelle, Suche, passt, tun, belegDrucken, abDrucken, lsDrucken, LagerEingabe, lagerStart, lagerAus, ohneSuche, sucheLeer } from "./teile.jsx";
 import {
   allesLaden, einfuegen, aendern, loeschen, naechsteBelegNr, BELEGTYP, MWST, zahl, chf, mengeText, artikelText,
   partnerText, datumText, terminText, bestand, buchen, gebucht, folgePositionen, belegSumme, chargeVerfolgen, fibuText,
@@ -83,7 +83,8 @@ export function BelegListe({ d, neu, typ, ohneNeu, hinweis }) {
   const [suche, setSuche] = useState("");
   const [nurOffen, setNurOffen] = useState(false);
   const t = BELEGTYP[typ];
-  const liste = d.belege.filter((b) => b.typ === typ).filter((b) => {
+  const warten = ohneSuche(suche) && !nurOffen;
+  const liste = warten ? [] : d.belege.filter((b) => b.typ === typ).filter((b) => {
     const p = d.partnerMap.get(b.partner_id) || {};
     const pos = (d.posJe.get(b.id) || []).map((x) => artikelText(d.artikelMap.get(x.artikel_id)) + " " + (x.text || "")).join(" ");
     return passt(suche, [b.nr, p.nr, p.name, (b.daten || {}).ihre_nr, pos, datumText(b.datum)].join(" "));
@@ -94,13 +95,13 @@ export function BelegListe({ d, neu, typ, ohneNeu, hinweis }) {
       <div className="mat-kopf">
         {!ohneNeu && <button className="knopf knopf--haupt" data-erp-neu={typ}
           onClick={() => belegOeffnen(d, neu, null, { typ })}>+ {t.name}</button>}
-        <Suche wert={suche} setzen={setSuche} platzhalter="Nr., Kunde, Artikel …" />
+        <Suche wert={suche} setzen={setSuche} platzhalter="Nr., Kunde, Artikel …" fokus />
         <label className="feld-haken"><input type="checkbox" checked={nurOffen} onChange={(e) => setNurOffen(e.target.checked)} />
           <span>Nur offene</span></label>
       </div>
       {hinweis && <p className="klein">{hinweis}</p>}
       <Tabelle kopf={["Nr.", "Datum", t.partner === "lieferant" ? "Lieferant" : "Kunde", "Artikel", mitPreis(typ) ? "Netto CHF" : "Menge", "Stand"]}
-        leer={"Noch keine " + t.mehr + "."}
+        leer={warten ? sucheLeer(t.mehr) + " Oder „Nur offene“ anhaken." : "Keine " + t.mehr + " gefunden."}
         zeilen={liste.map(({ b, stand }) => {
           const pos = d.posJe.get(b.id) || [];
           const art = pos.map((x) => { const a = d.artikelMap.get(x.artikel_id); const ix = posIdx(d, x); return a ? a.nr + (ix ? " " + ix : "") : x.text; })

@@ -125,7 +125,7 @@ export function BewegungListe({ d, artikelId, aussen, journal }) {
     const zu = Number(b.menge) > 0;
     const hier = lagerName(l);
     const gegen = gegenseite(d, b);
-    const ref = beleg ? BELEGTYP[beleg.typ].kurz + " " + beleg.nr + (pos && pos.pos ? " · Pos " + pos.pos : "") : "";
+    const ref = beleg ? (BELEGTYP[beleg.typ] || {}).kurz + " " + beleg.nr + (pos && pos.pos ? " · Pos " + pos.pos : "") : "";
     const wer = namen.get(b.von) || "";
     return { b, a, beleg, zu, woher: zu ? gegen : hier, wohin: zu ? hier : gegen, ref, wer,
       text: [ART_TEXT[b.art] || b.art, a.nr, a.bezeichnung, bewIdx(d, b), b.charge, hier, gegen, ref, b.notiz, wer].join(" ") };
@@ -133,6 +133,8 @@ export function BewegungListe({ d, artikelId, aussen, journal }) {
     && passt(suche, z.text)
     && (!von || String(z.b.am || "").slice(0, 10) >= von) && (!bis || String(z.b.am || "").slice(0, 10) <= bis)
     && (!aart || z.a.art === aart));
+  // Lagerbewegungen zeigen immer gleich die neusten (Patrick 26. November 2026:
+  // „ich sehe die lagerbewegungen immer noch nicht“), die Liste ist schnell genug.
   const zeit = (iso) => (iso ? datumText(String(iso).slice(0, 10)) + " " + String(new Date(iso).toTimeString()).slice(0, 5) : "");
   const kopf = ["Datum", "Art"].concat(artikelId ? [] : ["Artikel"], ["Index", "Charge", "Menge", "Woher", "Wohin", "Referenz", "Vermerk", "Wer"]);
   return (

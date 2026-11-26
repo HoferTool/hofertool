@@ -35,6 +35,7 @@ TEST.daten.kalkulationen = [{ id: 'kk1', nr: 'K-1', kunde: 'Muster AG', artikel:
     daten: { kopf: { artikel: '10007-0591', index: '', bezeichnung: 'Stift', kunde: 'Muster AG' }, ags: [],
       material: { bez: 'CuZn39Pb3 rd 8' }, staffeln: [{ menge: '100', lose: '1', angebot: '3.5' }] } }];
 TEST.daten.kalk_maschinen = [];
+TEST.erpAlle = true;
 """
 
 def start(p, erp):
@@ -81,6 +82,14 @@ with sync_playwright() as p:
     pruefe(pg.locator("a[href='#/erp']").count() >= 1, "mit Vermerk Menüpunkt Test ERP")
     pruefe(pg.locator("a[href='#/kalkulation']").count() == 0, "Kalkulation nicht mehr im Menü")
     pg.evaluate("location.hash='#/erp'"); pg.wait_for_selector("[data-erp-reiter='auftrag']")
+
+    # seit 1.864.0: Listen erst mit Suchbegriff, Lagerbewegungen gleich (Patrick 26. November 2026)
+    pg.evaluate("TEST.erpAlle = false")
+    pg.click("[data-erp-reiter='journal']"); pg.wait_for_timeout(400)
+    pruefe(pg.locator(".erp-journal tr[data-erp-zeile]").count() >= 1, "Lagerjournal zeigt Bewegungen ohne Suchbegriff")
+    pg.click("[data-erp-reiter='auftrag']"); pg.wait_for_timeout(300)
+    pruefe("Suchbegriff eintippen" in pg.locator("#inhalt").inner_text(), "Belegliste wartet auf Suchbegriff")
+    pg.evaluate("TEST.erpAlle = true")
 
     # Bestellung und Wareneingang
     neuer_beleg(pg, "bestellung", "l1", "X8CrNiS18-9 rd 12", "100")

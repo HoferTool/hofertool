@@ -154,10 +154,18 @@ export function Tabelle({ kopf, zeilen, leer }) {
   );
 }
 
-export function Suche({ wert, setzen, platzhalter }) {
+export function Suche({ wert, setzen, platzhalter, fokus }) {
   return <input className="mat-sucheingabe erp-suche" type="search" value={wert} placeholder={platzhalter || "Suchen …"}
-    onChange={(e) => setzen(e.target.value)} />;
+    autoFocus={!!fokus} onChange={(e) => setzen(e.target.value)} />;
 }
+
+// Listen zeigen erst mit Suchbegriff etwas (Wunsch Patrick 26. November 2026:
+// „mach das überall so im test erp, nicht nur in der kalk“), damit die Seite
+// nicht erst Tausende Zeilen zeichnen muss.
+// Im Prüfstand zeigt TEST.erpAlle alles wie vorher, damit die Abläufe nicht
+// überall erst suchen müssen.
+export const ohneSuche = (s) => !(window.TEST && window.TEST.erpAlle) && !String(s || "").trim();
+export const sucheLeer = (was) => "Suchbegriff eintippen, dann erscheinen die " + was + ".";
 
 export const passt = (suche, text) => {
   const s = suche.trim().toLowerCase();
