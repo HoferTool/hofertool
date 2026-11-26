@@ -677,6 +677,8 @@ function Material({ k, setze, setK, rechnung, winkalk }) {
         <div className="kalk-reihe">
           <F label="Materialbezeichnung" id="kalk-mat" text breit wahl={matWahl} {...f("bez")} />
           <F label="Werkstoff-Nr." id="kalk-matnr" text {...f("nr")} />
+          <F label="Fertiggewicht" einheit="kg/Stk" id="kalk-fertig" {...f("fertig")} />
+          <F label="Spänepreis" einheit="CHF/kg" id="kalk-spanpreis" {...f("spanPreis")} />
         </div>
         <div className="kalk-reihe">
           <F label="Materialpreis" einheit="CHF/kg" id="kalk-matpreis" {...f("preis")} />
@@ -728,7 +730,13 @@ function Material({ k, setze, setK, rechnung, winkalk }) {
               </>}
               {m.modus !== "rechnen" && <Zeile titel="kg je Stück" werte={rechnung.map((r) => chf(r.mat.kgJeStk, 4))} />}
               <Zeile titel="Mat-Kosten = kg gesamt × Preis" einheit="CHF" werte={rechnung.map((r) => chf(r.mat.roh))} klein />
-              <Zeile titel="Materialkosten mit Gemeinkosten" einheit="CHF" werte={rechnung.map((r) => chf(r.mat.kosten))} />
+              {z(m.fertig) > 0 && <>
+                <Zeile titel="Fertiggewicht gesamt" einheit="kg" werte={rechnung.map((r) => chf(r.mat.fertigKg, 1))} />
+                <Zeile titel="Späne gesamt = kg gesamt − Fertiggewicht" einheit="kg" werte={rechnung.map((r) => chf(r.mat.spaeneKg, 1))} />
+                <Zeile titel="Späne je Stück" einheit="kg" werte={rechnung.map((r) => chf(r.mat.spaeneJeStk, 4))} />
+                {z(m.spanPreis) > 0 && <Zeile titel="Spänegutschrift = Späne × Spänepreis" einheit="CHF" werte={rechnung.map((r) => chf(-r.mat.gutschrift))} />}
+              </>}
+              <Zeile titel={z(m.fertig) > 0 && z(m.spanPreis) > 0 ? "Materialkosten mit GK, abzüglich Späne" : "Materialkosten mit Gemeinkosten"} einheit="CHF" werte={rechnung.map((r) => chf(r.mat.kosten))} />
               <Zeile titel={"Material je " + peText(pe)} einheit="CHF" fett werte={rechnung.map((r) => chf(r.matStk * pe, 4))} />
             </tbody>
           </table>
