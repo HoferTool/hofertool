@@ -143,6 +143,9 @@ export function berichtAusExcel(roh) {
     const ist = istSp.map((s) => zelle(r, s));
     const bild = nr ? bildJe[r] : null;
     if (!nr && !soll && !pm) continue;
+    // „übrige Masse auf Seite 2“ war früher der Hinweis auf die zweite Datei;
+    // die Seiten kommen jetzt zusammen, darum fällt er weg (Patrick 26. November 2026)
+    if (!nr && /(übrig|restlich|weitere)\S*\s+mass\S*.*seite\s*\d/i.test(soll)) continue;
     if (!nr && soll && !pm && ist.every((x) => !x)) { zeilen.push({ abschnitt: soll }); continue; }
     if (nr && !soll && !bild) { ohneSoll++; continue; }   // leere Zeile mit Nummer: nichts zu prüfen
     zeilen.push(bild ? { nr, soll, pm, _bild: bild } : { nr, soll, pm });

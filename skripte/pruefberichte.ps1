@@ -188,7 +188,9 @@ function IndexNorm([string]$t) {
   return $s
 }
 # Name ohne Endung und ohne Seitenangabe am Schluss ("S 2", "Seite 1+2", "_Seite_2")
-$seiteMuster = '[\s_\-]*\(?(s|seite|page|blatt)[\s_.]*\d+(\s*[+&,]\s*\d+)*\)?\s*$'
+# Auch "S-1", "S-2" und ein Wort dahinter ("S-2 kontrollieren!!!"), sonst kamen die
+# Seiten eines Berichts in verschiedene Gruppen und nur eine blieb (Patrick 26. November 2026, 10789-0107)
+$seiteMuster = '[\s_\-]*\(?(s|seite|page|blatt)[\s_.\-]*\d+(\s*[+&,]\s*\d+)*\)?(\s+[a-zäöü]+[!.]*)?\s*$'
 function Grundname([string]$name) {
   $b = [IO.Path]::GetFileNameWithoutExtension($name).ToLower()
   $b = [regex]::Replace($b, $seiteMuster, '')
@@ -460,10 +462,16 @@ try {
 
   # Seiten ohne eigenen Index (Seite 2, alte .xls neben der .xlsx) bekommen
   # den Index der anderen Seite desselben Berichts
-  $idxJeBericht = @{}
-  foreach ($e in $eintraege) { if ($e.idx) { $idxJeBericht[$e.h + "|" + $e.grund] = $e.idx } }
+  # Alle Seiten eines Berichts haben denselben Index, den der tiefsten Seite mit
+  # Index; sonst fielen sie bei abweichendem Index in verschiedene Gruppen
+  $idxJeBericht = @{}; $idxSeite = @{}
   foreach ($e in $eintraege) {
-    if (-not $e.idx -and $idxJeBericht.ContainsKey($e.h + "|" + $e.grund)) { $e.idx = $idxJeBericht[$e.h + "|" + $e.grund] }
+    if (-not $e.idx) { continue }
+    $k = $e.h + "|" + $e.grund
+    if (-not $idxSeite.ContainsKey($k) -or $e.seite -lt $idxSeite[$k]) { $idxJeBericht[$k] = $e.idx; $idxSeite[$k] = $e.seite }
+  }
+  foreach ($e in $eintraege) {
+    if ($idxJeBericht.ContainsKey($e.h + "|" + $e.grund)) { $e.idx = $idxJeBericht[$e.h + "|" + $e.grund] }
     $sch = $e.h + "|" + $e.idx
     if (-not $gruppen.ContainsKey($sch)) { $gruppen[$sch] = @() }
     $gruppen[$sch] += $e
