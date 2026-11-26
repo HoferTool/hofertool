@@ -139,7 +139,7 @@ with sync_playwright() as p:
     pg.locator(".dialog:has([data-erp-lspos]) [data-erp-ja]").click(); pg.wait_for_timeout(1000)
     lf = [x for x in tabelle(pg, "erp_bewegungen") if x["art"] == "lieferung"]
     pruefe(len(lf) == 1 and lf[0]["menge"] == -150 and lf[0]["charge"] == fa[0]["nr"], "Lieferschein bucht 150 aus der FA-Charge: %s" % lf)
-    oben(pg).locator(".erp-folge button").last.click(); pg.wait_for_selector("[data-erp-typ='lieferschein']")
+    oben(pg).locator(".erp-folge button", has_text="LS").last.click(); pg.wait_for_selector("[data-erp-typ='lieferschein']")
     with pg.expect_popup() as pop: pg.locator("[data-erp-typ='lieferschein'] [data-erp-drucken]").last.click(timeout=5000)
     w = pop.value; w.wait_for_load_state(); pruefe("Gelieferte Menge" in w.content(), "Lieferschein druckt wie Gewatec"); w.close()
     pg.locator("[data-erp-beleg] [data-nein]").last.click(); pg.wait_for_timeout(300)

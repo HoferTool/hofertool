@@ -541,6 +541,7 @@ function Kopf({ k, setze, setK, nr, setNr }) {
 }
 
 function Material({ k, setze, setK, rechnung }) {
+  const [matJe, setMatJe] = useState(false);
   const m = k.material;
   const f = (name) => ({ wert: m[name], setzen: (w) => setze("material." + name, w) });
   const r0 = rechnung[0];
@@ -553,12 +554,14 @@ function Material({ k, setze, setK, rechnung }) {
     const w = werkstoffGenau(bez); const z = materialZerlegen(bez);
     setK((x) => ({ ...x, material: { ...x.material, bez, nr: (w && w.nr) || x.material.nr, d: z && z.d ? String(z.d) : x.material.d } }));
   });
+  const matZeigen = matJe || k.staffeln.some((s) => Object.values(s.mat || {}).some((v) => String(v ?? "").trim()));
   return (
     <>
       {/* Staffeln nebeneinander, Lose darunter, damit nichts rollt
           (Wunsch Patrick 27. Oktober 2026) */}
       <section className="karte kalk-rolle">
-        <h2>Staffelmengen <small className="kalk-einheit">Lose: wie oft gerüstet wird, jedes weitere Los mit „Folgerüsten“</small></h2>
+        <h2>Staffelmengen <small className="kalk-einheit">Lose: wie oft gerüstet wird, jedes weitere Los mit „Folgerüsten“</small> <button type="button" className="linkknopf" id="kalk-matje"
+          onClick={() => setMatJe((x) => !x)}>{matZeigen ? "▾" : "▸"} Material je Staffel</button></h2>
         {/* Preis pro 1, 100 oder 1000 Stk (Wunsch Patrick 21. November 2026),
             seit 1.844.0 vorne bei den Staffeln (Wunsch Patrick 25. November 2026);
             Angebots- und Zielpreis gelten dann für diese Menge */}
@@ -567,7 +570,7 @@ function Material({ k, setze, setK, rechnung }) {
             <tr><td><label className="kalk-mini kalk-pe-vorne"><span>Preis pro</span>           <select id="kalk-pe" value={String(peWert(k.preis.pe))} onChange={(e) => setze("preis.pe", e.target.value)}>             {PREISEINHEITEN.map((x) => <option key={x} value={String(x)}>{peText(x)}</option>)}           </select>         </label></td>{k.staffeln.map((s, i) => <th key={i} className="rechts" data-staffel-zeile={i}>Staffel {i + 1}
               {k.staffeln.length > 1 && <button className="linkknopf linkknopf--gefahr kalk-staffel-weg" data-staffel-weg={i} title="Staffel entfernen"
                 onClick={() => setK((x) => ({ ...x, staffeln: x.staffeln.filter((_, j) => j !== i) }))}>✕</button>}</th>)}
-              <td rowSpan={3}><button className="knopf knopf--klein" id="kalk-staffel-neu"
+              <td rowSpan={matZeigen ? 6 : 3}><button className="knopf knopf--klein" id="kalk-staffel-neu"
                 onClick={() => setK((x) => ({ ...x, staffeln: [...x.staffeln, { menge: "", lose: "1", preis: { ...((x.staffeln[0] || {}).preis || {}) } }] }))}>+ Staffel</button></td></tr>
             <tr><td>Menge <span className="kalk-einheit">Stk</span></td>{k.staffeln.map((s, i) => (
               <td key={i} className="rechts"><input className="kalk-zelle" type="text" inputMode="decimal" id={"kalk-menge-" + i}
@@ -575,6 +578,13 @@ function Material({ k, setze, setK, rechnung }) {
             <tr><td>Lose</td>{k.staffeln.map((s, i) => (
               <td key={i} className="rechts"><input className="kalk-zelle" type="text" inputMode="decimal" id={"kalk-lose-" + i}
                 value={s.lose || ""} onChange={(e) => setze("staffeln." + i + ".lose", e.target.value)} /></td>))}</tr>
+            {/* Material je Staffel wie im Gewatec, leer = Wert beim Material unten;
+                nur aufgeklappt oder wenn eine Staffel eigene Werte hat, damit nichts rollt */}
+            {matZeigen && [["preis", "Materialpreis", "CHF/kg", "kalk-smatpreis-"], ["gk", "Mat.-GK", "%", "kalk-smatgk-"], ["gkPausch", "Mat.-GK pauschal", "CHF", "kalk-smatgkp-"]].map(([n, t, e, id]) => (
+              <tr key={n}><td>{t} <span className="kalk-einheit">{e}</span></td>{k.staffeln.map((s, i) => (
+                <td key={i} className="rechts"><input className="kalk-zelle" type="text" inputMode="decimal" id={id + i}
+                  placeholder={String((k.material || {})[n] ?? "")}
+                  value={(s.mat || {})[n] || ""} onChange={(e2) => setze("staffeln." + i + ".mat." + n, e2.target.value)} /></td>))}</tr>))}
           </tbody>
         </table>
       </section>

@@ -218,7 +218,11 @@ export function agFuerStaffel(ag, staffel, i) {
 
 export function staffelRechnen(k, staffel, maschinen) {
   const menge = z(staffel.menge), lose = Math.max(1, z(staffel.lose) || 1);
-  const mat = materialRechnen(k.material || {}, menge);
+  // Materialpreis und Gemeinkosten können je Staffel anders sein wie im Gewatec
+  // (Patrick 25. November 2026: Stichprobe gegen Gewatec); leer = Wert beim Material
+  const matEigen = {};
+  for (const [n, v] of Object.entries(staffel.mat || {})) if (String(v ?? "").trim()) matEigen[n] = v;
+  const mat = materialRechnen({ ...(k.material || {}), ...matEigen }, menge);
   const ags = (k.ags || []).map((ag0, i) => {
     const ag = agFuerStaffel(ag0, staffel, i);
     if (ag.art === "extern") {
