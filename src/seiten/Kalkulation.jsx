@@ -20,7 +20,7 @@ import { naechsteNummer, nummernLaden } from "../daten/erp.js";
 import { artikelAusKalkulation } from "./erp/KalkTab.jsx";
 import {
   z, chf, stundensatz, staffelRechnen, leereKalkulation, kalkulationenLaden, kalkulationLaden, kalkVorschau, maschinenLaden,
-  kalkulationSpeichern, maschineSpeichern, BEISPIEL_MASCHINEN, beispielKalkulation, START_MASCHINEN, startArbeitsplan, WAEHRUNGEN, kursHolen, PREISEINHEITEN, peWert, peText, EXTERN_NEBEN, FGK_DREHEN, SPEZ_GEWICHT, PREIS_JE_STAFFEL, preisInStaffeln, adresseVon, adresseZeilen,
+  kalkulationSpeichern, maschineSpeichern, BEISPIEL_MASCHINEN, beispielKalkulation, START_MASCHINEN, startArbeitsplan, kostenstelleFuer, WAEHRUNGEN, kursHolen, PREISEINHEITEN, peWert, peText, EXTERN_NEBEN, FGK_DREHEN, SPEZ_GEWICHT, PREIS_JE_STAFFEL, preisInStaffeln, adresseVon, adresseZeilen,
 } from "../daten/kalkulation.js";
 
 // Nummer der Kalkulation: Jahr + laufende Nr., mit Startwert aus den
@@ -699,7 +699,7 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
     setAuf((x) => new Set(x).add(key));
     setK((x) => ({ ...x, ags: [...x.ags, art === "extern"
       ? { key, bez: "", art: "extern", je: "stk", extern: "", ruestPausch: "" }
-      : { key, bez: "", art: "intern", masch: (maschinen[0] || {}).id || "", te: "", erst: "", folge: "", fgk: "" }] }));
+      : { key, bez: "", art: "intern", masch: "", te: "", erst: "", folge: "", fgk: "" }] }));
   };
   // Jeder Arbeitsgang braucht einen festen Schlüssel fürs Ziehen
   const ags = k.ags.map((a, i) => (a.key ? a : { ...a, key: "ag" + i }));
@@ -740,6 +740,12 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
                     setze("ags." + i + ".bez", t);
                     // Drehen hat im Gewatec 56 % FGK, vorbelegt solange das Feld leer ist (Wunsch Patrick 27. Oktober 2026)
                     if (a.art !== "extern" && /^drehen/i.test(t) && !String(a.fgk || "").trim()) setze("ags." + i + ".fgk", FGK_DREHEN);
+                    // Kostenstelle aus dem Namen; eine selbst gewählte Maschine bleibt (Wunsch Patrick 25. November 2026)
+                    if (a.art !== "extern") {
+                      const ks = kostenstelleFuer(t, maschinen);
+                      const kids = START_MASCHINEN.map((n) => kostenstelleFuer(n, maschinen)).filter(Boolean);
+                      if (ks && ks !== a.masch && (!a.masch || kids.includes(a.masch))) setze("ags." + i + ".masch", ks);
+                    }
                   }} />
                 <span className="kalk-ag__ort">{ext ? <><i>Extern</i> {a.lieferant || ""}</> : (mm ? mm.name : <i>keine Maschine</i>)}</span>
                 <span className="kalk-ag__zahl">{ext ? (a.extern ? chf(z(a.extern), 2) + " /" + ({ stk: "Stk", "100stk": "100", "1000stk": "1000", kg: "kg" }[a.je || "stk"]) : "") : (a.te || "")}</span>

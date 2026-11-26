@@ -446,6 +446,17 @@ export const BEISPIEL_MASCHINEN = [
 export const FGK_DREHEN = "56";
 export const START_MASCHINEN = ["Kontrolle", "Reinigungsanlage", "Spedition"];
 
+// Kostenstelle aus dem Namen des Arbeitsgangs (Wunsch Patrick 25. November 2026): Waschen → Reinigungsanlage,
+// Kontrolle → Kontrolle, Abpacken/Versand → Spedition. Bei einem Maschinen-AG wählt man selbst (null).
+export function kostenstelleFuer(bez, maschinen) {
+  const t = String(bez || "");
+  const name = /wasch|reinig/i.test(t) ? "Reinigungsanlage"
+    : /abpack|versand|einlager|spedition|verpack/i.test(t) ? "Spedition"
+    : /kontroll|prüf|pruef/i.test(t) ? "Kontrolle" : "";
+  if (!name) return null;
+  return (maschinen.find((m) => String(m.name || "").startsWith(name)) || {}).id || null;
+}
+
 export function startArbeitsplan(maschinen) {
   const id = (name) => (maschinen.find((m) => m.name.startsWith(name)) || {}).id || "";
   const ag = (bez, masch, ruest, fgk = "") => ({ bez, art: "intern", masch, te: "0", erst: ruest, folge: ruest, fgk });
