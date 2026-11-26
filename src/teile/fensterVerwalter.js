@@ -115,11 +115,15 @@ document.addEventListener("pointerdown", (e) => {
   const f = fensterVon(h);
   if (!f || !f.contains(e.target)) return;
   nachVorne(h);
-  if (e.button !== 0 || e.pointerType === "touch") return;
+  if (e.button !== 0) return;
   if (e.target.closest(NICHT_ZIEHEN)) return;
   const r = f.getBoundingClientRect();
   const zone = e.target.closest(ZIEH_ZONE);
   const oben = e.clientY - r.top < 44;
+  // Mit dem Finger nur am Titel ziehen, sonst rollt der Inhalt nicht mehr
+  // (Patrick 26. November 2026: „auf dem handy … kann nicht verschieben“)
+  const touch = e.pointerType === "touch";
+  if (touch && !(zone && f.contains(zone))) return;
   if (!(zone && f.contains(zone)) && !oben) return;
   // Fenster über den ganzen Bildschirm lassen sich nicht sinnvoll ziehen
   if (r.width >= innerWidth - 4 && r.height >= innerHeight - 4) return;
