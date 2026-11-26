@@ -17515,3 +17515,7 @@ body.dunkel .pb-pm-fehlt { color: #ff9a92 !important; }
   /* Mit dem Finger am Titel ziehen verschiebt das Fenster */
   body > .dialog-huelle .gf-titel, body > .dialog-huelle [data-ziehgriff] { touch-action: none; }
 }
+
+/* 1.867.0: Lagerbewegungen aus dem Gewatec nur zum Ansehen, leicht gedämpft */
+tr.erp-gewatec td { color: #5b6573; background: #f7f8fa; }
+body.dunkel tr.erp-gewatec td { background: #1c2128; }

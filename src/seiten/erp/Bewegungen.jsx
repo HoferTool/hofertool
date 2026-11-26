@@ -105,6 +105,50 @@ export function bewegungZeilen(d, artikelId) {
     .slice().sort((x, y) => String(y.am || "").localeCompare(String(x.am || "")));
 }
 
+// Bewegungen aus dem Gewatec (Wunsch Patrick 26. November 2026: „Ja unbedingt,
+// für alle artikel“): 49'479 Bewegungen aus vLagerbewegung liegen in der eigenen
+// Tabelle erp_bewegungen_gewatec. Sie zählen NIE zum Bestand (der kommt nur aus
+// erp_bewegungen, übernommen aus dem Gewatec-Lagerbestand), sie stehen nur in der
+// Liste. Geholt wird erst beim Anzeigen und nur so viele, wie gezeigt werden.
+const GW_SPALTEN = "gw_id, artikel_id, artikelcode, einheit, am, menge, lagerort, endlager, idx, charge, fa, ls_intern, kunde, lieferant, ls_lieferant, bemerkung, wer, ohne_buchung";
+function useGewatec({ artikelId, artikelNr, journal, von, bis, art, suche, anzahl }) {
+  const [st, setSt] = useState({ zeilen: [], mehr: false });
+  useEffect(() => {
+    if (art === "umbuchung" || art === "korrektur") { setSt({ zeilen: [], mehr: false }); return; }
+    if (!journal && !artikelId) return;
+    let weg = false;
+    let q = alt.db.from("erp_bewegungen_gewatec").select(GW_SPALTEN);
+    if (artikelId) q = artikelNr ? q.or("artikel_id.eq." + artikelId + ",artikelcode.eq." + artikelNr) : q.eq("artikel_id", artikelId);
+    if (von) q = q.gte("am", von);
+    if (bis) q = q.lt("am", bis + "T23:59:59.999");
+    if (art === "zu") q = q.gt("menge", 0);
+    if (art === "ab") q = q.lt("menge", 0);
+    const s = String(suche || "").trim().replace(/[,()*]/g, " ").split(/\s+/)[0];
+    if (journal && s) q = q.or(["artikelcode", "charge", "fa", "ls_intern", "kunde", "lieferant", "bemerkung", "lagerort"].map((k) => k + ".ilike.*" + s + "*").join(","));
+    q.order("am", { ascending: false }).order("gw_id", { ascending: false }).limit(anzahl + 1).then((r) => {
+      if (weg) return;
+      const z = r.data || [];
+      setSt({ zeilen: z.slice(0, anzahl), mehr: z.length > anzahl });
+    });
+    return () => { weg = true; };
+  }, [artikelId, artikelNr, journal, von, bis, art, suche, anzahl]);
+  return st;
+}
+
+function gewatecZeile(d, g) {
+  const a = (g.artikel_id && d.artikelMap.get(g.artikel_id)) || { nr: g.artikelcode, einheit: g.einheit };
+  const zu = Number(g.menge) > 0;
+  const fa = g.fa && g.fa !== "0" ? "FA " + g.fa : "";
+  const gegen = zu
+    ? (g.lieferant ? "Lieferant " + g.lieferant : g.kunde ? "Kunde " + g.kunde : fa ? "Produktion " + fa : g.endlager || "")
+    : (g.kunde ? "Kunde " + g.kunde : g.lieferant ? "Lieferant " + g.lieferant : fa ? "Fertigung " + fa : g.endlager || "");
+  const ref = [fa, g.ls_intern && g.ls_intern !== "0" ? "LS " + g.ls_intern : "", g.ls_lieferant ? "LS Lief. " + g.ls_lieferant : ""].filter(Boolean).join(" · ");
+  const b = { id: "gw" + g.gw_id, am: g.am, menge: g.menge, charge: g.charge || "", notiz: g.bemerkung || "", art: "gewatec", idx: g.idx || "" };
+  const hier = g.lagerort || "";
+  return { b, a, beleg: null, zu, gw: true, woher: zu ? gegen : hier, wohin: zu ? hier : gegen, ref, wer: g.wer || "",
+    text: ["Gewatec", a.nr, a.bezeichnung, g.idx, g.charge, hier, gegen, ref, g.bemerkung, g.wer].join(" ") };
+}
+
 // Lagerjournal (Wunsch Patrick 25. November 2026: „das lagerjournal kannst du
 // machen“): dieselbe Liste über alle Artikel, dazu Zeitraum, Artikelart,
 // Summen Zugang / Abgang und Export als CSV für Excel.
@@ -117,7 +161,9 @@ export function BewegungListe({ d, artikelId, aussen, journal }) {
   const [bis, setBis] = useState("");
   const [aart, setAart] = useState("");
   const [zahlZeigen, setZahl] = useState(200);
-  const alle = bewegungZeilen(d, artikelId).map((b) => {
+  const artikelNr = artikelId ? (d.artikelMap.get(artikelId) || {}).nr : "";
+  const gw = useGewatec({ artikelId, artikelNr, journal, von, bis, art, suche, anzahl: zahlZeigen });
+  const eigene = bewegungZeilen(d, artikelId).map((b) => {
     const a = d.artikelMap.get(b.artikel_id) || {};
     const l = d.lagerMap.get(b.lager_id);
     const beleg = d.belegMap.get(b.beleg_id);
@@ -133,6 +179,8 @@ export function BewegungListe({ d, artikelId, aussen, journal }) {
     && passt(suche, z.text)
     && (!von || String(z.b.am || "").slice(0, 10) >= von) && (!bis || String(z.b.am || "").slice(0, 10) <= bis)
     && (!aart || z.a.art === aart));
+  const gwZeilen = gw.zeilen.map((g) => gewatecZeile(d, g)).filter((z) => passt(suche, z.text) && (!aart || z.a.art === aart));
+  const alle = eigene.concat(gwZeilen).sort((x, y) => String(y.b.am || "").localeCompare(String(x.b.am || "")));
   // Lagerbewegungen zeigen immer gleich die neusten (Patrick 26. November 2026:
   // „ich sehe die lagerbewegungen immer noch nicht“), die Liste ist schnell genug.
   const zeit = (iso) => (iso ? datumText(String(iso).slice(0, 10)) + " " + String(new Date(iso).toTimeString()).slice(0, 5) : "");
@@ -157,14 +205,14 @@ export function BewegungListe({ d, artikelId, aussen, journal }) {
       </div>
       {journal && <JournalSummen alle={alle} />}
       <GTabelle kopf={kopf} rechts={[artikelId ? 4 : 5]} leer="Keine Lagerbewegungen."
-        zeilen={alle.slice(0, zahlZeigen).map((z) => ({ key: z.b.id, klasse: z.zu ? "" : "erp-minus",
+        zeilen={alle.slice(0, zahlZeigen).map((z) => ({ key: z.b.id, klasse: (z.zu ? "" : "erp-minus") + (z.gw ? " erp-gewatec" : ""),
           klick: z.beleg ? () => belegOeffnen(d, aussen, z.beleg) : undefined,
-          zellen: [zeit(z.b.am), (ART_TEXT[z.b.art] || z.b.art) + (z.b.art === "umbuchung" ? "" : z.zu ? " · Zugang" : " · Abgang")]
+          zellen: [zeit(z.b.am), (z.gw ? "Gewatec" : ART_TEXT[z.b.art] || z.b.art) + (z.b.art === "umbuchung" ? "" : z.zu ? " · Zugang" : " · Abgang")]
             .concat(artikelId ? [] : [<b>{z.a.nr}</b>],
               [bewIdx(d, z.b) || "", z.b.charge, (z.zu ? "+" : "") + mengeText(z.b.menge) + " " + (z.a.einheit || ""),
                 z.woher, z.wohin, z.ref ? <b>{z.ref}</b> : "", z.b.notiz || "", z.wer]) }))} />
-      {alle.length > zahlZeigen && <p><button className="knopf knopf--klein" onClick={() => setZahl(zahlZeigen + 200)}>
-        Mehr ({mengeText(alle.length - zahlZeigen)} weitere)</button></p>}
+      {(alle.length > zahlZeigen || gw.mehr) && <p><button className="knopf knopf--klein" data-erp-bew-mehr="" onClick={() => setZahl(zahlZeigen + 200)}>
+        Mehr{gw.mehr ? "" : " (" + mengeText(alle.length - zahlZeigen) + " weitere)"}</button></p>}
     </div>
   );
 }
@@ -190,7 +238,7 @@ function JournalSummen({ alle }) {
 function journalCsv(alle, zeit, d) {
   const feld = (v) => { const t = String(v == null ? "" : v); return /[;"\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
   const zeilen = [["Datum", "Art", "Artikel", "Bezeichnung", "Index", "Charge", "Menge", "Einheit", "Woher", "Wohin", "Referenz", "Vermerk", "Wer"]];
-  for (const z of alle) zeilen.push([zeit(z.b.am), ART_TEXT[z.b.art] || z.b.art, z.a.nr, z.a.bezeichnung, bewIdx(d, z.b) || "", z.b.charge,
+  for (const z of alle) zeilen.push([zeit(z.b.am), z.gw ? "Gewatec" : ART_TEXT[z.b.art] || z.b.art, z.a.nr, z.a.bezeichnung, bewIdx(d, z.b) || "", z.b.charge,
     String(Number(z.b.menge) || 0), z.a.einheit || "", z.woher, z.wohin, z.ref, z.b.notiz || "", z.wer]);
   const text = zeilen.map((r) => r.map(feld).join(";")).join("\r\n");
   const url = URL.createObjectURL(new Blob(["\ufeff" + text], { type: "text/csv;charset=utf-8" }));
