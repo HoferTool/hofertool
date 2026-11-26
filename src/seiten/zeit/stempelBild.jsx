@@ -124,7 +124,24 @@ function schreck() {
   schrei(c, c.currentTime + 0.3);
 }
 schreck.einmal = true;
-const TOENE = { "renz-kommen": flinte, "schreck-kommen": schreck };
+// Pfiff des Schiedsrichters für Semiz (Wunsch Patrick 26. November 2026): Trillerpfeife,
+// zwei kurz und einer lang, Triller über eine schnelle Schwankung der Lautstärke.
+function pfiff() {
+  const c = audio(); if (!c) return;
+  const t = c.currentTime;
+  [[0.25, 0.16], [0.5, 0.16], [0.78, 0.7]].forEach(([z, d]) => {
+    const o = c.createOscillator(); o.type = "sine"; o.frequency.value = 3100;
+    const tr = c.createOscillator(); tr.frequency.value = 38;
+    const tg = c.createGain(); tg.gain.value = 0.35;
+    const g = c.createGain(); g.gain.value = 0;
+    tr.connect(tg); tg.connect(g.gain);
+    g.gain.setValueAtTime(0, t + z); g.gain.linearRampToValueAtTime(0.4, t + z + 0.02);
+    g.gain.setValueAtTime(0.4, t + z + d - 0.03); g.gain.linearRampToValueAtTime(0, t + z + d);
+    o.connect(g); g.connect(c.destination);
+    o.start(t + z); tr.start(t + z); o.stop(t + z + d); tr.stop(t + z + d);
+  });
+}
+const TOENE = { "renz-kommen": flinte, "schreck-kommen": schreck, "semiz-kommen": pfiff };
 
 const fotos = new Map(); // "name-art" -> Promise<string|null>
 
