@@ -359,19 +359,22 @@ function F({ label, wert, setzen, einheit, id, text, mehrzeilig, hinweis, typ, p
 // wie bisher.
 let stammVorrat = null;
 function useErpStamm() {
-  const [st, setSt] = useState(stammVorrat || { partner: [], artikel: [], bed: [] });
+  const [st, setSt] = useState(stammVorrat || { partner: [], lieferanten: [], artikel: [], bed: [] });
   useEffect(() => {
     if (stammVorrat) return undefined;
     let weg = false;
     (async () => {
       try {
         const [p, a, b] = await Promise.all([
-          alt.db.from("erp_partner").select("id, art, nr, name, aktiv, daten").eq("art", "kunde").limit(5000),
+          alt.db.from("erp_partner").select("id, art, nr, name, aktiv, daten").in("art", ["kunde", "lieferant"]).limit(10000),
           alt.db.from("erp_artikel").select("id, art, nr, idx, bezeichnung, zeichnung, kunde_id, aktiv, daten").limit(20000),
           alt.db.from("erp_bedingungen").select("id, art, code, text").limit(500)]);
+        const alle = p && !p.error && Array.isArray(p.data) ? p.data.filter((x) => x.aktiv !== false) : [];
         const neu = {
           bed: b && !b.error && Array.isArray(b.data) ? b.data : [],
-          partner: p && !p.error && Array.isArray(p.data) ? p.data.filter((x) => x.aktiv !== false) : [],
+          partner: alle.filter((x) => x.art === "kunde"),
+          // Lieferanten für externe Arbeitsgänge (Wunsch Patrick 26. November 2026)
+          lieferanten: alle.filter((x) => x.art === "lieferant"),
           artikel: a && !a.error && Array.isArray(a.data) ? a.data.filter((x) => x.aktiv !== false) : [] };
         stammVorrat = neu;
         if (!weg) setSt(neu);
@@ -399,6 +402,19 @@ function stammTreffer(liste, text, felder, max = 8) {
 function useWahl(treffer, nehmen) {
   const [offen, auf] = useState(false);
   return { offen, auf, treffer, nehmen };
+}
+
+// Lieferant eines externen Arbeitsgangs aus den Stammdaten des Test ERP
+// hineinziehen (Wunsch Patrick 26. November 2026: „bei externen den
+// Lieferant hineinziehen können, jetzt ist nur ein Textfeld da“). Eigene
+// Komponente, weil die Arbeitsgänge in einer Schleife stehen. Tippen von
+// Hand bleibt möglich.
+function LieferantFeld({ id, wert, setzen, nimm }) {
+  const stamm = useErpStamm();
+  const wahl = useWahl(stammTreffer(stamm.lieferanten, wert, (p) => [p.nr, p.name]).map((p) => ({
+    id: p.id, titel: p.name, unter: [p.nr, partnerAdresse(p).ort].filter(Boolean).join(" · "), p })), (t) => nimm(t.p));
+  return <F label="Lieferant" id={id} text wahl={wahl} wert={wert} setzen={setzen}
+    platz={stamm.lieferanten.length ? "Name oder Nr. tippen, Vorschlag wählen" : undefined} />;
 }
 
 // Adresse eines Partners für die Felder der Kalkulation
@@ -801,7 +817,8 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
               {offen && (ext
                 ? <div className="kalk-extern">
                     <div className="kalk-reihe">
-                      <F label="Lieferant" id={"kalk-ag-lief-" + i} text {...f("lieferant")} />
+                      <LieferantFeld id={"kalk-ag-lief-" + i} wert={a.lieferant} setzen={(w) => setK((x) => ({ ...x, ags: x.ags.map((g, j) => j === i ? { ...g, lieferant: w, lieferant_id: undefined } : g) }))}
+                        nimm={(p) => setK((x) => ({ ...x, ags: x.ags.map((g, j) => j === i ? { ...g, lieferant: p.name, lieferant_id: p.id, lieferant_nr: p.nr } : g) }))} />
                       <label className="feld kalk-feld"><span>Kostensatz je</span>
                         <select id={"kalk-ag-je-" + i} value={a.je || "stk"} onChange={(e) => setze("ags." + i + ".je", e.target.value)}>
                           <option value="stk">1 Stk</option><option value="100stk">100 Stk</option>

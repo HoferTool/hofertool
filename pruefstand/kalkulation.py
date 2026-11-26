@@ -24,7 +24,7 @@ with sync_playwright() as p:
     pruefe(pg.locator("[data-nav='kalkulation']").count() == 0, "ohne Vermerk keine Kalkulation, auch für Admins")
 
     pg.unroute("**/cdn.jsdelivr.net/**")
-    MIT = FAKE + ";\n(TEST.daten.profiles.find(x => x.id === 'u1') || {}).einstellungen = { kalkulationSehen: true };\nTEST.daten.kalkulationen = []; TEST.daten.kalk_maschinen = [];\n"
+    MIT = FAKE + ";\n(TEST.daten.profiles.find(x => x.id === 'u1') || {}).einstellungen = { kalkulationSehen: true };\nTEST.daten.kalkulationen = []; TEST.daten.kalk_maschinen = [];\n(TEST.daten.erp_partner = TEST.daten.erp_partner || []).push({id:'lpr1', art:'lieferant', nr:'70001', name:'Polierwerk Test AG', daten:{}});\n"
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=MIT))
     pg.reload(wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
@@ -103,6 +103,9 @@ with sync_playwright() as p:
     pg.click("[data-ag-auf='4']")
     ext = pg.locator("[data-ag='4']").inner_text()
     pruefe("0.3000" in ext and "547.20" in ext, "Polieren extern: %s" % ext.replace("\n", " ")[-120:])
+    pg.fill("#kalk-ag-lief-4", "Polierw"); pg.wait_for_timeout(300)
+    pg.click("[data-kalk-wahl='kalk-ag-lief-4'] [data-kalk-wahl-id]"); pg.wait_for_timeout(300)
+    pruefe(pg.input_value("#kalk-ag-lief-4") == "Polierwerk Test AG", "Lieferant aus Test ERP gewählt: %s" % pg.input_value("#kalk-ag-lief-4"))
     pg.fill("#kalk-ag-ruestp-4", "800"); pg.wait_for_timeout(300)
     b2 = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()
     pruefe(b2[0] != "3.80", "Rüstkosten pauschal verrechnet: %s" % b2)
