@@ -6,6 +6,8 @@
 // src/bruecke.jsx in die alte Hülle eingehängt.
 import "./alt/stil.css";
 import "./alt/app.js";
+// Fenster verschieben, mehrere offen, Fensterleiste oben
+import "./teile/fensterVerwalter.js";
 // Profilbilder grau, sehr helle mässig umgekehrt
 import "./teile/profilbilder.js";
 // Dateien vom Computer in jedes Dateifeld ziehen

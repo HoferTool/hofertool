@@ -15,11 +15,13 @@ import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import { ZiehListe } from "../teile/ZiehListe.jsx";
 import { useSeitenSuche } from "../teile/seitenSuche.js";
 import { teilMerken } from "../teile/wiederherstellen.js";
+import { auswahlDialog } from "../teile/Dialoge.jsx";
 import { materialZerlegen, werkstoffGenau } from "../daten/material.js";
 import { naechsteNummer, nummernLaden } from "../daten/erp.js";
+import { artikelAusKalkulation } from "./erp/KalkTab.jsx";
 import {
-  z, chf, stundensatz, staffelRechnen, leereKalkulation, kalkulationenLaden, maschinenLaden,
-  kalkulationSpeichern, maschineSpeichern, BEISPIEL_MASCHINEN, beispielKalkulation, START_MASCHINEN, startArbeitsplan, WAEHRUNGEN, kursHolen, PREISEINHEITEN, peWert, peText, EXTERN_NEBEN, FGK_DREHEN, SPEZ_GEWICHT, PREIS_JE_STAFFEL, preisInStaffeln, adresseVon, adresseZeilen,
+  z, chf, stundensatz, staffelRechnen, leereKalkulation, kalkulationenLaden, kalkulationLaden, kalkVorschau, maschinenLaden,
+  kalkulationSpeichern, maschineSpeichern, BEISPIEL_MASCHINEN, beispielKalkulation, START_MASCHINEN, startArbeitsplan, kostenstelleFuer, WAEHRUNGEN, kursHolen, PREISEINHEITEN, peWert, peText, EXTERN_NEBEN, FGK_DREHEN, SPEZ_GEWICHT, PREIS_JE_STAFFEL, preisInStaffeln, adresseVon, adresseZeilen, MAT_FORMEN,
 } from "../daten/kalkulation.js";
 
 // Nummer der Kalkulation: Jahr + laufende Nr., mit Startwert aus den
@@ -37,6 +39,17 @@ teilMerken("kalkulation", () => ({ ...gemerkt }), (x) => { Object.assign(gemerkt
 
 // Escape: aus der Kalkulation oder den Stundensätzen zurück zur Liste
 let zurueckFn = null;
+// Die offene Kalkulation meldet hier, ob sie ungespeicherte Änderungen hat
+let offeneKalk = null;
+// Vor dem Verlassen einer geänderten Kalkulation fragen: true = weiter, false = bleiben
+async function verlassenOk() {
+  if (!offeneKalk || !offeneKalk.geaendert()) return true;
+  const wahl = await auswahlDialog("Änderungen speichern?",
+    [{ wert: "ja", text: "Speichern" }, { wert: "nein", text: "Nicht speichern" }],
+    "Diese Kalkulation wurde geändert und ist noch nicht gespeichert.");
+  if (wahl === "ja") return offeneKalk.speichern();
+  return wahl === "nein";
+}
 export function kalkulationZurueck() { return zurueckFn ? zurueckFn() : false; }
 
 export default function Kalkulation({ auffrischen }) {
@@ -47,7 +60,8 @@ export default function Kalkulation({ auffrischen }) {
   const masch = useDaten(maschinenLaden, [auffrischen]);
 
   zurueckFn = () => {
-    if (offen || saetze) { setOffen(null); setSaetze(false); return true; }
+    if (saetze) { setSaetze(false); return true; }
+    if (offen) { verlassenOk().then((ok) => { if (ok) { setOffen(null); liste.neu(); } }); return true; }
     return false;
   };
   useEffect(() => () => { zurueckFn = null; }, []);
@@ -56,8 +70,8 @@ export default function Kalkulation({ auffrischen }) {
     name: "Kalkulation", platzhalter: "Nummer, Kunde oder Artikel …",
     eintraege: () => (liste.daten || []).map((k) => ({
       gruppe: "Kalkulationen", zeichen: "∑", titel: (k.nr || "ohne Nr.") + " · " + (k.kunde || "ohne Kunde"),
-      zeile: [k.artikel, k.daten && k.daten.kopf && k.daten.kopf.bezeichnung].filter(Boolean).join(" · "), id: k.id })),
-    springen: (x) => { setSaetze(false); setOffen(x.id); },
+      zeile: [k.artikel, k.kopf && k.kopf.bezeichnung].filter(Boolean).join(" · "), id: k.id })),
+    springen: async (x) => { if (!(await verlassenOk())) return; setSaetze(false); setOffen(x.id); },
   });
 
   const fehler = liste.fehler || masch.fehler;
@@ -72,13 +86,31 @@ export default function Kalkulation({ auffrischen }) {
   if (saetze) {
     return <Stundensaetze maschinen={masch.daten} neu={masch.neu} zurueck={() => setSaetze(false)} />;
   }
-  const eintrag = offen && liste.daten.find((k) => k.id === offen);
-  if (eintrag) {
-    return <Bearbeiten key={eintrag.id} eintrag={eintrag} maschinen={masch.daten}
+  if (offen) {
+    return <Offen key={offen} id={offen} maschinen={masch.daten}
       zurueck={() => { setOffen(null); liste.neu(); }} neu={liste.neu} oeffnen={setOffen} liste={liste.daten} />;
   }
   return <Liste liste={liste.daten} maschinen={masch.daten} oeffnen={setOffen}
     neu={() => { liste.neu(); masch.neu(); }} saetze={() => setSaetze(true)} />;
+}
+
+// Die Liste hat nur Kopf und Vorschau (über 7'000 Kalkulationen aus WinKalk),
+// darum holt eine geöffnete Kalkulation ihre ganzen Daten erst hier (seit 1.837.0)
+function Offen({ id, zurueck, ...rest }) {
+  const eintrag = useDaten(() => kalkulationLaden(id), [id]);
+  const alle = <button className="knopf" onClick={zurueck}>← Alle</button>;
+  if (eintrag.fehler) {
+    return <><h1 className="seitentitel">Kalkulation</h1>
+      <div className="karte karte--fehler"><p>{alt.fehlertext(eintrag.fehler)}</p>{alle}</div></>;
+  }
+  if (eintrag.daten === null && eintrag.laedt !== false) {
+    return <><h1 className="seitentitel">Kalkulation</h1><div className="laedt">Wird geladen …</div></>;
+  }
+  if (!eintrag.daten) {
+    return <><h1 className="seitentitel">Kalkulation</h1>
+      <div className="karte karte--hinweis"><p>Kalkulation nicht gefunden.</p>{alle}</div></>;
+  }
+  return <Bearbeiten eintrag={eintrag.daten} zurueck={zurueck} {...rest} />;
 }
 
 // ---------- Liste aller Kalkulationen ----------
@@ -89,7 +121,7 @@ function Liste({ liste, maschinen, oeffnen, neu, saetze }) {
   useGemerkt(gemerkt, { suche });
   const woerter = suche.toLowerCase().split(/\s+/).filter(Boolean);
   const gefunden = !woerter.length ? liste : liste.filter((k) => {
-    const kopf = (k.daten && k.daten.kopf) || {};
+    const kopf = k.kopf || {};
     const text = [k.nr, k.kunde, k.artikel, ...Object.values(kopf)].filter((x) => typeof x === "string").join(" ").toLowerCase();
     return woerter.every((w) => text.includes(w));
   });
@@ -133,23 +165,22 @@ function Liste({ liste, maschinen, oeffnen, neu, saetze }) {
             <table className="tabelle kalk-liste">
               <thead><tr><th>Nr.</th><th>Kunde</th><th>Artikel</th><th>Staffeln</th><th className="rechts">Preis</th><th>Geändert</th></tr></thead>
               <tbody>
-                {gefunden.map((k) => {
-                  const d = k.daten || {};
-                  const staffeln = (d.staffeln || []).filter((s) => z(s.menge) > 0);
-                  const erste = staffeln.length ? staffelRechnen(d, staffeln[0], maschinen) : null;
+                {gefunden.slice(0, 200).map((k) => {
+                  const v = k.vorschau || {};
                   return (
                     // Die Klassen je Zelle braucht das Handy: dort wird jede Zeile ein Kärtchen (seit 1.237.1)
                     <tr key={k.id} data-kalk={k.id} className="kalk-liste__zeile" onClick={() => oeffnen(k.id)}>
                       <td className="kalk-liste__nr"><b>{k.nr || "–"}</b></td>
                       <td className="kalk-liste__kunde">{k.kunde || "–"}</td>
-                      <td className="kalk-liste__artikel">{k.artikel || ""}{d.kopf && d.kopf.bezeichnung ? <span className="kalk-klein">{d.kopf.bezeichnung}</span> : null}</td>
-                      <td className="kalk-liste__staffeln">{staffeln.map((s) => chf(z(s.menge), 0)).join(" / ")}</td>
-                      <td className="rechts kalk-liste__preis">{erste ? chf(erste.angebotPe) + (erste.waehrung !== "CHF" ? " " + erste.waehrung : "") + (erste.pe > 1 ? " / " + peText(erste.pe) : "") : "–"}</td>
+                      <td className="kalk-liste__artikel">{k.artikel || ""}{k.kopf && k.kopf.bezeichnung ? <span className="kalk-klein">{k.kopf.bezeichnung}</span> : null}</td>
+                      <td className="kalk-liste__staffeln">{(v.mengen || []).map((m) => chf(m, 0)).join(" / ")}</td>
+                      <td className="rechts kalk-liste__preis">{v.preis != null ? chf(v.preis) + (v.waehrung && v.waehrung !== "CHF" ? " " + v.waehrung : "") + (v.pe > 1 ? " / " + peText(v.pe) : "") : "–"}</td>
                       <td className="kalk-liste__datum">{alt.datumZeitKurz ? alt.datumZeitKurz(k.geaendert_am) : ""}</td>
                     </tr>);
                 })}
               </tbody>
             </table>}
+            {gefunden.length > 200 && <p className="hinweis" id="kalk-mehr">200 von {gefunden.length.toLocaleString("de-CH").replace(/[’,]/g, "'")} gezeigt, Suche eingrenzen.</p>}
           </section>}
       <p className="hinweis">Testprogramm, nur für freigegebene Personen sichtbar. Gerechnet wird genau wie im Gewatec,
         aber mit beliebig vielen Staffelmengen.</p>
@@ -165,18 +196,28 @@ function Bearbeiten({ eintrag, maschinen, zurueck, neu, oeffnen, liste }) {
   const [stand, setStand] = useState("gespeichert");
   useGemerkt(gemerkt, { reiter });
 
-  // Von selbst speichern, eine Sekunde nach der letzten Eingabe
-  const erstes = useRef(true);
+  // Nicht mehr von selbst speichern (Wunsch Patrick 26. November 2026): Knopf
+  // Speichern, und beim Schliessen fragt die App, ob gespeichert werden soll.
+  const rechnungRef = useRef([]);
+  const basis = useRef(JSON.stringify({ nr, k }));
+  const geaendert = JSON.stringify({ nr, k }) !== basis.current;
+  const zustand = useRef();
+  async function speichern() {
+    const jetzt = JSON.stringify({ nr, k });
+    setStand("speichert");
+    try {
+      await kalkulationSpeichern({ id: eintrag.id, nr, daten: k, vorschau: kalkVorschau(k, rechnungRef.current) });
+      basis.current = jetzt; setStand("gespeichert"); return true;
+    } catch (f) { setStand("fehler"); alt.meldung(alt.fehlertext(f), "fehler"); return false; }
+  }
+  zustand.current = { geaendert, speichern };
   useEffect(() => {
-    if (erstes.current) { erstes.current = false; return; }
-    setStand("ungespeichert");
-    const t = setTimeout(async () => {
-      setStand("speichert");
-      try { await kalkulationSpeichern({ id: eintrag.id, nr, daten: k }); setStand("gespeichert"); neu(); }
-      catch (f) { setStand("fehler"); alt.meldung(alt.fehlertext(f), "fehler"); }
-    }, 1000);
-    return () => clearTimeout(t);
-  }, [k, nr]);
+    offeneKalk = { geaendert: () => zustand.current.geaendert, speichern: () => zustand.current.speichern() };
+    const warnen = (e) => { if (zustand.current.geaendert) { e.preventDefault(); e.returnValue = ""; } };
+    window.addEventListener("beforeunload", warnen);
+    return () => { offeneKalk = null; window.removeEventListener("beforeunload", warnen); };
+  }, []);
+  const schliessen = async () => { if (await verlassenOk()) zurueck(); };
 
   // Ein Feld irgendwo in der Kalkulation ändern: setze("kopf.kunde", wert)
   const setze = (pfad, wert) => setK((alt0) => {
@@ -190,10 +231,12 @@ function Bearbeiten({ eintrag, maschinen, zurueck, neu, oeffnen, liste }) {
 
   const staffeln = k.staffeln.filter((s) => z(s.menge) > 0);
   const rechnung = staffeln.map((s) => staffelRechnen(k, s, maschinen));
+  rechnungRef.current = rechnung;
 
   async function kopieren() {
+    if (!(await verlassenOk())) return;
     try {
-      const id = await kalkulationSpeichern({ nr: await kalkNr(liste), daten: structuredClone(k) });
+      const id = await kalkulationSpeichern({ nr: await kalkNr(liste), daten: structuredClone(k), vorschau: kalkVorschau(k, rechnung) });
       alt.meldung("Kopie angelegt.", "gut");
       neu(); oeffnen(id);
     } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
@@ -201,7 +244,7 @@ function Bearbeiten({ eintrag, maschinen, zurueck, neu, oeffnen, liste }) {
   async function loeschen() {
     const weg = await alt.loeschen({ titel: "Kalkulation löschen?", text: "Kalkulation " + (nr || "") + " wird gelöscht.",
       tabelle: "kalkulationen", id: eintrag.id, rueckText: "Kalkulation löschen" });
-    if (weg) zurueck();
+    if (weg) { basis.current = JSON.stringify({ nr, k }); zurueck(); }
   }
 
   const Inhalt = { kopf: Kopf, material: Material, ags: Arbeitsgaenge, preis: Preis, ergebnis: Ergebnis, angebot: Angebot }[reiter] || Kopf;
@@ -209,14 +252,20 @@ function Bearbeiten({ eintrag, maschinen, zurueck, neu, oeffnen, liste }) {
     <div className="kalk-kompakt" onKeyDown={enterWeiter}>
       <div className="kalk-kopf">
         <div className="kalk-kopf__links">
-          <button className="knopf knopf--klein kalk-zurueck" id="kalk-zurueck" onClick={zurueck}>← Alle</button>
+          <button className="knopf knopf--klein kalk-zurueck" id="kalk-zurueck" onClick={schliessen}>← Alle</button>
           <h1 className="seitentitel">Kalkulation {nr}</h1>
           <div className="kalk-kopf__unter">{[k.kopf.kunde, k.kopf.artikel, k.kopf.bezeichnung].filter(Boolean).join(" · ") || "Noch ohne Kunde und Artikel"}</div>
         </div>
         <div className="kalk-kopf__rechts">
-          <span className={"kalk-stand kalk-stand--" + stand} id="kalk-stand">
-            {{ gespeichert: "Gespeichert", ungespeichert: "Wird gleich gespeichert …", speichert: "Speichert …", fehler: "Nicht gespeichert" }[stand]}
+          <span className={"kalk-stand kalk-stand--" + (stand === "speichert" ? stand : geaendert ? "ungespeichert" : stand)} id="kalk-stand">
+            {stand === "speichert" ? "Speichert …" : geaendert ? "Nicht gespeichert" : stand === "fehler" ? "Nicht gespeichert" : "Gespeichert"}
           </span>
+          <button className={"knopf knopf--klein" + (geaendert ? " knopf--haupt" : "")} id="kalk-speichern"
+            disabled={stand === "speichert"} onClick={speichern}>Speichern</button>
+          <button className="knopf knopf--klein" id="kalk-erp-uebernehmen" title="Artikel, Preisliste und Arbeitsplan dieser Kalkulation ins Test ERP übernehmen" onClick={async () => {
+            try { const r = await artikelAusKalkulation({ id: eintrag.id, nr, daten: k }, maschinen); if (r) { alt.meldung(r, "gut"); window.dispatchEvent(new Event("hofer-erp-neu")); } }
+            catch (e) { alt.meldung(String(e?.message || e), "fehler"); }
+          }}>Artikel und Arbeitsplan übernehmen</button>
           <button className="knopf knopf--klein" id="kalk-kopieren" onClick={kopieren}>Kopieren</button>
           <button className="knopf knopf--klein knopf--gefahr-leise" id="kalk-loeschen" onClick={loeschen}>Löschen</button>
         </div>
@@ -235,7 +284,7 @@ function Bearbeiten({ eintrag, maschinen, zurueck, neu, oeffnen, liste }) {
       <Reiter reiter={REITER} aktiv={reiter} waehlen={setReiter} merkmal="kalk-reiter" />
       <Uebergang key={reiter}>
         <div id="kalk-inhalt">
-          <Inhalt k={k} setze={setze} setK={setK} nr={nr} setNr={setNr} maschinen={maschinen} rechnung={rechnung} />
+          <Inhalt k={k} setze={setze} setK={setK} nr={nr} setNr={setNr} maschinen={maschinen} rechnung={rechnung} winkalk={eintrag.winkalk} />
         </div>
       </Uebergang>
      </div>
@@ -335,17 +384,22 @@ function F({ label, wert, setzen, einheit, id, text, mehrzeilig, hinweis, typ, p
 // wie bisher.
 let stammVorrat = null;
 function useErpStamm() {
-  const [st, setSt] = useState(stammVorrat || { partner: [], artikel: [] });
+  const [st, setSt] = useState(stammVorrat || { partner: [], lieferanten: [], artikel: [], bed: [] });
   useEffect(() => {
     if (stammVorrat) return undefined;
     let weg = false;
     (async () => {
       try {
-        const [p, a] = await Promise.all([
-          alt.db.from("erp_partner").select("id, art, nr, name, aktiv, daten").eq("art", "kunde").limit(5000),
-          alt.db.from("erp_artikel").select("id, art, nr, idx, bezeichnung, zeichnung, kunde_id, aktiv, daten").limit(20000)]);
+        const [p, a, b] = await Promise.all([
+          alt.db.from("erp_partner").select("id, art, nr, name, aktiv, daten").in("art", ["kunde", "lieferant"]).limit(10000),
+          alt.db.from("erp_artikel").select("id, art, nr, idx, bezeichnung, zeichnung, kunde_id, aktiv, daten").limit(20000),
+          alt.db.from("erp_bedingungen").select("id, art, code, text").limit(500)]);
+        const alle = p && !p.error && Array.isArray(p.data) ? p.data.filter((x) => x.aktiv !== false) : [];
         const neu = {
-          partner: p && !p.error && Array.isArray(p.data) ? p.data.filter((x) => x.aktiv !== false) : [],
+          bed: b && !b.error && Array.isArray(b.data) ? b.data : [],
+          partner: alle.filter((x) => x.art === "kunde"),
+          // Lieferanten für externe Arbeitsgänge (Wunsch Patrick 26. November 2026)
+          lieferanten: alle.filter((x) => x.art === "lieferant"),
           artikel: a && !a.error && Array.isArray(a.data) ? a.data.filter((x) => x.aktiv !== false) : [] };
         stammVorrat = neu;
         if (!weg) setSt(neu);
@@ -375,11 +429,38 @@ function useWahl(treffer, nehmen) {
   return { offen, auf, treffer, nehmen };
 }
 
+// Lieferant eines externen Arbeitsgangs aus den Stammdaten des Test ERP
+// hineinziehen (Wunsch Patrick 26. November 2026: „bei externen den
+// Lieferant hineinziehen können, jetzt ist nur ein Textfeld da“). Eigene
+// Komponente, weil die Arbeitsgänge in einer Schleife stehen. Tippen von
+// Hand bleibt möglich.
+function LieferantFeld({ id, wert, setzen, nimm }) {
+  const stamm = useErpStamm();
+  const wahl = useWahl(stammTreffer(stamm.lieferanten, wert, (p) => [p.nr, p.name]).map((p) => ({
+    id: p.id, titel: p.name, unter: [p.nr, partnerAdresse(p).ort].filter(Boolean).join(" · "), p })), (t) => nimm(t.p));
+  return <F label="Lieferant" id={id} text wahl={wahl} wert={wert} setzen={setzen}
+    platz={stamm.lieferanten.length ? "Name oder Nr. tippen, Vorschlag wählen" : undefined} />;
+}
+
 // Adresse eines Partners für die Felder der Kalkulation
 function partnerAdresse(p) {
   const d = (p && p.daten) || {};
   const ad = d.adresse || {};
   return { zusatz: ad.name2 || "", strasse: ad.strasse || "", land: ad.land || "", plz: ad.plz || "", ort: ad.ort || "" };
+}
+
+// Liefer- und Zahlungsbedingung sowie Versand eines Kunden aus den
+// Stammdaten des Test ERP (Wunsch Patrick 25. November 2026: „Liefer-,
+// Zahlungsbedingung und ähnliches kommen über den Kunden-Code“). Leere
+// Angaben im Kunden lassen das Feld der Kalkulation, wie es ist.
+function partnerBedingungen(p, bed) {
+  const d = (p && p.daten) || {};
+  const text = (id) => { const b = (bed || []).find((x) => x.id === id || x.code === id); return b ? b.text : ""; };
+  const aus = {};
+  const lb = text(d.liefer); if (lb) aus.lieferbed = lb;
+  const zb = text(d.zahlung); if (zb) aus.zahlung = zb;
+  if (d.versand && typeof d.versand === "string") aus.versand = d.versand;
+  return aus;
 }
 
 function Kopf({ k, setze, setK, nr, setNr }) {
@@ -394,10 +475,19 @@ function Kopf({ k, setze, setK, nr, setNr }) {
   }) });
   const stamm = useErpStamm();
   const kundeSetzen = (p) => setK((x) => {
-    const kopf = { ...x.kopf, kunde: p.name || "", kunde_id: p.id, ...partnerAdresse(p) };
+    const kopf = { ...x.kopf, kunde: p.name || "", kunde_id: p.id, kundencode: p.nr || "", ...partnerAdresse(p) };
     delete kopf.adresse;
-    return { ...x, kopf };
+    return { ...x, kopf, angebot: { ...(x.angebot || {}), ...partnerBedingungen(p, stamm.bed) } };
   });
+  // Kunden-Code: genau eine bekannte Nr. getippt übernimmt den Kunden gleich
+  const codeSetzen = (w) => {
+    setze("kopf.kundencode", w);
+    const t = String(w || "").trim();
+    const p = t.length >= 5 ? stamm.partner.find((x) => String(x.nr) === t) : null;
+    if (p && p.id !== k.kopf.kunde_id) kundeSetzen(p);
+  };
+  const codeWahl = useWahl(stammTreffer(stamm.partner, k.kopf.kundencode, (p) => [p.nr, p.name]).map((p) => ({
+    id: p.id, titel: p.nr + " " + p.name, unter: partnerAdresse(p).ort, p })), (t) => kundeSetzen(t.p));
   const kundeWahl = useWahl(stammTreffer(stamm.partner, k.kopf.kunde, (p) => [p.nr, p.name]).map((p) => ({
     id: p.id, titel: p.name, unter: [p.nr, partnerAdresse(p).ort].filter(Boolean).join(" · "), p })), (t) => kundeSetzen(t.p));
   const hofer = stamm.artikel.filter((x) => x.art === "hofer");
@@ -407,16 +497,32 @@ function Kopf({ k, setze, setK, nr, setNr }) {
     const matBez = roh ? (roh.bezeichnung || roh.nr) : (d.material || "");
     const kunde = a.kunde_id ? stamm.partner.find((p) => p.id === a.kunde_id) : null;
     setK((x) => {
-      const kopf = { ...x.kopf, artikel: a.nr || "", index: a.idx || "", zeichnung: a.zeichnung || "",
-        ident: d.ident || x.kopf.ident || "", bezeichnung: a.bezeichnung || x.kopf.bezeichnung || "", artikel_id: a.id };
-      if (kunde) { Object.assign(kopf, { kunde: kunde.name || "", kunde_id: kunde.id, ...partnerAdresse(kunde) }); delete kopf.adresse; }
+      // Der Artikel-Code ist Master: ein anderer Artikel ersetzt alle Felder,
+      // derselbe füllt nur Leeres nicht mit Leerem auf (Wunsch Patrick 25. November 2026)
+      const neu = x.kopf.artikel_id !== a.id;
+      const wert = (w, alt0) => (w || (neu ? "" : alt0 || ""));
+      const kopf = { ...x.kopf, artikel: a.nr || "", index: wert(a.idx, x.kopf.index), zeichnung: wert(a.zeichnung, x.kopf.zeichnung),
+        ident: wert(d.ident, x.kopf.ident), bezeichnung: wert(a.bezeichnung, x.kopf.bezeichnung), artikel_id: a.id };
+      let angebot = x.angebot;
+      if (kunde) {
+        Object.assign(kopf, { kunde: kunde.name || "", kunde_id: kunde.id, kundencode: kunde.nr || "", ...partnerAdresse(kunde) }); delete kopf.adresse;
+        angebot = { ...(x.angebot || {}), ...partnerBedingungen(kunde, stamm.bed) };
+      }
       let material = x.material;
-      if (matBez && !String(x.material.bez || "").trim()) {
+      if (matBez && (neu || !String(x.material.bez || "").trim())) {
         const w = werkstoffGenau(matBez); const t = materialZerlegen(matBez);
         material = { ...x.material, bez: matBez, nr: (w && w.nr) || x.material.nr, d: t && t.d ? String(t.d) : x.material.d };
       }
-      return { ...x, kopf, material };
+      return { ...x, kopf, material, angebot };
     });
+  };
+  // Getippter Artikel-Code, der genau einer HOCO Nr. im Test ERP entspricht,
+  // übernimmt den Artikel gleich; ein anderer Code löst die Verknüpfung
+  const artikelCodeSetzen = (w) => {
+    const t = String(w || "").trim();
+    const a = t ? hofer.find((x) => String(x.nr) === t) : null;
+    if (a) { if (a.id !== k.kopf.artikel_id) { artikelSetzen(a); return; } setze("kopf.artikel", w); return; }
+    setK((x) => { const kopf = { ...x.kopf, artikel: w }; if (kopf.artikel_id) delete kopf.artikel_id; return { ...x, kopf }; });
   };
   const artikelWahl = useWahl(stammTreffer(hofer, k.kopf.artikel, (a) => [a.nr, a.idx, a.bezeichnung, a.zeichnung, (a.daten || {}).ident])
     .map((a) => ({ id: a.id, titel: a.nr + (a.idx ? " Ind. " + a.idx : ""), unter: [a.bezeichnung, a.zeichnung].filter(Boolean).join(" · "), a })),
@@ -427,8 +533,13 @@ function Kopf({ k, setze, setK, nr, setNr }) {
   const [matHinweis, setMatHinweis] = useState("");
   const artikel = (k.kopf.artikel || "").trim();
   const matLeer = !String(k.material.bez || "").trim();
+  // Wechselt der Artikel-Code von Hand, kommt das Material neu, auch wenn
+  // schon eines dasteht (Master); beim Öffnen bleibt das gespeicherte
+  const artikelVorher = useRef(artikel);
+  const geaendert = artikelVorher.current !== artikel;
+  const mitErp = !!k.kopf.artikel_id;
   useEffect(() => {
-    if (!/^\d{4,6}-\d{3,4}$/.test(artikel) || !matLeer) return undefined;
+    if (!/^\d{4,6}-\d{3,4}$/.test(artikel) || mitErp || !(matLeer || geaendert)) return undefined;
     let weg = false;
     const zeit = setTimeout(async () => {
       try {
@@ -436,6 +547,7 @@ function Kopf({ k, setze, setK, nr, setNr }) {
           .not("material_bez", "is", null).order("planned_from", { ascending: false }).limit(1);
         const bez = r && !r.error && r.data && r.data[0] ? String(r.data[0].material_bez || "").trim() : "";
         if (weg || !bez) return;
+        artikelVorher.current = artikel;
         setze("material.bez", bez);
         const w = werkstoffGenau(bez);
         if (w && w.nr) setze("material.nr", w.nr);
@@ -445,19 +557,37 @@ function Kopf({ k, setze, setK, nr, setNr }) {
       } catch (e) { /* ohne Verbindung bleibt das Feld leer */ }
     }, 500);
     return () => { weg = true; clearTimeout(zeit); };
-  }, [artikel, matLeer]);
+  }, [artikel, matLeer, mitErp]);
+  // Länge Fertigteil aus den Stammdaten der HOCO Nr., nur wenn das Feld leer ist:
+  // so rechnet „Aus Länge und Stange“ gleich, wie im Gewatec mit Länge + Abstich.
+  const laengeLeer = !String((k.material || {}).laenge || "").trim();
+  useEffect(() => {
+    if (!/^\d{4,6}-\d{3,4}$/.test(artikel) || !laengeLeer) return undefined;
+    let weg = false;
+    const zeit = setTimeout(async () => {
+      try {
+        const r = await alt.db.from("hoco_parts").select("teil_laenge_mm").eq("hoco_nr", artikel).maybeSingle();
+        const l = r && !r.error && r.data ? Number(r.data.teil_laenge_mm) : 0;
+        if (weg || !(l > 0)) return;
+        setze("material.laenge", String(l));
+        setMatHinweis("Länge Fertigteil " + String(l) + " mm aus HOCO Nr. " + artikel + " übernommen.");
+      } catch (e) { /* ohne Verbindung bleibt das Feld leer */ }
+    }, 600);
+    return () => { weg = true; clearTimeout(zeit); };
+  }, [artikel, laengeLeer]);
   return (
     <div className="kalk-zwei">
       <section className="karte">
         <h2>Kunde und Artikel</h2>
         <F label="Kalkulation Nr." id="kalk-nr" text wert={nr} setzen={setNr} />
+        <F label="Kunden-Code" id="kalk-kundecode" text platz={stamm.partner.length ? "Kunden-Nr., z. B. 10804" : undefined} wahl={codeWahl} wert={k.kopf.kundencode} setzen={codeSetzen} />
         <F label="Kunde" id="kalk-kunde" text platz={stamm.partner.length ? "Name oder Nr. tippen, Vorschlag wählen" : undefined} wahl={kundeWahl} {...f("kunde")} />
         <F label="Zusatz" id="kalk-adr-zusatz" text platz="Abteilung, z. Hd. …" {...a("zusatz")} />
         <F label="Strasse" id="kalk-adr-strasse" text {...a("strasse")} />
         <F label="Land" id="kalk-adr-land" text platz="CH" {...a("land")} />
         <F label="PLZ" id="kalk-adr-plz" text {...a("plz")} />
         <F label="Ort" id="kalk-adr-ort" text {...a("ort")} />
-        <F label="Artikel-Code" id="kalk-artikel" text platz={hofer.length ? "HOCO Nr. oder Bezeichnung tippen" : undefined} wahl={artikelWahl} {...f("artikel")} />
+        <F label="Artikel-Code" id="kalk-artikel" text platz={hofer.length ? "HOCO Nr. oder Bezeichnung tippen" : undefined} wahl={artikelWahl} wert={k.kopf.artikel} setzen={artikelCodeSetzen} />
         {matHinweis && <p className="hinweis" id="kalk-mat-hinweis">{matHinweis}</p>}
         <F label="Zeichnung" id="kalk-zeichnung" text {...f("zeichnung")} />
         <F label="Kunden Ident-Nr." id="kalk-ident" text {...f("ident")} />
@@ -473,10 +603,19 @@ function Kopf({ k, setze, setK, nr, setNr }) {
   );
 }
 
-function Material({ k, setze, setK, rechnung }) {
+function Material({ k, setze, setK, rechnung, winkalk }) {
+  const [matJe, setMatJe] = useState(false);
   const m = k.material;
   const f = (name) => ({ wert: m[name], setzen: (w) => setze("material." + name, w) });
   const r0 = rechnung[0];
+  // Masse je Körper wie in der Einsatzgewichtsberechnung des Gewatec (Wunsch Patrick 26. November 2026)
+  const form = m.form || "rund";
+  const masse = form === "vierkant" ? <><F label="a" einheit="mm" id="kalk-d" {...f("d")} /><F label="b" einheit="mm" id="kalk-b" platz="= a" {...f("b")} /></>
+    : form === "sechskant" ? <F label="s Schlüsselweite" einheit="mm" id="kalk-d" {...f("d")} />
+    : form === "rohr" ? <><F label="Ø aussen" einheit="mm" id="kalk-d" {...f("d")} /><F label="Ø innen" einheit="mm" id="kalk-di" {...f("di")} /></>
+    : <F label="Ø" einheit="mm" id="kalk-d" {...f("d")} />;
+  // Alles je Preiseinheit wie oben bei „Preis pro“ gewählt (Wunsch Patrick 26. November 2026)
+  const pe = peWert(k.preis.pe);
   // Rohmaterial aus den Stammdaten des Test ERP wählen
   const stamm = useErpStamm();
   const roh = stamm.artikel.filter((x) => x.art === "rohmaterial");
@@ -486,18 +625,23 @@ function Material({ k, setze, setK, rechnung }) {
     const w = werkstoffGenau(bez); const z = materialZerlegen(bez);
     setK((x) => ({ ...x, material: { ...x.material, bez, nr: (w && w.nr) || x.material.nr, d: z && z.d ? String(z.d) : x.material.d } }));
   });
+  const matZeigen = matJe || k.staffeln.some((s) => Object.values(s.mat || {}).some((v) => String(v ?? "").trim()));
   return (
     <>
       {/* Staffeln nebeneinander, Lose darunter, damit nichts rollt
           (Wunsch Patrick 27. Oktober 2026) */}
       <section className="karte kalk-rolle">
-        <h2>Staffelmengen <small className="kalk-einheit">Lose: wie oft gerüstet wird, jedes weitere Los mit „Folgerüsten“</small></h2>
+        <h2>Staffelmengen <small className="kalk-einheit">Lose: wie oft gerüstet wird, jedes weitere Los mit „Folgerüsten“</small> <button type="button" className="linkknopf" id="kalk-matje"
+          onClick={() => setMatJe((x) => !x)}>{matZeigen ? "▾" : "▸"} Material je Staffel</button></h2>
+        {/* Preis pro 1, 100 oder 1000 Stk (Wunsch Patrick 21. November 2026),
+            seit 1.844.0 vorne bei den Staffeln (Wunsch Patrick 25. November 2026);
+            Angebots- und Zielpreis gelten dann für diese Menge */}
         <table className="kalk-tab kalk-eng kalk-staffeltab" id="kalk-staffeln">
           <tbody>
-            <tr><td></td>{k.staffeln.map((s, i) => <th key={i} className="rechts" data-staffel-zeile={i}>Staffel {i + 1}
+            <tr><td><label className="kalk-mini kalk-pe-vorne"><span>Preis pro</span>           <select id="kalk-pe" value={String(peWert(k.preis.pe))} onChange={(e) => setze("preis.pe", e.target.value)}>             {PREISEINHEITEN.map((x) => <option key={x} value={String(x)}>{peText(x)}</option>)}           </select>         </label></td>{k.staffeln.map((s, i) => <th key={i} className="rechts" data-staffel-zeile={i}>Staffel {i + 1}
               {k.staffeln.length > 1 && <button className="linkknopf linkknopf--gefahr kalk-staffel-weg" data-staffel-weg={i} title="Staffel entfernen"
                 onClick={() => setK((x) => ({ ...x, staffeln: x.staffeln.filter((_, j) => j !== i) }))}>✕</button>}</th>)}
-              <td rowSpan={3}><button className="knopf knopf--klein" id="kalk-staffel-neu"
+              <td rowSpan={matZeigen ? 6 : 3}><button className="knopf knopf--klein" id="kalk-staffel-neu"
                 onClick={() => setK((x) => ({ ...x, staffeln: [...x.staffeln, { menge: "", lose: "1", preis: { ...((x.staffeln[0] || {}).preis || {}) } }] }))}>+ Staffel</button></td></tr>
             <tr><td>Menge <span className="kalk-einheit">Stk</span></td>{k.staffeln.map((s, i) => (
               <td key={i} className="rechts"><input className="kalk-zelle" type="text" inputMode="decimal" id={"kalk-menge-" + i}
@@ -505,20 +649,42 @@ function Material({ k, setze, setK, rechnung }) {
             <tr><td>Lose</td>{k.staffeln.map((s, i) => (
               <td key={i} className="rechts"><input className="kalk-zelle" type="text" inputMode="decimal" id={"kalk-lose-" + i}
                 value={s.lose || ""} onChange={(e) => setze("staffeln." + i + ".lose", e.target.value)} /></td>))}</tr>
+            {/* Material je Staffel wie im Gewatec, leer = Wert beim Material unten;
+                nur aufgeklappt oder wenn eine Staffel eigene Werte hat, damit nichts rollt */}
+            {matZeigen && [["preis", "Materialpreis", "CHF/kg", "kalk-smatpreis-"], ["gk", "Mat.-GK", "%", "kalk-smatgk-"], ["gkPausch", "Mat.-GK pauschal", "CHF", "kalk-smatgkp-"]].map(([n, t, e, id]) => (
+              <tr key={n}><td>{t} <span className="kalk-einheit">{e}</span></td>{k.staffeln.map((s, i) => (
+                <td key={i} className="rechts"><input className="kalk-zelle" type="text" inputMode="decimal" id={id + i}
+                  placeholder={String((k.material || {})[n] ?? "")}
+                  value={(s.mat || {})[n] || ""} onChange={(e2) => setze("staffeln." + i + ".mat." + n, e2.target.value)} /></td>))}</tr>))}
           </tbody>
         </table>
       </section>
 
       <section className="karte">
-        <h2>Material</h2>
+        <div className="kalk-mat-kopf">
+          <h2>Material</h2>
+          <div className="moduswahl kalk-modus">
+            {[["rechnen", "Aus Länge und Stange rechnen"], ["hand", "Einsatzgewicht je Stück eintragen"]].map(([w, t]) => (
+              <button key={w} className={"moduswahl__knopf" + (m.modus === w ? " aktiv" : "")} data-matmodus={w}
+                onClick={() => setze("material.modus", w)}>{t}</button>))}
+          </div>
+          <div className="moduswahl kalk-modus" id="kalk-form">
+          {MAT_FORMEN.map(([w, t]) => (
+            <button key={w} className={"moduswahl__knopf" + ((m.form || "rund") === w ? " aktiv" : "")} data-matform={w}
+              onClick={() => setze("material.form", w)}>{t}</button>))}
+          </div>
+        </div>
         <div className="kalk-reihe">
           <F label="Materialbezeichnung" id="kalk-mat" text breit wahl={matWahl} {...f("bez")} />
           <F label="Werkstoff-Nr." id="kalk-matnr" text {...f("nr")} />
+          <F label="Fertiggewicht" einheit="kg/Stk" id="kalk-fertig" {...f("fertig")} />
+          <F label="Spänepreis" einheit="CHF/kg" id="kalk-spanpreis" {...f("spanPreis")} />
         </div>
         <div className="kalk-reihe">
           <F label="Materialpreis" einheit="CHF/kg" id="kalk-matpreis" {...f("preis")} />
           <F label="Material-Gemeinkosten" einheit="%" id="kalk-matgk" {...f("gk")} />
           <F label="Material-Gemeinkosten pauschal" einheit="CHF" id="kalk-matgkp" {...f("gkPausch")} />
+          <F label="Ausschuss" einheit="%" id="kalk-ausschuss" platz="0" {...f("ausschuss")} />
         </div>
         <div className="kalk-reihe">
           <F label="Abmessung" id="kalk-abmessung" text platz="Stange Ø 12.7 x 73.5 geschliffen" {...f("abmessung")} />
@@ -530,26 +696,21 @@ function Material({ k, setze, setK, rechnung }) {
             </select>
           </label>
         </div>
-        <div className="moduswahl kalk-modus">
-          {[["hand", "Einsatzgewicht je Stück eintragen"], ["rechnen", "Aus Länge und Stangen rechnen"]].map(([w, t]) => (
-            <button key={w} className={"moduswahl__knopf" + (m.modus === w ? " aktiv" : "")} data-matmodus={w}
-              onClick={() => setze("material.modus", w)}>{t}</button>))}
-        </div>
         {m.modus === "rechnen"
           ? <div className="kalk-reihe">
-              <F label="Ø" einheit="mm" id="kalk-d" {...f("d")} />
-              <F label="Länge je Teil mit Abstich" einheit="mm" id="kalk-laenge" {...f("laenge")} />
+              {masse}
+              <F label="Länge Fertigteil" einheit="mm" id="kalk-laenge" {...f("laenge")} />
+              <F label="Abstechbreite" einheit="mm" id="kalk-abstich" {...f("abstich")} />
+              <F label="Plandrehzugabe" einheit="mm" id="kalk-plan" {...f("plan")} />
               <F label="Stangenlänge" einheit="mm" id="kalk-stange" platz="3000" {...f("stange")} />
               <F label="Reststück" einheit="mm" id="kalk-rest" {...f("rest")} />
               <F label="Dichte" einheit="kg/dm³" id="kalk-dichte" {...f("dichte")} />
-              <F label="Ausschuss" einheit="%" id="kalk-ausschuss" platz="0" {...f("ausschuss")} />
             </div>
           : <div className="kalk-reihe">
               <F label="Materialeinsatz" einheit="kg/Stk" id="kalk-einsatz" {...f("einsatz")} />
-              <F label="Ø für Meter und Stangen" einheit="mm" id="kalk-d" {...f("d")} />
+              {masse}
               <F label="Stangenlänge" einheit="mm" id="kalk-stange" platz="3000" {...f("stange")} />
               <F label="Dichte" einheit="kg/dm³" id="kalk-dichte" {...f("dichte")} />
-              <F label="Ausschuss" einheit="%" id="kalk-ausschuss" platz="0" {...f("ausschuss")} />
             </div>}
       </section>
 
@@ -560,17 +721,69 @@ function Material({ k, setze, setK, rechnung }) {
             <tbody>
               <Zeile titel="kg gesamt" werte={rechnung.map((r) => chf(r.mat.kg, 1))} />
               <Zeile titel="Meter gesamt" werte={rechnung.map((r) => chf(r.mat.meter, 1))} />
-              <Zeile titel="Stangen" werte={rechnung.map((r) => chf(r.mat.stangen, m.modus === "rechnen" && !(z(m.ausschuss) > 0) ? 0 : 1))} />
-              <Zeile titel="kg je Stück" werte={rechnung.map((r) => chf(r.mat.kgJeStk, 4))} />
+              <Zeile titel="Stangen" werte={rechnung.map((r) => chf(r.mat.stangen, 1))} />
+              {m.modus === "rechnen" && <>
+                <Zeile titel="Stück je Stange" werte={rechnung.map((r) => chf(r.mat.jeStange, 0))} />
+                <Zeile titel="Rest je Stange" einheit="mm" werte={rechnung.map((r) => chf(r.mat.restStange, 1))} />
+                <Zeile titel="Stangengewicht" einheit="kg" werte={rechnung.map((r) => chf(r.mat.stangeKg, 4))} />
+                <Zeile titel="Einsatz je Stück inkl. Ausschuss" einheit="kg" werte={rechnung.map((r) => chf(r.mat.einsatzKg, 4))} />
+              </>}
+              {m.modus !== "rechnen" && <Zeile titel="kg je Stück" werte={rechnung.map((r) => chf(r.mat.kgJeStk, 4))} />}
               <Zeile titel="Mat-Kosten = kg gesamt × Preis" einheit="CHF" werte={rechnung.map((r) => chf(r.mat.roh))} klein />
-              <Zeile titel="Materialkosten mit Gemeinkosten" einheit="CHF" werte={rechnung.map((r) => chf(r.mat.kosten))} />
-              <Zeile titel="Material je Stück" einheit="CHF" fett werte={rechnung.map((r) => chf(r.matStk, 4))} />
+              {z(m.fertig) > 0 && <>
+                <Zeile titel="Fertiggewicht gesamt" einheit="kg" werte={rechnung.map((r) => chf(r.mat.fertigKg, 1))} />
+                <Zeile titel="Späne gesamt = kg gesamt − Fertiggewicht" einheit="kg" werte={rechnung.map((r) => chf(r.mat.spaeneKg, 1))} />
+                <Zeile titel="Späne je Stück" einheit="kg" werte={rechnung.map((r) => chf(r.mat.spaeneJeStk, 4))} />
+                {z(m.spanPreis) > 0 && <Zeile titel="Spänegutschrift = Späne × Spänepreis" einheit="CHF" werte={rechnung.map((r) => chf(-r.mat.gutschrift))} />}
+              </>}
+              <Zeile titel={z(m.fertig) > 0 && z(m.spanPreis) > 0 ? "Materialkosten mit GK, abzüglich Späne" : "Materialkosten mit Gemeinkosten"} einheit="CHF" werte={rechnung.map((r) => chf(r.mat.kosten))} />
+              <Zeile titel={"Material je " + peText(pe)} einheit="CHF" fett werte={rechnung.map((r) => chf(r.matStk * pe, 4))} />
             </tbody>
           </table>
-          {r0 && r0.mat.ausschuss > 0 && <p className="hinweis" id="kalk-ausschuss-hinweis">kg, Meter und Stangen inkl. {chf(r0.mat.ausschuss, z(m.ausschuss) % 1 ? 1 : 0)} % Ausschuss.</p>}
-          {r0 && r0.mat.kgJeM > 0 && <p className="hinweis">{chf(r0.mat.kgJeM, 3)} kg je Meter Stange.</p>}
+          {r0 && (r0.mat.ausschuss > 0 || r0.mat.kgJeM > 0) && <p className="hinweis" id="kalk-ausschuss-hinweis">
+            {r0.mat.ausschuss > 0 && <>{m.modus === "rechnen" ? "Einsatz, kg, Meter und Stangen" : "kg, Meter und Stangen"} inkl. {chf(r0.mat.ausschuss, z(m.ausschuss) % 1 ? 1 : 0)} % Ausschuss. </>}
+            {r0.mat.kgJeM > 0 && <>{chf(r0.mat.kgJeM, 3)} kg je Meter Stange.</>}</p>}
         </section>}
+      <GewatecMaterial winkalk={winkalk} />
     </>
+  );
+}
+
+// Materialrechnung, wie sie im Gewatec (WinKalk) gespeichert war, nur zum Ansehen.
+// Wunsch Patrick 25. November 2026: „ich will sehen wie gerechnet wurde“.
+function GewatecMaterial({ winkalk }) {
+  const st = (winkalk?.staffeln || []).filter((s) => Number(s?.Stueckzahl) > 0);
+  if (!st.length) return null;
+  const kopf = winkalk.kopf || {};
+  const n = (s, f) => { const v = Number(s?.[f]); return isFinite(v) ? v : null; };
+  const kgStk = (s) => n(s, "Stueckzahl") ? n(s, "EinsatzKilogramm") / n(s, "Stueckzahl") : null;
+  const mJe = (s) => n(s, "AnzahlStangen") ? n(s, "EinsatzMeter") / n(s, "AnzahlStangen") : null;
+  const zeile = (titel, werte, extra) => <Zeile titel={titel} werte={werte} {...extra} />;
+  const s0 = st[0];
+  const einsatz = Number(kopf.MaterialEinsatz), fertig = Number(kopf.Fertiggewicht);
+  return (
+    <section className="karte kalk-rolle" id="kalk-gewatec-mat">
+      <h3>So hat Gewatec gerechnet</h3>
+      <p className="hinweis">Werte aus dem Gewatec, nur zum Ansehen. {kopf.MatTextZeile1 ? <>Material: <b>{kopf.MatTextZeile1}</b>. </> : null}
+        {einsatz > 0 && <>Einsatz {chf(einsatz, 4)} kg/Stk. </>}{fertig > 0 && <>Fertiggewicht {chf(fertig, 4)} kg/Stk.</>}</p>
+      <table className="tabelle kalk-tab kalk-eng">
+        <thead><tr><th>Menge</th>{st.map((s, i) => <th key={i} className="rechts">{chf(n(s, "Stueckzahl"), 0)}</th>)}</tr></thead>
+        <tbody>
+          {zeile("Fertigungslose", st.map((s) => chf(n(s, "FertigungsLose"), 0)))}
+          {zeile("Stangen", st.map((s) => chf(n(s, "AnzahlStangen"), 2)))}
+          {zeile("Einsatz Meter", st.map((s) => chf(n(s, "EinsatzMeter"), 2)))}
+          {zeile("Meter je Stange", st.map((s) => chf(mJe(s), 3)), { klein: true })}
+          {zeile("Einsatz kg", st.map((s) => chf(n(s, "EinsatzKilogramm"), 2)))}
+          {zeile("kg je Stück = kg ÷ Menge", st.map((s) => chf(kgStk(s), 4)))}
+          {zeile("Materialpreis CHF/kg", st.map((s) => chf(n(s, "Materialpreis"), 4)))}
+          {zeile("Einzelkosten je Stück", st.map((s) => chf(n(s, "MaterialEinzelkosten"), 4)))}
+          {zeile("Mat.-GK %", st.map((s) => chf(n(s, "MaterialGemeinkosten"), 2)))}
+          {zeile("Mat.-GK pauschal CHF", st.map((s) => chf(n(s, "MaterialkostenGemPauschal"), 2)))}
+          {zeile("Material gesamt je Stück", st.map((s) => chf(n(s, "MaterialGesamtkosten1") ?? n(s, "MaterialGesamtkosten2"), 4)), { fett: true })}
+        </tbody>
+      </table>
+      <p className="hinweis" id="kalk-gewatec-formel">Staffel 1: {chf(n(s0, "EinsatzKilogramm"), 2)} kg ÷ {chf(n(s0, "Stueckzahl"), 0)} Stk = {chf(kgStk(s0), 4)} kg/Stk × {chf(n(s0, "Materialpreis"), 2)} CHF/kg = {chf(kgStk(s0) * n(s0, "Materialpreis"), 4)} CHF/Stk</p>
+    </section>
   );
 }
 
@@ -585,6 +798,8 @@ function Zeile({ titel, einheit, werte, fett, klein }) {
 
 function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
   const r0 = rechnung[0];
+  // Kosten je Preiseinheit wie bei „Preis pro“ gewählt (Wunsch Patrick 26. November 2026)
+  const pe = peWert(k.preis.pe);
   // Aufgeklappte Arbeitsgänge; zugeklappt steht jeder als eine Zeile wie im Gewatec (Wunsch Patrick 27. Oktober 2026)
   const [auf, setAuf] = useState(() => new Set());
   const umschalten = (key) => setAuf((x) => { const n = new Set(x); n.has(key) ? n.delete(key) : n.add(key); return n; });
@@ -593,7 +808,7 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
     setAuf((x) => new Set(x).add(key));
     setK((x) => ({ ...x, ags: [...x.ags, art === "extern"
       ? { key, bez: "", art: "extern", je: "stk", extern: "", ruestPausch: "" }
-      : { key, bez: "", art: "intern", masch: (maschinen[0] || {}).id || "", te: "", erst: "", folge: "", fgk: "" }] }));
+      : { key, bez: "", art: "intern", masch: "", te: "", erst: "", folge: "", fgk: "" }] }));
   };
   // Jeder Arbeitsgang braucht einen festen Schlüssel fürs Ziehen
   const ags = k.ags.map((a, i) => (a.key ? a : { ...a, key: "ag" + i }));
@@ -606,7 +821,7 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
           die Lose stehen schon in den Tabellen je Staffel der Arbeitsgänge (Wunsch Patrick 27. Oktober 2026) */}
       <div className="kalk-ag-titel" aria-hidden="true">
         <span></span><span>AG</span><span>Bezeichnung</span><span>Maschine / Lieferant</span><span className="rechts">te Sek.</span>
-        <span className="rechts">tr Std</span><span className="rechts">FGK</span><span className="rechts">CHF/Stk</span><span></span>
+        <span className="rechts">tr Std</span><span className="rechts">FGK</span><span className="rechts">CHF/{peText(pe)}</span><span></span>
       </div>
       <ZiehListe id="kalk-ags" className="kalk-ags" darf={true}
         ordnen={(reihe) => setK((x) => {
@@ -634,19 +849,26 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
                     setze("ags." + i + ".bez", t);
                     // Drehen hat im Gewatec 56 % FGK, vorbelegt solange das Feld leer ist (Wunsch Patrick 27. Oktober 2026)
                     if (a.art !== "extern" && /^drehen/i.test(t) && !String(a.fgk || "").trim()) setze("ags." + i + ".fgk", FGK_DREHEN);
+                    // Kostenstelle aus dem Namen; eine selbst gewählte Maschine bleibt (Wunsch Patrick 25. November 2026)
+                    if (a.art !== "extern") {
+                      const ks = kostenstelleFuer(t, maschinen);
+                      const kids = START_MASCHINEN.map((n) => kostenstelleFuer(n, maschinen)).filter(Boolean);
+                      if (ks && ks !== a.masch && (!a.masch || kids.includes(a.masch))) setze("ags." + i + ".masch", ks);
+                    }
                   }} />
                 <span className="kalk-ag__ort">{ext ? <><i>Extern</i> {a.lieferant || ""}</> : (mm ? mm.name : <i>keine Maschine</i>)}</span>
                 <span className="kalk-ag__zahl">{ext ? (a.extern ? chf(z(a.extern), 2) + " /" + ({ stk: "Stk", "100stk": "100", "1000stk": "1000", kg: "kg" }[a.je || "stk"]) : "") : (a.te || "")}</span>
                 <span className="kalk-ag__zahl">{ext ? "" : ruest}</span>
                 <span className="kalk-ag__zahl">{ext || !String(a.fgk || "").trim() ? "" : a.fgk + " %"}</span>
-                <b className="kalk-ag__summe" title="Kosten je Stück bei der ersten Staffel">{r ? chf(r.kosten / r0.menge, 4) : "–"}</b>
+                <b className="kalk-ag__summe" title={"Kosten je " + peText(pe) + " bei der ersten Staffel"}>{r ? chf(r.kosten / r0.menge * pe, 4) : "–"}</b>
                 <button className="kalk-ag__weg" data-ag-weg={i} title="Arbeitsgang entfernen"
                   onClick={() => setK((x) => ({ ...x, ags: x.ags.filter((_, j) => j !== i) }))}>✕</button>
               </div>
               {offen && (ext
                 ? <div className="kalk-extern">
                     <div className="kalk-reihe">
-                      <F label="Lieferant" id={"kalk-ag-lief-" + i} text {...f("lieferant")} />
+                      <LieferantFeld id={"kalk-ag-lief-" + i} wert={a.lieferant} setzen={(w) => setK((x) => ({ ...x, ags: x.ags.map((g, j) => j === i ? { ...g, lieferant: w, lieferant_id: undefined } : g) }))}
+                        nimm={(p) => setK((x) => ({ ...x, ags: x.ags.map((g, j) => j === i ? { ...g, lieferant: p.name, lieferant_id: p.id, lieferant_nr: p.nr } : g) }))} />
                       <label className="feld kalk-feld"><span>Kostensatz je</span>
                         <select id={"kalk-ag-je-" + i} value={a.je || "stk"} onChange={(e) => setze("ags." + i + ".je", e.target.value)}>
                           <option value="stk">1 Stk</option><option value="100stk">100 Stk</option>
@@ -696,7 +918,7 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
                     {a.multi && <JeStaffel a={a} i={i} k={k} setK={setK} maschinen={maschinen} rechnung={rechnung} />}
                   </div>)}
               {offen && r && !r.extern && (r.laufH > 0 || r.ruestChf > 0) &&
-                <div className="kalk-ag__fuss">Fix {chf(r.fix / r0.menge, 4)} · Variabel {chf(r.var / r0.menge, 4)}
+                <div className="kalk-ag__fuss">Fix {chf(r.fix / r0.menge * pe, 4)} · Variabel {chf(r.var / r0.menge * pe, 4)} CHF/{peText(pe)}
                   {" "}· Laufzeit {chf(r.laufH, 1)} h · Rüsten {chf(r.ruestChf)} CHF bei {chf(r0.menge, 0)} Stk</div>}
             </div> };
         })} />
@@ -799,6 +1021,7 @@ function JeStaffel({ a, i, k, setK, maschinen, rechnung }) {
   const feld = (name) => spalten.map(({ j, eigen }) => (
     <td key={j} className="rechts"><input className="kalk-zelle" type="text" inputMode="decimal" id={"kalk-ag-s" + j + "-" + name + "-" + i}
       placeholder={a[name] || ""} value={eigen[name] || ""} onChange={(e) => setzen(j, name, e.target.value)} /></td>));
+  const pe = peWert(k.preis.pe);
   const wert = (fn, st) => spalten.map(({ j, r, menge }) => <td key={j} className="rechts">{r && menge ? chf(fn(r, menge), st) : "–"}</td>);
   return (
     <div className="kalk-jestaffel kalk-rolle">
@@ -815,9 +1038,9 @@ function JeStaffel({ a, i, k, setK, maschinen, rechnung }) {
           <tr><td>Rüstzeit Erstrüsten <span className="kalk-einheit">Std</span></td>{feld("erst")}</tr>
           <tr><td>Rüstzeit Folgerüsten <span className="kalk-einheit">Std</span></td>{feld("folge")}</tr>
           <tr><td>FGK <span className="kalk-einheit">%</span></td>{feld("fgk")}</tr>
-          <tr><td>Fixkosten <span className="kalk-einheit">CHF/Stk</span></td>{wert((r, m) => r.fix / m, 4)}</tr>
-          <tr><td>Varkosten <span className="kalk-einheit">CHF/Stk</span></td>{wert((r, m) => r.var / m, 4)}</tr>
-          <tr className="kalk-fett kalk-hervor"><td>Vollkosten <span className="kalk-einheit">CHF/Stk</span></td>{wert((r, m) => r.kosten / m, 4)}</tr>
+          <tr><td>Fixkosten <span className="kalk-einheit">CHF/{peText(pe)}</span></td>{wert((r, m) => r.fix / m * pe, 4)}</tr>
+          <tr><td>Varkosten <span className="kalk-einheit">CHF/{peText(pe)}</span></td>{wert((r, m) => r.var / m * pe, 4)}</tr>
+          <tr className="kalk-fett kalk-hervor"><td>Vollkosten <span className="kalk-einheit">CHF/{peText(pe)}</span></td>{wert((r, m) => r.kosten / m * pe, 4)}</tr>
         </tbody>
       </table>
     </div>
@@ -833,6 +1056,7 @@ function ExternJeStaffel({ a, i, k, setK, rechnung }) {
     : { ...s, ag: { ...(s.ag || {}), [a.key]: { ...((s.ag || {})[a.key] || {}), extern: wert } } })) }));
   const sp = idx.map((j, n) => ({ j, r: rechnung[n] && rechnung[n].ags[i], menge: rechnung[n] ? rechnung[n].menge : 0,
     eigen: ((k.staffeln[j].ag || {})[a.key]) || {} }));
+  const pe = peWert(k.preis.pe);
   return (
     <div className="kalk-jestaffel kalk-rolle">
       <table className="kalk-tab">
@@ -843,8 +1067,8 @@ function ExternJeStaffel({ a, i, k, setK, rechnung }) {
           <tr><td>Kostensatz <span className="kalk-einheit">CHF</span></td>{sp.map(({ j, eigen }) => (
             <td key={j} className="rechts"><input className="kalk-zelle" type="text" inputMode="decimal" id={"kalk-ag-s" + j + "-extern-" + i}
               placeholder={a.extern || ""} value={eigen.extern || ""} onChange={(e) => setzen(j, e.target.value)} /></td>))}</tr>
-          <tr className="kalk-fett kalk-hervor"><td>Einzelkosten <span className="kalk-einheit">CHF/Stk</span></td>{sp.map(({ j, r }) => (
-            <td key={j} className="rechts">{r ? chf(r.einzel, 4) + (r.posten ? " (Posten)" : "") : "–"}</td>))}</tr>
+          <tr className="kalk-fett kalk-hervor"><td>Einzelkosten <span className="kalk-einheit">CHF/{peText(pe)}</span></td>{sp.map(({ j, r }) => (
+            <td key={j} className="rechts">{r ? chf(r.einzel * pe, 4) + (r.posten ? " (Posten)" : "") : "–"}</td>))}</tr>
         </tbody>
       </table>
     </div>
@@ -859,6 +1083,10 @@ function Preis({ k, setze, setK, rechnung }) {
   // je Stückzahl; die Staffeln mit Menge in derselben Reihenfolge wie rechnung
   const staffelIdx = k.staffeln.map((s, i) => (z(s.menge) > 0 ? i : -1)).filter((i) => i >= 0);
   const R = (fn, st) => rechnung.map((r) => chf(fn(r), st));
+  // Beträge je Stück erscheinen je Preiseinheit (Wunsch Patrick 26. November 2026)
+  const pe = peWert(k.preis.pe);
+  const proE = "CHF/" + peText(pe);
+  const RP = (fn, st) => rechnung.map((r) => chf(fn(r) * pe, st));
   const w = WAEHRUNGEN.includes(k.preis.waehrung) ? k.preis.waehrung : "CHF";
   const [holt, setHolt] = useState(false);
   async function kurs(waehrung) {
@@ -881,7 +1109,7 @@ function Preis({ k, setze, setK, rechnung }) {
   const E = (name) => {
     const [, titel, einheit] = PREIS_JE_STAFFEL.find(([n]) => n === name);
     return (
-      <tr key={name} className="kalk-eingabe"><td>{titel} <span className="kalk-einheit">{name === "eil" ? (k.preis.eilArt === "prozent" ? "%" : "CHF/Stk") : einheit}</span></td>
+      <tr key={name} className="kalk-eingabe"><td>{titel} <span className="kalk-einheit">{einheit}</span></td>
         {rechnung.map((r, i) => {
           const eigen = (k.staffeln[staffelIdx[i]].preis || {})[name] || "";
           const erst = (k.staffeln[staffelIdx[0]].preis || {})[name] || "";
@@ -899,18 +1127,6 @@ function Preis({ k, setze, setK, rechnung }) {
       {/* Alles Gemeinsame in einer Zeile, damit der Reiter ohne Rollen
           Platz hat (Wunsch Patrick 27. Oktober 2026) */}
       <div className="kalk-preis-leiste">
-        <label className="kalk-mini"><span>Eilzuschlag</span>
-          <select id="kalk-eilart" value={k.preis.eilArt || "pauschal"} onChange={(e) => setze("preis.eilArt", e.target.value)}>
-            <option value="pauschal">Pauschal CHF/Stk</option><option value="prozent">Prozent</option>
-          </select>
-        </label>
-        {/* Preis pro 1, 100 oder 1000 Stk (Wunsch Patrick 21. November 2026),
-            Angebots- und Zielpreis gelten dann für diese Menge */}
-        <label className="kalk-mini"><span>Preis pro</span>
-          <select id="kalk-pe" value={String(peWert(k.preis.pe))} onChange={(e) => setze("preis.pe", e.target.value)}>
-            {PREISEINHEITEN.map((x) => <option key={x} value={String(x)}>{peText(x)}</option>)}
-          </select>
-        </label>
         <label className="kalk-mini"><span>Runden auf</span>
           <select id="kalk-rundung" value={k.preis.rundung || "0.01"} onChange={(e) => setze("preis.rundung", e.target.value)}>
             <option value="0.01">1 Rappen</option><option value="0.05">5 Rappen</option>
@@ -942,20 +1158,20 @@ function Preis({ k, setze, setK, rechnung }) {
             <thead><tr><th>Stückzahl <small className="kalk-einheit">die erste Staffel füllt die weiteren gleich aus</small></th>
               {rechnung.map((r, i) => <th key={i} className="rechts">{chf(r.menge, 0)} Stk</th>)}</tr></thead>
             <tbody>
-              <Zeile titel="Herstellkosten" einheit="CHF/Stk" werte={R((r) => r.herstell, 4)} />
+              <Zeile titel="Herstellkosten" einheit={proE} werte={RP((r) => r.herstell, 4)} />
               {E("sek")}{E("vwgk")}
-              <Zeile titel="Selbstkosten" einheit="CHF/Stk" werte={R((r) => r.selbst, 4)} />
+              <Zeile titel="Selbstkosten" einheit={proE} werte={RP((r) => r.selbst, 4)} />
               {E("zinsPct")}{E("zinsMonate")}
-              <Zeile titel="Selbstkosten verzinst" einheit="CHF/Stk" werte={R((r) => r.selbstVerz, 4)} fett />
+              <Zeile titel="Selbstkosten verzinst" einheit={proE} werte={RP((r) => r.selbstVerz, 4)} fett />
               <tr><td>Anzahl Lieferlose</td>{rechnung.map((r, i) => SF("lieferlose", i, "kalk-lieferlose-" + i, "1"))}</tr>
               {E("transport")}{E("transPct")}{E("transPausch")}
-              <Zeile titel="Transportkosten gesamt" einheit="CHF/Stk" werte={R((r) => r.transport, 4)} />
+              <Zeile titel="Transportkosten gesamt" einheit={proE} werte={RP((r) => r.transport, 4)} />
               {E("verpackung")}{E("verpPct")}{E("verpPausch")}
-              <Zeile titel="Verpackungskosten gesamt" einheit="CHF/Stk" werte={R((r) => r.verpackung, 4)} />
-              {E("gewinn")}{E("prov")}{E("skonto")}{E("rabatt")}{E("eil")}
-              <Zeile titel="Grenzkosten GK" einheit="CHF/Stk" werte={R((r) => r.grenz, 4)} klein />
+              <Zeile titel="Verpackungskosten gesamt" einheit={proE} werte={RP((r) => r.verpackung, 4)} />
+              {E("gewinn")}{E("prov")}{E("skonto")}{E("rabatt")}
+              <Zeile titel="Grenzkosten GK" einheit={proE} werte={RP((r) => r.grenz, 4)} klein />
               <Zeile titel="Marge VK" einheit="CHF" werte={R((r) => r.margeVk, 4)} />
-              <Zeile titel="Verkaufspreis VK" einheit="CHF/Stk" werte={R((r) => r.vk, 4)} fett />
+              <Zeile titel="Verkaufspreis VK" einheit={proE} werte={RP((r) => r.vk, 4)} fett />
               <tr><td>Angebotspreis <span className="kalk-einheit">{w}/{peText(k.preis.pe)}</span> <small>leer = VK gerundet</small></td>{rechnung.map((r, i) => SF("angebot", i, "kalk-angebot-" + i, chf(Math.round(r.vk * r.faktor * r.pe / (z(k.preis.rundung) || 0.01)) * (z(k.preis.rundung) || 0.01))))}</tr>
               <tr><td>Zielpreis <span className="kalk-einheit">{w}/{peText(k.preis.pe)}</span></td>{rechnung.map((r, i) => SF("ziel", i, "kalk-ziel-" + i))}</tr>
               <tr className="kalk-fett kalk-hervor"><td>Angebotspreis gilt <span className="kalk-einheit">{w}/{peText(k.preis.pe)}</span></td>{rechnung.map((r, i) => <td key={i} className="rechts" data-kalk-gilt={i}>{chf(r.angebotPe)}</td>)}</tr>
@@ -974,6 +1190,9 @@ function Ergebnis({ k, rechnung }) {
   const hochRef = useBildschirmHoch();
   if (!rechnung.length) return <div className="karte karte--hinweis"><p>Zuerst eine Staffelmenge eintragen.</p></div>;
   const R = (f, st) => rechnung.map((r) => chf(f(r), st));
+  // Werte je Stück je Preiseinheit wie bei „Preis pro“ (Wunsch Patrick 26. November 2026)
+  const pe = peWert(k.preis.pe);
+  const RP = (f, st) => rechnung.map((r) => chf(f(r) * pe, st));
   return (
     <section className="karte kalk-rolle kalk-preis-karte">
       <table ref={hochRef} className="tabelle kalk-tab kalk-protokoll kalk-eng kalk-enger" id="kalk-protokoll">
@@ -988,19 +1207,19 @@ function Ergebnis({ k, rechnung }) {
               werte={R((r) => r.ags[i].kosten)} />))}
           <Zeile titel="Laufzeit" einheit="h" werte={R((r) => r.laufH, 1)} klein />
           <Zeile titel="Rüsten ohne FGK" einheit="CHF" werte={R((r) => r.ruestStk * r.menge)} klein />
-          <tr className="kalk-abschnitt"><td colSpan={rechnung.length + 1}>Je Stück in CHF</td></tr>
-          <Zeile titel="Material" werte={R((r) => r.matStk, 4)} />
-          <Zeile titel="Fertigung intern" werte={R((r) => r.internStk, 4)} />
-          <Zeile titel="Fertigung extern" werte={R((r) => r.externStk, 4)} />
-          <Zeile titel="Herstellkosten" werte={R((r) => r.herstell, 4)} fett />
-          <Zeile titel="Selbstkosten" werte={R((r) => r.selbst, 4)} />
-          {rechnung.some((r) => r.zins) && <Zeile titel="Selbstkosten verzinst" werte={R((r) => r.selbstVerz, 4)} />}
-          <Zeile titel="Transport und Verpackung" werte={R((r) => r.fracht, 4)} klein />
-          <Zeile titel="Verkaufspreis" werte={R((r) => r.vk, 4)} />
-          <tr className="kalk-fett kalk-hervor"><td>Angebotspreis CHF</td>{rechnung.map((r, i) => <td key={i} className="rechts">{chf(r.angebot, r.waehrung !== "CHF" ? 4 : 2)}</td>)}</tr>
-          {rechnung[0].waehrung !== "CHF" && <tr className="kalk-fett"><td>Angebotspreis {rechnung[0].waehrung}</td>{rechnung.map((r, i) => <td key={i} className="rechts">{chf(r.angebotAus)}</td>)}</tr>}
-          <Zeile titel="Grenzkosten" werte={R((r) => r.grenz, 4)} klein />
-          <Zeile titel="Deckungsbeitrag" werte={R((r) => r.db, 4)} />
+          <tr className="kalk-abschnitt"><td colSpan={rechnung.length + 1}>Je {peText(pe)} in CHF</td></tr>
+          <Zeile titel="Material" werte={RP((r) => r.matStk, 4)} />
+          <Zeile titel="Fertigung intern" werte={RP((r) => r.internStk, 4)} />
+          <Zeile titel="Fertigung extern" werte={RP((r) => r.externStk, 4)} />
+          <Zeile titel="Herstellkosten" werte={RP((r) => r.herstell, 4)} fett />
+          <Zeile titel="Selbstkosten" werte={RP((r) => r.selbst, 4)} />
+          {rechnung.some((r) => r.zins) && <Zeile titel="Selbstkosten verzinst" werte={RP((r) => r.selbstVerz, 4)} />}
+          <Zeile titel="Transport und Verpackung" werte={RP((r) => r.fracht, 4)} klein />
+          <Zeile titel="Verkaufspreis" werte={RP((r) => r.vk, 4)} />
+          <tr className="kalk-fett kalk-hervor"><td>Angebotspreis CHF</td>{rechnung.map((r, i) => <td key={i} className="rechts">{chf(r.angebot * pe, r.waehrung !== "CHF" ? 4 : 2)}</td>)}</tr>
+          {rechnung[0].waehrung !== "CHF" && <tr className="kalk-fett"><td>Angebotspreis {rechnung[0].waehrung}</td>{rechnung.map((r, i) => <td key={i} className="rechts">{chf(r.angebotPe)}</td>)}</tr>}
+          <Zeile titel="Grenzkosten" werte={RP((r) => r.grenz, 4)} klein />
+          <Zeile titel="Deckungsbeitrag" werte={RP((r) => r.db, 4)} />
           <Zeile titel="Deckungsbeitrag" einheit="%" werte={R((r) => r.dbPct, 1)} />
           <Zeile titel="Materialanteil" einheit="%" werte={R((r) => (r.angebot > 0 ? r.matStk / r.angebot * 100 : 0), 1)} klein />
           <tr className="kalk-abschnitt"><td colSpan={rechnung.length + 1}>Auftrag</td></tr>

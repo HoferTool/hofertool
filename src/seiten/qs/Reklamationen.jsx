@@ -12,6 +12,7 @@
 //  „zeichnungen“ unter reklamationen/<id>/. Nicht für Externe (die
 //  sehen die Qualitätssicherung nicht, die Datenbank sperrt sie auch).
 // =================================================================
+import { teilMerken } from "../../teile/wiederherstellen.js";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
@@ -125,8 +126,8 @@ export const ACHT_D = [
     "Auf ähnliche Teile übertragen", "Hinweis im Einrichtblatt", "Standzeit im Werkzeugwechsel festgelegt",
     "Erstteilprüfung ergänzt", "Schulung im Team", "Vorrichtung / Lehre gebaut", "Prozess / QM-Dokument angepasst",
     "Risiko neu beurteilt"]]] },
-  { s: "d8", nr: 8, titel: "Abschluss und Würdigung", kurz: "Abschluss 8D", text: "wirksamkeit",
-    frage: "Sind die Massnahmen wirksam, und kann das Team abschliessen?", gruppen: [["", [
+  { s: "d8", nr: 8, titel: "Erkenntnisse", kurz: "Erkenntnisse", text: "wirksamkeit",
+    frage: "Was haben wir daraus gelernt, und sind die Massnahmen wirksam?", gruppen: [["", [
     "Nächste Lieferung geprüft, ohne Fehler", "Keine weitere Reklamation", "Kunde hat Massnahmen akzeptiert",
     WIRKSAM, "Team informiert und Arbeit gewürdigt"]]] },
 ];
@@ -325,6 +326,8 @@ const fehlerKurz = (r) => [...fehlerartVon(r), ...angekreuzt(r, "fa")].filter((x
 
 // Gewählte Filter; bleiben beim Reiterwechsel
 const filter = { stand: "offen", art: "", suche: "" };
+// Nach dem Neuladen wieder im selben Reiter und Unterreiter (Wunsch Patrick 25. November 2026)
+teilMerken("qsReklamationen", () => ({ ...filter }), (z) => { Object.assign(filter, z); });
 
 export default function Reklamationen() {
   const { daten, fehler, neu } = useDaten(laden, []);
@@ -539,7 +542,9 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
       bearbeiter: (ich && personen[ich]) || "", mail: (ich && mails[ich]) || "",
       tel: meinTelefon(),
     };
-    return { art: "kunde", status: "offen", eingang: heute(), ...(r || {}), kopf };
+    // Datum „Erfasst“ ist wählbar (seit 1.825.0, Wunsch Patrick 25. November 2026)
+    const erfasst = r && r.erstellt_am ? alt.isoDatum(new Date(r.erstellt_am)) : heute();
+    return { art: "kunde", status: "offen", eingang: heute(), ...(r || {}), kopf, erfasst };
   });
   const [neueDateien, setNeue] = useState([]); // vor dem Speichern gewählte Dateien
   const [speichert, setSpeichert] = useState(false);
@@ -729,6 +734,9 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
       d.achtd = { ...(w.achtd && typeof w.achtd === "object" ? w.achtd : {}) };
       d.kopf = {};
       for (const f of KOPF) { const v = (w.kopf || {})[f]; if (!leer(v)) d.kopf[f] = String(v).trim(); }
+      // Erfasst-Datum: nur schreiben, wenn es geändert wurde (Uhrzeit bleibt sonst)
+      const erfAlt = r && r.erstellt_am ? alt.isoDatum(new Date(r.erstellt_am)) : null;
+      if (!leer(w.erfasst) && w.erfasst !== erfAlt) d.erstellt_am = new Date(w.erfasst + "T08:00:00").toISOString();
       d.art = d.art || "kunde"; d.status = d.status || "offen"; d.eingang = d.eingang || heute();
       const zu0 = d.status === "abgeschlossen" || d.status === "abgelehnt";
       d.abgeschlossen_am = zu0 ? (r && r.abgeschlossen_am) || new Date().toISOString() : null;
@@ -873,9 +881,10 @@ function RkFenster({ r, zu, nachher, personen, alle }) {
         <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button>
       </div>
       <div className="rk-links" ref={linksRef}>
-      {r && <p className="klein rk-wer">Erfasst {datum(r.erstellt_am)}{wer ? " von " + wer : ""}
-        {r.geaendert_am ? " · zuletzt geändert " + datum(r.geaendert_am) + (personen[r.geaendert_von] ? " von " + personen[r.geaendert_von] : "") : ""}
-        {r.abgeschlossen_am ? " · abgeschlossen " + datum(r.abgeschlossen_am) : ""}</p>}
+      <p className="klein rk-wer">Erfasst <input type="date" className="rk-erfasst" id="rk-f-erfasst" value={w.erfasst || ""}
+        onChange={(e) => setze("erfasst", e.target.value)} />{r && wer ? " von " + wer : ""}
+        {r && r.geaendert_am ? " · zuletzt geändert " + datum(r.geaendert_am) + (personen[r.geaendert_von] ? " von " + personen[r.geaendert_von] : "") : ""}
+        {r && r.abgeschlossen_am ? " · abgeschlossen " + datum(r.abgeschlossen_am) : ""}</p>
             <datalist id="rk-personen">{namen.map((f) => <option key={f} value={f} />)}</datalist>
 
       <nav className="rk-schritte" aria-label="Schritte">

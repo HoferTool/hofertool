@@ -15,7 +15,9 @@ STAMM = {"hoco_nr": "99999-0001", "arten": ["erstteil", "endkontrolle", "aql", "
          "kopf": {"bezeichnung": "Testwelle", "zeichnung": "Z-123", "index": "B"},
          "zeilen": [{"id": "n1", "nr": "1", "soll": "Ø5.5 ±0.05", "pm": "Grenzlehrdorn Ø5.5", "ll": True},
                     {"id": "n2", "nr": "2", "soll": "12.0 +0.1/-0", "pm": "Messschieber"},
-                    {"id": "n3", "nr": "3", "soll": "M6", "pm": "Gewindelehrdorn M6 6H", "ll": True}]}
+                    {"id": "n3", "nr": "3", "soll": "M6", "pm": "Gewindelehrdorn M6 6H", "ll": True},
+                    {"id": "n4", "nr": "4", "soll": "8.0 ±0.02", "pm": "Isoma"},
+                    {"id": "n5", "nr": "5", "soll": "Ø3.0 H7", "pm": "Prüfstift Ø3.00"}]}
 
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
@@ -28,24 +30,45 @@ with sync_playwright() as p:
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
     pg.evaluate("""s => { TEST.daten.pruef_stamm = [s]; TEST.daten.pruefbericht_dateien = []; TEST.daten.pruefprotokolle = [];
+        TEST.daten.pruefmittel = [{ id: 'pmx', nr: 'PM-9', bezeichnung: 'Grenzlehrdorn', mass: '5.45 / 5.55', ort_art: 'schrank', status: 'aktiv' }];
         const m = (TEST.daten.machines || [])[0];
-        TEST.daten.jobs.push({ id: 'jpb1', job_number: '99999-0001', fa_nr: '2026000111', plan_status: 'laeuft', planned_from: '2026-11-20', target_quantity: 800, machine_id: m && m.id, material_bez: 'X10CrNiS18-9 rd 011 mm h8', material_dm: 11 },
-                             { id: 'jpb2', job_number: '99999-0001', fa_nr: '2025000999', plan_status: 'fertig', planned_from: '2025-05-01', target_quantity: 500 }); }""", STAMM)
+        // Nachbau der Funktionen aus sql/pruefmittel-ausbuchen-alle.sql
+        TEST.rpc.pruefmittel_suchen_lesen = () => TEST.daten.pruefmittel;
+        TEST.rpc.pruefmittel_schrank_lesen = () => TEST.daten.pruefmittel.filter(p => p.ort_art === 'schrank');
+        TEST.rpc.pruefmittel_ausbuchen = (a) => { const j = TEST.daten.jobs.find(x => x.id === a.p_job); let n = 0;
+          TEST.daten.pruefmittel.forEach(p => { if (a.p_ids.includes(p.id) && p.ort_art === 'schrank') { p.ort_art = 'maschine'; p.machine_id = j.machine_id; p.job_id = j.id; n++; } }); return n; };
+        TEST.daten.jobs.push({ id: 'jpb1', job_number: '99999-0001', fa_nr: '2026000111', plan_status: 'ruesten', planned_from: '2026-11-20', target_quantity: 800, machine_id: m && m.id, material_bez: 'X10CrNiS18-9 rd 011 mm h8', material_dm: 11 },
+                             { id: 'jpb2', job_number: '99999-0001', fa_nr: '2025000999', plan_status: 'fertig', planned_from: '2026-11-01', ended_at: new Date(Date.now() - 3*86400000).toISOString(), target_quantity: 500 }); }""", STAMM)
     pg.evaluate("location.hash='#/qs'"); pg.wait_for_timeout(800)
     pg.evaluate("() => { const b = [...document.querySelectorAll('[data-qs=pruefberichte], .nav a, .nav button, .reiter button, .reiter a')].find(x => x.offsetParent && /Prüfberichte/.test(x.textContent)); b && b.click(); }")
     pg.wait_for_selector("#pb-todo"); pg.wait_for_timeout(500)
     pruefe(pg.locator("[data-pbtodo=erstteil] [data-pbtodoauftrag=jpb1]").count() == 1, "Erstteil steht an")
-    pruefe(pg.locator("[data-pbtodo=aql] [data-pbtodoauftrag=jpb1]").count() == 1, "AQL steht an")
-    pruefe(pg.locator("[data-pbtodo=ll] [data-pbtodoauftrag=jpb1]").count() == 1, "LL steht an")
-    pruefe(pg.locator("[data-pbtodo=endkontrolle] [data-pbtodoauftrag=jpb1]").count() == 1, "Endkontrolle steht an")
+    pruefe(pg.locator("[data-pbtodo=aql] [data-pbtodoauftrag=jpb1]").count() == 0, "AQL erst bei läuft")
+    pruefe(pg.locator("[data-pbtodo=endkontrolle] [data-pbtodoauftrag=jpb1]").count() == 0, "Endkontrolle nicht beim Rüsten")
+    pruefe(pg.locator("[data-pbtodo=endkontrolle] [data-pbtodoauftrag=jpb2]").count() == 1, "fertiger Auftrag bei Endkontrolle")
     pruefe(pg.locator("#pb-hochladen").count() == 0, "kein Excel-Hochladen im Reiter")
     pruefe(pg.locator("#pb-neu").count() == 0, "kein Knopf + Protokoll")
+    # Suche je Spalte filtert nur ihre Spalte
+    pg.fill("[data-pbtodosuche=endkontrolle]", "2025000999"); pg.wait_for_timeout(200)
+    pruefe(pg.locator("[data-pbtodo=endkontrolle] [data-pbtodoauftrag=jpb2]").count() == 1, "Suche findet FA in Endkontrolle")
+    pg.fill("[data-pbtodosuche=endkontrolle]", "gibtsnicht"); pg.wait_for_timeout(200)
+    pruefe(pg.locator("[data-pbtodo=endkontrolle] [data-pbtodoauftrag=jpb2]").count() == 0, "Suche blendet aus")
+    pruefe(pg.locator("[data-pbtodo=erstteil] [data-pbtodoauftrag=jpb1]").count() == 1, "andere Spalte unberührt")
+    pg.fill("[data-pbtodosuche=endkontrolle]", ""); pg.wait_for_timeout(200)
+    hoehen = pg.eval_on_selector_all("[data-pbtodosuche]", "els => els.map(e => e.offsetHeight)")
+    pruefe(len(hoehen) == 4 and max(hoehen) < 50, f"Suchfeld in allen Spalten, klein {hoehen}")
     # Erstteil aus dem Todo
     pg.click("[data-pbtodo=erstteil] [data-pbtodoauftrag=jpb1]"); pg.wait_for_selector("[data-pbcheckliste]"); pg.wait_for_timeout(300)
-    pruefe(pg.locator("[data-pbcheck]").count() >= 5, "Checkliste mit Zeichnung, Lehren, Messmittel: %d" % pg.locator("[data-pbcheck]").count())
+    pruefe(pg.locator("[data-pbcheck]").count() >= 3, "Checkliste mit Zeichnung, Lehren, sauber: %d" % pg.locator("[data-pbcheck]").count())
+    pruefe(pg.locator("[data-pbcheck^='m']").count() == 0, "keine Messmittel als Prüfpunkt")
+    pruefe(pg.locator("[data-pbcheckliste] [data-pbpm='PM-9']").count() >= 1, "Checkliste zeigt Prüfmittel PM-9 aus der Verwaltung")
+    ct = pg.inner_text("[data-pbcheckliste]")
+    pruefe("Isoma" not in ct and "Prüfstift" not in ct, "Isoma und Prüfstift nicht zum Checken")
     pruefe(pg.locator("#pb-check-quittieren").is_disabled(), "Quittieren erst wenn alles abgehakt")
     for c in pg.locator("[data-pbcheck]").all(): c.check()
     pg.click("#pb-check-quittieren"); pg.wait_for_selector("#pb-blatt"); pg.wait_for_timeout(300)
+    pmo = pg.evaluate("() => TEST.daten.pruefmittel.find(p => p.id === 'pmx').ort_art")
+    pruefe(pmo == "schrank", "Checkliste quittieren bucht noch nicht aus: %s" % pmo)
     bb = pg.evaluate("() => { const r = document.querySelector('#pb-blatt').getBoundingClientRect(); return [r.width, r.height]; }")
     pruefe(780 < bb[0] < 810 and bb[1] > 1000, "A4-Blatt: %s" % bb)
     pg.fill("[data-pbist='n1-0']", "5.52"); pg.fill("[data-pbist='n1-1']", "5.60"); pg.mouse.move(5, 5); pg.wait_for_timeout(300)
@@ -64,6 +87,25 @@ with sync_playwright() as p:
     pg.locator("button:has-text('← Prüfberichte')").click(); pg.wait_for_selector("#pb-todo"); pg.wait_for_timeout(600)
     pruefe(pg.locator("[data-pbtodo=erstteil] [data-pbtodoauftrag=jpb1]").count() == 0, "Erstteil nicht mehr offen")
     pruefe(pg.locator("#pb-liste [data-pbprotokoll]").count() == 1, "in der Liste zuletzt bearbeitet")
+    st1 = pg.evaluate("() => TEST.daten.jobs.find(j => j.id === 'jpb1').plan_status")
+    pruefe(st1 == "laeuft", "Freigabe stellt jpb1 auf läuft: %s" % st1)
+    pmx = pg.evaluate("() => TEST.daten.pruefmittel.find(p => p.id === 'pmx')")
+    pruefe(pmx.get("ort_art") == "maschine" and pmx.get("job_id") == "jpb1", "nach Freigabe ausgebucht: %s %s" % (pmx.get("ort_art"), pmx.get("job_id")))
+    pruefe(pg.locator("[data-pbtodo=aql] [data-pbtodoauftrag=jpb1]").count() == 1, "AQL steht an bei läuft")
+    # Endkontrolle als Zwischenkontrolle: nichts muss ausgefüllt sein, Auftrag bleibt bei Endkontrolle
+    pg.click("[data-pbtodo=endkontrolle] [data-pbtodoauftrag=jpb2]"); pg.wait_for_selector("#pb-kontrolle")
+    pg.click("[data-pbkontrolle=zwischen]"); pg.wait_for_timeout(300)
+    pruefe("Zwischenkontrolle" in pg.inner_text("#pb-blatt"), "Titel Zwischenkontrolle")
+    pg.locator("input[name=pb-entscheid]").first.check(); pg.locator("label:has-text('Visum') input").last.fill("TE"); pg.wait_for_timeout(200)
+    pg.click("#pb-abschliessen"); pg.wait_for_timeout(1000)
+    leerfrage = pg.locator(".dialog-huelle:has-text('leer')").count()
+    pruefe(leerfrage == 0, "keine Frage nach leeren Feldern")
+    if pg.locator(".dialog-huelle").count():
+        pg.locator(".dialog-huelle .knopf--haupt, .dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(800)
+    zw = [x for x in pg.evaluate("() => TEST.daten.pruefprotokolle") if (x.get("kopf") or {}).get("kontrolle") == "zwischen"]
+    pruefe(zw and zw[0].get("abgeschlossen_am"), "Zwischenkontrolle abgeschlossen")
+    pg.locator("button:has-text('← Prüfberichte')").click(); pg.wait_for_selector("#pb-todo"); pg.wait_for_timeout(600)
+    pruefe(pg.locator("[data-pbtodo=endkontrolle] [data-pbtodoauftrag=jpb2]").count() == 1, "nach Zwischenkontrolle weiter bei Endkontrolle")
     # LL aus dem Todo
     pg.click("[data-pbtodo=ll] [data-pbtodoauftrag=jpb1]")
     pg.wait_for_selector("#pb-ll-probe"); pg.wait_for_timeout(300)
@@ -79,7 +121,7 @@ with sync_playwright() as p:
     # Löschen
     pg.click("#pb-loeschen"); pg.wait_for_selector(".dialog-huelle"); pg.locator(".dialog-huelle .knopf--haupt, .dialog-huelle .knopf--gefahr, .dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(800)
     pp = pg.evaluate("() => TEST.daten.pruefprotokolle")
-    pruefe(len(pp) == 1, "LL gelöscht: %d" % len(pp))
+    pruefe(len(pp) == 2, "LL gelöscht: %d" % len(pp))
     pg.wait_for_selector("#pb-todo"); pg.wait_for_timeout(400)
     # Auftrag im Rüsten: Erstteil mit Freigabe stellt ihn auf läuft
     pg.evaluate("() => TEST.daten.jobs.push({ id: 'jpb3', job_number: '99999-0001', fa_nr: '2026000333', plan_status: 'ruesten', planned_from: '2026-11-24', target_quantity: 300 })")
@@ -102,11 +144,11 @@ with sync_playwright() as p:
     # Stammdaten: Karte Prüfung mit Masse-Blatt
     pg.locator("#pb-liste [data-pbprotokoll]").first.click()
     pg.wait_for_selector("#pb-blatt"); pg.wait_for_timeout(300)
-    pg.locator("button:has-text('Stammdaten 99999-0001')").click()
+    pg.locator("button:has-text('Prüfmasse 99999-0001')").click()
     pg.wait_for_selector("#pst-blatt-auf", timeout=8000); pg.click("#pst-blatt-auf")
     pg.wait_for_selector("[data-pstblatt] [data-pstseite]")
-    pruefe(pg.locator("[data-pstseite]").count() == 1 and pg.locator("[data-pstblatt] tbody tr").count() == 3, "Masse-Blatt mit 3 Massen")
-    for i in range(20):
+    pruefe(pg.locator("[data-pstseite]").count() == 1 and pg.locator("[data-pstblatt] tbody tr").count() == 5, "Masse-Blatt mit 5 Massen")
+    for i in range(18):
         pg.click("#pst-mass-neu")
     pg.wait_for_timeout(300)
     pruefe(pg.locator("[data-pstseite]").count() == 2, "zweite Seite bei 23 Massen: %d" % pg.locator("[data-pstseite]").count())

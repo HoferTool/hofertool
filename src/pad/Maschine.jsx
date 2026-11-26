@@ -29,7 +29,7 @@ import { messberichteZahl } from "../daten/messberichte.js";
 import { WartungKachel } from "./Wartung.jsx";
 import { einrichtblattHinweis } from "../einrichtblatt/PadHinweis.jsx";
 import { neuHinweisZeigen } from "./NeuHinweis.jsx";
-import { useWaschprog } from "../daten/waschprog.js";
+import { useWaschprog, useWbgIndex } from "../daten/waschprog.js";
 import { mahnBilder, escobarDarf } from "../daten/mahnbilder.js";
 import { wetterFensterOeffnen } from "./Wetter.jsx";
 import { useQsMeldungen, useProbleme, PadMeldungen } from "./QsMeldung.jsx";
@@ -614,6 +614,9 @@ export default function Maschine({ d }) {
   const mahnFoto = useMahnBild("stueckzeit", zeitFehlt);
   // Aus der WBG gelesen (Wunsch Patrick, 12. Oktober 2026)
   const waschprog = useWaschprog(wbg);
+  // Index der Zeichnung aus der WBG (Wunsch Patrick 25. November 2026),
+  // nicht für Externe
+  const wbgIndex = useWbgIndex(alt.istExtern() ? "" : wbg, !alt.istExtern() && j && j.wbg_index);
   const datei = pad.reiter === "zeichnung" ? zeichnung : (pad.reiter === "wbg" ? wbg : "");
   const kontext = { m, j, zeichnung, wbg };
 
@@ -715,6 +718,7 @@ export default function Maschine({ d }) {
                 <Zeile name="FA Nr." wert={j && j.fa_nr} />
                 <Zeile name="Programm" wert={programm} />
                 <Zeile name="Waschprog." wert={waschprog} />
+                <Zeile name="Index" wert={wbgIndex && wbgIndex !== "-" ? wbgIndex : ""} />
               </div>
               {/* Die Notiz zum Auftrag steht hier nicht mehr (Wunsch Patrick
                   5. Oktober 2026), ihr Platz geht an die Info darunter. */}

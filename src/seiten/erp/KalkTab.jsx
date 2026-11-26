@@ -1,24 +1,36 @@
-// Test ERP: aus einer Kalkulation Artikel (mit Index) und Arbeitsplan anlegen.
-// Warum hier und nicht in der Kalkulation: die Kalkulation bleibt unverändert,
-// das ERP liest sie nur. Ein zweites Mal übernehmen aktualisiert den Artikel.
-import { useState } from "react";
-import { alt, useDaten } from "../../bruecke.jsx";
-import { Tabelle, Suche, passt, tun } from "./teile.jsx";
-import { einfuegen, aendern, chf, peKurz, HOFER_NR } from "../../daten/erp.js";
+// Test ERP: aus der offenen Kalkulation Artikel (mit Index), Preisliste und
+// Arbeitsplan übernehmen. Seit 1.848.0 ein Knopf in der Kalkulation selbst statt
+// eines eigenen Reiters (Wunsch Patrick 25. November 2026). Die Kalkulation
+// bleibt unverändert, das ERP liest sie nur. Gibt es den Artikel schon, fragt
+// die App, ob Index, Preisliste und Arbeitsplan ersetzt werden sollen.
+import { alt } from "../../bruecke.jsx";
+import { einfuegen, aendern, HOFER_NR } from "../../daten/erp.js";
 import { indexVerlauf } from "./ArtikelFenster.jsx";
-import { kalkulationenLaden, maschinenLaden, staffelRechnen, stundensatz } from "../../daten/kalkulation.js";
+import { staffelRechnen, stundensatz } from "../../daten/kalkulation.js";
 
 const indexVon = (x) => { const s = String(x || "").trim(); return s === "-" ? "" : s; };
 
-async function uebernehmen(d, k, maschinen, neu) {
+export async function artikelAusKalkulation(k, maschinen) {
   const kd = k.daten || {};
   const kopf = kd.kopf || {};
-  const nr = String(kopf.artikel || k.artikel || "").trim();
-  if (!HOFER_NR.test(nr)) throw new Error("Artikel-Code „" + nr + "“ ist keine Hofer-Nr. (xxxxx-xxxx). In der Kalkulation eintragen.");
+  const nr = String(kopf.artikel || "").trim();
+  if (!HOFER_NR.test(nr)) throw new Error("Artikel-Code „" + nr + "“ ist keine Hofer-Nr. (xxxxx-xxxx). Zuerst in den Kopfdaten eintragen.");
   const idx = indexVon(kopf.index);
-  const kname = String(kopf.kunde || k.kunde || "").trim().toLowerCase();
-  const kunde = kname && d.partner.find((p) => p.art === "kunde" && (p.name.toLowerCase() === kname || p.nr === kname
-    || p.name.toLowerCase().includes(kname) || kname.includes(p.name.toLowerCase())));
+  const db = alt.db;
+  const [rp, ra] = await Promise.all([
+    alt.zeitlimit(db.from("erp_partner").select("id,art,nr,name").eq("art", "kunde"), 10000, "erp_partner"),
+    alt.zeitlimit(db.from("erp_artikel").select("id,art,nr,idx,daten,arbeitsplan,preis").eq("art", "hofer").eq("nr", nr).limit(1), 10000, "erp_artikel"),
+  ]);
+  if (rp.error) throw rp.error;
+  if (ra.error) throw ra.error;
+  const partner = rp.data || [];
+  const da = (ra.data || [])[0] || null;
+  // Kunde zuerst über den Kunden-Code, sonst über den Namen
+  const kcode = String(kopf.kundencode || "").trim();
+  const kname = String(kopf.kunde || "").trim().toLowerCase();
+  const kunde = (kcode && partner.find((p) => String(p.nr) === kcode))
+    || (kname && partner.find((p) => (p.name || "").toLowerCase() === kname))
+    || (kname && partner.find((p) => { const n = (p.name || "").toLowerCase(); return n && (n.includes(kname) || kname.includes(n)); }));
   // Alle Staffeln als Preisliste des Artikels (Wunsch Patrick 21. November
   // 2026), je Staffel der Angebotspreis pro Preiseinheit. Das ERP rechnet in
   // CHF: ein Angebot in EUR/USD wird mit dem Kurs der Kalkulation umgerechnet.
@@ -34,54 +46,52 @@ async function uebernehmen(d, k, maschinen, neu) {
   // bleibt die Bezeichnung als Text (Wunsch Patrick 21. November 2026: „soll
   // aus der Kalkulation nicht erstellt werden, dann steht nur ein Text“)
   const matBez = String((kd.material || {}).bez || "").trim();
-  const glatt = (x) => String(x || "").trim().toLowerCase().replace(/\s+/g, " ");
-  const roh = matBez ? d.artikel.find((a) => a.art === "rohmaterial" && glatt(a.nr) === glatt(matBez)) : null;
+  let roh = null;
+  if (matBez) {
+    const rr = await alt.zeitlimit(db.from("erp_artikel").select("id,nr").eq("art", "rohmaterial").ilike("nr", matBez).limit(1), 10000, "erp_artikel");
+    if (!rr.error) roh = (rr.data || [])[0] || null;
+  }
   const arbeitsplan = (kd.ags || []).map((ag, i) => {
     const m = maschinen.find((x) => x.id === ag.masch);
     return { pos: (i + 1) * 10, bez: ag.bez || "", maschine: ag.art === "extern" ? ag.lieferant || "" : m ? m.name : "",
       te: ag.te || "", ruest: ag.erst || "", extern: ag.art === "extern", pruef: "",
       satz: m ? Math.round(stundensatz(m, ag.laufTag).eff * 100) / 100 : null };
   });
-  const zeile = { art: "hofer", nr, idx, bezeichnung: kopf.bezeichnung || null, zeichnung: kopf.zeichnung || null,
-    kunde_id: kunde ? kunde.id : null, preis,
-    kalkulation_id: k.id, arbeitsplan, geaendert_am: new Date().toISOString(),
-    daten: { kalkulation_nr: k.nr, material: matBez, ...(roh ? { rohmaterial_id: roh.id } : {}), pe,
-      preisliste: { kalkulation_id: k.id, kalkulation_nr: k.nr, uebernommen_am: new Date().toISOString(), pe, waehrung: "CHF",
-        aus_waehrung: waehrung !== "CHF" ? waehrung : undefined, von_hand: false, staffeln: liste } } };
-  // Pro HOCO Nr. nur ein Artikel: ein anderer Index ändert denselben Artikel, der alte kommt in seinen Verlauf.
-  const da = d.artikel.find((a) => a.art === "hofer" && a.nr === nr);
-  if (da) await aendern("erp_artikel", da.id, { ...zeile, daten: { ...indexVerlauf(da, idx, "aus Kalkulation " + k.nr), ...zeile.daten } });
-  else await einfuegen("erp_artikel", { ...zeile, aktiv: true, einheit: "Stk" });
-  neu();
-  return (da ? "Artikel " : "Neuer Artikel ") + nr + (idx ? " Ind. " + idx : "") + " mit " + arbeitsplan.length + " Arbeitsgängen und "
-    + liste.length + (liste.length === 1 ? " Preis" : " Staffelpreisen") + (waehrung !== "CHF" ? " (aus " + waehrung + " in CHF umgerechnet)" : "")
+  const preisliste = { kalkulation_id: k.id, kalkulation_nr: k.nr, uebernommen_am: new Date().toISOString(), pe, waehrung: "CHF",
+    aus_waehrung: waehrung !== "CHF" ? waehrung : undefined, von_hand: false, staffeln: liste };
+  const grund = { bezeichnung: kopf.bezeichnung || null, zeichnung: kopf.zeichnung || null,
+    kalkulation_id: k.id, geaendert_am: new Date().toISOString() };
+  if (kunde) grund.kunde_id = kunde.id;
+  const matDaten = { kalkulation_nr: k.nr, material: matBez, ...(roh ? { rohmaterial_id: roh.id } : {}) };
+
+  let teile = { idx: true, preise: true, ap: true };
+  if (da) {
+    // Pro HOCO Nr. nur ein Artikel: fragen, was ersetzt werden soll.
+    const w = await alt.dialogFelder({
+      titel: "Artikel " + nr + " gibt es schon",
+      text: "Bezeichnung, Zeichnung, Kunde und Material kommen aus der Kalkulation. Was soll sonst ersetzt werden?",
+      bestaetigen: "Übernehmen",
+      felder: [
+        { name: "idx", label: "Index übernehmen (bisher „" + (da.idx || "–") + "“, neu „" + (idx || "–") + "“)", typ: "haken", wert: (da.idx || "") !== idx },
+        { name: "preise", label: "Preisliste ersetzen (" + liste.length + (liste.length === 1 ? " Preis)" : " Staffelpreise)"), typ: "haken", wert: true },
+        { name: "ap", label: "Arbeitsplan ersetzen (" + arbeitsplan.length + " Arbeitsgänge, bisher " + ((da.arbeitsplan || []).length) + ")", typ: "haken", wert: true },
+      ],
+    });
+    if (!w) return null;
+    teile = w;
+  }
+  const zeile = { ...grund };
+  let daten = { ...((da && da.daten) || {}), ...matDaten };
+  if (teile.idx) { zeile.idx = idx; if (da) daten = { ...indexVerlauf(da, idx, "aus Kalkulation " + k.nr), ...matDaten }; }
+  if (teile.preise) { zeile.preis = preis; daten.pe = pe; daten.preisliste = preisliste; }
+  if (teile.ap) zeile.arbeitsplan = arbeitsplan;
+  zeile.daten = daten;
+  if (da) await aendern("erp_artikel", da.id, zeile);
+  else await einfuegen("erp_artikel", { art: "hofer", nr, ...zeile, aktiv: true, einheit: "Stk" });
+  const was = [teile.idx && (idx ? "Ind. " + idx : "ohne Index"), teile.ap && arbeitsplan.length + " Arbeitsgänge",
+    teile.preise && liste.length + (liste.length === 1 ? " Preis" : " Staffelpreise") + (waehrung !== "CHF" ? " (aus " + waehrung + " in CHF)" : "")]
+    .filter(Boolean);
+  return (da ? "Artikel " + nr + " aktualisiert" : "Neuer Artikel " + nr) + (was.length ? ": " + was.join(", ") : "")
     + (kunde ? "" : " (Kunde nicht gefunden, im Artikel setzen)")
     + (matBez && !roh ? ". Rohmaterial „" + matBez + "“ gibt es noch nicht als Artikel, es steht nur als Text" : "") + ".";
-}
-
-export default function KalkTab({ d, neu }) {
-  const [suche, setSuche] = useState("");
-  const kalk = useDaten(kalkulationenLaden, []);
-  const masch = useDaten(maschinenLaden, []);
-  if (kalk.fehler) return <div className="karte karte--fehler"><p>{String(kalk.fehler.message || kalk.fehler)}</p></div>;
-  if (!kalk.daten || !masch.daten) return <div className="laedt">Kalkulationen laden …</div>;
-  const liste = kalk.daten.filter((k) => passt(suche, [k.nr, k.kunde, k.artikel, ((k.daten || {}).kopf || {}).bezeichnung].join(" ")));
-  return (
-    <>
-      <p className="klein">Übernimmt Artikel-Code, Index, Zeichnung, Bezeichnung, Kunde, Rohmaterial (wenn es den Rohmaterial-Artikel schon gibt, sonst als Text), alle Staffelpreise als Preisliste (mit „Preis pro“ der Kalkulation) und die Arbeitsgänge als Arbeitsplan. Nochmals übernehmen ersetzt die Preisliste.</p>
-      <div className="mat-kopf"><Suche wert={suche} setzen={setSuche} platzhalter="Kalkulation suchen …" /></div>
-      <Tabelle kopf={["Nr.", "Kunde", "Artikel", "Index", "Bezeichnung", "Im ERP", ""]} leer="Keine Kalkulationen."
-        zeilen={liste.map((k) => {
-          const kopf = (k.daten || {}).kopf || {};
-          const nr = String(kopf.artikel || k.artikel || "").trim();
-          const da = d.artikel.find((a) => a.art === "hofer" && a.nr === nr);
-          return { key: k.id, zellen: [<b>{k.nr}</b>, k.kunde || "", nr, indexVon(kopf.index) || "–", kopf.bezeichnung || "",
-            da ? "ja" + (da.preis != null ? " · ab " + chf(da.preis) + " " + peKurz((da.daten || {}).pe) : "")
-              + (((da.daten || {}).preisliste || {}).kalkulation_id === k.id ? "" : ((da.daten || {}).preisliste ? " (Preise aus anderer Kalkulation)" : "")) : "",
-            <button className="knopf knopf--klein" data-erp-kalk={k.nr}
-              onClick={async () => { const r = await tun(() => uebernehmen(d, k, masch.daten, neu)); if (r) alt.meldung(r, "gut"); }}>
-              {da ? "Aktualisieren" : "Artikel und Arbeitsplan anlegen"}</button>] };
-        })} />
-    </>
-  );
 }

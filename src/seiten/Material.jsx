@@ -12,6 +12,7 @@
 //  Rechnen und Laden in src/daten/material.js, Erfassen in
 //  src/material/PostenFenster.jsx. Nicht für Externe.
 // =================================================================
+import { teilMerken } from "../teile/wiederherstellen.js";
 import { useEffect, useState } from "react";
 import { alt, useDaten, useGemerkt } from "../bruecke.jsx";
 import { materialAbhoeren, materialDatenLaden, materialRechnen, postenMengeText, laengenNachholen,
@@ -22,6 +23,8 @@ import { MKnopf } from "../material/WoEinsetzen.jsx";
 import { useSeitenSuche, hinzeigen } from "../teile/seitenSuche.js";
 
 const gemerkt = { suche: "" };
+// Nach dem Neuladen wieder im selben Reiter und Unterreiter (Wunsch Patrick 25. November 2026)
+teilMerken("material", () => ({ ...gemerkt }), (z) => { Object.assign(gemerkt, z); });
 
 
 async function laden() {

@@ -39,10 +39,14 @@ with sync_playwright() as p:
     pg.locator(".dialog-huelle .knopf--haupt, .dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(800)
     l = pg.evaluate("() => TEST.daten.pruefmittel || []")
     pruefe(len(l) == 1 and l[0]["bezeichnung"] == "Grenzlehrdorn" and l[0]["nr"] == "PM-001", "erfasst: %s" % l)
-    # Einfügen aus Excel
-    pg.click("#pm-einfuegen"); pg.wait_for_selector(".dialog-huelle textarea")
-    pg.locator(".dialog-huelle textarea").fill("PM-002\tPrüfstift\tØ 2.50\tPrüfstift\t12\textern\nPM-003;Gewindelehrdorn;M6 6H;;24\nMessschieber 150")
-    pg.locator(".dialog-huelle .knopf--haupt, .dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(800)
+    # 1.827.0: kein Knopf „Aus Gewatec / Excel einfügen“ mehr, weitere direkt in die Daten
+    pruefe(pg.locator("#pm-einfuegen").count() == 0, "kein Knopf Gewatec / Excel mehr")
+    pg.evaluate("""() => { const l = TEST.daten.pruefmittel, j = new Date().toISOString();
+      l.push({ id: 'pm-t2', nr: 'PM-002', bezeichnung: 'Prüfstift', mass: 'Ø 2.50', art: 'pruefstift', intervall_monate: 12, pruefung_wo: 'extern', status: 'aktiv', ort_art: 'schrank', erstellt_am: j });
+      l.push({ id: 'pm-t3', nr: 'PM-003', bezeichnung: 'Gewindelehrdorn', mass: 'M6 6H', art: 'lehre', intervall_monate: 24, status: 'aktiv', ort_art: 'schrank', erstellt_am: j });
+      l.push({ id: 'pm-t4', bezeichnung: 'Messschieber 150', status: 'aktiv', ort_art: 'schrank', erstellt_am: j }); }""")
+    pg.evaluate("location.hash='#/dashboard'"); pg.wait_for_timeout(600)
+    pg.evaluate("location.hash='#/pruefmittel'"); pg.wait_for_selector("#pm-tabelle"); pg.wait_for_timeout(600)
     l = pg.evaluate("() => TEST.daten.pruefmittel")
     pruefe(len(l) == 4, "eingefügt, jetzt %d" % len(l))
     p2 = [x for x in l if x.get("nr") == "PM-002"]
@@ -124,6 +128,17 @@ with sync_playwright() as p:
     pruefe(all(x["ort_art"] == "schrank" and not x.get("zaehlt_seit") for x in k), "quittiert: im Schrank, zählt nicht")
     pruefe(abs(float(k[0]["einsatz_tage"]) - 3) < 0.2 and float(k[1]["einsatz_tage"]) == 5, "Tage festgehalten: %s %s" % (k[0]["einsatz_tage"], k[1]["einsatz_tage"]))
     pruefe(pg.locator("#pm-quittieren").count() == 0, "Kiste leer")
+    # 1.827.0: gesperrt ist rot, steht oben und zählt bei „zur Prüfung raus“
+    pg.evaluate("() => { const x = TEST.daten.pruefmittel.find(y => y.nr === 'PM-001'); x.status = 'gesperrt'; x.ort_art = 'schrank'; }")
+    pg.evaluate("location.hash='#/dashboard'"); pg.wait_for_timeout(600)
+    pg.evaluate("location.hash='#/pruefmittel'"); pg.wait_for_selector("#pm-kurz-raus"); pg.wait_for_timeout(600)
+    pruefe("3" in pg.inner_text("#pm-kurz-raus"), "gesperrt zählt bei raus: %s" % pg.inner_text("#pm-kurz-raus"))
+    farbe = pg.evaluate("() => { const e = document.querySelector('[data-pmstatus=gesperrt]'); return e ? getComputedStyle(e).backgroundColor : '' }")
+    pruefe("214" in farbe, "gesperrt rot: %s" % farbe)
+    pruefe("PM-001" in pg.locator("#pm-tabelle tbody tr").first.inner_text(), "gesperrt zuoberst")
+    breit = pg.evaluate("() => [document.querySelector('.pm-such').getBoundingClientRect().width, document.querySelector('.pm-filter').getBoundingClientRect().width]")
+    pruefe(breit[0] > breit[1] * 0.7, "Suche fast ganze Breite: %s" % breit)
+    pg.screenshot(path=BILD + "/pm-neu.png")
     pruefe(not pf, "keine Seitenfehler: %s" % pf)
     # Seitlich rollen?
     sw = pg.evaluate("() => document.documentElement.scrollWidth - innerWidth")

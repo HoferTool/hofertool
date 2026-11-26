@@ -19,18 +19,24 @@
 //  fällt es hier weg, und pruefberichte.ps1 nimmt es aus der App und lädt es
 //  nie wieder hoch. Die Protokolle der App bleiben alle.
 // =================================================================
+import { teilMerken } from "../../teile/wiederherstellen.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
 import { passtWoerter } from "../../teile/Suchfeld.jsx";
 import { useSeitenSuche } from "../../teile/seitenSuche.js";
 import { STIL, briefkopf } from "./achtdBlatt.js";
+import { qsSprung, masseInQsOeffnen } from "./qsSprung.js";
+import Pruefung from "../../hoco/Pruefung.jsx";
 import {
-  ARTEN, artVon, TEILE, AQL_WERTE, aqlPlan, fehltTabelle, protokolleLaden, dateienLaden, stammSpeichern,
-  stammLaden, stammMitMassen, toleranz, toleranzText, istPruefen, lehrenAus, pruefmittelFuer,
+  ARTEN, artVon, artName, istZwischen, TEILE, AQL_WERTE, aqlPlan, fehltTabelle, protokolleLaden, dateienLaden, vorlageLaden, stammSpeichern,
+  stammLaden, stammMitMassen, toleranz, toleranzText, istPruefen, lehrenAus, pruefmittelFuer, pruefmittelAlleLaden, pmOrtText,
 } from "../../daten/pruefbericht.js";
 
 // Offenes Protokoll und Suche bleiben beim Reiterwechsel
-const pbZustand = { suche: "", protokoll: null, frisch: null };
+const pbZustand = { suche: "", protokoll: null, frisch: null, vorlage: null, masse: null };
+// Nach dem Neuladen wieder im selben Reiter und Unterreiter (Wunsch Patrick 25. November 2026)
+teilMerken("qsPruefberichte", () => ({ suche: pbZustand.suche, protokoll: pbZustand.protokoll, vorlage: pbZustand.vorlage, masse: pbZustand.masse }),
+  (z) => { Object.assign(pbZustand, z); });
 
 const fehlerText = (f) => fehltTabelle(f)
   ? "Die Datenbank kennt die Prüfberichte noch nicht (sql/pruefberichte.sql oder sql/pruef-stamm.sql fehlt)."
@@ -38,7 +44,9 @@ const fehlerText = (f) => fehltTabelle(f)
 const heute = () => alt.isoDatum(new Date());
 const datumText = (d) => (d ? String(d).slice(0, 10).split("-").reverse().join(".") : "");
 const zeitText = (d) => { if (!d) return ""; const x = new Date(d); return datumText(alt.isoDatum(x)) + " " + String(x.getHours()).padStart(2, "0") + ":" + String(x.getMinutes()).padStart(2, "0"); };
-const darf = () => alt.darfSchreiben() && !alt.istExtern();
+// Ausfüllen, Freigabe und Abschliessen darf jeder ausser Externen und Dienst
+// (Wunsch Patrick 25. November 2026: „dafür brauchts keine Rechte, jeder darf das ausfüllen und Freigabe erteilen“)
+const darf = () => !alt.istExtern() && alt.meineRolle() !== "dienst";
 
 const ENTSCHEIDE = [["freigabe", "Freigabe"], ["nacharbeit", "Nacharbeit / Sortieren"], ["neu", "Neuanfertigung"]];
 const entscheidText = (e) => (ENTSCHEIDE.find((x) => x[0] === e) || [])[1] || "";
@@ -73,19 +81,21 @@ function aqlStand(k, w) {
 
 const STAND = { laeuft: "läuft", ruesten: "Rüsten", geplant: "geplant", fertig: "fertig" };
 
-// Stammdaten der HOCO Nr. öffnen (Fenster HOCO Nr. beim Teil)
+// Prüfmasse der HOCO Nr. hier in der QS bearbeiten (seit 1.837.0, Wunsch
+// Patrick 25. November 2026: „prüfbericht soll im qs selber bearbeitet werden
+// nicht stammdaten“). Die Stammdaten haben nur noch die Häkchen der Arten.
 function stammdatenOeffnen(nr) {
-  alt.prod.hocoOffen = nr;
-  alt.prod.hocoSuche = nr;
-  alt.hocoFenster();
+  masseInQsOeffnen(nr);
 }
 
 // Gehört ein Protokoll zu diesem Auftrag? Über die Kennung, sonst die FA Nr.
 const gehoertZu = (p, j) => (p.job_id && p.job_id === j.id)
   || (p.hoco_nr === j.job_number && j.fa_nr && String(p.fa_nr || "").trim() === String(j.fa_nr).trim());
 
-// Was steht an? Nur Aufträge an der Maschine (Rüsten, läuft) und nur, was
-// die Stammdaten der HOCO Nr. verlangen.
+// Was steht an? Nur, was die Stammdaten der HOCO Nr. verlangen (seit 1.826.0,
+// Wunsch Patrick 25. November 2026): Erstteil, sobald der Auftrag eine FA Nr.
+// hat und auf Rüsten steht; Endkontrolle, sobald er fertig ist; AQL und LL
+// während er läuft.
 export function anstehend(jobs, stamm, protokolle) {
   const st = new Map((stamm || []).map((s) => [s.hoco_nr, s]));
   const t = heute();
@@ -97,19 +107,50 @@ export function anstehend(jobs, stamm, protokolle) {
     const meine = (protokolle || []).filter((p) => gehoertZu(p, j));
     const von = (art) => meine.filter((p) => (p.kopf || {}).art === art);
     const offenes = (art) => von(art).find((p) => !p.abgeschlossen_am) || null;
+    // „Im alten System geprüft“ erledigt die Art für diesen Auftrag (seit 1.836.0)
+    const altDa = (art) => von(art).some((p) => p.abgeschlossen_am && (p.kopf || {}).alt);
     // Erstteil gilt erst mit Freigabe als erledigt (seit 1.785.0)
     const fertig = (art) => von(art).some((p) => p.abgeschlossen_am && (art !== "erstteil" || p.entscheid === "freigabe"));
-    if (arten.includes("erstteil") && !fertig("erstteil")) aus.erstteil.push({ j, art: "erstteil", p: offenes("erstteil") });
+    const fa = String(j.fa_nr || "").trim();
+    if (j.plan_status === "ruesten" && fa && arten.includes("erstteil") && !fertig("erstteil")) aus.erstteil.push({ j, art: "erstteil", p: offenes("erstteil") });
+    // Eine Zwischenkontrolle erledigt die Endkontrolle nicht
+    const endFertig = von("endkontrolle").some((p) => p.abgeschlossen_am && !istZwischen(p.kopf));
+    if (j.plan_status === "fertig" && arten.includes("endkontrolle") && !endFertig) aus.endkontrolle.push({ j, art: "endkontrolle", p: offenes("endkontrolle") });
     if (j.plan_status !== "laeuft") continue;
-    if (arten.includes("endkontrolle") && !fertig("endkontrolle")) aus.endkontrolle.push({ j, art: "endkontrolle", p: offenes("endkontrolle") });
     if (arten.includes("aql") && !fertig("aql")) aus.aql.push({ j, art: "aql", p: offenes("aql") });
-    if (arten.includes("ll")) {
+    if (arten.includes("ll") && !altDa("ll")) {
       const ll = von("ll").find((p) => !p.abgeschlossen_am) || null;
       const heuteDa = ll && ((ll.werte || {}).proben || []).some((pr) => pr.datum === t);
       if (!heuteDa) aus.ll.push({ j, art: "ll", p: ll });
     }
   }
   return aus;
+}
+
+// „Im alten System geprüft“ (seit 1.836.0, Wunsch Patrick 25. November 2026:
+// „gewisse Aufträge laufen schon mit bisherigem System … Button zum einfach
+// weitergeben, es wird geprüft, aber nicht im Tool dokumentiert“): legt ein schon
+// abgeschlossenes Protokoll ohne Masse an, damit der Punkt wegfällt; bei der
+// Erstteilprüfung geht der Auftrag danach auf „läuft“.
+async function altGeprueft(t) {
+  const name = artName({ art: t.art }).name;
+  if (!(await alt.nachfragen({ titel: "Im alten System geprüft?", text: name + " für " + t.j.job_number + (t.j.fa_nr ? " (FA " + t.j.fa_nr + ")" : "") + " wurde mit dem bisherigen System gemacht. Der Punkt fällt weg, im Tool wird nichts dokumentiert." + (t.art === "erstteil" ? " Der Auftrag geht danach auf „läuft“." : ""), bestaetigen: "Ja, weitergeben" }))) return false;
+  const jetzt = new Date().toISOString();
+  const { data, error } = await alt.db.from("pruefprotokolle").insert({
+    hoco_nr: t.j.job_number, fa_nr: t.j.fa_nr || null, job_id: t.j.id || null,
+    kopf: { art: t.art, alt: true, zeilen: [], vorlage: {}, bemerkung: "Im alten System geprüft", ...(t.j.maschine ? { maschine: t.j.maschine } : {}) },
+    werte: {}, datum: heute(), entscheid: "freigabe", visum: "altes System", abgeschlossen_am: jetzt,
+  }).select().single();
+  if (error) { alt.meldung("Konnte nicht speichern: " + error.message, "fehler"); return false; }
+  alt.merkeSchritt(name + " im alten System " + t.j.job_number, [alt.rueckWeg("pruefprotokolle", { id: data.id })]);
+  if (t.art === "erstteil" && t.j.id) {
+    try {
+      const { data: j } = await alt.db.from("jobs").select("*").eq("id", t.j.id).maybeSingle();
+      if (j && j.plan_status !== "laeuft" && j.plan_status !== "fertig" && !j.ended_at) await alt.zustandSetzen(j, "laeuft");
+    } catch (e) { alt.meldung("Weitergegeben, aber „läuft“ ging nicht: " + fehlerText(e), "warn"); return true; }
+  }
+  alt.meldung(name + " " + t.j.job_number + " weitergegeben.", "gut");
+  return true;
 }
 
 // Material samt Durchmesser aus dem Auftrag (seit 1.786.0, Wunsch Patrick
@@ -127,7 +168,7 @@ function materialText(j) {
 async function protokollAnlegen(hoco, art, j, protokolle) {
   const st = await stammMitMassen(hoco);
   if (!st || !(st.zeilen || []).length) {
-    const ok = await alt.nachfragen({ titel: "Noch keine Masse", text: "Für " + hoco + " sind in den Stammdaten noch keine Masse erfasst. Dort unter „Prüfung“ eintragen oder einen Excel-Prüfbericht einlesen.", bestaetigen: "Stammdaten öffnen" });
+    const ok = await alt.nachfragen({ titel: "Noch keine Masse", text: "Für " + hoco + " sind noch keine Prüfmasse erfasst. Unter „Prüfmasse bearbeiten“ eintragen oder einen Excel-Prüfbericht einlesen.", bestaetigen: "Prüfmasse bearbeiten" });
     if (ok) stammdatenOeffnen(hoco);
     return null;
   }
@@ -157,7 +198,7 @@ async function protokollAnlegen(hoco, art, j, protokolle) {
 }
 
 async function protokollLoeschen(p) {
-  const ok = await alt.nachfragen({ titel: "Protokoll löschen", text: artVon((p.kopf || {}).art).name + " " + p.hoco_nr + (p.fa_nr ? " · FA " + p.fa_nr : "") + " vom " + datumText(p.datum || p.erstellt_am) + " wird gelöscht.", bestaetigen: "Löschen", gefahr: true });
+  const ok = await alt.nachfragen({ titel: "Protokoll löschen", text: artName(p.kopf).name + " " + p.hoco_nr + (p.fa_nr ? " · FA " + p.fa_nr : "") + " vom " + datumText(p.datum || p.erstellt_am) + " wird gelöscht.", bestaetigen: "Löschen", gefahr: true });
   if (!ok) return false;
   const vorher = await alt.rueckSichern("pruefprotokolle", { id: p.id });
   const { error } = await alt.db.from("pruefprotokolle").delete().eq("id", p.id);
@@ -167,22 +208,34 @@ async function protokollLoeschen(p) {
 }
 
 // =================================================================
+const JOB_SPALTEN = "id, fa_nr, job_number, plan_status, target_quantity, machine_id, planned_from, ended_at, material_bez, material_dm";
 export default function Pruefberichte() {
+  if (qsSprung.masse) { pbZustand.masse = qsSprung.masse; qsSprung.masse = null; }
   const [, setF] = useState(0);
   const neuZeichnen = () => setF((x) => x + 1);
   const laden = async () => {
-    const [protokolle, stamm, jobsR, dateien] = await Promise.all([
+    const [protokolle, stamm, jobsR, fertigR, dateien] = await Promise.all([
       protokolleLaden(),
       stammLaden().catch((f) => { if (fehltTabelle(f)) return []; throw f; }),
-      alt.db.from("jobs").select("id, fa_nr, job_number, plan_status, target_quantity, machine_id, planned_from, material_bez, material_dm").in("plan_status", ["ruesten", "laeuft"]),
+      alt.db.from("jobs").select(JOB_SPALTEN).in("plan_status", ["ruesten", "laeuft"]),
+      // Fertige der letzten 60 Tage für die Endkontrolle
+      alt.db.from("jobs").select(JOB_SPALTEN).eq("plan_status", "fertig").gte("ended_at", new Date(Date.now() - 60 * 864e5).toISOString()),
       dateienLaden().catch(() => []),
     ]);
-    const jobs = jobsR.data || [];
+    const jobs = (jobsR.data || []).concat(fertigR.data || []);
     const ids = [...new Set(jobs.map((j) => j.machine_id).filter(Boolean))];
     const m = ids.length ? (await alt.db.from("machines").select("id, name").in("id", ids)).data || [] : [];
     const name = new Map(m.map((x) => [x.id, x.name]));
     for (const j of jobs) j.maschine = name.get(j.machine_id) || "";
-    return { protokolle, stamm, jobs, dateien };
+    // Index der Stammdaten für Berichte, aus denen die Aufgabe keinen lesen konnte
+    // (Patrick 25. November 2026: „es braucht immer einen Index“)
+    const ohne = [...new Set(dateien.filter((d) => !d.index_nr).map((d) => d.hoco_nr).filter(Boolean))];
+    const stammIndex = new Map();
+    for (let i = 0; i < ohne.length; i += 200) {
+      const r = await alt.db.from("hoco_parts").select("hoco_nr, index_nr").in("hoco_nr", ohne.slice(i, i + 200));
+      for (const x of r.data || []) if (x.index_nr) stammIndex.set(x.hoco_nr, String(x.index_nr));
+    }
+    return { protokolle, stamm, jobs, dateien, stammIndex };
   };
   const { daten, fehler, neu } = useDaten(laden, []);
 
@@ -190,13 +243,16 @@ export default function Pruefberichte() {
     name: "Prüfberichte", platzhalter: "HOCO Nr., FA Nr. …",
     eintraege: () => ((daten && daten.protokolle) || []).map((p) => ({
       gruppe: "Prüfprotokolle", zeichen: "📏", titel: p.hoco_nr + (p.fa_nr ? " · FA " + p.fa_nr : ""),
-      zeile: artVon((p.kopf || {}).art).name + " · " + datumText(p.datum || p.erstellt_am), p })),
+      zeile: artName(p.kopf).name + " · " + datumText(p.datum || p.erstellt_am), p })),
     springen: (x) => { pbZustand.protokoll = x.p.id; neuZeichnen(); },
   });
 
   if (!daten) return <p className="klein">{fehler ? fehlerText(fehler) : "Wird geladen …"}</p>;
 
   const oeffnen = (p) => { pbZustand.protokoll = p.id; pbZustand.frisch = p; neuZeichnen(); };
+  if (pbZustand.masse) return <Pruefung key={pbZustand.masse} hoco={pbZustand.masse} modus="qs"
+    darf={alt.darfSchreiben() && !alt.istExtern()}
+    zurueck={() => { pbZustand.masse = null; neu(); neuZeichnen(); }} />;
   if (pbZustand.protokoll) {
     // Ein eben angelegtes Protokoll ist erst nach dem Neuladen in der Liste
     const f = pbZustand.frisch;
@@ -204,14 +260,35 @@ export default function Pruefberichte() {
     if (p) return <Protokoll key={p.id} p={p} zurueck={() => { pbZustand.protokoll = null; pbZustand.frisch = null; neu(); neuZeichnen(); }} />;
     pbZustand.protokoll = null;
   }
-  return <Uebersicht daten={daten} neu={neu} oeffnen={oeffnen} />;
+  if (pbZustand.vorlage) return <VorlageLeer key={pbZustand.vorlage.hoco + "|" + pbZustand.vorlage.idx} v={pbZustand.vorlage}
+    zurueck={() => { pbZustand.vorlage = null; neuZeichnen(); }} />;
+  return <Uebersicht daten={daten} neu={neu} oeffnen={oeffnen} zeichnen={neuZeichnen} />;
+}
+
+// HOCO Nr. eintippen und ihre Prüfmasse hier bearbeiten
+function MasseAuf({ zeichnen }) {
+  const [nr, setNr] = useState("");
+  const auf = () => { const h = nr.trim(); if (!h) return; pbZustand.masse = h; zeichnen(); };
+  return (
+    <span className="pb-masse-auf">
+      <input className="pb-suche" id="pb-masse-hoco" placeholder="HOCO Nr." value={nr}
+        onChange={(e) => setNr(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") auf(); }} />
+      <button type="button" className="knopf knopf--klein" id="pb-masse-auf" onClick={auf}>Prüfmasse bearbeiten</button>
+    </span>
+  );
 }
 
 // ---------- Übersicht: was ansteht und die zuletzt bearbeiteten ----------
-function Uebersicht({ daten, neu, oeffnen }) {
+function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
   const [suche, setSuche] = useState(pbZustand.suche);
   const [legt, setLegt] = useState(false);
+  // Je Spalte ein eigenes Suchfeld (seit 1.839.0, Patrick: „bei allen separat“)
+  // Die Suche bleibt seit 1.843.1 nicht über das Neuladen stehen: ein vergessener
+  // Suchtext versteckte sonst still Aufträge (Patrick 25. November 2026).
+  const [sp, setSp] = useState({});
+  const spSetzen = (id, t) => setSp((v) => ({ ...v, [id]: t }));
   const todo = useMemo(() => anstehend(daten.jobs, daten.stamm, daten.protokolle), [daten]);
+  const jobMaschine = useMemo(() => new Map((daten.jobs || []).map((j) => [j.id, j.maschine])), [daten]);
 
   const anlegen = async (hoco, art, j) => {
     if (!darf() || legt) return;
@@ -229,30 +306,49 @@ function Uebersicht({ daten, neu, oeffnen }) {
 
   const liste = [...daten.protokolle]
     .sort((a, b) => String(b.geaendert_am || b.erstellt_am).localeCompare(String(a.geaendert_am || a.erstellt_am)))
-    .filter((p) => passtWoerter(suche, [p.hoco_nr, p.fa_nr, artVon((p.kopf || {}).art).name, p.visum, ((p.kopf || {}).vorlage || {}).bezeichnung]));
+    .filter((p) => passtWoerter(suche, [p.hoco_nr, p.fa_nr, artName(p.kopf).name, p.visum, ((p.kopf || {}).vorlage || {}).bezeichnung]));
   const zeigen = suche ? liste.slice(0, 200) : liste.slice(0, 30);
 
   const loeschen = async (p) => { if (await protokollLoeschen(p)) neu(); };
 
-  // Letzte Produktion: Excel aus dem Ordner je HOCO Nr. ohne Protokoll in der App
+  // Letzte Produktion: je HOCO Nr. und Index nur der neuste Bericht aus dem Ordner,
+  // eine Zeile je Index (Wunsch Patrick 25. November 2026: „nicht so gebündelt“)
   const mitProtokoll = new Set(daten.protokolle.map((p) => p.hoco_nr));
-  const jeHoco = new Map();
-  for (const d of daten.dateien || []) {
-    if (mitProtokoll.has(d.hoco_nr)) continue;
-    if (!jeHoco.has(d.hoco_nr)) jeHoco.set(d.hoco_nr, []);
-    jeHoco.get(d.hoco_nr).push(d);
+  const jeIndex = new Map();
+  // Ohne gelesenen Index: der einzige Index der anderen Berichte dieser HOCO Nr., sonst der
+  // Index aus den Stammdaten, sonst rot „fehlt“ (nie mehr „–“)
+  const idxJeHoco = new Map();
+  for (const d of daten.dateien || []) if (d.index_nr) {
+    if (!idxJeHoco.has(d.hoco_nr)) idxJeHoco.set(d.hoco_nr, new Set());
+    idxJeHoco.get(d.hoco_nr).add(String(d.index_nr).toUpperCase());
   }
-  const letzte = [...jeHoco.entries()]
-    .map(([hoco, ds]) => ({ hoco, ds, zeit: ds.map((d) => d.geaendert || d.erstellt_am || "").sort().pop() || "" }))
-    .filter((x) => passtWoerter(suche, [x.hoco, ...x.ds.map((d) => d.name)]))
-    .sort((a, b) => String(b.zeit).localeCompare(String(a.zeit)));
+  const indexVon = (d) => {
+    if (d.index_nr) return String(d.index_nr);
+    const s = idxJeHoco.get(d.hoco_nr);
+    if (s && s.size === 1) return [...s][0];
+    return (daten.stammIndex && daten.stammIndex.get(d.hoco_nr)) || "";
+  };
+  for (const d0 of daten.dateien || []) {
+    if (mitProtokoll.has(d0.hoco_nr)) continue;
+    const d = { ...d0, index_nr: indexVon(d0) };
+    const k = d.hoco_nr + "|" + String(d.index_nr || "").toUpperCase();
+    const z = d.geaendert || d.erstellt_am || "";
+    const v = jeIndex.get(k);
+    // Alle Seiten des Berichts gehören zusammen (die Aufgabe behält nur die des neusten)
+    if (!v) jeIndex.set(k, { hoco: d.hoco_nr, idx: d.index_nr || "", d, zeit: z, dateien: [d] });
+    else { v.dateien.push(d); if (String(z) > String(v.zeit)) { v.zeit = z; v.d = d; } }
+  }
+  const letzte = [...jeIndex.values()]
+    .filter((x) => passtWoerter(suche, [x.hoco, x.idx, x.d.name]))
+    .sort((a, b) => String(b.zeit).localeCompare(String(a.zeit)) || String(a.hoco).localeCompare(String(b.hoco)));
   const letzteZeigen = suche ? letzte.slice(0, 200) : letzte.slice(0, 30);
-  const excelAnsehen = (d) => alt.betrachter(d.url, "Prüfbericht " + d.hoco_nr + (d.seite ? " · Seite " + d.seite : ""), false, "excel",
-    (String(d.name || "").match(/\.([A-Za-z0-9]+)$/) || [])[1]);
+  // Das Excel selbst zeigt die App nie: daraus wird eine leere Vorlage (seit 1.823.0)
+  const vorlageAnsehen = (x) => { pbZustand.vorlage = { hoco: x.hoco, idx: x.idx, dateien: x.dateien }; zeichnen(); };
 
+  const gefiltert = (id) => todo[id].filter((t) => passtWoerter(sp[id], [t.j.job_number, t.j.fa_nr, t.j.maschine, STAND[t.j.plan_status], t.j.material_bez, t.j.material_dm]));
   const SPALTEN = [
-    ["erstteil", "Erstteilprüfung", "Aufträge in Rüsten oder läuft ohne abgeschlossene Erstteilprüfung"],
-    ["endkontrolle", "Endkontrolle", "Laufende Aufträge ohne abgeschlossene Endkontrolle"],
+    ["erstteil", "Erstteilprüfung", "Aufträge mit FA Nr. in Rüsten ohne freigegebene Erstteilprüfung"],
+    ["endkontrolle", "Endkontrolle", "Fertige Aufträge (60 Tage) ohne abgeschlossene Endkontrolle, wählbar End- oder Zwischenkontrolle"],
     ["aql", "AQL", "Laufende Aufträge ohne abgeschlossene AQL-Stichprobe"],
     ["ll", "LL Langläufer", "Laufende Aufträge ohne Stichprobe von heute"],
   ];
@@ -261,16 +357,24 @@ function Uebersicht({ daten, neu, oeffnen }) {
       <div className="pb-todo" id="pb-todo">
         {SPALTEN.map(([id, titel, erkl]) => (
           <section key={id} className="pb-todo__spalte" data-pbtodo={id}>
-            <h3>{titel} <span className={"marke" + (todo[id].length ? " pb-todo__zahl" : "")}>{todo[id].length}</span></h3>
-            {!todo[id].length ? <p className="klein">Nichts offen.</p> : (
+            <h3>{titel} <span className={"marke" + (todo[id].length ? " pb-todo__zahl" : "")}>{(sp[id] || "").trim() ? gefiltert(id).length + " von " + todo[id].length : todo[id].length}</span></h3>
+            <input type="search" className="pb-suche pb-todo__suche" data-pbtodosuche={id} placeholder="Suchen …"
+              value={sp[id] || ""} onChange={(x) => spSetzen(id, x.target.value)}
+              onKeyDown={(x) => { if (x.key === "Escape" && sp[id]) { x.preventDefault(); x.stopPropagation(); spSetzen(id, ""); } }} />
+            {(sp[id] || "").trim() && gefiltert(id).length < todo[id].length ? (
+              <button type="button" className="knopf klein" data-pbtodoalle={id} onClick={() => spSetzen(id, "")}>✕ Suche löschen, alle {todo[id].length} zeigen</button>
+            ) : null}
+            {!todo[id].length ? <p className="klein">Nichts offen.</p> : !gefiltert(id).length ? <p className="klein">Nichts gefunden.</p> : (
               <ul>
-                {todo[id].map((t) => (
+                {gefiltert(id).map((t) => (
                   <li key={t.j.id}>
                     <button type="button" className="pb-todo__eintrag" data-pbtodoauftrag={t.j.id} disabled={!darf() && !t.p} onClick={() => todoTippen(t)}>
                       <b>{t.j.job_number}</b>
                       <span>{t.j.fa_nr ? "FA " + t.j.fa_nr : "ohne FA"} · {t.j.maschine || "?"} · {STAND[t.j.plan_status] || ""}</span>
                       <small>{t.p ? (t.art === "ll" ? "heute noch keine Stichprobe" : "in Arbeit, weiterführen") : "noch nicht angefangen"}</small>
                     </button>
+                    {darf() ? <button type="button" className="pb-todo__alt" data-pbalt={t.j.id} title="Wurde mit dem bisherigen System geprüft, nur weitergeben"
+                      onClick={async () => { if (await altGeprueft(t)) neu(); }}>✓ Im alten System geprüft</button> : null}
                   </li>
                 ))}
               </ul>
@@ -285,21 +389,24 @@ function Uebersicht({ daten, neu, oeffnen }) {
           <h3 className="pb-titel">Zuletzt bearbeitet</h3>
           <input type="search" className="pb-suche" id="pb-suche" placeholder="HOCO Nr., FA Nr., Art suchen" value={suche}
             onChange={(e) => { setSuche(e.target.value); pbZustand.suche = e.target.value; }} />
+          <MasseAuf zeichnen={zeichnen} />
         </div>
         {!zeigen.length ? <p className="klein">{daten.protokolle.length ? "Nichts gefunden." : "Noch kein Protokoll."}</p> : (
           <table className="tabelle pb-zuletzt" id="pb-liste">
-            <thead><tr><th>Art</th><th>HOCO Nr.</th><th>FA Nr.</th><th>Datum</th><th>Ergebnis</th><th>Stand</th><th>Geändert</th><th /></tr></thead>
+            <thead><tr><th>Art</th><th>HOCO Nr.</th><th>FA Nr.</th><th>Maschine</th><th>Datum</th><th>Ergebnis</th><th>Stand</th><th>Geändert</th><th /></tr></thead>
             <tbody>
               {zeigen.map((p) => {
                 const e = auswerten(p), art = (p.kopf || {}).art || "erstteil";
                 return (
                   <tr key={p.id} data-pbprotokoll={p.id} onClick={() => oeffnen(p)}>
-                    <td><span className={"pb-art pb-art--" + art}>{artVon(art).kurz}</span></td>
+                    <td><span className={"pb-art pb-art--" + art}>{artName(p.kopf).kurz}</span></td>
                     <td><b>{p.hoco_nr}</b></td>
                     <td>{p.fa_nr || <span className="pb-rot">fehlt</span>}</td>
+                    {/* Wo es gelaufen ist (Patrick 25. November 2026) */}
+                    <td data-pbmaschine>{(p.kopf || {}).maschine || (jobMaschine.get(p.job_id) || "") || <span className="klein">–</span>}</td>
                     <td>{datumText(p.datum || p.erstellt_am)}</td>
                     <td className="nowrap">{e.schlecht ? <b className="pb-rot">{e.schlecht} n.i.O. </b> : null}<span className="klein">{e.gut} i.O.</span></td>
-                    <td>{p.abgeschlossen_am ? "✓ " + (entscheidText(p.entscheid) || "abgeschlossen") : "in Arbeit"}</td>
+                    <td>{p.abgeschlossen_am ? ((p.kopf || {}).alt ? "✓ im alten System" : "✓ " + (entscheidText(p.entscheid) || "abgeschlossen")) : "in Arbeit"}</td>
                     <td className="klein nowrap">{zeitText(p.geaendert_am || p.erstellt_am)}</td>
                     <td className="nowrap">{darf() ? <button type="button" className="knopf knopf--klein knopf--gefahr-leise" title="Protokoll löschen" data-pbweg={p.id}
                       onClick={(x) => { x.stopPropagation(); loeschen(p); }}>✕</button> : null}</td>
@@ -315,22 +422,21 @@ function Uebersicht({ daten, neu, oeffnen }) {
       {(daten.dateien || []).length ? (
         <section className="pb-karte" id="pb-letzte">
           <div className="pb-kopfzeile">
-            <h3 className="pb-titel">Letzte Produktion (Original aus dem Ordner)</h3>
+            <h3 className="pb-titel">Vorlagen aus der letzten Produktion</h3>
           </div>
-          <p className="klein">Der Prüfbericht der letzten Produktion, solange es für die HOCO Nr. noch kein Protokoll in der App gibt. Mit dem ersten Protokoll in der App fällt das Original weg, danach bleiben alle Protokolle gespeichert.</p>
+          <p className="klein">Aus dem Prüfbericht der letzten Produktion wird eine leere Vorlage (je Index, alle Seiten zusammen), solange es für die HOCO Nr. noch kein Protokoll in der App gibt. Mit dem ersten Protokoll in der App fällt sie weg, danach bleiben alle Protokolle gespeichert.</p>
           {!letzteZeigen.length ? <p className="klein">{letzte.length ? "Nichts gefunden." : "Alle HOCO Nummern haben schon ein Protokoll in der App."}</p> : (
             <table className="tabelle pb-zuletzt" id="pb-letzte-liste">
-              <thead><tr><th>HOCO Nr.</th><th>Datei</th><th>Stand</th><th /></tr></thead>
+              <thead><tr><th>HOCO Nr.</th><th>Index</th><th>Bericht</th><th>Stand</th><th /></tr></thead>
               <tbody>
                 {letzteZeigen.map((x) => (
-                  <tr key={x.hoco} data-pbletzte={x.hoco} onClick={() => excelAnsehen(x.ds[0])}>
-                    <td><b>{x.hoco}</b></td>
-                    <td>{x.ds.map((d) => <div key={d.id} className="klein">{d.name}{d.seite ? " · Seite " + d.seite : ""}</div>)}</td>
+                  <tr key={x.d.id} data-pbletzte={x.hoco} onClick={() => vorlageAnsehen(x)}>
+                    <td className="nowrap"><b>{x.hoco}</b></td>
+                    <td className="nowrap">{x.idx || <b className="pb-idx-fehlt" title="Weder im Bericht noch in den Stammdaten ein Index">fehlt</b>}</td>
+                    <td className="klein pb-letzte-name" title={x.dateien.map((d) => d.name).join(", ")}>{x.d.name}{x.dateien.length > 1 ? " · " + x.dateien.length + " Seiten" : ""}</td>
                     <td className="klein nowrap">{zeitText(x.zeit)}</td>
-                    <td className="nowrap">{x.ds.map((d) => (
-                      <button key={d.id} type="button" className="knopf knopf--klein" data-pbletzteansehen={d.id}
-                        onClick={(e) => { e.stopPropagation(); excelAnsehen(d); }}>Ansehen{x.ds.length > 1 && d.seite ? " " + d.seite : ""}</button>
-                    ))}</td>
+                    <td className="nowrap"><button type="button" className="knopf knopf--klein" data-pbletzteansehen={x.d.id}
+                      onClick={(e) => { e.stopPropagation(); vorlageAnsehen(x); }}>Vorlage</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -349,6 +455,73 @@ function KopfRaster({ kopf, w, hoco }) {
   return (
     <div className="pb-kopf">
       {felder.filter(([, v]) => v).map(([n, v]) => <div key={n}><small>{n}</small><b>{v}</b></div>)}
+    </div>
+  );
+}
+
+// ---------- Leere Vorlage aus dem Excel der letzten Produktion (seit 1.823.0,
+// Wunsch Patrick 25. November 2026: „das efektive excel braucht man nicht zu
+// sehen, und die vorlage soll dan leer sein“). Alle Seiten eines Index sind ein
+// Bericht; was sich nicht lesen liess, steht mit ⚠ darüber. ----------
+function VorlageLeer({ v, zurueck }) {
+  const [st, setSt] = useState({ laedt: true });
+  const [stamm, setStamm] = useState(undefined);
+  const [speichert, setSpeichert] = useState(false);
+  useEffect(() => {
+    let weg = false;
+    vorlageLaden(v.dateien).then((x) => { if (!weg) setSt({ v: x }); }, (f) => { if (!weg) setSt({ fehler: fehlerText(f) }); });
+    stammLaden(v.hoco).then((x) => { if (!weg) setStamm(x); }, () => { if (!weg) setStamm(null); });
+    return () => { weg = true; };
+  }, [v]);
+  const vor = st.v;
+  const teilweise = (vor && vor.teilweise) || [];
+  const hatMasse = !!(stamm && (stamm.zeilen || []).length);
+  // „Ist okay so“: was gelesen wurde, kommt als Masse in die Stammdaten der HOCO Nr.
+  // Danach gilt nur noch der Stamm (Protokolle, Endkontrolle), das Excel nicht mehr.
+  const okay = async () => {
+    if (!vor || speichert) return;
+    if (hatMasse) {
+      const ok = await alt.nachfragen({ titel: "Masse ersetzen?", text: "Für " + v.hoco + " stehen schon " + stamm.zeilen.length + " Masse in den Stammdaten. Mit „Ist okay so“ werden sie durch diese Vorlage ersetzt.", bestaetigen: "Ersetzen" });
+      if (!ok) return;
+    }
+    setSpeichert(true);
+    try {
+      const kopf = { ...((stamm && stamm.kopf) || {}), ...(vor.kopf || {}) };
+      if (!kopf.index && v.idx) kopf.index = v.idx;
+      const arten = stamm && (stamm.arten || []).length ? stamm.arten : ["erstteil", "endkontrolle"];
+      await stammSpeichern(v.hoco, { arten, aql: stamm ? stamm.aql ?? null : null, niveau: stamm ? stamm.niveau || null : null,
+        zeilen: (vor.zeilen || []).map((z) => ({ ...z })), kopf });
+      setStamm(await stammLaden(v.hoco).catch(() => null));
+      alt.meldung("Vorlage übernommen: " + (vor.zeilen || []).filter((z) => z.soll).length + " Masse in den Stammdaten von " + v.hoco + ".", "gut");
+    } catch (f) { alt.meldung(fehlerText(f), "fehler"); }
+    setSpeichert(false);
+  };
+  return (
+    <div className="pb pb-blattseite" data-pbvorlage={v.hoco}>
+      <div className="pb-kopfzeile pb-werkzeug">
+        <button type="button" className="knopf knopf--klein" data-esc-zurueck onClick={zurueck}>← Prüfberichte</button>
+        <span className="pst-platz" />
+        {vor && darf() ? (
+          <button type="button" className="knopf knopf--klein knopf--haupt" id="pb-vorlage-okay" disabled={speichert} onClick={okay}>
+            {speichert ? "Wird gespeichert …" : "✓ Ist okay so"}</button>
+        ) : null}
+        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(v.hoco)}>{hatMasse ? "Prüfmasse ändern" : "Prüfmasse " + v.hoco}</button>
+      </div>
+      {st.laedt ? <p className="klein">Vorlage wird gelesen …</p> : null}
+      {st.fehler ? <p className="pb-rot" id="pb-vorlage-fehler">⚠ Datei konnte nicht gelesen werden: {st.fehler}</p> : null}
+      {teilweise.length ? <p className="pb-rot" id="pb-vorlage-teilweise">⚠ Datei konnte zum Teil nicht gelesen werden: {teilweise.join("; ")}. Bitte durchschauen und fehlende Masse unter „Prüfmasse“ ergänzen.</p> : null}
+      {vor ? (hatMasse
+        ? <p className="klein" id="pb-vorlage-stand">✓ In den Stammdaten stehen {stamm.zeilen.length} Zeilen{stamm.geaendert_am ? " (Stand " + zeitText(stamm.geaendert_am) + ")" : ""}. Protokolle nehmen die Masse von dort.</p>
+        : <p className="klein" id="pb-vorlage-stand">Durchschauen, ob alles stimmt, dann „✓ Ist okay so“. Danach kommen die Masse in die Stammdaten, und Erstteilprüfung und Endkontrolle nehmen sie von dort.</p>) : null}
+      {vor ? (
+        <div className="pb-blatt hell-bleibt" id="pb-blatt">
+          <div className="rkpdf pb-briefkopf" dangerouslySetInnerHTML={{ __html: "<style>" + STIL + "</style>" + briefkopf() }} />
+          <h2 className="pb-blatt__titel">Vorlage aus letzter Produktion{v.idx ? " · Index " + v.idx : ""}</h2>
+          <KopfRaster kopf={{ ...(vor.kopf || {}), index: (vor.kopf || {}).index || v.idx }} w={{ kopf: {}, werte: {} }} hoco={v.hoco} />
+          {(vor.zeilen || []).length ? <TeileTabelle zeilen={vor.zeilen} w={{ kopf: {}, werte: {} }} schreibt={false} aendern={() => {}} />
+            : <p className="klein">Keine Masse gefunden.</p>}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -397,7 +570,10 @@ function Protokoll({ p, zurueck }) {
     const e = auswerten(w);
     if (!w.entscheid) { alt.meldung("Bitte zuerst den Prüf-Entscheid wählen.", "warn"); return; }
     if (!w.visum) { alt.meldung("Bitte das Visum eintragen.", "warn"); return; }
-    if (e.offen && art !== "ll") {
+    // Nicht jedes Mass ist bei jeder Prüfung dran (z. B. nach Eloxieren oder
+    // Schleifen erst bei Zwischen- oder Endkontrolle): leere Felder sind
+    // nur bei AQL eine Frage wert (seit 1.826.0, Wunsch Patrick)
+    if (e.offen && art === "aql") {
       const ok = await alt.nachfragen({ titel: "Noch leere Felder", text: e.offen + " Felder sind noch leer. Trotzdem abschliessen?", bestaetigen: "Abschliessen" });
       if (!ok) return;
     }
@@ -408,6 +584,10 @@ function Protokoll({ p, zurueck }) {
     // Erstteil mit Freigabe stellt den Auftrag auf „läuft“ (seit 1.785.0,
     // Wunsch Patrick 24. November 2026), nur den Auftrag dieses Protokolls
     if (art === "erstteil" && n.entscheid === "freigabe" && n.job_id) {
+      // Erst nach erledigter Erstteilprüfung ist geprüft, dass die richtigen
+      // Lehren da sind: dann ausbuchen, vor „läuft“, damit die Tage gleich zählen
+      // (seit 1.828.0, Wunsch Patrick 25. November 2026)
+      await ausbuchen(n, hoco);
       try {
         const { data: j } = await alt.db.from("jobs").select("*").eq("id", n.job_id).maybeSingle();
         if (j && j.plan_status !== "laeuft" && j.plan_status !== "fertig" && !j.ended_at) {
@@ -427,10 +607,10 @@ function Protokoll({ p, zurueck }) {
     clearTimeout(timer.current); timer.current = null;
     if (await protokollLoeschen(w)) zurueck();
   };
-  const dateiName = () => ("Prüfprotokoll " + hoco + " " + artVon(art).kurz + (w.fa_nr ? " FA " + w.fa_nr : "") + " " + (w.datum || "") + ".pdf").replace(/[\\/:*?"<>|]/g, "");
+  const dateiName = () => ("Prüfprotokoll " + hoco + " " + artName(w.kopf).kurz + (w.fa_nr ? " FA " + w.fa_nr : "") + " " + (w.datum || "") + ".pdf").replace(/[\\/:*?"<>|]/g, "");
   const pdfMachen = async () => {
     const { blattPdf } = await import("./achtdPdf.js");
-    return blattPdf("<style>" + STIL + "</style>" + protokollHtml(w, hoco), "Prüfprotokoll " + hoco + " · " + artVon(art).name);
+    return blattPdf("<style>" + STIL + "</style>" + protokollHtml(w, hoco), "Prüfprotokoll " + hoco + " · " + artName(w.kopf).name);
   };
   // Drucken: PDF im Betrachter der App, dort mit seinem Knopf Drucken
   const drucken = async () => {
@@ -447,21 +627,31 @@ function Protokoll({ p, zurueck }) {
   // Ältere Protokolle mit schon eingetragenen Werten brauchen sie nicht.
   const braucheCheck = art === "erstteil" && !zu && !(w.kopf.checkliste || {}).am && !(e.gut + e.schlecht);
   if (braucheCheck) return <Checkliste w={w} hoco={hoco} schreibt={schreibt} zurueck={zurueck}
-    quittieren={(c) => { const n = { ...w, kopf: { ...w.kopf, checkliste: c } }; setW(n); speichern(n); ausbuchen(w, hoco); }} />;
+    quittieren={(c) => { const n = { ...w, kopf: { ...w.kopf, checkliste: c } }; setW(n); speichern(n); }} />;
   return (
     <div className="pb pb-blattseite" data-pbprotokolloffen={w.id}>
       <div className="pb-kopfzeile pb-werkzeug">
-        <button type="button" className="knopf knopf--klein" onClick={zurueck}>← Prüfberichte</button>
+        <button type="button" className="knopf knopf--klein" data-esc-zurueck onClick={zurueck}>← Prüfberichte</button>
         <span className="klein" id="pb-stand">{stand}</span>
         <span className="pst-platz" />
-        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(hoco)}>Stammdaten {hoco}</button>
+        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(hoco)}>Prüfmasse {hoco}</button>
         <button type="button" className="knopf knopf--klein" id="pb-drucken" onClick={drucken}>🖨 Drucken</button>
         {darf() ? <button type="button" className="knopf knopf--klein knopf--gefahr-leise" id="pb-loeschen" onClick={loeschen}>Löschen</button> : null}
       </div>
 
       <div className="pb-blatt hell-bleibt" id="pb-blatt">
         <div className="rkpdf pb-briefkopf" dangerouslySetInnerHTML={{ __html: "<style>" + STIL + "</style>" + briefkopf() }} />
-        <h2 className="pb-blatt__titel">Prüfprotokoll · {artVon(art).name}</h2>
+        <h2 className="pb-blatt__titel">Prüfprotokoll · {artName(w.kopf).name}</h2>
+        {art === "endkontrolle" ? (
+          <div className="pb-kontrolle" id="pb-kontrolle">
+            <b>Art der Kontrolle</b>
+            {[["end", "Endkontrolle"], ["zwischen", "Zwischenkontrolle"]].map(([id, n]) => {
+              const an = (w.kopf.kontrolle || "end") === id;
+              return <label key={id} className={"pb-wahl" + (an ? " pb-wahl--an" : "")} data-pbkontrolle={id}>
+                <input type="radio" name="pb-kontrolle" checked={an} disabled={!schreibt} onChange={() => kopfSetzen("kontrolle", id === "end" ? null : id)} /> {n}
+              </label>;
+            })}
+          </div>) : null}
         <KopfRaster kopf={w.kopf.vorlage || {}} w={w} hoco={hoco} />
         <div className="pb-felder">
           <label className={!String(w.fa_nr || "").trim() ? "pb-pflicht" : ""}>FA Nr.<input value={w.fa_nr || ""} disabled={!schreibt} onChange={(x) => setzen("fa_nr", x.target.value)} /></label>
@@ -505,39 +695,68 @@ function Protokoll({ p, zurueck }) {
 // (Zeichnung mit Index, Lehren und Messmittel der Masse), unten quittieren.
 function checkPunkte(kopf) {
   const v = kopf.vorlage || {};
-  const { lehren, messmittel } = lehrenAus({ zeilen: masse(kopf.zeilen) });
-  const nr = (x) => "Nr. " + x.nr.join(", ");
+  // Seit 1.839.0 nur echte Prüfmittel (Lehren, Grenzlehrdorne, Gewinde), immer mit der
+  // Nr. aus der Prüfmittelverwaltung; Messschieber und Beschriftungen der Masse wie
+  // L2 oder Planfläche zählen nicht (Patrick 25. November 2026: „das sind alles keine
+  // Prüfmittel … also immer mit Nr.“)
+  const { lehren } = lehrenAus({ zeilen: masse(kopf.zeilen) });
   return [["zeichnung", "Zeichnung" + (v.zeichnung ? " " + v.zeichnung : "") + (v.index ? ", Index " + v.index : ""), "richtige Fassung bereit"]]
-    .concat(lehren.map((l, i) => ["l" + i, l.name + (l.mass ? " " + l.mass : ""), nr(l)]))
-    .concat(messmittel.map((m, i) => ["m" + i, m.name, nr(m)]))
+    .concat(lehren.map((l, i) => ["l" + i, l.name + (l.mass ? " " + l.mass : ""), "", l]))
     .concat([["sauber", "Prüfmittel sauber, Prüfdatum gültig", ""]]);
 }
 
-// Nach der Checkliste die Lehren aus dem Schrank auf den Auftrag ausbuchen
+// Schrank seitenweise, die Datenbank gibt höchstens 1'000 auf einmal
+async function schrankLaden() {
+  const alle = [];
+  for (let ab = 0; ab < 50000; ab += 1000) {
+    const { data, error } = await alt.db.from("pruefmittel").select("*").eq("ort_art", "schrank").order("id").range(ab, ab + 999);
+    if (error) break;
+    alle.push(...(data || []));
+    if (!data || data.length < 1000) break;
+  }
+  return { data: alle };
+}
+
+// Nach erledigter Erstteilprüfung (Freigabe) die Lehren aus dem Schrank auf den Auftrag ausbuchen
 // (Wunsch Patrick 24. November 2026): sie zählen ab „läuft“ Einsatztage und
 // kommen bei „fertig“ in die Rückgabekiste (Auslöser in sql/pruefmittel-rueckgabe.sql).
-// Nur Admins dürfen Prüfmittel ändern; sonst bleibt es still.
+// Gebucht über die Funktionen aus sql/pruefmittel-ausbuchen-alle.sql, damit es für alle
+// geht, die das Protokoll abschliessen dürfen; ohne sie (alter Stand) nur Admins direkt.
 async function ausbuchen(w, hoco) {
   try {
-    if (!w.job_id || !alt.istAdmin()) return;
+    if (!w.job_id) return;
     const { lehren } = lehrenAus({ zeilen: masse(w.kopf.zeilen) });
     if (!lehren.length) return;
-    const [{ data: pm }, { data: job }] = await Promise.all([
-      alt.db.from("pruefmittel").select("*").eq("ort_art", "schrank"),
-      alt.db.from("jobs").select("id, machine_id").eq("id", w.job_id).maybeSingle(),
-    ]);
-    if (!pm || !job || !job.machine_id) return;
+    // seit 1.838.0 aus allen Prüfmitteln der Verwaltung, nur was im Schrank und aktiv ist
+    const { error: fs } = await alt.db.rpc("pruefmittel_schrank_lesen");
+    const ohneRpc = !!fs;
+    if (ohneRpc && !alt.istAdmin()) return;
+    let pm = (await pruefmittelAlleLaden()).filter((p) => (!p.ort_art || p.ort_art === "schrank") && (p.status || "aktiv") === "aktiv");
+    if (!pm.length && ohneRpc) pm = (await schrankLaden()).data;
+    if (!pm || !pm.length) return;
     const ids = new Set();
     lehren.forEach((l) => { const x = pruefmittelFuer(l, pm.filter((p) => !ids.has(p.id)), hoco)[0]; if (x) ids.add(x.id); });
     if (!ids.size) return;
     const liste = [...ids];
     const vorher = [];
-    for (const id of liste) vorher.push(...await alt.rueckSichern("pruefmittel", { id }));
-    const { error } = await alt.db.from("pruefmittel").update({ ort_art: "maschine", machine_id: job.machine_id, job_id: job.id })
-      .in("id", liste);
-    if (error) return;
-    alt.merkeSchritt(liste.length + " Prüfmittel ausgebucht", alt.rueckRein("pruefmittel", vorher));
-    alt.meldung(liste.length + " Prüfmittel auf den Auftrag ausgebucht.", "gut");
+    if (alt.istAdmin()) for (const id of liste) vorher.push(...await alt.rueckSichern("pruefmittel", { id }));
+    let n = 0;
+    if (!ohneRpc) {
+      const { data, error } = await alt.db.rpc("pruefmittel_ausbuchen", { p_job: w.job_id, p_ids: liste });
+      if (error) return;
+      n = Number(data) || 0;
+    } else {
+      const { data: job } = await alt.db.from("jobs").select("id, machine_id, plan_status").eq("id", w.job_id).maybeSingle();
+      if (!job || !job.machine_id) return;
+      const neu = { ort_art: "maschine", machine_id: job.machine_id, job_id: job.id };
+      if (job.plan_status === "laeuft") neu.zaehlt_seit = new Date().toISOString();
+      const { error } = await alt.db.from("pruefmittel").update(neu).in("id", liste);
+      if (error) return;
+      n = liste.length;
+    }
+    if (!n) return;
+    if (vorher.length) alt.merkeSchritt(n + " Prüfmittel ausgebucht", alt.rueckRein("pruefmittel", vorher));
+    alt.meldung(n + " Prüfmittel auf den Auftrag ausgebucht.", "gut");
   } catch (e) { /* still: ohne Prüfmittel geht es weiter */ }
 }
 
@@ -545,23 +764,36 @@ function Checkliste({ w, hoco, schreibt, zurueck, quittieren }) {
   const punkte = useMemo(() => checkPunkte(w.kopf), [w.kopf]);
   const [haken, setHaken] = useState({});
   const alle = punkte.every(([id]) => haken[id]);
+  // Welches Prüfmittel der Verwaltung passt zu jeder Lehre? (seit 1.838.0, Wunsch Patrick:
+  // „das nr vom prüfmittel dort auch steht … es soll das mittel selber suchen“)
+  const [pm, setPm] = useState(null);
+  useEffect(() => { let weg = false; pruefmittelAlleLaden().then((l) => { if (!weg) setPm(l); }); return () => { weg = true; }; }, []);
+  const pmText = (l) => {
+    if (!l || !pm) return null;
+    if (!pm.length) return null;
+    const t = pruefmittelFuer(l, pm, hoco);
+    if (!t.length) return <small className="pb-pm-fehlt" data-pbpm="">nicht in der Prüfmittelverwaltung</small>;
+    return <small className="pb-pm-ok" data-pbpm={t[0].nr || ""}>
+      {t.slice(0, 3).map((p) => "Prüfmittel " + (p.nr || p.bezeichnung) + " · " + pmOrtText(p)).join(" / ")}
+      {t.length > 3 ? " … (" + t.length + ")" : ""}</small>;
+  };
   return (
     <div className="pb pb-blattseite" data-pbcheckliste={w.id}>
       <div className="pb-kopfzeile pb-werkzeug">
-        <button type="button" className="knopf knopf--klein" onClick={zurueck}>← Prüfberichte</button>
+        <button type="button" className="knopf knopf--klein" data-esc-zurueck onClick={zurueck}>← Prüfberichte</button>
         <span className="pst-platz" />
-        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(hoco)}>Stammdaten {hoco}</button>
+        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(hoco)}>Prüfmasse {hoco}</button>
       </div>
       <div className="pb-check karte">
         <h2>Erstteilprüfung {hoco}{w.fa_nr ? " · FA " + w.fa_nr : ""}</h2>
         <p className="klein">Zuerst prüfen, ob alles Richtige hervorgenommen ist. Danach kommt das Protokoll.</p>
         <ul className="pb-check__liste">
-          {punkte.map(([id, text, unter]) => (
+          {punkte.map(([id, text, unter, lehre]) => (
             <li key={id}>
               <label className={haken[id] ? "pb-check--an" : ""}>
                 <input type="checkbox" data-pbcheck={id} checked={!!haken[id]} disabled={!schreibt}
                   onChange={(x) => setHaken((h) => ({ ...h, [id]: x.target.checked }))} />
-                <span><b>{text}</b>{unter ? <small>{unter}</small> : null}</span>
+                <span><b>{text}</b>{unter ? <small>{unter}</small> : null}{pmText(lehre)}</span>
               </label>
             </li>
           ))}
@@ -786,7 +1018,7 @@ function protokollHtml(w, hoco) {
     + ".pbp table{width:100%;border-collapse:collapse}.pbp th,.pbp td{border:1px solid #999;padding:2px 4px;text-align:left;font-size:9pt}.pbp th{background:#e8eef6}.pbp tr.ab td{background:#f3f3f3;font-weight:700}"
     + ".pbp .pbp-fuss{display:flex;gap:24px;margin-top:10px}.pbp .pbp-fuss div{flex:1}</style>"
     + briefkopf() + "<div class='inhalt pbp'>"
-    + "<h1>Prüfprotokoll · " + h(artVon(art).name) + "</h1>"
+    + "<h1>Prüfprotokoll · " + h(artName(w.kopf).name) + "</h1>"
     + "<div class='pbp-kf'>" + felder.filter(([, x]) => x).map(([n, x]) => "<div><small>" + h(n) + "</small>" + h(x) + "</div>").join("") + "</div>"
     + "<table><thead><tr><th>Nr.</th><th>Soll</th>" + kopfZ + "<th>Prüfmittel</th></tr></thead><tbody>" + koerper + "</tbody></table>"
     + "<div class='pbp-fuss'><div><b>Prüf-Entscheid:</b> " + h(entscheidText(w.entscheid)) + "</div><div><b>Datum:</b> " + h(datumText(w.datum)) + "</div><div><b>Visum:</b> " + h(w.visum) + "</div></div>"

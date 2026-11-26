@@ -82,6 +82,34 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
     try { await laengeSetzen(t.hoco_nr, w.laenge, "von Hand"); fertig("Länge gespeichert."); }
     catch (f) { fehler(f); }
   };
+  // Index von Hand (seit 1.841.0, Wunsch Patrick 25. November 2026: „alles
+  // muss einen Index haben, wenn keiner da ist, soll es leer sein und man
+  // gibt ihn an“): in den Stammdaten bzw. je FA Nr. am Auftrag, mit Rückgängig
+  const indexStamm = async (jetzt) => {
+    const w = await alt.dialogFelder({ titel: "Index " + t.hoco_nr,
+      felder: [{ name: "idx", label: "Index (leer = noch keiner)", wert: jetzt || "" }], bestaetigen: "Speichern" });
+    if (!w) return;
+    const neuIdx = String(w.idx || "").trim() || null;
+    try {
+      const u = await db.from("hoco_parts").update({ index_nr: neuIdx }).eq("hoco_nr", t.hoco_nr);
+      if (u.error) throw u.error;
+      alt.merkeSchritt("Index " + t.hoco_nr, [alt.rueckSetz("hoco_parts", { index_nr: t.index_nr || null }, { hoco_nr: t.hoco_nr })]);
+      fertig("Index gespeichert.");
+    } catch (f) { fehler(f); }
+  };
+  const indexFa = async (x) => {
+    const jetzt = x.wbg_index && x.wbg_index !== "?" && x.wbg_index !== "-" ? x.wbg_index : "";
+    const w = await alt.dialogFelder({ titel: "Index FA " + (x.fa_nr || ""),
+      felder: [{ name: "idx", label: "Index (leer = noch keiner)", wert: jetzt }], bestaetigen: "Speichern" });
+    if (!w) return;
+    const neuIdx = String(w.idx || "").trim() || "-";
+    try {
+      const u = await db.from("jobs").update({ wbg_index: neuIdx }).eq("id", x.id);
+      if (u.error) throw u.error;
+      alt.merkeSchritt("Index FA " + (x.fa_nr || ""), [alt.rueckSetz("jobs", { wbg_index: x.wbg_index || null }, { id: x.id })]);
+      fertig("Index gespeichert.");
+    } catch (f) { fehler(f); }
+  };
   // Eine Rückfrage, mit Rückgängig; die Aufgabe holt beim nächsten
   // Durchlauf die nächste Excel-Datei aus dem Ordner, wenn es eine gibt
   const blattEntfernen = async (typId) => {
@@ -140,6 +168,21 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
               ? <button className="knopf knopf--klein" onClick={laengeBearbeiten}>
                   {t.teil_laenge_mm ? laengeText(t.teil_laenge_mm) + (t.teil_mass_bestaetigt ? "" : " · prüfen") : "eintragen"}</button>
               : <b>{t.teil_laenge_mm ? laengeText(t.teil_laenge_mm) : "—"}</b>}</span>}
+          {/* Index aus der WBG des jüngsten Auftrags (seit 1.829.0, Wunsch
+              Patrick 25. November 2026): gleiche HOCO Nr., anderer Index ist
+              nicht dasselbe Teil */}
+          {(() => {
+            const vomFa = (faListe.find((x) => x.wbg_index && x.wbg_index !== "?") || {}).wbg_index;
+            const idx = (t.index_nr || "").trim() || (vomFa && vomFa !== "-" ? vomFa : "");
+            const alle = [...new Set(faListe.map((x) => x.wbg_index).filter((x) => x && x !== "?" && x !== "-"))];
+            if (alt.istExtern()) return null;
+            return <span className="hocoteil__angabe" id="hoco-index" data-hocoindex={idx}>
+              <small>Index</small>
+              {darf
+                ? <button className="knopf knopf--klein" id="hoco-index-knopf" onClick={() => indexStamm(idx)}>{idx || "eintragen"}</button>
+                : <b>{idx}</b>}
+              {alle.length > 1 && <small> früher: {alle.filter((x) => x !== idx).join(", ")}</small>}</span>;
+          })()}
           <span className="hocoteil__angabe"><small>Maschinentypen</small><b>{typenGenutzt.length}</b></span>
           <span className="hocoteil__angabe"><small>FA Nummern</small><b>{faListe.length}</b></span>
         </div>
@@ -212,6 +255,12 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
           <tr key={x.id}>
             <td><strong>{x.fa_nr}</strong></td>
             <td className="klein">{x.planned_from ? alt.kurzDatum(x.planned_from) : ""}</td>
+            <td className="klein" data-faindex={x.wbg_index || ""}>{(() => {
+              const fi = x.wbg_index && x.wbg_index !== "?" && x.wbg_index !== "-" ? x.wbg_index : "";
+              return darf
+                ? <button className="knopf knopf--klein" data-faindex-knopf={x.id} onClick={() => indexFa(x)}>{fi ? "Index " + fi : "Index eintragen"}</button>
+                : (fi ? "Index " + fi : "");
+            })()}</td>
             {/* Die Anhänge des Auftrags: das Warenbegleitblatt gehört zum
                 Durchlauf, ist also je FA Nr. ein anderes. Die Zeichnung
                 steht hier nicht mehr, sie gilt für die ganze HOCO Nr. und

@@ -12,13 +12,20 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { STIL, briefkopf } from "../seiten/qs/achtdBlatt.js";
 import { alt } from "../bruecke.jsx";
+import { masseInQsOeffnen } from "../seiten/qs/qsSprung.js";
 import {
   ARTEN, AQL_WERTE, stammMitMassen, stammSpeichern, excelMasse, zeilenId, toleranz, toleranzText, fehltTabelle, lehrenAus,
 } from "../daten/pruefbericht.js";
 
 const KOPF = [["bezeichnung", "Artikel"], ["zeichnung", "Zeichnung"], ["index", "Index"], ["alltol", "Allg. Toleranz"]];
 
-export default function Pruefung({ hoco, darf }) {
+// modus "stamm" (Stammdaten der HOCO Nr.): nur die Häkchen, welche Prüfungen
+// nötig sind, und AQL. modus "qs" (QS → Prüfberichte): die Prüfmasse mit
+// Kopf, Blatt und Excel. Seit 1.837.0, Wunsch Patrick 25. November 2026:
+// „prüfbericht soll im qs selber bearbeitet werden nicht stammdaten, dort
+// soll dan nur hacken gestzet werden was notwenig ist“.
+export default function Pruefung({ hoco, darf, modus = "stamm", zurueck }) {
+  const qs = modus === "qs";
   const [st, setSt] = useState(null);      // gespeicherter bzw. geladener Stand
   const [w, setW] = useState(null);        // Arbeitsstand
   const [fehler, setFehler] = useState("");
@@ -39,8 +46,8 @@ export default function Pruefung({ hoco, darf }) {
   if (fehler) return <section className="karte hocoteil__karte"><div className="karte__kopf"><h2>Prüfung</h2></div><p className="hinweis">{fehler}</p></section>;
   if (!w) return <section className="karte hocoteil__karte"><div className="karte__kopf"><h2>Prüfung</h2></div><p className="klein">Wird geladen …</p></section>;
 
-  const geaendert = JSON.stringify(w) !== JSON.stringify({ arten: st.arten || [], aql: st.aql ?? "", niveau: st.niveau || "", zeilen: st.zeilen || [], kopf: st.kopf || {} })
-    || st.aus === "excel";
+  const vergl = (x) => (qs ? { zeilen: x.zeilen || [], kopf: x.kopf || {} } : { arten: x.arten || [], aql: x.aql ?? "", niveau: x.niveau || "" });
+  const geaendert = JSON.stringify(vergl(w)) !== JSON.stringify(vergl(st)) || (qs && st.aus === "excel");
   const artUm = (id) => setW((x) => ({ ...x, arten: x.arten.includes(id) ? x.arten.filter((a) => a !== id) : ARTEN.map((a) => a.id).filter((a) => a === id || x.arten.includes(a)) }));
   const zeileSetzen = (id, n, v) => setW((x) => ({ ...x, zeilen: x.zeilen.map((z) => (z.id === id ? { ...z, [n]: v } : z)) }));
   const zeileWeg = (id) => setW((x) => ({ ...x, zeilen: x.zeilen.filter((z) => z.id !== id) }));
@@ -83,21 +90,39 @@ export default function Pruefung({ hoco, darf }) {
   const speichern = async () => {
     setLaeuft(true);
     try {
-      const felder = { arten: w.arten, aql: w.aql === "" ? null : Number(w.aql), niveau: w.niveau || null, zeilen: w.zeilen, kopf: w.kopf };
+      // jede Ansicht schreibt nur ihren Teil, damit sie sich nicht überschreiben
+      const felder = qs ? { zeilen: w.zeilen, kopf: w.kopf }
+        : { arten: w.arten, aql: w.aql === "" ? null : Number(w.aql), niveau: w.niveau || null };
       await stammSpeichern(hoco, felder);
       alt.meldung("Prüfung gespeichert", "gut");
       setSt({ ...st, ...felder, aus: "stamm" });
-      setW({ ...w, aql: felder.aql ?? "", niveau: felder.niveau || "" });
+      if (!qs) setW({ ...w, aql: felder.aql ?? "", niveau: felder.niveau || "" });
     } catch (f) { alt.meldung(fehltTabelle(f) ? "sql/pruef-stamm.sql fehlt noch." : alt.fehlertext(f), "fehler"); }
     finally { setLaeuft(false); }
   };
 
   const lehren = lehrenAus({ zeilen: w.zeilen });
-  return (
+  const anzahl = w.zeilen.filter((z) => !z.abschnitt).length;
+  const knoepfeUnten = (mitExcel) => schreibt ? (
+    <div className="pst-knoepfe">
+      {mitExcel ? <>
+        <button type="button" className="knopf knopf--klein" id="pst-excel" disabled={laeuft} onClick={() => datei.current && datei.current.click()}>📥 Excel-Prüfbericht einlesen</button>
+        <input ref={datei} type="file" multiple accept=".xlsx,.xlsm,.xls" hidden id="pst-excel-datei" data-ablegen="direkt"
+          onChange={(e) => { const l = [...e.target.files]; e.target.value = ""; excelEinlesen(l); }} />
+      </> : null}
+      <span className="pst-platz" />
+      {geaendert ? <span className="klein pb-rot">Noch nicht gespeichert</span> : null}
+      <button type="button" className="knopf knopf--haupt" id="pst-speichern" disabled={laeuft || !geaendert} onClick={speichern}>Speichern</button>
+    </div>
+  ) : null;
+
+  // Stammdaten (seit 1.837.0, Wunsch Patrick 25. November 2026: „prüfbericht
+  // soll im qs selber bearbeitet werden nicht stammdaten, dort soll dan nur
+  // hacken gesetzt werden was notwendig ist“): nur die Arten, AQL und Niveau
+  if (!qs) return (
     <section className="karte hocoteil__karte pst" id="pst">
       <div className="karte__kopf"><h2>Prüfung</h2>
-        <span className="klein">{w.zeilen.filter((z) => !z.abschnitt).length} Masse · gilt für die Prüfprotokolle unter Qualitätssicherung</span></div>
-
+        <span className="klein">was bei jedem Auftrag geprüft werden muss</span></div>
       <div className="pst-arten">
         <b>Nötig bei jedem Auftrag:</b>
         {ARTEN.map((a) => (
@@ -114,6 +139,20 @@ export default function Pruefung({ hoco, darf }) {
             <option value="">II (Vorgabe)</option><option>I</option><option>II</option><option>III</option></select></label>
         </div>
       ) : null}
+      <div className="pst-blattknopf">
+        <span className="klein">{anzahl ? anzahl + " Prüfmasse hinterlegt." : "Noch keine Prüfmasse."} Bearbeitet werden sie unter Qualitätssicherung → Prüfberichte.</span>
+        <button type="button" className="knopf knopf--klein" id="pst-zu-qs" onClick={() => masseInQsOeffnen(hoco)}>Prüfmasse in der QS öffnen</button>
+      </div>
+      {knoepfeUnten(false)}
+    </section>
+  );
+
+  return (
+    <section className="karte pst" id="pst">
+      <div className="karte__kopf">
+        {zurueck ? <button type="button" className="knopf knopf--klein" id="pst-zurueck" onClick={zurueck}>← Prüfberichte</button> : null}
+        <h2>Prüfmasse {hoco}</h2>
+        <span className="klein">{anzahl} Masse · gilt für alle Prüfprotokolle dieser HOCO Nr.</span></div>
 
       <div className="pst-zeile">
         {KOPF.map(([n, t]) => (
@@ -124,24 +163,14 @@ export default function Pruefung({ hoco, darf }) {
       {st.aus === "excel" ? <p className="hinweis">Diese Masse kommen aus einem früher abgelegten Excel. Bitte prüfen und speichern, danach gilt nur noch, was hier steht.</p> : null}
       <div className="pst-blattknopf">
         <button type="button" className="knopf knopf--haupt" id="pst-blatt-auf" onClick={() => setBlatt(true)}>📄 Masse-Blatt öffnen</button>
-        <span className="klein">{w.zeilen.filter((z) => !z.abschnitt).length
-          ? w.zeilen.filter((z) => !z.abschnitt).length + " Masse" + (w.zeilen.some((z) => z.abschnitt) ? " in " + w.zeilen.filter((z) => z.abschnitt).length + " Abschnitten" : "")
+        <span className="klein">{anzahl
+          ? anzahl + " Masse" + (w.zeilen.some((z) => z.abschnitt) ? " in " + w.zeilen.filter((z) => z.abschnitt).length + " Abschnitten" : "")
           : "Noch keine Masse. Öffne das Blatt oder lies einen Excel-Prüfbericht ein."}</span>
       </div>
       {blatt ? createPortal(<MasseBlatt w={w} hoco={hoco} schreibt={schreibt} zeileSetzen={zeileSetzen} zeileWeg={zeileWeg} zeilenLeeren={zeilenLeeren} zeilenWeg={zeilenWeg} zeileDazu={zeileDazu}
         schieben={schieben} neuFokus={neuFokus} geaendert={geaendert} laeuft={laeuft} speichern={speichern} zu={() => setBlatt(false)} />, document.body) : null}
       {lehren.lehren.length ? <p className="klein">Benötigte Lehren: {lehren.lehren.map((l) => l.name + " " + l.mass).join(" · ")}</p> : null}
-
-      {schreibt ? (
-        <div className="pst-knoepfe">
-          <button type="button" className="knopf knopf--klein" id="pst-excel" disabled={laeuft} onClick={() => datei.current && datei.current.click()}>📥 Excel-Prüfbericht einlesen</button>
-          <input ref={datei} type="file" multiple accept=".xlsx,.xlsm,.xls" hidden id="pst-excel-datei" data-ablegen="direkt"
-            onChange={(e) => { const l = [...e.target.files]; e.target.value = ""; excelEinlesen(l); }} />
-          <span className="pst-platz" />
-          {geaendert ? <span className="klein pb-rot">Noch nicht gespeichert</span> : null}
-          <button type="button" className="knopf knopf--haupt" id="pst-speichern" disabled={laeuft || !geaendert} onClick={speichern}>Speichern</button>
-        </div>
-      ) : null}
+      {knoepfeUnten(true)}
     </section>
   );
 }

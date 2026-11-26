@@ -32,19 +32,21 @@ const paar = (i, l, r) => ({
 const IH = 190, IO = 40, IU = IO + IH + LADER, IV = LADER_B + 14;
 export const LAGE = {
   309: { art: "index", x: 40, y: IO + LADER, lader: "oben" },
-  308: { art: "index", x: 210, y: IO, lader: "unten" },
-  307: { art: "index", x: 210 + IV, y: IU, lader: "oben" },
-  305: { art: "index", x: 420, y: IO, lader: "unten" },
-  306: { art: "index", x: 420 + IV, y: IU, lader: "oben" },
+  // Seit 1.841.1 enger zusammen (Patrick 25. November 2026: „index alle etwas näher zusammen“)
+  308: { art: "index", x: 175, y: IO, lader: "unten" },
+  307: { art: "index", x: 175 + IV, y: IU, lader: "oben" },
+  305: { art: "index", x: 350, y: IO, lader: "unten" },
+  306: { art: "index", x: 350 + IV, y: IU, lader: "oben" },
   // Hanwha gekreuzt wie die Index (Patrick 25. November 2026)
-  201: { art: "hanwha", x: 640, y: 30, lader: "unten" },
-  202: { art: "hanwha", x: 640 + LADER_B + 14, y: 30 + 150 + LADER, lader: "oben" },
+  // seit 1.841.1 fast direkt neben den Index, 201 und 202 weiter auseinander
+  201: { art: "hanwha", x: 520, y: 30, lader: "unten" },
+  202: { art: "hanwha", x: 520 + LADER_B + 44, y: 30 + 150 + LADER, lader: "oben" },
   ...paar(0, 121, 130), ...paar(1, 128, 129), ...paar(2, 127, 126),
   ...paar(3, 122, 123), ...paar(4, 111, 124), ...paar(5, 120, 125),
   ...paar(6, 119, 116), ...paar(7, 115, 113), ...paar(8, 114, 117),
   401: { art: "macodel", x: SX, y: ZEILE(8) + 122, lader: "rechts" },
 };
-const B = SR + SW + 40, DY = 110, HALLE = 1180 + DY, H = HALLE + 60;
+const DX = 110, B = SR + SW + 40 + DX, DY = 110, HALLE = 1180 + DY, H = HALLE + 60;
 
 // Maschinen ohne Eintrag in der Datenbank (Patrick 25. November 2026: „oben
 // links soll noch Takamaz hin als kleines Viereck“, „an oberer Wand sind noch
@@ -54,12 +56,15 @@ const B = SR + SW + 40, DY = 110, HALLE = 1180 + DY, H = HALLE + 60;
 // so gross wie eine Star („breite etwa wie Maschine CNC wie Star“).
 export const EXTRA = [
   { id: "x:takamaz", name: "Takamaz", such: /takamaz/i, x: 22, y: 22, w: 64, h: 64 },
-  { id: "x:gdw", name: "GDW", such: /gdw/i, x: 110, y: 22, w: SW, h: 64 },
-  { id: "x:fehlmann", name: "Fräse Fehlmann", such: /fehlmann/i, x: B - 360, y: 22, w: SW, h: 64 },
+  { id: "x:gdw", name: "GDW", such: /gdw/i, x: B - 360 - (SW + 16), y: 22, w: SW, h: 64 },
+  { id: "x:fehlmann", name: "Fehlmann", such: /fehlmann/i, x: B - 360, y: 22, w: SW, h: 64 },
   { id: "x:fraese", name: "Fräse", such: /fr(ä|ae)se/i, ohne: /fehlmann/i, x: B - 190, y: 22, w: SW, h: 64 },
 ];
-// Werkbänke: nur zur Orientierung, ohne Prüfmittel und nicht anwählbar
-const BAENKE = [{ x: 290, y: 22 }, { x: 460, y: 22 }];
+// Werkbänke mit je einer Schäublin: nur zur Orientierung, ohne Prüfmittel und
+// nicht anwählbar; seit 1.821.1 rechts, seit 1.839.1 links neben der GDW,
+// die direkt links neben Fehlmann steht
+// (Patrick 25. November 2026: „ganz nach rechts geschoben an Fehlmann“)
+const BAENKE = [{ x: B - 360 - 3 * (SW + 16), y: 22 }, { x: B - 360 - 2 * (SW + 16), y: 22 }];
 export function extraVon(p) {
   const t = [p.notiz, p.ort_text, p.bezeichnung].filter(Boolean).join(" ");
   const e = EXTRA.find((x) => x.such.test(t) && !(x.ohne && x.ohne.test(t)));
@@ -76,12 +81,14 @@ export default function Halle({ maschinen, zahl, faellig, gewaehlt, waehlen }) {
         <rect x="0" y="0" width={B} height={HALLE} fill="url(#hl-boden)" />
         <rect x="6" y="6" width={B - 12} height={HALLE - 12} fill="none" stroke="#6b7076" strokeWidth="12" />
         {BAENKE.map((b, i) => <g key={"bank" + i} className="hl-bank">
-          <rect x={b.x} y={b.y} width={SW} height={44} rx="3" fill="#b98a58" stroke="#7a5532" strokeWidth="2" />
-          <text x={b.x + SW / 2} y={b.y + 28} textAnchor="middle" className="hl-typ" fill="#3d2a17">Werkbank</text>
+          <rect x={b.x} y={b.y} width={SW} height={64} rx="3" fill="#b98a58" stroke="#7a5532" strokeWidth="2" />
+          <rect x={b.x + 22} y={b.y + 8} width={SW - 44} height={30} rx="4" fill="url(#hl-blech)" stroke="#8d949b" strokeWidth="1.5" />
+          <text x={b.x + SW / 2} y={b.y + 28} textAnchor="middle" className="hl-typ">Schäublin</text>
+          <text x={b.x + SW / 2} y={b.y + 56} textAnchor="middle" className="hl-typ" fill="#3d2a17">Werkbank</text>
         </g>)}
         {EXTRA.map((e) => <Extra key={e.id} e={e} n={zahl.get(e.id) || 0} warn={faellig.has(e.id)}
           an={gewaehlt === e.id} waehlen={waehlen} />)}
-        <g transform={`translate(0 ${DY})`}>
+        <g transform={`translate(${DX} ${DY})`}>
         {Object.entries(LAGE).map(([nr, l]) => {
           const m = nachNr.get(nr);
           return <Maschine key={nr} nr={nr} l={l} m={m} n={m ? zahl.get(m.id) || 0 : 0}

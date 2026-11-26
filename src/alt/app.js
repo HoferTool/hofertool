@@ -70,6 +70,7 @@ import Material from "../seiten/Material.jsx";
 import Qs, { qsZustand } from "../seiten/Qs.jsx";
 import { sicherungWaechter } from "../teile/sicherung.js";
 import { einlesenWaechter } from "../einrichtblatt/vorlesen.js";
+import { wbgIndexWaechter } from "../daten/wbgIndex.js";
 import { drehungWaechter } from "../daten/zeichnungDrehen.js";
 import { planArchivWaechter } from "../teile/planwandArchiv.js";
 import { ebPdfWaechter } from "../teile/ebPdf.js";
@@ -178,7 +179,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.815.0";
+const APP_VERSION = "1.859.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -232,6 +233,15 @@ function escapeZurueck() {
     if (!ARCHIV && profil && istModulTab()) {
       e.preventDefault();
       modulTabVerlassenFragen();
+      return;
+    }
+    // Qualitätssicherung (seit 1.839.1, Wunsch Patrick 25. November 2026:
+    // „wenn ich Esc drücke, springt es zu Ausschuss, soll beim Reiter
+    // bleiben“): Escape schliesst nur eine offene Ansicht im Reiter
+    // (Protokoll, Vorlage …, Knopf mit data-esc-zurueck), der Reiter bleibt.
+    if (wo === "qs") {
+      const z = document.querySelector("#inhalt [data-esc-zurueck]");
+      if (z) { e.preventDefault(); z.click(); }
       return;
     }
     if (wo === "bestellungen" && best.ansicht && best.ansicht !== "offen") {
@@ -306,6 +316,15 @@ function fensterZumachen(el) {
     + " .dialog__knoepfe .knopf--still");
   if (knopf) knopf.click();
   else el.remove();
+}
+
+// Holt die Fensterleiste ein Fenster nach vorne, schliesst Escape danach
+// genau dieses zuerst (src/teile/fensterVerwalter.js)
+function fensterStapelVorne(el) {
+  const i = fensterStapel.indexOf(el);
+  if (i === -1 || i === fensterStapel.length - 1) return;
+  fensterStapel.splice(i, 1);
+  fensterStapel.push(el);
 }
 
 function oberstesFensterSchliessen() {
@@ -3257,7 +3276,9 @@ function neuerLookSehen(u) {
   // Im Prüfstand nur mit Vermerk oder TEST.neuesMenue: die älteren Tests
   // bedienen noch das alte Menü (Bestellungen, Rechner … als eigene Punkte).
   if (window.TEST && !window.TEST.neuesMenue) return false;
-  return !istAndererNutzer(u);
+  // Seit 1.819.0 auch Gerätekonten („Andere Nutzer“ wie Planwand), Wunsch
+  // Patrick 25. November 2026: „sollen das gleiche Layout bekommen“
+  return true;
 }
 // Seit 1.786.0 sehen alle Admins alles (Wunsch Patrick 24. November 2026:
 // „alle admins alles sehen, ausser zahlen spiel“): Empfang, Kalkulation,
@@ -4827,7 +4848,7 @@ async function farbzuteilungLaden() {
   // Tägliche Sicherung, wenn dieses Gerät das Sicherungsgerät ist (src/teile/sicherung.js)
   // und tägliche Planwand-Datei zum Nachschauen (src/teile/planwandArchiv.js);
   // beides nicht in einer Backup-Datei
-  if (!ARCHIV) { sicherungWaechter(); planArchivWaechter(); einlesenWaechter(); ebPdfWaechter(); qmsPdfWaechter(); zeitExportWaechter(); kreditorenWaechter(); drehungWaechter(); }
+  if (!ARCHIV) { sicherungWaechter(); planArchivWaechter(); einlesenWaechter(); wbgIndexWaechter(); ebPdfWaechter(); qmsPdfWaechter(); zeitExportWaechter(); kreditorenWaechter(); drehungWaechter(); }
   // Abgelaufenes in den Temp-Ordnern aller wegräumen, höchstens stündlich je Gerät
   if (!ARCHIV && !istExtern()) tempAufraeumenRegelmaessig();
 }
@@ -6280,10 +6301,27 @@ function balkenKlick(auftrag, b) {
     // Der Doppelklick markiert sonst Text auf dem Balken
     const auswahl = window.getSelection && window.getSelection();
     if (auswahl) auswahl.removeAllRanges();
+    geisterKlickSchlucken();
     planAuftragDialog(auftrag, b);
     return;
   }
   plan.klickWarten = { id: auftrag.id, am: Date.now() };
+}
+
+// Das Fenster geht schon beim Loslassen auf (pointerup). Der Browser
+// schickt danach noch einen Klick an dieselbe Stelle, der sonst im eben
+// geöffneten Fenster landet, etwa auf „Problem“ (seit 1.824.0 sitzt der
+// Knopf dort am Tablet quer, Prüfstand doppelklick). Den schlucken wir.
+function geisterKlickSchlucken() {
+  const bis = Date.now() + 700;
+  const weg = (e) => {
+    window.removeEventListener("click", weg, true);
+    if (Date.now() > bis) return;
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  window.addEventListener("click", weg, true);
+  setTimeout(() => window.removeEventListener("click", weg, true), 800);
 }
 
 // Der zuletzt angeklickte Balken bleibt markiert, auch nach dem
@@ -11222,9 +11260,9 @@ const neuerLook = () => document.documentElement.classList.contains("neues-menue
 
 // Was die neu gebauten React-Seiten vom alten Programm brauchen
 Object.assign(alt, {
-  LOGO_BRIEF, SIEGEL_BRIEF,
+  LOGO_BRIEF, SIEGEL_BRIEF, fensterStapelVorne,
   camSehen, SYM, neuerLook,
-  meineProfilId, parkIstExtern, padParkVerborgen, leerlaufAktiv,
+  meineProfilId, meinName: () => (profil ? personName(profil, "") : ""), meineMail: () => (profil && profil.email) || "", parkIstExtern, padParkVerborgen, leerlaufAktiv,
   zeitlimit, meldung, nachfragen, fehlertext, fehlerMerken, dialogFelder, auswahlDialog,
   merkeSchritt, rueckWeg, rueckRein, rueckSetz, rueckStand, rueckSichern, rueckLeeren, personName, zielPersonFinden, darfSchreiben,
   reiterUebergang,

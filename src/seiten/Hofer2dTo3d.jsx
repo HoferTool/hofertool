@@ -14,6 +14,7 @@
 //  Toleranzen sind im Modell immer auf Mitte Toleranz konstruiert
 //  (Patrick). Nicht für Externe und Dienst.
 // =================================================================
+import { teilMerken } from "../teile/wiederherstellen.js";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { alt, useDaten, useGemerkt } from "../bruecke.jsx";
 import { PdfAnsicht } from "../teile/PdfAnsicht.jsx";
@@ -24,6 +25,8 @@ import { kannOrdner, idbTun, ordnerErlaubt } from "../teile/sicherung.js";
 const Step3D = lazy(() => import("./hofer2dto3d/Step3D.jsx"));
 
 const gemerkt = { suche: "", offen: null };
+// Nach dem Neuladen wieder im selben Reiter und Unterreiter (Wunsch Patrick 25. November 2026)
+teilMerken("hofer2dto3d", () => ({ ...gemerkt }), (z) => { Object.assign(gemerkt, z); });
 
 async function laden() {
   const r = await alt.zeitlimit(alt.db.from("zeichnung_3d").select("*")

@@ -27,12 +27,13 @@ import { auftragSpeichern, auftragLoeschen } from "./auftragSpeichern.js";
 import { materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { wiederOeffner } from "../teile/wiederherstellen.js";
-import { useWaschprog } from "../daten/waschprog.js";
+import { useWaschprog, useWbgIndex } from "../daten/waschprog.js";
 import { matInfo, MAT_INFO_ERKLAERUNG, materialImHaus, materialAbhoeren } from "../daten/material.js";
 import { ImHausEinblendung } from "./MaterialImHaus.jsx";
 import { mahnBilder } from "../daten/mahnbilder.js";
 import { inEigenesFenster, eigeneFensterZu } from "../teile/eigenesFenster.js";
 import { vorbereitenOeffnen } from "./Vorbereiten.jsx";
+import { stueckzahlKorrigierenOeffnen } from "./StueckzahlKorrigieren.jsx";
 import { problemArchivOeffnen, fruehereProblemeZahl } from "./ProblemArchiv.jsx";
 import { blattInProduktionBearbeiten } from "../einrichtblatt/Blatt.jsx";
 import { qsOeffnen } from "./QsMassnahmen.jsx";
@@ -291,6 +292,22 @@ function anfangswerte(auftrag, v, vorgabeMaschine, vorgabeDatum, leer) {
 // werden eingebettet. Die Fläche bleibt bedienbar (blättern, rollen);
 // zum Vergrössern gibt es den Knopf in der Ecke.
 function Vorschau({ adresse, titel }) {
+  // Das PDF im Vorschaubild holt sich beim Laden den Fokus (Chromium), dann
+  // erreicht Escape die App nicht mehr und das Fenster bleibt offen
+  // (Prüfstand waschprog). Kurz nach dem Öffnen geben wir ihn zurück.
+  const rahmen = useRef(null);
+  useEffect(() => {
+    const ende = Date.now() + 2500;
+    const zurueck = () => {
+      const f = rahmen.current;
+      if (!f || document.activeElement !== f) return;
+      f.blur();
+      const d = f.closest(".dialog");
+      if (d) { if (!d.hasAttribute("tabindex")) d.setAttribute("tabindex", "-1"); d.focus({ preventScroll: true }); }
+    };
+    const t = setInterval(() => { zurueck(); if (Date.now() > ende) clearInterval(t); }, 100);
+    return () => clearInterval(t);
+  }, [adresse]);
   if (!adresse) {
     return <div className="auf-vorschau" id="pl-vorschau">
       <span className="auf-vorschau__leer">Keine Zeichnung hinterlegt</span></div>;
@@ -300,7 +317,7 @@ function Vorschau({ adresse, titel }) {
     <div className="auf-vorschau auf-vorschau--da" id="pl-vorschau">
       {bild
         ? <img src={adresse} alt="Zeichnung" />
-        : <iframe src={adresse + "#navpanes=0&view=Fit"} title="Zeichnung" loading="lazy" />}
+        : <iframe ref={rahmen} src={adresse + "#navpanes=0&view=Fit"} title="Zeichnung" loading="lazy" />}
       <button type="button" className="auf-vorschau__gross" title="Gross ansehen"
         onClick={() => alt.betrachter(adresse, titel, !bild)}>⤢</button>
     </div>
@@ -400,6 +417,25 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   const anfang = useRef(w);
   const setze = (feld, wert) => setW((x) => ({ ...x, [feld]: wert }));
   const waschprog = useWaschprog(typeof w.wbg === "string" ? w.wbg : "");
+  // Index aus der WBG (Wunsch Patrick 25. November 2026), nicht für Externe
+  const wbgIndex = useWbgIndex(extern || typeof w.wbg !== "string" ? "" : w.wbg,
+    !extern && auftrag && w.wbg === auftrag.wbg_url ? auftrag.wbg_index : null);
+  // Von Hand eingetragen (seit 1.841.0, Wunsch Patrick 25. November 2026:
+  // „wenn keiner da ist, soll es leer sein und man gibt ihn an“)
+  const [idxHand, setIdxHand] = useState(null);
+  const idxJetzt = idxHand !== null ? idxHand : (wbgIndex && wbgIndex !== "-" && wbgIndex !== "?" ? wbgIndex : "");
+  const indexEintragen = async () => {
+    const e = await alt.dialogFelder({ titel: "Index " + (auftrag.job_number || ""),
+      felder: [{ name: "idx", label: "Index (leer = noch keiner)", wert: idxJetzt }], bestaetigen: "Speichern" });
+    if (!e) return;
+    const neuIdx = String(e.idx || "").trim();
+    const u = await alt.db.from("jobs").update({ wbg_index: neuIdx || "-" }).eq("id", auftrag.id);
+    if (u.error) { alt.meldung("Index nicht gespeichert: " + u.error.message, "fehler"); return; }
+    alt.merkeSchritt("Index " + (auftrag.job_number || ""), [alt.rueckSetz("jobs", { wbg_index: auftrag.wbg_index || null }, { id: auftrag.id })]);
+    auftrag.wbg_index = neuIdx || "-";
+    setIdxHand(neuIdx);
+    alt.meldung("Index gespeichert.", "gut");
+  };
   const aktuell = useRef(w);
   aktuell.current = w;
   const tageVonHand = useRef(false);
@@ -743,6 +779,11 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
           {/* QS-Massnahmen aus Reklamationen und nötige Prüfmittel (seit 1.790.0) */}
           {auftrag && !extern && <button type="button" className="knopf knopf--klein knopf--vorbereiten" id="pl-qs"
             onClick={() => qsOeffnen(auftrag)}>QS</button>}
+          {/* Gemeldete Stückzahlen ändern oder auf 0 setzen (seit 1.824.0,
+              Wunsch Patrick 25. November 2026), Schreibrecht, nicht Externe */}
+          {auftrag && !extern && alt.darfSchreiben() && <button type="button" className="knopf knopf--klein knopf--vorbereiten"
+            id="pl-stueckzahl" title="Gemeldete Stückzahlen ändern oder zurücksetzen"
+            onClick={() => stueckzahlKorrigierenOeffnen(auftrag, b)}>Stückzahl</button>}
           {!extern && eigenesFensterMoeglich() && <button type="button" className="dialog__schliessen-inline auf-kopf__eigen"
             id="pl-eigen" title="In eigenem Fenster öffnen, zum Verschieben auf einen anderen Bildschirm"
             aria-label="In eigenem Fenster öffnen"
@@ -961,7 +1002,11 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                 {/* Die Zeile „Waschprog-Nr.“ der WBG, aus der PDF gelesen
                     (Wunsch Patrick, 12. Oktober 2026) */}
                 {waschprog && <span className="auf-waschprog" id="pl-waschprog">
-                  Waschprog-Nr.: <b>{waschprog}</b></span>}</div></div>
+                  Waschprog-Nr.: <b>{waschprog}</b></span>}
+                {auftrag && !extern && <span className="auf-waschprog" id="pl-wbgindex" data-index={idxJetzt}>
+                  Index: {alt.darfSchreiben()
+                    ? <button type="button" className="knopf knopf--klein" id="pl-index-knopf" onClick={indexEintragen}>{idxJetzt || "eintragen"}</button>
+                    : <b>{idxJetzt}</b>}</span>}</div></div>
 
             {/* Den Knopf Spezialwerkzeuge gibt es seit 1.443.0 nicht mehr (Wunsch
                 Patrick 6. November 2026: „wird ja mit Stern gekennzeichnet“) */}

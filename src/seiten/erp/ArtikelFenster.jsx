@@ -5,9 +5,9 @@
 // darunter Reiter, unten die Knöpfe. Alles wird direkt im Fenster geändert
 // und mit „Speichern“ übernommen, auch die Preisliste aus der Kalkulation
 // (Herkunft bleibt sichtbar, von Hand geändert mit Vermerk).
-// Zeichnung und 3D-Modell kommen mit dem Dokumentenmanagement (Patrick:
+// Zeichnung kommt aus der HOCO Nr. (hoco_parts.zeichnung_url), das 3D-Modell mit dem Dokumentenmanagement (Patrick:
 // „noch nicht holen, wir brauchen dann ein Dokumentenmanagement“).
-import { useState } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { briefBlatt } from "../../teile/briefkopf.js";
@@ -75,7 +75,7 @@ function formAus(a, art, was) {
     einheit: (a && a.einheit) || (art === "rohmaterial" ? "kg" : "Stk"), preis: a && a.preis != null ? String(a.preis) : "",
     aktiv: a ? a.aktiv !== false : true,
     kunden_nr: ad.kunden_nr || "", rohmaterial_id: ad.rohmaterial_id || "", material: ad.material || "",
-    materialbedarf: ad.materialbedarf != null ? String(ad.materialbedarf) : "", lieferant_id: ad.lieferant_id || "", lieferant_nr: ad.lieferant_nr || "", text: ad.text || "", notiz: ad.notiz || "",
+    materialbedarf: ad.materialbedarf != null ? String(ad.materialbedarf) : "", lieferant_id: ad.lieferant_id || "", lieferant_nr: ad.lieferant_nr || "", text: ad.text || "", notiz: ad.notiz || "", notiz_bilder: ad.notiz_bilder || [], modell: ad.modell || null,
     pe: String(pl.pe), staffeln: pl.staffeln.map((x) => ({ ab: String(x.ab), preis: String(x.preis) })),
     arbeitsplan: ((a && a.arbeitsplan) || []).map((x) => ({ ...x, _k: agKey() })),
   };
@@ -114,7 +114,7 @@ function ArtikelFenster({ start, aussen, a0, was, zu }) {
       throw new Error("Diesen Artikel gibt es schon.");
     }
     const basisDaten = hofer && a ? indexVerlauf(a, w.idx.trim(), "") : { ...((a0 && a0.daten) || {}) };
-    const daten = { ...basisDaten, kunden_nr: w.kunden_nr, text: w.text, notiz: w.notiz };
+    const daten = { ...basisDaten, kunden_nr: w.kunden_nr, text: w.text, notiz: w.notiz, notiz_bilder: w.notiz_bilder || [], modell: w.modell || null };
     if (hofer) {
       daten.rohmaterial_id = w.rohmaterial_id || null;
       daten.material = w.material;
@@ -203,7 +203,7 @@ function ArtikelFenster({ start, aussen, a0, was, zu }) {
     ["lager", "Lager"], ["bewegungen", "Bewegungen"], ["belege", "Belege"], ["dokumente", "Dokumente"]];
 
   return (
-    <GFenster titel={titel} kopf={kopf} bild={<BildFlaeche text={hofer ? "Zeichnung" : "Bild"} />} reiter={reiterListe}
+    <GFenster titel={titel} kopf={kopf} bild={hofer && a && a.nr ? <ZeichnungVorschau nr={a.nr} titel={titel} /> : <BildFlaeche text={hofer ? "Zeichnung" : "Bild"} />} reiter={reiterListe}
       aktiv={reiter} setAktiv={setReiter} fuss={fuss} zu={schliessen} klasse="erp-artfenster"
       attr={{ "data-erp-artfenster": id ? a.nr : "neu" }}>
       {reiter === "artikel" && <div className="gf-spalten">
@@ -221,7 +221,7 @@ function ArtikelFenster({ start, aussen, a0, was, zu }) {
           <KF label="Text" name="text" typ="textarea" wert={w.text} setzen={set("text")} platzhalter="Text für Belege" breit />
         </div>
         <div>
-          <KF label="Notiz" name="notiz" typ="textarea" zeilen={8} wert={w.notiz} setzen={set("notiz")} breit />
+          <NotizMitBildern w={w} setW={setW} set={set} />
           {a && <p className="klein">Zuletzt geändert {a.geaendert_am ? datumText(a.geaendert_am.slice(0, 10)) : "–"}
             {pl.kalkulation_nr ? " · aus Kalkulation " + pl.kalkulation_nr : ""}</p>}
           {hofer && a && (a.daten?.indexe || []).length > 0 && <Gruppe titel="Frühere Indexe">
@@ -241,14 +241,176 @@ function ArtikelFenster({ start, aussen, a0, was, zu }) {
 
       {reiter === "dokumente" && <div className="erp-artfenster__rechts gf-doku">
         <div className="erp-art-zeichnung" data-erp-art-zeichnung="">
-          <div className="h3d-hinweis"><b>Zeichnung</b><br />Kommt mit dem Dokumentenmanagement.</div>
+          {hofer && a && a.nr ? <ZeichnungVorschau nr={a.nr} titel={titel} gross />
+            : <div className="h3d-hinweis"><b>Zeichnung</b><br />Keine Zeichnung hinterlegt.</div>}
         </div>
         <div className="erp-art-modell" data-erp-art-modell="">
-          <div className="h3d-hinweis"><b>3D-Modell</b><br />Wird hier gezeigt, wenn eines vorhanden ist.</div>
+          <ModellFeld nr={hofer && a ? a.nr : ""} w={w} setW={setW} titel={titel} />
         </div>
       </div>}
     </GFenster>
   );
+}
+
+// Zeichnung der HOCO Nr. (hoco_parts.zeichnung_url, dieselbe wie auf der
+// Planwand), Wunsch Patrick 25. November 2026: „zeichnung??“
+const istBild = (u) => /\.(png|jpe?g|gif|webp)(\?|$)/i.test(u || "");
+function ZeichnungVorschau({ nr, titel, gross }) {
+  const [url, setUrl] = useState(undefined);
+  useEffect(() => {
+    let weg = false;
+    alt.db.from("hoco_parts").select("zeichnung_url").eq("hoco_nr", nr).maybeSingle()
+      .then(({ data }) => { if (!weg) setUrl((data && data.zeichnung_url) || null); }, () => { if (!weg) setUrl(null); });
+    return () => { weg = true; };
+  }, [nr]);
+  const kl = "erp-zvorschau" + (gross ? " erp-zvorschau--gross" : "");
+  if (url === undefined) return <div className={kl} data-erp-zeichnung=""><span className="klein">Zeichnung wird geladen …</span></div>;
+  if (!url) return <div className={kl} data-erp-zeichnung="leer"><span className="klein">Keine Zeichnung hinterlegt</span></div>;
+  const bild = istBild(url);
+  return (<div className={kl + " erp-zvorschau--da"} data-erp-zeichnung="da">
+    {bild ? <img src={url} alt="Zeichnung" /> : <iframe src={url + "#navpanes=0&toolbar=0&view=Fit"} title="Zeichnung" loading="lazy" />}
+    <button type="button" className="erp-zvorschau__gross" title="Gross ansehen" data-erp-zeichnung-gross=""
+      onClick={() => alt.betrachter(url, "Zeichnung " + (titel || nr), !bild)}>⤢</button>
+  </div>);
+}
+
+// 3D-Modell zum Artikel (Wunsch Patrick 26. November 2026: „also zeichnung
+// und 3d modell“): eigenes Modell in daten.modell {url, pfad, name}, sonst das
+// STEP aus HOFER2DTO3D zur HOCO Nr. (zeichnung_3d.step_url). STEP/STP zeigt
+// Step3D, alle anderen Formate der 3D-Viewer (modellLesen, ModellAnsicht).
+const Step3D = lazy(() => import("../hofer2dto3d/Step3D.jsx"));
+const istStep = (n) => /\.(step|stp)$/i.test(n || "");
+
+function ModellZeigen({ url, name }) {
+  const [m, setM] = useState(null);
+  const [fehler, setFehler] = useState("");
+  const step = istStep(name) || istStep((url || "").split("?")[0]);
+  useEffect(() => {
+    if (step || !url) return;
+    let weg = false;
+    setM(null); setFehler("");
+    (async () => {
+      const [{ modellLesen }, antwort] = await Promise.all([import("../modell3d/Ansicht.jsx"), fetch(url)]);
+      if (!antwort.ok) throw new Error("Datei nicht gefunden");
+      const datei = new File([await antwort.blob()], name || "modell.glb");
+      const mod = await import("../modell3d/Ansicht.jsx");
+      const gelesen = await modellLesen([datei]);
+      if (!weg) setM({ gelesen, Ansicht: mod.default });
+    })().catch((f) => { if (!weg) setFehler(String((f && f.message) || f)); });
+    return () => { weg = true; };
+  }, [url, name, step]);
+  if (step) return <Suspense fallback={<span className="klein">3D wird geladen …</span>}><Step3D url={url} /></Suspense>;
+  if (fehler) return <div className="h3d-hinweis">3D-Modell konnte nicht gelesen werden: {fehler}</div>;
+  if (!m) return <span className="klein">3D-Modell wird geladen …</span>;
+  return <m.Ansicht modell={m.gelesen} />;
+}
+
+function ModellFeld({ nr, w, setW, titel }) {
+  const [ersatz, setErsatz] = useState(null);
+  const [laedt, setLaedt] = useState(false);
+  const eigen = w.modell && w.modell.url ? w.modell : null;
+  useEffect(() => {
+    if (eigen || !nr) { setErsatz(null); return; }
+    let weg = false;
+    alt.db.from("zeichnung_3d").select("step_url, step_name").eq("hoco", nr).not("step_url", "is", null).limit(1)
+      .then(({ data }) => { const z = data && data[0]; if (!weg) setErsatz(z && z.step_url ? { url: z.step_url, name: z.step_name || "modell.step" } : null); },
+        () => {});
+    return () => { weg = true; };
+  }, [nr, eigen && eigen.url]);
+  const modell = eigen || ersatz;
+  async function waehlen(e) {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+    setLaedt(true);
+    try {
+      const endung = ((f.name || "").match(/\.([a-z0-9]+)$/i) || [, "bin"])[1].toLowerCase();
+      const pfad = "erp/artikel/modell-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8) + "." + endung;
+      const r = await alt.zeitlimit(alt.db.storage.from("zeichnungen").upload(pfad, f,
+        { contentType: "application/octet-stream", upsert: false }), 120000, "3D-Modell hochladen");
+      if (r.error) throw r.error;
+      setW((x) => ({ ...x, modell: { url: alt.db.storage.from("zeichnungen").getPublicUrl(pfad).data.publicUrl, pfad, name: f.name } }));
+      alt.meldung("3D-Modell geladen. Mit Speichern ablegen.", "gut");
+    } catch (f2) { alt.meldung("3D-Modell nicht hochgeladen: " + ((f2 && f2.message) || f2), "fehler"); }
+    setLaedt(false);
+  }
+  const gross = () => fensterOeffnen((zu) =>
+    <div className="dialog erp-modell-gross">
+      <div className="erp-modell__kopf"><b>3D-Modell {titel || nr}</b>
+        <span className="erp-modell__knoepfe"><button className="knopf knopf--klein" onClick={zu}>✕</button></span></div>
+      <div className="erp-modell__flaeche"><ModellZeigen url={modell.url} name={modell.name} /></div>
+    </div>);
+  return (<div className="erp-modell" data-erp-modell={modell ? "da" : "leer"}>
+    <div className="erp-modell__kopf">
+      <b>3D-Modell</b>
+      <span className="klein">{modell ? (modell.name || "") + (eigen ? "" : " (aus HOFER2DTO3D)") : "keines hinterlegt"}</span>
+      <span className="erp-modell__knoepfe">
+        <label className="knopf knopf--klein" data-erp-modell-neu="">{laedt ? "Lädt …" : eigen ? "Ersetzen" : "+ 3D-Modell"}
+          <input type="file" hidden accept=".step,.stp,.dae,.kmz,.glb,.gltf,.obj,.stl,.fbx,.3ds,.wrl,.3mf,.ply" onChange={waehlen} disabled={laedt} /></label>
+        {eigen && <button type="button" className="knopf knopf--klein knopf--still" title="Entfernen" data-erp-modell-weg=""
+          onClick={() => setW((x) => ({ ...x, modell: null }))}>✕</button>}
+        {modell && <button type="button" className="knopf knopf--klein" title="Gross ansehen" data-erp-modell-gross="" onClick={gross}>⤢</button>}
+      </span>
+    </div>
+    <div className="erp-modell__flaeche">
+      {modell ? <ModellZeigen url={modell.url} name={modell.name} />
+        : <div className="h3d-hinweis">STEP oder 3D-Datei (GLB, STL, OBJ …) mit „+ 3D-Modell“ hinterlegen.</div>}
+    </div>
+  </div>);
+}
+
+// Notiz mit Bildern: Strg + V oder Hineinziehen legt das Bild in die Ablage
+// (zeichnungen/erp/artikel/), gespeichert mit dem Artikel in daten.notiz_bilder
+// (Wunsch Patrick 25. November 2026: „im Feld Notiz sollen auch Bilder
+// eingefügt werden können“).
+async function bildHochladen(datei) {
+  const endung = ((datei.name || "").match(/\.([a-z0-9]+)$/i) || [, (datei.type || "image/png").split("/")[1] || "png"])[1].toLowerCase();
+  const pfad = "erp/artikel/" + Date.now() + "-" + Math.random().toString(36).slice(2, 8) + "." + endung;
+  const r = await alt.zeitlimit(alt.db.storage.from("zeichnungen").upload(pfad, datei,
+    { contentType: datei.type || "image/png", upsert: false }), 60000, "Bild hochladen");
+  if (r.error) throw r.error;
+  return { url: alt.db.storage.from("zeichnungen").getPublicUrl(pfad).data.publicUrl, pfad, name: datei.name || "Bild" };
+}
+
+function NotizMitBildern({ w, setW, set }) {
+  const [laedt, setLaedt] = useState(0);
+  const bilder = w.notiz_bilder || [];
+  async function dazu(dateien) {
+    const liste = [...dateien].filter((f) => /^image\//.test(f.type));
+    if (!liste.length) return false;
+    setLaedt((n) => n + liste.length);
+    for (const f of liste) {
+      try {
+        const b = await bildHochladen(f);
+        setW((x) => ({ ...x, notiz_bilder: [...(x.notiz_bilder || []), b] }));
+      } catch (e) { alt.meldung("Bild nicht hochgeladen: " + (e.message || e), "fehler"); }
+      setLaedt((n) => n - 1);
+    }
+    return true;
+  }
+  const klebe = (e) => {
+    const f = [...(e.clipboardData?.files || [])];
+    if (f.some((x) => /^image\//.test(x.type))) { e.preventDefault(); dazu(f); }
+  };
+  const ablegen = (e) => {
+    const f = [...(e.dataTransfer?.files || [])];
+    if (f.some((x) => /^image\//.test(x.type))) { e.preventDefault(); e.stopPropagation(); dazu(f); }
+  };
+  return (<div className="erp-notiz" data-erp-notiz="" onPaste={klebe} onDrop={ablegen} onDragOver={(e) => e.preventDefault()}>
+    <KF label="Notiz" name="notiz" typ="textarea" zeilen={8} wert={w.notiz} setzen={set("notiz")} breit
+      platzhalter="Bilder mit Strg + V einfügen oder hineinziehen" />
+    {(bilder.length > 0 || laedt > 0) && <div className="erp-notiz__bilder" data-erp-notiz-bilder="">
+      {bilder.map((b, i) => <div key={b.pfad || b.url} className="erp-notiz__bild">
+        <img src={b.url} alt={b.name || "Bild"} onClick={() => alt.betrachter(b.url, b.name || "Bild", false)} />
+        <button type="button" title="Bild entfernen" data-erp-notiz-weg={i}
+          onClick={() => setW((x) => ({ ...x, notiz_bilder: (x.notiz_bilder || []).filter((_, k) => k !== i) }))}>✕</button>
+      </div>)}
+      {laedt > 0 && <div className="erp-notiz__bild erp-notiz__bild--laedt">…</div>}
+    </div>}
+    <label className="knopf knopf--still klein erp-notiz__knopf">+ Bild
+      <input type="file" accept="image/*" multiple hidden data-ablegen="direkt" onChange={(e) => { dazu(e.target.files); e.target.value = ""; }} />
+    </label>
+  </div>);
 }
 
 // Arbeitsplan wie im Gewatec: oben Material und Bedarf, darunter die
@@ -330,7 +492,7 @@ function Verkauf({ d, a, w, setW }) {
         {pl.kalkulation_nr ? <>Preise aus Kalkulation <b>{pl.kalkulation_nr}</b>{pl.uebernommen_am ? " vom " + datumText(pl.uebernommen_am.slice(0, 10)) : ""}
           {pl.aus_waehrung ? " (aus " + pl.aus_waehrung + " in CHF umgerechnet)" : ""}
           {pl.von_hand ? <> · <b className="erp-rot">von Hand geändert{pl.geaendert_am ? " am " + datumText(pl.geaendert_am.slice(0, 10)) : ""}</b></> : ""}</>
-          : pl.staffeln.length ? "Preise von Hand eingetragen." : "Noch keine Preisliste. In der Kalkulation „Artikel und Arbeitsplan anlegen“ oder hier eintragen."}
+          : pl.staffeln.length ? "Preise von Hand eingetragen." : "Noch keine Preisliste. In der offenen Kalkulation „Artikel und Arbeitsplan übernehmen“ oder hier eintragen."}
       </p>
       <div className="gf-zeile">
         <KF label="Preis pro" name="pe" wert={w.pe} setzen={(x) => setW((v) => ({ ...v, pe: x }))} auswahl={PE_AUSWAHL} />

@@ -300,7 +300,7 @@ export function Betrachter({ adresse: anfang, titel, art, endung, zu, hinweis, k
               aria-expanded={poolGeht ? wahl : undefined}>{druckt ? "Druckt …" : "Drucken"}</button>
             {wahl && <div className="druckwahl" data-druckwahl="" role="menu">
               {!a4 && pool.wbg && pool.wbg.length > 1
-                ? pool.wbg.map((n, i) => <button key={n} className={"knopf" + (i === 0 ? " knopf--haupt" : "")}
+                ? pool.wbg.map((n, i) => <button key={n} className={"knopf knopf--haupt" + (i === 0 ? "" : " knopf--spedition")}
                     data-pooldruck={i === 0 ? "" : undefined} data-pooldrucker={n}
                     onClick={() => anPool(n)}>{i === 0 ? "Planbüro WBG" : "Spedition WBG"}</button>)
                 : <button className="knopf knopf--haupt" data-pooldruck="" onClick={() => anPool()}>{a4 ? "Im Büro drucken" : "Planbüro WBG"}</button>}

@@ -18,7 +18,7 @@ TEST.daten.lager_buchungen = []; TEST.daten.lager_extern = []; TEST.daten.lager_
 (function () {
   const j = TEST.daten.planwand.find(j => j.job_number && j.plan_status === 'laeuft');
   const d = new Date(); d.setDate(d.getDate() + 6);
-  j.planned_to = d.toISOString().slice(0, 10); j.ended_at = null;
+  j.planned_to = d.toISOString().slice(0, 10); j.ended_at = null; j.fa_nr = j.fa_nr || '2026009991';
   TEST.daten.hoco_parts = TEST.daten.hoco_parts || [];
   let h = TEST.daten.hoco_parts.find(x => x.hoco_nr === j.job_number);
   if (!h) { h = { hoco_nr: j.job_number }; TEST.daten.hoco_parts.push(h); }
@@ -74,8 +74,9 @@ with sync_playwright() as p:
     pruefe(len(ab) == 1 and ab[0]["hoco_nr"] == hoco and ab[0]["schritte"] == [ext[0]["id"]], "Ablauf gespeichert: %s" % ab)
 
     # Einbuchen aus der Produktion: Halbfabrikat mit Index B
-    pg.click("#lager-ein"); pg.wait_for_selector("[data-lager-buchen] #lb-job")
-    pg.select_option("#lb-job", jid); pg.wait_for_timeout(200)
+    pg.click("#lager-ein"); pg.wait_for_selector("[data-lager-buchen] #lb-fa")
+    pg.fill("#lb-fa", job["fa_nr"]); pg.wait_for_timeout(200)
+    pruefe(pg.input_value("#lb-hoco") == hoco, "FA eingetippt: HOCO Nr. vom Auftrag")
     pruefe(pg.locator("#lb-art [data-art='teil'].knopf--haupt").count() == 1, "Art Halbfabrikat vorgeschlagen (Ablauf hat Härten)")
     pruefe(pg.input_value("#lb-index") == "B", "Index aus den Stammdaten")
     pg.fill("#lb-menge", "1'000"); pg.fill("#lb-ort", "Regal A")
@@ -127,6 +128,20 @@ with sync_playwright() as p:
     pg.click("#lager-reiter-buchungen"); pg.wait_for_timeout(300)
     pruefe(pg.locator(".lager-buchung").count() == 4, "Alle Buchungen: 4")
     pg.screenshot(path=BILD + "/lager-buchungen.png")
+
+    # FA, die es auf der Planwand nicht gibt: wird Lager-FA, Index gemerkt
+    pg.click("#lager-ein"); pg.wait_for_selector("[data-lager-buchen] #lb-fa")
+    pg.fill("#lb-fa", "2019004711"); pg.locator("#lb-hoco").focus(); pg.wait_for_timeout(400)
+    pruefe("wird für das Lager angelegt" in pg.inner_text("[data-lager-buchen]"), "Hinweis neuer Lager-FA")
+    pg.fill("#lb-hoco", "10999-0001"); pg.fill("#lb-index", "C"); pg.fill("#lb-menge", "50")
+    pg.screenshot(path=BILD + "/lager-fa-neu.png")
+    pg.click("[data-lager-buchen] [data-ja]"); pg.wait_for_timeout(800)
+    n = [x for x in pg.evaluate("() => TEST.daten.lager_buchungen") if x.get("fa_nr") == "2019004711"]
+    pruefe(len(n) == 1 and n[0]["hoco_nr"] == "10999-0001" and n[0]["index_nr"] == "C" and not n[0].get("job_id"), "Lager-FA gespeichert: %s" % n)
+    pg.click("#lager-ein"); pg.wait_for_selector("[data-lager-buchen] #lb-fa")
+    pg.fill("#lb-fa", "2019004711"); pg.wait_for_timeout(200)
+    pruefe(pg.input_value("#lb-hoco") == "10999-0001" and pg.input_value("#lb-index") == "C", "Lager-FA wiedererkannt mit Index C")
+    pg.click("[data-lager-buchen] [data-nein]"); pg.wait_for_timeout(300)
     pruefe(not pf, "keine Seitenfehler: %s" % pf)
     br.close()
 

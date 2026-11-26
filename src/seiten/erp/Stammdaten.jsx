@@ -279,7 +279,9 @@ function Betriebsmittel() {
 // Startwert. Startwerte für den Wechsel vom alten ERP (Wunsch Patrick 25. November 2026).
 function Nummernkreise({ d, neu }) {
   const jahr = new Date().getFullYear();
-  const jahre = [jahr, jahr + 1];
+  // Startwert nur fürs laufende Jahr; das nächste Jahr zählt von selbst weiter
+  // und wechselt nur das Jahr (seit 1.820.0, Wunsch Patrick 25. November 2026)
+  const jahre = [jahr];
   const { daten: kalk } = useDaten(async () => {
     const r = await alt.db.from("kalkulationen").select("nr");
     return r.error ? [] : (r.data || []).map((k) => k.nr);
@@ -312,10 +314,11 @@ function Nummernkreise({ d, neu }) {
   };
   return (
     <>
-      <p className="klein">Die Nummern laufen je Jahr fortlaufend weiter, am 1. Januar beginnt das neue Jahr von selbst
-        wieder bei 1. Für den Wechsel vom alten ERP hier den <b>Startwert</b> eintragen: die nächste Nummer ist dann
+      <p className="klein">Die Nummern laufen fortlaufend weiter, auch über den Jahreswechsel: am 1. Januar ändert nur
+        das Jahr vorne, die laufende Nummer geht weiter, wo sie im alten Jahr aufgehört hat (20260145 → 20270146).
+        Für den Wechsel vom alten ERP hier den <b>Startwert</b> eintragen: die nächste Nummer ist dann
         mindestens dieser Wert (sind schon höhere vergeben, geht es dort weiter). Leer = ab 1.</p>
-      <Tabelle kopf={["Nummernkreis", "Beispiel", ...jahre.map((j) => "Startwert " + j), "Nächste Nummer"]}
+      <Tabelle kopf={["Nummernkreis", "Beispiel", ...jahre.map((j) => "Startwert " + j), "Nächste Nummer", "Ab 1. Januar " + (jahr + 1)]}
         zeilen={NUMMERNKREISE.map((k) => ({
           key: k.typ,
           zellen: [<b>{k.name}</b>, <span className="klein">{nummerText(k, jahr, 1)}</span>,
@@ -323,7 +326,9 @@ function Nummernkreise({ d, neu }) {
               value={w[k.typ][j]} placeholder="1" style={{ width: 90 }}
               onChange={(e) => setW({ ...w, [k.typ]: { ...w[k.typ], [j]: e.target.value } })} />),
             <b data-erp-nrnaechst={k.typ}>{k.typ === "kalkulation" && !kalk ? "…"
-              : naechsteNummer({ [k.typ]: { [jahr]: parseInt(w[k.typ][jahr], 10) || 0 } }, k.typ, vorhandene(k.typ), jahr)}</b>],
+              : naechsteNummer({ [k.typ]: { [jahr]: parseInt(w[k.typ][jahr], 10) || 0 } }, k.typ, vorhandene(k.typ), jahr)}</b>,
+            <span data-erp-nrfolge={k.typ}>{k.typ === "kalkulation" && !kalk ? "…"
+              : naechsteNummer({ [k.typ]: { [jahr]: parseInt(w[k.typ][jahr], 10) || 0 } }, k.typ, vorhandene(k.typ), jahr + 1)}</span>],
         }))} />
       <div className="knopfreihe" style={{ marginTop: 10 }}>
         <button className="knopf knopf--haupt" id="erp-nr-speichern" disabled={!geaendert || laeuft} onClick={speichern}>Speichern</button>
@@ -470,7 +475,7 @@ function Arbeitsplaene({ d, neu }) {
     <>
       <div className="mat-kopf"><Suche wert={suche} setzen={setSuche} platzhalter="Artikel suchen, um einen Arbeitsplan anzulegen …" /></div>
       <Tabelle kopf={["Artikel", "Index", "Bezeichnung", "Arbeitsgänge", "Aus Kalkulation"]}
-        leer="Noch keine Arbeitspläne. In der Kalkulation „Artikel und Arbeitsplan anlegen“ oder hier einen Artikel suchen."
+        leer="Noch keine Arbeitspläne. In der offenen Kalkulation „Artikel und Arbeitsplan übernehmen“ oder hier einen Artikel suchen."
         zeilen={liste.map((a) => ({ key: a.id, klick: () => artikelFensterOeffnen(d, neu, a, { reiter: "arbeitsplan" }),
           zellen: [<b>{a.nr}</b>, a.idx || "–", a.bezeichnung || "", (a.arbeitsplan || []).map((x) => x.bez).join(" → "), a.kalkulation_id ? "ja" : ""] }))} />
     </>

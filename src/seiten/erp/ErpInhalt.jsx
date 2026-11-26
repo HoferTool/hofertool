@@ -1,10 +1,11 @@
 // Test ERP: Hauptseite mit Reitern. Lädt alle ERP-Tabellen auf einmal,
 // für die Testversion sind es wenige Zeilen.
-import { useState } from "react";
+import { teilMerken } from "../../teile/wiederherstellen.js";
+import { useState, useEffect } from "react";
 import { useDaten, useGemerkt } from "../../bruecke.jsx";
 import { allesLaden } from "../../daten/erp.js";
 import Stammdaten from "./Stammdaten.jsx";
-import KalkTab from "./KalkTab.jsx";
+import { BewegungListe } from "./Bewegungen.jsx";
 import Kalkulation from "../Kalkulation.jsx";
 import { BelegListe, Rechnungen, Fibu, Rueckverfolgung } from "./Belege.jsx";
 
@@ -13,15 +14,19 @@ import { BelegListe, Rechnungen, Fibu, Rueckverfolgung } from "./Belege.jsx";
 const REITER = [
   ["kalk", "Kalkulation"], ["stamm", "Stammdaten"],
   ["auftrag", "Aufträge"], ["fertigung", "Fertigung"], ["bestellung", "Bestellungen"], ["lieferschein", "Lieferscheine"],
-  ["rechnung", "Rechnungen"], ["fibu", "Fibu"], ["rueck", "Rückverfolgung"],
+  ["rechnung", "Rechnungen"], ["fibu", "Fibu"], ["rueck", "Rückverfolgung"], ["journal", "Lagerjournal"],
 ];
 const gemerkt = { reiter: "kalk", kalk: "modul" };
+// Nach dem Neuladen wieder im selben Reiter und Unterreiter (Wunsch Patrick 25. November 2026)
+teilMerken("erp", () => ({ ...gemerkt }), (z) => { Object.assign(gemerkt, z); });
 
 export default function ErpInhalt({ auffrischen }) {
   const [reiter, setReiter] = useState(gemerkt.reiter);
-  const [kalk, setKalk] = useState(gemerkt.kalk);
+  const kalk = "modul";
   useGemerkt(gemerkt, { reiter, kalk });
   const { daten: d, fehler, neu } = useDaten(allesLaden, [auffrischen]);
+  // Übernimmt die offene Kalkulation Artikel und Arbeitsplan, laden die Stammdaten frisch
+  useEffect(() => { const f = () => neu(); window.addEventListener("hofer-erp-neu", f); return () => window.removeEventListener("hofer-erp-neu", f); }, [neu]);
   return (
     <div className="erp">
       <h1 className="seitentitel">Test ERP <span className="erp-schild">Testversion</span></h1>
@@ -43,13 +48,12 @@ export default function ErpInhalt({ auffrischen }) {
         {reiter === "rechnung" && <Rechnungen d={d} neu={neu} />}
         {reiter === "fibu" && <Fibu d={d} neu={neu} />}
         {reiter === "rueck" && <Rueckverfolgung d={d} neu={neu} />}
+        {reiter === "journal" && <div className="erp-journal"><p className="hinweis">Alle Lagerbewegungen über alle Artikel. Zeile antippen öffnet den Beleg.</p>
+          <BewegungListe d={d} journal /></div>}
         {reiter === "kalk" && <div className="erp-kalk">
           {/* Das bestehende Modul Kalkulation steht seit 1.672.0 hier (Wunsch Patrick) */}
-          <div className="reiter erp-unterreiter">
-            <button className={"reiter__knopf" + (kalk === "modul" ? " aktiv" : "")} data-erp-kalkreiter="modul" onClick={() => setKalk("modul")}>Kalkulationen</button>
-            <button className={"reiter__knopf" + (kalk === "artikel" ? " aktiv" : "")} data-erp-kalkreiter="artikel" onClick={() => setKalk("artikel")}>Artikel und Arbeitsplan anlegen</button>
-          </div>
-          {kalk === "modul" ? <Kalkulation auffrischen={auffrischen} /> : <KalkTab d={d} neu={neu} />}
+          {/* Artikel und Arbeitsplan übernimmt seit 1.848.0 der Knopf in der offenen Kalkulation */}
+          <Kalkulation auffrischen={auffrischen} />
         </div>}
         {reiter === "stamm" && <Stammdaten d={d} neu={neu} />}
       </>}

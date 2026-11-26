@@ -101,7 +101,7 @@ with sync_playwright() as p:
     print("     Pad:", hoco[:120].replace("\n", " | "))
     pruefe("Pad zeigt Waschprog. 11/3", "Waschprog." in hoco and "11/3" in hoco)
     pg.screenshot(path="/tmp/waschprog-pad.png")
-    gemerkt = pg.evaluate("localStorage.getItem('hofer.wbgfelder') || ''")
+    gemerkt = pg.evaluate("localStorage.getItem('hofer.wbgfelder2') || ''")
     pruefe("auf dem Gerät gemerkt", "11/3" in gemerkt and "T04.514.13" in gemerkt)
     br.close()
 print("Fehler:", "keine" if not (fehler or f) else (fehler + f)[:12])

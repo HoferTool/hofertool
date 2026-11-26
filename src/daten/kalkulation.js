@@ -88,32 +88,60 @@ export const SPEZ_GEWICHT = [
   ["POM-H", "1.43"], ["Neusilber Rohr", "8.70"],
 ];
 
+// Körper wie in der Einsatzgewichtsberechnung des Gewatec (seit 1.856.0,
+// Wunsch Patrick 26. November 2026: „brauche nur Rund, Vierkant, Sechskant
+// und Rohr“): Querschnitt in mm²; leer = Rund.
+export const MAT_FORMEN = [["rund", "Rund"], ["vierkant", "Vierkant"], ["sechskant", "Sechskant"], ["rohr", "Rohr"]];
+export function querschnitt(mat) {
+  const d = z(mat.d);
+  if (mat.form === "vierkant") return d * (z(mat.b) || d);
+  if (mat.form === "sechskant") return Math.sqrt(3) / 2 * d * d;
+  if (mat.form === "rohr") { const i = Math.min(z(mat.di), d); return Math.PI / 4 * (d * d - i * i); }
+  return Math.PI / 4 * d * d;
+}
+
 export function materialRechnen(mat, menge) {
-  const d = z(mat.d), dichte = z(mat.dichte) || 7.85;
-  const kgJeM = Math.PI / 4 * d * d * dichte / 1000;
+  const dichte = z(mat.dichte) || 7.85;
+  const kgJeM = querschnitt(mat) * dichte / 1000;
   const stange = z(mat.stange) || 3000;
+  const ausschuss = Math.max(0, z(mat.ausschuss));
+  const faktor = 1 + ausschuss / 100;
   let kg, stangen, meter;
+  let jeStange = 0, einsatzKg = 0, restStange = 0, stangeKg = kgJeM * stange / 1000, kgOhneAusschuss;
   if (mat.modus === "rechnen") {
+    // Genau wie im Gewatec: Stück je Stange = (Stange − Reststück) / (Länge Teil
+    // + Abstechbreite + Plandrehzugabe), abgerundet; Rest je Stange = was übrig
+    // bleibt; Einsatz je Stück = Stangengewicht / Stück je Stange × (1 + Ausschuss),
+    // auf 4 Stellen gerundet; kg gesamt = Stück × Einsatz, Stangen = Stück /
+    // Stück je Stange × (1 + Ausschuss).
+    const lges = z(mat.laenge) + z(mat.abstich) + z(mat.plan);
     const nutzbar = stange - z(mat.rest);
-    const jeStange = z(mat.laenge) > 0 ? Math.floor(nutzbar / z(mat.laenge)) : 0;
-    stangen = jeStange > 0 ? Math.ceil(menge / jeStange) : 0;
+    jeStange = lges > 0 ? Math.max(0, Math.floor(nutzbar / lges + 1e-9)) : 0;
+    restStange = jeStange > 0 ? stange - jeStange * lges : 0;
+    einsatzKg = jeStange > 0 ? Math.round(stangeKg / jeStange * faktor * 10000) / 10000 : 0;
+    kg = menge * einsatzKg;
+    kgOhneAusschuss = kg / faktor;
+    stangen = jeStange > 0 ? menge / jeStange * faktor : 0;
     meter = stangen * stange / 1000;
-    kg = meter * kgJeM;
   } else {
     kg = menge * z(mat.einsatz);
     meter = kgJeM > 0 ? kg / kgJeM : 0;
     stangen = meter / (stange / 1000);
+    einsatzKg = z(mat.einsatz);
+    // Ausschuss in % am Schluss auf kg, Meter und Stangen (wie seit 1.238.0)
+    kgOhneAusschuss = kg;
+    kg *= faktor; meter *= faktor; stangen *= faktor;
   }
-  // Ausschuss in % ganz am Schluss auf kg, Meter und Stangen, leer = 0
-  // (seit 1.238.0, Wunsch Patrick 27. Oktober 2026, wie im Materialrechner)
-  const kgOhneAusschuss = kg;
-  const ausschuss = Math.max(0, z(mat.ausschuss));
-  const faktor = 1 + ausschuss / 100;
-  kg *= faktor; meter *= faktor; stangen *= faktor;
   // Wie im Gewatec: Mat-Kosten = kg gesamt × Preis, dann Gemeinkosten in % und pauschal
   const roh = kg * z(mat.preis);
-  const kosten = roh * (1 + z(mat.gk) / 100) + z(mat.gkPausch);
-  return { kg, meter, stangen, kgJeM, roh, kosten, ausschuss, jeStk: menge > 0 ? kosten / menge : 0, kgJeStk: menge > 0 ? kg / menge : 0,
+  // Spänegutschrift (seit 1.857.0): Späne = Einsatz inkl. Ausschuss − Fertiggewicht × Menge,
+  // mal Spänepreis; geht als Gutschrift von den Materialkosten weg
+  const fertigKg = menge * z(mat.fertig);
+  const spaeneKg = z(mat.fertig) > 0 ? Math.max(0, kg - fertigKg) : 0;
+  const gutschrift = spaeneKg * z(mat.spanPreis);
+  const kosten = roh * (1 + z(mat.gk) / 100) + z(mat.gkPausch) - gutschrift;
+  return { kg, meter, stangen, kgJeM, jeStange, einsatzKg, restStange, stangeKg, roh, kosten, ausschuss, fertigKg, spaeneKg, gutschrift,
+    spaeneJeStk: menge > 0 ? spaeneKg / menge : 0, jeStk: menge > 0 ? kosten / menge : 0, kgJeStk: menge > 0 ? kg / menge : 0,
     // Gewicht je Gutteil ohne Ausschuss, für externe Arbeitsgänge je kg
     kgJeStkNetto: menge > 0 ? kgOhneAusschuss / menge : 0 };
 }
@@ -178,7 +206,6 @@ export const PREIS_JE_STAFFEL = [
   ["sek", "Sondereinzelkosten Vertrieb", "CHF/Stk"], ["vwgk", "Vw/Vt-Gemeinkosten", "%"],
   ["zinsPct", "Verzinsung", "%"], ["zinsMonate", "Verzinsung über Monate", ""],
   ["gewinn", "Gewinn", "%"], ["prov", "Provision", "%"], ["skonto", "Skonto", "%"], ["rabatt", "Rabatt", "%"],
-  ["eil", "Eilzuschlag", ""],
   ["transport", "Transportkosten", "CHF/Stk"], ["transPct", "Transport Zuschlag", "%"], ["transPausch", "Transport pauschal", "CHF je Lieferlos"],
   ["verpackung", "Verpackungskosten", "CHF/Stk"], ["verpPct", "Verpackung Zuschlag", "%"], ["verpPausch", "Verpackung pauschal", "CHF"],
 ];
@@ -219,7 +246,11 @@ export function agFuerStaffel(ag, staffel, i) {
 
 export function staffelRechnen(k, staffel, maschinen) {
   const menge = z(staffel.menge), lose = Math.max(1, z(staffel.lose) || 1);
-  const mat = materialRechnen(k.material || {}, menge);
+  // Materialpreis und Gemeinkosten können je Staffel anders sein wie im Gewatec
+  // (Patrick 25. November 2026: Stichprobe gegen Gewatec); leer = Wert beim Material
+  const matEigen = {};
+  for (const [n, v] of Object.entries(staffel.mat || {})) if (String(v ?? "").trim()) matEigen[n] = v;
+  const mat = materialRechnen({ ...(k.material || {}), ...matEigen }, menge);
   const ags = (k.ags || []).map((ag0, i) => {
     const ag = agFuerStaffel(ag0, staffel, i);
     if (ag.art === "extern") {
@@ -257,8 +288,8 @@ export function staffelRechnen(k, staffel, maschinen) {
   const fracht = transport + verpackung;
   const abzug = (z(p.prov) + z(p.skonto) + z(p.rabatt)) / 100;
   let vk = (selbstVerz + fracht) * (1 + z(p.gewinn) / 100) / (abzug < 1 ? 1 - abzug : 1);
-  // Eilzuschlag pauschal in CHF je Stück oder in Prozent auf den VK
-  vk = p.eilArt === "prozent" ? vk * (1 + z(p.eil) / 100) : vk + z(p.eil);
+  // Den Eilzuschlag gibt es nicht mehr (Wunsch Patrick 25. November 2026),
+  // ein gespeicherter Wert in älteren Kalkulationen zählt nicht
   const schritt = z(p.rundung) || 0.01;
   // Ein eingetragener Angebotspreis der Staffel gilt vor dem gerundeten VK
   // Ausgabe in CHF, EUR oder USD: gerechnet wird in CHF, das Angebot
@@ -337,7 +368,7 @@ export function leereKalkulation() {
   return {
     kopf: { kunde: "", zusatz: "", strasse: "", land: "", plz: "", ort: "", artikel: "", zeichnung: "", index: "", ident: "", bezeichnung: "", anfrage: "", zeichen: "" },
     staffeln: [{ menge: "1000", lose: "1" }],
-    material: { bez: "", nr: "", preis: "", gk: "", modus: "hand", einsatz: "", d: "", dichte: "7.85", stange: "3000", rest: "", laenge: "" },
+    material: { bez: "", nr: "", preis: "", gk: "", modus: "rechnen", einsatz: "", d: "", dichte: "7.85", stange: "3000", rest: "", laenge: "", abstich: "" },
     ags: [],
     preis: { sek: "", vwgk: "", zinsPct: "", zinsMonate: "", transport: "", transPct: "", transPausch: "", eil: "", eilArt: "pauschal", verpackung: "", verpPct: "", verpPausch: "", gewinn: "30", prov: "", skonto: "", rabatt: "", rundung: "0.01", waehrung: "CHF", kurs: "", kursDatum: "", kursQuelle: "" },
     angebot: { lieferzeit: "nach Absprache", lieferbed: "franko Domizil, inkl. Verpackung", versand: "", zahlung: "30 Tage netto", gueltig: "Offerte freibleibend, gültig 1 Monat ab Offertdatum. (Materialpreisveränderungen ausgenommen)" },
@@ -354,9 +385,32 @@ function pruefen(r, was) {
   return r.data;
 }
 
+// Die Liste holt nur Kopf und Vorschau, nicht die ganzen Daten: seit dem Import aus
+// WinKalk sind es über 7'000 Kalkulationen, ganz geladen wären das viele MB.
+// Seitenweise je 1'000, weil die Datenbank nie mehr auf einmal liefert.
 export async function kalkulationenLaden() {
+  const alle = [];
+  for (let ab = 0; ab < 200000; ab += 1000) {
+    const teil = pruefen(await alt.zeitlimit(alt.db.from("kalkulationen")
+      .select("id, nr, kunde, artikel, geaendert_am, kopf:daten->kopf, vorschau")
+      .order("geaendert_am", { ascending: false }).order("id").range(ab, ab + 999), 20000, "Kalkulationen")) || [];
+    alle.push(...teil);
+    if (teil.length < 1000) break;
+  }
+  return alle;
+}
+
+// Eine Kalkulation ganz, erst beim Öffnen.
+export async function kalkulationLaden(id) {
   return pruefen(await alt.zeitlimit(alt.db.from("kalkulationen")
-    .select("id, nr, kunde, artikel, geaendert_am, daten").order("geaendert_am", { ascending: false }), 10000, "Kalkulationen")) || [];
+    .select("id, nr, kunde, artikel, geaendert_am, daten, winkalk").eq("id", id).maybeSingle(), 15000, "Kalkulation"));
+}
+
+// Kurzfassung für die Liste: Mengen der Staffeln und Angebotspreis der ersten.
+export function kalkVorschau(daten, rechnung) {
+  const mengen = (daten.staffeln || []).map((s) => z(s.menge)).filter((m) => m > 0);
+  const r = (rechnung || [])[0];
+  return { mengen, preis: r ? r.angebotPe : null, waehrung: r ? r.waehrung : null, pe: r ? r.pe : null };
 }
 
 export async function maschinenLaden() {
@@ -367,6 +421,7 @@ export async function maschinenLaden() {
 export async function kalkulationSpeichern(k) {
   const zeile = { nr: k.nr || null, kunde: k.daten.kopf.kunde || null, artikel: k.daten.kopf.artikel || null,
     daten: k.daten, geaendert_am: new Date().toISOString(), geaendert_von: alt.meineProfilId() };
+  if (k.vorschau) zeile.vorschau = k.vorschau;
   if (k.id) {
     const r = await alt.zeitlimit(alt.db.from("kalkulationen").update(zeile).eq("id", k.id).select("id").maybeSingle(), 10000, "Kalkulation");
     pruefen(r);
@@ -411,6 +466,17 @@ export const BEISPIEL_MASCHINEN = [
 // nehmen die Stundensätze gleichen Namens, wenn es sie gibt.
 export const FGK_DREHEN = "56";
 export const START_MASCHINEN = ["Kontrolle", "Reinigungsanlage", "Spedition"];
+
+// Kostenstelle aus dem Namen des Arbeitsgangs (Wunsch Patrick 25. November 2026): Waschen → Reinigungsanlage,
+// Kontrolle → Kontrolle, Abpacken/Versand → Spedition. Bei einem Maschinen-AG wählt man selbst (null).
+export function kostenstelleFuer(bez, maschinen) {
+  const t = String(bez || "");
+  const name = /wasch|reinig/i.test(t) ? "Reinigungsanlage"
+    : /abpack|versand|einlager|spedition|verpack/i.test(t) ? "Spedition"
+    : /kontroll|prüf|pruef/i.test(t) ? "Kontrolle" : "";
+  if (!name) return null;
+  return (maschinen.find((m) => String(m.name || "").startsWith(name)) || {}).id || null;
+}
 
 export function startArbeitsplan(maschinen) {
   const id = (name) => (maschinen.find((m) => m.name.startsWith(name)) || {}).id || "";

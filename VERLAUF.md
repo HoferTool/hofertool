@@ -3,6 +3,35 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.842.0 (25. November 2026)
+
+Index überall eintragbar: ohne Index steht das Feld leer statt „ohne Index“, mit Schreibrecht eintragen bei der HOCO Nr. (Stammdaten und je FA Nr.), im Auftragsfenster und beim Einbuchen ins Lager, mit Rückgängig, nicht für Externe (Wunsch Patrick: „alles muss einen Index haben, wenn keiner da ist, soll es leer sein und man gibt ihn an“).
+
+## 1.841.x (25. November 2026)
+
+Planer: Todo-Spalte am PC schmaler und mit kleinerer Schrift, das Material bekommt mehr Platz (Wunsch Patrick).
+
+## 1.835.0 (25. November 2026)
+
+Kiosk in HOFERTIME: je Artikel ein Bild (unter Verwalten „+ Bild“) und eine Beschreibung statt Emoji (Wunsch Patrick). SQL `sql/hofertime-21-kiosk-bild.sql`.
+
+## 1.830.0 (25. November 2026)
+
+Index aus jeder WBG gelesen und je Auftrag gespeichert (`jobs.wbg_index`), der Index des jüngsten Auftrags kommt in die Stammdaten der HOCO Nr.; sichtbar im Pad, im Auftragsfenster und bei der HOCO Nr. je FA Nr. (Wunsch Patrick: Teile mit anderem Index mitverfolgen).
+
+## 1.829.0 (25. November 2026)
+
+HOFERTIME Kiosk statt Twint: Sachen kaufen aufs eigene Konto, „Abrechnen“ gibt eine Rechnung als PDF mit QR-Einzahlungsschein; Artikel, Konto und Bezahlt nur der Admin von HOFERTIME. SQL `sql/hofertime-20-kiosk.sql`, Prüfstand `kiosk.py`.
+
+## 1.824.0 (25. November 2026)
+
+Im Auftragsfenster Knopf „Stückzahl“: gemeldete Zählerstände eines Auftrags ändern, einzeln löschen oder alles auf 0 zurücksetzen, mit Rückgängig (Patrick: „10500 von 5000 stimmt nicht, wir haben noch gar nicht gestartet“; der Auftrag trug einen alten Zählerstand vom 28.09.2026).
+
+
+## 1.819.1 (25. November 2026)
+
+Knopf „Spedition WBG“ orange, „Planbüro WBG“ bleibt blau (Wunsch Patrick).
+
 ## 1.813.0 (25. November 2026)
 
 WBGs werden nie mehr gelöscht, weder beim Ersetzen noch beim Aufräumen (Wunsch Patrick: „alle WBGs speichern, keine löschen“). Zweiter WBG-Drucker „Drucker Spedition WBG“ unter Einstellungen → Dokumente; bei einer WBG stehen dann die Knöpfe „Planbüro WBG“ und „Spedition WBG“. Prüfstand `wbg_zweiter_drucker.py`.

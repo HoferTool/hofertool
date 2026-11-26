@@ -93,6 +93,7 @@ export const STIL = `
 .rkpdf .nichts { color: #8a93a3; font-style: italic; margin: 0; }
 .rkpdf .wirk { display: flex; gap: 3mm; align-items: center; margin-top: 2mm; }
 .rkpdf .stempel { border: 1pt solid #2f9e5b; color: #2f9e5b; font-weight: 700; border-radius: 1.5mm; padding: 1mm 3mm; font-size: 8.5pt; }
+.rkpdf .schluss { margin-top: 6mm; padding-top: 1.5mm; border-top: .6pt solid #33405a; font-size: 9pt; color: #1d2b45; }
 .rkpdf .unterschrift { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 6mm; }
 .rkpdf .unterschrift .linie { border-top: .6pt solid #33405a; padding-top: 1mm; font-size: 7.5pt; color: #6b7890; }
 .rkpdf .unterschrift .sig { height: 12mm; display: flex; align-items: flex-end; justify-content: space-between; gap: 4mm; padding: 0 1mm .6mm; }
@@ -205,17 +206,11 @@ export function achtdHtml(w) {
     + fakt("Fabrikationsauftrag", esc(w.fa_nr)) + fakt("Beanstandungsmenge", zahl(w.menge_reklamiert)) + fakt("Gutteile", zahl(k.gut))
     + "</div></section>";
   for (const a of ACHT_D) h += abschnitt(w, a);
-  // Digitale Unterschrift (seit 1.794.0, Wunsch Patrick 24. November 2026:
-  // „digitale Unterschrift mit Datum unten passend auf die Linie“): auf
-  // der Linie von Hofer + Co. stehen Datum und der Name des Bearbeiters
-  // in Schreibschrift (Alex Brush wie im Bestellblatt), die andere Linie
-  // bleibt leer für die Gegenseite
-  const signiert = !leer(k.bearbeiter)
-    ? '<div class="sig"><span class="sig-datum">' + datum(k.berichtsdatum || alt.isoDatum(new Date())) + '</span><span class="sig-name">'
-      + esc(k.bearbeiter) + "</span></div>"
-    : '<div class="sig"></div>';
-  h += '<div class="unterschrift"><div>' + signiert + '<div class="linie">Datum, Unterschrift Hofer + Co.</div></div><div><div class="sig"></div><div class="linie">Datum, Unterschrift '
-    + (w.art === "intern" ? "Verantwortlich" : (kunde ? "Kunde" : "Lieferant")) + "</div></div></div>";
+  // Schluss (seit 1.825.0, Wunsch Patrick 25. November 2026: „ganz am
+  // Schluss nur Name und Datum normal von uns, keine zweite Linie für den
+  // Kunden“): eine Zeile Hofer + Co., Name und Datum in normaler Schrift
+  h += '<div class="schluss"><b>Hofer + Co.</b>' + (leer(k.bearbeiter) ? "" : " · " + esc(k.bearbeiter))
+    + " · " + datum(k.berichtsdatum || alt.isoDatum(new Date())) + "</div>";
   return h + "</div>";
 }
 
