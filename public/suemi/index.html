@@ -349,17 +349,19 @@ button.zeile-verw{width:100%;text-align:left}
 .anmelden{position:relative;overflow:hidden}.anmelden.saegt{overflow:visible}html:has(.anmelden.saegt){overflow:hidden}
 .an-kachel{position:relative}
 /* Säge-Anmeldung: die anderen fliegen weg, die gewählte in die Mitte, Säge, Seite teilt sich */
-.an-raster.saegt .an-kachel{animation:none!important;transition:transform 1.05s cubic-bezier(.35,.05,.55,1) var(--v,0s),opacity .3s ease-in calc(var(--v,0s) + .75s)}
+.an-raster.saegt .an-kachel{animation:none!important;transition:transform .7s cubic-bezier(.35,.05,.55,1) var(--v,0s),opacity .25s ease-in calc(var(--v,0s) + .45s)}
 .an-raster.saegt .an-kachel.an-weg{transform:translate(var(--x),var(--y)) scale(.8) rotate(var(--r));opacity:0}
-.an-raster.saegt .an-kachel.gewaehlt{z-index:5;transition:transform .45s cubic-bezier(.2,.8,.2,1),box-shadow .3s}
+.an-raster.saegt .an-kachel.gewaehlt{z-index:5;transition:transform .35s cubic-bezier(.2,.8,.2,1),box-shadow .3s}
 .an-raster.saegt ~ *,.anmelden.saegt>:not(.an-raster){transition:opacity .4s;opacity:0}
 .an-saege{position:fixed;left:0;right:0;height:0;z-index:60;pointer-events:none}
-.an-schnitt{position:absolute;left:0;top:-1px;height:2px;width:0;background:linear-gradient(90deg,transparent,#fff,var(--pink));box-shadow:0 0 12px var(--pink);animation:schnitt 1.3s cubic-bezier(.4,0,.6,1) forwards}
+.an-schnitt{position:absolute;left:0;top:-1px;height:2px;width:0;background:linear-gradient(90deg,transparent,#fff,var(--pink));box-shadow:0 0 12px var(--pink);animation:schnitt .9s cubic-bezier(.4,0,.6,1) forwards}
 @keyframes schnitt{to{width:100%}}
-.an-blatt{position:absolute;top:-62px;left:-230px;width:220px;height:90px;filter:drop-shadow(0 6px 10px #000a);animation:blatt-fahrt 1.3s cubic-bezier(.4,0,.6,1) forwards}
-.an-blatt svg{width:100%;height:100%;overflow:visible;animation:blatt-zug .22s ease-in-out infinite alternate}
+.an-blatt{position:absolute;top:-90px;left:-210px;width:200px;height:140px;filter:drop-shadow(0 6px 10px #000a);animation:blatt-fahrt .9s cubic-bezier(.4,0,.6,1) forwards}
+.an-blatt svg{width:100%;height:100%;overflow:visible;animation:blatt-zug .06s linear infinite alternate}
+.an-scheibe{transform-box:fill-box;transform-origin:center;animation:scheibe .12s linear infinite}
+@keyframes scheibe{to{transform:rotate(360deg)}}
 @keyframes blatt-fahrt{to{left:calc(100% + 10px)}}
-@keyframes blatt-zug{from{transform:translateX(-22px) rotate(-1.5deg)}to{transform:translateX(22px) rotate(1deg)}}
+@keyframes blatt-zug{from{transform:translateY(-.6px)}to{transform:translateY(.6px)}}
 .an-staub{position:absolute;top:-3px;width:6px;height:6px;border-radius:50%;background:#e8c08a;opacity:0;animation:staub .6s var(--t) ease-out forwards}
 @keyframes staub{0%{opacity:1;transform:translate(0,0)}100%{opacity:0;transform:translate(var(--x),var(--y)) scale(.4)}}
 .an-haelfte{position:fixed;inset:0;z-index:55;overflow:hidden;pointer-events:none;transition:transform .7s cubic-bezier(.6,0,.3,1)}
@@ -556,7 +558,7 @@ const ava = (name, gr = 40) => { const p = person(name); const f = p?.farbe || "
 // Schreiner-Stimmung bei der Anmeldung: Hobelspäne schweben langsam durchs Bild
 // Anmeldung: die anderen Kacheln fliegen weg, die gewählte kommt in die Mitte,
 // eine Handsäge sägt von links nach rechts durch, dann teilt sich die Seite nach oben und unten.
-const SAEGE_SVG = `<svg viewBox="0 0 220 90"><path d="M72 26 L214 47 L214 62 L210.5 70 L207.0 62 L203.5 70 L200.0 62 L196.5 70 L193.0 62 L189.5 70 L186.0 62 L182.5 70 L179.0 62 L175.5 70 L172.0 62 L168.5 70 L165.0 62 L161.5 70 L158.0 62 L154.5 70 L151.0 62 L147.5 70 L144.0 62 L140.5 70 L137.0 62 L133.5 70 L130.0 62 L126.5 70 L123.0 62 L119.5 70 L116.0 62 L112.5 70 L109.0 62 L105.5 70 L102.0 62 L98.5 70 L95.0 62 L91.5 70 L88.0 62 L84.5 70 L81.0 62 L77.5 70 L74.0 62 L70.5 70 L72.0 62 Z" fill="#d4dbe2" stroke="#7d8790" stroke-width="1.2" stroke-linejoin="round"/><path d="M84 32 L200 49" stroke="#fff" stroke-opacity=".6" stroke-width="2"/><path d="M8 22 Q6 12 18 10 L66 10 Q80 10 80 24 L80 66 Q80 78 66 78 L22 78 Q8 78 10 62 Z" fill="#b5713a" stroke="#6e3f1c" stroke-width="2"/><path d="M26 28 Q24 22 32 22 L58 22 Q64 22 64 30 L64 52 Q64 60 56 60 L34 60 Q26 60 26 52 Z" fill="#1a1a1a" fill-opacity=".85"/><circle cx="72" cy="34" r="2.6" fill="#e5175f"/><circle cx="72" cy="56" r="2.6" fill="#e5175f"/></svg>`;
+const SAEGE_SVG = `<svg viewBox="0 0 200 140"><g class="an-scheibe"><path d="M149.0 90.0 L155.8 94.2 L147.7 100.1 L153.2 105.9 L143.8 109.5 L147.6 116.5 L137.6 117.6 L139.4 125.4 L129.5 123.8 L129.3 131.8 L120.1 127.7 L117.8 135.3 L110.0 129.0 L105.8 135.8 L99.9 127.7 L94.1 133.2 L90.5 123.8 L83.5 127.6 L82.4 117.6 L74.6 119.4 L76.2 109.5 L68.2 109.3 L72.3 100.1 L64.7 97.8 L71.0 90.0 L64.2 85.8 L72.3 79.9 L66.8 74.1 L76.2 70.5 L72.4 63.5 L82.4 62.4 L80.6 54.6 L90.5 56.2 L90.7 48.2 L99.9 52.3 L102.2 44.7 L110.0 51.0 L114.2 44.2 L120.1 52.3 L125.9 46.8 L129.5 56.2 L136.5 52.4 L137.6 62.4 L145.4 60.6 L143.8 70.5 L151.8 70.7 L147.7 79.9 L155.3 82.2 Z" fill="#cfd6dd" stroke="#6f7881" stroke-width="1.2" stroke-linejoin="round"/><circle cx="110" cy="90" r="30" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="2" stroke-dasharray="14 10"/><circle cx="110" cy="90" r="8" fill="#5b636b"/><circle cx="110" cy="90" r="3" fill="#cfd6dd"/></g><rect x="44" y="66" width="140" height="6" rx="2" fill="#3a3f45"/><path d="M58 66 A54 54 0 0 1 164 66 Z" fill="#e5175f" stroke="#9e0f42" stroke-width="2"/><path d="M72 60 A40 40 0 0 1 150 60" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="3"/><rect x="6" y="30" width="56" height="34" rx="12" fill="#2b3036" stroke="#111" stroke-width="2"/><path d="M16 38 V56 M24 38 V56 M32 38 V56" stroke="#5b636b" stroke-width="3" stroke-linecap="round"/><path d="M44 34 Q46 4 90 6 Q120 8 118 30" fill="none" stroke="#2b3036" stroke-width="11" stroke-linecap="round"/><path d="M60 14 Q86 6 104 12" fill="none" stroke="#e5175f" stroke-width="4" stroke-linecap="round"/><rect x="84" y="20" width="9" height="12" rx="3" fill="#111"/></svg>`;
 function saegen(el, fertig) {
   const raster = app.querySelector(".an-raster"), seite = app.querySelector(".anmelden");
   raster.classList.add("saegt"); seite.classList.add("saegt");
@@ -574,7 +576,7 @@ function saegen(el, fertig) {
     const s = document.createElement("div"); s.className = "an-saege"; s.style.top = my + "px";
     s.innerHTML = `<div class="an-schnitt"></div><div class="an-blatt">${SAEGE_SVG}</div>`;
     for (let i = 0; i < 18; i++) { const p = document.createElement("span"); p.className = "an-staub"; p.style.left = (8 + i * 5) + "%";
-      p.style.setProperty("--t", (i * 0.068) + "s"); p.style.setProperty("--x", Math.round(Math.random() * 40 - 30) + "px"); p.style.setProperty("--y", Math.round((Math.random() < .5 ? -1 : 1) * (20 + Math.random() * 50)) + "px"); s.appendChild(p); }
+      p.style.setProperty("--t", (i * 0.047) + "s"); p.style.setProperty("--x", Math.round(Math.random() * 40 - 30) + "px"); p.style.setProperty("--y", Math.round((Math.random() < .5 ? -1 : 1) * (20 + Math.random() * 50)) + "px"); s.appendChild(p); }
     document.body.appendChild(s);
     setTimeout(() => {
       const grund = getComputedStyle(document.body).backgroundColor, sy = scrollY;
@@ -586,8 +588,8 @@ function saegen(el, fertig) {
       s.remove(); fertig(); scrollTo(0, 0);
       requestAnimationFrame(() => requestAnimationFrame(() => haelften.forEach((h) => h.classList.add("weg"))));
       setTimeout(() => haelften.forEach((h) => h.remove()), 800);
-    }, 1350);
-  }, 1100);
+    }, 950);
+  }, 700);
 }
 const kopf = () => `<header class="kopf haupt">${marke()}</header>`;
 const titel = (t, mitZurueck = true, rechts = "") =>
