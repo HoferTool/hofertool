@@ -156,11 +156,11 @@ with sync_playwright() as p:
     pg.screenshot(path=BILD + "/pm-handy.png")
     pg.context.close()
 
-    # Nicht-Admin sieht es nicht
+    # Seit 1.871.0 sehen es auch Nicht-Admins
     pg, pf = starten(br, 1440, 900)
     pg.evaluate("TEST.daten.profiles[0].role = 'mechaniker'")
     sichtbar = pg.evaluate("() => { location.hash = '#/pruefmittel'; return true; }")
     pg.reload(wait_until="domcontentloaded"); pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1500)
-    pruefe(pg.locator("#pm-neu, #pm-kurz-raus").count() == 0, "Mechaniker sieht Prüfmittel nicht")
+    pruefe(pg.locator("#pm-kurz-raus").count() > 0, "Mechaniker sieht Prüfmittel")
     br.close()
 print("Fehler:", ", ".join(fehler) if fehler else "keine")

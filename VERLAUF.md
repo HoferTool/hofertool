@@ -3,6 +3,14 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.872.0 (26. November 2026)
+
+Prüfberichte: Vorlage aus der letzten Produktion gleich bearbeitbar als Masse-Blatt, Speichern in die Stammdaten, Drucken, Titel „Prüfbericht · Index X“ (Wunsch Patrick).
+
+## 1.871.0 (26. November 2026)
+
+Prüfberichte: anstehend wieder ohne Suche, kompakt; Absatz vor den Massen nach der Produktion; QS und Prüfmittelverwaltung für alle ausser Externen und Dienst; Gewinde „M 1.6“ mit Leerzeichen erkannt.
+
 ## 1.870.1 (26. November 2026)
 
 Prüfberichte: Seiten mit Namen „S-1“ / „S-2“ kommen wieder zu einem Bericht zusammen (vorher blieb nur eine, etwa 10789-0107), gleicher Index für alle Seiten, Hinweis „übrige Masse auf Seite 2“ fällt weg (Patrick).

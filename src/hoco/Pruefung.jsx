@@ -202,7 +202,9 @@ function seitenTeilen(zeilen) {
   return s;
 }
 
-function MasseBlatt({ w, hoco, schreibt, zeileSetzen, zeileWeg, zeilenLeeren, zeilenWeg, zeileDazu, schieben, neuFokus, geaendert, laeuft, speichern, zu }) {
+// Auch für die Vorlage in QS → Prüfberichte gebraucht (seit 1.872.0), dort
+// mit eigenem Titel und Knopf Drucken (titel, weiterText, label, extra, zuText).
+export function MasseBlatt({ w, hoco, schreibt, zeileSetzen, zeileWeg, zeilenLeeren, zeilenWeg, zeileDazu, schieben, neuFokus, geaendert, laeuft, speichern, zu, titel, weiterText, label, extra, zuText }) {
   const huelle = useRef(null);
   // Zeilen markieren wie in Excel (seit 1.786.0, Wunsch Patrick 24. November
   // 2026: „ganze Bereiche markieren, zum Beispiel leeren“): Zeilenkopf links
@@ -259,7 +261,7 @@ function MasseBlatt({ w, hoco, schreibt, zeileSetzen, zeileWeg, zeilenLeeren, ze
   });
   const zuFragen = async () => {
     if (geaendert && schreibt) {
-      const ok = await alt.nachfragen({ titel: "Noch nicht gespeichert", text: "Die Änderungen bleiben in den Stammdaten stehen, sind aber noch nicht gespeichert.", bestaetigen: "Trotzdem schliessen" });
+      const ok = await alt.nachfragen({ titel: "Noch nicht gespeichert", text: zuText || "Die Änderungen bleiben in den Stammdaten stehen, sind aber noch nicht gespeichert.", bestaetigen: "Trotzdem schliessen" });
       if (!ok) return;
     }
     zu();
@@ -324,7 +326,7 @@ function MasseBlatt({ w, hoco, schreibt, zeileSetzen, zeileWeg, zeilenLeeren, ze
   return (
     <div className="pst-blattfenster" ref={huelle} data-pstblatt="">
       <div className="pst-blattleiste">
-        <b>Masse {hoco}</b>
+        <b>{label || "Masse " + hoco}</b>
         <span className="klein">{w.zeilen.filter((z) => !z.abschnitt).length} Masse · {seiten.length} {seiten.length === 1 ? "Seite" : "Seiten"}</span>
         <span className="pst-platz" />
         {schreibt ? <>
@@ -344,6 +346,7 @@ function MasseBlatt({ w, hoco, schreibt, zeileSetzen, zeileWeg, zeilenLeeren, ze
           {geaendert ? <span className="klein pb-rot">Noch nicht gespeichert</span> : null}
           <button type="button" className="knopf knopf--haupt" id="pst-blatt-speichern" disabled={laeuft || !geaendert} onClick={speichern}>Speichern</button>
         </> : null}
+        {extra || null}
         <button type="button" className="knopf knopf--klein" id="pst-blatt-zu" onClick={zuFragen}>Schliessen</button>
       </div>
       <div className="pst-seiten">
@@ -351,9 +354,9 @@ function MasseBlatt({ w, hoco, schreibt, zeileSetzen, zeileWeg, zeilenLeeren, ze
           <div className="pb-blatt pst-a4 hell-bleibt" key={n} data-pstseite={n + 1}>
             {n === 0 ? <>
               <div className="rkpdf pb-briefkopf" dangerouslySetInnerHTML={{ __html: "<style>" + STIL + "</style>" + briefkopf() }} />
-              <h2 className="pb-blatt__titel">Prüfmasse · {hoco}</h2>
+              <h2 className="pb-blatt__titel">{titel || "Prüfmasse · " + hoco}</h2>
               <p className="klein pst-a4-kopf">{[v.bezeichnung, v.zeichnung ? "Zeichnung " + v.zeichnung : "", v.index ? "Index " + v.index : "", v.alltol ? "Allg. Toleranz " + v.alltol : ""].filter(Boolean).join(" · ")}</p>
-            </> : <p className="klein pst-a4-weiter">Prüfmasse {hoco} · Fortsetzung</p>}
+            </> : <p className="klein pst-a4-weiter">{weiterText || "Prüfmasse " + hoco + " · Fortsetzung"}</p>}
             <table className="pst-a4-tabelle">
               <thead><tr>{schreibt ? <th className="pst-c-kopf" title="Zeilen markieren: antippen, ziehen, Shift oder Strg" /> : null}<th className="pst-c-nr">Nr.</th><th>Soll</th><th className="pst-c-tol">Toleranz</th><th>Prüfmittel</th><th className="pst-c-ll" title="Kommt auf die Langläufer-Liste">LL</th>{schreibt ? <th className="pst-c-kn" /> : null}</tr></thead>
               <tbody>

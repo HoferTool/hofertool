@@ -147,12 +147,26 @@ export function berichtAusExcel(roh) {
     // die Seiten kommen jetzt zusammen, darum fällt er weg (Patrick 26. November 2026)
     if (!nr && /(übrig|restlich|weitere)\S*\s+mass\S*.*seite\s*\d/i.test(soll)) continue;
     if (!nr && soll && !pm && ist.every((x) => !x)) { zeilen.push({ abschnitt: soll }); continue; }
+    if (!pm && !bild && ist.every((x) => !x) && nachProduktion(soll)) { zeilen.push({ abschnitt: soll, nach: true }); continue; }
     if (nr && !soll && !bild) { ohneSoll++; continue; }   // leere Zeile mit Nummer: nichts zu prüfen
     zeilen.push(bild ? { nr, soll, pm, _bild: bild } : { nr, soll, pm });
   }
   if (!zeilen.some((x) => x.soll || x._bild)) teilweise.push("keine Masse gefunden");
   if (!ende) teilweise.push("Ende der Tabelle (Prüf-Entscheid) fehlt");
   return { kopf, zeilen, seite, seiten, teilweise };
+}
+
+// Seit 1.871.0 (Patrick 26. November 2026: „Sachen, die nach der Produktion
+// passieren, sollen nach einem Absatz stehen, damit man eine klare Trennung
+// sieht“): Zeilen wie „ZA extern“, „Oberfläche, vernickelt“, „Masse nach dem
+// Trovalisieren“, „Härterei“ ohne Prüfmittel und Ist sind Absätze, auch mit
+// Nummer. Die Masse darunter füllt man erst bei der End- oder Zwischenkontrolle.
+const NACH_PROD = /^(ZA\b|zusatz\w*\s*arbeit|oberfl[äa]che\b|(end)?ma(ss|ß)e?\s+nach\b|(detail\s+\w+\s*[-–:]\s*)?ma(ss|ß)e?\s+nach\b|nach\s+(dem|der|den)\b|h[äa]rter\w*|w[äa]rmebehandl\w*|therm\.?\s*behandl\w*|galvani\w*|vernickel\w*|verchrom\w*|trovalis\w*|eloxi\w*|br[üu]nier\w*)/i;
+export const nachProduktion = (t) => NACH_PROD.test(String(t || "").trim());
+// Schon gespeicherte Masse: solche Zeilen ohne Prüfmittel ebenso als Absatz
+export function nachProdAbsaetze(zeilen) {
+  return (zeilen || []).map((z) => (!z || z.abschnitt !== undefined || z.pm || bildVon(z) || z.tol || !nachProduktion(z.soll)
+    ? z : { abschnitt: z.soll, nach: true, id: z.id }));
 }
 
 // Mehrere Seiten einer HOCO Nr. zu einer Vorlage, Seite 1 zuerst
@@ -174,7 +188,7 @@ const NUR_MAX = /^(ra|rz|rmax|rundlauf|planlauf|gesamtlauf|position|ebenheit|par
 export function toleranz(soll) {
   let s = String(soll || "").trim().replace(/^Ø\s*/, "").replace(/\s*x\s*45°\s*$/i, "")
     .replace(/\s+\d+\s*x\s*$/i, "").trim();
-  if (!s || /^M\d/i.test(s)) return null;
+  if (!s || /^M\s*\d/i.test(s)) return null;
   const grad = /°/.test(s) ? "°" : "";
   // Bereich wie „1.24-1.34“, „KB 0.02-0.1“
   let m = new RegExp("^(?:[A-Za-zÄÖÜäöü.]+\\s*)?" + ZAHL + "\\s*-\\s*" + ZAHL + "°?$").exec(s);
@@ -239,7 +253,9 @@ export function lehrenAus(vorlage) {
       const name = pm.replace(/\s*[ØøD]?\s*\d+(?:[.,]\d+)?\s*(\/\s*\d+(?:[.,]\d+)?)?\s*$/, "").trim() || pm;
       let mass = (/(\d+(?:[.,]\d+)?\s*\/\s*\d+(?:[.,]\d+)?)/.exec(pm) || [])[1] || "";
       const t = toleranz(zl.soll);
-      if (!mass && /gewinde/i.test(pm)) mass = String(zl.soll || "").replace(/\s+\d+\s*x\s*$/i, "").trim();
+      // Seit 1.872.0 zählt auch ein Soll wie „M 1.6 2 x“ (mit Leerzeichen) als Gewinde,
+      // auch wenn in der Spalte nur „Lehre“ steht (Patrick 26. November 2026).
+      if (!mass && (/gewinde/i.test(pm) || /^\s*M\s*\d/i.test(String(zl.soll || "")))) mass = String(zl.soll || "").replace(/\s+\d+\s*x\s*$/i, "").trim().replace(/^M\s+(?=\d)/i, "M");
       else if (!mass && t && t.min !== null) mass = "Ø " + t.min.toFixed(3) + " / " + t.max.toFixed(3);
       else if (!mass && t) mass = "≤ " + t.max;
       if (!mass) mass = String(zl.soll || "").trim();
@@ -298,7 +314,8 @@ const istStift = (p) => STIFT_RE.test((p.typ || "") + " " + (p.bezeichnung || ""
 
 export function pruefmittelFuer(lehre, liste, hoco) {
   const name = String(lehre.name || "");
-  const gew = /gewinde/i.test(name) || /^M\d/i.test(String(lehre.mass || "")) ? gewindeVon(lehre.mass || lehre.soll) : "";
+  const gew = /gewinde/i.test(name) || /^\s*M\s*\d/i.test(String(lehre.mass || "")) || /^\s*M\s*\d/i.test(String(lehre.soll || ""))
+    ? gewindeVon(lehre.mass || lehre.soll) || gewindeVon(lehre.soll) : "";
   const ring = /ring/i.test(name) ? true : /dorn/i.test(name) ? false : null;
   const g = gew ? null : grenzenLehre(lehre);
   const soll = zahlenIn(lehre.mass);
@@ -448,7 +465,7 @@ export async function stammLaden(hoco) {
 // früher abgelegten Excel-Vorlagen (Ordner oder von Hand vor 1.779.0)
 export async function stammMitMassen(hoco) {
   const st = await stammLaden(hoco).catch((f) => { if (fehltTabelle(f)) return null; throw f; });
-  if (st && (st.zeilen || []).length) return { ...st, aus: "stamm" };
+  if (st && (st.zeilen || []).length) return { ...st, zeilen: nachProdAbsaetze(st.zeilen), aus: "stamm" };
   const dateien = await dateienLaden(hoco).catch(() => []);
   if (!dateien.length) return st ? { ...st, aus: "stamm" } : null;
   try {

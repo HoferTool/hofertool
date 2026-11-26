@@ -26,10 +26,11 @@ import { passtWoerter } from "../../teile/Suchfeld.jsx";
 import { useSeitenSuche } from "../../teile/seitenSuche.js";
 import { STIL, briefkopf } from "./achtdBlatt.js";
 import { qsSprung, masseInQsOeffnen } from "./qsSprung.js";
-import Pruefung from "../../hoco/Pruefung.jsx";
+import Pruefung, { MasseBlatt } from "../../hoco/Pruefung.jsx";
+import { createPortal } from "react-dom";
 import {
   ARTEN, artVon, artName, istZwischen, TEILE, AQL_WERTE, aqlPlan, fehltTabelle, protokolleLaden, dateienLaden, vorlageLaden, stammSpeichern,
-  stammLaden, stammMitMassen, toleranz, toleranzText, istPruefen, lehrenAus, pruefmittelFuer, pruefmittelAlleLaden, pmOrtText, bildVon,
+  stammLaden, stammMitMassen, toleranz, toleranzText, istPruefen, lehrenAus, pruefmittelFuer, pruefmittelAlleLaden, pmOrtText, bildVon, zeilenId,
 } from "../../daten/pruefbericht.js";
 
 // Offenes Protokoll und Suche bleiben beim Reiterwechsel
@@ -365,18 +366,19 @@ function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
             <input type="search" className="pb-suche pb-todo__suche" data-pbtodosuche={id} placeholder="HOCO Nr. suchen …"
               value={sp[id] || ""} onChange={(x) => spSetzen(id, x.target.value)}
               onKeyDown={(x) => { if (x.key === "Escape" && sp[id]) { x.preventDefault(); x.stopPropagation(); spSetzen(id, ""); } }} />
-            {/* Seit 1.869.0 steht nichts da, bis man sucht (Wunsch Patrick 26. November 2026:
-                „man soll danach suchen … per HOCO Nr., kein FA Nr., so einfach wie möglich“) */}
-            {!todo[id].length ? <p className="klein">Nichts offen.</p> : !(sp[id] || "").trim() ? <p className="klein">HOCO Nr. eintippen.</p> : !gefiltert(id).length ? <p className="klein">Nichts gefunden.</p> : (
-              <ul>
-                {gefiltert(id).slice(0, 30).map((t) => (
+            {/* Seit 1.871.0 wieder alle offenen gleich sichtbar, kompakt je eine Zeile
+                (Wunsch Patrick 26. November 2026: „soll wieder Einträge anzeigen, sieht so leer aus,
+                aber so, dass viele angezeigt werden können“); 1.869.0 bis 1.870.x erst mit Suche */}
+            {!todo[id].length ? <p className="klein">Nichts offen.</p> : !gefiltert(id).length ? <p className="klein">Nichts gefunden.</p> : (
+              <ul className="pb-todo__kompakt">
+                {gefiltert(id).slice(0, 300).map((t) => (
                   <li key={t.j.id}>
                     <button type="button" className="pb-todo__eintrag" data-pbtodoauftrag={t.j.id} disabled={!darf() && !t.p} onClick={() => todoTippen(t)}>
                       <b>{t.j.job_number}</b>
                       <small>{t.j.maschine || "?"} · {t.zwischen ? "Zwischenkontrolle" : (STAND[t.j.plan_status] || "")}{t.p ? " · in Arbeit" : ""}</small>
                     </button>
                     {darf() ? <button type="button" className="pb-todo__alt" data-pbalt={t.j.id} title="Wurde mit dem bisherigen System geprüft, nur weitergeben"
-                      onClick={async () => { if (await altGeprueft(t)) neu(); }}>✓ Im alten System geprüft</button> : null}
+                      onClick={async () => { if (await altGeprueft(t)) neu(); }}>✓ alt</button> : null}
                   </li>
                 ))}
               </ul>
@@ -461,69 +463,113 @@ function KopfRaster({ kopf, w, hoco }) {
   );
 }
 
-// ---------- Leere Vorlage aus dem Excel der letzten Produktion (seit 1.823.0,
-// Wunsch Patrick 25. November 2026: „das efektive excel braucht man nicht zu
-// sehen, und die vorlage soll dan leer sein“). Alle Seiten eines Index sind ein
-// Bericht; was sich nicht lesen liess, steht mit ⚠ darüber. ----------
+// ---------- Vorlage aus dem Excel der letzten Produktion (seit 1.823.0, seit
+// 1.872.0 gleich bearbeitbar, Wunsch Patrick 26. November 2026: „will nicht auf
+// prüfmasse drücken müssen, soll alles gleich bearbeitbar sein … soll einfach
+// gespeichert werden können … drucken … soll wie beim Excel Prüfbericht heissen“).
+// Das Masse-Blatt geht gleich auf, Speichern legt die Masse in die Stammdaten. ----------
 function VorlageLeer({ v, zurueck }) {
   const [st, setSt] = useState({ laedt: true });
   const [stamm, setStamm] = useState(undefined);
-  const [speichert, setSpeichert] = useState(false);
+  const [w, setW0] = useState(null);
+  const [geaendert, setGeaendert] = useState(true);
+  const [laeuft, setLaeuft] = useState(false);
+  const neuFokus = useRef(null);
+  const setW = (f) => { setW0(f); setGeaendert(true); };
   useEffect(() => {
     let weg = false;
-    vorlageLaden(v.dateien).then((x) => { if (!weg) setSt({ v: x }); }, (f) => { if (!weg) setSt({ fehler: fehlerText(f) }); });
-    stammLaden(v.hoco).then((x) => { if (!weg) setStamm(x); }, () => { if (!weg) setStamm(null); });
+    Promise.all([vorlageLaden(v.dateien), stammLaden(v.hoco).catch(() => null)]).then(([x, s]) => {
+      if (weg) return;
+      const zeilen = [];
+      for (const z of (x.zeilen || [])) zeilen.push({ ...z, id: z.id || zeilenId(zeilen, z) });
+      const kopf = { ...((s && s.kopf) || {}), ...(x.kopf || {}) };
+      kopf.index = (x.kopf || {}).index || v.idx || kopf.index || "";
+      setStamm(s); setSt({ v: x }); setW0({ zeilen, kopf }); setGeaendert(true);
+    }, (f) => { if (!weg) setSt({ fehler: fehlerText(f) }); });
     return () => { weg = true; };
   }, [v]);
   const vor = st.v;
   const teilweise = (vor && vor.teilweise) || [];
   const hatMasse = !!(stamm && (stamm.zeilen || []).length);
-  // „Ist okay so“: was gelesen wurde, kommt als Masse in die Stammdaten der HOCO Nr.
-  // Danach gilt nur noch der Stamm (Protokolle, Endkontrolle), das Excel nicht mehr.
-  const okay = async () => {
-    if (!vor || speichert) return;
-    if (hatMasse) {
-      const ok = await alt.nachfragen({ titel: "Masse ersetzen?", text: "Für " + v.hoco + " stehen schon " + stamm.zeilen.length + " Masse in den Stammdaten. Mit „Ist okay so“ werden sie durch diese Vorlage ersetzt.", bestaetigen: "Ersetzen" });
+  const idx = (w && w.kopf && w.kopf.index) || v.idx || "";
+  const titel = "Prüfbericht" + (idx ? " · Index " + idx : "");
+
+  const zeileSetzen = (id, n, val) => setW((x) => ({ ...x, zeilen: x.zeilen.map((z) => (z.id === id ? { ...z, [n]: val } : z)) }));
+  const zeileWeg = (id) => setW((x) => ({ ...x, zeilen: x.zeilen.filter((z) => z.id !== id) }));
+  const zeilenLeeren = (ids) => setW((x) => ({ ...x, zeilen: x.zeilen.map((z) => (!ids.has(z.id) ? z : "abschnitt" in z ? { ...z, abschnitt: "" } : { ...z, nr: "", soll: "", pm: "", ll: false })) }));
+  const zeilenWeg = (ids) => setW((x) => ({ ...x, zeilen: x.zeilen.filter((z) => !ids.has(z.id)) }));
+  const zeileDazu = (abschnitt, bei) => setW((x) => {
+    const nrn = x.zeilen.map((z) => parseInt(z.nr, 10)).filter((n) => !isNaN(n));
+    const z = abschnitt ? { abschnitt: "Neuer Abschnitt" } : { nr: String((nrn.length ? Math.max(...nrn) : 0) + 1), soll: "", pm: "" };
+    const neu = { ...z, id: zeilenId(x.zeilen, z) };
+    const l = [...x.zeilen]; l.splice(bei == null ? l.length : bei, 0, neu);
+    neuFokus.current = neu.id;
+    return { ...x, zeilen: l };
+  });
+  const schieben = (i, d) => setW((x) => { const z = [...x.zeilen]; const j = i + d; if (j < 0 || j >= z.length) return x; [z[i], z[j]] = [z[j], z[i]]; return { ...x, zeilen: z }; });
+
+  // Speichern: die Masse kommen in die Stammdaten der HOCO Nr.; danach nehmen
+  // Erstteilprüfung und Endkontrolle sie von dort.
+  const speichern = async () => {
+    if (!w || laeuft) return;
+    if (hatMasse && !stamm.__bestaetigt) {
+      const ok = await alt.nachfragen({ titel: "Masse ersetzen?", text: "Für " + v.hoco + " stehen schon " + stamm.zeilen.length + " Masse in den Stammdaten. Speichern ersetzt sie durch dieses Blatt.", bestaetigen: "Ersetzen" });
       if (!ok) return;
     }
-    setSpeichert(true);
+    setLaeuft(true);
     try {
-      const kopf = { ...((stamm && stamm.kopf) || {}), ...(vor.kopf || {}) };
-      if (!kopf.index && v.idx) kopf.index = v.idx;
       const arten = stamm && (stamm.arten || []).length ? stamm.arten : ["erstteil", "endkontrolle"];
       await stammSpeichern(v.hoco, { arten, aql: stamm ? stamm.aql ?? null : null, niveau: stamm ? stamm.niveau || null : null,
-        zeilen: (vor.zeilen || []).map((z) => ({ ...z })), kopf });
-      setStamm(await stammLaden(v.hoco).catch(() => null));
-      alt.meldung("Vorlage übernommen: " + (vor.zeilen || []).filter((z) => z.soll).length + " Masse in den Stammdaten von " + v.hoco + ".", "gut");
+        zeilen: w.zeilen.map((z) => ({ ...z })), kopf: { ...w.kopf } });
+      const s = await stammLaden(v.hoco).catch(() => null);
+      if (s) s.__bestaetigt = true;
+      setStamm(s); setGeaendert(false);
+      alt.meldung("Gespeichert: " + w.zeilen.filter((z) => z.soll).length + " Masse in den Stammdaten von " + v.hoco + ".", "gut");
     } catch (f) { alt.meldung(fehlerText(f), "fehler"); }
-    setSpeichert(false);
+    setLaeuft(false);
   };
-  return (
+
+  const drucken = async () => {
+    if (!w) return;
+    const k = w.kopf || {};
+    const kf = [["HOCO Nr.", v.hoco], ["Artikel", k.bezeichnung], ["Zeichnung", k.zeichnung], ["Index", k.index], ["Allg. Toleranz", k.alltol]]
+      .filter(([, x]) => x).map(([n, x]) => "<div><small>" + h(n) + "</small><b>" + h(x) + "</b></div>").join("");
+    const sp = TEILE + 4;
+    const reihen = w.zeilen.map((z) => ("abschnitt" in z)
+      ? "<tr class='ab'><td colspan='" + sp + "'>" + h(z.abschnitt) + "</td></tr>"
+      : "<tr><td>" + h(z.nr) + "</td><td>" + sollHtml(z) + "</td><td>" + h(toleranzText(toleranz(z.soll))) + "</td>" + "<td></td>".repeat(TEILE) + "<td>" + h(z.pm) + "</td></tr>").join("");
+    const html = "<style>" + STIL + "</style><style>.pbp{font-family:Arial,sans-serif;color:#111;font-size:10pt}.pbp h1{font-size:15pt;margin:0 0 6px;color:#003884}.pbp .pbp-kf{display:grid;grid-template-columns:repeat(4,1fr);gap:3px 12px;margin-bottom:8px}.pbp .pbp-kf small{color:#666;display:block;font-size:8pt}.pbp table{width:100%;border-collapse:collapse}.pbp th,.pbp td{border:1px solid #999;padding:2px 4px;text-align:left;font-size:9pt;height:7mm}.pbp th{background:#e8eef6}.pbp tr.ab td{background:#f3f3f3;font-weight:700}</style>"
+      + briefkopf() + "<div class='inhalt pbp'><h1>" + h(titel) + "</h1><div class='pbp-kf'>" + kf + "</div><table><thead><tr><th>Nr.</th><th>Soll</th><th>Toleranz</th>"
+      + [...Array(TEILE)].map((_, i) => "<th>Teil " + (i + 1) + "</th>").join("") + "<th>Prüfmittel</th></tr></thead><tbody>" + reihen + "</tbody></table></div>";
+    try {
+      const { blattPdf } = await import("./achtdPdf.js");
+      const blob = await blattPdf(html, titel);
+      alt.betrachter(URL.createObjectURL(blob), "Prüfbericht " + v.hoco + (idx ? " Index " + idx : "") + ".pdf", true);
+    } catch (f) { alt.meldung("Drucken ging nicht: " + fehlerText(f), "fehler"); }
+  };
+
+  if (!w) return (
     <div className="pb pb-blattseite" data-pbvorlage={v.hoco}>
       <div className="pb-kopfzeile pb-werkzeug">
         <button type="button" className="knopf knopf--klein" data-esc-zurueck onClick={zurueck}>← Prüfberichte</button>
-        <span className="pst-platz" />
-        {vor && darf() ? (
-          <button type="button" className="knopf knopf--klein knopf--haupt" id="pb-vorlage-okay" disabled={speichert} onClick={okay}>
-            {speichert ? "Wird gespeichert …" : "✓ Ist okay so"}</button>
-        ) : null}
-        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(v.hoco)}>{hatMasse ? "Prüfmasse ändern" : "Prüfmasse " + v.hoco}</button>
       </div>
       {st.laedt ? <p className="klein">Vorlage wird gelesen …</p> : null}
       {st.fehler ? <p className="pb-rot" id="pb-vorlage-fehler">⚠ Datei konnte nicht gelesen werden: {st.fehler}</p> : null}
-      {teilweise.length ? <p className="pb-rot" id="pb-vorlage-teilweise">⚠ Datei konnte zum Teil nicht gelesen werden: {teilweise.join("; ")}. Bitte durchschauen und fehlende Masse unter „Prüfmasse“ ergänzen.</p> : null}
-      {vor ? (hatMasse
-        ? <p className="klein" id="pb-vorlage-stand">✓ In den Stammdaten stehen {stamm.zeilen.length} Zeilen{stamm.geaendert_am ? " (Stand " + zeitText(stamm.geaendert_am) + ")" : ""}. Protokolle nehmen die Masse von dort.</p>
-        : <p className="klein" id="pb-vorlage-stand">Durchschauen, ob alles stimmt, dann „✓ Ist okay so“. Danach kommen die Masse in die Stammdaten, und Erstteilprüfung und Endkontrolle nehmen sie von dort.</p>) : null}
-      {vor ? (
-        <div className="pb-blatt hell-bleibt" id="pb-blatt">
-          <div className="rkpdf pb-briefkopf" dangerouslySetInnerHTML={{ __html: "<style>" + STIL + "</style>" + briefkopf() }} />
-          <h2 className="pb-blatt__titel">Vorlage aus letzter Produktion{v.idx ? " · Index " + v.idx : ""}</h2>
-          <KopfRaster kopf={{ ...(vor.kopf || {}), index: (vor.kopf || {}).index || v.idx }} w={{ kopf: {}, werte: {} }} hoco={v.hoco} />
-          {(vor.zeilen || []).length ? <TeileTabelle zeilen={vor.zeilen} w={{ kopf: {}, werte: {} }} schreibt={false} aendern={() => {}} />
-            : <p className="klein">Keine Masse gefunden.</p>}
-        </div>
-      ) : null}
+    </div>
+  );
+  const extra = (
+    <>
+      <button type="button" className="knopf knopf--klein" id="pb-vorlage-drucken" onClick={drucken}>Drucken</button>
+      {teilweise.length ? <span className="pb-rot klein" id="pb-vorlage-teilweise">⚠ Zum Teil nicht lesbar: {teilweise.join("; ")}. Fehlende Masse direkt im Blatt ergänzen.</span> : null}
+      <span className="klein" id="pb-vorlage-stand">{hatMasse && !geaendert ? "✓ In den Stammdaten gespeichert" : hatMasse ? "In den Stammdaten stehen " + stamm.zeilen.length + " Zeilen" : "Noch nicht in den Stammdaten"}</span>
+    </>
+  );
+  return (
+    <div className="pb" data-pbvorlage={v.hoco}>
+      {createPortal(<MasseBlatt w={w} hoco={v.hoco} schreibt={darf()} zeileSetzen={zeileSetzen} zeileWeg={zeileWeg} zeilenLeeren={zeilenLeeren}
+        zeilenWeg={zeilenWeg} zeileDazu={zeileDazu} schieben={schieben} neuFokus={neuFokus} geaendert={geaendert} laeuft={laeuft}
+        speichern={speichern} zu={zurueck} titel={titel} label={"Prüfbericht " + v.hoco} weiterText={"Prüfbericht " + v.hoco + " · Fortsetzung"}
+        extra={extra} zuText="Die Änderungen an der Vorlage sind noch nicht in den Stammdaten gespeichert." />, document.body)}
     </div>
   );
 }

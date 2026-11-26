@@ -49,7 +49,7 @@ with sync_playwright() as p:
     pg.evaluate("location.hash='#/qs'"); pg.wait_for_timeout(800)
     pg.evaluate("() => { const b = [...document.querySelectorAll('[data-qs=pruefberichte], .nav a, .nav button, .reiter button, .reiter a')].find(x => x.offsetParent && /Prüfberichte/.test(x.textContent)); b && b.click(); }")
     pg.wait_for_selector("#pb-todo"); pg.wait_for_timeout(500)
-    pruefe(pg.locator("[data-pbtodo=erstteil] [data-pbtodoauftrag=jpb1]").count() == 0, "ohne Suche nichts sichtbar")
+    pruefe(pg.locator("[data-pbtodo=erstteil] [data-pbtodoauftrag=jpb1]").count() == 1, "auch ohne Suche sichtbar (1.871.0)")
     suche(pg)
     pruefe(pg.locator("[data-pbtodo=erstteil] [data-pbtodoauftrag=jpb1]").count() == 1, "Erstteil steht an")
     pruefe(pg.locator("[data-pbtodo=aql] [data-pbtodoauftrag=jpb1]").count() == 0, "AQL erst bei läuft")

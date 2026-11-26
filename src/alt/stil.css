@@ -17545,3 +17545,11 @@ body.dunkel .pst-bildknopf { background: #2a3340; border-color: #3a4554; }
 /* 1.869.0: Lagerbewegungen aus dem Gewatec nur zum Ansehen, leicht gedämpft */
 tr.erp-gewatec td { color: #5b6573; background: #f7f8fa; }
 body.dunkel tr.erp-gewatec td { background: #1c2128; }
+
+/* 1.871.0: Spalten „anstehend“ zeigen wieder alles, kompakt eine Zeile je
+   Auftrag, damit viele auf einmal Platz haben (Wunsch Patrick 26. November 2026) */
+.pb-todo__kompakt { display: flex; flex-direction: column; gap: 3px; max-height: 360px; overflow: auto; padding: 0; margin: 0; list-style: none; }
+.pb-todo__kompakt > li { display: flex; align-items: center; gap: 4px; }
+.pb-todo__kompakt .pb-todo__eintrag { flex: 1; min-width: 0; display: flex; flex-direction: row; align-items: baseline; gap: 6px; padding: 3px 8px; }
+.pb-todo__kompakt .pb-todo__eintrag small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pb-todo__kompakt .pb-todo__alt { padding: 1px 6px; font-size: 11px; margin: 0; flex: none; }
