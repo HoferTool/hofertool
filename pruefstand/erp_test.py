@@ -180,6 +180,8 @@ with sync_playwright() as p:
 
     # Kalkulation im ERP
     pg.click("[data-erp-reiter='kalk']"); pg.wait_for_timeout(800)
+    pruefe(pg.locator("#kalk-leer").count() == 1 and pg.locator(".kalk-liste__zeile").count() == 0, "Kalkulationen erst mit Suchbegriff")
+    pg.fill("#kalk-suche", "K-"); pg.wait_for_timeout(300)
     pruefe(pg.locator(".erp-kalk").count() == 1 and "K-1" in pg.inner_text(".erp-kalk"), "Modul Kalkulation im Reiter")
     pruefe(pg.locator("[data-erp-kalkreiter]").count() == 0, "Kein eigener Reiter Artikel und Arbeitsplan mehr")
     pg.click("tr[data-kalk='kk1']"); pg.wait_for_selector("#kalk-erp-uebernehmen")

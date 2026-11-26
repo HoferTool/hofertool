@@ -26,7 +26,9 @@ import {
 
 // Nummer der Kalkulation: Jahr + laufende Nr., mit Startwert aus den
 // Nummernkreisen des Test ERP (app_config.erp_nummern, Wunsch Patrick 25. November 2026)
-const kalkNr = async (liste) => naechsteNummer(await nummernLaden().catch(() => ({})), "kalkulation", liste.map((k) => k.nr));
+// Ist die Liste noch nicht geladen (sie lädt still im Hintergrund), holt die Nummer sie selbst
+const kalkNr = async (liste) => naechsteNummer(await nummernLaden().catch(() => ({})), "kalkulation",
+  (liste && liste.length ? liste : await kalkulationenLaden()).map((k) => k.nr));
 
 const REITER = [
   ["kopf", "Kopfdaten"], ["material", "Staffeln und Material"], ["ags", "Arbeitsgänge"],
@@ -79,7 +81,7 @@ export default function Kalkulation({ auffrischen }) {
     return <><h1 className="seitentitel">Kalkulation</h1>
       <div className="karte karte--fehler"><p>{alt.fehlertext(fehler)}</p></div></>;
   }
-  if (!liste.daten || !masch.daten) {
+  if (!masch.daten) {
     return <><h1 className="seitentitel">Kalkulation</h1><div className="laedt">Wird geladen …</div></>;
   }
 
@@ -88,7 +90,7 @@ export default function Kalkulation({ auffrischen }) {
   }
   if (offen) {
     return <Offen key={offen} id={offen} maschinen={masch.daten}
-      zurueck={() => { setOffen(null); liste.neu(); }} neu={liste.neu} oeffnen={setOffen} liste={liste.daten} />;
+      zurueck={() => { setOffen(null); liste.neu(); }} neu={liste.neu} oeffnen={setOffen} liste={liste.daten || []} />;
   }
   return <Liste liste={liste.daten} maschinen={masch.daten} oeffnen={setOffen}
     neu={() => { liste.neu(); masch.neu(); }} saetze={() => setSaetze(true)} />;
@@ -120,7 +122,9 @@ function Liste({ liste, maschinen, oeffnen, neu, saetze }) {
   const [suche, setSuche] = useState(gemerkt.suche || "");
   useGemerkt(gemerkt, { suche });
   const woerter = suche.toLowerCase().split(/\s+/).filter(Boolean);
-  const gefunden = !woerter.length ? liste : liste.filter((k) => {
+  // Liste erst mit Suchbegriff (Wunsch Patrick 26. November 2026): die Seite steht
+  // sofort da, die über 7'000 Kalkulationen laden still im Hintergrund
+  const gefunden = !woerter.length || !liste ? [] : liste.filter((k) => {
     const kopf = k.kopf || {};
     const text = [k.nr, k.kunde, k.artikel, ...Object.values(kopf)].filter((x) => typeof x === "string").join(" ").toLowerCase();
     return woerter.every((w) => text.includes(w));
@@ -152,16 +156,18 @@ function Liste({ liste, maschinen, oeffnen, neu, saetze }) {
       <div className="kalk-knoepfe">
         <button className="knopf knopf--haupt" id="kalk-neu" disabled={laeuft} onClick={() => anlegen(false)}>+ Neue Kalkulation</button>
         <button className="knopf" id="kalk-saetze" onClick={saetze}>Stundensätze der Maschinen ({maschinen.length})</button>
-        {!liste.some((k) => k.nr === "20225174") &&
+        {liste && !liste.some((k) => k.nr === "20225174") &&
           <button className="knopf" id="kalk-beispiel" disabled={laeuft} onClick={() => anlegen(true)}>Beispiel aus Gewatec anlegen</button>}
       </div>
-      {!liste.length
+      {liste && !liste.length
         ? <div className="karte karte--hinweis"><p>Noch keine Kalkulation. Mit „Beispiel aus Gewatec anlegen“ kommt die
             Kalkulation 20225174 mit allen Zahlen herein, zum Vergleichen mit dem Gewatec.</p></div>
         : <section className="karte kalk-rolle">
-            <input type="text" id="kalk-suche" className="kalk-suche" value={suche} placeholder="Suchen: Nummer, Kunde, Artikel, Zeichnung, Bezeichnung …"
+            <input type="text" id="kalk-suche" className="kalk-suche" autoFocus value={suche} placeholder="Suchen: Nummer, Kunde, Artikel, Zeichnung, Bezeichnung …"
               onChange={(e) => setSuche(e.target.value)} onKeyDown={(e) => { if (e.key === "Escape" && suche) { e.preventDefault(); setSuche(""); } }} />
-            {!gefunden.length ? <p className="hinweis" id="kalk-nichts">Keine Kalkulation gefunden.</p> :
+            {!woerter.length ? <p className="hinweis" id="kalk-leer">Suchbegriff eintippen, dann erscheinen die Kalkulationen.</p> :
+             !liste ? <p className="hinweis laedt" id="kalk-laedt">Kalkulationen werden geladen …</p> :
+             !gefunden.length ? <p className="hinweis" id="kalk-nichts">Keine Kalkulation gefunden.</p> :
             <table className="tabelle kalk-liste">
               <thead><tr><th>Nr.</th><th>Kunde</th><th>Artikel</th><th>Staffeln</th><th className="rechts">Preis</th><th>Geändert</th></tr></thead>
               <tbody>
