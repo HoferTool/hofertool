@@ -17465,3 +17465,7 @@ body.dunkel .pb-pm-fehlt { color: #ff9a92 !important; }
 .kalk-mat-kopf { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
 .kalk-mat-kopf h2 { margin: 0; }
 .kalk-mat-kopf .moduswahl__knopf { padding: 5px 12px; font-size: 13px; }
+
+/* 1.854.0 Lagerjournal im Test ERP */
+.erp-journal-datum { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; }
+.erp-journal-summe { margin: 8px 0; font-size: 13px; }

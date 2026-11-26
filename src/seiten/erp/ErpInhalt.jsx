@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { useDaten, useGemerkt } from "../../bruecke.jsx";
 import { allesLaden } from "../../daten/erp.js";
 import Stammdaten from "./Stammdaten.jsx";
+import { BewegungListe } from "./Bewegungen.jsx";
 import Kalkulation from "../Kalkulation.jsx";
 import { BelegListe, Rechnungen, Fibu, Rueckverfolgung } from "./Belege.jsx";
 
@@ -13,7 +14,7 @@ import { BelegListe, Rechnungen, Fibu, Rueckverfolgung } from "./Belege.jsx";
 const REITER = [
   ["kalk", "Kalkulation"], ["stamm", "Stammdaten"],
   ["auftrag", "Aufträge"], ["fertigung", "Fertigung"], ["bestellung", "Bestellungen"], ["lieferschein", "Lieferscheine"],
-  ["rechnung", "Rechnungen"], ["fibu", "Fibu"], ["rueck", "Rückverfolgung"],
+  ["rechnung", "Rechnungen"], ["fibu", "Fibu"], ["rueck", "Rückverfolgung"], ["journal", "Lagerjournal"],
 ];
 const gemerkt = { reiter: "kalk", kalk: "modul" };
 // Nach dem Neuladen wieder im selben Reiter und Unterreiter (Wunsch Patrick 25. November 2026)
@@ -47,6 +48,8 @@ export default function ErpInhalt({ auffrischen }) {
         {reiter === "rechnung" && <Rechnungen d={d} neu={neu} />}
         {reiter === "fibu" && <Fibu d={d} neu={neu} />}
         {reiter === "rueck" && <Rueckverfolgung d={d} neu={neu} />}
+        {reiter === "journal" && <div className="erp-journal"><p className="hinweis">Alle Lagerbewegungen über alle Artikel. Zeile antippen öffnet den Beleg.</p>
+          <BewegungListe d={d} journal /></div>}
         {reiter === "kalk" && <div className="erp-kalk">
           {/* Das bestehende Modul Kalkulation steht seit 1.672.0 hier (Wunsch Patrick) */}
           {/* Artikel und Arbeitsplan übernimmt seit 1.848.0 der Knopf in der offenen Kalkulation */}

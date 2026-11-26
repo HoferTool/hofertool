@@ -411,6 +411,26 @@ with sync_playwright() as p:
     pruefe(pg.locator("[data-erp-bewegungen] tbody tr").count() == 2, "Filter Umbuchung")
     pg.screenshot(path=BILD + "/erp-bewegungen.png", full_page=True)
 
+    # Lagerjournal: alle Bewegungen über alle Artikel
+    for _ in range(4):
+        if pg.locator(".dialog-huelle").count() == 0: break
+        pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    pg.click("[data-erp-reiter='journal']"); pg.wait_for_selector("[data-erp-journal-summe]")
+    alleB = tabelle(pg, "erp_bewegungen")
+    zeilen = pg.locator(".erp-journal [data-erp-bewegungen] tbody tr").count()
+    pruefe(zeilen == len(alleB), "Lagerjournal zeigt alle Bewegungen: %s von %s" % (zeilen, len(alleB)))
+    pruefe(str(len(alleB)) in pg.inner_text("[data-erp-journal-summe]"), "Lagerjournal Summe")
+    pg.locator(".erp-journal select[data-erp-bew-art]").select_option("umbuchung"); pg.wait_for_timeout(300)
+    pruefe(pg.locator(".erp-journal [data-erp-bewegungen] tbody tr").count() == 2, "Lagerjournal Filter Umbuchung")
+    pg.locator(".erp-journal select[data-erp-bew-art]").select_option(index=0)
+    pg.fill("input[data-erp-journal-von]", "2000-01-01"); pg.fill("input[data-erp-journal-bis]", "2000-01-02"); pg.wait_for_timeout(300)
+    pruefe(pg.locator(".erp-journal [data-erp-bewegungen] tbody tr:not(:has(.gf-tab__leer))").count() == 0, "Lagerjournal Zeitraum")
+    pg.fill("input[data-erp-journal-von]", ""); pg.fill("input[data-erp-journal-bis]", ""); pg.wait_for_timeout(300)
+    with pg.expect_download() as dl:
+        pg.click("[data-erp-journal-csv]")
+    pruefe(dl.value.suggested_filename.startswith("Lagerjournal-"), "Lagerjournal CSV")
+    pg.screenshot(path=BILD + "/erp-journal.png", full_page=True)
+
     # Kalkulation: Kunde, Artikel und Material aus den Stammdaten wählen
     for _ in range(4):
         if pg.locator(".dialog-huelle").count() == 0: break

@@ -105,10 +105,17 @@ export function bewegungZeilen(d, artikelId) {
     .slice().sort((x, y) => String(y.am || "").localeCompare(String(x.am || "")));
 }
 
-export function BewegungListe({ d, artikelId, aussen }) {
+// Lagerjournal (Wunsch Patrick 25. November 2026: „das lagerjournal kannst du
+// machen“): dieselbe Liste über alle Artikel, dazu Zeitraum, Artikelart,
+// Summen Zugang / Abgang und Export als CSV für Excel.
+const ARTIKELART = { hofer: "Hofer + Co", rohmaterial: "Rohmaterial", werkzeug: "Werkzeug" };
+export function BewegungListe({ d, artikelId, aussen, journal }) {
   const namen = useNamen();
   const [suche, setSuche] = useState("");
   const [art, setArt] = useState("");
+  const [von, setVon] = useState("");
+  const [bis, setBis] = useState("");
+  const [aart, setAart] = useState("");
   const [zahlZeigen, setZahl] = useState(200);
   const alle = bewegungZeilen(d, artikelId).map((b) => {
     const a = d.artikelMap.get(b.artikel_id) || {};
@@ -123,7 +130,9 @@ export function BewegungListe({ d, artikelId, aussen }) {
     return { b, a, beleg, zu, woher: zu ? gegen : hier, wohin: zu ? hier : gegen, ref, wer,
       text: [ART_TEXT[b.art] || b.art, a.nr, a.bezeichnung, bewIdx(d, b), b.charge, hier, gegen, ref, b.notiz, wer].join(" ") };
   }).filter((z) => (!art || (art === "zu" ? z.zu && z.b.art !== "umbuchung" : art === "ab" ? !z.zu && z.b.art !== "umbuchung" : z.b.art === art))
-    && passt(suche, z.text));
+    && passt(suche, z.text)
+    && (!von || String(z.b.am || "").slice(0, 10) >= von) && (!bis || String(z.b.am || "").slice(0, 10) <= bis)
+    && (!aart || z.a.art === aart));
   const zeit = (iso) => (iso ? datumText(String(iso).slice(0, 10)) + " " + String(new Date(iso).toTimeString()).slice(0, 5) : "");
   const kopf = ["Datum", "Art"].concat(artikelId ? [] : ["Artikel"], ["Index", "Charge", "Menge", "Woher", "Wohin", "Referenz", "Vermerk", "Wer"]);
   return (
@@ -134,7 +143,17 @@ export function BewegungListe({ d, artikelId, aussen }) {
           <option value="">Alle</option><option value="zu">Zugang</option><option value="ab">Abgang</option>
           <option value="umbuchung">Umbuchung</option><option value="korrektur">Korrektur</option>
         </select>
+        {journal && <>
+          <select value={aart} onChange={(e) => setAart(e.target.value)} data-erp-journal-aart="">
+            <option value="">Alle Artikel</option>
+            {Object.entries(ARTIKELART).map(([k, t]) => <option key={k} value={k}>{t}</option>)}
+          </select>
+          <label className="erp-journal-datum">von <input type="date" value={von} onChange={(e) => setVon(e.target.value)} data-erp-journal-von="" /></label>
+          <label className="erp-journal-datum">bis <input type="date" value={bis} onChange={(e) => setBis(e.target.value)} data-erp-journal-bis="" /></label>
+          <button className="knopf knopf--klein" data-erp-journal-csv="" onClick={() => journalCsv(alle, zeit, d)}>⬇ CSV für Excel</button>
+        </>}
       </div>
+      {journal && <JournalSummen alle={alle} />}
       <GTabelle kopf={kopf} rechts={[artikelId ? 4 : 5]} leer="Keine Lagerbewegungen."
         zeilen={alle.slice(0, zahlZeigen).map((z) => ({ key: z.b.id, klasse: z.zu ? "" : "erp-minus",
           klick: z.beleg ? () => belegOeffnen(d, aussen, z.beleg) : undefined,
@@ -146,4 +165,35 @@ export function BewegungListe({ d, artikelId, aussen }) {
         Mehr ({mengeText(alle.length - zahlZeigen)} weitere)</button></p>}
     </div>
   );
+}
+
+// Summen je Einheit: Zugänge, Abgänge (ohne Umbuchungen, die heben sich auf)
+function JournalSummen({ alle }) {
+  const je = new Map();
+  for (const z of alle) {
+    if (z.b.art === "umbuchung") continue;
+    const e = z.a.einheit || "Stk";
+    const s = je.get(e) || { zu: 0, ab: 0 };
+    if (z.zu) s.zu += Number(z.b.menge) || 0; else s.ab += Number(z.b.menge) || 0;
+    je.set(e, s);
+  }
+  return (
+    <p className="erp-journal-summe" data-erp-journal-summe="">
+      {mengeText(alle.length)} Bewegungen{[...je].map(([e, s]) => (
+        <span key={e}> · Zugang <b>+{mengeText(s.zu)} {e}</b>, Abgang <b>{mengeText(s.ab)} {e}</b></span>))}
+    </p>
+  );
+}
+
+function journalCsv(alle, zeit, d) {
+  const feld = (v) => { const t = String(v == null ? "" : v); return /[;"\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+  const zeilen = [["Datum", "Art", "Artikel", "Bezeichnung", "Index", "Charge", "Menge", "Einheit", "Woher", "Wohin", "Referenz", "Vermerk", "Wer"]];
+  for (const z of alle) zeilen.push([zeit(z.b.am), ART_TEXT[z.b.art] || z.b.art, z.a.nr, z.a.bezeichnung, bewIdx(d, z.b) || "", z.b.charge,
+    String(Number(z.b.menge) || 0), z.a.einheit || "", z.woher, z.wohin, z.ref, z.b.notiz || "", z.wer]);
+  const text = zeilen.map((r) => r.map(feld).join(";")).join("\r\n");
+  const url = URL.createObjectURL(new Blob(["\ufeff" + text], { type: "text/csv;charset=utf-8" }));
+  const l = document.createElement("a");
+  l.href = url; l.download = "Lagerjournal-" + new Date().toISOString().slice(0, 10) + ".csv";
+  document.body.appendChild(l); l.click(); l.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
