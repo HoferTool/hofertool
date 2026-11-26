@@ -17516,7 +17516,14 @@ body.dunkel .pb-pm-fehlt { color: #ff9a92 !important; }
   body > .dialog-huelle .gf-titel, body > .dialog-huelle [data-ziehgriff] { touch-action: none; }
 }
 
-/* 1.867.0 Massbilder aus den Prüfberichten und Symbole Form- und Lagetoleranz
+/* 1.867.0: Umfrage bis auf den Titel zuklappen */
+.umf__klapp { display: flex; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0;
+  background: none; border: 0; padding: 0; margin: 0; text-align: left; cursor: pointer; color: inherit; font: inherit; }
+.umf__klapp .umf__titel { margin: 0; }
+.umf__pfeil { flex: 0 0 auto; width: 1em; opacity: .7; }
+.umf__klapp-info { flex: 0 0 auto; color: #2e7d32; white-space: nowrap; }
+.umf--klapp { padding-bottom: 8px; }
+/* 1.868.0 Massbilder aus den Prüfberichten und Symbole Form- und Lagetoleranz
    (Wunsch Patrick 26. November 2026) */
 .schreibleiste__formlage { display: flex; flex-wrap: wrap; gap: 2px; max-width: 320px; padding: 4px; background: #fff; border: 1px solid #c9d3de; border-radius: 6px; }
 .schreibleiste__formlage[hidden] { display: none; }

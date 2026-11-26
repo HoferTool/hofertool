@@ -3,7 +3,7 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
-## 1.867.0 (26. November 2026)
+## 1.868.0 (26. November 2026)
 
 Prüfberichte: die ausgeschnittenen Massbilder der alten Excel-Berichte werden je Zeile erkannt und beim Soll übernommen, eigene Bilder im Masse-Blatt mit 🖼 oder Strg + V; Symbolpalette mit Form- und Lagetoleranzen (⌖▾) neben Ø und ± (Wunsch Patrick).
 
