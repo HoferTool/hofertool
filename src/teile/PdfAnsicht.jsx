@@ -241,9 +241,15 @@ export function PdfAnsicht({ daten, beiFehler }) {
       setFlaeche({ b, h });
     };
     messen();
-    const ro = new ResizeObserver(messen);
+    // Beobachter aus dem Fenster, in dem die Ansicht steht: liegt sie im
+    // eigenen Fenster des Auftrags, meldet ein Beobachter des Hauptfensters
+    // nichts, solange dieses verdeckt ist (1.860.1)
+    const W = fensterVon(el);
+    const ro = new (W.ResizeObserver || ResizeObserver)(messen);
     ro.observe(el);
-    return () => ro.disconnect();
+    // Noch ohne Grösse (Fenster eben erst umgezogen): nochmals messen
+    const nach = [150, 500, 1200].map((ms) => setTimeout(messen, ms));
+    return () => { ro.disconnect(); nach.forEach(clearTimeout); };
   }, []);
 
   // Grösse einer Seite auf dem Bildschirm: ganz sichtbar und so gross
@@ -484,6 +490,20 @@ export function PdfAnsicht({ daten, beiFehler }) {
 // Hunderten Seiten hat sonst auf dem iPad den Speicher gesprengt und
 // Safari hat die App neu geladen (Patrick 22. Oktober 2026: „grosse
 // Dokumente werden auf den Pads nicht angezeigt“).
+// Fenster, in dem ein Element steht (Hauptfenster oder eigenes Fenster)
+export function fensterVon(el) {
+  return (el && el.ownerDocument && el.ownerDocument.defaultView) || window;
+}
+
+// pdf.js zeichnet sonst im Takt von requestAnimationFrame des Hauptfensters.
+// Steht die Ansicht im eigenen Fenster des Auftrags und ist das Hauptfenster
+// verdeckt oder im Hintergrund, steht dieser Takt still und die Zeichnung
+// blieb weiss (Patrick 26. November 2026). Ohne Takt zeichnen (intent print).
+export function zeichenArt(el) {
+  const fremd = el && el.ownerDocument && el.ownerDocument !== document;
+  return fremd || document.hidden ? { intent: "print" } : {};
+}
+
 function Seite({ doc, nr, breite, hoehe, massstab, flaeche, springen, buehne, treffer, aktiv }) {
   const leinwand = useRef(null);
   const huelle = useRef(null);
@@ -491,8 +511,10 @@ function Seite({ doc, nr, breite, hoehe, massstab, flaeche, springen, buehne, tr
   const [links, setLinks] = useState([]);
   useEffect(() => {
     const el = huelle.current;
-    if (!el || typeof IntersectionObserver === "undefined") { setNah(true); return; }
-    const io = new IntersectionObserver((e) => setNah(e.some((x) => x.isIntersecting)),
+    const IO = el && fensterVon(el).IntersectionObserver;
+    if (!el || !IO) { setNah(true); return; }
+    // Die ersten zwei Seiten bleiben immer gezeichnet
+    const io = new IO((e) => setNah(nr <= 2 || e.some((x) => x.isIntersecting)),
       { root: buehne && buehne.current, rootMargin: "100% 50%" });
     io.observe(el);
     return () => io.disconnect();
@@ -523,7 +545,7 @@ function Seite({ doc, nr, breite, hoehe, massstab, flaeche, springen, buehne, tr
       // beim Zoomen nichts weiss aufblitzt
       const neu = document.createElement("canvas");
       neu.width = Math.floor(v.width); neu.height = Math.floor(v.height);
-      aufgabe = seite.render({ canvasContext: neu.getContext("2d"), viewport: v, canvas: neu });
+      aufgabe = seite.render({ canvasContext: neu.getContext("2d"), viewport: v, canvas: neu, ...zeichenArt(leinwand.current) });
       const frei = () => { neu.width = 0; neu.height = 0; };
       try { await aufgabe.promise; } catch (f) { frei(); return; }
       if (weg || !leinwand.current) { frei(); return; }

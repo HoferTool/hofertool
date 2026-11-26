@@ -10,7 +10,7 @@
 //  grosse PDFs das iPad nicht überfordern.
 // =================================================================
 import { useEffect, useRef, useState } from "react";
-import { pdfjs } from "../teile/PdfAnsicht.jsx";
+import { pdfjs, fensterVon, zeichenArt } from "../teile/PdfAnsicht.jsx";
 
 // Seite im Einrichtblatt, die ein PDF ist
 export const istPdfSeite = (s) => !!s && s.art === "pdf" && !!s.url;
@@ -40,7 +40,8 @@ function EineSeite({ doc, nr, breite }) {
   useEffect(() => {
     const el = huelle.current;
     if (!el) return undefined;
-    const io = new IntersectionObserver((e) => { if (e.some((x) => x.isIntersecting)) setSichtbar(true); }, { rootMargin: "800px 0px" });
+    const IO = fensterVon(el).IntersectionObserver || IntersectionObserver;
+    const io = new IO((e) => { if (e.some((x) => x.isIntersecting)) setSichtbar(true); }, { rootMargin: "800px 0px" });
     io.observe(el);
     return () => io.disconnect();
   }, []);
@@ -59,7 +60,7 @@ function EineSeite({ doc, nr, breite }) {
       const c = leinwand.current;
       if (!c) return;
       c.width = Math.floor(v.width); c.height = Math.floor(v.height);
-      aufgabe = p.render({ canvasContext: c.getContext("2d"), viewport: v, canvas: c });
+      aufgabe = p.render({ canvasContext: c.getContext("2d"), viewport: v, canvas: c, ...zeichenArt(c) });
       aufgabe.promise.catch(() => {});
     });
     return () => { weg = true; if (aufgabe) aufgabe.cancel(); };
@@ -91,7 +92,7 @@ export function PdfSeiten({ seite }) {
     if (!el) return undefined;
     const messen = () => setBreite(Math.max(280, Math.min(1400, el.clientWidth - 28)));
     messen();
-    const ro = new ResizeObserver(messen);
+    const ro = new (fensterVon(el).ResizeObserver || ResizeObserver)(messen);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);

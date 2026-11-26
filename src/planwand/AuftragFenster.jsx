@@ -37,6 +37,8 @@ import { stueckzahlKorrigierenOeffnen } from "./StueckzahlKorrigieren.jsx";
 import { problemArchivOeffnen, fruehereProblemeZahl } from "./ProblemArchiv.jsx";
 import { blattInProduktionBearbeiten } from "../einrichtblatt/Blatt.jsx";
 import { qsOeffnen } from "./QsMassnahmen.jsx";
+import { QS_NEU } from "../daten/pruefbericht.js";
+import { stueckzeitLaden, stueckzeitText } from "../daten/stueckzahl.js";
 
 // Hinweis auf erledigte Probleme dieser HOCO Nr. (seit 1.634.0, Wunsch
 // Patrick 18. November 2026); nur wenn es welche gibt, nie für Externe
@@ -417,6 +419,19 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   const anfang = useRef(w);
   const setze = (feld, wert) => setW((x) => ({ ...x, [feld]: wert }));
   const waschprog = useWaschprog(typeof w.wbg === "string" ? w.wbg : "");
+  // Stückzeit je HOCO Nr. und Typ der Maschine des Auftrags, nur zum
+  // Ansehen (Wunsch Patrick 26. November 2026). Externe sehen sie nicht.
+  const [stueckzeit, setStueckzeit] = useState(undefined);
+  const szMaschine = maschinen.find((m) => m.id === (auftrag && auftrag.machine_id));
+  const szTyp = szMaschine && szMaschine.type_id;
+  useEffect(() => {
+    if (!auftrag || !auftrag.job_number || !szTyp || extern) { setStueckzeit(undefined); return; }
+    let aus = false;
+    stueckzeitLaden(auftrag.job_number, szTyp)
+      .then((s) => { if (!aus) setStueckzeit(s); })
+      .catch(() => { if (!aus) setStueckzeit(undefined); });
+    return () => { aus = true; };
+  }, [auftrag && auftrag.job_number, szTyp, extern]);
   // Index aus der WBG (Wunsch Patrick 25. November 2026), nicht für Externe
   const wbgIndex = useWbgIndex(extern || typeof w.wbg !== "string" ? "" : w.wbg,
     !extern && auftrag && w.wbg === auftrag.wbg_url ? auftrag.wbg_index : null);
@@ -777,7 +792,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
           {auftrag && <button type="button" className="knopf knopf--klein knopf--vorbereiten" id="pl-vorbereiten"
             onClick={() => vorbereitenOeffnen(auftrag)}>Vorbereiten</button>}
           {/* QS-Massnahmen aus Reklamationen und nötige Prüfmittel (seit 1.790.0) */}
-          {auftrag && !extern && <button type="button" className="knopf knopf--klein knopf--vorbereiten" id="pl-qs"
+          {QS_NEU && auftrag && !extern && <button type="button" className="knopf knopf--klein knopf--vorbereiten" id="pl-qs"
             onClick={() => qsOeffnen(auftrag)}>QS</button>}
           {/* Gemeldete Stückzahlen ändern oder auf 0 setzen (seit 1.824.0,
               Wunsch Patrick 25. November 2026), Schreibrecht, nicht Externe */}
@@ -959,6 +974,9 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                   ? <>{ca} {m.offen.text.replace(/^ca\. /, "")}</> : m.offen.text}</div>}
             </div>;
           })()}
+          {stueckzeit !== undefined && <div className="mat-info" id="pl-stueckzeit">
+            <b>Stückzeit:</b> {stueckzeit === null ? "fehlt" : stueckzeitText(stueckzeit)}
+</div>}
           <div className="feld auf-zeichnung">
             <Vorschau adresse={w.pdf || ""} titel={titelZeichnung} />
             {imHaus && <ImHausEinblendung treffer={imHaus.treffer} bild={imHaus.bild} weg={() => setImHaus(null)}

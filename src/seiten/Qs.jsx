@@ -16,6 +16,7 @@ import Ausschuss from "./qs/Ausschuss.jsx";
 import Reklamationen from "./qs/Reklamationen.jsx";
 import Pruefmittel from "./Pruefmittel.jsx";
 import Pruefberichte from "./qs/Pruefberichte.jsx";
+import { QS_NEU } from "../daten/pruefbericht.js";
 import { qsSprung } from "./qs/qsSprung.js";
 
 // Gewählter Reiter; bleibt beim Seitenwechsel
@@ -25,6 +26,8 @@ teilMerken("qs", () => ({ ...qsZustand }), (z) => { Object.assign(qsZustand, z);
 
 export function qsReiter() {
   const r = [["ausschuss", "Ausschussmeldungen"]];
+  // Neue QS seit 1.860.0 aus (QS_NEU in pruefbericht.js), nur Ausschussmeldungen
+  if (!QS_NEU) return r;
   // Prüfberichte seit 1.771.0 für alle, die QS sehen (Wunsch Patrick 24. November 2026)
   r.push(["pruefberichte", "Prüfberichte"]);
   // Reklamationsmanagement nur für Admins (seit 1.748.0, Wunsch Patrick 23. November 2026)
