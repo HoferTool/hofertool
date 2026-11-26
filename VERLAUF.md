@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.870.1 (26. November 2026)
+
+Prüfberichte: Seiten mit Namen „S-1“ / „S-2“ kommen wieder zu einem Bericht zusammen (vorher blieb nur eine, etwa 10789-0107), gleicher Index für alle Seiten, Hinweis „übrige Masse auf Seite 2“ fällt weg (Patrick).
+
 ## 1.870.0 (26. November 2026)
 
 Prüfberichte: Erstteil bei allen Aufträgen auf Rüsten, laufende ohne Endkontrolle als Zwischenkontrolle, anstehende Punkte erst nach Suche per HOCO Nr., ohne FA Nr. (Wunsch Patrick).
