@@ -8,8 +8,9 @@
 //
 //  Eine Sicherung ist eine ZIP-Datei Hofer-Sicherung-JJJJ-MM-TT-HHMM.zip:
 //    sicherung.json      Kopf: wann, wer, welche Tabellen und Dateien
-//    tabellen/<t>.json   alle Zeilen einer Tabelle (aus sicherung_lesen,
-//                        ein Augenblick für alle Tabellen)
+//    tabellen/<t>.json   alle Zeilen einer Tabelle (seit 1.871.0 stückweise
+//                        aus sicherung_teil mit Pausen, vorher sicherung_lesen
+//                        auf einmal, das brachte die Datenbank zum Absturz)
 //    schema.sql          Aufbau der Datenbank (sicherung_schema, seit 1.815.0)
 //    dateien/<b>/<p>     jede hochgeladene Datei (WBGs, Bilder,
 //                        Notizbuch-Seiten …), ausser Zeichnungen und
@@ -203,36 +204,47 @@ function ablageSchluessel(adresse) {
 // "ablage|pfad" → Art zurück
 // ("zeichnung", "einrichtblatt" oder "alt").
 export function ohneDateien(tabellen, dateien) {
+  const s = ohneSammler();
+  for (const t of tabellen || []) if (t) s.add(t.t, t.zeilen || []);
+  return s.fertig(dateien);
+}
+
+// Dasselbe Stück für Stück: add(tabelle, zeilen) je gelesenes Stück, am
+// Schluss fertig(dateien). So muss die Sicherung nie alle Tabellen auf
+// einmal im Speicher halten (seit 1.871.0).
+export function ohneSammler() {
   const ohne = new Map();
-  const merke = (adresse, art) => { const k = ablageSchluessel(adresse); if (k && !ohne.has(k)) ohne.set(k, art); };
-  const zeilen = (t) => { const x = (tabellen || []).find((y) => y && y.t === t); return (x && x.zeilen) || []; };
-  zeilen("hoco_parts").forEach((z) => merke(z.zeichnung_url, "zeichnung"));
-  zeilen("jobs").forEach((z) => merke(z.drawing_url, "zeichnung"));
-  zeilen("hoco_type_data").forEach((z) => merke(z.blatt_url, "einrichtblatt"));
-  zeilen("machine_types").forEach((z) => merke(z.blatt_url, "einrichtblatt"));
-  zeilen("dokumente").forEach((z) => {
-    if (z.art === "zeichnung") merke(z.datei_url, "zeichnung");
-    else if (z.art === "einrichtblatt") merke(z.datei_url, "einrichtblatt");
-  });
-  // Handbücher der Maschinen gibt es beim Hersteller (Wunsch Patrick
-  // 3. November 2026: „Handbücher sein lassen, die sind extern“; der grösste
-  // Teil der rund 370 MB). Wartung, Elektro, Ersatzteile, Sonstiges und
-  // eigene Notizen bleiben drin, darunter können eigene Dokumente sein.
-  zeilen("maschinen_unterlagen").forEach((z) => { if (z.art === "handbuch" && !z.inhalt) merke(z.url, "handbuch"); });
-  // Alles, worauf irgendeine Tabelle verweist, egal in welchem Feld
   const verwendet = new Set();
+  const merke = (adresse, art) => { const k = ablageSchluessel(adresse); if (k && !ohne.has(k)) ohne.set(k, art); };
   const muster = /\/object\/(?:public|sign|authenticated)\/[^/?#"\\]+\/[^?#"\\]+/g;
-  for (const t of tabellen || []) {
-    const text = JSON.stringify((t && t.zeilen) || []);
-    let m;
-    while ((m = muster.exec(text))) { const k = ablageSchluessel(m[0]); if (k) verwendet.add(k); }
-  }
-  for (const d of dateien || []) {
-    if (!d || d.b !== "zeichnungen") continue;
-    const k = d.b + "|" + d.p;
-    if (!ohne.has(k) && !verwendet.has(k)) ohne.set(k, "alt");
-  }
-  return ohne;
+  return {
+    add(t, zeilen) {
+      zeilen = zeilen || [];
+      if (t === "hoco_parts") zeilen.forEach((z) => merke(z.zeichnung_url, "zeichnung"));
+      if (t === "jobs") zeilen.forEach((z) => merke(z.drawing_url, "zeichnung"));
+      if (t === "hoco_type_data" || t === "machine_types") zeilen.forEach((z) => merke(z.blatt_url, "einrichtblatt"));
+      if (t === "dokumente") zeilen.forEach((z) => {
+        if (z.art === "zeichnung") merke(z.datei_url, "zeichnung");
+        else if (z.art === "einrichtblatt") merke(z.datei_url, "einrichtblatt");
+      });
+      // Handbücher der Maschinen gibt es beim Hersteller (Wunsch Patrick
+      // 3. November 2026: „Handbücher sein lassen, die sind extern“).
+      if (t === "maschinen_unterlagen") zeilen.forEach((z) => { if (z.art === "handbuch" && !z.inhalt) merke(z.url, "handbuch"); });
+      // Alles, worauf irgendeine Tabelle verweist, egal in welchem Feld
+      const text = JSON.stringify(zeilen);
+      muster.lastIndex = 0;
+      let m;
+      while ((m = muster.exec(text))) { const k = ablageSchluessel(m[0]); if (k) verwendet.add(k); }
+    },
+    fertig(dateien) {
+      for (const d of dateien || []) {
+        if (!d || d.b !== "zeichnungen") continue;
+        const k = d.b + "|" + d.p;
+        if (!ohne.has(k) && !verwendet.has(k)) ohne.set(k, "alt");
+      }
+      return ohne;
+    },
+  };
 }
 
 // Zählt, wie viele Zeichnungen, Einrichtblätter und alte Dateien in einer Liste stehen
@@ -250,20 +262,22 @@ export async function sichern(h, grund, fortschritt) {
   if (laeuft) throw new Error("Es läuft schon eine Sicherung.");
   laeuft = (async () => {
     const melde = (t) => { try { if (fortschritt) fortschritt(t); } catch (f) { /* egal */ } };
+    // Seit 1.871.0 Tabelle für Tabelle in kleinen Stücken (sql/sicherung-stueckweise.sql):
+    // sicherung_lesen holte alles auf einmal in den Speicher der Datenbank,
+    // am 25. und 26. November 2026 stürzte sie dabei mehrmals ab. Fehlt die
+    // neue Funktion, geht es wie vorher.
     melde("Daten werden gelesen …");
-    const r = await alt.db.rpc("sicherung_lesen");
-    if (r.error) throw r.error;
-    const tabellen = (r.data || []).filter((x) => x && x.t);
-    if (!tabellen.length) throw new Error("Die Datenbank hat keine Tabellen geliefert (sql/sicherung.sql ausgeführt?).");
-    const d = await alt.db.rpc("sicherung_dateien");
-    if (d.error) throw d.error;
-    // Die Temp-Ordner der Leute (src/daten/temp.js) gehören nicht in die Sicherung
-    const alle = (d.data || []).filter((x) => x && x.b && x.p && x.b !== "temp");
-    // Zeichnungen, Einrichtblätter und alte Dateien bleiben draussen (Wunsch Patrick, 8. und 9. Oktober 2026)
-    const ohne = ohneDateien(tabellen, alle);
-    const liste = alle.filter((x) => !ohne.has(x.b + "|" + x.p));
-    const ausgelassen = alle.filter((x) => ohne.has(x.b + "|" + x.p)).map((x) => ({ b: x.b, p: x.p, art: ohne.get(x.b + "|" + x.p) }));
-    const ohneZahl = ohneZaehlen(ausgelassen);
+    let namen = null, ganz = null;
+    const l = await alt.db.rpc("sicherung_liste");
+    if (!l.error && Array.isArray(l.data) && l.data.length) namen = l.data.filter((x) => typeof x === "string" && x);
+    if (!namen) {
+      const r = await alt.db.rpc("sicherung_lesen");
+      if (r.error) throw r.error;
+      ganz = (r.data || []).filter((x) => x && x.t);
+      namen = ganz.map((x) => x.t);
+    }
+    if (!namen.length) throw new Error("Die Datenbank hat keine Tabellen geliefert (sql/sicherung.sql ausgeführt?).");
+    const pause = (ms) => new Promise((ok) => setTimeout(ok, ms));
 
     const jetzt = new Date();
     let name = dateiName(jetzt, grund);
@@ -278,20 +292,67 @@ export async function sichern(h, grund, fortschritt) {
       kette = kette.then(() => aus.write(stueck)).catch((e) => { schreibFehler = e; });
       if (ende) kette = kette.then(() => aus.close());
     });
+    const warten = async () => { await kette; if (schreibFehler) throw schreibFehler; };
     const eintragen = async (pfad, daten, packen) => {
       const e = packen ? new ZipDeflate(pfad, { level: 6 }) : new ZipPassThrough(pfad);
       zip.add(e);
       e.push(daten, true);
       // Nicht zu viel im Speicher stauen lassen
-      await kette;
-      if (schreibFehler) throw schreibFehler;
+      await warten();
     };
 
+    const sammler = ohneSammler();
     let zeilen = 0;
-    const kopfTabellen = tabellen.map((x) => { zeilen += x.nr || 0; return { t: x.t, n: x.nr || 0 }; });
+    const kopfTabellen = [];
+    for (let i = 0; i < namen.length; i++) {
+      const t = namen[i];
+      melde("Tabelle " + t + " (" + (i + 1) + " von " + namen.length + ") …");
+      const e = new ZipDeflate("tabellen/" + t + ".json", { level: 6 });
+      zip.add(e);
+      e.push(strToU8("["), false);
+      let n = 0;
+      const stueck = async (rows) => {
+        if (!rows.length) return;
+        sammler.add(t, rows);
+        e.push(strToU8((n ? "," : "") + rows.map((z) => JSON.stringify(z)).join(",")), false);
+        n += rows.length;
+        await warten();
+      };
+      if (ganz) {
+        await stueck(ganz[i].zeilen || []);
+        ganz[i] = null;
+      } else {
+        let ab = null;
+        for (let runde = 0; ; runde++) {
+          if (runde) await pause(200);
+          const r = await alt.db.rpc("sicherung_teil", { p_tabelle: t, p_ab: ab });
+          if (r.error) throw r.error;
+          const x = r.data || {};
+          await stueck(x.zeilen || []);
+          if (!x.weiter) break;
+          ab = x.weiter;
+          if (runde % 5 === 4) melde("Tabelle " + t + " (" + (i + 1) + " von " + namen.length + "), " + n + " Zeilen …");
+        }
+        await pause(100);
+      }
+      e.push(strToU8("]"), true);
+      await warten();
+      zeilen += n;
+      kopfTabellen.push({ t, n });
+    }
+
+    const d = await alt.db.rpc("sicherung_dateien");
+    if (d.error) throw d.error;
+    // Die Temp-Ordner der Leute (src/daten/temp.js) gehören nicht in die Sicherung
+    const alle = (d.data || []).filter((x) => x && x.b && x.p && x.b !== "temp");
+    // Zeichnungen, Einrichtblätter und alte Dateien bleiben draussen (Wunsch Patrick, 8. und 9. Oktober 2026)
+    const ohne = sammler.fertig(alle);
+    const liste = alle.filter((x) => !ohne.has(x.b + "|" + x.p));
+    const ausgelassen = alle.filter((x) => ohne.has(x.b + "|" + x.p)).map((x) => ({ b: x.b, p: x.p, art: ohne.get(x.b + "|" + x.p) }));
+    const ohneZahl = ohneZaehlen(ausgelassen);
+    // Der Kopf steht seit 1.871.0 nach den Tabellen; das Einlesen sucht nach Namen
     await eintragen("sicherung.json", strToU8(JSON.stringify({ art: "hofer-sicherung", version: 2,
       erstellt: jetzt.toISOString(), geraet: geraetName(), grund, tabellen: kopfTabellen, dateien: liste, ausgelassen }, null, 1)), true);
-    for (const x of tabellen) await eintragen("tabellen/" + x.t + ".json", strToU8(JSON.stringify(x.zeilen || [])), true);
     // Plan B (seit 1.815.0): der ganze Aufbau der Datenbank (Tabellen, Regeln,
     // Funktionen, Auslöser) als SQL, damit sich aus der ZIP auch auf einem
     // neuen Server eine leere Datenbank bauen lässt. Fehlt die Funktion
@@ -332,7 +393,7 @@ export async function sichern(h, grund, fortschritt) {
       await h.removeEntry(halb);
     }
     const groesse = (await (await h.getFileHandle(ziel)).getFile()).size;
-    return { zeit: jetzt.toISOString(), datei: ziel, mb: Math.round(groesse / 104857.6) / 10, tabellen: tabellen.length,
+    return { zeit: jetzt.toISOString(), datei: ziel, mb: Math.round(groesse / 104857.6) / 10, tabellen: kopfTabellen.length,
       zeilen, dateien: liste.length - fehlt, fehlt, ohneZeichnungen: ohneZahl.zeichnungen, ohneEinrichtblaetter: ohneZahl.einrichtblaetter, ohneAlt: ohneZahl.alt,
       ohneHandbuecher: ohneZahl.handbuecher, grund, geraet: geraetName() };
   })();

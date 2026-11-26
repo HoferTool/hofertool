@@ -3,7 +3,7 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
-## 1.872.0 (26. November 2026)
+## 1.873.0 (26. November 2026)
 
 Prüfberichte: Vorlage aus der letzten Produktion gleich bearbeitbar als Masse-Blatt, Speichern in die Stammdaten, Drucken, Titel „Prüfbericht · Index X“ (Wunsch Patrick).
 
