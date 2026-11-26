@@ -567,6 +567,8 @@ function Material({ k, setze, setK, rechnung, winkalk }) {
   const m = k.material;
   const f = (name) => ({ wert: m[name], setzen: (w) => setze("material." + name, w) });
   const r0 = rechnung[0];
+  // Alles je Preiseinheit wie oben bei „Preis pro“ gewählt (Wunsch Patrick 26. November 2026)
+  const pe = peWert(k.preis.pe);
   // Rohmaterial aus den Stammdaten des Test ERP wählen
   const stamm = useErpStamm();
   const roh = stamm.artikel.filter((x) => x.art === "rohmaterial");
@@ -669,7 +671,7 @@ function Material({ k, setze, setK, rechnung, winkalk }) {
               <Zeile titel="kg je Stück" werte={rechnung.map((r) => chf(r.mat.kgJeStk, 4))} />
               <Zeile titel="Mat-Kosten = kg gesamt × Preis" einheit="CHF" werte={rechnung.map((r) => chf(r.mat.roh))} klein />
               <Zeile titel="Materialkosten mit Gemeinkosten" einheit="CHF" werte={rechnung.map((r) => chf(r.mat.kosten))} />
-              <Zeile titel="Material je Stück" einheit="CHF" fett werte={rechnung.map((r) => chf(r.matStk, 4))} />
+              <Zeile titel={"Material je " + peText(pe)} einheit="CHF" fett werte={rechnung.map((r) => chf(r.matStk * pe, 4))} />
             </tbody>
           </table>
           {r0 && (r0.mat.ausschuss > 0 || r0.mat.kgJeM > 0) && <p className="hinweis" id="kalk-ausschuss-hinweis">
@@ -730,6 +732,8 @@ function Zeile({ titel, einheit, werte, fett, klein }) {
 
 function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
   const r0 = rechnung[0];
+  // Kosten je Preiseinheit wie bei „Preis pro“ gewählt (Wunsch Patrick 26. November 2026)
+  const pe = peWert(k.preis.pe);
   // Aufgeklappte Arbeitsgänge; zugeklappt steht jeder als eine Zeile wie im Gewatec (Wunsch Patrick 27. Oktober 2026)
   const [auf, setAuf] = useState(() => new Set());
   const umschalten = (key) => setAuf((x) => { const n = new Set(x); n.has(key) ? n.delete(key) : n.add(key); return n; });
@@ -751,7 +755,7 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
           die Lose stehen schon in den Tabellen je Staffel der Arbeitsgänge (Wunsch Patrick 27. Oktober 2026) */}
       <div className="kalk-ag-titel" aria-hidden="true">
         <span></span><span>AG</span><span>Bezeichnung</span><span>Maschine / Lieferant</span><span className="rechts">te Sek.</span>
-        <span className="rechts">tr Std</span><span className="rechts">FGK</span><span className="rechts">CHF/Stk</span><span></span>
+        <span className="rechts">tr Std</span><span className="rechts">FGK</span><span className="rechts">CHF/{peText(pe)}</span><span></span>
       </div>
       <ZiehListe id="kalk-ags" className="kalk-ags" darf={true}
         ordnen={(reihe) => setK((x) => {
@@ -790,7 +794,7 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
                 <span className="kalk-ag__zahl">{ext ? (a.extern ? chf(z(a.extern), 2) + " /" + ({ stk: "Stk", "100stk": "100", "1000stk": "1000", kg: "kg" }[a.je || "stk"]) : "") : (a.te || "")}</span>
                 <span className="kalk-ag__zahl">{ext ? "" : ruest}</span>
                 <span className="kalk-ag__zahl">{ext || !String(a.fgk || "").trim() ? "" : a.fgk + " %"}</span>
-                <b className="kalk-ag__summe" title="Kosten je Stück bei der ersten Staffel">{r ? chf(r.kosten / r0.menge, 4) : "–"}</b>
+                <b className="kalk-ag__summe" title={"Kosten je " + peText(pe) + " bei der ersten Staffel"}>{r ? chf(r.kosten / r0.menge * pe, 4) : "–"}</b>
                 <button className="kalk-ag__weg" data-ag-weg={i} title="Arbeitsgang entfernen"
                   onClick={() => setK((x) => ({ ...x, ags: x.ags.filter((_, j) => j !== i) }))}>✕</button>
               </div>
@@ -847,7 +851,7 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
                     {a.multi && <JeStaffel a={a} i={i} k={k} setK={setK} maschinen={maschinen} rechnung={rechnung} />}
                   </div>)}
               {offen && r && !r.extern && (r.laufH > 0 || r.ruestChf > 0) &&
-                <div className="kalk-ag__fuss">Fix {chf(r.fix / r0.menge, 4)} · Variabel {chf(r.var / r0.menge, 4)}
+                <div className="kalk-ag__fuss">Fix {chf(r.fix / r0.menge * pe, 4)} · Variabel {chf(r.var / r0.menge * pe, 4)} CHF/{peText(pe)}
                   {" "}· Laufzeit {chf(r.laufH, 1)} h · Rüsten {chf(r.ruestChf)} CHF bei {chf(r0.menge, 0)} Stk</div>}
             </div> };
         })} />
@@ -950,6 +954,7 @@ function JeStaffel({ a, i, k, setK, maschinen, rechnung }) {
   const feld = (name) => spalten.map(({ j, eigen }) => (
     <td key={j} className="rechts"><input className="kalk-zelle" type="text" inputMode="decimal" id={"kalk-ag-s" + j + "-" + name + "-" + i}
       placeholder={a[name] || ""} value={eigen[name] || ""} onChange={(e) => setzen(j, name, e.target.value)} /></td>));
+  const pe = peWert(k.preis.pe);
   const wert = (fn, st) => spalten.map(({ j, r, menge }) => <td key={j} className="rechts">{r && menge ? chf(fn(r, menge), st) : "–"}</td>);
   return (
     <div className="kalk-jestaffel kalk-rolle">
@@ -966,9 +971,9 @@ function JeStaffel({ a, i, k, setK, maschinen, rechnung }) {
           <tr><td>Rüstzeit Erstrüsten <span className="kalk-einheit">Std</span></td>{feld("erst")}</tr>
           <tr><td>Rüstzeit Folgerüsten <span className="kalk-einheit">Std</span></td>{feld("folge")}</tr>
           <tr><td>FGK <span className="kalk-einheit">%</span></td>{feld("fgk")}</tr>
-          <tr><td>Fixkosten <span className="kalk-einheit">CHF/Stk</span></td>{wert((r, m) => r.fix / m, 4)}</tr>
-          <tr><td>Varkosten <span className="kalk-einheit">CHF/Stk</span></td>{wert((r, m) => r.var / m, 4)}</tr>
-          <tr className="kalk-fett kalk-hervor"><td>Vollkosten <span className="kalk-einheit">CHF/Stk</span></td>{wert((r, m) => r.kosten / m, 4)}</tr>
+          <tr><td>Fixkosten <span className="kalk-einheit">CHF/{peText(pe)}</span></td>{wert((r, m) => r.fix / m * pe, 4)}</tr>
+          <tr><td>Varkosten <span className="kalk-einheit">CHF/{peText(pe)}</span></td>{wert((r, m) => r.var / m * pe, 4)}</tr>
+          <tr className="kalk-fett kalk-hervor"><td>Vollkosten <span className="kalk-einheit">CHF/{peText(pe)}</span></td>{wert((r, m) => r.kosten / m * pe, 4)}</tr>
         </tbody>
       </table>
     </div>
@@ -984,6 +989,7 @@ function ExternJeStaffel({ a, i, k, setK, rechnung }) {
     : { ...s, ag: { ...(s.ag || {}), [a.key]: { ...((s.ag || {})[a.key] || {}), extern: wert } } })) }));
   const sp = idx.map((j, n) => ({ j, r: rechnung[n] && rechnung[n].ags[i], menge: rechnung[n] ? rechnung[n].menge : 0,
     eigen: ((k.staffeln[j].ag || {})[a.key]) || {} }));
+  const pe = peWert(k.preis.pe);
   return (
     <div className="kalk-jestaffel kalk-rolle">
       <table className="kalk-tab">
@@ -994,8 +1000,8 @@ function ExternJeStaffel({ a, i, k, setK, rechnung }) {
           <tr><td>Kostensatz <span className="kalk-einheit">CHF</span></td>{sp.map(({ j, eigen }) => (
             <td key={j} className="rechts"><input className="kalk-zelle" type="text" inputMode="decimal" id={"kalk-ag-s" + j + "-extern-" + i}
               placeholder={a.extern || ""} value={eigen.extern || ""} onChange={(e) => setzen(j, e.target.value)} /></td>))}</tr>
-          <tr className="kalk-fett kalk-hervor"><td>Einzelkosten <span className="kalk-einheit">CHF/Stk</span></td>{sp.map(({ j, r }) => (
-            <td key={j} className="rechts">{r ? chf(r.einzel, 4) + (r.posten ? " (Posten)" : "") : "–"}</td>))}</tr>
+          <tr className="kalk-fett kalk-hervor"><td>Einzelkosten <span className="kalk-einheit">CHF/{peText(pe)}</span></td>{sp.map(({ j, r }) => (
+            <td key={j} className="rechts">{r ? chf(r.einzel * pe, 4) + (r.posten ? " (Posten)" : "") : "–"}</td>))}</tr>
         </tbody>
       </table>
     </div>
@@ -1010,6 +1016,10 @@ function Preis({ k, setze, setK, rechnung }) {
   // je Stückzahl; die Staffeln mit Menge in derselben Reihenfolge wie rechnung
   const staffelIdx = k.staffeln.map((s, i) => (z(s.menge) > 0 ? i : -1)).filter((i) => i >= 0);
   const R = (fn, st) => rechnung.map((r) => chf(fn(r), st));
+  // Beträge je Stück erscheinen je Preiseinheit (Wunsch Patrick 26. November 2026)
+  const pe = peWert(k.preis.pe);
+  const proE = "CHF/" + peText(pe);
+  const RP = (fn, st) => rechnung.map((r) => chf(fn(r) * pe, st));
   const w = WAEHRUNGEN.includes(k.preis.waehrung) ? k.preis.waehrung : "CHF";
   const [holt, setHolt] = useState(false);
   async function kurs(waehrung) {
@@ -1081,20 +1091,20 @@ function Preis({ k, setze, setK, rechnung }) {
             <thead><tr><th>Stückzahl <small className="kalk-einheit">die erste Staffel füllt die weiteren gleich aus</small></th>
               {rechnung.map((r, i) => <th key={i} className="rechts">{chf(r.menge, 0)} Stk</th>)}</tr></thead>
             <tbody>
-              <Zeile titel="Herstellkosten" einheit="CHF/Stk" werte={R((r) => r.herstell, 4)} />
+              <Zeile titel="Herstellkosten" einheit={proE} werte={RP((r) => r.herstell, 4)} />
               {E("sek")}{E("vwgk")}
-              <Zeile titel="Selbstkosten" einheit="CHF/Stk" werte={R((r) => r.selbst, 4)} />
+              <Zeile titel="Selbstkosten" einheit={proE} werte={RP((r) => r.selbst, 4)} />
               {E("zinsPct")}{E("zinsMonate")}
-              <Zeile titel="Selbstkosten verzinst" einheit="CHF/Stk" werte={R((r) => r.selbstVerz, 4)} fett />
+              <Zeile titel="Selbstkosten verzinst" einheit={proE} werte={RP((r) => r.selbstVerz, 4)} fett />
               <tr><td>Anzahl Lieferlose</td>{rechnung.map((r, i) => SF("lieferlose", i, "kalk-lieferlose-" + i, "1"))}</tr>
               {E("transport")}{E("transPct")}{E("transPausch")}
-              <Zeile titel="Transportkosten gesamt" einheit="CHF/Stk" werte={R((r) => r.transport, 4)} />
+              <Zeile titel="Transportkosten gesamt" einheit={proE} werte={RP((r) => r.transport, 4)} />
               {E("verpackung")}{E("verpPct")}{E("verpPausch")}
-              <Zeile titel="Verpackungskosten gesamt" einheit="CHF/Stk" werte={R((r) => r.verpackung, 4)} />
+              <Zeile titel="Verpackungskosten gesamt" einheit={proE} werte={RP((r) => r.verpackung, 4)} />
               {E("gewinn")}{E("prov")}{E("skonto")}{E("rabatt")}
-              <Zeile titel="Grenzkosten GK" einheit="CHF/Stk" werte={R((r) => r.grenz, 4)} klein />
+              <Zeile titel="Grenzkosten GK" einheit={proE} werte={RP((r) => r.grenz, 4)} klein />
               <Zeile titel="Marge VK" einheit="CHF" werte={R((r) => r.margeVk, 4)} />
-              <Zeile titel="Verkaufspreis VK" einheit="CHF/Stk" werte={R((r) => r.vk, 4)} fett />
+              <Zeile titel="Verkaufspreis VK" einheit={proE} werte={RP((r) => r.vk, 4)} fett />
               <tr><td>Angebotspreis <span className="kalk-einheit">{w}/{peText(k.preis.pe)}</span> <small>leer = VK gerundet</small></td>{rechnung.map((r, i) => SF("angebot", i, "kalk-angebot-" + i, chf(Math.round(r.vk * r.faktor * r.pe / (z(k.preis.rundung) || 0.01)) * (z(k.preis.rundung) || 0.01))))}</tr>
               <tr><td>Zielpreis <span className="kalk-einheit">{w}/{peText(k.preis.pe)}</span></td>{rechnung.map((r, i) => SF("ziel", i, "kalk-ziel-" + i))}</tr>
               <tr className="kalk-fett kalk-hervor"><td>Angebotspreis gilt <span className="kalk-einheit">{w}/{peText(k.preis.pe)}</span></td>{rechnung.map((r, i) => <td key={i} className="rechts" data-kalk-gilt={i}>{chf(r.angebotPe)}</td>)}</tr>
@@ -1113,6 +1123,9 @@ function Ergebnis({ k, rechnung }) {
   const hochRef = useBildschirmHoch();
   if (!rechnung.length) return <div className="karte karte--hinweis"><p>Zuerst eine Staffelmenge eintragen.</p></div>;
   const R = (f, st) => rechnung.map((r) => chf(f(r), st));
+  // Werte je Stück je Preiseinheit wie bei „Preis pro“ (Wunsch Patrick 26. November 2026)
+  const pe = peWert(k.preis.pe);
+  const RP = (f, st) => rechnung.map((r) => chf(f(r) * pe, st));
   return (
     <section className="karte kalk-rolle kalk-preis-karte">
       <table ref={hochRef} className="tabelle kalk-tab kalk-protokoll kalk-eng kalk-enger" id="kalk-protokoll">
@@ -1127,19 +1140,19 @@ function Ergebnis({ k, rechnung }) {
               werte={R((r) => r.ags[i].kosten)} />))}
           <Zeile titel="Laufzeit" einheit="h" werte={R((r) => r.laufH, 1)} klein />
           <Zeile titel="Rüsten ohne FGK" einheit="CHF" werte={R((r) => r.ruestStk * r.menge)} klein />
-          <tr className="kalk-abschnitt"><td colSpan={rechnung.length + 1}>Je Stück in CHF</td></tr>
-          <Zeile titel="Material" werte={R((r) => r.matStk, 4)} />
-          <Zeile titel="Fertigung intern" werte={R((r) => r.internStk, 4)} />
-          <Zeile titel="Fertigung extern" werte={R((r) => r.externStk, 4)} />
-          <Zeile titel="Herstellkosten" werte={R((r) => r.herstell, 4)} fett />
-          <Zeile titel="Selbstkosten" werte={R((r) => r.selbst, 4)} />
-          {rechnung.some((r) => r.zins) && <Zeile titel="Selbstkosten verzinst" werte={R((r) => r.selbstVerz, 4)} />}
-          <Zeile titel="Transport und Verpackung" werte={R((r) => r.fracht, 4)} klein />
-          <Zeile titel="Verkaufspreis" werte={R((r) => r.vk, 4)} />
-          <tr className="kalk-fett kalk-hervor"><td>Angebotspreis CHF</td>{rechnung.map((r, i) => <td key={i} className="rechts">{chf(r.angebot, r.waehrung !== "CHF" ? 4 : 2)}</td>)}</tr>
-          {rechnung[0].waehrung !== "CHF" && <tr className="kalk-fett"><td>Angebotspreis {rechnung[0].waehrung}</td>{rechnung.map((r, i) => <td key={i} className="rechts">{chf(r.angebotAus)}</td>)}</tr>}
-          <Zeile titel="Grenzkosten" werte={R((r) => r.grenz, 4)} klein />
-          <Zeile titel="Deckungsbeitrag" werte={R((r) => r.db, 4)} />
+          <tr className="kalk-abschnitt"><td colSpan={rechnung.length + 1}>Je {peText(pe)} in CHF</td></tr>
+          <Zeile titel="Material" werte={RP((r) => r.matStk, 4)} />
+          <Zeile titel="Fertigung intern" werte={RP((r) => r.internStk, 4)} />
+          <Zeile titel="Fertigung extern" werte={RP((r) => r.externStk, 4)} />
+          <Zeile titel="Herstellkosten" werte={RP((r) => r.herstell, 4)} fett />
+          <Zeile titel="Selbstkosten" werte={RP((r) => r.selbst, 4)} />
+          {rechnung.some((r) => r.zins) && <Zeile titel="Selbstkosten verzinst" werte={RP((r) => r.selbstVerz, 4)} />}
+          <Zeile titel="Transport und Verpackung" werte={RP((r) => r.fracht, 4)} klein />
+          <Zeile titel="Verkaufspreis" werte={RP((r) => r.vk, 4)} />
+          <tr className="kalk-fett kalk-hervor"><td>Angebotspreis CHF</td>{rechnung.map((r, i) => <td key={i} className="rechts">{chf(r.angebot * pe, r.waehrung !== "CHF" ? 4 : 2)}</td>)}</tr>
+          {rechnung[0].waehrung !== "CHF" && <tr className="kalk-fett"><td>Angebotspreis {rechnung[0].waehrung}</td>{rechnung.map((r, i) => <td key={i} className="rechts">{chf(r.angebotPe)}</td>)}</tr>}
+          <Zeile titel="Grenzkosten" werte={RP((r) => r.grenz, 4)} klein />
+          <Zeile titel="Deckungsbeitrag" werte={RP((r) => r.db, 4)} />
           <Zeile titel="Deckungsbeitrag" einheit="%" werte={R((r) => r.dbPct, 1)} />
           <Zeile titel="Materialanteil" einheit="%" werte={R((r) => (r.angebot > 0 ? r.matStk / r.angebot * 100 : 0), 1)} klein />
           <tr className="kalk-abschnitt"><td colSpan={rechnung.length + 1}>Auftrag</td></tr>
