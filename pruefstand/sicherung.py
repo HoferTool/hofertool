@@ -3,7 +3,7 @@
 # Zurückspielen aus dem Ordner und aus einer gewählten Datei. Seit 111.116.0
 # bleiben Zeichnungen und Einrichtblätter draussen (die holt die Aufgabe
 # „HoferTool“ aus den Ordnern), sie stehen im Kopf unter „ausgelassen“.
-import time, json, base64, io, zipfile
+import os, time, json, base64, io, zipfile
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
@@ -73,9 +73,16 @@ TEST.rpc.sicherung_dateien = () => TEST.dateienJetzt || [
   { b: 'zeichnungen', p: 'maschinen/m1/hb.pdf', g: 11, a: 'application/pdf' },
   { b: 'zeichnungen', p: 'maschinen/m1/notiz.pdf', g: 14, a: 'application/pdf' }];
 TEST.rpc.sicherung_puffern = (a) => a.p_zeilen.length;
+// Seit 1.871.0 liest die Sicherung stückweise; mit STUECK=1 antworten sicherung_liste und sicherung_teil
+// (je Stück eine Zeile), sonst nur das alte sicherung_lesen.
+if (window.__STUECK) {
+  TEST.rpc.sicherung_liste = () => TEST.rpc.sicherung_lesen().map(x => x.t);
+  TEST.rpc.sicherung_teil = (a) => { const t = TEST.rpc.sicherung_lesen().find(x => x.t === a.p_tabelle); const i = a.p_ab ? Number(a.p_ab) : 0;
+    return { zeilen: t.zeilen.slice(i, i + 1), weiter: i + 1 < t.zeilen.length ? String(i + 1) : null }; };
+}
 TEST.rpc.sicherung_einspielen = (a) => ({ tabellen: a.p_tabellen.length, zeilen: 3, ohne_konto: 0 });
 """
-F = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;", "if (typeof window !== \"undefined\") window.TEST = TEST;\n" + K)
+F = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;", "if (typeof window !== \"undefined\") window.TEST = TEST;\n" + ("window.__STUECK = true;\n" if os.environ.get("STUECK") else "") + K)
 
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
@@ -169,7 +176,8 @@ with sync_playwright() as p:
     print(pg.inner_text("#si-auftrag"))
     prot = pg.evaluate("TEST.protokoll.filter(x => x.art === 'rpc' || x.art === 'upload').map(x => x.art === 'upload' ? 'upload:' + x.ablage + '/' + x.pfad : x.name + (x.name === 'sicherung_puffern' ? ':' + x.args.p_tabelle + ':' + x.args.p_zeilen.length : ''))")
     print(prot)
-    pruefe("Vorher gesichert", "sicherung_lesen" in prot and prot.index("sicherung_lesen") < prot.index("sicherung_einspielen")
+    _l = "sicherung_liste" if os.environ.get("STUECK") else "sicherung_lesen"
+    pruefe("Vorher gesichert", _l in prot and prot.index(_l) < prot.index("sicherung_einspielen")
            and any("vor-Zurueckspielen" in n for n in pg.evaluate("[...window.ORDNER.keys()]")))
     pruefe("Alle Tabellen gepuffert", "sicherung_puffern:jobs:2" in prot and "sicherung_puffern:dokumente:4" in prot and "sicherung_puffern:leer:0" in prot)
     pruefe("Alte Datei beim Zurückspielen nicht hochgeladen", "upload:zeichnungen/zeichnung/alt.pdf" not in prot and "upload:zeichnungen/wbg/wz.html" in prot)
