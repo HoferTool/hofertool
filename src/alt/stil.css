@@ -17972,3 +17972,51 @@ body.dunkel .pst-teilfeld { background: #fafcfe; border-color: #d6dee8; }
 
 /* QS → Prüfberichte: „Weitere anzeigen“ unter den Listen (seit 1.941.0) */
 .pb-mehr { flex-direction: column; align-items: center; gap: 6px; }
+
+/* Masse-Blatt: obere Leiste wie beim Einrichtblatt, Zeilenknöpfe gut sichtbar
+   neben dem Blatt, Spalte AQL, Vorschau (seit 1.943.0, Patrick 27. November 2026) */
+.pst-blattleiste.betrachter__kopf { display: flex; flex-wrap: nowrap; gap: 12px; padding: 8px 14px; background: #1d2430; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+body.dunkel .pst-blattleiste.betrachter__kopf { background: #1d2430; }
+.pst-blattleiste .betrachter__titel { display: flex; flex-direction: column; min-width: 0; font-size: .95rem; }
+.pst-leiste-info { font-size: .75rem; font-weight: 400; color: #aab4c0; }
+.pst-leiste-knoepfe { flex: 1 1 auto; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 6px; }
+.pst-leiste-knoepfe .knopf { min-height: 32px; }
+.pst-leiste-knoepfe .knopf:hover:not(:disabled) { background: rgba(255,255,255,.1); }
+.pst-leiste-knoepfe .knopf--haupt, .pst-leiste-knoepfe .knopf--haupt:disabled { background: var(--aktion, #1f6fe0); border-color: var(--aktion, #1f6fe0); color: #fff; }
+.pst-leiste-knoepfe .knopf--haupt:disabled { opacity: .45; }
+.pst-leiste-knoepfe .pst-vorschau-an { background: #fff; color: #1d2430; border-color: #fff; }
+.pst-leiste-knoepfe .klein { color: #c9d3de; }
+.pst-leiste-knoepfe .pb-rot, .pst-leiste-hinweis { color: #ff9b8f; font-size: .8rem; }
+.pst-leiste-knoepfe .pst-zeichen { display: inline-flex; gap: 4px; padding-right: 6px; margin-right: 2px; border-right: 1px solid #47505c; }
+.pst-leiste-knoepfe .pst-markleiste { display: inline-flex; gap: 4px; align-items: center; padding: 2px 6px; border-radius: 8px; background: rgba(255,255,255,.08); }
+.pst-leiste-knoepfe .pst-markleiste b { color: #fff; font-size: .8rem; }
+body.dunkel .pst-leiste-knoepfe .pst-vorschau-an, body.dunkel .pst-leiste-knoepfe .pst-vorschau-an * { color: #1d2430 !important; }
+@media (max-width: 800px) {
+  .pst-blattleiste.betrachter__kopf { flex-wrap: wrap; }
+  .pst-leiste-knoepfe { justify-content: flex-start; }
+}
+/* Knöpfe neben dem Blatt: immer sichtbar, weiss mit Rand und Schatten */
+.pst-seiten { padding-right: 150px; padding-left: 150px; }
+[data-pstblatt] .pst-c-kn .knopf--klein, [data-pstblatt] tr:hover .pst-c-kn .knopf--klein { opacity: 1; min-height: 26px; padding: 2px 7px; background: #fff !important; color: #1a2a3a; border: 1px solid #c8d3df; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+[data-pstblatt] .pst-c-kn .knopf--klein:hover { border-color: #1f6fe0; color: #1f6fe0; }
+[data-pstblatt] .pst-c-kn .knopf--gefahr-leise:hover { border-color: #c62828; color: #c62828; }
+body.dunkel [data-pstblatt] .pst-c-kn .knopf--klein { color: #1a2a3a !important; -webkit-text-fill-color: #1a2a3a; }
+.pst-wie-protokoll td.pst-c-kn { gap: 3px; }
+.pst-wie-protokoll .pst-c-aql { width: 34px; }
+@media (max-width: 1100px) { .pst-seiten { padding-left: 12px; padding-right: 12px; } }
+/* Vorschau: wie das fertige Protokoll, ohne Bearbeiten-Teile */
+.pst-vorschau .pst-grau { opacity: 1; }
+.pst-vorschau .pst-a4-tabelle input:disabled, .pst-vorschau .pst-kopffeld { color: #111; -webkit-text-fill-color: #111; opacity: 1; }
+.pst-vorschau .pst-a4-tabelle input::placeholder { color: transparent; }
+/* Schmale Bildschirme (iPad hochkant, Handy): kein Platz neben dem Blatt, dann
+   rechts in der Zeile, sobald man sie antippt */
+@media (max-width: 1100px) {
+  .pst-wie-protokoll td.pst-c-kn { left: auto; right: 2px; padding: 0 !important; opacity: 0; pointer-events: none; }
+  .pst-wie-protokoll tr:hover td.pst-c-kn, .pst-wie-protokoll tr:focus-within td.pst-c-kn { opacity: 1; pointer-events: auto; }
+}
+/* Ø, ± und Form/Lage in der dunklen Leiste gleich wie die anderen Knöpfe */
+.pst-leiste-knoepfe .pst-zeichen .knopf, .pst-leiste-knoepfe .pst-zeichen .formlage > button[data-formlage-auf] { min-height: 32px; padding: 4px 12px; background: transparent; border: 1px solid #47505c; color: #fff; font-size: 1rem; }
+.pst-leiste-knoepfe .pst-zeichen .formlage > button[data-formlage-auf].an { background: rgba(255,255,255,.18); }
+body.dunkel .pst-leiste-knoepfe .formlage__liste button { color: #fff; }
+.pst-leiste-knoepfe .formlage__liste button { color: #1d2733; }
+.pst-leiste-knoepfe .knopf.pst-vorschau-an { color: #1d2430 !important; -webkit-text-fill-color: #1d2430; opacity: 1; font-weight: 600; }

@@ -210,7 +210,23 @@ async function protokollAnlegen(hoco, art, j, protokolle, zwischen) {
   if (j.maschine) kopf.maschine = j.maschine;
   const mat = materialText(j);
   if (mat) kopf.material = mat;
-  if (art === "aql") { kopf.los = j.target_quantity || ""; kopf.aql = st.aql ?? 1.0; kopf.niveau = st.niveau || "II"; }
+  if (art === "aql") {
+    kopf.los = j.target_quantity || ""; kopf.aql = st.aql ?? 1.0; kopf.niveau = st.niveau || "II";
+    // Häkchen AQL in den Stammdaten (seit 1.943.0, Wunsch Patrick 27. November 2026):
+    // dann kommen nur diese Masse ins AQL-Protokoll, ohne Häkchen wie bisher alle.
+    // Abschnitte bleiben, wenn darunter ein gewähltes Mass steht.
+    if (st.zeilen.some((z) => !z.abschnitt && z.aql)) {
+      const raus = [];
+      let ab = null;
+      for (const z of st.zeilen) {
+        if ("abschnitt" in z) { ab = z; continue; }
+        if (!z.aql) continue;
+        if (ab) { raus.push(ab); ab = null; }
+        raus.push(z);
+      }
+      kopf.zeilen = raus;
+    }
+  }
   if (art === "ll") {
     // Masse mit Häkchen LL in den Stammdaten, sonst die Wahl vom letzten LL
     const ids = new Set(st.zeilen.map((z) => z.id));
@@ -557,7 +573,7 @@ function VorlageLeer({ v, zurueck }) {
 
   const zeileSetzen = (id, n, val) => setW((x) => ({ ...x, zeilen: x.zeilen.map((z) => (z.id === id ? { ...z, [n]: val } : z)) }));
   const zeileWeg = (id) => setW((x) => ({ ...x, zeilen: x.zeilen.filter((z) => z.id !== id) }));
-  const zeilenLeeren = (ids) => setW((x) => ({ ...x, zeilen: x.zeilen.map((z) => (!ids.has(z.id) ? z : "abschnitt" in z ? { ...z, abschnitt: "" } : { ...z, nr: "", soll: "", pm: "", ll: false, pm_nr: null, pm_id: null, pm_ids: null, pm_art: null, tol_min: undefined, tol_max: undefined })) }));
+  const zeilenLeeren = (ids) => setW((x) => ({ ...x, zeilen: x.zeilen.map((z) => (!ids.has(z.id) ? z : "abschnitt" in z ? { ...z, abschnitt: "" } : { ...z, nr: "", soll: "", pm: "", ll: false, aql: false, pm_nr: null, pm_id: null, pm_ids: null, pm_art: null, tol_min: undefined, tol_max: undefined })) }));
   const zeilenWeg = (ids) => setW((x) => ({ ...x, zeilen: x.zeilen.filter((z) => !ids.has(z.id)) }));
   const zeileDazu = (abschnitt, bei) => setW((x) => {
     const nrn = x.zeilen.map((z) => parseInt(z.nr, 10)).filter((n) => !isNaN(n));

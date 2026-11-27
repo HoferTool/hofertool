@@ -2,6 +2,10 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.943.0 (27. November 2026)
+
+QS → Masse-Blatt: obere Leiste dunkel wie beim EB (Titel links, Knöpfe rechts), Zeilenknöpfe neben dem Blatt gut sichtbar (auf schmalen Bildschirmen beim Antippen in der Zeile), Spalte AQL neben LL (mit Häkchen kommen nur diese Masse ins AQL-Protokoll, ohne Häkchen alle), Knopf Vorschau.
+
 ## 1.942.0 (27. November 2026)
 
 - Material in den Stammdaten der HOCO Nr. ohne Lieferant, Menge, Bestellnummer und Termin (Patrick: „siehst du den Fehler?“ zu „CuZn38Pb2 rd 005 mm h9 Prometall 1100kg“; kam immer wieder, weil jeder Auftrag sein Materialfeld mit Bestellangaben in die Stammdaten brachte). `materialOhneBestellung` in `src/daten/materialBestellung.js`, benutzt in `groesseAusAuftrag` und `stammdatenNachziehen`; unterscheidet sich nur die Bestellangabe, kommt keine Rückfrage „Material auch beim Teil ändern?“ mehr. Am Auftrag selbst bleibt alles stehen. Einmal aufgeräumt mit `sql/stammdaten-material-rein.sql` (386 HOCO Nr., alte Werte in `hoco_material_sicherung`, dabei auch Excel-Reste wie 1.4305000000000001). Test `material_stamm.py`.

@@ -197,6 +197,17 @@ with sync_playwright() as p:
     pg.keyboard.press("Escape"); pg.wait_for_timeout(200)
     pg.locator("[data-pstpm]").nth(3).click(); pg.wait_for_selector("[data-pmwahl]"); pg.keyboard.press("Escape"); pg.wait_for_timeout(200)
     pruefe(pg.locator("[data-pmwahl]").count() == 0 and pg.locator("[data-pstblatt]").count() == 1, "Escape schliesst nur das kleine Fenster")
+    # Leiste wie beim EB, Spalte AQL, Vorschau (seit 1.943.0)
+    pruefe(pg.locator(".pst-blattleiste.betrachter__kopf .betrachter__titel").count() == 1, "obere Leiste wie beim EB")
+    pruefe(pg.locator("[data-pstblatt] th:text-is('AQL')").count() == 1, "Spalte AQL neben LL")
+    pg.locator("[data-pstaql]").nth(3).check(); pg.locator("[data-pstaql]").nth(4).check(); pg.wait_for_timeout(100)
+    kn = pg.locator("[data-pstblatt] td.pst-c-kn .knopf").first
+    pruefe(kn.is_visible() and float(kn.evaluate("e => getComputedStyle(e).opacity")) == 1, "Zeilenknöpfe neben dem Blatt gut sichtbar")
+    pg.click("#pst-vorschau"); pg.wait_for_timeout(200)
+    pruefe(pg.locator("#pst-mass-neu").count() == 0 and pg.locator("[data-pstblatt] td.pst-c-kn").count() == 0 and pg.locator("[data-pstkopf]").count() == 0, "Vorschau ohne Bearbeiten-Knöpfe")
+    pg.screenshot(path="/tmp/pst_vorschau.png")
+    pg.click("#pst-vorschau"); pg.wait_for_timeout(200)
+    pruefe(pg.locator("#pst-mass-neu").count() == 1, "zurück zum Bearbeiten")
     for i in range(18):
         pg.click("#pst-mass-neu")
     pg.wait_for_timeout(300)
@@ -226,8 +237,18 @@ with sync_playwright() as p:
     pruefe(not frage or hp.get("index_nr") == "B", "Index-Rückfrage übernimmt in die Stammdaten: %s %s" % (frage, hp.get("index_nr")))
     st = pg.evaluate("() => TEST.daten.pruef_stamm[0]")
     pruefe(len(st.get("zeilen") or []) == 23, "gespeichert: %d Zeilen" % len(st.get("zeilen") or []))
+    pruefe(len([z for z in st.get("zeilen") or [] if z.get("aql")]) == 2, "zwei Masse mit Häkchen AQL gespeichert")
     pg.click("#pst-blatt-zu"); pg.wait_for_timeout(400)
     pruefe(pg.locator("[data-pstblatt]").count() == 0, "Blatt zu")
+    # AQL-Protokoll nimmt nur die Masse mit Häkchen AQL (seit 1.943.0)
+    for _ in range(3):
+        if pg.locator("#pb-todo").count() or not pg.locator("button:has-text('← Prüfberichte')").count(): break
+        pg.locator("button:has-text('← Prüfberichte')").first.click(); pg.wait_for_timeout(600)
+    pg.wait_for_selector("#pb-todo", timeout=8000); pg.wait_for_timeout(600); suche(pg)
+    pg.click("[data-pbtodo=aql] [data-pbtodoauftrag=jpb1]"); pg.wait_for_timeout(1000)
+    aq = [x for x in pg.evaluate("() => TEST.daten.pruefprotokolle") if (x.get("kopf") or {}).get("art") == "aql"]
+    zz = [z for z in ((aq[-1].get("kopf") or {}).get("zeilen") or []) if "abschnitt" not in z] if aq else []
+    pruefe(len(zz) == 2 and all(z.get("aql") for z in zz), "AQL-Protokoll nur mit den 2 gewählten Massen: %d" % len(zz))
     pruefe(not pf, "keine Seitenfehler: %s" % pf)
     br.close()
 print("Fehler:", "keine" if not fehler else fehler)

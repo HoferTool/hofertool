@@ -56,7 +56,7 @@ export default function Pruefung({ hoco, darf, modus = "stamm", zurueck, zurueck
   const zeileWeg = (id) => setW((x) => ({ ...x, zeilen: x.zeilen.filter((z) => z.id !== id) }));
   // Markierte Zeilen im Masse-Blatt leeren oder löschen (seit 1.786.0)
   const zeilenLeeren = (ids) => setW((x) => ({ ...x, zeilen: x.zeilen.map((z) => (!ids.has(z.id) ? z
-    : "abschnitt" in z ? { ...z, abschnitt: "" } : { ...z, nr: "", soll: "", pm: "", ll: false, pm_nr: null, pm_id: null, pm_ids: null, pm_art: null, tol_min: undefined, tol_max: undefined })) }));
+    : "abschnitt" in z ? { ...z, abschnitt: "" } : { ...z, nr: "", soll: "", pm: "", ll: false, aql: false, pm_nr: null, pm_id: null, pm_ids: null, pm_art: null, tol_min: undefined, tol_max: undefined })) }));
   const zeilenWeg = (ids) => setW((x) => ({ ...x, zeilen: x.zeilen.filter((z) => !ids.has(z.id)) }));
   // bei = Index, vor dem eingefügt wird (leer = ans Ende)
   const zeileDazu = (abschnitt, bei) => setW((x) => {
@@ -212,8 +212,12 @@ function seitenTeilen(zeilen) {
 
 // Auch für die Vorlage in QS → Prüfberichte gebraucht (seit 1.872.0), dort
 // mit eigenem Titel und Knopf Drucken (titel, weiterText, label, extra, zuText).
-export function MasseBlatt({ w, hoco, schreibt, kopfSetzen, zeileSetzen, zeileWeg, zeilenLeeren, zeilenWeg, zeileDazu, schieben, neuFokus, geaendert, laeuft, speichern, zu, titel, weiterText, label, extra, zuText }) {
+export function MasseBlatt({ w, hoco, schreibt: darf, kopfSetzen, zeileSetzen, zeileWeg, zeilenLeeren, zeilenWeg, zeileDazu, schieben, neuFokus, geaendert, laeuft, speichern, zu, titel, weiterText, label, extra, zuText }) {
   const huelle = useRef(null);
+  // Vorschau (seit 1.943.0, Wunsch Patrick 27. November 2026): zeigt das Blatt ohne
+  // Bearbeiten-Knöpfe, so wie das Prüfprotokoll später aussieht
+  const [vorschau, setVorschau] = useState(false);
+  const schreibt = darf && !vorschau;
   // Zeilen markieren wie in Excel (seit 1.786.0, Wunsch Patrick 24. November
   // 2026: „ganze Bereiche markieren, zum Beispiel leeren“): Zeilenkopf links
   // antippen, ziehen oder mit Shift erweitern, Strg einzeln dazu
@@ -268,7 +272,7 @@ export function MasseBlatt({ w, hoco, schreibt, kopfSetzen, zeileSetzen, zeileWe
     return () => window.removeEventListener("keydown", t, true);
   });
   const zuFragen = async () => {
-    if (geaendert && schreibt) {
+    if (geaendert && darf) {
       const ok = await alt.nachfragen({ titel: "Noch nicht gespeichert", text: zuText || "Die Änderungen bleiben in den Stammdaten stehen, sind aber noch nicht gespeichert.", bestaetigen: "Trotzdem schliessen" });
       if (!ok) return;
     }
@@ -350,30 +354,39 @@ export function MasseBlatt({ w, hoco, schreibt, kopfSetzen, zeileSetzen, zeileWe
   const v = w.kopf || {};
   const enter = (i) => (e) => { if (e.key === "Enter") { e.preventDefault(); zeileDazu(false, i + 1); } };
   return (
-    <div className="pst-blattfenster" ref={huelle} data-pstblatt="">
-      <div className="pst-blattleiste">
-        <b>{label || "Masse " + hoco}</b>
-        <span className="klein">{w.zeilen.filter((z) => !z.abschnitt).length} Masse · {seiten.length} {seiten.length === 1 ? "Seite" : "Seiten"}</span>
-        <span className="pst-platz" />
-        {schreibt ? <>
-          {markiert.length ? <span className="pst-markleiste" data-pstmarkleiste="">
-            <b>{markiert.length} {markiert.length === 1 ? "Zeile" : "Zeilen"} markiert</b>
-            <button type="button" className="knopf knopf--klein" id="pst-mark-leeren" onClick={leeren}>Leeren</button>
-            <button type="button" className="knopf knopf--klein" id="pst-mark-weg" onClick={loeschen}>Löschen</button>
-            <button type="button" className="knopf knopf--klein" onClick={() => setMark(new Set())}>Aufheben</button>
-          </span> : null}
-          <span className="pst-zeichen" data-pstzeichen="">
-            {["Ø", "±"].map((z) => <button key={z} type="button" className="knopf knopf--klein" data-pstzeichen-knopf={z}
-              title={z + " einfügen"} onMouseDown={(e) => e.preventDefault()} onClick={() => zeichenEinsetzen(z)}>{z}</button>)}
-            <FormLage behalten={(e) => e.preventDefault()} einsetzen={zeichenEinsetzen} />
-          </span>
-          <button type="button" className="knopf knopf--klein" id="pst-mass-neu" onClick={() => zeileDazu(false)}>+ Mass</button>
-          <button type="button" className="knopf knopf--klein" id="pst-abschnitt-neu" onClick={() => zeileDazu(true)}>+ Abschnitt</button>
-          {geaendert ? <span className="klein pb-rot">Noch nicht gespeichert</span> : null}
-          <button type="button" className="knopf knopf--haupt" id="pst-blatt-speichern" disabled={laeuft || !geaendert} onClick={speichern}>Speichern</button>
-        </> : null}
-        {extra || null}
-        <button type="button" className="knopf knopf--klein" id="pst-blatt-zu" onClick={zuFragen}>Schliessen</button>
+    <div className={"pst-blattfenster" + (vorschau ? " pst-vorschau" : "")} ref={huelle} data-pstblatt="">
+      {/* Obere Leiste wie beim Einrichtblatt (seit 1.943.0, Patrick 27. November 2026:
+          „oben die weisse Bar anpassen … ähnlich wie bei EB“): dunkel, Titel links,
+          Knöpfe rechts */}
+      <div className="pst-blattleiste betrachter__kopf">
+        <span className="betrachter__titel">{label || "Prüfprotokoll-Vorlage " + hoco}
+          <span className="pst-leiste-info">{w.zeilen.filter((z) => !z.abschnitt).length} Masse · {seiten.length} {seiten.length === 1 ? "Seite" : "Seiten"}{vorschau ? " · Vorschau" : ""}</span></span>
+        <div className="betrachter__knoepfe pst-leiste-knoepfe">
+          {schreibt ? <>
+            {markiert.length ? <span className="pst-markleiste" data-pstmarkleiste="">
+              <b>{markiert.length} {markiert.length === 1 ? "Zeile" : "Zeilen"} markiert</b>
+              <button type="button" className="knopf knopf--klein" id="pst-mark-leeren" onClick={leeren}>Leeren</button>
+              <button type="button" className="knopf knopf--klein" id="pst-mark-weg" onClick={loeschen}>Löschen</button>
+              <button type="button" className="knopf knopf--klein" onClick={() => setMark(new Set())}>Aufheben</button>
+            </span> : null}
+            <span className="pst-zeichen" data-pstzeichen="">
+              {["Ø", "±"].map((z) => <button key={z} type="button" className="knopf knopf--klein" data-pstzeichen-knopf={z}
+                title={z + " einfügen"} onMouseDown={(e) => e.preventDefault()} onClick={() => zeichenEinsetzen(z)}>{z}</button>)}
+              <FormLage behalten={(e) => e.preventDefault()} einsetzen={zeichenEinsetzen} />
+            </span>
+            <button type="button" className="knopf knopf--klein" id="pst-mass-neu" onClick={() => zeileDazu(false)}>+ Mass</button>
+            <button type="button" className="knopf knopf--klein" id="pst-abschnitt-neu" onClick={() => zeileDazu(true)}>+ Abschnitt</button>
+          </> : null}
+          {darf ? <button type="button" className={"knopf knopf--klein" + (vorschau ? " pst-vorschau-an" : "")} id="pst-vorschau"
+            title={vorschau ? "Zurück zum Bearbeiten" : "So sieht das Prüfprotokoll aus"} onClick={() => { setMark(new Set()); setVorschau((x) => !x); }}>
+            {vorschau ? "✎ Bearbeiten" : "👁 Vorschau"}</button> : null}
+          {extra || null}
+          {darf ? <>
+            {geaendert ? <span className="pst-leiste-hinweis">Noch nicht gespeichert</span> : null}
+            <button type="button" className="knopf knopf--klein knopf--haupt" id="pst-blatt-speichern" disabled={laeuft || !geaendert} onClick={speichern}>Speichern</button>
+          </> : null}
+          <button type="button" className="knopf knopf--klein" id="pst-blatt-zu" onClick={zuFragen}>Schliessen</button>
+        </div>
       </div>
       {/* Seit 1.938.0 sieht die Vorlage aus wie das Prüfprotokoll beim Ausfüllen, nur
           bearbeitbar (Patrick 27. November 2026: „die Vorlage zum Bearbeiten soll genau
@@ -398,12 +411,12 @@ export function MasseBlatt({ w, hoco, schreibt, kopfSetzen, zeileSetzen, zeileWe
             <table className="pb-tabelle pst-a4-tabelle pst-wie-protokoll">
               <thead><tr>{schreibt ? <th className="pst-c-kopf" title="Zeilen markieren: antippen, ziehen, Shift oder Strg" /> : null}<th className="pst-c-nr">Nr.</th><th className="pst-c-soll">Soll</th>
                 {[1, 2, 3, 4, 5].map((t) => <th key={t} className="pst-c-teil">Teil {t}</th>)}
-                <th>Prüfmittel/Hinweis</th><th className="pst-c-ll" title="Kommt auf die Langläufer-Liste">LL</th>{schreibt ? <th className="pst-c-kn" /> : null}</tr></thead>
+                <th>Prüfmittel/Hinweis</th><th className="pst-c-ll" title="Kommt auf die Langläufer-Liste">LL</th><th className="pst-c-ll pst-c-aql" title="Wird bei der AQL-Prüfung gemessen (ohne Häkchen: alle Masse)">AQL</th>{schreibt ? <th className="pst-c-kn" /> : null}</tr></thead>
               <tbody>
                 {seite.map(({ z, i }) => "abschnitt" in z ? (
                   <tr key={z.id} className={"pst-abschnitt pb-abschnitt" + (mark.has(z.id) ? " pst-markiert" : "")} data-pstzeile={z.id}>
                     {schreibt ? <td className="pst-c-kopf" data-pstkopf={z.id} onPointerDown={kopfDown(z.id)}>{i + 1}</td> : null}
-                    <td colSpan={9}><input data-pstfokus={z.id} value={z.abschnitt} placeholder="Name des Abschnitts, z.B. Aussendurchmesser" disabled={!schreibt}
+                    <td colSpan={10}><input data-pstfokus={z.id} value={z.abschnitt} placeholder="Name des Abschnitts, z.B. Aussendurchmesser" disabled={!schreibt}
                       onChange={(e) => zeileSetzen(z.id, "abschnitt", e.target.value)} onKeyDown={enter(i)} /></td>
                     {schreibt ? <td className="pst-c-kn"><Knoepfe i={i} schieben={schieben} weg={() => zeileWeg(z.id)} /></td> : null}
                   </tr>
@@ -433,6 +446,7 @@ export function MasseBlatt({ w, hoco, schreibt, kopfSetzen, zeileSetzen, zeileWe
                       title="Antippen: Prüfmittel, Prüfstifte oder Hinweis wählen"
                       onClick={() => pmFenster(z)} onKeyDown={(e) => { if (e.key === " " || e.key === "F2") { e.preventDefault(); pmFenster(z); } else enter(i)(e); }} /></td>
                     <td className="pst-c-ll"><input type="checkbox" checked={!!z.ll} disabled={!schreibt} onChange={() => zeileSetzen(z.id, "ll", !z.ll)} /></td>
+                    <td className="pst-c-ll pst-c-aql"><input type="checkbox" data-pstaql={z.id} checked={!!z.aql} disabled={!schreibt} onChange={() => zeileSetzen(z.id, "aql", !z.aql)} /></td>
                     {schreibt ? <td className="pst-c-kn">
                       <button type="button" className="knopf knopf--klein" title="Abschnitt davor einfügen" data-pstabschnittdavor="" onClick={() => zeileDazu(true, i)}>§</button>
                       <Knoepfe i={i} schieben={schieben} weg={() => zeileWeg(z.id)} /></td> : null}
