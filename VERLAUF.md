@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.913.0 (27. November 2026)
+
+Test ERP: Reiter Bestellungen zeigt gleich alle Bestellungen (neuste oben) mit Häkchen Rohmaterial / ZA extern / Andere (ZA extern = Hofer-Artikel in der Bestellung oder Fremdleistung aus dem Gewatec, `bestellArt` in `Belege.jsx`; Wunsch Patrick).
+
 ## 1.912.0 (27. November 2026)
 
 Masse-Blatt: Toleranz als zwei Felder Min und Max, vorausgefüllt aus dem Soll, ohne Farbe; Geändertes gilt für die rot/grün-Auswertung (z.tol_min/z.tol_max). GDT-Rahmen: µ der alten Schrift = Koaxialität ◎.

@@ -196,6 +196,21 @@ with sync_playwright() as p:
     pg.evaluate("TEST.erpAlle = true")
     pg.click("[data-erp-reiter='auftrag']"); pg.wait_for_timeout(300)
 
+    # Bestellungen: ohne Suche alle, Häkchen Rohmaterial / ZA extern / Andere (seit 1.913.0)
+    pg.evaluate("TEST.erpAlle = false")
+    pg.click("[data-erp-reiter='bestellung']"); pg.wait_for_timeout(300)
+    n_be = pg.locator(".erp-tabelle tbody tr").count()
+    pruefe(n_be >= 1 and pg.locator("[data-erp-be-art]").count() == 3, "Bestellungen ohne Suche: %s, Häkchen je Art" % n_be)
+    for w in ("roh", "za", "andere"):
+        pg.locator("[data-erp-be-art='%s'] input" % w).uncheck()
+    pg.wait_for_timeout(150)
+    pruefe(pg.locator(".erp-tabelle tbody tr").count() == 0, "alle Häkchen weg: keine Bestellung")
+    pg.locator("[data-erp-be-art='roh'] input").check(); pg.wait_for_timeout(150)
+    n_roh = pg.locator(".erp-tabelle tbody tr").count()
+    pg.locator("[data-erp-be-art='za'] input").check(); pg.locator("[data-erp-be-art='andere'] input").check()
+    pruefe(n_roh <= n_be, "nur Rohmaterial: %s von %s" % (n_roh, n_be))
+    pg.evaluate("TEST.erpAlle = true")
+
     # Spaltenkopf antippen sortiert (seit 1.898.0): Hofer-Artikel nach Index auf- und absteigend
     pg.click("[data-erp-reiter='stamm']"); pg.wait_for_timeout(300)
     pg.click("[data-erp-stamm='artikel']"); pg.wait_for_timeout(300)

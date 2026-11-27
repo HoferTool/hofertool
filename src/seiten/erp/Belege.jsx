@@ -85,6 +85,19 @@ export function belegStand(d, b) {
 const FA_STAENDE = ["offen", "in Arbeit", "teilweise fertig", "fertig", "abgeschlossen", "storniert"];
 let faStaende = FA_STAENDE.filter((w) => w !== "storniert");
 
+// Art einer Bestellung (seit 1.913.0, Wunsch Patrick 27. November 2026: „in Bestellungen filtern nach
+// Rohmaterial und ZA extern“): ZA extern = Zusatzarbeit extern (Fremdleistung), d. h. ein Hofer-Artikel
+// geht zum Lieferanten, oder aus dem Gewatec als Fremdleistung übernommen
+const BE_ARTEN = [["roh", "Rohmaterial"], ["za", "ZA extern"], ["andere", "Andere"]];
+let beArten = BE_ARTEN.map(([w]) => w);
+function bestellArt(d, b) {
+  const pos = d.posJe.get(b.id) || [];
+  const arten = pos.map((p) => (d.artikelMap.get(p.artikel_id) || {}).art);
+  if ((b.daten || {}).fremdleistung || arten.includes("hofer")) return "za";
+  if (arten.includes("rohmaterial")) return "roh";
+  return "andere";
+}
+
 // ---------- Liste je Belegart ----------
 export function BelegListe({ d, neu, typ, ohneNeu, hinweis }) {
   const [suche, setSuche] = useState("");
@@ -94,8 +107,12 @@ export function BelegListe({ d, neu, typ, ohneNeu, hinweis }) {
   const mitStand = typ === "fertigung";
   const [staende, setStaende] = useState(() => new Set(faStaende));
   const standUm = (w, an) => setStaende((v) => { const n = new Set(v); if (an) n.add(w); else n.delete(w); faStaende = [...n]; return n; });
+  const mitArt = typ === "bestellung";
+  const [arten, setArten] = useState(() => new Set(beArten));
+  const artUm = (w, an) => setArten((v) => { const n = new Set(v); if (an) n.add(w); else n.delete(w); beArten = [...n]; return n; });
   const t = BELEGTYP[typ];
-  const warten = !mitStand && ohneSuche(suche) && !nurOffen;
+  // Bestellungen sind wenige: wie Fertigung gleich alle zeigen, gefiltert mit den Häkchen
+  const warten = !mitStand && !mitArt && ohneSuche(suche) && !nurOffen;
   const liste = warten ? [] : d.belege.filter((b) => b.typ === typ).filter((b) => {
     const p = d.partnerMap.get(b.partner_id) || {};
     const pos = (d.posJe.get(b.id) || []).map((x) => artikelText(d.artikelMap.get(x.artikel_id)) + " " + (x.text || "")).join(" ");
@@ -103,8 +120,9 @@ export function BelegListe({ d, neu, typ, ohneNeu, hinweis }) {
   }).map((b) => ({ b, stand: belegStand(d, b) }))
     .filter((x) => !nurOffen || !/^(geliefert|eingegangen|fertig|verrechnet|in Fibu|storniert|abgeschlossen)$/.test(x.stand[0]))
     .filter((x) => !mitStand || staende.has(x.stand[0]))
-    // Neuste FA Nr. oben
-    .sort((x, y) => (mitStand ? String(y.b.nr).localeCompare(String(x.b.nr)) : 0));
+    .filter((x) => !mitArt || arten.has(bestellArt(d, x.b)))
+    // Neuste Nr. oben (Fertigung, Bestellungen)
+    .sort((x, y) => (mitStand || mitArt ? String(y.b.nr).localeCompare(String(x.b.nr)) : 0));
   return (
     <>
       <div className="mat-kopf">
@@ -113,6 +131,8 @@ export function BelegListe({ d, neu, typ, ohneNeu, hinweis }) {
         <Suche wert={suche} setzen={setSuche} platzhalter="Nr., Kunde, Artikel …" fokus />
         {!mitStand && <label className="feld-haken"><input type="checkbox" checked={nurOffen} onChange={(e) => setNurOffen(e.target.checked)} />
           <span>Nur offene</span></label>}
+        {mitArt && BE_ARTEN.map(([w, text]) => <label key={w} className="feld-haken" data-erp-be-art={w}>
+          <input type="checkbox" checked={arten.has(w)} onChange={(e) => artUm(w, e.target.checked)} /><span>{text}</span></label>)}
         {mitStand && FA_STAENDE.map((w) => <label key={w} className="feld-haken" data-erp-fa-stand={w}>
           <input type="checkbox" checked={staende.has(w)} onChange={(e) => standUm(w, e.target.checked)} /><span>{w}</span></label>)}
       </div>
