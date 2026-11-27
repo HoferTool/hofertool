@@ -76,7 +76,7 @@ with sync_playwright() as p:
             pruefe("danach abgestimmt", pg.locator(".umf__danke").count() == 1)
             pruefe("Ergebnis mit Balken", pg.locator(".umf-v__balken").count() == 3)
             pg.locator("#db-umfragen").screenshot(path=SP + "umfrage_nachher.png")
-            # 1.890.1: zugeklappt bleibt zu, auch nach Seitenwechsel und Neuladen
+            # 1.891.1: zugeklappt bleibt zu, auch nach Seitenwechsel und Neuladen
             pg.click("[data-umfklapp='u-1']"); pg.wait_for_timeout(150)
             pg.evaluate("location.hash = '#/material'"); pg.wait_for_timeout(500)
             pg.evaluate("location.hash = '#/dashboard'"); pg.wait_for_timeout(1200)

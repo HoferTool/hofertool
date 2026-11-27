@@ -181,7 +181,7 @@ function Umfrage({ u, neu, admin }) {
   // Zuklappen bis auf den Titel (seit 1.867.0, Wunsch Patrick 26. November
   // 2026: „so zuklappen, dass nur noch der Titel da ist, oder wenn
   // abgestimmt worden ist, soll es zugehen. Neue sind immer offen“).
-  // Seit 1.890.1 (Wunsch Patrick 27. November 2026: „wenn man es
+  // Seit 1.891.1 (Wunsch Patrick 27. November 2026: „wenn man es
   // eingeklappt hat oder eine Antwort gegeben hat, soll es eingeklappt
   // bleiben“): gemerkt am Konto (alle Geräte) und am Gerät, alle Stellen
   // mit derselben Umfrage gleichen sich ab. Zu ist auch, wer unter seinem
