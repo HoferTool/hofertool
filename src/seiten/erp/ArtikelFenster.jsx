@@ -518,7 +518,12 @@ function LagerReiter({ d, a, neu, aussen }) {
   if (!a) return <p className="klein">Erst speichern.</p>;
   const liste = bestand(d, a.id);
   const summe = liste.reduce((s, e) => s + e.menge, 0);
+  // Wunsch Patrick 27. November 2026: Lagerbewegungen zuoberst, darunter die
+  // Bestandesübersicht nach Charge (antippen = Umbuchen).
   return <>
+    <h4 className="erp-lager-bew">Lagerbewegungen</h4>
+    <BewegungListe d={d} artikelId={a.id} aussen={aussen} />
+    <h4 className="erp-lager-bew">Bestandesübersicht</h4>
     <GTabelle kopf={["Index", "Charge", "Lagerart", "Lagerplatz", "Menge"]} rechts={[4]} leer="Kein Bestand."
       zeilen={liste.map((e) => { const l = d.lagerMap.get(e.lager_id);
         return { key: e.idx + "|" + e.charge + e.lager_id, klasse: e.menge < 0 ? "erp-minus" : "",
@@ -527,9 +532,6 @@ function LagerReiter({ d, a, neu, aussen }) {
             l ? l.lagerart : "–", l ? l.platz : "–", mengeText(e.menge) + " " + (a.einheit || "")] }; })} />
     {liste.some((e) => e.menge > 0) && <p className="klein">Zeile antippen zum Umbuchen (z. B. HFL → FL, FL → SPL).</p>}
     <p className="gf-summe">Bestand gesamt <b>{mengeText(summe)} {a.einheit}</b></p>
-    {/* Wunsch Patrick 26. November 2026: im Reiter Lager auch gleich die Bewegungen sehen. */}
-    <h4 className="erp-lager-bew">Lagerbewegungen</h4>
-    <BewegungListe d={d} artikelId={a.id} aussen={aussen} />
   </>;
 }
 

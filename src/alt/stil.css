@@ -17572,3 +17572,7 @@ body.dunkel .pd-vorschlag .pd-zeile--vorschlag { background: #2a2a2a; }
 @media (min-width: 1200px) and (max-height: 760px) {
   .dialog--auftrag .auf-spalte--zeichnung .auf-vorschau { min-height: 150px; }
 }
+
+/* 1.875.0: Bewegungsarten als Häkchen statt Auswahlliste */
+.erp-bew-arten{display:inline-flex;flex-wrap:wrap;gap:4px 12px;align-items:center}
+.erp-bew-arten label{display:inline-flex;gap:4px;align-items:center;white-space:nowrap;cursor:pointer}

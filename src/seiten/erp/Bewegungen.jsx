@@ -111,10 +111,11 @@ export function bewegungZeilen(d, artikelId) {
 // erp_bewegungen, übernommen aus dem Gewatec-Lagerbestand), sie stehen nur in der
 // Liste. Geholt wird erst beim Anzeigen und nur so viele, wie gezeigt werden.
 const GW_SPALTEN = "gw_id, artikel_id, artikelcode, einheit, am, menge, lagerort, endlager, idx, charge, fa, ls_intern, kunde, lieferant, ls_lieferant, bemerkung, wer, ohne_buchung";
-function useGewatec({ artikelId, artikelNr, journal, von, bis, art, suche, anzahl }) {
+function useGewatec({ artikelId, artikelNr, journal, von, bis, arten, suche, anzahl }) {
   const [st, setSt] = useState({ zeilen: [], mehr: false });
+  const art = !arten.gewatec || (!arten.zu && !arten.ab) ? "keine" : arten.zu && arten.ab ? "" : arten.zu ? "zu" : "ab";
   useEffect(() => {
-    if (art === "umbuchung" || art === "korrektur") { setSt({ zeilen: [], mehr: false }); return; }
+    if (art === "keine") { setSt({ zeilen: [], mehr: false }); return; }
     if (!journal && !artikelId) return;
     let weg = false;
     let q = alt.db.from("erp_bewegungen_gewatec").select(GW_SPALTEN);
@@ -152,17 +153,23 @@ function gewatecZeile(d, g) {
 // Lagerjournal (Wunsch Patrick 25. November 2026: „das lagerjournal kannst du
 // machen“): dieselbe Liste über alle Artikel, dazu Zeitraum, Artikelart,
 // Summen Zugang / Abgang und Export als CSV für Excel.
+// Bewegungsarten als Häkchen statt Auswahlliste (Wunsch Patrick 27. November
+// 2026: „checkboxen zum aktivieren und deaktivieren“). Umbuchung und Korrektur
+// zählen für sich, alles andere nach dem Vorzeichen als Zugang oder Abgang.
+const BEW_ARTEN = [["zu", "Zugang"], ["ab", "Abgang"], ["umbuchung", "Umbuchung"], ["korrektur", "Korrektur"], ["gewatec", "Gewatec"]];
+const ALLE_ARTEN = { zu: true, ab: true, umbuchung: true, korrektur: true, gewatec: true };
+function bewArt(z) { return z.b.art === "umbuchung" || z.b.art === "korrektur" ? z.b.art : z.zu ? "zu" : "ab"; }
 const ARTIKELART = { hofer: "Hofer + Co", rohmaterial: "Rohmaterial", werkzeug: "Werkzeug" };
 export function BewegungListe({ d, artikelId, aussen, journal }) {
   const namen = useNamen();
   const [suche, setSuche] = useState("");
-  const [art, setArt] = useState("");
+  const [arten, setArten] = useState(ALLE_ARTEN);
   const [von, setVon] = useState("");
   const [bis, setBis] = useState("");
   const [aart, setAart] = useState("");
   const [zahlZeigen, setZahl] = useState(200);
   const artikelNr = artikelId ? (d.artikelMap.get(artikelId) || {}).nr : "";
-  const gw = useGewatec({ artikelId, artikelNr, journal, von, bis, art, suche, anzahl: zahlZeigen });
+  const gw = useGewatec({ artikelId, artikelNr, journal, von, bis, arten, suche, anzahl: zahlZeigen });
   const eigene = bewegungZeilen(d, artikelId).map((b) => {
     const a = d.artikelMap.get(b.artikel_id) || {};
     const l = d.lagerMap.get(b.lager_id);
@@ -175,7 +182,7 @@ export function BewegungListe({ d, artikelId, aussen, journal }) {
     const wer = namen.get(b.von) || "";
     return { b, a, beleg, zu, woher: zu ? gegen : hier, wohin: zu ? hier : gegen, ref, wer,
       text: [ART_TEXT[b.art] || b.art, a.nr, a.bezeichnung, bewIdx(d, b), b.charge, hier, gegen, ref, b.notiz, wer].join(" ") };
-  }).filter((z) => (!art || (art === "zu" ? z.zu && z.b.art !== "umbuchung" : art === "ab" ? !z.zu && z.b.art !== "umbuchung" : z.b.art === art))
+  }).filter((z) => arten[bewArt(z)]
     && passt(suche, z.text)
     && (!von || String(z.b.am || "").slice(0, 10) >= von) && (!bis || String(z.b.am || "").slice(0, 10) <= bis)
     && (!aart || z.a.art === aart));
@@ -189,10 +196,11 @@ export function BewegungListe({ d, artikelId, aussen, journal }) {
     <div data-erp-bewegungen="">
       <div className="mat-kopf">
         <Suche wert={suche} setzen={setSuche} platzhalter="Charge, Platz, FA, BE, Vermerk …" />
-        <select value={art} onChange={(e) => setArt(e.target.value)} data-erp-bew-art="">
-          <option value="">Alle</option><option value="zu">Zugang</option><option value="ab">Abgang</option>
-          <option value="umbuchung">Umbuchung</option><option value="korrektur">Korrektur</option>
-        </select>
+        <span className="erp-bew-arten">
+          {BEW_ARTEN.map(([k, t]) => <label key={k} data-erp-bew-art={k}>
+            <input type="checkbox" checked={!!arten[k]} onChange={(e) => setArten({ ...arten, [k]: e.target.checked })} /> {t}
+          </label>)}
+        </span>
         {journal && <>
           <select value={aart} onChange={(e) => setAart(e.target.value)} data-erp-journal-aart="">
             <option value="">Alle Artikel</option>
