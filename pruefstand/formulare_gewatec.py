@@ -116,14 +116,14 @@ with sync_playwright() as p:
     with pg.expect_popup() as pop: oben().locator("[data-erp-drucken]").click()
     t, s, u = blatt(pop, "lieferschein")
     pruefe("Auftragsbestätigung: 2026000640 vom 27.11.2026" in t and "Gelieferte Menge" in t and "Ware erhalten" in t, "Lieferschein wie Gewatec")
-    pruefe("CHF" in t and "42.00" in t and "In der Schweiz ausreichend bearbeitet" in t, "Lieferschein: Verpackungskosten und Ursprung")
+    pruefe("CHF" in t and "42.00" in t and "präferenzbegünstigte Schweizer Ursprungswaren" in t, "Lieferschein: Verpackungskosten und Ursprung")
     zu()
 
     # Auftragsbestätigung
     beleg("auftrag", "ab1")
     with pg.expect_popup() as pop: oben().locator("[data-erp-ab-drucken]").click()
     t, s, u = blatt(pop, "ab")
-    pruefe("LIEFERPLAN:" in t and "KW 51/26" in t and "Netto-Warenwert in CHF" in t and "Mit freundlichen Grüssen" in t, "Auftragsbestätigung wie Gewatec")
+    pruefe("LIEFERPLAN:" in t and "KW 51/26" in t and "Netto-Warenwert in CHF" in t and "Mit freundlichen Grüssen" in t and "Ursprungswaren" in t, "Auftragsbestätigung wie Gewatec")
     pruefe("110'000.00" in t, "AB: Betrag 100'000 × 110 / 100")
     zu()
 

@@ -175,6 +175,12 @@ function blattOeffnen({ titel, kopf, spalten, inhalt, fuss, fussHoehe = 0 }) {
   return w;
 }
 
+// Ursprungserklärung mit Ort, Datum und Sachbearbeiter, wie auf der
+// Gewatec-Rechnung; seit 1.935.5 auch auf Lieferschein und Auftrags-
+// bestätigung (Patrick 27. November 2026: „bring diesen überall“)
+const ursprung = (datum, name) => "<p style='margin:12pt 0 0'>Der Ausführer der Waren, auf die sich dieses Handelspapier bezieht, erklärt, dass diese Waren, "
+  + "soweit nicht anders angegeben, präferenzbegünstigte Schweizer Ursprungswaren sind.<br>Keine Kumulation angewendet (no cumulation applied)</p>"
+  + "<p style='margin:11pt 0 0'>Lohn - Ammannsegg , den " + datumText(datum) + "<span style='display:inline-block;width:24pt'></span>" + esc(name) + "</p>";
 const gruss = (x, name, oben = 30) => "<div class='gruss' style='margin:" + oben + "pt 0 0 " + x + "pt'>Mit freundlichen Grüssen<br>HOFER + CO<br><br>" + esc(name) + "</div>";
 
 // Werkstoff, Werkstoffnummer usw. eines Artikels
@@ -295,9 +301,7 @@ function reDruckenBlatt(d, b) {
       ["Lieferbedingung", bedingungen(d, ersterLs || b).liefer], ["Versandbedingung", bedingungen(d, ersterLs || b).versand], ["Zahlungsbedingung", bedText(d, bd.zahlung) || bedingungen(d, b).zahlung],
     ].map((z) => z && [z[0], z[1]]), 144, 18).replace(/class='w'>([^<]*)\n/g, "class='w' style='white-space:pre-line'>$1\n") + "</div>"
     + (bd.text ? "<p style='white-space:pre-line;margin:8pt 0 0'>" + esc(bd.text) + "</p>" : "")
-    + "<p style='margin:12pt 0 0'>Der Ausführer der Waren, auf die sich dieses Handelspapier bezieht, erklärt, dass diese Waren, soweit nicht anders angegeben, präferenzbegünstigte Schweizer Ursprungswaren sind.<br>"
-    + "Keine Kumulation angewendet (no cumulation applied)</p>"
-    + "<p style='margin:11pt 0 0'>Lohn - Ammannsegg , den " + datumText(b.datum) + "<span style='display:inline-block;width:24pt'></span>" + esc(sb.name) + "</p>"
+    + ursprung(b.datum, sb.name)
     + "<p style='margin:13pt 0 0'>Hofer + Co Präzisionsdrehteile AG</p></div>";
   const spalten = "<table class='sp'>" + colgroup(SP_RE) + "<tr><th>POS</th><th style='padding-left:11pt'>MENGE</th><th></th><th style='padding-left:16pt'>BENENNUNG</th>"
     + "<th class='nw'>E-PREIS</th><th></th><th>PRO</th><th class='r'>BETRAG (CHF)</th></tr></table><div class='linie' style='margin-top:3pt'></div>";
@@ -370,7 +374,7 @@ function lsDruckenBlatt(d, b) {
     + det([["Verpackung", bd.verpackung || " "], ["Verpackungskosten", verpK ? "CHF    " + chf(verpK) : " "],
       ["Porto", portoK ? "CHF    " + chf(portoK) : " "], ["Gesamtgewicht", gewicht || " "],
       ["Versandbedingung", bed.versand || " "], ["Lieferbedingung", bed.liefer || " "]], 142, 17)
-    + "<div style='padding-left:3pt'>In der Schweiz ausreichend bearbeitet gemäss Freihandelsabkommen CH/EU (\"no cumulation applied\")</div>"
+    + ursprung(b.datum, sb.name)
     + (bd.text ? "<p style='white-space:pre-line;margin:8pt 0 0'>" + esc(bd.text) + "</p>" : "");
   const unten = "<div class='unten'><table>" + colgroup([105, 162, 162])
     + "<tr><td>Ware erhalten</td><td>____________________________</td><td>____________________________</td></tr>"
@@ -422,7 +426,8 @@ function abDruckenBlatt(d, b) {
       liefer ? ["Versandanschrift", "<span class='adr'>" + esc(adresseText(liefer)) + "</span>", "html"] : null,
       ["Versandbedingung", bedingungen(d, b).versand], ["Lieferbedingung", bedingungen(d, b).liefer], ["Zahlungsbedingung", bedingungen(d, b).zahlung]], 143, 16) + "</div>"
     + (bd.text ? "<p style='white-space:pre-line;margin:8pt 0 0'>" + esc(bd.text) + "</p>" : "")
-    + gruss(320, sb.name, 42);
+    + ursprung(b.datum, sb.name)
+    + gruss(320, sb.name, 30);
   const spalten = "<div class='linie'></div><table class='sp' style='margin:3pt 0'>" + colgroup(SP_AB)
     + "<tr><th>POS</th><th style='padding-left:11pt'>MENGE</th><th></th><th style='padding-left:-3pt'>Bezeichnung</th><th>PREIS</th><th>PRO</th><th class='r'>BETRAG(CHF)</th></tr></table><div class='linie'></div>";
   return blattOeffnen({
