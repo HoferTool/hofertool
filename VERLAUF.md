@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.906.0 (27. November 2026)
+
+- Gridfinity Box: Beschriftungsleiste weg, Fächer wie im Gridfinity-Generator (Unterteilungen, „Ein Fach je Feld“, Griffmulde), Vorgabehöhe 3.
+
 ## 1.905.0 (27. November 2026)
 
 - Gridfinity: alle Dateien als STL statt 3MF; Eckwinkel als ein Körper.

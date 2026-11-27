@@ -21,13 +21,15 @@ function laden() {
   try {
     const s = JSON.parse(localStorage.getItem(SPEICHER) || "null");
     if (s && typeof s === "object") return {
+      v: 2,
       art: s.art === "platte" ? "platte" : "box",
       drucker: DRUCKER[s.drucker] ? s.drucker : "x1c",
-      box: { ...BOX_VORGABE, ...(s.box || {}) },
+      // Fassung 2 (1.906.0): Höhe einmal auf die Vorgabe 3 zurück (Patrick)
+      box: { ...BOX_VORGABE, ...(s.box || {}), ...(s.v === 2 ? {} : { u: BOX_VORGABE.u }) },
       platte: { ...PLATTE_VORGABE, ...(s.platte || {}) },
     };
   } catch { /* privates Fenster: Vorgabe */ }
-  return { art: "box", drucker: "x1c", box: { ...BOX_VORGABE }, platte: { ...PLATTE_VORGABE } };
+  return { v: 2, art: "box", drucker: "x1c", box: { ...BOX_VORGABE }, platte: { ...PLATTE_VORGABE } };
 }
 
 const mm = (x) => (Math.round(x * 10) / 10).toString().replace(".", ",");
@@ -182,14 +184,16 @@ export default function Werkzeug() {
             </section>
             <section className="gfn-gruppe">
               <h3>Fächer</h3>
-              <Zahl titel="Nebeneinander" name="fx" wert={box.fx} setzen={b("fx")} min={1} max={20} />
-              <Zahl titel="Hintereinander" name="fy" wert={box.fy} setzen={b("fy")} min={1} max={20} />
+              {/* wie im Gridfinity-Generator: Unterteilungen in X und Y, Griffmulde vorne */}
+              <Zahl titel="Unterteilungen Breite" name="fx" wert={box.fx} setzen={b("fx")} min={1} max={20} />
+              <Zahl titel="Unterteilungen Tiefe" name="fy" wert={box.fy} setzen={b("fy")} min={1} max={20} />
+              <button type="button" className="knopf" data-gf-jefeld
+                onClick={() => setStand((s) => ({ ...s, box: { ...s.box, fx: box.nx, fy: box.ny } }))}>Ein Fach je Feld</button>
+              <Schalter titel="Griffmulde" name="mulde" an={box.mulde} setzen={b("mulde")} text="Gerundeter Übergang vorne in jedem Fach, Kleinteile lassen sich herausschieben" />
             </section>
             <section className="gfn-gruppe">
               <h3>Ausführung</h3>
               <Schalter titel="Stapelrand" name="rand" an={box.rand} setzen={b("rand")} text="Boxen lassen sich aufeinander stellen" />
-              <Schalter titel="Beschriftungsleiste" name="leiste" an={box.leiste} setzen={b("leiste")} text="Schräge Leiste hinten in jedem Fach" />
-              {box.leiste && <Zahl titel="Leiste tief" name="leisteB" wert={box.leisteB} setzen={b("leisteB")} min={6} max={30} einheit="mm" />}
               <Schalter titel="Magnetlöcher" name="magnete" an={box.magnete} setzen={b("magnete")} text="Vier je Feld unten in den Füssen" />
               {box.magnete && <MagnetMasse d={box.magD} h={box.magH} setD={b("magD")} setH={b("magH")} />}
               <Zahl titel="Wand" name="wand" wert={box.wand} setzen={b("wand")} min={0.8} max={3} schritt={0.2} einheit="mm" />

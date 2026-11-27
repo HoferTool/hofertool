@@ -127,7 +127,7 @@ const magnetPunkte = (cx, cy) => [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b
 // =================================================================
 //  BOX
 // =================================================================
-export const BOX_VORGABE = { nx: 2, ny: 1, u: 3, wand: 1.2, boden: 1.2, fx: 2, fy: 1, rand: true, magnete: false, magD: 6.5, magH: 2.4, leiste: true, leisteB: 12 };
+export const BOX_VORGABE = { nx: 2, ny: 1, u: 3, wand: 1.2, boden: 1.2, fx: 2, fy: 1, rand: true, magnete: false, magD: 6.5, magH: 2.4, mulde: true };
 
 export function boxPruefen(b) {
   const z = (v, min, max, std) => { v = Number(v); return Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : std; };
@@ -135,7 +135,7 @@ export function boxPruefen(b) {
     nx: Math.round(z(b.nx, 1, 10, 2)), ny: Math.round(z(b.ny, 1, 10, 1)), u: Math.round(z(b.u, 1, 30, 3)),
     wand: z(b.wand, 0.8, 3, 1.2), boden: z(b.boden, 0.6, 5, 1.2),
     fx: Math.round(z(b.fx, 1, 20, 1)), fy: Math.round(z(b.fy, 1, 20, 1)),
-    rand: !!b.rand, magnete: !!b.magnete, magD: z(b.magD, 3, 7, 6.5), magH: z(b.magH, 1, 4, 2.4), leiste: !!b.leiste, leisteB: z(b.leisteB, 6, 30, 12),
+    rand: !!b.rand, magnete: !!b.magnete, magD: z(b.magD, 3, 7, 6.5), magH: z(b.magH, 1, 4, 2.4), mulde: b.mulde !== false,
   };
 }
 
@@ -150,7 +150,7 @@ export function boxNetz(eingabe) {
   const { W, D, H } = boxMasse(b);
   const R = GF.boxR, t = b.wand;
   const boden = Math.min(GF.fussH + b.boden, H - 1);
-  // Oberkante der Fächerwände und der Leiste: mit Stapelrand 1 mm tiefer,
+  // Oberkante der Fächerwände: mit Stapelrand 1 mm tiefer,
   // sonst stossen die Füsse der oberen Box daran
   const oben = b.rand ? H - 1 : H;
 
@@ -187,25 +187,32 @@ export function boxNetz(eingabe) {
     quader(n, -iw / 2 - 0.1, y - tw / 2, boden - 0.1, iw / 2 + 0.1, y + tw / 2, oben);
   }
 
-  // Beschriftungsleiste hinten in jeder Fächerreihe: Dreieck, unten 45°,
-  // damit sie ohne Stützen druckt
-  if (b.leiste) {
-    const tief = Math.min(b.leisteB, id / b.fy - 2, oben - boden - 1);
-    if (tief >= 4) for (let k = 1; k <= b.fy; k++) {
-      const yb = -id / 2 + (k * id) / b.fy - (k < b.fy ? tw / 2 - 0.05 : -0.1);
-      // Profil in (y, z), gegen den Uhrzeigersinn, entlang x gezogen
-      const prof = [[yb - tief, oben], [yb, oben - tief], [yb, oben]];
+  // Griffmulde wie bei Gridfinity („scoop“, seit 1.906.0, Patrick:
+  // „orientiere dich bei den Fächern an den Gridfinity-Funktionen“; die
+  // Beschriftungsleiste ist auf seinen Wunsch weg): vorne in jeder
+  // Fächerreihe eine Hohlkehle vom Boden zur Wand, damit man Kleinteile
+  // herausschieben kann. Viertelkreis-Profil, entlang x gezogen.
+  if (b.mulde) {
+    const reiheT = id / b.fy - tw;
+    const r = Math.min(20, (oben - boden) * 0.6, reiheT / 2);
+    if (r >= 3) for (let k = 0; k < b.fy; k++) {
+      const yf = -id / 2 + (k * id) / b.fy + (k > 0 ? tw / 2 - 0.05 : -0.1), zf = boden - 0.1;
+      // Profil in (y, z) im Gegenuhrzeigersinn: Ecke, Boden, Bogen, Wand
+      const prof = [[yf, zf], [yf + r + 0.1, zf]];
+      const st = 12;
+      for (let i = 0; i <= st; i++) {
+        const w = (i / st) * Math.PI / 2;   // von unten (Boden) zur Wand
+        prof.push([yf + 0.1 + r - r * Math.sin(w), zf + 0.1 + r - r * Math.cos(w)]);
+      }
+      prof.push([yf, zf + r + 0.1]);
       const ring = (x) => prof.map(([y, z]) => [x, y, z]);
-      const x0 = -iw / 2 - 0.1, x1 = iw / 2 + 0.1;
-      // Wände: Ringe von x0 nach x1 (Profil im Gegenuhrzeigersinn in y-z
-      // zeigt mit +x nach aussen, gleich wie oben mit +z)
-      const a = ring(x0), e = ring(x1);
-      for (let i = 0; i < 3; i++) {
-        const j = (i + 1) % 3;
+      const a = ring(-iw / 2 - 0.1), e = ring(iw / 2 + 0.1), m = prof.length;
+      for (let i = 0; i < m; i++) {
+        const j = (i + 1) % m;
         dreieck(n, a[i], a[j], e[j]); dreieck(n, a[i], e[j], e[i]);
       }
-      dreieck(n, a[0], a[2], a[1]);
-      dreieck(n, e[0], e[1], e[2]);
+      // Stirnseiten als Fächer von der Ecke aus (Fläche ist von dort ganz sichtbar)
+      for (let i = 1; i < m - 1; i++) { dreieck(n, a[0], a[i + 1], a[i]); dreieck(n, e[0], e[i], e[i + 1]); }
     }
   }
 

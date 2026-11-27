@@ -100,6 +100,17 @@ with sync_playwright() as p:
     # Strg + Z nimmt den Rand-Schalter zurück
     pg.click("h1.seitentitel"); pg.keyboard.press("Control+z"); pg.wait_for_timeout(300)
     pruefe(pg.is_checked("[data-gf='rand']"), "Strg + Z nimmt die letzte Änderung zurück")
+    # Fächer wie bei Gridfinity (1.906.0): ein Fach je Feld, Griffmulde, keine Beschriftungsleiste
+    pruefe(pg.locator("[data-gf='leiste']").count() == 0, "Beschriftungsleiste ist weg")
+    pg.click("[data-gf-jefeld]"); pg.wait_for_timeout(400)
+    pruefe(pg.input_value("[data-gf='fx']") == pg.input_value("[data-gf='nx']") and pg.input_value("[data-gf='fy']") == pg.input_value("[data-gf='ny']"), "Ein Fach je Feld: " + pg.input_value("[data-gf='fx']") + pg.input_value("[data-gf='fy']") + pg.input_value("[data-gf='nx']") + pg.input_value("[data-gf='ny']"))
+    name, v, tri = lade_stl(pg)
+    mit = volumen(v, tri)
+    pruefe(kanten_geschlossen(tri) == 0 and mit > 0, "Fächer mit Griffmulde geschlossen")
+    pg.click("[data-gf='mulde']"); pg.wait_for_timeout(400)
+    name, v, tri = lade_stl(pg)
+    pruefe(volumen(v, tri) < mit - 500, "Griffmulde bringt Material vorne (%.0f gegen %.0f mm³)" % (mit, volumen(v, tri)))
+    pg.click("[data-gf='mulde']")
 
     pruefe(pg.locator("[data-gf-export='stl'], [data-gf-export='3mf']").count() == 0, "nur noch ein Knopf STL")
 
