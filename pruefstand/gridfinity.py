@@ -107,7 +107,7 @@ with sync_playwright() as p:
     name, v, tri = lade_stl(pg)
     mit = volumen(v, tri)
     pruefe(kanten_geschlossen(tri) == 0 and mit > 0, "Fächer mit Scoop geschlossen")
-    # Elemente (1.907.0): Hinzufügen Wand, Leiste, Scoop; anklicken und ziehen in der Vorschau
+    # Elemente (1.911.0): Hinzufügen Wand, Leiste, Scoop; anklicken und ziehen in der Vorschau
     vorher = pg.locator("[data-gf-element]").count()
     for t in ("wand", "leiste", "scoop"):
         pg.click("[data-gf-hinzu-knopf]"); pg.click("[data-gf-hinzu='%s']" % t); pg.wait_for_timeout(300)

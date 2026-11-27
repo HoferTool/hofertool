@@ -129,7 +129,7 @@ const magnetPunkte = (cx, cy) => [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b
 // =================================================================
 export const BOX_VORGABE = { nx: 2, ny: 1, u: 3, wand: 1.2, boden: 1.2, fx: 2, fy: 1, rand: true, magnete: false, magD: 6.5, magH: 2.4 };
 
-// Fächer-Elemente frei (seit 1.907.0, Patrick: „Wände für die Fächer wie
+// Fächer-Elemente frei (seit 1.911.0, Patrick: „Wände für die Fächer wie
 // bei Gridfinity mit Drag and Drop“, Bild mit „Hinzufügen: Wand, Leiste,
 // Scoop“): jedes Element { typ: "wand" | "leiste" | "scoop", a, p, von,
 // bis, s }. a "x" = an fester x-Stelle (läuft nach hinten), a "y" = an

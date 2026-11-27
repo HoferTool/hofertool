@@ -33,7 +33,7 @@ import { gdtTeile, gdtHtml } from "../../teile/zeichenListe.js";
 import { dokZeigen } from "../../teile/DokAbruf.jsx";
 import {
   ARTEN, artVon, artName, istZwischen, TEILE, AQL_WERTE, aqlPlan, fehltTabelle, protokolleLaden, dateienLaden, vorlageLaden, stammSpeichern,
-  stammLaden, stammMitMassen, toleranz, toleranzText, istPruefen, lehrenAus, pruefmittelFuer, pruefmittelAlleLaden, pmOrtText, bildVon, zeilenId,
+  stammLaden, stammMitMassen, toleranz, tolVon, toleranzText, istPruefen, lehrenAus, pruefmittelFuer, pruefmittelAlleLaden, pmOrtText, bildVon, zeilenId,
 } from "../../daten/pruefbericht.js";
 
 // Offenes Protokoll und Suche bleiben beim Reiterwechsel
@@ -82,9 +82,9 @@ export function auswerten(p) {
     for (const z of zeilen) { const v = (w[z.id] || {}).nio; if (v === undefined || v === "") offen++; else if (Number(v) > 0) schlecht += Number(v); else gut++; }
   } else if (k.art === "ll") {
     const aus = new Set(k.auswahl || []);
-    for (const pr of w.proben || []) for (const z of zeilen) if (aus.has(z.id)) zaehle((pr.w || {})[z.id], toleranz(z.soll));
+    for (const pr of w.proben || []) for (const z of zeilen) if (aus.has(z.id)) zaehle((pr.w || {})[z.id], tolVon(z));
   } else {
-    for (const z of zeilen) { const t = toleranz(z.soll); for (let i = 0; i < TEILE; i++) zaehle((w[z.id] || [])[i], t); }
+    for (const z of zeilen) { const t = tolVon(z); for (let i = 0; i < TEILE; i++) zaehle((w[z.id] || [])[i], t); }
   }
   return { gut, schlecht, offen };
 }
@@ -189,7 +189,7 @@ function materialText(j) {
 async function protokollAnlegen(hoco, art, j, protokolle, zwischen) {
   const st = await stammMitMassen(hoco);
   if (!st || !(st.zeilen || []).length) {
-    const ok = await alt.nachfragen({ titel: "Noch keine Masse", text: "Für " + hoco + " sind noch keine Prüfmasse erfasst. In den Stammdaten eintragen oder einen Excel-Prüfbericht einlesen.", bestaetigen: "Stammdaten öffnen" });
+    const ok = await alt.nachfragen({ titel: "Noch keine Masse", text: "Für " + hoco + " sind noch keine Prüfmasse erfasst. Bitte zuerst im Prüfbericht eintragen.", bestaetigen: "Stammdaten öffnen" });
     if (ok) stammdatenOeffnen(hoco);
     return null;
   }
@@ -586,7 +586,7 @@ function VorlageLeer({ v, zurueck }) {
     const sp = TEILE + 4;
     const reihen = w.zeilen.map((z) => ("abschnitt" in z)
       ? "<tr class='ab'><td colspan='" + sp + "'>" + h(z.abschnitt) + "</td></tr>"
-      : "<tr><td>" + h(z.nr) + "</td><td>" + sollHtml(z) + "</td><td>" + h(toleranzText(toleranz(z.soll))) + "</td>" + "<td></td>".repeat(TEILE) + "<td>" + h(z.pm) + "</td></tr>").join("");
+      : "<tr><td>" + h(z.nr) + "</td><td>" + sollHtml(z) + "</td><td>" + h(toleranzText(tolVon(z))) + "</td>" + "<td></td>".repeat(TEILE) + "<td>" + h(z.pm) + "</td></tr>").join("");
     const html = "<style>" + STIL + "</style><style>.pbp{font-family:Arial,sans-serif;color:#111;font-size:10pt}.pbp h1{font-size:15pt;margin:0 0 6px;color:#003884}.pbp .pbp-kf{display:grid;grid-template-columns:repeat(4,1fr);gap:3px 12px;margin-bottom:8px}.pbp .pbp-kf small{color:#666;display:block;font-size:8pt}.pbp table{width:100%;border-collapse:collapse}.pbp th,.pbp td{border:1px solid #999;padding:2px 4px;text-align:left;font-size:9pt;height:7mm}.pbp th{background:#e8eef6}.pbp tr.ab td{background:#f3f3f3;font-weight:700}</style>"
       + briefkopf() + "<div class='inhalt pbp'><h1>" + h(titel) + "</h1><div class='pbp-kf'>" + kf + "</div><table><thead><tr><th>Nr.</th><th>Soll</th><th>Toleranz</th>"
       + [...Array(TEILE)].map((_, i) => "<th>Teil " + (i + 1) + "</th>").join("") + "<th>Prüfmittel/Hinweis</th></tr></thead><tbody>" + reihen + "</tbody></table></div>";
@@ -954,7 +954,7 @@ function IstFeld({ wert, t, an, setzen, name }) {
 }
 
 function SollZelle({ z }) {
-  const t = toleranz(z.soll);
+  const t = tolVon(z);
   return <><td className="pb-nr">{z.nr}</td><td className="pb-soll" title={t ? "Toleranz " + toleranzText(t) : ""}>{bildVon(z) ? <img className="pb-massbild" src={bildVon(z)} alt="" data-pbbild /> : null}<Gdt t={z.soll} /></td></>;
 }
 
@@ -981,7 +981,7 @@ function TeileTabelle({ zeilen, w, schreibt, aendern }) {
             : (
               <tr key={z.id}>
                 <SollZelle z={z} />
-                {[...Array(TEILE)].map((_, i) => <td key={i}><IstFeld wert={(w.werte[z.id] || [])[i]} t={toleranz(z.soll)} an={schreibt} name={z.id + "-" + i} setzen={(v) => setze(z.id, i, v)} /></td>)}
+                {[...Array(TEILE)].map((_, i) => <td key={i}><IstFeld wert={(w.werte[z.id] || [])[i]} t={tolVon(z)} an={schreibt} name={z.id + "-" + i} setzen={(v) => setze(z.id, i, v)} /></td>)}
                 <td className="pb-pm">{z.pm}</td>
               </tr>
             ))}
@@ -1023,7 +1023,7 @@ function AqlTabelle({ zeilen, w, schreibt, aendern }) {
         <tbody>
           {zeilen.map((z) => {
             if (z.abschnitt) return <tr key={z.id} className="pb-abschnitt"><td colSpan={7}>{z.abschnitt}</td></tr>;
-            const v = w.werte[z.id] || {}, t = toleranz(z.soll);
+            const v = w.werte[z.id] || {}, t = tolVon(z);
             const nio = Number(v.nio) || 0;
             return (
               <tr key={z.id} className={plan && nio > plan.ac ? "pb-zeile--rot" : ""}>
@@ -1104,7 +1104,7 @@ function LlTabelle({ zeilen, w, schreibt, aendern }) {
           {liste.map((z) => (
             <tr key={z.id}>
               <SollZelle z={z} />
-              {proben.map((pr) => <td key={pr.id}><IstFeld wert={(pr.w || {})[z.id]} t={toleranz(z.soll)} an={schreibt} name={z.id + "-" + pr.id}
+              {proben.map((pr) => <td key={pr.id}><IstFeld wert={(pr.w || {})[z.id]} t={tolVon(z)} an={schreibt} name={z.id + "-" + pr.id}
                 setzen={(v) => probeSetzen(pr.id, (p) => ({ ...p, w: { ...(p.w || {}), [z.id]: v } }))} /></td>)}
               <td className="pb-pm">{z.pm}</td>
             </tr>
@@ -1132,7 +1132,7 @@ function protokollHtml(w, hoco) {
     kopfZ = "<th>Geprüft</th><th>n.i.O.</th><th>Min.</th><th>Max.</th>";
     koerper = zeilen.map((z) => {
       if (z.abschnitt) return "<tr class='ab'><td colspan='7'>" + h(z.abschnitt) + "</td></tr>";
-      const x = w.werte[z.id] || {}, t = toleranz(z.soll);
+      const x = w.werte[z.id] || {}, t = tolVon(z);
       return "<tr><td>" + h(z.nr) + "</td><td>" + sollHtml(z) + "</td><td>" + h(x.geprueft || (plan ? plan.n : "")) + "</td><td"
         + (Number(x.nio) > 0 ? " style='color:#c00;font-weight:700'" : "") + ">" + h(x.nio) + "</td><td" + farbe(x.min, t) + ">" + h(x.min) + "</td><td" + farbe(x.max, t) + ">" + h(x.max) + "</td><td>" + h(z.pm) + "</td></tr>";
     }).join("");
@@ -1140,7 +1140,7 @@ function protokollHtml(w, hoco) {
     const aus = new Set(k.auswahl || []), proben = (w.werte || {}).proben || [];
     kopfZ = proben.map((p) => "<th>" + h(datumText(p.datum)) + "<br>" + h(p.zeit) + "</th>").join("");
     koerper = zeilen.filter((z) => !z.abschnitt && aus.has(z.id)).map((z) => {
-      const t = toleranz(z.soll);
+      const t = tolVon(z);
       return "<tr><td>" + h(z.nr) + "</td><td>" + sollHtml(z) + "</td>"
         + proben.map((p) => "<td" + farbe((p.w || {})[z.id], t) + ">" + h((p.w || {})[z.id]) + "</td>").join("") + "<td>" + h(z.pm) + "</td></tr>";
     }).join("") + "<tr><td colspan='2'>Visum</td>" + proben.map((p) => "<td>" + h(p.visum) + "</td>").join("") + "<td></td></tr>";
@@ -1148,7 +1148,7 @@ function protokollHtml(w, hoco) {
     kopfZ = [...Array(TEILE)].map((_, i) => "<th>Teil " + (i + 1) + "</th>").join("");
     koerper = zeilen.map((z) => {
       if (z.abschnitt) return "<tr class='ab'><td colspan='" + (TEILE + 3) + "'>" + h(z.abschnitt) + "</td></tr>";
-      const t = toleranz(z.soll), a = w.werte[z.id] || [];
+      const t = tolVon(z), a = w.werte[z.id] || [];
       return "<tr><td>" + h(z.nr) + "</td><td>" + sollHtml(z) + "</td>"
         + [...Array(TEILE)].map((_, i) => "<td" + farbe(a[i], t) + ">" + h(a[i]) + "</td>").join("") + "<td>" + h(z.pm) + "</td></tr>";
     }).join("");

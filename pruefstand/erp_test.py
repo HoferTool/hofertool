@@ -182,6 +182,20 @@ with sync_playwright() as p:
     # Reiter Rückverfolgung gibt es seit 1.888.0 nicht mehr
     pruefe(pg.locator("[data-erp-reiter='rueck']").count() == 0, "kein Reiter Rückverfolgung")
 
+    # Reiter Fertigung zeigt ohne Suche alle FAs, Häkchen je Stand (seit 1.909.0)
+    pg.click("[data-erp-reiter='fertigung']"); pg.wait_for_timeout(300)
+    pg.evaluate("TEST.erpAlle = false")
+    pg.click("[data-erp-reiter='auftrag']"); pg.wait_for_timeout(100); pg.click("[data-erp-reiter='fertigung']"); pg.wait_for_timeout(300)
+    zahl_fa = lambda: pg.locator(".erp-tabelle tbody tr").count()
+    vorher = zahl_fa()
+    pruefe(vorher >= 1 and pg.locator("[data-erp-fa-stand]").count() == 6, "Fertigung ohne Suche: %s Zeilen, Häkchen je Stand" % vorher)
+    stand = pg.locator(".erp-tabelle tbody tr").first.locator("td").last.inner_text().strip()
+    pg.locator("[data-erp-fa-stand='%s'] input" % stand).uncheck(); pg.wait_for_timeout(150)
+    pruefe(zahl_fa() < vorher or pg.locator(".karte--hinweis").count() > 0, "Häkchen „%s“ weg blendet aus" % stand)
+    pg.locator("[data-erp-fa-stand='%s'] input" % stand).check()
+    pg.evaluate("TEST.erpAlle = true")
+    pg.click("[data-erp-reiter='auftrag']"); pg.wait_for_timeout(300)
+
     # Spaltenkopf antippen sortiert (seit 1.898.0): Hofer-Artikel nach Index auf- und absteigend
     pg.click("[data-erp-reiter='stamm']"); pg.wait_for_timeout(300)
     pg.click("[data-erp-stamm='artikel']"); pg.wait_for_timeout(300)

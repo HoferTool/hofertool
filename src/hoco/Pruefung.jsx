@@ -17,6 +17,7 @@ import {
   bildVon, massBildHochladen,
 } from "../daten/pruefbericht.js";
 import { FormLage } from "../einrichtblatt/markiert.jsx";
+import { masseInQsOeffnen } from "../seiten/qs/qsSprung.js";
 import { pmWaehlen } from "./PmWahl.jsx";
 
 const KOPF = [["bezeichnung", "Artikel"], ["zeichnung", "Zeichnung"], ["index", "Index"], ["alltol", "Allg. Toleranz"]];
@@ -124,7 +125,13 @@ export default function Pruefung({ hoco, darf, modus = "stamm", zurueck, zurueck
   if (!qs) return (
     <section className="karte hocoteil__karte pst" id="pst">
       <div className="karte__kopf"><h2>Prüfung</h2>
-        <span className="klein">was bei jedem Auftrag geprüft werden muss</span></div>
+        <span className="klein">was bei jedem Auftrag geprüft werden muss</span>
+        {/* Knopf Prüfbericht (seit 1.908.0, Wunsch Patrick 27. November 2026: „einfach im Feld
+            Prüfung noch einen Button Prüfbericht, und dann springt es zu QS und macht den Bericht
+            auf als Vorlage zum Bearbeiten“) */}
+        <button type="button" className="knopf knopf--klein" id="pst-zu-qs" style={{ marginLeft: "auto" }}
+          title="In QS → Prüfberichte die Masse dieser HOCO Nr. bearbeiten" onClick={() => masseInQsOeffnen(hoco)}>
+          📄 Prüfbericht{anzahl ? " (" + anzahl + " Masse)" : ""}</button></div>
       <div className="pst-arten">
         <b>Nötig bei jedem Auftrag:</b>
         {ARTEN.map((a) => (
@@ -163,12 +170,14 @@ export default function Pruefung({ hoco, darf, modus = "stamm", zurueck, zurueck
         <button type="button" className="knopf knopf--haupt" id="pst-blatt-auf" onClick={() => setBlatt(true)}>📄 Masse-Blatt öffnen</button>
         <span className="klein">{anzahl
           ? anzahl + " Masse" + (w.zeilen.some((z) => z.abschnitt) ? " in " + w.zeilen.filter((z) => z.abschnitt).length + " Abschnitten" : "")
-          : "Noch keine Masse. Öffne das Blatt oder lies einen Excel-Prüfbericht ein."}</span>
+          : "Noch keine Masse. Öffne das Blatt und trage sie ein."}</span>
       </div>
       {blatt ? createPortal(<MasseBlatt w={w} hoco={hoco} schreibt={schreibt} zeileSetzen={zeileSetzen} zeileWeg={zeileWeg} zeilenLeeren={zeilenLeeren} zeilenWeg={zeilenWeg} zeileDazu={zeileDazu}
         schieben={schieben} neuFokus={neuFokus} geaendert={geaendert} laeuft={laeuft} speichern={speichern} zu={() => setBlatt(false)} />, document.body) : null}
       {lehren.lehren.length ? <p className="klein">Benötigte Lehren: {lehren.lehren.map((l) => l.name + " " + l.mass).join(" · ")}</p> : null}
-      {knoepfeUnten(true)}
+      {/* Kein Knopf „Excel einlesen“ mehr (Patrick 27. November 2026: „reicht per Ordner,
+          eines Tages braucht es ihn gar nicht mehr“); Excel kommt über den Ordner-Abgleich. */}
+      {knoepfeUnten(false)}
     </section>
   );
 }
@@ -377,13 +386,18 @@ export function MasseBlatt({ w, hoco, schreibt, zeileSetzen, zeileWeg, zeilenLee
                       {bildVon(z) ? <img className="pst-massbild" src={bildVon(z)} alt="Mass" data-pstbild={z.id}
                         onClick={() => alt.betrachter && alt.betrachter(bildVon(z), "Mass " + (z.nr || ""), false)} /> : null}
                       <input data-pstfokus={z.id} className="pst-soll" value={z.soll || ""} disabled={!schreibt} placeholder={bildVon(z) ? "Soll (frei)" : "z.B. Ø 6.00 ±0.02"}
-                        onFocus={(e) => { sollFeld.current = e.target; }} onPaste={schreibt ? einfuegen(z.id) : undefined}
+                        onFocus={(e) => { sollFeld.current = e.target; }}
                         onChange={(e) => zeileSetzen(z.id, "soll", e.target.value)} />
                       {schreibt ? (laedt === z.id ? <span className="klein">…</span> : bildVon(z)
                         ? <button type="button" className="pst-bildknopf" title="Bild entfernen" data-pstbildweg={z.id} onClick={() => bildWeg(z.id)}>✕</button>
-                        : <button type="button" className="pst-bildknopf" title="Bild des Masses einfügen (oder Strg + V im Feld)" data-pstbildneu={z.id} onClick={() => bildWaehlen(z.id)}>🖼</button>) : null}
+                        : null) : null}
+                      {/* Kein Bild als Mass mehr einfügen (Patrick 27. November 2026: „braucht es nie“);
+                          ältere Bilder aus Excel bleiben sichtbar und lassen sich entfernen. */}
                     </div></td>
-                    <td className="pst-c-tol">{(() => { const t = toleranz(z.soll); return t ? toleranzText(t) : "—"; })()}</td>
+                    <td className="pst-c-tol">{(() => { const t = toleranz(z.soll); const auto = t ? toleranzText(t) : "";
+                      return <input className={"pst-tol" + (z.tol ? " pst-tol--hand" : "")} data-psttol={z.id} value={z.tol || ""} disabled={!schreibt}
+                        placeholder={auto || "—"} title={z.tol ? "Von Hand eingetragen (leer = wieder aus dem Soll" + (auto ? ": " + auto : "") + ")" : "Aus dem Soll gerechnet. Falls falsch: hier überschreiben, z. B. 5.982-5.990 oder ≤ 0.02"}
+                        onChange={(e) => zeileSetzen(z.id, "tol", e.target.value)} />; })()}</td>
                     <td><input className="pst-pm" data-pstpm={z.id} readOnly value={z.pm || ""} disabled={!schreibt} placeholder={schreibt ? "wählen …" : ""}
                       title="Antippen: Prüfmittel, Prüfstifte oder Hinweis wählen"
                       onClick={() => pmFenster(z)} onKeyDown={(e) => { if (e.key === " " || e.key === "F2") { e.preventDefault(); pmFenster(z); } else enter(i)(e); }} /></td>

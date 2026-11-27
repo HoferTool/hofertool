@@ -9,7 +9,10 @@
 // =================================================================
 import { useEffect, useMemo, useState } from "react";
 import { wertFenster } from "../teile/Dialoge.jsx";
-import { pruefmittelAlleLaden, pruefmittelFuer } from "../daten/pruefbericht.js";
+import { pruefmittelAlleLaden, pruefmittelFuer, tolVon } from "../daten/pruefbericht.js";
+
+const LEHRE = /lehr|dorn|ring|rachen|gewinde|kaliber/i;
+const zahlen = (t) => (String(t || "").match(/\d+(?:[.,]\d+)?/g) || []).map((x) => Number(x.replace(",", ".")));
 
 const STIFT = /prüfstift|pruefstift|\bstifte?\b/i;
 const istStift = (p) => p.art === "pruefstift" || STIFT.test((p.typ || "") + " " + (p.bezeichnung || ""));
@@ -34,8 +37,28 @@ function Wahl({ z, hoco, fertig }) {
     const alle = liste.filter((p) => !istStift(p));
     let vor = [];
     try { vor = pruefmittelFuer({ name: z.pm || "Lehre", soll: z.soll, mass: "" }, alle.map((p) => ({ ...p, status: "aktiv" })), hoco).map((p) => p.id); } catch (_) { /* ohne Vorschlag */ }
-    const rang = (p) => (p.id === id ? 0 : vor.includes(p.id) ? 1 : 2);
-    return alle.filter((p) => passt(p, suche)).sort((a, b) => rang(a) - rang(b) || String(a.nr || "").localeCompare(String(b.nr || ""), "de", { numeric: true }));
+    // Vorschläge nach dem Soll (Patrick 27. November 2026: „warum keine Grenzlehrdorne oder
+    // sonstiges vorgeschlagen“): Lehren, deren Masse die Grenzen oder das Nennmass treffen,
+    // stehen zuoberst, danach die übrigen Lehren, erst dann Messmittel.
+    const t = tolVon(z);
+    const nenn = zahlen(String(z.soll || "").replace(/^\s*Ø\s*/, ""))[0];
+    const wert = (p) => {
+      if (p.id === id) return 1000;
+      let w = vor.includes(p.id) ? 50 : 0;
+      const txt = (p.typ || "") + " " + (p.bezeichnung || "");
+      const lehre = LEHRE.test(txt);
+      const z2 = zahlen((p.nennmass || "") + " " + (p.mass || "") + " " + (p.bezeichnung || ""));
+      const nahe = (v, d) => v !== null && v !== undefined && z2.some((x) => Math.abs(x - v) <= d);
+      if (t && t.min !== null && nahe(t.min, 0.003)) w += 20;
+      if (t && nahe(t.max, 0.003)) w += 20;
+      if (nenn !== undefined && nahe(nenn, 0.0005)) w += lehre ? 8 : 2;
+      if (lehre) w += 5;
+      if (p.status === "gesperrt") w -= 3;
+      return w;
+    };
+    const ws = new Map(alle.map((p) => [p.id, wert(p)]));
+    return alle.filter((p) => passt(p, suche)).sort((a, b) => ws.get(b.id) - ws.get(a.id) || String(a.nr || "").localeCompare(String(b.nr || ""), "de", { numeric: true }))
+      .map((p) => ({ ...p, _vorschlag: ws.get(p.id) >= 13 }));
   }, [liste, suche, id]);
   const stifte = useMemo(() => (liste || []).filter(istStift).filter((p) => passt(p, suche))
     .sort((a, b) => (ids.has(b.id) - ids.has(a.id)) || String(a.nr || "").localeCompare(String(b.nr || ""), "de", { numeric: true })), [liste, suche]);
@@ -74,7 +97,7 @@ function Wahl({ z, hoco, fertig }) {
               : art === "pruefmittel" ? (mittel.length ? mittel.slice(0, 80).map((p) => (
                 <label key={p.id} className={"pmw-zeile" + (p.id === id ? " pmw-zeile--an" : "")}>
                   <input type="radio" name="pmw" checked={p.id === id} onChange={() => setId(p.id)} data-pmwid={p.nr || p.id} />
-                  <span>{zeile(p)}</span></label>)) : <p className="klein">Nichts gefunden.</p>)
+                  <span>{zeile(p)}</span>{p._vorschlag ? <small className="pmw-vorschlag">passt</small> : null}</label>)) : <p className="klein">Nichts gefunden.</p>)
               : (stifte.length ? stifte.slice(0, 120).map((p) => (
                 <label key={p.id} className={"pmw-zeile" + (ids.has(p.id) ? " pmw-zeile--an" : "")}>
                   <input type="checkbox" checked={ids.has(p.id)} onChange={() => umschalten(p.id)} data-pmwstift={p.nr || p.id} />

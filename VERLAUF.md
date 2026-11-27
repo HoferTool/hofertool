@@ -3,9 +3,32 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
-## 1.907.0 (27. November 2026)
+## 1.911.0 (27. November 2026)
 
 - Gridfinity Box: Fächer-Elemente Wand, Leiste, Scoop hinzufügen und in der 3D-Vorschau mit der Maus ziehen.
+## 1.910.0 (27. November 2026)
+
+QS: Excel-Berichte mit „#“ statt „Nr.“ werden gelesen (Zeile M = Material übersprungen); Toleranzrahmen aus der GDT-Schrift wie „{µ~|Ø~0~.~0~2~|A~}“ werden zu „µ Ø0.02 A“. Masse-Blatt: Toleranz von Hand überschreibbar (z.tol, gilt für Auswertung und Vorschläge); Knopf Form/Lage gleich gross wie Ø und ±; Symbole auch in Eingabefeldern grösser (Schrift GdtGross mit size-adjust).
+
+## 1.909.0 (27. November 2026)
+
+Test ERP: Reiter Fertigung zeigt gleich alle FAs (neuste oben), mit Häkchen je Stand (offen, in Arbeit, teilweise fertig, fertig, abgeschlossen, storniert; storniert anfangs aus), die Suche grenzt weiter ein (Wunsch Patrick). Dazu 23 offene Fremdleistungen aus dem Gewatec-Export als Bestellungen (`sql/erp-fremdleistungen-gewatec.sql`, eingespielt): die erste Übernahme nahm nur Positionen mit offener Menge, bei Fremdleistungen steht die Liefermenge im Gewatec aber gleich der Menge.
+
+## 1.908.2 (27. November 2026)
+
+Prüfmittel/Hinweis-Fenster: Vorschläge nach dem Soll. Lehren, deren Masse die Grenzen oder das Nennmass treffen, stehen zuoberst mit Schild „passt“, danach übrige Lehren, dann Messmittel (Patrick: „warum keine Grenzlehrdorne vorgeschlagen“).
+
+## 1.908.1 (27. November 2026)
+
+Masse-Blatt: kein Bild mehr als Mass einfügen (Knopf und Strg + V weg); alte Bilder aus Excel bleiben sichtbar (Patrick: „braucht es nie“).
+
+## 1.908.0 (27. November 2026)
+
+Stammdaten der HOCO Nr.: die zweite Karte „Prüfmasse“ ist weg; in der Karte Prüfung gibt es den Knopf „Prüfbericht“, der zu QS springt und die Masse als Vorlage zum Bearbeiten öffnet. Der Knopf „Excel-Prüfbericht einlesen“ fällt weg, Excel kommt nur noch über den Ordner (Wunsch Patrick).
+
+## 1.907.0 (27. November 2026)
+
+Test ERP: die 95 Aufträge der Planwand mit FA Nr. stehen als Fertigungsaufträge im Test ERP, mit derselben Nummer, dem Arbeitsplan des Artikels, Sollmenge, Index aus der WBG und Maschine/Stand im Kopf („Planwand“); fertige sind abgeschlossen, kein Lagerbestand gebucht (`sql/erp-fa-aus-planwand.sql`, eingespielt, mehrfach ausführbar; Wunsch Patrick). Neue FAs zählen mit 6 Stellen weiter (2026008599). Neue FAs der Planwand legt seither der Auslöser `jobs_erp_fa` (`sql/erp-fa-laufend.sql`, eingespielt) von selbst an.
 
 ## 1.906.0 (27. November 2026)
 

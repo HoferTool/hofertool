@@ -78,26 +78,40 @@ export function belegStand(d, b) {
   return [b.status || "offen", ""];
 }
 
+// Stände eines Fertigungsauftrags (belegStand); die Wahl der Häkchen bleibt, solange die Seite offen ist
+const FA_STAENDE = ["offen", "in Arbeit", "teilweise fertig", "fertig", "abgeschlossen", "storniert"];
+let faStaende = FA_STAENDE.filter((w) => w !== "storniert");
+
 // ---------- Liste je Belegart ----------
 export function BelegListe({ d, neu, typ, ohneNeu, hinweis }) {
   const [suche, setSuche] = useState("");
   const [nurOffen, setNurOffen] = useState(false);
+  // Fertigung zeigt gleich alle FAs, Häkchen je Stand wählen, was man sieht
+  // (seit 1.909.0, Wunsch Patrick 27. November 2026: „nicht nur die Suchtreffer, sondern alle, mit Checkboxen“)
+  const mitStand = typ === "fertigung";
+  const [staende, setStaende] = useState(() => new Set(faStaende));
+  const standUm = (w, an) => setStaende((v) => { const n = new Set(v); if (an) n.add(w); else n.delete(w); faStaende = [...n]; return n; });
   const t = BELEGTYP[typ];
-  const warten = ohneSuche(suche) && !nurOffen;
+  const warten = !mitStand && ohneSuche(suche) && !nurOffen;
   const liste = warten ? [] : d.belege.filter((b) => b.typ === typ).filter((b) => {
     const p = d.partnerMap.get(b.partner_id) || {};
     const pos = (d.posJe.get(b.id) || []).map((x) => artikelText(d.artikelMap.get(x.artikel_id)) + " " + (x.text || "")).join(" ");
     return passt(suche, [b.nr, p.nr, p.name, (b.daten || {}).ihre_nr, pos, datumText(b.datum)].join(" "));
   }).map((b) => ({ b, stand: belegStand(d, b) }))
-    .filter((x) => !nurOffen || !/^(geliefert|eingegangen|fertig|verrechnet|in Fibu|storniert|abgeschlossen)$/.test(x.stand[0]));
+    .filter((x) => !nurOffen || !/^(geliefert|eingegangen|fertig|verrechnet|in Fibu|storniert|abgeschlossen)$/.test(x.stand[0]))
+    .filter((x) => !mitStand || staende.has(x.stand[0]))
+    // Neuste FA Nr. oben
+    .sort((x, y) => (mitStand ? String(y.b.nr).localeCompare(String(x.b.nr)) : 0));
   return (
     <>
       <div className="mat-kopf">
         {!ohneNeu && <button className="knopf knopf--haupt" data-erp-neu={typ}
           onClick={() => belegOeffnen(d, neu, null, { typ })}>+ {t.name}</button>}
         <Suche wert={suche} setzen={setSuche} platzhalter="Nr., Kunde, Artikel …" fokus />
-        <label className="feld-haken"><input type="checkbox" checked={nurOffen} onChange={(e) => setNurOffen(e.target.checked)} />
-          <span>Nur offene</span></label>
+        {!mitStand && <label className="feld-haken"><input type="checkbox" checked={nurOffen} onChange={(e) => setNurOffen(e.target.checked)} />
+          <span>Nur offene</span></label>}
+        {mitStand && FA_STAENDE.map((w) => <label key={w} className="feld-haken" data-erp-fa-stand={w}>
+          <input type="checkbox" checked={staende.has(w)} onChange={(e) => standUm(w, e.target.checked)} /><span>{w}</span></label>)}
       </div>
       {hinweis && <p className="klein">{hinweis}</p>}
       <Tabelle kopf={["Nr.", "Datum", t.partner === "lieferant" ? "Lieferant" : "Kunde", "Artikel", mitPreis(typ) ? "Netto CHF" : "Menge", "Stand"]}
@@ -249,6 +263,9 @@ function BelegFenster({ start, id, vorlage, aussen, zu }) {
       {(typ === "auftrag" || typ === "bestellung") && <KF label="Art" nurLesen wert={kopf.art === "rahmen" ? "Rahmenauftrag" : "Einzelauftrag"} />}
       <KF label="Stand" nurLesen wert={<span className={"erp-schild " + stand[1]}>{stand[0]}</span>} />
       {kopf.daten.ihre_nr && <KF label={typ === "bestellung" ? "AB Lieferant" : "Ihre Bestellung"} nurLesen wert={kopf.daten.ihre_nr} />}
+      {/* FA aus der Planwand (seit 1.907.0, sql/erp-fa-aus-planwand.sql): Maschine und Stand beim Übernehmen */}
+      {typ === "fertigung" && kopf.daten.planwand && <KF label="Planwand" nurLesen wert={"Maschine " + (kopf.daten.planwand.maschine || kopf.daten.planwand.maschine_nr || "–")
+        + " · " + ({ geplant: "geplant", ruesten: "rüsten", laeuft: "läuft", fertig: "fertig" }[kopf.daten.planwand.stand] || kopf.daten.planwand.stand || "")} />}
       {bezug && <KF label="Aus" nurLesen wert={BELEGTYP[bezug.typ].name + " " + bezug.nr}
         menue={[[BELEGTYP[bezug.typ].name + " " + bezug.nr + " öffnen", () => belegOeffnen(d, aussen, bezug)]]} />}
     </>;
