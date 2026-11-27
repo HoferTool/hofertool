@@ -155,22 +155,29 @@ export function anstehend(jobs, stamm, protokolle) {
 // Erstteilprüfung geht der Auftrag danach auf „läuft“.
 async function altGeprueft(t) {
   const name = artName({ art: t.art }).name;
-  if (!(await alt.nachfragen({ titel: "Im alten System geprüft?", text: name + " für " + t.j.job_number + (t.j.fa_nr ? " (FA " + t.j.fa_nr + ")" : "") + " wurde mit dem bisherigen System gemacht. Der Punkt fällt weg, im Tool wird nichts dokumentiert." + (t.art === "erstteil" ? " Der Auftrag geht danach auf „läuft“." : ""), bestaetigen: "Ja, weitergeben" }))) return false;
+  // Seit 1.940.0 heisst der Knopf „Skip“ (Patrick 27. November 2026: „den dürfen die Leute
+  // brauchen, wenn sie es manuell machen ohne System, aber der Prozess soll weitergehen“):
+  // Erstteil → Auftrag läuft → Zwischenkontrolle; Zwischenkontrolle → später Endkontrolle.
+  const stufe = t.zwischen ? "Zwischenkontrolle" : name;
+  const weiter = t.art === "erstteil" ? " Der Auftrag geht danach auf „läuft“, dann kommt die Zwischenkontrolle."
+    : t.zwischen ? " Die Endkontrolle kommt später trotzdem." : "";
+  if (!(await alt.nachfragen({ titel: stufe + " überspringen?", text: stufe + " für " + t.j.job_number + (t.j.fa_nr ? " (FA " + t.j.fa_nr + ")" : "") + " wird von Hand ohne System gemacht. Im Tool wird nichts dokumentiert, der Ablauf geht weiter." + weiter, bestaetigen: "Skip" }))) return false;
   const jetzt = new Date().toISOString();
   const { data, error } = await alt.db.from("pruefprotokolle").insert({
     hoco_nr: t.j.job_number, fa_nr: t.j.fa_nr || null, job_id: t.j.id || null,
-    kopf: { art: t.art, alt: true, zeilen: [], vorlage: {}, bemerkung: "Im alten System geprüft", ...(t.j.maschine ? { maschine: t.j.maschine } : {}) },
-    werte: {}, datum: heute(), entscheid: "freigabe", visum: "altes System", abgeschlossen_am: jetzt,
+    kopf: { art: t.art, alt: true, zeilen: [], vorlage: {}, bemerkung: "Übersprungen (Skip), von Hand ohne System geprüft",
+      ...(t.zwischen ? { kontrolle: "zwischen" } : {}), ...(t.j.maschine ? { maschine: t.j.maschine } : {}) },
+    werte: {}, datum: heute(), entscheid: "freigabe", visum: "Skip", abgeschlossen_am: jetzt,
   }).select().single();
   if (error) { alt.meldung("Konnte nicht speichern: " + error.message, "fehler"); return false; }
-  alt.merkeSchritt(name + " im alten System " + t.j.job_number, [alt.rueckWeg("pruefprotokolle", { id: data.id })]);
+  alt.merkeSchritt(stufe + " übersprungen " + t.j.job_number, [alt.rueckWeg("pruefprotokolle", { id: data.id })]);
   if (t.art === "erstteil" && t.j.id) {
     try {
       const { data: j } = await alt.db.from("jobs").select("*").eq("id", t.j.id).maybeSingle();
       if (j && j.plan_status !== "laeuft" && j.plan_status !== "fertig" && !j.ended_at) await alt.zustandSetzen(j, "laeuft");
     } catch (e) { alt.meldung("Weitergegeben, aber „läuft“ ging nicht: " + fehlerText(e), "warn"); return true; }
   }
-  alt.meldung(name + " " + t.j.job_number + " weitergegeben.", "gut");
+  alt.meldung(stufe + " " + t.j.job_number + " übersprungen, es geht weiter.", "gut");
   return true;
 }
 
@@ -426,8 +433,8 @@ function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
                       <b>{t.j.job_number}</b>
                       <small>{t.j.maschine || "?"} · {t.zwischen ? "Zwischenkontrolle" : (STAND[t.j.plan_status] || "")}{t.p ? " · in Arbeit" : ""}</small>
                     </button>
-                    {darf() ? <button type="button" className="pb-todo__alt" data-pbalt={t.j.id} title="Wurde mit dem bisherigen System geprüft, nur weitergeben"
-                      onClick={async () => { if (await altGeprueft(t)) neu(); }}>✓ alt</button> : null}
+                    {darf() ? <button type="button" className="pb-todo__alt" data-pbalt={t.j.id} title="Von Hand ohne System geprüft: überspringen, der Ablauf geht weiter"
+                      onClick={async () => { if (await altGeprueft(t)) neu(); }}>Skip</button> : null}
                   </li>
                 ))}
               </ul>
@@ -459,7 +466,7 @@ function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
                     <td data-pbmaschine>{(p.kopf || {}).maschine || (jobMaschine.get(p.job_id) || "") || <span className="klein">–</span>}</td>
                     <td>{datumText(p.datum || p.erstellt_am)}</td>
                     <td className="nowrap">{e.schlecht ? <b className="pb-rot">{e.schlecht} n.i.O. </b> : null}<span className="klein">{e.gut} i.O.</span></td>
-                    <td>{p.abgeschlossen_am ? ((p.kopf || {}).alt ? "✓ im alten System" : "✓ " + (entscheidText(p.entscheid) || "abgeschlossen")) : "in Arbeit"}</td>
+                    <td>{p.abgeschlossen_am ? ((p.kopf || {}).alt ? "⏭ übersprungen (Skip)" : "✓ " + (entscheidText(p.entscheid) || "abgeschlossen")) : "in Arbeit"}</td>
                     <td className="klein nowrap">{zeitText(p.geaendert_am || p.erstellt_am)}</td>
                     <td className="nowrap">{darf() ? <button type="button" className="knopf knopf--klein knopf--gefahr-leise" title="Protokoll löschen" data-pbweg={p.id}
                       onClick={(x) => { x.stopPropagation(); loeschen(p); }}>✕</button> : null}</td>
