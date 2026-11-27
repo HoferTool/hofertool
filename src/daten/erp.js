@@ -364,12 +364,31 @@ export function preisFuerMenge(a, menge) {
   return a.preis != null ? { preis: Number(a.preis), pe: 1, ab: 0 } : null;
 }
 
+// Verpackung und Porto der Lieferscheine, aus denen eine Rechnung
+// entstand (seit 1.934.0, wie im Gewatec „Summe Porto u. Verpackung“).
+// Jeder Lieferschein zählt einmal, auch wenn er mehrere Positionen hat.
+export function belegNebenkosten(d, beleg) {
+  if (!beleg || (beleg.typ !== "rechnung" && beleg.typ !== "gutschrift" && beleg.typ !== "proforma")) return 0;
+  const betrag = (v) => { const m = /-?\d[\d']*(?:[.,]\d+)?/.exec(String(v ?? "")); return m ? Number(m[0].replace(/'/g, "").replace(",", ".")) || 0 : 0; };
+  const ls = new Map();
+  (d.posJe.get(beleg.id) || []).forEach((p) => {
+    const lp = p.bezug_id && d.posMap && d.posMap.get(p.bezug_id);
+    const l = lp && d.belegMap.get(lp.beleg_id);
+    if (l && l.typ === "lieferschein") ls.set(l.id, l);
+  });
+  let summe = 0;
+  ls.forEach((l) => { summe += betrag((l.daten || {}).verp_kosten) + betrag((l.daten || {}).porto); });
+  return Math.round(summe * 100) / 100;
+}
+
 export function belegSumme(d, beleg) {
   const pos = d.posJe.get(beleg.id) || [];
-  const netto = pos.reduce((s, p) => s + posBetrag(p), 0);
+  const waren = pos.reduce((s, p) => s + posBetrag(p), 0);
+  const neben = belegNebenkosten(d, beleg);
+  const netto = waren + neben;
   const satz = beleg.daten && beleg.daten.mwst != null && beleg.daten.mwst !== "" ? zahl(beleg.daten.mwst) : MWST;
   const steuer = Math.round(netto * satz) / 100;
-  return { netto, satz, steuer, brutto: netto + steuer };
+  return { netto, satz, steuer, brutto: netto + steuer, waren, neben };
 }
 
 // ---------- Rückverfolgung ----------

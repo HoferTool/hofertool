@@ -2,6 +2,10 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.934.0 (27. November 2026)
+
+- Test ERP: Rechnung, Lieferschein, Auftragsbestätigung, Bestellung (vier Arten: Rohmaterial, ZA extern, Auftrag / Lieferschein, Lieferschein zu Bestellung) und Angebot aus der Kalkulation drucken genau im Aufbau der Gewatec-Formulare (`src/seiten/erp/formulare.js`). Neu: Feld „Bestellart“ und Bearbeitungsvorschrift je Bestellposition; Verpackung und Porto der Lieferscheine zählen in die Rechnungssumme. Test `pruefstand/formulare_gewatec.py`.
+
 ## 1.933.0 (27. November 2026)
 
 - Test ERP → Logistik: Kachel „Aktuell extern“ zeigt je Lieferant, was für Zusatzarbeit draussen ist (offene Bestellungen ZA extern minus Wareneingang), mit FA, Artikel, Arbeitsgang, Menge, seit wann und Termin zurück. ZA extern anlegen bucht nichts im Lager.

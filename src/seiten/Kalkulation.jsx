@@ -1307,7 +1307,14 @@ function Angebot({ k, setze, nr, rechnung }) {
   const [laeuft, setLaeuft] = useState(false);
   async function pdf() {
     setLaeuft(true);
-    try { const { angebotPdf } = await import("../daten/kalkulationPdf.js"); await angebotPdf(k, nr, rechnung); }
+    // Seit 1.934.0 wie das Angebot aus dem Gewatec, als Druckblatt im
+    // eigenen Fenster (Drucken → „Als PDF speichern“), gleich wie die
+    // übrigen Formulare
+    try {
+      const { angebotDrucken } = await import("./erp/formulare.js");
+      angebotDrucken({ k, nr, datumText, adresse: [k.kopf.kunde, ...adresseZeilen(k.kopf)].filter(Boolean).join("\n"),
+        zeilen: rechnung.map((r) => ({ menge: chf(r.menge, 0), preis: chf(r.angebotPe), waehrung: r.waehrung, pe: chf(r.pe || 1, 0) })) });
+    }
     catch (e) { alt.meldung(alt.fehlertext(e), "fehler"); }
     setLaeuft(false);
   }
@@ -1324,7 +1331,7 @@ function Angebot({ k, setze, nr, rechnung }) {
         <datalist id="kalk-zahlung-liste">{ZAHLUNGSBEDINGUNGEN.map(([kurz, t]) => <option key={kurz} value={t}>{kurz}</option>)}</datalist>
         <F label="Schlusstext" id="kalk-gueltig" mehrzeilig {...f("gueltig")} />
         <button className="knopf knopf--haupt knopf--breit" id="kalk-pdf" disabled={laeuft || !rechnung.length} onClick={pdf}>
-          {laeuft ? "PDF wird erstellt …" : "Angebot als PDF"}</button>
+          {laeuft ? "Angebot wird erstellt …" : "Angebot drucken / PDF"}</button>
       </section>
       <section className="karte kalk-blatt" id="kalk-vorschau" aria-label="Vorschau des Angebots">
         <div className="kalk-blatt__band"><b>HOFER + CO</b><span>Hofer+Co Präzisionsdrehteile AG · Alte Bernstrasse 24 · CH-4573 Lohn-Ammannsegg</span></div>
