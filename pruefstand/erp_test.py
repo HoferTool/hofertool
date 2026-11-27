@@ -189,6 +189,7 @@ with sync_playwright() as p:
     zahl_fa = lambda: pg.locator(".erp-tabelle tbody tr").count()
     vorher = zahl_fa()
     pruefe(vorher >= 1 and pg.locator("[data-erp-fa-stand]").count() == 6, "Fertigung ohne Suche: %s Zeilen, Häkchen je Stand" % vorher)
+    pruefe("Planwand" in pg.inner_text(".erp-tabelle thead"), "Liste der FAs mit Spalte Planwand")
     stand = pg.locator(".erp-tabelle tbody tr").first.locator("td").last.inner_text().strip()
     pg.locator("[data-erp-fa-stand='%s'] input" % stand).uncheck(); pg.wait_for_timeout(150)
     pruefe(zahl_fa() < vorher or pg.locator(".karte--hinweis").count() > 0, "Häkchen „%s“ weg blendet aus" % stand)

@@ -17755,3 +17755,10 @@ body.dunkel .gfn-liste button.aktiv { background: #4a3a1c; border-color: #e8b04a
 .pst-tolfelder { display: flex; align-items: center; gap: 2px; }
 .pst-tolfelder .pst-tol { min-width: 0; flex: 1; text-align: center; font-size: 12px; }
 .pst-tabelle .pst-c-tol, .pst-blattfenster .pst-c-tol { width: 130px; }
+
+/* 1.914.0: Zustand der Planwand in der Liste der FAs (Test ERP) */
+.erp-pw { white-space: nowrap; font-weight: 600; }
+.erp-pw--laeuft { color: #1b7f3b; }
+.erp-pw--ruesten { color: #b35c00; }
+.erp-pw--geplant { color: #4a5a6a; }
+.erp-pw--fertig { color: #6b7785; font-weight: 400; }

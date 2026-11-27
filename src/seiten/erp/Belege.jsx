@@ -85,6 +85,17 @@ export function belegStand(d, b) {
 const FA_STAENDE = ["offen", "in Arbeit", "teilweise fertig", "fertig", "abgeschlossen", "storniert"];
 let faStaende = FA_STAENDE.filter((w) => w !== "storniert");
 
+// Zustand des Auftrags auf der Planwand mit demselben Zeichen wie auf dem Balken
+// (○ Geplant, 🔧 Rüsten, ▶ Läuft, ✔ Fertig) und Maschine (seit 1.914.0, Wunsch Patrick
+// 27. November 2026: „in der Liste der FAs den Status und auch das Symbol“)
+function planwandZelle(b) {
+  const pw = (b.daten || {}).planwand;
+  if (!pw || !pw.stand) return "";
+  const z = (alt.PLANSTATUS || {})[pw.stand] || { name: pw.stand, zeichen: "" };
+  const masch = pw.maschine || pw.maschine_nr;
+  return <span className={"erp-pw erp-pw--" + pw.stand} data-erp-pw={pw.stand}>{z.zeichen} {z.name}{masch ? " · " + masch : ""}</span>;
+}
+
 // Art einer Bestellung (seit 1.913.0, Wunsch Patrick 27. November 2026: „in Bestellungen filtern nach
 // Rohmaterial und ZA extern“): ZA extern = Zusatzarbeit extern (Fremdleistung), d. h. ein Hofer-Artikel
 // geht zum Lieferanten, oder aus dem Gewatec als Fremdleistung übernommen
@@ -137,7 +148,8 @@ export function BelegListe({ d, neu, typ, ohneNeu, hinweis }) {
           <input type="checkbox" checked={staende.has(w)} onChange={(e) => standUm(w, e.target.checked)} /><span>{w}</span></label>)}
       </div>
       {hinweis && <p className="klein">{hinweis}</p>}
-      <Tabelle kopf={["Nr.", "Datum", t.partner === "lieferant" ? "Lieferant" : "Kunde", "Artikel", mitPreis(typ) ? "Netto CHF" : "Menge", "Stand"]}
+      <Tabelle kopf={["Nr.", "Datum", t.partner === "lieferant" ? "Lieferant" : "Kunde", "Artikel", mitPreis(typ) ? "Netto CHF" : "Menge"]
+          .concat(mitStand ? ["Planwand"] : []).concat(["Stand"])}
         leer={warten ? sucheLeer(t.mehr) + " Oder „Nur offene“ anhaken." : "Keine " + t.mehr + " gefunden."}
         zeilen={liste.map(({ b, stand }) => {
           const pos = d.posJe.get(b.id) || [];
@@ -147,7 +159,8 @@ export function BelegListe({ d, neu, typ, ohneNeu, hinweis }) {
             key: b.id, klasse: stand[1], klick: () => belegOeffnen(d, neu, b),
             zellen: [<b>{b.nr}</b>, datumText(b.datum), partnerText(d.partnerMap.get(b.partner_id)) + (b.art === "rahmen" ? " · Rahmen" : ""),
               art.slice(0, 3).join(", ") + (art.length > 3 ? " …" : ""),
-              mitPreis(typ) ? chf(belegSumme(d, b).netto) : mengeText(pos.reduce((s, x) => s + zahl(x.menge), 0)), stand[0]],
+              mitPreis(typ) ? chf(belegSumme(d, b).netto) : mengeText(pos.reduce((s, x) => s + zahl(x.menge), 0))]
+              .concat(mitStand ? [planwandZelle(b)] : []).concat([stand[0]]),
           };
         })} />
     </>

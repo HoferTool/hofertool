@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.914.0 (27. November 2026)
+
+Test ERP: die Liste der FAs hat die Spalte „Planwand“ mit dem Zeichen und Zustand wie auf dem Balken (○ Geplant, 🔧 Rüsten, ▶ Läuft, ✔ Fertig) und der Maschine (`planwandZelle` in `Belege.jsx`; Wunsch Patrick).
+
 ## 1.913.0 (27. November 2026)
 
 Test ERP: Reiter Bestellungen zeigt gleich alle Bestellungen (neuste oben) mit Häkchen Rohmaterial / ZA extern / Andere (ZA extern = Hofer-Artikel in der Bestellung oder Fremdleistung aus dem Gewatec, `bestellArt` in `Belege.jsx`; Wunsch Patrick).
