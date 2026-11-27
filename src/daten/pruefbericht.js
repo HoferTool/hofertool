@@ -215,23 +215,31 @@ export function toleranz(soll) {
   return { min: rund(nenn + Math.min(...ab)), max: rund(nenn + Math.max(...ab)), einheit: grad };
 }
 
-// Toleranz einer Zeile: von Hand eingetragen (z.tol, seit 1.910.0, Patrick 27. November 2026:
-// „dass man es auch eingeben kann, falls es falsch erkannt wurde“), sonst aus dem Soll.
-// Von Hand geht „5.982-5.990“, „≤ 0.02“ bzw. „0.02 max“ oder „6 -0.010/-0.018“.
+// Toleranz einer Zeile: Min und Max von Hand überschreibbar (z.tol_min / z.tol_max, seit
+// 1.912.0, Patrick 27. November 2026: „Feld, dass man Max und Min eingibt, und du schaust,
+// als wär's von dir, und machst rot/grün“). Leeres Feld = Wert aus dem Soll.
+// z.tol (Text, nur 1.910.0) gilt weiter, falls vorhanden.
+const zahlOder = (v) => { const x = String(v ?? "").trim().replace(",", "."); return x === "" || isNaN(Number(x)) ? undefined : Number(x); };
 export function tolVon(z) {
   const h = String((z && z.tol) || "").trim();
+  let auto = null;
   if (h) {
     const k = /^(≤|<=|max\.?)\s*([\d.,]+)$/i.exec(h);
-    if (k) return { min: null, max: Number(k[2].replace(",", ".")), einheit: "" };
-    return toleranz(h);
-  }
-  return toleranz(z && z.soll);
+    auto = k ? { min: null, max: Number(k[2].replace(",", ".")), einheit: "" } : toleranz(h);
+  } else auto = toleranz(z && z.soll);
+  const mi = zahlOder(z && z.tol_min), ma = zahlOder(z && z.tol_max);
+  if (mi === undefined && ma === undefined) return auto;
+  const min = mi !== undefined ? mi : auto ? auto.min : null;
+  const max = ma !== undefined ? ma : auto ? auto.max : null;
+  if (min === null && max === null) return null;
+  return { min, max: max === null || max === undefined ? Infinity : max, einheit: (auto && auto.einheit) || "" };
 }
 
 export function toleranzText(t) {
   if (!t) return "";
   const e = t.einheit || "";
   if (t.min === null) return "≤ " + t.max + e;
+  if (t.max === Infinity) return "≥ " + t.min + e;
   return t.min + e + " … " + t.max + e;
 }
 

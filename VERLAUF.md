@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.912.0 (27. November 2026)
+
+Masse-Blatt: Toleranz als zwei Felder Min und Max, vorausgefüllt aus dem Soll, ohne Farbe; Geändertes gilt für die rot/grün-Auswertung (z.tol_min/z.tol_max). GDT-Rahmen: µ der alten Schrift = Koaxialität ◎.
+
 ## 1.911.1 (27. November 2026)
 
 Test ERP: ein FA steht auf „in Arbeit“, wenn sein Auftrag auf der Planwand läuft oder rüstet (`daten.planwand.stand`), nicht erst mit abgehaktem Arbeitsgang (Patrick: „warum gibt es keine in Arbeit?“).

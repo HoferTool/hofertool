@@ -81,4 +81,5 @@ function rahmenText(s) {
   return m[1].split("|").map((f) => f.replace(/~/g, "").trim()).filter(Boolean)
     .map((f) => RAHMEN_SYMBOL[f] || f).join(" ");
 }
-const RAHMEN_SYMBOL = {};
+// µ steht in der alten GDT-Schrift für Koaxialität (Patrick 27. November 2026, Mass 8 von 10007-0044)
+const RAHMEN_SYMBOL = { "µ": "◎" };

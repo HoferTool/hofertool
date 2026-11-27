@@ -171,6 +171,8 @@ with sync_playwright() as p:
     pg.wait_for_selector("#pst-blatt-auf", timeout=8000); pg.click("#pst-blatt-auf")
     pg.wait_for_selector("[data-pstblatt] [data-pstseite]")
     pruefe(pg.locator("[data-pstseite]").count() == 1 and pg.locator("[data-pstblatt] tbody tr").count() == 5, "Masse-Blatt mit 5 Massen")
+    mins = pg.evaluate("() => [...document.querySelectorAll('[data-psttol$=\":min\"]')].map(i => i.value)")
+    pruefe(len(mins) >= 1 and any(m for m in mins), "Toleranz Min/Max vorausgefüllt: %s" % mins[:3])
     # Prüfmittel/Hinweis über das kleine Fenster wählen
     pruefe(pg.locator("[data-pstblatt] th:has-text('Prüfmittel/Hinweis')").count() == 1, "Spalte heisst Prüfmittel/Hinweis")
     pg.locator("[data-pstpm]").nth(0).click(); pg.wait_for_selector("[data-pmwahl]")
