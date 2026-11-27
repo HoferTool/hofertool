@@ -9,7 +9,7 @@ Stammdaten der HOCO Nr.: die zweite Karte „Prüfmasse“ ist weg; in der Karte
 
 ## 1.907.0 (27. November 2026)
 
-Test ERP: die 95 Aufträge der Planwand mit FA Nr. stehen als Fertigungsaufträge im Test ERP, mit derselben Nummer, dem Arbeitsplan des Artikels, Sollmenge, Index aus der WBG und Maschine/Stand im Kopf („Planwand“); fertige sind abgeschlossen, kein Lagerbestand gebucht (`sql/erp-fa-aus-planwand.sql`, eingespielt, mehrfach ausführbar; Wunsch Patrick). Neue FAs zählen mit 6 Stellen weiter (2026008599).
+Test ERP: die 95 Aufträge der Planwand mit FA Nr. stehen als Fertigungsaufträge im Test ERP, mit derselben Nummer, dem Arbeitsplan des Artikels, Sollmenge, Index aus der WBG und Maschine/Stand im Kopf („Planwand“); fertige sind abgeschlossen, kein Lagerbestand gebucht (`sql/erp-fa-aus-planwand.sql`, eingespielt, mehrfach ausführbar; Wunsch Patrick). Neue FAs zählen mit 6 Stellen weiter (2026008599). Neue FAs der Planwand legt seither der Auslöser `jobs_erp_fa` (`sql/erp-fa-laufend.sql`, eingespielt) von selbst an.
 
 ## 1.906.0 (27. November 2026)
 
