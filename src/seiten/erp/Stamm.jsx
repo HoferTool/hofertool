@@ -116,7 +116,7 @@ export function Gruppe({ titel, children, klasse }) {
 }
 
 // Kleine Tabelle in einem Reiter, Zeilen anwählbar
-// Spaltenkopf antippen sortiert (seit 1.897.0)
+// Spaltenkopf antippen sortiert (seit 1.898.0)
 export function GTabelle({ kopf, zeilen, leer, wahl, setWahl, rechts }) {
   const [sort, sortKlick] = useSortierung();
   const reihe = sortiert(zeilen, sort, sortText);

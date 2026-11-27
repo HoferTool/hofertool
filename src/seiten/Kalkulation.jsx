@@ -180,7 +180,7 @@ function Liste({ liste, maschinen, oeffnen, neu, saetze }) {
     const text = [k.nr, k.kunde, k.artikel, ...Object.values(kopf)].filter((x) => typeof x === "string").join(" ").toLowerCase();
     return woerter.every((w) => text.includes(w));
   });
-  // Spaltenkopf antippen sortiert alle Treffer, nicht nur die gezeigten 200 (seit 1.897.0)
+  // Spaltenkopf antippen sortiert alle Treffer, nicht nur die gezeigten 200 (seit 1.898.0)
   const [sort, sortKlick] = useSortierung();
   const kalkSortText = (k, i) => {
     const v = k.vorschau || {};

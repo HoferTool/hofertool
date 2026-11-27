@@ -202,3 +202,7 @@ export function dialogFelder(o) {
   });
 }
 
+
+// Eigenes Fenster, das mit einem Wert endet (z. B. Prüfmittel/Hinweis im Masse-Blatt).
+// zeichne(fertig) gibt das Innere zurück; Escape oder daneben klicken ergibt abbruch.
+export const wertFenster = fensterMitWert;

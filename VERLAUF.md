@@ -3,9 +3,13 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
-## 1.897.0 (27. November 2026)
+## 1.898.0 (27. November 2026)
 
 Test ERP und Kalkulation: in allen Listen sortiert ein Tipp auf den Spaltenkopf nach dieser Spalte (aufsteigend ▲, nochmals absteigend ▼, ein dritter Tipp zurück), Zahlen und Daten richtig als Zahl bzw. Datum, Leere hinten (`src/teile/sortieren.js`, `Tabelle`/`SortKopf` in `teile.jsx`, `GTabelle`; Wunsch Patrick: „in allen Suchfenstern nach Spalte sortieren“). Die Kalkulationen sortieren alle Treffer, die übrigen Listen die gezeigten Zeilen.
+
+## 1.897.0 (27. November 2026)
+
+QS → Masse-Blatt: Spalte heisst „Prüfmittel/Hinweis“. Antippen öffnet ein kleines Fenster: Prüfmittel aus der Verwaltung wählen (passende zuoberst), einen oder mehrere Prüfstifte ankreuzen, oder einen Hinweis schreiben. Das gewählte Mittel steht als `pm_id` an der Zeile, die Checkliste nimmt genau dieses (Wunsch Patrick).
 
 ## 1.896.0 (27. November 2026)
 

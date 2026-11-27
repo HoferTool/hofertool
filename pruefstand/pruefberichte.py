@@ -37,7 +37,7 @@ with sync_playwright() as p:
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
     pg.evaluate("""s => { TEST.daten.pruef_stamm = [s]; TEST.daten.pruefbericht_dateien = []; TEST.daten.pruefprotokolle = [];
-        TEST.daten.pruefmittel = [{ id: 'pmx', nr: 'PM-9', bezeichnung: 'Grenzlehrdorn', mass: '5.45 / 5.55', ort_art: 'schrank', status: 'aktiv' }];
+        TEST.daten.pruefmittel = [{ id: 'pmx', nr: 'PM-9', bezeichnung: 'Grenzlehrdorn', mass: '5.45 / 5.55', ort_art: 'schrank', status: 'aktiv' }, { id: 'pst1', nr: 'PS-1', bezeichnung: 'Prüfstift', mass: '2.98', ort_art: 'schrank', status: 'aktiv' }, { id: 'pst2', nr: 'PS-2', bezeichnung: 'Prüfstift', mass: '3.02', ort_art: 'schrank', status: 'aktiv' }];
         TEST.rpc.pruefmittel_pruefstand_lesen = () => [{ id: 'pmx', intervall_monate: 12, letzte_pruefung: '2024-01-01' }];
         const m = (TEST.daten.machines || [])[0];
         // Nachbau der Funktionen aus sql/pruefmittel-ausbuchen-alle.sql
@@ -168,6 +168,20 @@ with sync_playwright() as p:
     pg.wait_for_selector("#pst-blatt-auf", timeout=8000); pg.click("#pst-blatt-auf")
     pg.wait_for_selector("[data-pstblatt] [data-pstseite]")
     pruefe(pg.locator("[data-pstseite]").count() == 1 and pg.locator("[data-pstblatt] tbody tr").count() == 5, "Masse-Blatt mit 5 Massen")
+    # Prüfmittel/Hinweis über das kleine Fenster wählen
+    pruefe(pg.locator("[data-pstblatt] th:has-text('Prüfmittel/Hinweis')").count() == 1, "Spalte heisst Prüfmittel/Hinweis")
+    pg.locator("[data-pstpm]").nth(0).click(); pg.wait_for_selector("[data-pmwahl]")
+    pg.click("[data-pmwart=pruefmittel]"); pg.wait_for_selector("[data-pmwid='PM-9']"); pg.click("[data-pmwid='PM-9']"); pg.click("[data-pmwok]"); pg.wait_for_timeout(200)
+    pruefe("Grenzlehrdorn" in pg.locator("[data-pstpm]").nth(0).input_value(), "Prüfmittel gewählt: %s" % pg.locator("[data-pstpm]").nth(0).input_value())
+    pg.locator("[data-pstpm]").nth(1).click(); pg.wait_for_selector("[data-pmwahl]")
+    pg.click("[data-pmwart=stift]"); pg.click("[data-pmwstift='PS-1']"); pg.click("[data-pmwstift='PS-2']"); pg.click("[data-pmwok]"); pg.wait_for_timeout(200)
+    v1 = pg.locator("[data-pstpm]").nth(1).input_value()
+    pruefe("Prüfstift" in v1 and "2.98" in v1 and "3.02" in v1, "zwei Prüfstifte gewählt: %s" % v1)
+    pg.locator("[data-pstpm]").nth(2).click(); pg.wait_for_selector("[data-pmwahl]")
+    pg.click("[data-pmwart=hinweis]"); pg.fill("[data-pmwhinweis]", "Sichtprüfung"); pg.click("[data-pmwok]"); pg.wait_for_timeout(200)
+    pruefe(pg.locator("[data-pstpm]").nth(2).input_value() == "Sichtprüfung", "Hinweis gesetzt")
+    pg.locator("[data-pstpm]").nth(3).click(); pg.wait_for_selector("[data-pmwahl]"); pg.keyboard.press("Escape"); pg.wait_for_timeout(200)
+    pruefe(pg.locator("[data-pmwahl]").count() == 0 and pg.locator("[data-pstblatt]").count() == 1, "Escape schliesst nur das kleine Fenster")
     for i in range(18):
         pg.click("#pst-mass-neu")
     pg.wait_for_timeout(300)

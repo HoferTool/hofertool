@@ -140,7 +140,7 @@ function Formular({ titel, felder, wert, speichern, loeschen, zu, breit, gross }
 }
 
 // Tabelle mit Kopf; zeilen: [{ key, zellen: [...], klick }]
-// Ein Tipp auf den Spaltenkopf sortiert (seit 1.897.0, src/teile/sortieren.js);
+// Ein Tipp auf den Spaltenkopf sortiert (seit 1.898.0, src/teile/sortieren.js);
 // z.sort[i] gibt bei Bedarf einen eigenen Sortierwert für Spalte i.
 export function Tabelle({ kopf, zeilen, leer }) {
   const [sort, sortKlick] = useSortierung();

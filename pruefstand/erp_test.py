@@ -182,7 +182,7 @@ with sync_playwright() as p:
     # Reiter Rückverfolgung gibt es seit 1.888.0 nicht mehr
     pruefe(pg.locator("[data-erp-reiter='rueck']").count() == 0, "kein Reiter Rückverfolgung")
 
-    # Spaltenkopf antippen sortiert (seit 1.897.0): Hofer-Artikel nach Index auf- und absteigend
+    # Spaltenkopf antippen sortiert (seit 1.898.0): Hofer-Artikel nach Index auf- und absteigend
     pg.click("[data-erp-reiter='stamm']"); pg.wait_for_timeout(300)
     pg.click("[data-erp-stamm='artikel']"); pg.wait_for_timeout(300)
     def spalte1():

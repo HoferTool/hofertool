@@ -17689,8 +17689,22 @@ body.dunkel .gfn-warnung { color: #fbbf24 !important; }
   .gfn-vorschau { position: static; order: -1; }
   .gfn-3d { height: 46vh; }
 }
+/* Prüfmittel/Hinweis wählen im Masse-Blatt (seit 1.897.0) */
+.pst-pm { cursor: pointer; }
+.pmw { width: min(560px, calc(100vw - 32px)); max-width: 100%; }
+.pmw-arten { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 10px; }
+.pmw-suche { width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid #c8d3df; border-radius: 8px; font-size: 15px; margin-bottom: 6px; }
+.pmw-liste { max-height: min(50vh, 380px); overflow-y: auto; border: 1px solid #dfe6ee; border-radius: 8px; padding: 4px; }
+.pmw-zeile { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+.pmw-zeile:hover { background: #eef4fb; }
+.pmw-zeile--an { background: #dcebfb; font-weight: 600; }
+.pmw .feld input { width: 100%; box-sizing: border-box; }
+body.dunkel .pmw-suche { background: #13202c; border-color: #34465a; }
+body.dunkel .pmw-liste { border-color: #34465a; }
+body.dunkel .pmw-zeile:hover { background: #1c2d3d; }
+body.dunkel .pmw-zeile--an { background: #22405e; }
 
-/* 1.897.0: Spaltenkopf antippen sortiert (Test ERP, Kalkulation) */
+/* 1.898.0: Spaltenkopf antippen sortiert (Test ERP, Kalkulation) */
 th.erp-sortkopf { cursor: pointer; user-select: none; white-space: nowrap; }
 th.erp-sortkopf:hover { text-decoration: underline; }
 th.erp-sortkopf--an { color: #0b5cad; }
