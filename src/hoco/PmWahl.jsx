@@ -17,26 +17,49 @@ const zahlen = (t) => (String(t || "").match(/\d+(?:[.,]\d+)?/g) || []).map((x) 
 const STIFT = /prüfstift|pruefstift|\bstifte?\b/i;
 const istStift = (p) => p.art === "pruefstift" || STIFT.test((p.typ || "") + " " + (p.bezeichnung || ""));
 let vorrat = null;
-const laden = () => (vorrat = vorrat || pruefmittelAlleLaden().then((l) => (l || []).filter((p) => (p.status || "aktiv") !== "weg"), () => []));
+// Einmal je Sitzung; ein leeres Ergebnis (z. B. Netz weg) wird beim nächsten Öffnen neu geholt
+const laden = () => (vorrat = vorrat || pruefmittelAlleLaden().then((l) => { if (!l || !l.length) vorrat = null; return l || []; }, () => { vorrat = null; return []; }));
 
 export const pmText = (p) => [p.bezeichnung || p.typ || "", p.nennmass || p.mass || ""].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
-const zeile = (p) => (p.nr ? p.nr + " · " : "") + pmText(p) + (p.status === "gesperrt" ? " (gesperrt)" : "");
+const zeile = (p) => (p.nr ? p.nr + " · " : "") + pmText(p) + (p.status === "gesperrt" ? " (gesperrt)" : p.status === "weg" ? " (ausgeschieden)" : "");
 const passt = (p, s) => !s || s.toLowerCase().split(/\s+/).every((w) => ((p.nr || "") + " " + pmText(p) + " " + (p.hoco || "")).toLowerCase().includes(w));
 
+// Passende Mittel nach Name im Feld (z. B. Hinweis „Grenzlehrdorn“) und Mass, ähnlich gesucht
+// (Patrick 27. November 2026: „wenn Grenzlehrdorn als Hinweis drin ist, soll mit dem Mass
+// zusammen das richtige Prüfmittel aus der Verwaltung herausgesucht werden“)
+function vorschlaege(liste, z, hoco) {
+  if (!liste) return [];
+  const t = tolVon(z);
+  const mass = t && t.min !== null && t.max !== Infinity ? t.min + " / " + t.max : "";
+  try {
+    return pruefmittelFuer({ name: z.pm_art === "pruefmittel" ? "" : z.pm || "Lehre", soll: z.soll, mass },
+      liste.map((p) => ({ ...p, status: "aktiv" })), hoco).map((p) => p.id);
+  } catch (_) { return []; }
+}
+const LEHRE_NAME = /lehr|dorn|ring|rachen|kaliber/i;
+
 function Wahl({ z, hoco, fertig }) {
-  const [art, setArt] = useState(z.pm_art || (z.pm && STIFT.test(z.pm) ? "stift" : z.pm_id ? "pruefmittel" : z.pm ? "hinweis" : "pruefmittel"));
+  const lehreHinweis = !z.pm_id && z.pm && LEHRE_NAME.test(z.pm) && !STIFT.test(z.pm);
+  const [art, setArt] = useState(lehreHinweis ? "pruefmittel" : z.pm_art || (z.pm && STIFT.test(z.pm) ? "stift" : z.pm_id ? "pruefmittel" : z.pm ? "hinweis" : "pruefmittel"));
   const [hinweis, setHinweis] = useState(z.pm_art === "hinweis" || !z.pm_art ? z.pm || "" : "");
   const [liste, setListe] = useState(null);
   const [suche, setSuche] = useState("");
   const [id, setId] = useState(z.pm_id || null);
   const [ids, setIds] = useState(new Set(z.pm_ids || []));
-  useEffect(() => { let weg = false; laden().then((l) => { if (!weg) setListe(l); }); return () => { weg = true; }; }, []);
+  useEffect(() => { let weg = false; laden().then((l) => {
+    if (weg) return;
+    setListe(l);
+    // Steht nur „Grenzlehrdorn“ o. ä. als Text da, das passende Mittel gleich vorwählen
+    if (lehreHinweis) { const v = vorschlaege(l, z, hoco)[0]; if (v) setId(v); }
+  }); return () => { weg = true; }; }, []);
   // Vorschläge: was nach Soll und HOCO Nr. passt, steht zuoberst
   const mittel = useMemo(() => {
     if (!liste) return [];
-    const alle = liste.filter((p) => !istStift(p));
+    // alle aus der Verwaltung, auch Prüfstifte (Patrick 27. November 2026: „kann immer noch
+    // nicht alle Sachen von der Verwaltung auswählen“); vorher nur 80 und ohne Stifte
+    const alle = liste;
     let vor = [];
-    try { vor = pruefmittelFuer({ name: z.pm || "Lehre", soll: z.soll, mass: "" }, alle.map((p) => ({ ...p, status: "aktiv" })), hoco).map((p) => p.id); } catch (_) { /* ohne Vorschlag */ }
+    vor = vorschlaege(liste, z, hoco);
     // Vorschläge nach dem Soll (Patrick 27. November 2026: „warum keine Grenzlehrdorne oder
     // sonstiges vorgeschlagen“): Lehren, deren Masse die Grenzen oder das Nennmass treffen,
     // stehen zuoberst, danach die übrigen Lehren, erst dann Messmittel.
@@ -54,6 +77,7 @@ function Wahl({ z, hoco, fertig }) {
       if (nenn !== undefined && nahe(nenn, 0.0005)) w += lehre ? 8 : 2;
       if (lehre) w += 5;
       if (p.status === "gesperrt") w -= 3;
+      if (p.status === "weg") w -= 100;
       return w;
     };
     const ws = new Map(alle.map((p) => [p.id, wert(p)]));
@@ -94,15 +118,16 @@ function Wahl({ z, hoco, fertig }) {
           <input className="pmw-suche" autoFocus placeholder="Suchen: Nr., Bezeichnung, Mass" value={suche} onChange={(e) => setSuche(e.target.value)} data-pmwsuche="" />
           <div className="pmw-liste">
             {!liste ? <p className="klein">Prüfmittel werden gelesen …</p>
-              : art === "pruefmittel" ? (mittel.length ? mittel.slice(0, 80).map((p) => (
+              : art === "pruefmittel" ? (mittel.length ? mittel.map((p) => (
                 <label key={p.id} className={"pmw-zeile" + (p.id === id ? " pmw-zeile--an" : "")}>
                   <input type="radio" name="pmw" checked={p.id === id} onChange={() => setId(p.id)} data-pmwid={p.nr || p.id} />
                   <span>{zeile(p)}</span>{p._vorschlag ? <small className="pmw-vorschlag">passt</small> : null}</label>)) : <p className="klein">Nichts gefunden.</p>)
-              : (stifte.length ? stifte.slice(0, 120).map((p) => (
+              : (stifte.length ? stifte.map((p) => (
                 <label key={p.id} className={"pmw-zeile" + (ids.has(p.id) ? " pmw-zeile--an" : "")}>
                   <input type="checkbox" checked={ids.has(p.id)} onChange={() => umschalten(p.id)} data-pmwstift={p.nr || p.id} />
                   <span>{zeile(p)}</span></label>)) : <p className="klein">Keine Prüfstifte gefunden.</p>)}
           </div>
+          {liste ? <p className="klein">{(art === "stift" ? stifte : mittel).length} von {liste.length} aus der Prüfmittelverwaltung</p> : null}
           {art === "stift" && ids.size ? <p className="klein">{ids.size} Prüfstift{ids.size > 1 ? "e" : ""} gewählt</p> : null}
         </>
       )}

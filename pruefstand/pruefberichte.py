@@ -171,6 +171,8 @@ with sync_playwright() as p:
     pg.wait_for_selector("#pst-blatt-auf", timeout=8000); pg.click("#pst-blatt-auf")
     pg.wait_for_selector("[data-pstblatt] [data-pstseite]")
     pruefe(pg.locator("[data-pstseite]").count() == 1 and pg.locator("[data-pstblatt] tbody tr").count() == 5, "Masse-Blatt mit 5 Massen")
+    mins = pg.evaluate("() => [...document.querySelectorAll('[data-psttol$=\":min\"]')].map(i => i.value)")
+    pruefe(len(mins) >= 1 and any(m for m in mins), "Toleranz Min/Max vorausgefüllt: %s" % mins[:3])
     # Prüfmittel/Hinweis über das kleine Fenster wählen
     pruefe(pg.locator("[data-pstblatt] th:has-text('Prüfmittel/Hinweis')").count() == 1, "Spalte heisst Prüfmittel/Hinweis")
     pg.locator("[data-pstpm]").nth(0).click(); pg.wait_for_selector("[data-pmwahl]")
@@ -183,6 +185,13 @@ with sync_playwright() as p:
     pg.locator("[data-pstpm]").nth(2).click(); pg.wait_for_selector("[data-pmwahl]")
     pg.click("[data-pmwart=hinweis]"); pg.fill("[data-pmwhinweis]", "Sichtprüfung"); pg.click("[data-pmwok]"); pg.wait_for_timeout(200)
     pruefe(pg.locator("[data-pstpm]").nth(2).input_value() == "Sichtprüfung", "Hinweis gesetzt")
+    # Hinweis „Grenzlehrdorn“ + Soll: das passende Mittel wird gleich vorgewählt
+    pg.locator(".pst-soll").nth(4).fill("Ø5.5 ±0.05")
+    pg.locator("[data-pstpm]").nth(4).click(); pg.wait_for_selector("[data-pmwahl]")
+    pg.click("[data-pmwart=hinweis]"); pg.fill("[data-pmwhinweis]", "Grenzlehrdorn"); pg.click("[data-pmwok]"); pg.wait_for_timeout(200)
+    pg.locator("[data-pstpm]").nth(4).click(); pg.wait_for_selector("[data-pmwid='PM-9']"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-pmwid='PM-9']").is_checked(), "Grenzlehrdorn aus Hinweis und Mass gefunden")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(200)
     pg.locator("[data-pstpm]").nth(3).click(); pg.wait_for_selector("[data-pmwahl]"); pg.keyboard.press("Escape"); pg.wait_for_timeout(200)
     pruefe(pg.locator("[data-pmwahl]").count() == 0 and pg.locator("[data-pstblatt]").count() == 1, "Escape schliesst nur das kleine Fenster")
     for i in range(18):

@@ -17721,7 +17721,6 @@ body.dunkel .pmw-vorschlag { background: #1d4a30; }
 /* Toleranz im Masse-Blatt von Hand überschreibbar (seit 1.910.0) */
 .pst-tol { width: 100%; box-sizing: border-box; border: 1px solid transparent; background: transparent; font: inherit; padding: 2px 4px; }
 .pst-tol:focus { border-color: #9db4cc; background: #fff; }
-.pst-tol--hand { color: #8a4b00; font-weight: 600; }
 body.dunkel .pst-tol:focus { background: #13202c; }
 /* Knopf Form-/Lagetoleranzen im Masse-Blatt gleich gross wie Ø und ± (Patrick 27. November 2026) */
 .pst-zeichen .formlage > button[data-formlage-auf] { min-height: 40px; padding: 8px 14px; font: inherit; font-size: .9rem; font-weight: 600;
@@ -17753,3 +17752,29 @@ body.dunkel .gfn-hinzu__knopf { background: #23384f; }
 body.dunkel .gfn-menue, body.dunkel .gfn-liste button { background: #222a33; border-color: #3a4552; }
 body.dunkel .gfn-menue button:hover { background: #2d3743; }
 body.dunkel .gfn-liste button.aktiv { background: #4a3a1c; border-color: #e8b04a; }
+.pst-tolfelder { display: flex; align-items: center; gap: 2px; }
+.pst-tolfelder .pst-tol { min-width: 0; flex: 1; text-align: center; font-size: 12px; }
+.pst-tabelle .pst-c-tol, .pst-blattfenster .pst-c-tol { width: 130px; }
+
+/* 1.914.0: Zustand der Planwand in der Liste der FAs (Test ERP) */
+.erp-pw { white-space: nowrap; font-weight: 600; }
+.erp-pw--laeuft { color: #1b7f3b; }
+.erp-pw--ruesten { color: #b35c00; }
+.erp-pw--geplant { color: #4a5a6a; }
+.erp-pw--fertig { color: #6b7785; font-weight: 400; }
+/* Masse-Blatt ruhiger wie ein Tabellen-Editor (Patrick 27. November 2026: „sieht komisch aus,
+   soll besser aussehen wie bei anderen Editoren“): Platzhalter nur im angetippten Feld,
+   Felder füllen die Zelle, angetipptes Feld mit blauem Rahmen wie in Excel. */
+[data-pstblatt] tbody input:not([type=checkbox])::placeholder { color: transparent; }
+[data-pstblatt] tbody input:not([type=checkbox]):focus::placeholder { color: #9aa7b4; }
+[data-pstblatt] tbody td { padding: 0 !important; }
+[data-pstblatt] tbody td input:not([type=checkbox]) { border: 0; border-radius: 0; background: transparent; padding: 7px 8px; width: 100%; box-sizing: border-box; outline: none; }
+[data-pstblatt] tbody td input:not([type=checkbox]):focus { box-shadow: inset 0 0 0 2px #2f6fd6; background: #fff; }
+[data-pstblatt] tbody tr:hover td { background: #f5f8fc; }
+[data-pstblatt] .pst-tolfelder > span { color: #b5c0cc; }
+[data-pstblatt] .pst-tolfelder .pst-tol { padding: 7px 2px; }
+[data-pstblatt] .pst-c-ll, [data-pstblatt] .pst-c-kn, [data-pstblatt] .pst-c-kopf, [data-pstblatt] .pst-c-nr + td + td { padding: 2px 4px !important; }
+[data-pstblatt] .pst-c-kn .knopf--klein { min-height: 26px; padding: 2px 6px; border-color: transparent; background: transparent; opacity: .45; }
+[data-pstblatt] tr:hover .pst-c-kn .knopf--klein, [data-pstblatt] tr:focus-within .pst-c-kn .knopf--klein { opacity: 1; border-color: var(--linie-stark); }
+body.dunkel [data-pstblatt] tbody td input:not([type=checkbox]):focus { background: #13202c; }
+body.dunkel [data-pstblatt] tbody tr:hover td { background: #1a2836; }

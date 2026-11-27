@@ -3,9 +3,35 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
-## 1.912.0 (27. November 2026)
+## 1.915.0 (27. November 2026)
 
 - Gridfinity Box: Leiste geht schräg bis auf den Boden (liegt auf wie der Scoop).
+## 1.914.2 (27. November 2026)
+
+Prüfmittel suchen: Grenzlehrdorne der Verwaltung im Format „5.028 / 5.034“ werden erkannt; aus dem Soll wird ähnlich gesucht (Spiel 0.002 statt 0.001), auch Lehrringe und Rachenlehren. Steht nur „Grenzlehrdorn“ o. ä. als Hinweis, öffnet das Fenster auf Prüfmittel mit dem passenden Mittel vorgewählt; Checkliste und Ausbuchen finden es ebenso.
+
+## 1.914.1 (27. November 2026)
+
+Masse-Blatt ruhiger wie ein Tabellen-Editor (Platzhalter nur im angetippten Feld, blauer Rahmen, Knöpfe blass bis man über die Zeile fährt). Fehler des alten Tools wie „ú⌀~2~3~.~5~ ~+~0~.~0~3~û“ werden beim Lesen, Anzeigen und Rechnen zu „Ø23.5 +0.03“ bereinigt, auch bei schon gespeicherten Massen.
+
+## 1.914.0 (27. November 2026)
+
+Test ERP: die Liste der FAs hat die Spalte „Planwand“ mit dem Zeichen und Zustand wie auf dem Balken (○ Geplant, 🔧 Rüsten, ▶ Läuft, ✔ Fertig) und der Maschine (`planwandZelle` in `Belege.jsx`; Wunsch Patrick).
+
+## 1.913.0 (27. November 2026)
+
+Test ERP: Reiter Bestellungen zeigt gleich alle Bestellungen (neuste oben) mit Häkchen Rohmaterial / ZA extern / Andere (ZA extern = Hofer-Artikel in der Bestellung oder Fremdleistung aus dem Gewatec, `bestellArt` in `Belege.jsx`; Wunsch Patrick).
+## 1.912.1 (27. November 2026)
+
+Prüfmittel-Fenster zeigt alle Mittel der Verwaltung (vorher nur 80, ohne Stifte und Ausgeschiedene), mit Anzahl.
+
+## 1.912.0 (27. November 2026)
+
+Masse-Blatt: Toleranz als zwei Felder Min und Max, vorausgefüllt aus dem Soll, ohne Farbe; Geändertes gilt für die rot/grün-Auswertung (z.tol_min/z.tol_max). GDT-Rahmen: µ der alten Schrift = Koaxialität ◎.
+
+## 1.911.1 (27. November 2026)
+
+Test ERP: ein FA steht auf „in Arbeit“, wenn sein Auftrag auf der Planwand läuft oder rüstet (`daten.planwand.stand`), nicht erst mit abgehaktem Arbeitsgang (Patrick: „warum gibt es keine in Arbeit?“).
 
 ## 1.911.0 (27. November 2026)
 

@@ -65,7 +65,10 @@ export function belegStand(d, b) {
   }
   if (b.typ === "fertigung") {
     const a = anteil((p) => gebucht(d, p.id, "fertig"));
-    const begonnen = d.bewegungen.some((x) => x.beleg_id === b.id) || ((b.daten || {}).ap || []).some((x) => x.erledigt_am);
+    // Läuft oder rüstet der Auftrag auf der Planwand, ist der FA auch „in Arbeit“ (seit 1.911.1, Patrick:
+    // „warum gibt es keine in Arbeit?“; vorher nur mit abgehaktem Arbeitsgang oder Buchung)
+    const pw = ((b.daten || {}).planwand || {}).stand;
+    const begonnen = pw === "laeuft" || pw === "ruesten" || d.bewegungen.some((x) => x.beleg_id === b.id) || ((b.daten || {}).ap || []).some((x) => x.erledigt_am);
     return [a === 2 ? "fertig" : a === 1 ? "teilweise fertig" : begonnen ? "in Arbeit" : "offen", a === 2 ? "erp-gut" : ""];
   }
   if (b.typ === "lieferschein") {
@@ -82,6 +85,30 @@ export function belegStand(d, b) {
 const FA_STAENDE = ["offen", "in Arbeit", "teilweise fertig", "fertig", "abgeschlossen", "storniert"];
 let faStaende = FA_STAENDE.filter((w) => w !== "storniert");
 
+// Zustand des Auftrags auf der Planwand mit demselben Zeichen wie auf dem Balken
+// (○ Geplant, 🔧 Rüsten, ▶ Läuft, ✔ Fertig) und Maschine (seit 1.914.0, Wunsch Patrick
+// 27. November 2026: „in der Liste der FAs den Status und auch das Symbol“)
+function planwandZelle(b) {
+  const pw = (b.daten || {}).planwand;
+  if (!pw || !pw.stand) return "";
+  const z = (alt.PLANSTATUS || {})[pw.stand] || { name: pw.stand, zeichen: "" };
+  const masch = pw.maschine || pw.maschine_nr;
+  return <span className={"erp-pw erp-pw--" + pw.stand} data-erp-pw={pw.stand}>{z.zeichen} {z.name}{masch ? " · " + masch : ""}</span>;
+}
+
+// Art einer Bestellung (seit 1.913.0, Wunsch Patrick 27. November 2026: „in Bestellungen filtern nach
+// Rohmaterial und ZA extern“): ZA extern = Zusatzarbeit extern (Fremdleistung), d. h. ein Hofer-Artikel
+// geht zum Lieferanten, oder aus dem Gewatec als Fremdleistung übernommen
+const BE_ARTEN = [["roh", "Rohmaterial"], ["za", "ZA extern"], ["andere", "Andere"]];
+let beArten = BE_ARTEN.map(([w]) => w);
+function bestellArt(d, b) {
+  const pos = d.posJe.get(b.id) || [];
+  const arten = pos.map((p) => (d.artikelMap.get(p.artikel_id) || {}).art);
+  if ((b.daten || {}).fremdleistung || arten.includes("hofer")) return "za";
+  if (arten.includes("rohmaterial")) return "roh";
+  return "andere";
+}
+
 // ---------- Liste je Belegart ----------
 export function BelegListe({ d, neu, typ, ohneNeu, hinweis }) {
   const [suche, setSuche] = useState("");
@@ -91,8 +118,12 @@ export function BelegListe({ d, neu, typ, ohneNeu, hinweis }) {
   const mitStand = typ === "fertigung";
   const [staende, setStaende] = useState(() => new Set(faStaende));
   const standUm = (w, an) => setStaende((v) => { const n = new Set(v); if (an) n.add(w); else n.delete(w); faStaende = [...n]; return n; });
+  const mitArt = typ === "bestellung";
+  const [arten, setArten] = useState(() => new Set(beArten));
+  const artUm = (w, an) => setArten((v) => { const n = new Set(v); if (an) n.add(w); else n.delete(w); beArten = [...n]; return n; });
   const t = BELEGTYP[typ];
-  const warten = !mitStand && ohneSuche(suche) && !nurOffen;
+  // Bestellungen sind wenige: wie Fertigung gleich alle zeigen, gefiltert mit den Häkchen
+  const warten = !mitStand && !mitArt && ohneSuche(suche) && !nurOffen;
   const liste = warten ? [] : d.belege.filter((b) => b.typ === typ).filter((b) => {
     const p = d.partnerMap.get(b.partner_id) || {};
     const pos = (d.posJe.get(b.id) || []).map((x) => artikelText(d.artikelMap.get(x.artikel_id)) + " " + (x.text || "")).join(" ");
@@ -100,8 +131,9 @@ export function BelegListe({ d, neu, typ, ohneNeu, hinweis }) {
   }).map((b) => ({ b, stand: belegStand(d, b) }))
     .filter((x) => !nurOffen || !/^(geliefert|eingegangen|fertig|verrechnet|in Fibu|storniert|abgeschlossen)$/.test(x.stand[0]))
     .filter((x) => !mitStand || staende.has(x.stand[0]))
-    // Neuste FA Nr. oben
-    .sort((x, y) => (mitStand ? String(y.b.nr).localeCompare(String(x.b.nr)) : 0));
+    .filter((x) => !mitArt || arten.has(bestellArt(d, x.b)))
+    // Neuste Nr. oben (Fertigung, Bestellungen)
+    .sort((x, y) => (mitStand || mitArt ? String(y.b.nr).localeCompare(String(x.b.nr)) : 0));
   return (
     <>
       <div className="mat-kopf">
@@ -110,11 +142,14 @@ export function BelegListe({ d, neu, typ, ohneNeu, hinweis }) {
         <Suche wert={suche} setzen={setSuche} platzhalter="Nr., Kunde, Artikel …" fokus />
         {!mitStand && <label className="feld-haken"><input type="checkbox" checked={nurOffen} onChange={(e) => setNurOffen(e.target.checked)} />
           <span>Nur offene</span></label>}
+        {mitArt && BE_ARTEN.map(([w, text]) => <label key={w} className="feld-haken" data-erp-be-art={w}>
+          <input type="checkbox" checked={arten.has(w)} onChange={(e) => artUm(w, e.target.checked)} /><span>{text}</span></label>)}
         {mitStand && FA_STAENDE.map((w) => <label key={w} className="feld-haken" data-erp-fa-stand={w}>
           <input type="checkbox" checked={staende.has(w)} onChange={(e) => standUm(w, e.target.checked)} /><span>{w}</span></label>)}
       </div>
       {hinweis && <p className="klein">{hinweis}</p>}
-      <Tabelle kopf={["Nr.", "Datum", t.partner === "lieferant" ? "Lieferant" : "Kunde", "Artikel", mitPreis(typ) ? "Netto CHF" : "Menge", "Stand"]}
+      <Tabelle kopf={["Nr.", "Datum", t.partner === "lieferant" ? "Lieferant" : "Kunde", "Artikel", mitPreis(typ) ? "Netto CHF" : "Menge"]
+          .concat(mitStand ? ["Planwand"] : []).concat(["Stand"])}
         leer={warten ? sucheLeer(t.mehr) + " Oder „Nur offene“ anhaken." : "Keine " + t.mehr + " gefunden."}
         zeilen={liste.map(({ b, stand }) => {
           const pos = d.posJe.get(b.id) || [];
@@ -124,7 +159,8 @@ export function BelegListe({ d, neu, typ, ohneNeu, hinweis }) {
             key: b.id, klasse: stand[1], klick: () => belegOeffnen(d, neu, b),
             zellen: [<b>{b.nr}</b>, datumText(b.datum), partnerText(d.partnerMap.get(b.partner_id)) + (b.art === "rahmen" ? " · Rahmen" : ""),
               art.slice(0, 3).join(", ") + (art.length > 3 ? " …" : ""),
-              mitPreis(typ) ? chf(belegSumme(d, b).netto) : mengeText(pos.reduce((s, x) => s + zahl(x.menge), 0)), stand[0]],
+              mitPreis(typ) ? chf(belegSumme(d, b).netto) : mengeText(pos.reduce((s, x) => s + zahl(x.menge), 0))]
+              .concat(mitStand ? [planwandZelle(b)] : []).concat([stand[0]]),
           };
         })} />
     </>

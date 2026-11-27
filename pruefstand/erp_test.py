@@ -189,12 +189,28 @@ with sync_playwright() as p:
     zahl_fa = lambda: pg.locator(".erp-tabelle tbody tr").count()
     vorher = zahl_fa()
     pruefe(vorher >= 1 and pg.locator("[data-erp-fa-stand]").count() == 6, "Fertigung ohne Suche: %s Zeilen, Häkchen je Stand" % vorher)
+    pruefe("Planwand" in pg.inner_text(".erp-tabelle thead"), "Liste der FAs mit Spalte Planwand")
     stand = pg.locator(".erp-tabelle tbody tr").first.locator("td").last.inner_text().strip()
     pg.locator("[data-erp-fa-stand='%s'] input" % stand).uncheck(); pg.wait_for_timeout(150)
     pruefe(zahl_fa() < vorher or pg.locator(".karte--hinweis").count() > 0, "Häkchen „%s“ weg blendet aus" % stand)
     pg.locator("[data-erp-fa-stand='%s'] input" % stand).check()
     pg.evaluate("TEST.erpAlle = true")
     pg.click("[data-erp-reiter='auftrag']"); pg.wait_for_timeout(300)
+
+    # Bestellungen: ohne Suche alle, Häkchen Rohmaterial / ZA extern / Andere (seit 1.913.0)
+    pg.evaluate("TEST.erpAlle = false")
+    pg.click("[data-erp-reiter='bestellung']"); pg.wait_for_timeout(300)
+    n_be = pg.locator(".erp-tabelle tbody tr").count()
+    pruefe(n_be >= 1 and pg.locator("[data-erp-be-art]").count() == 3, "Bestellungen ohne Suche: %s, Häkchen je Art" % n_be)
+    for w in ("roh", "za", "andere"):
+        pg.locator("[data-erp-be-art='%s'] input" % w).uncheck()
+    pg.wait_for_timeout(150)
+    pruefe(pg.locator(".erp-tabelle tbody tr").count() == 0, "alle Häkchen weg: keine Bestellung")
+    pg.locator("[data-erp-be-art='roh'] input").check(); pg.wait_for_timeout(150)
+    n_roh = pg.locator(".erp-tabelle tbody tr").count()
+    pg.locator("[data-erp-be-art='za'] input").check(); pg.locator("[data-erp-be-art='andere'] input").check()
+    pruefe(n_roh <= n_be, "nur Rohmaterial: %s von %s" % (n_roh, n_be))
+    pg.evaluate("TEST.erpAlle = true")
 
     # Spaltenkopf antippen sortiert (seit 1.898.0): Hofer-Artikel nach Index auf- und absteigend
     pg.click("[data-erp-reiter='stamm']"); pg.wait_for_timeout(300)

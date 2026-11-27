@@ -190,7 +190,7 @@ export function vorlageAus(berichte) {
 // Gibt { min, max, einheit } oder null (ohne Mass, nur Gewinde, Material …)
 const NUR_MAX = /^(ra|rz|rmax|rundlauf|planlauf|gesamtlauf|position|ebenheit|parallel\w*|rechtwink\w*|koaxial\w*|konzentr\w*|symmetrie|geradheit|rundheit|zylindr\w*|kb)\b/i;
 export function toleranz(soll) {
-  let s = String(soll || "").trim().replace(/^Ø\s*/, "").replace(/\s*x\s*45°\s*$/i, "")
+  let s = symbolUmwandeln(soll).trim().replace(/^Ø\s*/, "").replace(/\s*x\s*45°\s*$/i, "")
     .replace(/\s+\d+\s*x\s*$/i, "").trim();
   if (!s || /^M\s*\d/i.test(s)) return null;
   const grad = /°/.test(s) ? "°" : "";
@@ -215,23 +215,31 @@ export function toleranz(soll) {
   return { min: rund(nenn + Math.min(...ab)), max: rund(nenn + Math.max(...ab)), einheit: grad };
 }
 
-// Toleranz einer Zeile: von Hand eingetragen (z.tol, seit 1.910.0, Patrick 27. November 2026:
-// „dass man es auch eingeben kann, falls es falsch erkannt wurde“), sonst aus dem Soll.
-// Von Hand geht „5.982-5.990“, „≤ 0.02“ bzw. „0.02 max“ oder „6 -0.010/-0.018“.
+// Toleranz einer Zeile: Min und Max von Hand überschreibbar (z.tol_min / z.tol_max, seit
+// 1.912.0, Patrick 27. November 2026: „Feld, dass man Max und Min eingibt, und du schaust,
+// als wär's von dir, und machst rot/grün“). Leeres Feld = Wert aus dem Soll.
+// z.tol (Text, nur 1.910.0) gilt weiter, falls vorhanden.
+const zahlOder = (v) => { const x = String(v ?? "").trim().replace(",", "."); return x === "" || isNaN(Number(x)) ? undefined : Number(x); };
 export function tolVon(z) {
   const h = String((z && z.tol) || "").trim();
+  let auto = null;
   if (h) {
     const k = /^(≤|<=|max\.?)\s*([\d.,]+)$/i.exec(h);
-    if (k) return { min: null, max: Number(k[2].replace(",", ".")), einheit: "" };
-    return toleranz(h);
-  }
-  return toleranz(z && z.soll);
+    auto = k ? { min: null, max: Number(k[2].replace(",", ".")), einheit: "" } : toleranz(h);
+  } else auto = toleranz(z && z.soll);
+  const mi = zahlOder(z && z.tol_min), ma = zahlOder(z && z.tol_max);
+  if (mi === undefined && ma === undefined) return auto;
+  const min = mi !== undefined ? mi : auto ? auto.min : null;
+  const max = ma !== undefined ? ma : auto ? auto.max : null;
+  if (min === null && max === null) return null;
+  return { min, max: max === null || max === undefined ? Infinity : max, einheit: (auto && auto.einheit) || "" };
 }
 
 export function toleranzText(t) {
   if (!t) return "";
   const e = t.einheit || "";
   if (t.min === null) return "≤ " + t.max + e;
+  if (t.max === Infinity) return "≥ " + t.min + e;
   return t.min + e + " … " + t.max + e;
 }
 
@@ -308,6 +316,10 @@ function gewindeVon(t) {
 }
 function grenzenPm(p) {
   const s = String(p.nennmass || p.mass || "").trim();
+  // „5.028 / 5.034“: Gut- und Ausschussmass direkt (Patrick 27. November 2026: Grenzlehrdorne
+  // in der Verwaltung stehen oft so und wurden darum nie gefunden)
+  const gm = /^Ø?\s*(\d+[.,]\d+)\s*[\/–]\s*(\d+[.,]\d+)\b/.exec(s);
+  if (gm && n(gm[2]) > n(gm[1]) && n(gm[2]) - n(gm[1]) < 1) return { min: n(gm[1]), max: n(gm[2]) };
   const m = /^Ø?\s*(\d+(?:[.,]\d+)?)\s*(?:[A-Za-z]{1,2}\d{1,2})?\s*(.*)$/.exec(s);
   if (!m) return null;
   const nenn = n(m[1]);
@@ -325,7 +337,8 @@ function grenzenLehre(lehre) {
     return { min: n(m[1]), max: n(m[2]), spiel: 0.5 * Math.pow(10, -stellen) + 0.0006 };
   }
   const t = toleranz(lehre.soll);
-  return t && t.min !== null ? { min: t.min, max: t.max, spiel: 0.0011 } : null;
+  // aus dem Soll gerechnet: ähnlich statt genau gleich (Patrick: „ähnlich suchen“)
+  return t && t.min !== null ? { min: t.min, max: t.max, spiel: 0.0021 } : null;
 }
 const istStift = (p) => STIFT_RE.test((p.typ || "") + " " + (p.bezeichnung || ""));
 
@@ -354,7 +367,7 @@ export function pruefmittelFuer(lehre, liste, hoco) {
       // „M5“ in der Lehre passt zu „M5“ und „M5x0.8“ (Regelgewinde)
       return pg === gew || (!/x/.test(gew) && pg.split("x")[0] === gew);
     }
-    if (g && /lehrdorn|grenzdorn/i.test(art) && !/gewinde/i.test(art)) {
+    if (g && /lehrdorn|grenzdorn|lehrring|grenzring|rachenlehre|kontrollring/i.test(art) && !/gewinde/i.test(art)) {
       const pg = grenzenPm(p);
       if (pg) return Math.abs(pg.min - g.min) <= g.spiel && Math.abs(pg.max - g.max) <= g.spiel;
     }
@@ -487,7 +500,9 @@ export async function stammLaden(hoco) {
 // früher abgelegten Excel-Vorlagen (Ordner oder von Hand vor 1.779.0)
 export async function stammMitMassen(hoco) {
   const st = await stammLaden(hoco).catch((f) => { if (fehltTabelle(f)) return null; throw f; });
-  if (st && (st.zeilen || []).length) return { ...st, zeilen: nachProdAbsaetze(st.zeilen), aus: "stamm" };
+  // gespeicherte Masse mit Fehlern des alten Tools (Tilden, ú…û) beim Laden bereinigen
+  const sauber = (z) => (z && typeof z.soll === "string" && /~|⌀/.test(z.soll) ? { ...z, soll: symbolUmwandeln(z.soll) } : z);
+  if (st && (st.zeilen || []).length) return { ...st, zeilen: nachProdAbsaetze(st.zeilen.map(sauber)), aus: "stamm" };
   const dateien = await dateienLaden(hoco).catch(() => []);
   if (!dateien.length) return st ? { ...st, aus: "stamm" } : null;
   try {
