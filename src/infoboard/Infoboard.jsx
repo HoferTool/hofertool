@@ -607,6 +607,8 @@ function kioskFenster() {
 
 export function bildschirmDarfNeuLaden(d = new Date()) {
   if (!offen) return true;
+  // Mitten im Spiel nie neu laden, sonst fliegt man hinaus (27. November 2026)
+  if (document.querySelector("[data-spiel-offen]")) return false;
   if (!imVollbild() && (!offen.vonSelbst || kioskFenster())) return true;
   const empfang = offen.huelle.classList.contains("ib-voll--empfang");
   return empfang ? istEmpfangDunkel(d) : istNacht(d);
@@ -687,7 +689,10 @@ function Anzeige({ huelle, mass, melden }) {
     arten.forEach((a) => window.addEventListener(a, benutzt, { capture: true, passive: true }));
     return () => arten.forEach((a) => window.removeEventListener(a, benutzt, { capture: true }));
   }, []);
-  const schoner = nacht && !wachBis;
+  // Ein offenes Spiel im Pausenraum hält den Bildschirmschoner fern,
+  // auch wenn man länger überlegt (gross ist erst weiter unten bekannt)
+  const [spielOffen, setSpielOffen] = useState(false);
+  const schoner = nacht && !wachBis && !spielOffen;
   const schwarz = dunkel && !wachBis;
 
   useEffect(() => {
@@ -730,6 +735,7 @@ function Anzeige({ huelle, mass, melden }) {
   // Kachel im Pausenraum gross offen (Kachel.jsx)
   const [gross, setGross] = useState(null);
   const grossZu = useCallback(() => setGross(null), []);
+  useEffect(() => { setSpielOffen(!!(gross && (gross.inhalt || {}).art === "spiel")); }, [gross]);
   useEffect(() => { if (schoner) setGross(null); }, [schoner]);
   // Im Pausenraum tippen alle auf den Bildschirm: dort zeigt erst ein
   // langer Druck (3 Sekunden) auf den Kopf „Schliessen“, damit niemand

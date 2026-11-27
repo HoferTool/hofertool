@@ -311,7 +311,7 @@ function BelegFenster({ start, id, vorlage, aussen, zu }) {
     {b && !bearbeiten && <button className="knopf" data-erp-drucken="" data-erp-ab-drucken={b.typ === "auftrag" ? "" : undefined} onClick={() => (b.typ === "lieferschein" ? lsDrucken(d, b)
       : b.typ === "rechnung" || b.typ === "gutschrift" || b.typ === "proforma" ? reDrucken(d, b)
         : b.typ === "bestellung" ? beDrucken(d, b)
-          // Beim Auftrag druckt „Drucken“ die Auftragsbestätigung wie im Gewatec (1.935.2)
+          // Beim Auftrag druckt „Drucken“ die Auftragsbestätigung wie im Gewatec (1.935.3)
           : b.typ === "auftrag" ? abDrucken(d, b) : belegDrucken(d, b))}>Drucken</button>}
     <span className="gf-fuss__luecke" />
     {geaendert && <span className="klein gf-geaendert">nicht gespeichert</span>}

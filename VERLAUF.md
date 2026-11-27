@@ -2,9 +2,13 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
-## 1.935.2 (27. November 2026)
+## 1.935.3 (27. November 2026)
 
 - Test ERP: „Drucken“ im Auftrag druckt die Auftragsbestätigung im Gewatec-Aufbau (der eigene Knopf „Auftragsbestätigung“ fällt weg).
+
+## 1.935.2 (27. November 2026)
+
+- Pausenraum: Ein offenes Spiel geht nicht mehr nach 2 Minuten von selbst zu; Bildschirmschoner und Neuladen bei neuer Fassung warten, bis man es mit „Schliessen“ beendet.
 
 ## 1.935.1 (27. November 2026)
 
