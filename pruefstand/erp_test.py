@@ -402,6 +402,12 @@ with sync_playwright() as p:
     pruefe(len(an) == vorher and ax["idx"] == "Z" and (ax["daten"].get("indexe") or [{}])[-1].get("idx") == altidx,
            "Neuer Index am selben Artikel, alter im Verlauf: %s %s" % (ax["idx"], ax["daten"].get("indexe")))
 
+    # Reiter Reklamationen im Artikel (aus dem Reklamationsmanagement)
+    pg.evaluate("(nr) => { (TEST.daten.reklamationen = TEST.daten.reklamationen || []).push({ id: 'rk1', nr: 'RK26-001', hoco_nr: nr, art: 'kunde', status: 'offen', eingang: '2026-11-20', partner: 'Muster AG', fehler: 'Mass zu gross', menge_reklamiert: 12 }) }", a["nr"])
+    pg.click("[data-gf-reiter='reklamationen']"); pg.wait_for_timeout(800)
+    pruefe(pg.locator("[data-erp-art-rk-nr='RK26-001']").count() == 1, "Reklamation im Artikel")
+    pg.screenshot(path=BILD + "/erp-art-rk.png")
+
     # Umbuchen von Hand mit Vermerk und Liste der Lagerbewegungen
     for _ in range(4):
         if pg.locator(".dialog-huelle").count() == 0: break

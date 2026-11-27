@@ -200,7 +200,7 @@ function ArtikelFenster({ start, aussen, a0, was, zu }) {
   </>;
 
   const reiterListe = [["artikel", "Artikel"], hofer && ["verkauf", "Verkauf"], hofer && ["arbeitsplan", "Arbeitsplan"],
-    ["lager", "Lager"], ["belege", "Belege"], ["dokumente", "Dokumente"]];
+    ["lager", "Lager"], ["belege", "Belege"], ["dokumente", "Dokumente"], hofer && ["reklamationen", "Reklamationen"]];
 
   return (
     <GFenster titel={titel} kopf={kopf} bild={hofer && a && a.nr ? <ZeichnungVorschau nr={a.nr} titel={titel} /> : <BildFlaeche text={hofer ? "Zeichnung" : "Bild"} />} reiter={reiterListe}
@@ -247,8 +247,54 @@ function ArtikelFenster({ start, aussen, a0, was, zu }) {
           <ModellFeld nr={hofer && a ? a.nr : ""} w={w} setW={setW} titel={titel} />
         </div>
       </div>}
+
+      {reiter === "reklamationen" && <ReklamationenReiter a={a} />}
     </GFenster>
   );
+}
+
+// Reklamationen aus dem Reklamationsmanagement (QS) zu dieser HOCO Nr. (Wunsch Patrick 27. November 2026).
+// Die Tabelle lesen nur Admins (bin_admin()), darum für alle anderen nur ein Hinweis.
+const RK_STAND = { offen: "Offen", bearbeitung: "In Bearbeitung", abgeschlossen: "Abgeschlossen", abgelehnt: "Abgelehnt" };
+const RK_ART = { kunde: "Kunde", lieferant: "Lieferant", intern: "Intern" };
+function ReklamationenReiter({ a }) {
+  const nr = a && a.nr;
+  const admin = alt.istAdmin && alt.istAdmin();
+  const [liste, setListe] = useState(null);
+  const [fehler, setFehler] = useState("");
+  const laden = async () => {
+    if (!nr || !admin) return;
+    try {
+      const { data, error } = await alt.zeitlimit(alt.db.from("reklamationen").select("*").eq("hoco_nr", nr)
+        .order("eingang", { ascending: false }), 15000, "Reklamationen laden");
+      if (error) throw error;
+      setListe(data || []); setFehler("");
+    } catch (e) { setFehler(String(e.message || e)); setListe([]); }
+  };
+  useEffect(() => { laden(); }, [nr]);
+  if (!admin) return <p className="klein" data-erp-art-rk="">Reklamationen sehen nur Admins.</p>;
+  if (!nr) return <p className="klein" data-erp-art-rk="">Erst den Artikel speichern.</p>;
+  if (!liste) return <p className="klein" data-erp-art-rk="">Wird geladen …</p>;
+  const oeffnen = async (r) => {
+    const m = await import("../qs/Reklamationen.jsx");
+    m.reklamationOeffnen(r, laden, {}, liste);
+  };
+  const neu = async () => {
+    const m = await import("../qs/Reklamationen.jsx");
+    m.reklamationOeffnen({ hoco_nr: nr, art: "kunde", status: "offen" }, laden, {}, liste);
+  };
+  return <div data-erp-art-rk="">
+    {fehler && <p className="fehler">{fehler}</p>}
+    <p><button type="button" className="knopf knopf--klein" data-erp-art-rk-neu="" onClick={neu}>+ Reklamation</button></p>
+    <GTabelle kopf={["Nr.", "Eingang", "Art", "Kunde / Lieferant", "Stand", "Fehler", "Menge"]} rechts={[6]}
+      leer={"Keine Reklamationen zu " + nr + "."}
+      zeilen={liste.map((r) => ({
+        key: r.id, klick: () => oeffnen(r),
+        zellen: [<b data-erp-art-rk-nr={r.nr || ""}>{r.nr || "–"}</b>, r.eingang ? datumText(r.eingang) : "–", RK_ART[r.art] || r.art || "",
+          r.partner || "", RK_STAND[r.status] || r.status || "", r.fehlerart || r.fehler || "",
+          r.menge_reklamiert != null ? alt.zahlText(r.menge_reklamiert) : ""],
+      }))} />
+  </div>;
 }
 
 // Zeichnung der HOCO Nr. (hoco_parts.zeichnung_url, dieselbe wie auf der
