@@ -17884,3 +17884,10 @@ body.dunkel .gfn-oben__feld { fill: #2a3546; }
 @media (min-width: 761px) {
   .gfn-spalten [data-gf-projekt] .gfn-elementknoepfe .knopf { padding: 6px 12px; font-size: .9rem; }
 }
+
+/* 1.930.0: Einlagen Generator wie Gridfinity auf einen Bildschirm: Leiste
+   oben schmaler, damit der Arbeitsfläche mehr Höhe bleibt */
+@media (min-width: 700px) {
+  .einlagen__leiste { gap: 6px; margin-bottom: 6px; }
+  .einlagen__leiste .knopf { padding: 6px 12px; min-height: 0; font-size: .9rem; }
+}

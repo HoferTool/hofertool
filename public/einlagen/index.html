@@ -338,6 +338,30 @@ header.bar { align-items: center; }
 .contents { display: contents; }
 @media (max-width: 640px) { .toolbar .tool, .toolbar .ltool, .toolbar .vtool { min-width: 52px; padding: 6px 5px; } header.bar .stepper { order: 5; flex-basis: 100%; } }
 </style>
+<style>
+/* 1.930.0: Aufbau wie Gridfinity (Patrick: „Einlagen Generator auch nach
+   dem Layout von Gridfinity anpassen“): ab 700 px Einstellungen links, die
+   Arbeitsfläche rechts füllt die Höhe, nichts rollt nach unten; die
+   Einstellungen rollen für sich. Handy bleibt untereinander. */
+@media (min-width: 700px) {
+  html, body { height: 100%; overflow: hidden; }
+  .app { height: 100%; box-sizing: border-box; padding-block: 8px 8px; max-width: none; }
+  .app > header.bar { flex: none; }
+  .layout { flex: 1 1 0; min-height: 0; grid-template-columns: clamp(270px, 32%, 340px) minmax(0, 1fr); align-items: stretch; }
+  .layout[hidden] { display: none; }
+  aside.panel { order: -1; overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
+  .stage { min-height: 0; overflow-y: auto; }
+  .stage > * { flex: none; }
+  .stage > .viewwrap { flex: 1 1 0; min-height: 300px; }
+  .stage > .viewwrap[hidden] { display: none; }
+  .viewwrap > .viewer { position: absolute; inset: 0; max-height: none; min-height: 0; box-sizing: border-box; }
+  .results { max-height: 22vh; overflow-y: auto; }
+  .stage { gap: 6px; }
+  /* lange Hinweise nur eine Zeile; mit der Maus darüber ganz */
+  .edithint { margin: 0; font-size: .78rem; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: help; }
+  .edithint:hover, .edithint:focus { white-space: normal; }
+}
+</style>
 </head>
 <body>
 <div class="app">
@@ -459,7 +483,7 @@ header.bar { align-items: center; }
         </div>
         <button class="btn small" id="clearBrushBtn" type="button" disabled>Gemaltes und Gezeichnetes verwerfen</button>
       </div>
-      <p class="edithint" id="editHint"></p>
+      <p class="edithint" id="editHint" tabindex="0"></p>
       <div class="viewwrap">
         <div class="viewer" id="viewer"><canvas id="view" aria-label="Arbeitsfläche"></canvas></div>
         <div class="busy" id="busy" hidden>Berechne …</div>
@@ -601,7 +625,7 @@ header.bar { align-items: center; }
           <button class="btn small" id="ldWeg" type="button" disabled>Abbrechen</button>
         </div>
       </div>
-      <p class="edithint" id="layHint">Werkzeug antippen und ziehen verschiebt es, der runde Anfasser dreht es stufenlos, Winkel auch mit Komma eintippen. Die Zahl auf einer Tasche (Tiefe) oder „Höhe“ unten antippen ändert sie. „Spiegeln“ (Taste M) spiegelt das gewählte Teil. Am PC: Pfeiltasten verschieben um 1 mm (mit Umschalt 10 mm), R dreht um 90°.</p>
+      <p class="edithint" id="layHint" tabindex="0">Werkzeug antippen und ziehen verschiebt es, der runde Anfasser dreht es stufenlos, Winkel auch mit Komma eintippen. Die Zahl auf einer Tasche (Tiefe) oder „Höhe“ unten antippen ändert sie. „Spiegeln“ (Taste M) spiegelt das gewählte Teil. Am PC: Pfeiltasten verschieben um 1 mm (mit Umschalt 10 mm), R dreht um 90°.</p>
       <div class="viewwrap" id="lay2dWrap"><div class="viewer" id="layViewer"><canvas id="layView" aria-label="Einlage mit Werkzeugtaschen"></canvas></div></div>
       <div class="viewwrap" id="lay3dWrap" hidden>
         <div class="viewer" id="lay3dViewer"><canvas id="lay3d" aria-label="3D-Ansicht der Einlage"></canvas></div>
@@ -1176,11 +1200,17 @@ function setView(v, silent) {
   updateEditUI(); updateStepper();
   if (!silent) { render(); renderInfo(); }
 }
+// Im Aufbau wie Gridfinity (breit) hat die Arbeitsfläche eine feste Höhe:
+// die nehmen, sonst wie bisher einen Teil der Fensterhöhe
+function platzH(vw, rand) {
+  if (!window.matchMedia || !matchMedia("(min-width: 700px)").matches) return 0;
+  const h = vw.clientHeight - rand; return h > 150 ? h : 0;
+}
 function render() {
   const cv = $("view"), vw = $("viewer"); if (!st.srcCanvas || $("scanMode").hidden) return;
   const sheet = st.view === "sheet" || !st.warp;
   const iw = sheet ? st.sw : st.warp.ow, ih = sheet ? st.sh : st.warp.oh;
-  const cw = vw.clientWidth - 16, maxH = Math.max(300, window.innerHeight * 0.8 - 16);
+  const cw = vw.clientWidth - 16, maxH = platzH(vw, 16) || Math.max(300, window.innerHeight * 0.8 - 16);
   const s = Math.min(cw / iw, maxH / ih) * (sheet ? 1 : st.zoom), dw = Math.round(iw * s), dh = Math.round(ih * s);
   const dpr = Math.min(window.devicePixelRatio || 1, Math.sqrt(16e6 / (dw * dh)));
   cv.style.width = dw + "px"; cv.style.height = dh + "px"; cv.width = Math.round(dw * dpr); cv.height = Math.round(dh * dpr);
@@ -3109,7 +3139,7 @@ function laySyncInputs() {
 function layRender() {
   if ($("layoutMode").hidden) return;
   const cv = $("layView"), vw = $("layViewer"), B = lay.base, M = lay.M;
-  const cw = Math.max(200, vw.clientWidth - 12), maxH = Math.max(260, window.innerHeight * 0.72);
+  const cw = Math.max(200, vw.clientWidth - 12), maxH = platzH(vw, 12) || Math.max(260, window.innerHeight * 0.72);
   const s = Math.min(cw / (B.W + 2 * M), maxH / (B.H + 2 * M)), dw = Math.round((B.W + 2 * M) * s), dh = Math.round((B.H + 2 * M) * s);
   const dpr = Math.min(window.devicePixelRatio || 1, 3);
   cv.style.width = dw + "px"; cv.style.height = dh + "px"; cv.width = Math.round(dw * dpr); cv.height = Math.round(dh * dpr);
@@ -3965,7 +3995,7 @@ function lay3dReset(top, bot) {
 function lay3dReq() { if (!v3.raf) v3.raf = requestAnimationFrame(() => { v3.raf = 0; lay3dDraw(); }); }
 function lay3dDraw() {
   const gl = v3.gl; if (!gl || !lay.view3d) return;
-  const cv = $("lay3d"), vw = $("lay3dViewer"), w = Math.max(240, vw.clientWidth - 16), h = Math.round(Math.min(window.innerHeight * 0.72, w * 0.75)), dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const cv = $("lay3d"), vw = $("lay3dViewer"), w = Math.max(240, vw.clientWidth - 16), h = Math.round(platzH(vw, 16) || Math.min(window.innerHeight * 0.72, w * 0.75)), dpr = Math.min(window.devicePixelRatio || 1, 2);
   const W = Math.round(w * dpr), H = Math.round(h * dpr);
   cv.style.width = w + "px"; cv.style.height = h + "px"; if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
   const bg = css("--stage"), m = /^#([0-9a-f]{6})$/i.exec(bg), k = m ? [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16) / 255) : [0.17, 0.19, 0.18];
@@ -4152,7 +4182,11 @@ let segT = 0;
     clearTimeout(segT); segT = setTimeout(runSegment, id === "thr" ? 180 : 0);
   }));
 ["canvasMode", "exFill", "exMargin", "projName"].forEach(id => $(id).addEventListener("change", saveSettings));
-let rsT = 0; window.addEventListener("resize", () => { clearTimeout(rsT); rsT = setTimeout(() => { render(); layRender(); if (lay.view3d) lay3dDraw(); }, 120); });
+let rsT = 0; const neuMessen = () => { clearTimeout(rsT); rsT = setTimeout(() => { render(); layRender(); if (lay.view3d) lay3dDraw(); }, 120); };
+window.addEventListener("resize", neuMessen);
+// Aufbau wie Gridfinity: die Arbeitsfläche ändert ihre Höhe auch ohne neue
+// Fenstergrösse (Hinweis auf- und zuklappen, Schritt wechseln)
+if (window.ResizeObserver) { const ro = new ResizeObserver(neuMessen); ["viewer", "layViewer", "lay3dViewer"].forEach(id => $(id) && ro.observe($(id))); }
 function waehleTool(t) {
   st.edit.tool = t; if (t !== "points") st.edit.sel = null; if (t !== "grip") st.edit.gsel = null; st.edit.hover = null;
   if (t !== "area" && t !== "trace") st.edit.poly = null; else if (st.edit.poly) st.edit.poly.cut = t === "area" && $("areaMode").value === "cut";
