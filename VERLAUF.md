@@ -6,6 +6,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 ## 1.915.0 (27. November 2026)
 
 - Gridfinity Box: Leiste geht schräg bis auf den Boden (liegt auf wie der Scoop).
+
 ## 1.914.2 (27. November 2026)
 
 Prüfmittel suchen: Grenzlehrdorne der Verwaltung im Format „5.028 / 5.034“ werden erkannt; aus dem Soll wird ähnlich gesucht (Spiel 0.002 statt 0.001), auch Lehrringe und Rachenlehren. Steht nur „Grenzlehrdorn“ o. ä. als Hinweis, öffnet das Fenster auf Prüfmittel mit dem passenden Mittel vorgewählt; Checkliste und Ausbuchen finden es ebenso.
