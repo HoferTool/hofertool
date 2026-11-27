@@ -301,7 +301,7 @@ export function boxNetz(eingabe, einlage = null) {
       ziehen(w, prof.map(([v, z]) => [sv(v), z]), a0, a1);
     } else {
       // Beschriftungsleiste: oben flach zum Beschriften, darunter schräg bis
-      // auf den Boden (seit 1.915.0, Patrick: „Leiste so, dass sie wie der
+      // auf den Boden (seit 1.938.0, Patrick: „Leiste so, dass sie wie der
       // Scoop aufliegt“), steht damit fest und druckt ohne Stützen
       const tief = Math.min(12, hoehe - 1, platz(w) - 2);
       if (tief < 4 || a1 - a0 < 5) continue;

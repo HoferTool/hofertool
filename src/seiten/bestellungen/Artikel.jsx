@@ -3,10 +3,12 @@
 //  Suche fragt die Datenbank, kurz nachdem man aufgehört hat zu
 //  tippen. Filter nach Bezeichnung und Lieferant als Auswahllisten.
 // =================================================================
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { alt, useDaten, useVerzoegert, useSpeicherWert } from "../../bruecke.jsx";
 import { artikelZuweisenOeffnen } from "../../teile/Spezialwerkzeuge.jsx";
 import { spezialPdfsLaden } from "../../daten/spezialwerkzeuge.js";
+// 3D-Bild der realen Werkzeuge, erst beim Öffnen der Liste geladen (seit 1.937.0)
+const ArtikelModell = lazy(() => import("./ArtikelModell.jsx"));
 import { Leiste, NeuKnopf, Karte, Symbolknopf, Zeichen, Leer, Laedt, Fehler, Stern } from "./teile.jsx";
 
 // Alle Artikel zusammen, Spezialwerkzeuge mit Kennzeichen (seit 1.271.0,
@@ -108,6 +110,7 @@ function Liste({ liste, sucht, schreiben, behaelter, anzahl, gesamt, mehr, hocoJ
         {liste.map((a) => (
           <div key={a.id} className={"bs-tabelle__zeile bs-artikel" + (a.is_active === false ? " bs-inaktiv" : "")}>
             <div className="bs-artikel__nr">
+              <Suspense fallback={null}><ArtikelModell id={a.id} /></Suspense>
               <span className="bs-pos__nr">{a.article_number}</span>
               {a.is_active === false && <span className="bs-chip bs-chip--still">ausgeblendet</span>}
               {a.aehnlich && <span className="bs-aehnlich">ähnlich</span>}

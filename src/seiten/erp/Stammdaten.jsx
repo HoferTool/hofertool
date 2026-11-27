@@ -13,11 +13,12 @@ import { stundensatz } from "../../daten/kalkulation.js";
 import { artikelFensterOeffnen, neuerIndex } from "./ArtikelFenster.jsx";
 import { partnerFensterOeffnen } from "./PartnerFenster.jsx";
 import { umbuchenOeffnen, BewegungListe } from "./Bewegungen.jsx";
+import FormularDesigner from "./FormularDesigner.jsx";
 
 export const STAMM_REITER = [
   ["lieferant", "Lieferanten"], ["kunde", "Kunden"], ["artikel", "Artikel"], ["betriebsmittel", "Betriebsmittel"],
   ["liefer", "Lieferbedingungen"], ["zahlung", "Zahlungsbedingungen"],
-  ["lager", "Lager"], ["arbeitsplan", "Arbeitspläne"], ["nummern", "Nummernkreise"],
+  ["lager", "Lager"], ["arbeitsplan", "Arbeitspläne"], ["nummern", "Nummernkreise"], ["formulare", "Formulare"],
 ];
 
 const gemerkt = { reiter: "kunde", artArt: "hofer" };
@@ -38,6 +39,7 @@ export default function Stammdaten({ d, neu }) {
       {reiter === "lager" && <Lager d={d} neu={neu} />}
       {reiter === "arbeitsplan" && <Arbeitsplaene d={d} neu={neu} />}
       {reiter === "nummern" && <Nummernkreise d={d} neu={neu} />}
+      {reiter === "formulare" && <FormularDesigner />}
     </>
   );
 }

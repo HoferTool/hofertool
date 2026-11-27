@@ -90,8 +90,9 @@ with sync_playwright() as p:
     pruefe(band[0] == "4.06 EUR", "Angebot in EUR mit Kurs 1.07: %s" % band)
     pruefe(pg.input_value("#kalk-kurs") == "1.07", "Kurs eingetragen")
     pg.screenshot(path=BILD + "/kalk-preis.png", full_page=True)
-    with pg.expect_download() as dl:
+    with pg.expect_popup() as dl:
         pg.locator("[data-kalk-reiter='angebot']").click(); pg.click("#kalk-pdf")
+    dl.value.close()
     pruefe("4.06 EUR" in pg.locator("#kalk-vorschau").inner_text(), "Vorschau in EUR")
     pg.locator("[data-kalk-reiter='preis']").click(); pg.select_option("#kalk-waehrung", "CHF"); pg.wait_for_timeout(300)
     band = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()
@@ -152,9 +153,12 @@ with sync_playwright() as p:
     pruefe(len(gesp) == 3 and gesp[2]["lose"] == "4", "mit Speichern gespeichert mit eigenen Losen: %s" % gesp)
     pruefe("Gespeichert" in pg.inner_text("#kalk-stand"), "Stand nach Speichern")
 
-    with pg.expect_download() as dl:
+    # Seit 1.935.0 ein Druckblatt wie im Gewatec im eigenen Fenster
+    with pg.expect_popup() as dl:
         pg.locator("[data-kalk-reiter='angebot']").click(); pg.click("#kalk-pdf")
-    pruefe(dl.value.suggested_filename == "Angebot 20225174.pdf", "Angebot als PDF: %s" % dl.value.suggested_filename)
+    w = dl.value; w.wait_for_load_state()
+    pruefe(w.title() == "Angebot 20225174" and "Preis (exkl. MwSt.)" in w.inner_text("body"), "Angebot als Druckblatt: %s" % w.title())
+    w.close()
     pg.screenshot(path=BILD + "/kalk-angebot.png", full_page=True)
 
     # Escape: zurück zur Liste

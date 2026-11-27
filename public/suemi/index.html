@@ -366,7 +366,7 @@ button.zeile-verw{width:100%;text-align:left}
 .an-spaene{position:absolute;left:0;right:0;height:0}
 .an-staub{position:absolute;top:-2px;border-radius:50%;opacity:0;animation:staub .5s var(--t) cubic-bezier(.2,.7,.3,1) forwards}
 .an-staub.lang{border-radius:2px}
-.an-liegen{position:fixed;inset:0;z-index:57;pointer-events:none;overflow:hidden;transition:opacity 1.2s ease}
+.an-liegen{position:fixed;inset:0;z-index:57;pointer-events:none;overflow:hidden;transition:opacity .5s ease}
 .an-liegen.aus{opacity:0}
 .an-liegen i{position:absolute;opacity:0;animation:liegen var(--d) var(--t) cubic-bezier(.25,.6,.35,1) forwards}
 @keyframes liegen{0%{opacity:1;transform:translate(var(--sx),var(--sy)) rotate(0)}100%{opacity:.95;transform:translate(0,0) rotate(var(--r))}}
@@ -640,8 +640,8 @@ function saegen(el, fertig) {
       liegen.appendChild(p);
     }
     document.body.appendChild(liegen);
-    setTimeout(() => liegen.classList.add("aus"), 3200);
-    setTimeout(() => liegen.remove(), 4500);
+    setTimeout(() => liegen.classList.add("aus"), 1700);
+    setTimeout(() => liegen.remove(), 2300);
     const s = document.createElement("div"); s.className = "an-saege"; s.style.top = my + "px";
     s.innerHTML = `<div class="an-schnitt"></div><div class="an-blatt">${SAEGE_SVG}</div>`;
     document.body.appendChild(s);

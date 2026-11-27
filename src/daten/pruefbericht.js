@@ -220,6 +220,24 @@ export function toleranz(soll) {
 // als wär's von dir, und machst rot/grün“). Leeres Feld = Wert aus dem Soll.
 // z.tol (Text, nur 1.910.0) gilt weiter, falls vorhanden.
 const zahlOder = (v) => { const x = String(v ?? "").trim().replace(",", "."); return x === "" || isNaN(Number(x)) ? undefined : Number(x); };
+// Prüfmittel im Bericht kurz und mit Nr. (Patrick 27. November 2026: „soll mit Nr. dort stehen,
+// aber Grenzlehrdorn abkürzen, allgemein solche Begriffe abkürzen; Messuhr soll Messuhr digital
+// heissen, im Bericht, in der Verwaltung sein lassen“). Gespeichert bleibt der volle Text,
+// damit Checkliste und Ausbuchen die Lehren weiter erkennen; gekürzt wird nur beim Anzeigen.
+const KURZ = [
+  [/gewinde-?\s*lehr-?\s*dorn/gi, "GewLD"], [/gewinde-?\s*lehr-?\s*ring/gi, "GewLR"],
+  [/grenz-?\s*lehr-?\s*dorn/gi, "GLD"], [/grenz-?\s*rachen-?\s*lehre/gi, "GRL"],
+  [/lehr-?\s*dorn/gi, "LD"], [/lehr-?\s*ring/gi, "LR"], [/kontroll-?\s*ring/gi, "KR"],
+  [/bügel-?\s*messschraube/gi, "BMS"], [/innen-?\s*messschraube/gi, "IMS"],
+  [/\bmessuhr\b(?!\s*digital)/gi, "Messuhr digital"],
+];
+export function pmKurz(text) {
+  let t = String(text || "");
+  for (const [re, k] of KURZ) t = t.replace(re, k);
+  return t.replace(/\s+/g, " ").trim();
+}
+export const pmAnzeige = (z) => [z && z.pm_nr, pmKurz(z && z.pm)].filter(Boolean).join(" ");
+
 export function tolVon(z) {
   const h = String((z && z.tol) || "").trim();
   let auto = null;
@@ -496,19 +514,65 @@ export async function stammLaden(hoco) {
   return hoco ? (data || [])[0] || null : data || [];
 }
 
+// Kopf des Prüfberichts und Stammdaten der HOCO Nr. hängen zusammen (seit 1.938.0,
+// Patrick 27. November 2026: „die Sachen, die oben stehen, sollen so in Stammdaten
+// eingebaut werden; wenn dort was geändert wird, soll es mitändern, ausser Index,
+// dann soll es fragen, ob ein neuer Index entsteht“). Artikel, Zeichnung und Index
+// kommen aus hoco_parts; ein Index, den man im Prüfbericht bewusst anders liess
+// (index_eigen), bleibt. Allg. Toleranz steht nur im Prüfbericht-Kopf (pruef_stamm).
+async function teilAngaben(hoco) {
+  try {
+    const { data } = await alt.db.from("hoco_parts").select("bezeichnung, zeichnungs_nr, index_nr").eq("hoco_nr", hoco).maybeSingle();
+    return data || null;
+  } catch (_) { return null; }
+}
+export function kopfMitTeil(kopf, tp) {
+  const k = { ...(kopf || {}) };
+  if (!tp) return k;
+  if (tp.bezeichnung) k.bezeichnung = tp.bezeichnung;
+  if (tp.zeichnungs_nr) k.zeichnung = tp.zeichnungs_nr;
+  if (tp.index_nr && !k.index_eigen) k.index = tp.index_nr;
+  return k;
+}
+// Beim Speichern im Prüfbericht: Artikel und Zeichnung gehen in die Stammdaten,
+// ein anderer Index nur nach Rückfrage. Gibt den Kopf zum Speichern zurück.
+export async function kopfInStammdaten(hoco, kopf) {
+  const k = { ...(kopf || {}) };
+  const tp = await teilAngaben(hoco);
+  if (!tp || !alt.darfSchreiben() || alt.istExtern()) return k;
+  const neu = {};
+  const bez = String(k.bezeichnung || "").trim(), zei = String(k.zeichnung || "").trim(), idx = String(k.index || "").trim();
+  if (bez && bez !== (tp.bezeichnung || "")) neu.bezeichnung = bez;
+  if (zei && zei !== (tp.zeichnungs_nr || "")) neu.zeichnungs_nr = zei;
+  if (idx && idx !== (tp.index_nr || "")) {
+    const ja = await alt.nachfragen({ titel: "Neuer Index?",
+      text: "Im Prüfbericht steht Index " + idx + ", in den Stammdaten von " + hoco + " " + (tp.index_nr ? "Index " + tp.index_nr : "noch keiner") + ". Entsteht damit ein neuer Index?",
+      bestaetigen: "Ja, neuer Index " + idx, abbrechen: "Nein, nur im Prüfbericht" });
+    if (ja) { neu.index_nr = idx; delete k.index_eigen; } else k.index_eigen = true;
+  } else if (idx === (tp.index_nr || "")) delete k.index_eigen;
+  if (!Object.keys(neu).length) return k;
+  const vorher = {};
+  for (const f of Object.keys(neu)) vorher[f] = tp[f] ?? null;
+  const { error } = await alt.db.from("hoco_parts").update(neu).eq("hoco_nr", hoco);
+  if (error) { alt.meldung("Stammdaten nicht nachgeführt: " + (error.message || error), "warn"); return k; }
+  alt.merkeSchritt("Stammdaten " + hoco + " aus dem Prüfbericht", [alt.rueckSetz("hoco_parts", vorher, { hoco_nr: hoco })]);
+  return k;
+}
+
 // Stamm einer HOCO Nr. mit Masse: gespeicherte, sonst still aus den
 // früher abgelegten Excel-Vorlagen (Ordner oder von Hand vor 1.779.0)
 export async function stammMitMassen(hoco) {
-  const st = await stammLaden(hoco).catch((f) => { if (fehltTabelle(f)) return null; throw f; });
+  const [st0, tp] = await Promise.all([stammLaden(hoco).catch((f) => { if (fehltTabelle(f)) return null; throw f; }), teilAngaben(hoco)]);
+  const st = st0 ? { ...st0, kopf: kopfMitTeil(st0.kopf, tp) } : st0;
   // gespeicherte Masse mit Fehlern des alten Tools (Tilden, ú…û) beim Laden bereinigen
   const sauber = (z) => (z && typeof z.soll === "string" && /~|⌀/.test(z.soll) ? { ...z, soll: symbolUmwandeln(z.soll) } : z);
   if (st && (st.zeilen || []).length) return { ...st, zeilen: nachProdAbsaetze(st.zeilen.map(sauber)), aus: "stamm" };
   const dateien = await dateienLaden(hoco).catch(() => []);
-  if (!dateien.length) return st ? { ...st, aus: "stamm" } : null;
+  if (!dateien.length) return st ? { ...st, aus: "stamm" } : tp ? { hoco_nr: hoco, arten: [], aql: null, niveau: null, zeilen: [], kopf: kopfMitTeil({}, tp), aus: "neu" } : null;
   try {
     const v = await vorlageLaden(dateien);
     return { hoco_nr: hoco, arten: (st && st.arten) || [], aql: st && st.aql, niveau: st && st.niveau,
-      zeilen: v.zeilen, kopf: { ...(v.kopf || {}), ...((st && st.kopf) || {}) }, aus: "excel" };
+      zeilen: v.zeilen, kopf: kopfMitTeil({ ...(v.kopf || {}), ...((st0 && st0.kopf) || {}) }, tp), aus: "excel" };
   } catch (_) { return st ? { ...st, aus: "stamm" } : null; }
 }
 

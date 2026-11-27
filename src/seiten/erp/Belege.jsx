@@ -8,7 +8,8 @@
 import { useState, useRef, useEffect } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
-import { Feld, Tabelle, Suche, passt, tun, formular, belegDrucken, abDrucken, lsDrucken, LagerEingabe, lagerStart, lagerAus, ohneSuche, sucheLeer } from "./teile.jsx";
+import { BESTELLARTEN } from "./formulare.js";
+import { Feld, Tabelle, Suche, passt, tun, formular, belegDrucken, abDrucken, lsDrucken, reDrucken, beDrucken, LagerEingabe, lagerStart, lagerAus, ohneSuche, sucheLeer } from "./teile.jsx";
 import {
   allesLaden, einfuegen, aendern, loeschen, naechsteBelegNr, BELEGTYP, MWST, zahl, chf, mengeText, artikelText,
   partnerText, datumText, terminText, bestand, buchen, gebucht, folgePositionen, belegSumme, chargeVerfolgen, fibuText,
@@ -307,9 +308,11 @@ function BelegFenster({ start, id, vorlage, aussen, zu }) {
     </>;
   const fuss = <>
     {b && !bearbeiten && <button className="knopf knopf--gefahr" onClick={belegLoeschen}>Löschen</button>}
-    {b && !bearbeiten && <button className="knopf" data-erp-drucken="" onClick={() => (b.typ === "lieferschein" ? lsDrucken(d, b) : belegDrucken(d, b))}>Drucken</button>}
-    {b && !bearbeiten && typ === "auftrag" && b.status !== "storniert" &&
-      <button className="knopf" data-erp-ab-drucken="" onClick={() => abDrucken(d, b)}>Auftragsbestätigung</button>}
+    {b && !bearbeiten && <button className="knopf" data-erp-drucken="" data-erp-ab-drucken={b.typ === "auftrag" ? "" : undefined} onClick={() => (b.typ === "lieferschein" ? lsDrucken(d, b)
+      : b.typ === "rechnung" || b.typ === "gutschrift" || b.typ === "proforma" ? reDrucken(d, b)
+        : b.typ === "bestellung" ? beDrucken(d, b)
+          // Beim Auftrag druckt „Drucken“ die Auftragsbestätigung wie im Gewatec (1.935.3)
+          : b.typ === "auftrag" ? abDrucken(d, b) : belegDrucken(d, b))}>Drucken</button>}
     <span className="gf-fuss__luecke" />
     {geaendert && <span className="klein gf-geaendert">nicht gespeichert</span>}
     <button className="knopf knopf--still" data-nein="" onClick={bearbeiten ? abbrechen : zu}>{bearbeiten && b ? "Abbrechen" : "Beenden"}</button>
@@ -367,6 +370,8 @@ function KopfFelder({ d, kopf, setKopf, setDaten, teil }) {
     <KF label="Datum" typ="datum" name="datum" wert={kopf.datum} setzen={setK("datum")} />
     {(typ === "auftrag" || typ === "bestellung") && <KF label="Art" name="art" wert={kopf.art} setzen={setK("art")}
       auswahl={[["einzel", "Einzelauftrag"], ["rahmen", "Rahmenauftrag (Lieferplan)"]]} />}
+    {typ === "bestellung" && <KF label="Bestellart" name="bestellart" wert={kopf.daten.bestellart || ""} setzen={(w) => setDaten("bestellart", w)}
+      auswahl={[["", "— von selbst —"]].concat(BESTELLARTEN)} />}
     <KF label="Status" name="status" wert={kopf.status} setzen={setK("status")} auswahl={[["offen", "offen"], ["abgeschlossen", "abgeschlossen"], ["storniert", "storniert"]]} />
     <KF label={typ === "bestellung" ? "AB Lieferant" : "Ihre Bestellung"} name="ihre_nr" wert={kopf.daten.ihre_nr} setzen={(w) => setDaten("ihre_nr", w)} />
     {typ === "auftrag" && <KF label="Bestelldatum" name="ihre_datum" typ="datum" wert={kopf.daten.ihre_datum} setzen={(w) => setDaten("ihre_datum", w)} />}
@@ -431,6 +436,7 @@ function KopfAnsicht({ d, b }) {
     [BELEGTYP[b.typ].partner === "lieferant" ? "Lieferant" : "Kunde", partnerText(p)],
     ["Datum", datumText(b.datum)],
     bez && ["Aus", BELEGTYP[bez.typ].name + " " + bez.nr],
+    b.typ === "bestellung" && bd.bestellart && ["Bestellart", (BESTELLARTEN.find((x) => x[0] === bd.bestellart) || [])[1] || bd.bestellart],
     bd.ihre_nr && [b.typ === "bestellung" ? "AB Lieferant" : "Ihre Bestellung", bd.ihre_nr],
     bd.ihre_datum && ["Bestelldatum", datumText(bd.ihre_datum)],
     bd.zeichen && ["Ihr Zeichen", bd.zeichen],
@@ -593,6 +599,8 @@ function Positionen({ d, kopf, pos, setPos, bearbeiten, b, aussen, frisch, start
                 onClick={() => setPos((l) => l.filter((_, j) => j !== i))}>✕</button>
             </div>
             <Feld f={{ name: "text", label: "Text (ohne Artikel: freie Position)", breit: true }} wert={p.text} setzen={(w) => setzen(i, "text", w)} />
+            {typ === "bestellung" && <Feld f={{ name: "vorschrift", label: "Bearbeitungsvorschrift", typ: "textarea", breit: true }}
+              wert={p.daten.vorschrift || ""} setzen={(w) => setzen(i, "daten", { ...p.daten, vorschrift: w })} />}
             {(rahmen || (p.daten.abrufe || []).length > 0) && <div className="erp-feld--breit"><div className="lp-legende">Lieferplan</div>
               <LieferplanAnsicht d={d} aussen={aussen} p={p}
                 zeilen={(p.daten.abrufe || []).map((x) => ({ ...x, kw: x.kw || (x.termin ? kwText(x.termin) : ""), menge: x.menge ?? "" }))}

@@ -2,9 +2,51 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
-## 1.934.1 (27. November 2026)
+## 1.940.1 (27. November 2026)
 
 - Test ERP: Lieferplan zeigt bei Abruf nur noch „auf Abruf“ ohne „(bis …)“-Text; Häkchen weg lässt das Datum leer zum Eintragen.
+
+## 1.940.0 (27. November 2026)
+
+QS: Knopf „✓ alt“ heisst „Skip“: von Hand ohne System geprüft, der Ablauf geht weiter (Erstteil → läuft → Zwischenkontrolle; Skip der Zwischenkontrolle lässt die Endkontrolle offen).
+
+## 1.939.0 (27. November 2026)
+
+QS: Lehren, die im Masse-Blatt nur als Text stehen, werden beim Öffnen automatisch mit dem passenden aktiven Mittel der Verwaltung verbunden. Prüfmittel erscheinen im Bericht mit Nr. und abgekürzt (GLD, LD, LR, GewLD, GewLR, GRL, KR, BMS, IMS), Messuhr heisst im Bericht „Messuhr digital“; gespeichert bleibt der volle Text (pm_nr neu).
+
+## 1.938.0 (27. November 2026)
+
+QS: Vorlage (Masse-Blatt) sieht aus wie das Prüfprotokoll beim Ausfüllen (Kopfraster bearbeitbar, Teil 1–5 und Fuss grau, Min/Max unter dem Soll, Zeilenknöpfe rechts neben dem Blatt). Stammdaten zeigen Artikel, Zeichnung und Allg. Toleranz; der Prüfbericht liest Artikel, Zeichnung, Index aus den Stammdaten und schreibt Änderungen zurück, ein anderer Index nur nach Rückfrage (sonst index_eigen).
+
+## 1.937.0 (27. November 2026)
+- Bestellungen → Artikel: vor der Artikelnummer das kleine 3D-Bild des realen Werkzeugs aus „📚 Reale Werkzeuge“ (HOFERCAM), Maus darüber dreht es, Antippen öffnet es gross zum Drehen und Messen. Nur bei erkannten oder von Hand ergänzten Werkzeugen, nachgeladen (`bestellungen/ArtikelModell.jsx`). Wunsch Patrick.
+
+## 1.936.0 (27. November 2026)
+- Test ERP, Stammdaten → **Formulare**: Designer für die Druckformulare (Rechnung, Lieferschein, AB, Bestellung, Angebot). Feste Texte (Ursprungserklärung, Ort/Datum/Name, Firmenzeile, Lieferschein-Einleitung, „Ware erhalten“, Bestell-Hinweise, Lieferadresse, Materialzertifikat, Schlusstext, Gruss) ändern oder ausschalten, Platzhalter {nr} {datum} {name} {kunde}, Schriftgrösse 8–12 pt, Strichcode und Bankverbindung ein/aus, Vorschau mit Beispieldaten. Gespeichert in `app_config.formulare` (nur Admin). Prüfstand `formulare_gewatec.py` erweitert.
+
+## 1.935.5 (27. November 2026)
+
+- Druckformulare: Die Ursprungserklärung der Rechnung („Der Ausführer der Waren …“ mit Ort, Datum und Name) steht jetzt auch auf Lieferschein und Auftragsbestätigung; der kurze Satz „In der Schweiz ausreichend bearbeitet …“ fällt weg.
+
+## 1.935.4 (27. November 2026)
+
+- Druckformulare: Liefer-, Versand- und Zahlungsbedingung kommen, wenn sie im Beleg leer sind, aus dem Ursprungsbeleg (Auftrag) oder vom Kunden; beim Lieferschein Gewicht, Verpackungskosten und Porto auch aus den Gewatec-Daten.
+
+## 1.935.3 (27. November 2026)
+
+- Test ERP: „Drucken“ im Auftrag druckt die Auftragsbestätigung im Gewatec-Aufbau (der eigene Knopf „Auftragsbestätigung“ fällt weg).
+
+## 1.935.2 (27. November 2026)
+
+- Pausenraum: Ein offenes Spiel geht nicht mehr nach 2 Minuten von selbst zu; Bildschirmschoner und Neuladen bei neuer Fassung warten, bis man es mit „Schliessen“ beendet.
+
+## 1.935.1 (27. November 2026)
+
+- Druckformulare: Druckfenster geht sofort beim Klick auf; ein Fehler beim Erstellen steht im Fenster und als Meldung, statt dass nichts passiert.
+
+## 1.935.0 (27. November 2026)
+
+- Test ERP: Rechnung, Lieferschein, Auftragsbestätigung, Bestellung (vier Arten: Rohmaterial, ZA extern, Auftrag / Lieferschein, Lieferschein zu Bestellung) und Angebot aus der Kalkulation drucken genau im Aufbau der Gewatec-Formulare (`src/seiten/erp/formulare.js`). Neu: Feld „Bestellart“ und Bearbeitungsvorschrift je Bestellposition; Verpackung und Porto der Lieferscheine zählen in die Rechnungssumme. Test `pruefstand/formulare_gewatec.py`.
 
 ## 1.934.0 (27. November 2026)
 
