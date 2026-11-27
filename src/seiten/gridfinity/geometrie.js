@@ -127,7 +127,54 @@ const magnetPunkte = (cx, cy) => [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b
 // =================================================================
 //  BOX
 // =================================================================
-export const BOX_VORGABE = { nx: 2, ny: 1, u: 3, wand: 1.2, boden: 1.2, fx: 2, fy: 1, rand: true, magnete: false, magD: 6.5, magH: 2.4, mulde: true };
+export const BOX_VORGABE = { nx: 2, ny: 1, u: 3, wand: 1.2, boden: 1.2, fx: 2, fy: 1, rand: true, magnete: false, magD: 6.5, magH: 2.4 };
+
+// Fächer-Elemente frei (seit 1.907.0, Patrick: „Wände für die Fächer wie
+// bei Gridfinity mit Drag and Drop“, Bild mit „Hinzufügen: Wand, Leiste,
+// Scoop“): jedes Element { typ: "wand" | "leiste" | "scoop", a, p, von,
+// bis, s }. a "x" = an fester x-Stelle (läuft nach hinten), a "y" = an
+// fester y-Stelle (läuft quer). p, von, bis als Anteil 0..1 der Innenmasse,
+// damit die Aufteilung beim Ändern der Boxgrösse mitwächst. s (+1/−1) ist
+// die Seite, auf der Leiste oder Scoop an ihrer Linie hängt.
+export function elementeRaster(fx, fy, scoop = true) {
+  const w = [];
+  for (let k = 1; k < fx; k++) w.push({ typ: "wand", a: "x", p: k / fx, von: 0, bis: 1, s: 1 });
+  for (let k = 1; k < fy; k++) w.push({ typ: "wand", a: "y", p: k / fy, von: 0, bis: 1, s: 1 });
+  if (scoop) for (let k = 0; k < fy; k++) w.push({ typ: "scoop", a: "y", p: k / fy, von: 0, bis: 1, s: 1 });
+  return w;
+}
+function elementePruefen(liste, fx, fy) {
+  if (!Array.isArray(liste)) return elementeRaster(fx, fy);
+  const z = (v, a, b) => Math.min(b, Math.max(a, Number(v) || 0));
+  return liste.slice(0, 80).filter((w) => w && (w.a === "x" || w.a === "y")).map((w) => {
+    const typ = ["wand", "leiste", "scoop"].includes(w.typ) ? w.typ : "wand";
+    let von = z(w.von, 0, 1), bis = z(w.bis, 0, 1);
+    if (von > bis) [von, bis] = [bis, von];
+    if (bis - von < 0.02) { bis = Math.min(1, von + 0.02); von = bis - 0.02; }
+    // Wände nur innen, Leiste und Scoop dürfen an der Aussenwand hängen
+    const p = typ === "wand" ? z(w.p, 0.005, 0.995) : z(w.p, 0, 1);
+    return { typ, a: w.a, p, von, bis, s: w.s < 0 ? -1 : 1 };
+  });
+}
+
+// Wo die Elemente in der Box liegen (für Anklicken und Ziehen in der
+// Vorschau): Innenmasse und je Element ein Kasten in mm, Boxmitte = 0,
+// Boden der Füsse = 0
+export function elementeLage(eingabe) {
+  const b = boxPruefen(eingabe);
+  const { W, D, H } = boxMasse(b);
+  const t = b.wand, tw = Math.max(0.8, t), iw = W - 2 * t, id = D - 2 * t;
+  const boden = Math.min(GF.fussH + b.boden, H - 1), oben = b.rand ? H - 1 : H;
+  const teile = b.elemente.map((w) => {
+    const L = w.a === "x" ? id : iw, Q = w.a === "x" ? iw : id;
+    const q = -Q / 2 + w.p * Q, u0 = -L / 2 + w.von * L, u1 = -L / 2 + w.bis * L;
+    const breit = w.typ === "wand" ? tw / 2 : w.typ === "scoop" ? Math.min(20, (oben - boden) * 0.6) : 12;
+    const v0 = w.typ === "wand" ? q - breit : w.s > 0 ? q : q - breit, v1 = w.typ === "wand" ? q + breit : w.s > 0 ? q + breit : q;
+    const z0 = w.typ === "leiste" ? oben - 12 : boden, z1 = w.typ === "scoop" ? boden + breit : oben;
+    return w.a === "x" ? { a: w.a, x0: v0, x1: v1, y0: u0, y1: u1, z0, z1 } : { a: w.a, x0: u0, x1: u1, y0: v0, y1: v1, z0, z1 };
+  });
+  return { iw, id, tw, boden, oben, teile, elemente: b.elemente };
+}
 
 export function boxPruefen(b) {
   const z = (v, min, max, std) => { v = Number(v); return Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : std; };
@@ -135,7 +182,8 @@ export function boxPruefen(b) {
     nx: Math.round(z(b.nx, 1, 10, 2)), ny: Math.round(z(b.ny, 1, 10, 1)), u: Math.round(z(b.u, 1, 30, 3)),
     wand: z(b.wand, 0.8, 3, 1.2), boden: z(b.boden, 0.6, 5, 1.2),
     fx: Math.round(z(b.fx, 1, 20, 1)), fy: Math.round(z(b.fy, 1, 20, 1)),
-    rand: !!b.rand, magnete: !!b.magnete, magD: z(b.magD, 3, 7, 6.5), magH: z(b.magH, 1, 4, 2.4), mulde: b.mulde !== false,
+    rand: !!b.rand, magnete: !!b.magnete, magD: z(b.magD, 3, 7, 6.5), magH: z(b.magH, 1, 4, 2.4),
+    elemente: elementePruefen(b.elemente, Math.round(z(b.fx, 1, 20, 1)), Math.round(z(b.fy, 1, 20, 1))),
   };
 }
 
@@ -176,43 +224,76 @@ export function boxNetz(eingabe) {
   deckel(n, becher[0], [], false);
   deckel(n, becher[3], [], true);
 
-  // Fächer: Trennwände von Wand zu Wand (ragen 0.1 mm in die Wand)
+  // Elemente in örtlichen Koordinaten (u längs, v quer zur Linie, z):
+  // a "y": x = u, y = v; a "x": x = v, y = u (spiegelt, darum Dreiecke
+  // umdrehen); Seite s = −1 spiegelt v nochmals.
   const iw = W - 2 * t, id = D - 2 * t, tw = Math.max(0.8, t);
-  for (let k = 1; k < b.fx; k++) {
-    const x = -iw / 2 + (k * iw) / b.fx;
-    quader(n, x - tw / 2, -id / 2 - 0.1, boden - 0.1, x + tw / 2, id / 2 + 0.1, oben);
+  const hoehe = oben - boden;
+  const lage = (w) => {
+    const L = w.a === "x" ? id : iw, Q = w.a === "x" ? iw : id;
+    // ein Ende am Rand ragt 0.1 mm in die Aussenwand, eines im Innern um
+    // eine halbe Wanddicke weiter (trifft die Querwand ganz)
+    const ende = (u) => (u <= 0.001 || u >= 0.999 ? 0.1 : tw / 2);
+    const q = -Q / 2 + w.p * Q;
+    const innen = w.p > 0.001 && w.p < 0.999;
+    return {
+      L, Q, q, innen,
+      a0: -L / 2 + w.von * L - ende(w.von), a1: -L / 2 + w.bis * L + ende(w.bis),
+      // Fläche, an der Leiste oder Scoop hängt
+      // innen: an der Wandfläche (0.05 hinein); aussen: 0.1 in die Aussenwand
+      v0: innen ? q + w.s * (tw / 2 - 0.05) : q - w.s * 0.1,
+    };
+  };
+  const zuXY = (w, u, v, z) => (w.a === "y" ? [u, v, z] : [v, u, z]);
+  // Profil (v, z) im Gegenuhrzeigersinn für Seite +1, entlang u gezogen
+  const ziehen = (w, prof, u0, u1) => {
+    const kehr = (w.a === "x") !== (w.s < 0);
+    const d3 = (A, B, C) => (kehr ? dreieck(n, A, C, B) : dreieck(n, A, B, C));
+    const a = prof.map(([v, z]) => zuXY(w, u0, v, z)), e = prof.map(([v, z]) => zuXY(w, u1, v, z)), m = prof.length;
+    for (let i = 0; i < m; i++) {
+      const j = (i + 1) % m;
+      d3(a[i], a[j], e[j]); d3(a[i], e[j], e[i]);
+    }
+    // Stirnseiten als Fächer vom ersten Punkt aus (Fläche ist von dort ganz sichtbar)
+    for (let i = 1; i < m - 1; i++) { d3(a[0], a[i + 1], a[i]); d3(e[0], e[i], e[i + 1]); }
+  };
+  // freier Platz vor der Linie (bis zur nächsten parallelen Wand)
+  const platz = (w) => {
+    const { Q } = lage(w);
+    const gegen = b.elemente.filter((o) => o.typ === "wand" && o.a === w.a && o.von < w.bis - 0.01 && o.bis > w.von + 0.01
+      && (w.s > 0 ? o.p > w.p + 0.001 : o.p < w.p - 0.001)).map((o) => Math.abs(o.p - w.p));
+    return Math.min(w.s > 0 ? 1 - w.p : w.p, ...gegen) * Q - (lage(w).innen ? tw / 2 : 0) - tw / 2;
+  };
+  // Gleiche Elemente an gleicher Stelle (z. B. Wand auf Wand gezogen)
+  // zu einem zusammenfassen, sonst liegen Flächen doppelt aufeinander
+  const zusammen = [];
+  for (const w of b.elemente) {
+    const g = zusammen.find((o) => o.typ === w.typ && o.a === w.a && o.s === w.s && Math.abs(o.p - w.p) < 1e-4 && o.von <= w.bis && w.von <= o.bis);
+    if (g) { g.von = Math.min(g.von, w.von); g.bis = Math.max(g.bis, w.bis); } else zusammen.push({ ...w });
   }
-  for (let k = 1; k < b.fy; k++) {
-    const y = -id / 2 + (k * id) / b.fy;
-    quader(n, -iw / 2 - 0.1, y - tw / 2, boden - 0.1, iw / 2 + 0.1, y + tw / 2, oben);
-  }
-
-  // Griffmulde wie bei Gridfinity („scoop“, seit 1.906.0, Patrick:
-  // „orientiere dich bei den Fächern an den Gridfinity-Funktionen“; die
-  // Beschriftungsleiste ist auf seinen Wunsch weg): vorne in jeder
-  // Fächerreihe eine Hohlkehle vom Boden zur Wand, damit man Kleinteile
-  // herausschieben kann. Viertelkreis-Profil, entlang x gezogen.
-  if (b.mulde) {
-    const reiheT = id / b.fy - tw;
-    const r = Math.min(20, (oben - boden) * 0.6, reiheT / 2);
-    if (r >= 3) for (let k = 0; k < b.fy; k++) {
-      const yf = -id / 2 + (k * id) / b.fy + (k > 0 ? tw / 2 - 0.05 : -0.1), zf = boden - 0.1;
-      // Profil in (y, z) im Gegenuhrzeigersinn: Ecke, Boden, Bogen, Wand
-      const prof = [[yf, zf], [yf + r + 0.1, zf]];
-      const st = 12;
+  for (const w of zusammen) {
+    const { q, a0, a1, v0 } = lage(w);
+    const sv = (v) => v0 + w.s * v;   // v ab der Fläche in Richtung s
+    if (w.typ === "wand") {
+      if (w.a === "x") quader(n, q - tw / 2, a0, boden - 0.1, q + tw / 2, a1, oben);
+      else quader(n, a0, q - tw / 2, boden - 0.1, a1, q + tw / 2, oben);
+    } else if (w.typ === "scoop") {
+      // Griffmulde (Gridfinity „scoop“): Hohlkehle vom Boden zur Wand
+      const r = Math.min(20, hoehe * 0.6, platz(w) / 2);
+      if (r < 3 || a1 - a0 < 5) continue;
+      const zf = boden - 0.1, st = 12;
+      const prof = [[0, zf], [r + 0.1, zf]];
       for (let i = 0; i <= st; i++) {
-        const w = (i / st) * Math.PI / 2;   // von unten (Boden) zur Wand
-        prof.push([yf + 0.1 + r - r * Math.sin(w), zf + 0.1 + r - r * Math.cos(w)]);
+        const g = (i / st) * Math.PI / 2;
+        prof.push([0.1 + r - r * Math.sin(g), zf + 0.1 + r - r * Math.cos(g)]);
       }
-      prof.push([yf, zf + r + 0.1]);
-      const ring = (x) => prof.map(([y, z]) => [x, y, z]);
-      const a = ring(-iw / 2 - 0.1), e = ring(iw / 2 + 0.1), m = prof.length;
-      for (let i = 0; i < m; i++) {
-        const j = (i + 1) % m;
-        dreieck(n, a[i], a[j], e[j]); dreieck(n, a[i], e[j], e[i]);
-      }
-      // Stirnseiten als Fächer von der Ecke aus (Fläche ist von dort ganz sichtbar)
-      for (let i = 1; i < m - 1; i++) { dreieck(n, a[0], a[i + 1], a[i]); dreieck(n, e[0], e[i], e[i + 1]); }
+      prof.push([0, zf + r + 0.1]);
+      ziehen(w, prof.map(([v, z]) => [sv(v), z]), a0, a1);
+    } else {
+      // Beschriftungsleiste: Dreieck oben an der Wand, unten 45°, druckt ohne Stützen
+      const tief = Math.min(12, hoehe - 1, platz(w) - 2);
+      if (tief < 4 || a1 - a0 < 5) continue;
+      ziehen(w, [[0, oben], [0, oben - tief], [tief, oben]].map(([v, z]) => [sv(v), z]), a0, a1);
     }
   }
 

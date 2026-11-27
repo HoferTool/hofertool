@@ -103,14 +103,45 @@ with sync_playwright() as p:
     # Fächer wie bei Gridfinity (1.906.0): ein Fach je Feld, Griffmulde, keine Beschriftungsleiste
     pruefe(pg.locator("[data-gf='leiste']").count() == 0, "Beschriftungsleiste ist weg")
     pg.click("[data-gf-jefeld]"); pg.wait_for_timeout(400)
-    pruefe(pg.input_value("[data-gf='fx']") == pg.input_value("[data-gf='nx']") and pg.input_value("[data-gf='fy']") == pg.input_value("[data-gf='ny']"), "Ein Fach je Feld: " + pg.input_value("[data-gf='fx']") + pg.input_value("[data-gf='fy']") + pg.input_value("[data-gf='nx']") + pg.input_value("[data-gf='ny']"))
+    pruefe(pg.input_value("[data-gf='fx']") == pg.input_value("[data-gf='nx']") and pg.input_value("[data-gf='fy']") == pg.input_value("[data-gf='ny']"), "Ein Fach je Feld")
     name, v, tri = lade_stl(pg)
     mit = volumen(v, tri)
-    pruefe(kanten_geschlossen(tri) == 0 and mit > 0, "Fächer mit Griffmulde geschlossen")
-    pg.click("[data-gf='mulde']"); pg.wait_for_timeout(400)
+    pruefe(kanten_geschlossen(tri) == 0 and mit > 0, "Fächer mit Scoop geschlossen")
+    # Elemente (1.907.0): Hinzufügen Wand, Leiste, Scoop; anklicken und ziehen in der Vorschau
+    vorher = pg.locator("[data-gf-element]").count()
+    for t in ("wand", "leiste", "scoop"):
+        pg.click("[data-gf-hinzu-knopf]"); pg.click("[data-gf-hinzu='%s']" % t); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-gf-element]").count() == vorher + 3, "drei Elemente hinzugefügt")
     name, v, tri = lade_stl(pg)
-    pruefe(volumen(v, tri) < mit - 500, "Griffmulde bringt Material vorne (%.0f gegen %.0f mm³)" % (mit, volumen(v, tri)))
-    pg.click("[data-gf='mulde']")
+    pruefe(kanten_geschlossen(tri) == 0 and volumen(v, tri) > mit, "Box mit neuen Elementen geschlossen")
+    # neue Wand wählen, in der Vorschau eine Stelle mit Griff suchen und ziehen
+    wand = vorher
+    pg.click("[data-gf-element='%d']" % wand); pg.wait_for_timeout(300)
+    text0 = pg.inner_text("[data-gf-element='%d']" % wand)
+    kasten = pg.locator("[data-gf-3d] canvas").bounding_box(); stelle = None
+    for yy in range(20, 90, 4):
+        for xx in range(20, 90, 3):
+            x = kasten["x"] + kasten["width"] * xx / 100; y = kasten["y"] + kasten["height"] * yy / 100
+            pg.mouse.move(x, y)
+            if pg.evaluate("() => document.querySelector('[data-gf-3d] canvas').style.cursor") == "grab":
+                stelle = (x, y); break
+        if stelle: break
+    pruefe(stelle is not None, "Element in der Vorschau greifbar")
+    if stelle:
+        pg.mouse.down(); pg.wait_for_timeout(200)
+        text0 = pg.inner_text("[data-gf-element].aktiv"); nr = pg.get_attribute("[data-gf-element].aktiv", "data-gf-element")
+        pg.mouse.move(stelle[0] + 70, stelle[1] - 50, steps=8); pg.mouse.up(); pg.wait_for_timeout(400)
+        text1 = pg.inner_text("[data-gf-element='%s']" % nr)
+        pruefe(text1 != text0, "Ziehen verschiebt das Element: %s → %s" % (text0.replace("\n", " "), text1.replace("\n", " ")))
+        pg.keyboard.press("Control+z"); pg.wait_for_timeout(300)
+        pruefe(pg.inner_text("[data-gf-element='%s']" % nr) == text0, "Strg + Z nimmt das Ziehen zurück")
+    pg.click("[data-gf-element='%d']" % wand)
+    pg.click("[data-gf-drehen]"); pg.wait_for_timeout(300)
+    pruefe("quer" in pg.inner_text("[data-gf-element='%d']" % wand), "Drehen macht die Wand quer")
+    pg.click("[data-gf-loeschen]"); pg.wait_for_timeout(300)
+    pg.locator(".dialog-huelle button:has-text('Löschen')").click(); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-gf-element]").count() == vorher + 2, "Löschen nach einer Nachfrage")
+    pg.screenshot(path=BILD + "/gf-elemente.png")
 
     pruefe(pg.locator("[data-gf-export='stl'], [data-gf-export='3mf']").count() == 0, "nur noch ein Knopf STL")
 
