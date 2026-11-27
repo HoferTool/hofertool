@@ -427,37 +427,124 @@ export function platteNetz(eingabe) {
 //  Tiefe der Schublade, vorne und hinten zwischen diesen. Länger als
 //  DRUCK_MAX wird in gleiche Stücke geteilt. Schmaler als 1 mm fällt weg.
 // =================================================================
-const DRUCK_MAX = 240;
+// Seit 1.902.0 einzelne Klötze statt langer Leisten (Patrick: „die
+// Distanzhalter wird man so nicht drucken können, mach einzelne Elemente“):
+// je Randfeld ein Klotz, 40 mm lang, mittig zum Feld, jeder ein eigenes Teil.
+const KLOTZ_L = 40;
 export function distanzTeile(eingabe) {
   const p = plattePruefen(eingabe);
   const m = platteMasse(p);
   if (p.art !== "schublade" || !p.distanz) return [];
   const t = [];
-  const teilen = (lang) => { const k = Math.max(1, Math.ceil(lang / DRUCK_MAX)); return Array.from({ length: k }, (_, i) => [i * lang / k, (i + 1) * lang / k]); };
-  // 0.2 mm Luft zwischen Leiste und Platte, damit alles leicht hineingeht
-  const gx = m.gx - 0.2, gy = m.gy - 0.2;
-  if (gx >= 1) for (const sx of [-1, 1]) for (const [a, b] of teilen(m.innenT)) {
-    const x0 = sx < 0 ? -m.innenB / 2 : m.innenB / 2 - gx;
-    t.push({ x0, x1: x0 + gx, y0: -m.innenT / 2 + a, y1: -m.innenT / 2 + b, lang: b - a, breit: gx });
+  // 0.2 mm Luft zwischen Klotz und Platte, damit alles leicht hineingeht
+  const gx = m.gx - 0.2, gy = m.gy - 0.2, h = KLOTZ_L / 2;
+  if (gx >= 1) for (const sx of [-1, 1]) for (let j = 0; j < m.ny; j++) {
+    const x0 = sx < 0 ? -m.innenB / 2 : m.innenB / 2 - gx, yc = (j - (m.ny - 1) / 2) * GF.raster;
+    t.push({ x0, x1: x0 + gx, y0: yc - h, y1: yc + h, lang: KLOTZ_L, breit: gx });
   }
-  const links = gx >= 1 ? -m.innenB / 2 + gx : -m.innenB / 2, rechts = -links;
-  if (gy >= 1) for (const sy of [-1, 1]) for (const [a, b] of teilen(rechts - links)) {
-    const y0 = sy < 0 ? -m.innenT / 2 : m.innenT / 2 - gy;
-    t.push({ x0: links + a, x1: links + b, y0, y1: y0 + gy, lang: b - a, breit: gy });
+  if (gy >= 1) for (const sy of [-1, 1]) for (let i = 0; i < m.nx; i++) {
+    const y0 = sy < 0 ? -m.innenT / 2 : m.innenT / 2 - gy, xc = (i - (m.nx - 1) / 2) * GF.raster;
+    t.push({ x0: xc - h, x1: xc + h, y0, y1: y0 + gy, lang: KLOTZ_L, breit: gy });
   }
   return t.map((s) => ({ ...s, h: m.H }));
 }
-// druck=true: alle Stücke flach nebeneinander zum Drucken, sonst an ihrem Platz in der Schublade
-export function distanzNetz(eingabe, druck = true) {
+// An ihrem Platz in der Schublade, als ein Netz (für die Vorschau)
+// t (Aufteilung): Klötze rücken mit dem Stück daneben mit, wie in stueckeVorschau
+export function distanzNetz(eingabe, t = null) {
   const teile = distanzTeile(eingabe);
   if (!teile.length) return null;
+  const { nx, ny } = platteMasse(plattePruefen(eingabe));
+  const verschub = (c, n, liste) => {
+    if (!t) return 0;
+    const feld = Math.min(n - 1, Math.max(0, Math.floor(c / GF.raster + n / 2)));
+    let k = 0, summe = liste[0];
+    while (feld >= summe) summe += liste[++k];
+    return (k - (liste.length - 1) / 2) * STUECK_LUECKE;
+  };
   const n = neuesNetz();
-  let y = 0;
   for (const s of teile) {
-    if (druck) { quader(n, 0, y, 0, s.lang, y + s.breit, s.h); y += s.breit + 5; }
-    else quader(n, s.x0, s.y0, 0, s.x1, s.y1, s.h);
+    const dx = verschub((s.x0 + s.x1) / 2, nx, t ? t.xs : []), dy = verschub((s.y0 + s.y1) / 2, ny, t ? t.ys : []);
+    quader(n, s.x0 + dx, s.y0 + dy, 0, s.x1 + dx, s.y1 + dy, s.h);
   }
   return fertig(n, { distanz: true, anzahl: teile.length });
+}
+// Zum Drucken: jeder Klotz ein eigenes Netz, in Reihen nebeneinander
+export function distanzDruck(eingabe) {
+  const teile = distanzTeile(eingabe);
+  const netze = [];
+  const proReihe = 5;
+  let y = 0;
+  teile.forEach((s, k) => {
+    const sp = k % proReihe;
+    if (sp === 0 && k) y += Math.max(...teile.slice(k - proReihe, k).map((u) => u.breit)) + 5;
+    const n = neuesNetz();
+    quader(n, sp * (KLOTZ_L + 5), y, 0, sp * (KLOTZ_L + 5) + s.lang, y + s.breit, s.h);
+    netze.push(fertig(n, {}));
+  });
+  return netze;
+}
+
+// =================================================================
+//  AUFTEILEN NACH DRUCKER (seit 1.902.0, Wunsch Patrick 27. November 2026:
+//  „zwei verschiedene Drucker, ein Projekt, das zu gross ist, bestmöglich
+//  aufteilen; vom Druckbett nicht die ganze Fläche nutzbar“)
+//  Nutzbare Fläche mit 2 mm Rand: X1 Carbon 256 × 256, vorne links
+//  18 × 28 mm gesperrt (Messerhebel), also 252 × 224; H2D Pro mit einer
+//  Düse 325 × 320, also 321 × 316. Die Platte wird in möglichst wenige,
+//  möglichst gleich grosse Stücke geteilt; die Stücke bekommen die
+//  Schienen von „Anschliessbar“ und werden mit Klammern verbunden.
+// =================================================================
+export const DRUCKER = {
+  x1c: { name: "Bambu Lab X1 Carbon", a: 252, b: 224 },
+  h2d: { name: "Bambu Lab H2D Pro", a: 321, b: 316 },
+};
+function verteilen(n, k) {
+  const b = Math.floor(n / k), r = n % k;
+  return Array.from({ length: k }, (_, i) => b + (i < r ? 1 : 0));
+}
+export function aufteilen(nx, ny, druckerId) {
+  const d = DRUCKER[druckerId] || DRUCKER.x1c;
+  const A = Math.floor(d.a / GF.raster), B = Math.floor(d.b / GF.raster);
+  let best = null;
+  for (const [ax, by] of [[A, B], [B, A]]) {
+    const kx = Math.ceil(nx / ax), ky = Math.ceil(ny / by);
+    const xs = verteilen(nx, kx), ys = verteilen(ny, ky);
+    // weniger Stücke zuerst, dann gleichmässigere
+    const wert = kx * ky * 1000 + (Math.max(...xs) - Math.min(...xs)) + (Math.max(...ys) - Math.min(...ys));
+    if (!best || wert < best.wert) best = { xs, ys, wert };
+  }
+  const stuecke = [];
+  let x0 = 0;
+  best.xs.forEach((a, i) => {
+    let y0 = 0;
+    best.ys.forEach((b, j) => { stuecke.push({ i, j, nx: a, ny: b, x0, y0 }); y0 += b; });
+    x0 += a;
+  });
+  return { xs: best.xs, ys: best.ys, stuecke, geteilt: stuecke.length > 1 };
+}
+// Gleiche Stücke zusammengefasst: [{nx, ny, anzahl}]
+export function stueckArten(t) {
+  const g = new Map();
+  for (const s of t.stuecke) { const k = Math.max(s.nx, s.ny) + "x" + Math.min(s.nx, s.ny); const e = g.get(k) || { nx: s.nx, ny: s.ny, anzahl: 0 }; e.anzahl++; g.set(k, e); }
+  return [...g.values()];
+}
+// Alle Stücke an ihrem Platz, gut sichtbar auseinander gezogen (Vorschau)
+export const STUECK_LUECKE = 10;
+export function stueckeVorschau(eingabe, t) {
+  const p = plattePruefen(eingabe);
+  const { nx, ny } = platteMasse(p);
+  const n = { pos: [], tri: [] };
+  const cache = new Map();
+  for (const s of t.stuecke) {
+    const k = s.nx + "x" + s.ny;
+    if (!cache.has(k)) cache.set(k, platteNetz({ ...p, art: "felder", nx: s.nx, ny: s.ny, anschluss: true }));
+    const st = cache.get(k), off = n.pos.length / 3;
+    const dx = (s.x0 + s.nx / 2 - nx / 2) * GF.raster + (s.i - (t.xs.length - 1) / 2) * STUECK_LUECKE;
+    const dy = (s.y0 + s.ny / 2 - ny / 2) * GF.raster + (s.j - (t.ys.length - 1) / 2) * STUECK_LUECKE;
+    for (let q = 0; q < st.pos.length; q += 3) n.pos.push(st.pos[q] + dx, st.pos[q + 1] + dy, st.pos[q + 2]);
+    for (const v of st.tri) n.tri.push(v + off);
+  }
+  return fertig(n, {});
 }
 
 // Klammern: eine je Feld entlang des Stosses
@@ -533,17 +620,22 @@ export function stlBinaer(netz, name = "gridfinity") {
 
 export async function dreiMF(netz, name = "Gridfinity") {
   const { zipSync, strToU8 } = await import("fflate");
-  const { pos, tri, min } = netz;
-  const v = [], t = [];
+  // Mehrere Netze = mehrere Teile in einer Datei (Slicer zeigt sie einzeln)
+  const liste = Array.isArray(netz) ? netz : [netz];
+  const min = [0, 1, 2].map((k) => Math.min(...liste.map((m) => m.min[k])));
   const z = (x) => Number(x.toFixed(4));
-  for (let i = 0; i < pos.length; i += 3) v.push(`<vertex x="${z(pos[i] - min[0])}" y="${z(pos[i + 1] - min[1])}" z="${z(pos[i + 2] - min[2])}"/>`);
-  for (let i = 0; i < tri.length; i += 3) t.push(`<triangle v1="${tri[i]}" v2="${tri[i + 1]}" v3="${tri[i + 2]}"/>`);
+  const objekte = liste.map((m, o) => {
+    const v = [], t = [];
+    for (let i = 0; i < m.pos.length; i += 3) v.push(`<vertex x="${z(m.pos[i] - min[0])}" y="${z(m.pos[i + 1] - min[1])}" z="${z(m.pos[i + 2] - min[2])}"/>`);
+    for (let i = 0; i < m.tri.length; i += 3) t.push(`<triangle v1="${m.tri[i]}" v2="${m.tri[i + 1]}" v3="${m.tri[i + 2]}"/>`);
+    return { id: o + 1, v: v.join(""), t: t.join("") };
+  });
   const nameXml = String(name).replace(/[<>&"]/g, "");
   const modell = `<?xml version="1.0" encoding="UTF-8"?>
 <model unit="millimeter" xml:lang="de-CH" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
 <metadata name="Title">${nameXml}</metadata><metadata name="Application">HoferTool</metadata>
-<resources><object id="1" type="model" name="${nameXml}"><mesh><vertices>${v.join("")}</vertices><triangles>${t.join("")}</triangles></mesh></object></resources>
-<build><item objectid="1"/></build></model>`;
+<resources>${objekte.map((o) => `<object id="${o.id}" type="model" name="${nameXml}${liste.length > 1 ? " " + o.id : ""}"><mesh><vertices>${o.v}</vertices><triangles>${o.t}</triangles></mesh></object>`).join("")}</resources>
+<build>${objekte.map((o) => `<item objectid="${o.id}"/>`).join("")}</build></model>`;
   const typen = `<?xml version="1.0" encoding="UTF-8"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/></Types>`;
   const rels = `<?xml version="1.0" encoding="UTF-8"?>

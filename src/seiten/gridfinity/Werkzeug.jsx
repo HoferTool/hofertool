@@ -11,22 +11,23 @@ import { alt } from "../../bruecke.jsx";
 import { useEntwurfZurueck } from "../../teile/lokalZurueck.js";
 import {
   BOX_VORGABE, PLATTE_VORGABE, boxPruefen, plattePruefen, boxMasse, platteMasse,
-  boxNetz, platteNetz, verbinderNetz, distanzNetz, distanzTeile, stlBinaer, dreiMF, GF,
+  boxNetz, platteNetz, verbinderNetz, distanzNetz, distanzTeile, distanzDruck, stlBinaer, dreiMF, GF,
+  DRUCKER, aufteilen, stueckArten, stueckeVorschau,
 } from "./geometrie.js";
 
 const SPEICHER = "hofer.gridfinity";
-const DRUCKBETT = 256;   // gängige Druckbetten (Bambu, Prusa MK4 ~250)
 
 function laden() {
   try {
     const s = JSON.parse(localStorage.getItem(SPEICHER) || "null");
     if (s && typeof s === "object") return {
       art: s.art === "platte" ? "platte" : "box",
+      drucker: DRUCKER[s.drucker] ? s.drucker : "x1c",
       box: { ...BOX_VORGABE, ...(s.box || {}) },
       platte: { ...PLATTE_VORGABE, ...(s.platte || {}) },
     };
   } catch { /* privates Fenster: Vorgabe */ }
-  return { art: "box", box: { ...BOX_VORGABE }, platte: { ...PLATTE_VORGABE } };
+  return { art: "box", drucker: "x1c", box: { ...BOX_VORGABE }, platte: { ...PLATTE_VORGABE } };
 }
 
 // Gleiche Distanzstücke zusammenfassen: „4 × 154,3 × 4,6 mm“
@@ -95,26 +96,51 @@ export default function Werkzeug() {
   const b = (k) => (v) => setStand((s) => ({ ...s, box: { ...s.box, [k]: v } }));
   const p = (k) => (v) => setStand((s) => ({ ...s, platte: { ...s.platte, [k]: v } }));
 
+  const drucker = DRUCKER[stand.drucker] ? stand.drucker : "x1c", bett = DRUCKER[drucker];
+  // Grundplatte nach Drucker in Stücke teilen (nur ohne festen Rand möglich)
+  const teilbar = stand.art === "platte" && (platte.art === "felder" || platte.distanz);
+  const pmRoh = platteMasse(platte);
+  const teilung = teilbar ? aufteilen(pmRoh.nx, pmRoh.ny, drucker) : null;
+  const geteilt = !!(teilung && teilung.geteilt);
+
   const netz = useMemo(() => {
-    try { return stand.art === "box" ? boxNetz(box) : platteNetz(platte); }
+    try {
+      if (stand.art === "box") return boxNetz(box);
+      return geteilt ? stueckeVorschau(platte, teilung) : platteNetz(platte);
+    }
     catch (f) { alt.fehlerMerken && alt.fehlerMerken("Gridfinity", String(f)); return null; }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stand.art, JSON.stringify(stand.art === "box" ? box : platte)]);
+  }, [stand.art, drucker, JSON.stringify(stand.art === "box" ? box : platte)]);
 
   // Distanzstücke an ihrem Platz, nur für die Vorschau (grau)
-  const distanzPlatz = useMemo(() => (stand.art === "platte" ? distanzNetz(platte, false) : null),
+  const distanzPlatz = useMemo(() => (stand.art !== "platte" ? null : geteilt
+    ? distanzNetz(platte, teilung)
+    : distanzNetz(platte)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stand.art, JSON.stringify(platte)]);
+    [stand.art, drucker, JSON.stringify(platte)]);
   const bm = boxMasse(box), pm = platteMasse(platte);
   const dateiName = stand.art === "box"
     ? `gridfinity-box-${box.nx}x${box.ny}x${box.u}` + (box.fx * box.fy > 1 ? `-${box.fx}x${box.fy}faecher` : "")
     : `gridfinity-platte-${pm.nx}x${pm.ny}` + (platte.art === "schublade" ? `-${Math.round(pm.W)}x${Math.round(pm.D)}mm` : "");
   const breit = stand.art === "box" ? bm.W : pm.W, tief = stand.art === "box" ? bm.D : pm.D;
-  const zuGross = Math.max(breit, tief) > DRUCKBETT;
+  const passt = (w, d) => (w <= bett.a && d <= bett.b) || (w <= bett.b && d <= bett.a);
+  const zuGross = !geteilt && !passt(breit, tief);
+  const arten = geteilt ? stueckArten(teilung) : [];
+  // Klammern: je Schnitt eine je Feld entlang des Stosses
+  const klammern = geteilt ? (teilung.xs.length - 1) * pm.ny + (teilung.ys.length - 1) * pm.nx : 0;
 
-  async function speichern(format, verbinder = false) {
-    const nz = verbinder === "distanz" ? distanzNetz(platte) : verbinder ? verbinderNetz(platte) : netz;
-    const name = verbinder === "distanz" ? `gridfinity-distanz-${Math.round(platte.breite)}x${Math.round(platte.tiefe)}mm` : verbinder ? "gridfinity-klammer" : dateiName;
+  async function speichern(format, verbinder = false, stueck = null) {
+    let nz, name;
+    if (stueck) {
+      nz = platteNetz({ ...platte, art: "felder", nx: stueck.nx, ny: stueck.ny, anschluss: true });
+      name = `gridfinity-platte-${stueck.nx}x${stueck.ny}-stueck`;
+    } else if (verbinder === "distanz") {
+      // jeder Klotz ein eigenes Teil in der Datei, nicht mit der Platte verbunden
+      nz = distanzDruck(platte); if (!nz.length) return;
+      name = `gridfinity-distanz-${Math.round(platte.breite)}x${Math.round(platte.tiefe)}mm`;
+    } else if (verbinder) { nz = verbinderNetz(platte); name = "gridfinity-klammer"; }
+    else { nz = netz; name = dateiName; }
+    if (format === "stl" && Array.isArray(nz)) return;
     if (!nz) return;
     const daten = format === "3mf" ? await dreiMF(nz, name) : stlBinaer(nz, name);
     const blob = new Blob([daten], { type: format === "3mf" ? "model/3mf" : "model/stl" });
@@ -175,11 +201,8 @@ export default function Werkzeug() {
               </> : <>
                 <Zahl titel="Schublade innen breit" name="breite" wert={platte.breite} setzen={p("breite")} min={42} max={1000} schritt={1} einheit="mm" />
                 <Zahl titel="Schublade innen tief" name="tiefe" wert={platte.tiefe} setzen={p("tiefe")} min={42} max={1000} schritt={1} einheit="mm" />
-                <Schalter titel="Distanzstücke statt Rand" name="distanz" an={platte.distanz} setzen={p("distanz")} text="Platte ohne Rand, lose Leisten füllen den Rest der Schublade" />
                 {platte.distanz ? <p className="gfn-text" data-gf-felder>
-                  Passt {pm.nx} × {pm.ny} Felder ({mm(pm.W)} × {mm(pm.D)} mm). {distanzTeile(platte).length
-                    ? <>Distanzstücke: {gruppiert(distanzTeile(platte))}, Höhe {mm(pm.H)} mm.</>
-                    : <>Kein Distanzstück nötig, der Rest ist kleiner als 1 mm.</>}
+                  Passt {pm.nx} × {pm.ny} Felder ({mm(pm.W)} × {mm(pm.D)} mm), Platte ohne Rand.
                 </p> : <p className="gfn-text" data-gf-felder>
                   Passt {pm.nx} × {pm.ny} Felder, Rand ringsum {mm((pm.W - pm.nx * GF.raster) / 2)} / {mm((pm.D - pm.ny * GF.raster) / 2)} mm (0,5 mm Luft zur Schublade).
                 </p>}
@@ -197,6 +220,40 @@ export default function Werkzeug() {
                 </p>)}
               <p className="gfn-text">Höhe {mm(pm.H)} mm</p>
             </section>
+            {platte.art === "schublade" && <section className="gfn-gruppe" data-gf-distanzgruppe>
+              {/* Eigene Option (Patrick: „die Leisten dürfen nicht direkt an der
+                  Grundplatte angeschlossen sein, eigene Option“): lose Klötze,
+                  eigene Datei, die Platte selbst bleibt ohne sie. */}
+              <h3>Distanzstücke</h3>
+              <Schalter titel="Distanzstücke machen" name="distanz" an={platte.distanz} setzen={p("distanz")} text="Lose Klötze füllen den Rest der Schublade, nicht mit der Platte verbunden. Die Platte wird dafür ohne Rand gemacht." />
+              {platte.distanz && <p className="gfn-text" data-gf-distanz>{distanzTeile(platte).length
+                ? <>{distanzTeile(platte).length} lose Klötze: {gruppiert(distanzTeile(platte))}, Höhe {mm(pm.H)} mm. Eigene Datei, jeder Klotz ein eigenes Teil.</>
+                : <>Kein Distanzstück nötig, der Rest ist kleiner als 1 mm.</>}</p>}
+              {platte.distanz && distanzTeile(platte).length > 0 &&
+                <button className="knopf" data-gf-export="distanz" onClick={() => speichern("3mf", "distanz")}>Distanzstücke 3MF</button>}
+            </section>}
+            <section className="gfn-gruppe" data-gf-druckergruppe>
+              <h3>Drucker</h3>
+              <div className="gfn-wahl gfn-wahl--klein">
+                {Object.entries(DRUCKER).map(([w, d]) => (
+                  <button key={w} type="button" data-gf-drucker={w}
+                    className={"gfn-wahl__knopf" + (drucker === w ? " aktiv" : "")}
+                    onClick={() => setStand((s) => ({ ...s, drucker: w }))}>{d.name.replace("Bambu Lab ", "")}</button>
+                ))}
+              </div>
+              <p className="gfn-text">Nutzbar {bett.a} × {bett.b} mm.</p>
+              {geteilt ? <div data-gf-stuecke>
+                <p className="gfn-text">Zu gross für ein Mal: {teilung.stuecke.length} Stücke, mit {klammern} Klammern verbunden.</p>
+                {arten.map((a) => (
+                  <div key={a.nx + "x" + a.ny} className="gfn-stueck">
+                    <span>{a.anzahl} × {a.nx} × {a.ny} Felder</span>
+                    <button className="knopf" data-gf-stueck={a.nx + "x" + a.ny} onClick={() => speichern("3mf", false, a)}>3MF</button>
+                  </div>
+                ))}
+              </div> : !teilbar && !passt(pm.W, pm.D)
+                ? <p className="gfn-text gfn-warnung" data-gf-teilhinweis>Zu gross für diesen Drucker. Mit Rand kann nicht geteilt werden: „Distanzstücke machen“ einschalten, dann wird aufgeteilt.</p>
+                : null}
+            </section>
           </>}
         </div>
 
@@ -205,15 +262,16 @@ export default function Werkzeug() {
           <div className="gfn-fuss">
             <div className="gfn-masse" data-gf-masse>
               <b>{mm(breit)} × {mm(tief)} × {mm(netz ? netz.max[2] - netz.min[2] : 0)} mm</b>
-              {zuGross && <span className="gfn-warnung" data-gf-warnung>Grösser als {DRUCKBETT} mm: passt auf die meisten Drucker nicht, besser in Stücke teilen.</span>}
+              {zuGross && <span className="gfn-warnung" data-gf-warnung>Grösser als {bett.a} × {bett.b} mm: passt nicht auf den {bett.name}.</span>}
+              {geteilt && <span className="gfn-text" data-gf-geteilt>Vorschau zeigt die {teilung.stuecke.length} Stücke auseinander gezogen.</span>}
             </div>
             <div className="gfn-export">
-              <button className="knopf knopf--haupt" data-gf-export="3mf" disabled={!netz} onClick={() => speichern("3mf")}>3MF speichern</button>
-              <button className="knopf" data-gf-export="stl" disabled={!netz} onClick={() => speichern("stl")}>STL</button>
-              {stand.art === "platte" && pm.anschluss &&
+              {!geteilt && <>
+                <button className="knopf knopf--haupt" data-gf-export="3mf" disabled={!netz} onClick={() => speichern("3mf")}>3MF speichern</button>
+                <button className="knopf" data-gf-export="stl" disabled={!netz} onClick={() => speichern("stl")}>STL</button>
+              </>}
+              {stand.art === "platte" && (pm.anschluss || geteilt) &&
                 <button className="knopf" data-gf-export="verbinder" onClick={() => speichern("3mf", true)}>Klammer 3MF</button>}
-              {distanzPlatz &&
-                <button className="knopf" data-gf-export="distanz" onClick={() => speichern("3mf", "distanz")}>Distanzstücke 3MF</button>}
             </div>
           </div>
         </div>

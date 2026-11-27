@@ -95,19 +95,33 @@ with sync_playwright() as p:
     pruefe(pg.locator("[data-gf-warnung]").count() == 1, "Hinweis Druckbett bei 299,5 mm")
     name, dateien, v, tri = lade_3mf(pg)
     pruefe(masse(v) == [299.5, 199.5, 4.4] and kanten_geschlossen(tri) == 0 and volumen(v, tri) > 0, "Platte geschlossen %s, %s" % (masse(v), name))
-    # Distanzstücke (1.901.0): Schublade 430 × 309, Platte ohne Rand, lose Leisten
+    pruefe(pg.locator("[data-gf-teilhinweis]").count() == 1, "Mit Rand zu gross: Hinweis Distanzstücke")
+    # Distanzstücke (1.902.0): eigene Option, lose Klötze, Platte nach Drucker geteilt
     pg.fill("[data-gf='breite']", "430"); pg.press("[data-gf='breite']", "Enter")
     pg.fill("[data-gf='tiefe']", "309"); pg.press("[data-gf='tiefe']", "Enter")
     pg.click("[data-gf='distanz']"); pg.wait_for_timeout(400)
-    t = pg.inner_text("[data-gf-felder]")
-    pruefe("10 × 7 Felder (420 × 294 mm)" in t and "4 Stück 154,3 × 4,6 mm" in t and "4 Stück 210,2 × 7,1 mm" in t, "Distanzstücke: " + t)
-    name, dateien, v, tri = lade_3mf(pg)
-    pruefe(masse(v)[:2] == [420.0, 294.0], "Platte ohne Rand %s" % masse(v))
+    t = pg.inner_text("[data-gf-felder]") + " | " + pg.inner_text("[data-gf-distanz]")
+    pruefe("10 × 7 Felder (420 × 294 mm)" in t and "34 lose Klötze" in t and "14 Stück 40 × 4,6 mm" in t and "20 Stück 40 × 7,1 mm" in t, "Distanzstücke: " + t)
     with pg.expect_download() as d: pg.click("[data-gf-export='distanz']")
     z = zipfile.ZipFile(d.value.path()); m = z.read("3D/3dmodel.model").decode()
+    obj = re.findall(r"<object .*?</object>", m)
+    zu = all(kanten_geschlossen([tuple(int(x) for x in t) for t in re.findall(r'<triangle v1="(\d+)" v2="(\d+)" v3="(\d+)"', o)]) == 0 for o in obj)
     vd = [tuple(float(x) for x in t) for t in re.findall(r'<vertex x="([-\d.e]+)" y="([-\d.e]+)" z="([-\d.e]+)"', m)]
-    td = [tuple(int(x) for x in t) for t in re.findall(r'<triangle v1="(\d+)" v2="(\d+)" v3="(\d+)"', m)]
-    pruefe(len(td) == 8 * 12 and kanten_geschlossen(td) == 0 and masse(vd)[0] < 240 and masse(vd)[2] == 4.4, "8 Distanzstücke zum Drucken %s, %s" % (masse(vd), d.value.suggested_filename))
+    pruefe(len(obj) == 34 and zu and masse(vd)[0] < 250 and masse(vd)[2] == 4.4, "34 einzelne Klötze %s, %s" % (masse(vd), d.value.suggested_filename))
+    # X1 Carbon: 10 × 7 wird 2 × 5×4 und 2 × 5×3
+    t = pg.inner_text("[data-gf-stuecke]")
+    pruefe("4 Stücke" in t and "2 × 5 × 4 Felder" in t and "2 × 5 × 3 Felder" in t and "17 Klammern" in t, "Aufteilung X1C: " + t)
+    pruefe(pg.locator("[data-gf-export='3mf']").count() == 0, "Geteilt: nur Stücke speichern")
+    with pg.expect_download() as d: pg.click("[data-gf-stueck='5x4']")
+    z = zipfile.ZipFile(d.value.path()); m = z.read("3D/3dmodel.model").decode()
+    v = [tuple(float(x) for x in t) for t in re.findall(r'<vertex x="([-\d.e]+)" y="([-\d.e]+)" z="([-\d.e]+)"', m)]
+    tri = [tuple(int(x) for x in t) for t in re.findall(r'<triangle v1="(\d+)" v2="(\d+)" v3="(\d+)"', m)]
+    pruefe(masse(v)[:2] == [210.0, 168.0] and kanten_geschlossen(tri) == 0 and d.value.suggested_filename == "gridfinity-platte-5x4-stueck.3mf", "Stück 5×4 %s %s" % (masse(v), d.value.suggested_filename))
+    pg.screenshot(path=BILD + "/gf-geteilt.png")
+    pg.click("[data-gf-drucker='h2d']"); pg.wait_for_timeout(400)
+    t = pg.inner_text("[data-gf-stuecke]")
+    pruefe("2 Stücke" in t and "2 × 5 × 7 Felder" in t and "7 Klammern" in t, "Aufteilung H2D: " + t)
+    pg.click("[data-gf-drucker='x1c']")
     pg.click("[data-gf='distanz']")
     pg.click("[data-gf-platte='felder']"); pg.click("[data-gf='pmagnete']"); pg.wait_for_timeout(400)
     name, dateien, v, tri = lade_3mf(pg)
