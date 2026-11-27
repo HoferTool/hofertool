@@ -40,14 +40,17 @@ with sync_playwright() as p:
     pruefe("Seite 1 gezeichnet", 1 in g)
     pruefe("nur wenige Seiten gezeichnet", len(g) <= 6)
 
-    # Weit nach unten rollen: dort wird gezeichnet, oben freigegeben
+    # Zuerst zu Seite 20 (die ersten zwei Seiten bleiben seit 1.860.1 immer
+    # gezeichnet), dann weit nach unten: dort wird gezeichnet, Seite 20 freigegeben
+    pg.evaluate("() => { const b = document.querySelector('.pdfansicht__buehne'); b.scrollTop = document.querySelector('[data-pdfseite=\"20\"]').offsetTop; }")
+    pg.wait_for_function("() => document.querySelector('[data-pdfseite=\"20\"] canvas').dataset.fertig === '1'", timeout=10000)
     pg.evaluate("() => { const b = document.querySelector('.pdfansicht__buehne'); b.scrollTop = document.querySelector('[data-pdfseite=\"150\"]').offsetTop; }")
     pg.wait_for_function("() => document.querySelector('[data-pdfseite=\"150\"] canvas').dataset.fertig === '1'", timeout=10000)
     pg.wait_for_timeout(500)
     g = pg.evaluate(GEZEICHNET); print("gezeichnet bei Seite 150:", g)
     pruefe("Seite 150 gezeichnet", 150 in g)
-    pruefe("Seite 1 freigegeben", 1 not in g)
-    pruefe("weiterhin nur wenige Seiten", len(g) <= 6)
+    pruefe("Seite 20 freigegeben", 20 not in g)
+    pruefe("weiterhin nur wenige Seiten", len(g) <= 7)
 
     # Zurück nach oben: Seite 1 kommt wieder
     pg.evaluate("() => { document.querySelector('.pdfansicht__buehne').scrollTop = 0; }")
