@@ -17576,3 +17576,47 @@ body.dunkel .pd-vorschlag .pd-zeile--vorschlag { background: #2a2a2a; }
 /* 1.875.0: Bewegungsarten als Häkchen statt Auswahlliste */
 .erp-bew-arten{display:inline-flex;flex-wrap:wrap;gap:4px 12px;align-items:center}
 .erp-bew-arten label{display:inline-flex;gap:4px;align-items:center;white-space:nowrap;cursor:pointer}
+
+/* 1.881.0: Kopf des Test ERP futuristisch mit Hofer-Logo (Wunsch Patrick 27. November 2026) */
+.erp-held { position: relative; overflow: hidden; border-radius: 18px; margin: 0 0 14px; padding: 22px 26px 18px;
+  background: radial-gradient(ellipse at 18% 0%, rgba(80,170,255,.35), transparent 55%), linear-gradient(135deg, #001a3d 0%, #002a63 55%, #003884 100%);
+  box-shadow: 0 10px 30px rgba(0,26,61,.35), inset 0 0 0 1px rgba(120,190,255,.25); color: #fff; isolation: isolate; }
+.erp-held__raster { position: absolute; inset: -40px; z-index: -1; opacity: .35;
+  background-image: linear-gradient(rgba(120,190,255,.25) 1px, transparent 1px), linear-gradient(90deg, rgba(120,190,255,.25) 1px, transparent 1px);
+  background-size: 32px 32px; animation: erp-raster 14s linear infinite;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 40%, #000 70%, transparent); mask-image: linear-gradient(180deg, transparent, #000 40%, #000 70%, transparent); }
+@keyframes erp-raster { to { transform: translate(32px, 32px); } }
+.erp-held__scan { position: absolute; top: 0; bottom: 0; width: 140px; left: -160px; z-index: -1;
+  background: linear-gradient(90deg, transparent, rgba(140,210,255,.22), transparent); animation: erp-scan 6s ease-in-out infinite; }
+@keyframes erp-scan { 0% { left: -160px; } 60%, 100% { left: calc(100% + 20px); } }
+.erp-held__kopf { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+.erp-held__logo { height: 58px; width: auto; filter: drop-shadow(0 0 10px rgba(140,210,255,.75)); animation: erp-logo 4s ease-in-out infinite; }
+@keyframes erp-logo { 50% { filter: drop-shadow(0 0 18px rgba(160,220,255,.95)); } }
+.erp-held__titel { flex: 1; min-width: 220px; padding-left: 22px; border-left: 1px solid rgba(140,210,255,.4); }
+.erp-held .seitentitel { margin: 0; color: #fff !important; font-size: 30px; letter-spacing: .04em; text-shadow: 0 0 16px rgba(120,200,255,.6); }
+.erp-held .erp-schild { background: rgba(255,255,255,.12); color: #bfe4ff !important; border: 1px solid rgba(140,210,255,.55);
+  vertical-align: middle; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.erp-held__unter { margin-top: 4px; font-size: 13px; color: #a9cdf0 !important; letter-spacing: .03em; }
+.erp-held__status { display: flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: #bfe4ff !important;
+  padding: 6px 12px; border-radius: 999px; background: rgba(0,0,0,.2); border: 1px solid rgba(140,210,255,.35); }
+.erp-held__punkt { width: 8px; height: 8px; border-radius: 50%; background: #3df0a0; box-shadow: 0 0 8px #3df0a0; animation: erp-puls 1.8s ease-in-out infinite; }
+@keyframes erp-puls { 50% { opacity: .35; } }
+.erp-held__kacheln { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-top: 18px; }
+.erp-held__kachel { all: unset; box-sizing: border-box; cursor: pointer; padding: 12px 14px; border-radius: 12px; display: flex; flex-direction: column; gap: 2px;
+  background: rgba(255,255,255,.07); border: 1px solid rgba(140,210,255,.28); backdrop-filter: blur(6px);
+  transition: transform .18s ease, background-color .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.erp-held__kachel:hover { transform: translateY(-2px); background: rgba(255,255,255,.13); border-color: rgba(160,220,255,.7); box-shadow: 0 0 18px rgba(100,190,255,.35); }
+.erp-held__kachel:focus-visible { outline: 2px solid #8fd3ff; outline-offset: 2px; }
+.erp-held__kachel.aktiv { border-color: #8fd3ff; box-shadow: 0 0 0 1px #8fd3ff inset, 0 0 18px rgba(100,190,255,.45); }
+.erp-held__zahl { font-size: 26px; font-weight: 700; color: #fff !important; font-variant-numeric: tabular-nums; text-shadow: 0 0 12px rgba(120,200,255,.55); }
+.erp-held__name { font-size: 12px; color: #a9cdf0 !important; letter-spacing: .04em; }
+@media (max-width: 640px) {
+  .erp-held { padding: 16px; }
+  .erp-held__logo { height: 40px; }
+  .erp-held__titel { padding-left: 0; border-left: 0; }
+  .erp-held .seitentitel { font-size: 24px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .erp-held__raster, .erp-held__scan, .erp-held__logo, .erp-held__punkt { animation: none; }
+  .erp-held__scan { display: none; }
+}
