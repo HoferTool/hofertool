@@ -706,7 +706,7 @@ function Protokoll({ p, zurueck }) {
 
       <div className="pb-blatt hell-bleibt" id="pb-blatt">
         <div className="rkpdf pb-briefkopf" dangerouslySetInnerHTML={{ __html: "<style>" + STIL + "</style>" + briefkopf() }} />
-        <h2 className="pb-blatt__titel">Prüfprotokoll · {artName(w.kopf).name}</h2>
+        <h2 className="pb-blatt__titel">Prüfprotokoll</h2>
         {art === "endkontrolle" ? (
           <div className="pb-kontrolle" id="pb-kontrolle">
             <b>Art der Kontrolle</b>
@@ -1086,7 +1086,7 @@ function protokollHtml(w, hoco) {
     + ".pbp table{width:100%;border-collapse:collapse}.pbp th,.pbp td{border:1px solid #999;padding:2px 4px;text-align:left;font-size:9pt}.pbp th{background:#e8eef6}.pbp tr.ab td{background:#f3f3f3;font-weight:700}"
     + ".pbp .pbp-fuss{display:flex;gap:24px;margin-top:10px}.pbp .pbp-fuss div{flex:1}</style>"
     + briefkopf() + "<div class='inhalt pbp'>"
-    + "<h1>Prüfprotokoll · " + h(artName(w.kopf).name) + "</h1>"
+    + "<h1>Prüfprotokoll</h1>"
     + "<div class='pbp-kf'>" + felder.filter(([, x]) => x).map(([n, x]) => "<div><small>" + h(n) + "</small>" + h(x) + "</div>").join("") + "</div>"
     + "<table><thead><tr><th>Nr.</th><th>Soll</th>" + kopfZ + "<th>Prüfmittel</th></tr></thead><tbody>" + koerper + "</tbody></table>"
     + "<div class='pbp-fuss'><div><b>Prüf-Entscheid:</b> " + h(entscheidText(w.entscheid)) + "</div><div><b>Datum:</b> " + h(datumText(w.datum)) + "</div><div><b>Visum:</b> " + h(w.visum) + "</div></div>"
