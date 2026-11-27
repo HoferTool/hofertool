@@ -214,18 +214,21 @@ export function boxNetz(eingabe) {
 // =================================================================
 //  GRUNDPLATTE
 //  Offener Rahmen (leicht). Mit Magneten (seit 1.899.0, Wunsch Patrick
-//  27. November 2026 mit Bild: „die Magnetlöcher sollen so aussehen“)
-//  bleibt das Feld offen, in jeder Ecke sitzt unten ein Sockel mit dem
-//  Loch, darüber 0.5 mm Luft, weil der Fuss der Box etwas unter das
-//  Profil ragt. „Anschliessbar“ schneidet unten an jedem Stoss zweier
-//  Felder am Rand eine Schwalbenschwanz-Kerbe ein; zwei Platten hält ein
-//  Verbinder (eigene Datei), der von unten in beide Kerben gesteckt wird.
+//  27. November 2026 mit Bild) bleibt das Feld offen, in jeder Ecke sitzt
+//  unten ein Sockel mit dem Loch, darüber 0.5 mm Luft, weil der Fuss der Box
+//  etwas unter das Profil ragt.
+//  „Anschliessbar“ (seit 1.900.0, nach Patricks STL aus dem Gridfinity-
+//  Generator, „das anschliessbar sollte von gridfinity sein“): in der Mitte
+//  jedes Randfelds fehlt auf 20 mm die Wand; unten bleibt eine 2 mm hohe
+//  Schiene mit Hinterschnitt. Zwei Platten nebeneinander hält eine
+//  Klammer (Λ-Form, 19.6 mm lang), die von oben über beide Schienen
+//  schnappt. Masse genau aus der STL.
 // =================================================================
 export const PLATTE_VORGABE = { art: "felder", nx: 4, ny: 3, breite: 300, tiefe: 200, magnete: false, magD: 6.5, magH: 2.4, anschluss: false };
 
-// Kerbe: Breite an der Kante 2·a, innen 2·b, Tiefe d
-const KERBE = { a: 3, b: 5, d: 5, spiel: 0.15 };
-const SOCKEL_H = 3;     // Höhe unten, wenn nur anschliessbar
+const BUCHT = 10;   // halbe Länge der Aussparung am Rand (20 mm)
+// Schiene: [Höhe, Abstand der Innenkante vom Plattenrand]
+const SCHIENE = [[0.7, 1.0], [1.1, 1.0], [1.5, 1.3], [2.0, 1.3]];
 
 export function plattePruefen(p) {
   const z = (v, min, max, std) => { v = Number(v); return Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : std; };
@@ -238,180 +241,195 @@ export function plattePruefen(p) {
   };
 }
 
-// Höhe des Sockels unten (0 = kein Sockel, Feld bis unten offen)
-function sockelHoehe(p) {
-  return Math.max(p.anschluss ? SOCKEL_H : 0, p.magnete ? p.magH + 0.6 : 0);
-}
-
 // Felder und Aussenmasse. Bei „Schublade“ füllt die Platte die Schublade
-// (0.5 mm Luft), der Rest wird gleichmässig als Rand verteilt.
+// (0.5 mm Luft), der Rest wird gleichmässig als Rand verteilt; dort geht
+// „Anschliessbar“ nicht, weil der Rand zwischen den Platten läge.
 export function platteMasse(p) {
-  const zs = sockelHoehe(p);
+  const zs = p.magnete ? p.magH + 0.6 : 0;
   const H = 4.4 + (zs > 0 ? zs + 0.5 : 0);
   if (p.art === "schublade") {
     const W = p.breite - 0.5, D = p.tiefe - 0.5;
     const nx = Math.max(1, Math.floor(W / GF.raster)), ny = Math.max(1, Math.floor(D / GF.raster));
-    return { nx, ny, W: Math.max(W, nx * GF.raster), D: Math.max(D, ny * GF.raster), H, zs };
+    return { nx, ny, W: Math.max(W, nx * GF.raster), D: Math.max(D, ny * GF.raster), H, zs, anschluss: false };
   }
-  return { nx: p.nx, ny: p.ny, W: p.nx * GF.raster, D: p.ny * GF.raster, H, zs };
+  return { nx: p.nx, ny: p.ny, W: p.nx * GF.raster, D: p.ny * GF.raster, H, zs, anschluss: p.anschluss };
 }
 
-// Öffnung eines Felds unten: das Feld (Einzug 2.85) ohne die vier
-// Eck-Sockel, Sockel gerundet um das Magnetloch. Viertel q gehört zur Ecke
-// (q + 1) % 4 von rring (q = 0: oben rechts).
-function sockelMasse(magD) {
-  const e = GF.raster / 2 - 2.85, a = GF.mag.a;
-  const R = Math.min(magD / 2 + 1.6, e - a - 0.05);
-  return { e, a, R, pc: a - R };
+// Einzug der Feldwand ab Feldrand je Höhe (Profil von unten nach oben)
+function stufen(zs, zt) {
+  const zb = zt - 4.4;
+  return zs > 0
+    ? [[0, 2.85], [zb, 2.85], [zb + 0.7, 2.15], [zt - 1.9, 2.15], [zt, 0.25]]
+    : [[0, 2.85], [0.7, 2.15], [zt - 1.9, 2.15], [zt, 0.25]];
 }
+function einzugBei(L, z) {
+  for (let i = 0; i < L.length - 1; i++) {
+    const [z0, e0] = L[i], [z1, e1] = L[i + 1];
+    if (z <= z1 + 1e-9) return z1 - z0 < 1e-9 ? e1 : e0 + (e1 - e0) * (z - z0) / (z1 - z0);
+  }
+  return L[L.length - 1][1];
+}
+
 const dreh = (cx, cy, q, x, y, z) => {
   const c = Math.round(Math.cos(q * Math.PI / 2)), s = Math.round(Math.sin(q * Math.PI / 2));
   return [cx + x * c - y * s, cy + x * s + y * c, z];
 };
-function viertelInnen(cx, cy, magD, z, q) {
-  const { e, a, R, pc } = sockelMasse(magD);
-  const v = [[e, pc], [a, pc]];
-  for (let i = 1; i < 8; i++) {
-    const w = -Math.PI / 2 - (i / 8) * Math.PI / 2;
-    v.push([a + R * Math.cos(w), a + R * Math.sin(w)]);
-  }
-  v.push([pc, a], [pc, e]);
-  return v.map(([x, y]) => dreh(cx, cy, q, x, y, z));
-}
-function feldUnten(cx, cy, magD, z) {
-  return [0, 1, 2, 3].flatMap((q) => viertelInnen(cx, cy, magD, z, q));
-}
 // Ecke k eines abgerundeten Rechtecks, genau wie in rring
 function eckBogen(cx, cy, w, h, r, z, k) {
   r = Math.max(0.2, Math.min(r, w / 2 - 0.01, h / 2 - 0.01));
   const [x, y, a0] = [[cx + w / 2 - r, cy - h / 2 + r, -Math.PI / 2], [cx + w / 2 - r, cy + h / 2 - r, 0],
     [cx - w / 2 + r, cy + h / 2 - r, Math.PI / 2], [cx - w / 2 + r, cy - h / 2 + r, Math.PI]][k];
   const p = [];
-  for (let i = 0; i <= 6; i++) { const a = a0 + (i / 6) * Math.PI / 2; p.push([x + r * Math.cos(a), y + r * Math.sin(a), z]); }
+  for (let i = 0; i <= ECK; i++) { const a = a0 + (i / ECK) * Math.PI / 2; p.push([x + r * Math.cos(a), y + r * Math.sin(a), z]); }
   return p;
 }
-// Feld-Ring mit Zusatzpunkten auf den Kanten bei ±pc, damit die Sockel
-// ohne offene Kanten an den Ring anschliessen
-function feldRingX(cx, cy, e, pc, z) {
-  const s = GF.raster - 2 * e, r = GF.platteR - e, p = [];
+const ringPlain = (cx, cy, e, z) => rring(cx, cy, GF.raster - 2 * e, GF.raster - 2 * e, GF.platteR - e, z);
+
+// Feld-Ring mit Bucht zur Schiene an den Randseiten (bd = Abstand der
+// Buchtkante vom Feldrand). Seite k folgt auf Ecke k: rechts, oben, links, unten.
+function ringBucht(cx, cy, e, z, rand, bd) {
+  const s = GF.raster - 2 * e, p = [];
   for (let k = 0; k < 4; k++) {
-    p.push(...eckBogen(cx, cy, s, s, r, z, k));
-    // Kante nach Ecke k, im Gegenuhrzeigersinn: −pc, dann +pc in Laufrichtung
-    p.push(dreh(cx, cy, k, s / 2, -pc, z), dreh(cx, cy, k, s / 2, pc, z));
+    p.push(...eckBogen(cx, cy, s, s, GF.platteR - e, z, k));
+    if (rand[k]) {
+      const xr = GF.raster / 2 - e, xb = GF.raster / 2 - bd;
+      p.push(dreh(cx, cy, k, xr, -BUCHT, z), dreh(cx, cy, k, xb, -BUCHT, z), dreh(cx, cy, k, xb, BUCHT, z), dreh(cx, cy, k, xr, BUCHT, z));
+    }
   }
   return p;
 }
-// Oberseite eines Eck-Sockels (Viertel q)
-function sockelOben(cx, cy, magD, z, q) {
-  const { e, pc } = sockelMasse(magD);
-  const innen = viertelInnen(cx, cy, magD, z, q);
-  const s = GF.raster - 2 * 2.85;
-  return [dreh(cx, cy, q, e, pc, z), ...eckBogen(cx, cy, s, s, GF.platteR - 2.85, z, (q + 1) % 4),
-    dreh(cx, cy, q, pc, e, z), ...innen.slice(1, -1).reverse()];
-}
-
-// Stösse der Felder am Rand: Lage entlang der Kante (Felder nebeneinander)
-function stoesse(nx, ny) {
-  const sx = [], sy = [];
-  for (let i = 1; i < nx; i++) sx.push((i - nx / 2) * GF.raster);
-  for (let j = 1; j < ny; j++) sy.push((j - ny / 2) * GF.raster);
-  return { sx, sy };
-}
-
-// Umriss mit Kerben (kerben=true) oder nur mit den Punkten der Kerbenmündung
-// (gleiche Punkte auf der Kante, damit die Flächen sauber anschliessen)
-function umriss(W, D, z, st, kerben) {
-  const r = GF.platteR, E = 6;
-  const ecken = [[W / 2 - r, -D / 2 + r, -Math.PI / 2], [W / 2 - r, D / 2 - r, 0], [-W / 2 + r, D / 2 - r, Math.PI / 2], [-W / 2 + r, -D / 2 + r, Math.PI]];
-  // Kanten nach den Ecken: rechts (+y), oben (−x), links (−y), unten (+x)
-  const kanten = [
-    { lage: st.sy, punkt: (s, t) => [W / 2 - t, s] },
-    { lage: st.sx.map((x) => -x), punkt: (s, t) => [-s, D / 2 - t] },
-    { lage: st.sy.map((y) => -y), punkt: (s, t) => [-W / 2 + t, -s] },
-    { lage: st.sx, punkt: (s, t) => [s, -D / 2 + t] },
-  ];
-  const p = [];
-  ecken.forEach(([x, y, a0], k) => {
-    for (let i = 0; i <= E; i++) { const a = a0 + (i / E) * Math.PI / 2; p.push([x + r * Math.cos(a), y + r * Math.sin(a), z]); }
-    const kt = kanten[k];
-    for (const s of [...kt.lage].sort((u, v) => u - v)) {
-      const { a, b, d } = KERBE;
-      p.push([...kt.punkt(s - a, 0), z]);
-      if (kerben) p.push([...kt.punkt(s - b, d), z], [...kt.punkt(s + b, d), z]);
-      p.push([...kt.punkt(s + a, 0), z]);
+// Feld-Ring mit Marken an den Buchten (Index von −BUCHT und +BUCHT je Seite)
+function ringMarken(cx, cy, e, z, rand) {
+  const s = GF.raster - 2 * e, p = [], m = {};
+  for (let k = 0; k < 4; k++) {
+    p.push(...eckBogen(cx, cy, s, s, GF.platteR - e, z, k));
+    if (rand[k]) {
+      m[k] = [p.length, p.length + 1];
+      p.push(dreh(cx, cy, k, GF.raster / 2 - e, -BUCHT, z), dreh(cx, cy, k, GF.raster / 2 - e, BUCHT, z));
     }
-  });
-  return { p, kerben: kanten.flatMap((kt) => kt.lage.map((s) => [[s - KERBE.a, 0], [s - KERBE.b, KERBE.d], [s + KERBE.b, KERBE.d], [s + KERBE.a, 0]].map(([u, t]) => [...kt.punkt(u, t), z]))) };
+  }
+  return { p, m };
+}
+// Aussenrand eines Felds: an Plattenecken gerundet, zu Nachbarn 0.05 mm
+// überlappend, an den Randseiten Marken für die Buchten
+function feldAussen(cx, cy, z, rand, ecke) {
+  const h = GF.raster / 2, ex = rand.map((r) => (r ? 0 : 0.05));
+  const spitz = [[cx + h + ex[0], cy - h - ex[3]], [cx + h + ex[0], cy + h + ex[1]], [cx - h - ex[2], cy + h + ex[1]], [cx - h - ex[2], cy - h - ex[3]]];
+  const p = [], m = {};
+  for (let k = 0; k < 4; k++) {
+    if (ecke[k]) p.push(...eckBogen(cx, cy, GF.raster, GF.raster, GF.platteR, z, k));
+    else p.push([spitz[k][0], spitz[k][1], z]);
+    if (rand[k]) {
+      m[k] = [p.length, p.length + 1];
+      p.push(dreh(cx, cy, k, h, -BUCHT, z), dreh(cx, cy, k, h, BUCHT, z));
+    }
+  }
+  return { p, m };
+}
+// zyklisch vorwärts bzw. rückwärts von a bis b (beide inklusive)
+function vor(arr, a, b) { const r = [], n = arr.length; for (let i = a; ; i = (i + 1) % n) { r.push(arr[i]); if (i === b) break; } return r; }
+function zurueck(arr, a, b) { const r = [], n = arr.length; for (let i = a; ; i = (i - 1 + n) % n) { r.push(arr[i]); if (i === b) break; } return r; }
+
+// Eck-Sockel mit Magnetloch als eigener Körper (ragt 0.05 mm in die Wand)
+function sockel(n, cx, cy, q, zs, p) {
+  const e = GF.raster / 2 - 2.85 + 0.05, a = GF.mag.a;
+  const R = Math.min(p.magD / 2 + 1.6, e - a - 0.1), pc = a - R;
+  const v = [[a, pc], [e, pc], [e, e], [pc, e], [pc, a]];
+  for (let i = 1; i < 8; i++) { const w = Math.PI + (i / 8) * Math.PI / 2; v.push([a + R * Math.cos(w), a + R * Math.sin(w)]); }
+  const form = (z) => v.map(([x, y]) => dreh(cx, cy, q, x, y, z));
+  const m = dreh(cx, cy, q, a, a, zs);
+  verbinden(n, [form(0), form(zs)]);
+  deckel(n, form(0), [], false);
+  deckel(n, form(zs), [kreis(m[0], m[1], p.magD, zs)], true);
+  magnetLoch(n, m[0], m[1], zs, -1, p.magD, p.magH);
 }
 
 export function platteNetz(eingabe) {
   const p = plattePruefen(eingabe);
   const n = neuesNetz();
-  const { nx, ny, W, D, H, zs } = platteMasse(p);
-  const zt = H, zb = H - 4.4;           // Oberkante, unteres Ende des Profils
-  const st = p.anschluss ? stoesse(nx, ny) : { sx: [], sy: [] };
-  // Feld-Ringe von oben nach unten (abwärts = Fläche zeigt ins Feld).
-  // Oben 0.25 mm eingezogen, sonst stossen Nachbarfelder mit Wandstärke 0
-  // aneinander.
-  const pcS = sockelMasse(p.magD).pc;
-  const feldRinge = (cx, cy) => zs > 0
-    ? [[0.25, zt], [2.15, zt - 1.9], [2.15, zt - 3.7], [2.85, zb], [2.85, zs]].map(([e, z]) => feldRingX(cx, cy, e, pcS, z))
-    : [[0.25, zt], [2.15, zt - 1.9], [2.15, zt - 3.7], [2.85, zb]]
-      .map(([e, z]) => rring(cx, cy, GF.raster - 2 * e, GF.raster - 2 * e, GF.platteR - e, z));
+  const { nx, ny, W, D, H, zs, anschluss } = platteMasse(p);
+  const zt = H, L = stufen(zs, zt);
+  const aussen = (z) => rring(0, 0, W, D, GF.platteR, z);
   const felder = [];
-  for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++)
-    felder.push([(i - (nx - 1) / 2) * GF.raster, (j - (ny - 1) / 2) * GF.raster]);
-  const ringe = felder.map(([x, y]) => feldRinge(x, y));
+  for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
+    const rand = [i === nx - 1, j === ny - 1, i === 0, j === 0];
+    const ecke = [rand[0] && rand[3], rand[0] && rand[1], rand[2] && rand[1], rand[2] && rand[3]];
+    felder.push({ x: (i - (nx - 1) / 2) * GF.raster, y: (j - (ny - 1) / 2) * GF.raster, rand, ecke });
+  }
 
-  if (zs > 0) {
-    // Aussen: unten mit Kerben bis zur Sockelhöhe, darüber glatt
-    const unten0 = umriss(W, D, 0, st, true), untenS = umriss(W, D, zs, st, true);
-    const obenS = umriss(W, D, zs, st, false), obenT = umriss(W, D, zt, st, false);
-    verbinden(n, [unten0.p, untenS.p]);
-    verbinden(n, [obenS.p, obenT.p]);
-    for (const k of untenS.kerben) deckel(n, k, [], false);
-    deckel(n, obenT.p, ringe.map((r) => r[0]), true);
-    const loecher = felder.map(([x, y]) => feldUnten(x, y, p.magD, 0));
-    felder.forEach(([x, y], k) => {
-      verbinden(n, ringe[k]);
-      const offen = feldUnten(x, y, p.magD, zs);
-      // Oberseite der Sockel, mit den Magnetlöchern (Viertel q ↔ Magnet q)
-      for (let q = 0; q < 4; q++) {
-        const m = dreh(x, y, q, GF.mag.a, GF.mag.a, zs);
-        deckel(n, sockelOben(x, y, p.magD, zs, q), p.magnete ? [kreis(m[0], m[1], p.magD, zs)] : [], true);
-        if (p.magnete) magnetLoch(n, m[0], m[1], zs, -1, p.magD, p.magH);
-      }
-      verbinden(n, [offen, loecher[k]]);
-    });
-    deckel(n, unten0.p, loecher, false);
-  } else {
-    const aussen = (z) => rring(0, 0, W, D, GF.platteR, z);
+  if (!anschluss) {
+    // Ein Körper: Rand, Deckel mit den Feldöffnungen, Felder als Trichter
+    const hoehen = L.map(([z]) => z).reverse();
+    const ringe = felder.map((f) => hoehen.map((z) => ringPlain(f.x, f.y, einzugBei(L, z), z)));
     verbinden(n, [aussen(0), aussen(zt)]);
     deckel(n, aussen(zt), ringe.map((r) => r[0]), true);
     for (const r of ringe) verbinden(n, r);
-    deckel(n, aussen(0), ringe.map((r) => r[3]), false);
+    deckel(n, aussen(0), ringe.map((r) => r[r.length - 1]), false);
+  } else {
+    // Unten (0 … 2 mm): ganze Platte, an den Randseiten die Schiene
+    const unten = [[0, null], [0.7, null], ...SCHIENE];
+    const loecher = felder.map((f) => {
+      const randFeld = f.rand.some(Boolean);
+      const st = randFeld ? unten : [[0, null], [0.7, null], [2.0, null]];
+      return st.slice().reverse().map(([z, bd]) => {
+        const e = einzugBei(L, z);
+        return randFeld ? ringBucht(f.x, f.y, e, z, f.rand, bd === null ? e - 0.01 : bd) : ringPlain(f.x, f.y, e, z);
+      });
+    });
+    verbinden(n, [aussen(0), aussen(2.0)]);
+    deckel(n, aussen(2.0), loecher.map((r) => r[0]), true);
+    for (const r of loecher) verbinden(n, r);
+    deckel(n, aussen(0), loecher.map((r) => r[r.length - 1]), false);
+
+    // Oben (ab 1.9 mm): je Feld ein Rahmen, an den Randseiten unterbrochen
+    const z0 = 1.9;
+    const hoehen = [z0, ...L.map(([z]) => z).filter((z) => z > z0 + 1e-6)];
+    for (const f of felder) {
+      const buchten = [0, 1, 2, 3].filter((k) => f.rand[k]);
+      if (!buchten.length) {
+        const Q = (z) => feldAussen(f.x, f.y, z, f.rand, f.ecke).p;
+        const R = hoehen.map((z) => ringPlain(f.x, f.y, einzugBei(L, z), z)).reverse();
+        verbinden(n, [Q(z0), Q(zt)]);
+        verbinden(n, R);
+        deckel(n, Q(zt), [R[0]], true);
+        deckel(n, Q(z0), [R[R.length - 1]], false);
+        continue;
+      }
+      buchten.forEach((i, t) => {
+        const j = buchten[(t + 1) % buchten.length];
+        const kontur = (z) => {
+          const Q = feldAussen(f.x, f.y, z, f.rand, f.ecke), R = ringMarken(f.x, f.y, einzugBei(L, z), z, f.rand);
+          return [...vor(Q.p, Q.m[i][1], Q.m[j][0]), ...zurueck(R.p, R.m[j][0], R.m[i][1])];
+        };
+        const K = hoehen.map(kontur);
+        verbinden(n, K);
+        deckel(n, K[0], [], false);
+        deckel(n, K[K.length - 1], [], true);
+      });
+    }
   }
+  if (p.magnete) for (const f of felder) for (let q = 0; q < 4; q++) sockel(n, f.x, f.y, q, zs, p);
   return fertig(n, { ...p, nx, ny, W, D, H });
 }
 
-// Anzahl Verbinder, um Platten gleicher Grösse aneinander zu reihen: je Stoss
+// Klammern: eine je Feld entlang des Stosses
 export function verbinderJeKante(p) {
   const { nx, ny } = platteMasse(plattePruefen(p));
-  return { breit: nx - 1, tief: ny - 1 };
+  return { breit: nx, tief: ny };
 }
 
-// Verbinder: zwei Schwalbenschwänze Rücken an Rücken, etwas kleiner als
-// die Kerben, flacher als der Sockel
-export function verbinderNetz(eingabe) {
-  const p = plattePruefen(eingabe);
-  const { zs } = platteMasse({ ...p, anschluss: true });
+// Klammer im Querschnitt (Breite quer zum Stoss, Höhe), aus der STL des
+// Gridfinity-Generators: Λ-Dach mit runder Spitze, zwei Beine mit Nase
+// nach innen, die unter den Hinterschnitt der Schienen greift.
+const KLAMMER = [[2.15, 0], [2.15, 1.65], [0.212, 3.588], [0.16, 3.63], [0.099, 3.659], [0.034, 3.674],
+  [-0.034, 3.674], [-0.099, 3.659], [-0.16, 3.63], [-0.212, 3.588], [-2.15, 1.65], [-2.15, 0], [-1.05, 0],
+  [-1.05, 0.25], [-1.45, 0.783], [-1.45, 1.35], [1.45, 1.35], [1.45, 0.783], [1.05, 0.25], [1.05, 0]];
+export function verbinderNetz() {
   const n = neuesNetz();
-  const { a, b, d, spiel: c } = KERBE;
-  const h = Math.max(1.5, zs - 0.4);
-  const form = (z) => [[-(b - c), -(d - c)], [b - c, -(d - c)], [a - c, 0], [b - c, d - c], [-(b - c), d - c], [-(a - c), 0]].map(([x, y]) => [x, y, z]);
-  verbinden(n, [form(0), form(h)]);
+  const form = (z) => KLAMMER.map(([x, y]) => [x, y, z]);
+  verbinden(n, [form(0), form(19.6)]);
   deckel(n, form(0), [], false);
-  deckel(n, form(h), [], true);
+  deckel(n, form(19.6), [], true);
   return fertig(n, { verbinder: true });
 }
 

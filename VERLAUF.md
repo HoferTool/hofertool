@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.900.0 (27. November 2026)
+
+Gridfinity-Grundplatte: „Anschliessbar“ jetzt genau wie im Gridfinity-Generator (nach Patricks STL): Aussparung mit Schiene in der Mitte jedes Randfelds, Λ-Klammer zum Speichern.
+
 ## 1.899.0 (27. November 2026)
 
 Gridfinity-Grundplatte: Magnetlöcher als Eck-Sockel im offenen Feld (wie Patricks Bild), Magnet Ø und Höhe einstellbar, neue Option „Anschliessbar“ mit Kerben am Rand und Verbinder zum Speichern.

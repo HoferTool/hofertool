@@ -11,7 +11,7 @@ import { alt } from "../../bruecke.jsx";
 import { useEntwurfZurueck } from "../../teile/lokalZurueck.js";
 import {
   BOX_VORGABE, PLATTE_VORGABE, boxPruefen, plattePruefen, boxMasse, platteMasse,
-  boxNetz, platteNetz, verbinderNetz, verbinderJeKante, stlBinaer, dreiMF, GF,
+  boxNetz, platteNetz, verbinderNetz, stlBinaer, dreiMF, GF,
 } from "./geometrie.js";
 
 const SPEICHER = "hofer.gridfinity";
@@ -104,7 +104,7 @@ export default function Werkzeug() {
 
   async function speichern(format, verbinder = false) {
     const nz = verbinder ? verbinderNetz(platte) : netz;
-    const name = verbinder ? "gridfinity-verbinder" : dateiName;
+    const name = verbinder ? "gridfinity-klammer" : dateiName;
     if (!nz) return;
     const daten = format === "3mf" ? await dreiMF(nz, name) : stlBinaer(nz, name);
     const blob = new Blob([daten], { type: format === "3mf" ? "model/3mf" : "model/stl" });
@@ -174,10 +174,12 @@ export default function Werkzeug() {
               <h3>Ausführung</h3>
               <Schalter titel="Magnetlöcher" name="pmagnete" an={platte.magnete} setzen={p("magnete")} text="Feld bleibt offen, in jeder Ecke ein Sockel mit Loch" />
               {platte.magnete && <MagnetMasse d={platte.magD} h={platte.magH} setD={p("magD")} setH={p("magH")} />}
-              <Schalter titel="Anschliessbar" name="anschluss" an={platte.anschluss} setzen={p("anschluss")} text="Kerben am Rand, Platten mit Verbindern aneinander stecken" />
-              {platte.anschluss && <p className="gfn-text" data-gf-verbinder>
-                Verbinder je Stoss: {verbinderJeKante(platte).breit} an der Seite mit {pm.nx} Feldern, {verbinderJeKante(platte).tief} an der Seite mit {pm.ny} Feldern. Verbinder von unten in die Kerben beider Platten drücken.
-              </p>}
+              <Schalter titel="Anschliessbar" name="anschluss" an={platte.anschluss} setzen={p("anschluss")} text="Wie im Gridfinity-Generator: Schienen am Rand, Platten mit Klammern verbinden" />
+              {platte.anschluss && (platte.art === "schublade"
+                ? <p className="gfn-text gfn-warnung" data-gf-verbinder>Geht nur mit „Anzahl Felder“: beim Schubladenmass liegt ein Rand zwischen den Platten.</p>
+                : <p className="gfn-text" data-gf-verbinder>
+                  Eine Klammer je Feld am Stoss: {pm.nx} an der Seite mit {pm.nx} Feldern, {pm.ny} an der Seite mit {pm.ny} Feldern. Platten nebeneinander legen, Klammer von oben über beide Schienen drücken.
+                </p>)}
               <p className="gfn-text">Höhe {mm(pm.H)} mm</p>
             </section>
           </>}
@@ -193,8 +195,8 @@ export default function Werkzeug() {
             <div className="gfn-export">
               <button className="knopf knopf--haupt" data-gf-export="3mf" disabled={!netz} onClick={() => speichern("3mf")}>3MF speichern</button>
               <button className="knopf" data-gf-export="stl" disabled={!netz} onClick={() => speichern("stl")}>STL</button>
-              {stand.art === "platte" && platte.anschluss &&
-                <button className="knopf" data-gf-export="verbinder" onClick={() => speichern("3mf", true)}>Verbinder 3MF</button>}
+              {stand.art === "platte" && pm.anschluss &&
+                <button className="knopf" data-gf-export="verbinder" onClick={() => speichern("3mf", true)}>Klammer 3MF</button>}
             </div>
           </div>
         </div>
