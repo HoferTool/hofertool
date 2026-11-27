@@ -89,15 +89,15 @@ function Wahl({ z, hoco, fertig }) {
   const umschalten = (x) => setIds((s) => { const n = new Set(s); n.has(x) ? n.delete(x) : n.add(x); return n; });
 
   const uebernehmen = () => {
-    if (art === "hinweis") return fertig({ pm: hinweis.trim(), pm_art: hinweis.trim() ? "hinweis" : null, pm_id: null, pm_ids: null });
+    if (art === "hinweis") return fertig({ pm: hinweis.trim(), pm_art: hinweis.trim() ? "hinweis" : null, pm_id: null, pm_ids: null, pm_nr: null });
     if (art === "pruefmittel") {
       const p = (liste || []).find((x) => x.id === id);
-      return fertig(p ? { pm: pmText(p), pm_art: "pruefmittel", pm_id: p.id, pm_ids: null } : null);
+      return fertig(p ? { pm: pmText(p), pm_art: "pruefmittel", pm_id: p.id, pm_ids: null, pm_nr: p.nr || null } : null);
     }
     const g = (liste || []).filter((x) => ids.has(x.id));
     if (!g.length) return fertig(null);
     const masse = g.map((p) => p.nennmass || p.mass || p.nr || "").filter(Boolean);
-    return fertig({ pm: "Prüfstift " + masse.join(" / "), pm_art: "stift", pm_id: null, pm_ids: g.map((p) => p.id) });
+    return fertig({ pm: "Prüfstift " + masse.join(" / "), pm_art: "stift", pm_id: null, pm_ids: g.map((p) => p.id), pm_nr: g.map((p) => p.nr).filter(Boolean).join(", ") || null });
   };
   const kannUebernehmen = art === "hinweis" || (art === "pruefmittel" ? !!id : ids.size > 0);
   const tasten = [["pruefmittel", "Prüfmittel"], ["stift", "Prüfstifte"], ["hinweis", "Hinweis"]];
@@ -133,11 +133,30 @@ function Wahl({ z, hoco, fertig }) {
       )}
       <div className="dialog__knoepfe">
         <button type="button" className="knopf knopf--still" data-nein="" onClick={() => fertig(null)}>Abbrechen</button>
-        {z.pm ? <button type="button" className="knopf" data-pmwleer="" onClick={() => fertig({ pm: "", pm_art: null, pm_id: null, pm_ids: null })}>Leeren</button> : null}
+        {z.pm ? <button type="button" className="knopf" data-pmwleer="" onClick={() => fertig({ pm: "", pm_art: null, pm_id: null, pm_ids: null, pm_nr: null })}>Leeren</button> : null}
         <button type="button" className="knopf knopf--haupt" data-pmwok="" disabled={!kannUebernehmen} onClick={uebernehmen}>Übernehmen</button>
       </div>
     </div>
   );
+}
+
+// Automatisch wählen (Patrick 27. November 2026: „es soll den Grenzlehrdorn gleich automatisch
+// auswählen, wenn es nicht passt, wird es manuell eingetragen“): Zeilen mit einer Lehre als
+// Text, aber ohne gewähltes Mittel, bekommen das erste passende aktive Mittel der Verwaltung.
+// Gibt [{ id, felder }] zurück.
+export async function pmAutomatisch(zeilen, hoco) {
+  const offen = (zeilen || []).filter((z) => z && !("abschnitt" in z) && !z.pm_id && z.pm && LEHRE_NAME.test(z.pm) && !STIFT.test(z.pm));
+  if (!offen.length) return [];
+  const liste = (await laden()).filter((p) => (p.status || "aktiv") === "aktiv" && !istStift(p));
+  const aus = [];
+  for (const z of offen) {
+    const t = tolVon(z);
+    const mass = t && t.min !== null && t.max !== Infinity ? t.min + " / " + t.max : "";
+    let p = null;
+    try { p = pruefmittelFuer({ name: z.pm, soll: z.soll, mass }, liste, hoco)[0]; } catch (_) { /* keins */ }
+    if (p) aus.push({ id: z.id, felder: { pm: pmText(p), pm_art: "pruefmittel", pm_id: p.id, pm_ids: null, pm_nr: p.nr || null } });
+  }
+  return aus;
 }
 
 // Öffnet das Fenster; gibt die neuen Felder zurück oder null bei Abbruch

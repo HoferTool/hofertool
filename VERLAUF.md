@@ -2,6 +2,10 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.939.0 (27. November 2026)
+
+QS: Lehren, die im Masse-Blatt nur als Text stehen, werden beim Öffnen automatisch mit dem passenden aktiven Mittel der Verwaltung verbunden. Prüfmittel erscheinen im Bericht mit Nr. und abgekürzt (GLD, LD, LR, GewLD, GewLR, GRL, KR, BMS, IMS), Messuhr heisst im Bericht „Messuhr digital“; gespeichert bleibt der volle Text (pm_nr neu).
+
 ## 1.938.0 (27. November 2026)
 
 QS: Vorlage (Masse-Blatt) sieht aus wie das Prüfprotokoll beim Ausfüllen (Kopfraster bearbeitbar, Teil 1–5 und Fuss grau, Min/Max unter dem Soll, Zeilenknöpfe rechts neben dem Blatt). Stammdaten zeigen Artikel, Zeichnung und Allg. Toleranz; der Prüfbericht liest Artikel, Zeichnung, Index aus den Stammdaten und schreibt Änderungen zurück, ein anderer Index nur nach Rückfrage (sonst index_eigen).

@@ -220,6 +220,24 @@ export function toleranz(soll) {
 // als wär's von dir, und machst rot/grün“). Leeres Feld = Wert aus dem Soll.
 // z.tol (Text, nur 1.910.0) gilt weiter, falls vorhanden.
 const zahlOder = (v) => { const x = String(v ?? "").trim().replace(",", "."); return x === "" || isNaN(Number(x)) ? undefined : Number(x); };
+// Prüfmittel im Bericht kurz und mit Nr. (Patrick 27. November 2026: „soll mit Nr. dort stehen,
+// aber Grenzlehrdorn abkürzen, allgemein solche Begriffe abkürzen; Messuhr soll Messuhr digital
+// heissen, im Bericht, in der Verwaltung sein lassen“). Gespeichert bleibt der volle Text,
+// damit Checkliste und Ausbuchen die Lehren weiter erkennen; gekürzt wird nur beim Anzeigen.
+const KURZ = [
+  [/gewinde-?\s*lehr-?\s*dorn/gi, "GewLD"], [/gewinde-?\s*lehr-?\s*ring/gi, "GewLR"],
+  [/grenz-?\s*lehr-?\s*dorn/gi, "GLD"], [/grenz-?\s*rachen-?\s*lehre/gi, "GRL"],
+  [/lehr-?\s*dorn/gi, "LD"], [/lehr-?\s*ring/gi, "LR"], [/kontroll-?\s*ring/gi, "KR"],
+  [/bügel-?\s*messschraube/gi, "BMS"], [/innen-?\s*messschraube/gi, "IMS"],
+  [/\bmessuhr\b(?!\s*digital)/gi, "Messuhr digital"],
+];
+export function pmKurz(text) {
+  let t = String(text || "");
+  for (const [re, k] of KURZ) t = t.replace(re, k);
+  return t.replace(/\s+/g, " ").trim();
+}
+export const pmAnzeige = (z) => [z && z.pm_nr, pmKurz(z && z.pm)].filter(Boolean).join(" ");
+
 export function tolVon(z) {
   const h = String((z && z.tol) || "").trim();
   let auto = null;

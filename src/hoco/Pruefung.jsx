@@ -14,11 +14,11 @@ import { STIL, briefkopf } from "../seiten/qs/achtdBlatt.js";
 import { alt } from "../bruecke.jsx";
 import {
   ARTEN, AQL_WERTE, stammMitMassen, stammSpeichern, excelMasse, zeilenId, toleranz, toleranzText, fehltTabelle, lehrenAus,
-  bildVon, massBildHochladen, kopfInStammdaten,
+  bildVon, massBildHochladen, kopfInStammdaten, pmAnzeige,
 } from "../daten/pruefbericht.js";
 import { FormLage } from "../einrichtblatt/markiert.jsx";
 import { masseInQsOeffnen } from "../seiten/qs/qsSprung.js";
-import { pmWaehlen } from "./PmWahl.jsx";
+import { pmWaehlen, pmAutomatisch } from "./PmWahl.jsx";
 
 const KOPF = [["bezeichnung", "Artikel"], ["zeichnung", "Zeichnung"], ["index", "Index"], ["alltol", "Allg. Toleranz"]];
 
@@ -56,7 +56,7 @@ export default function Pruefung({ hoco, darf, modus = "stamm", zurueck, zurueck
   const zeileWeg = (id) => setW((x) => ({ ...x, zeilen: x.zeilen.filter((z) => z.id !== id) }));
   // Markierte Zeilen im Masse-Blatt leeren oder löschen (seit 1.786.0)
   const zeilenLeeren = (ids) => setW((x) => ({ ...x, zeilen: x.zeilen.map((z) => (!ids.has(z.id) ? z
-    : "abschnitt" in z ? { ...z, abschnitt: "" } : { ...z, nr: "", soll: "", pm: "", ll: false })) }));
+    : "abschnitt" in z ? { ...z, abschnitt: "" } : { ...z, nr: "", soll: "", pm: "", ll: false, pm_nr: null, pm_id: null, pm_ids: null, pm_art: null, tol_min: undefined, tol_max: undefined })) }));
   const zeilenWeg = (ids) => setW((x) => ({ ...x, zeilen: x.zeilen.filter((z) => !ids.has(z.id)) }));
   // bei = Index, vor dem eingefügt wird (leer = ans Ende)
   const zeileDazu = (abschnitt, bei) => setW((x) => {
@@ -304,6 +304,18 @@ export function MasseBlatt({ w, hoco, schreibt, kopfSetzen, zeileSetzen, zeileWe
     zeileSetzen(id, "soll", neu);
     requestAnimationFrame(() => { try { el.focus(); el.setSelectionRange(a + zeichen.length, a + zeichen.length); } catch (_) { /* egal */ } });
   };
+  // Lehren, die nur als Text dastehen, beim Öffnen gleich mit dem passenden Mittel der
+  // Verwaltung verbinden (seit 1.939.0); was nicht passt, bleibt zum Wählen von Hand
+  useEffect(() => {
+    if (!schreibt) return;
+    let weg = false;
+    pmAutomatisch(w.zeilen, hoco).then((l) => {
+      if (weg || !l.length) return;
+      for (const { id, felder } of l) for (const [k, v] of Object.entries(felder)) zeileSetzen(id, k, v);
+      alt.meldung(l.length + " Prüfmittel automatisch aus der Verwaltung gewählt. Bitte prüfen und speichern.", "gut");
+    }, () => {});
+    return () => { weg = true; };
+  }, []);
   // Prüfmittel/Hinweis über ein kleines Fenster wählen (seit 1.897.0)
   const pmFenster = async (z) => {
     if (!schreibt) return;
@@ -417,7 +429,7 @@ export function MasseBlatt({ w, hoco, schreibt, kopfSetzen, zeileSetzen, zeileWe
                       return <span className="pst-tolfelder" title="Toleranz: kleinstes und grösstes Mass">{feld("min", t ? t.min : null)}<span>–</span>{feld("max", t ? t.max : null)}</span>; })()}
                     </td>
                     {[0, 1, 2, 3, 4].map((t) => <td key={t} className="pst-c-teil"><span className="pst-teilfeld" /></td>)}
-                    <td><input className="pst-pm" data-pstpm={z.id} readOnly value={z.pm || ""} disabled={!schreibt} placeholder={schreibt ? "wählen …" : ""}
+                    <td><input className="pst-pm" data-pstpm={z.id} readOnly value={pmAnzeige(z)} disabled={!schreibt} placeholder={schreibt ? "wählen …" : ""}
                       title="Antippen: Prüfmittel, Prüfstifte oder Hinweis wählen"
                       onClick={() => pmFenster(z)} onKeyDown={(e) => { if (e.key === " " || e.key === "F2") { e.preventDefault(); pmFenster(z); } else enter(i)(e); }} /></td>
                     <td className="pst-c-ll"><input type="checkbox" checked={!!z.ll} disabled={!schreibt} onChange={() => zeileSetzen(z.id, "ll", !z.ll)} /></td>
