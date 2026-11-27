@@ -1,5 +1,5 @@
 // =================================================================
-//  GRIDFINITY: Boxen und Grundplatten als 3D-Netz (seit 1.889.0)
+//  GRIDFINITY: Boxen und Grundplatten als 3D-Netz (seit 1.895.0)
 //  Wunsch Patrick 27. November 2026: „ein Tool, das Gridfinity als Basis
 //  funktioniert“, Wahl „Boxen und Grundplatten“.
 //  Masse nach der offenen Gridfinity-Norm (Raster 42 mm, Höhe 7 mm je

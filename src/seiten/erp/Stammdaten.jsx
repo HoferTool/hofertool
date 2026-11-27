@@ -217,7 +217,7 @@ async function ausHoferTool(art, d, neu) {
   neu();
 }
 
-function Artikel({ d, neu }) {
+export function Artikel({ d, neu }) {
   const [art, setArt] = useState(gemerkt.artArt);
   const [suche, setSuche] = useState("");
   const [anzahl, setAnzahl] = useState(200);

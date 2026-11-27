@@ -38,6 +38,7 @@ with sync_playwright() as p:
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
     pg.evaluate("""s => { TEST.daten.pruef_stamm = [s]; TEST.daten.pruefbericht_dateien = []; TEST.daten.pruefprotokolle = [];
         TEST.daten.pruefmittel = [{ id: 'pmx', nr: 'PM-9', bezeichnung: 'Grenzlehrdorn', mass: '5.45 / 5.55', ort_art: 'schrank', status: 'aktiv' }];
+        TEST.rpc.pruefmittel_pruefstand_lesen = () => [{ id: 'pmx', intervall_monate: 12, letzte_pruefung: '2024-01-01' }];
         const m = (TEST.daten.machines || [])[0];
         // Nachbau der Funktionen aus sql/pruefmittel-ausbuchen-alle.sql
         TEST.rpc.pruefmittel_suchen_lesen = () => TEST.daten.pruefmittel;
@@ -74,6 +75,12 @@ with sync_playwright() as p:
     ct = pg.inner_text("[data-pbcheckliste]")
     pruefe("Isoma" not in ct and "Prüfstift" not in ct, "Isoma und Prüfstift nicht zum Checken")
     pruefe(pg.locator("#pb-check-quittieren").is_disabled(), "Quittieren erst wenn alles abgehakt")
+    # Anpassen: Masse der Stammdaten öffnen, zurück, Haken sind zurückgesetzt
+    pg.locator("[data-pbcheck]").first.check()
+    pg.click("#pb-check-anpassen"); pg.wait_for_selector("#pst-zurueck", timeout=8000)
+    pruefe("Checkliste" in pg.inner_text("#pst-zurueck"), "Anpassen öffnet die Masse mit Knopf zurück zur Checkliste")
+    pg.click("#pst-zurueck"); pg.wait_for_selector("[data-pbcheckliste]", timeout=8000); pg.wait_for_timeout(400)
+    pruefe(pg.locator("[data-pbcheck]:checked").count() == 0 and pg.locator("[data-pbcheckliste] [data-pbpm='PM-9']").count() >= 1, "nach Anpassen Liste neu, ohne Haken")
     for c in pg.locator("[data-pbcheck]").all(): c.check()
     pg.click("#pb-check-quittieren"); pg.wait_for_selector("#pb-blatt"); pg.wait_for_timeout(300)
     pmo = pg.evaluate("() => TEST.daten.pruefmittel.find(p => p.id === 'pmx').ort_art")
@@ -88,6 +95,8 @@ with sync_playwright() as p:
     pp = pg.evaluate("() => TEST.daten.pruefprotokolle")
     pruefe(len(pp) == 1 and pp[0].get("fa_nr") == "2026000111" and pp[0].get("job_id") == "jpb1", "Erstteil mit FA und Auftrag")
     pg.locator("input[name=pb-entscheid]").first.check(); pg.locator("label:has-text('Visum') input").last.fill("TE"); pg.wait_for_timeout(200)
+    pruefe(pg.locator("select[data-pbmaschinewahl]").count() == 1, "Maschine als Auswahlliste")
+    pg.evaluate("() => { window.__toasts = []; new MutationObserver(() => document.querySelectorAll('.toast-bereich > *').forEach(t => window.__toasts.includes(t.textContent) || window.__toasts.push(t.textContent))).observe(document.body, { childList: true, subtree: true }); }")
     pg.click("#pb-abschliessen"); pg.wait_for_timeout(600)
     if pg.locator(".dialog-huelle").count():
         pg.locator(".dialog-huelle .knopf--haupt, .dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(1000)
@@ -100,6 +109,7 @@ with sync_playwright() as p:
     pruefe(st1 == "laeuft", "Freigabe stellt jpb1 auf läuft: %s" % st1)
     pmx = pg.evaluate("() => TEST.daten.pruefmittel.find(p => p.id === 'pmx')")
     pruefe(pmx.get("ort_art") == "maschine" and pmx.get("job_id") == "jpb1", "nach Freigabe ausgebucht: %s %s" % (pmx.get("ort_art"), pmx.get("job_id")))
+    tt = " | ".join(pg.evaluate("() => window.__toasts || []")); pruefe("bald zur Kontrolle" in tt, "Meldung bei fälligem Prüfmittel: %s" % tt[:200])
     pruefe(pg.locator("[data-pbtodo=aql] [data-pbtodoauftrag=jpb1]").count() == 1, "AQL steht an bei läuft")
     # Endkontrolle als Zwischenkontrolle: nichts muss ausgefüllt sein, Auftrag bleibt bei Endkontrolle
     pg.click("[data-pbtodo=endkontrolle] [data-pbtodoauftrag=jpb2]"); pg.wait_for_selector("#pb-kontrolle")
@@ -154,7 +164,7 @@ with sync_playwright() as p:
     # Stammdaten: Karte Prüfung mit Masse-Blatt
     pg.locator("#pb-liste [data-pbprotokoll]").first.click()
     pg.wait_for_selector("#pb-blatt"); pg.wait_for_timeout(300)
-    pg.locator("button:has-text('Prüfmasse 99999-0001')").click()
+    pg.locator("button:text-is('Stammdaten')").first.click()
     pg.wait_for_selector("#pst-blatt-auf", timeout=8000); pg.click("#pst-blatt-auf")
     pg.wait_for_selector("[data-pstblatt] [data-pstseite]")
     pruefe(pg.locator("[data-pstseite]").count() == 1 and pg.locator("[data-pstblatt] tbody tr").count() == 5, "Masse-Blatt mit 5 Massen")

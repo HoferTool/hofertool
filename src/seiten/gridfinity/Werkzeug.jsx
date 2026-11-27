@@ -1,5 +1,5 @@
 // =================================================================
-//  GRIDFINITY-WERKZEUG (seit 1.889.0, Wunsch Patrick 27. November 2026)
+//  GRIDFINITY-WERKZEUG (seit 1.895.0, Wunsch Patrick 27. November 2026)
 //  Links die Einstellungen, rechts die 3D-Vorschau, unten der Export als
 //  3MF oder STL. Die Einstellungen merkt sich das Gerät (localStorage
 //  „hofer.gridfinity“), Strg + Z nimmt die letzte Änderung zurück.

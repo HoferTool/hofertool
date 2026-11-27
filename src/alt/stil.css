@@ -17642,7 +17642,7 @@ body.dunkel .kalk-fenster { background: #1b2430; }
 .pst-soll, .schreibleiste__zeichen, .eba-markier .schreibleiste__zeichen {
   font-family: Aptos, "Segoe UI", "Segoe UI Symbol", "Apple Symbols", "Cambria Math", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif; }
 
-/* ---------- Gridfinity (seit 1.889.0), Vorsilbe gfn-, weil gf- schon vergeben ist ---------- */
+/* ---------- Gridfinity (seit 1.895.0), Vorsilbe gfn-, weil gf- schon vergeben ist ---------- */
 .gfn-werkzeug { display: flex; flex-direction: column; gap: 14px; }
 .gfn-wahl { display: inline-flex; gap: 4px; padding: 4px; border-radius: 12px;
   background: var(--linie, #e4e8ee); align-self: flex-start; max-width: 100%; flex-wrap: wrap; }

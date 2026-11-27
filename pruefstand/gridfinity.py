@@ -1,4 +1,4 @@
-# Gridfinity (1.889.0, Wunsch Patrick 27. November 2026): Boxen und
+# Gridfinity (1.895.0, Wunsch Patrick 27. November 2026): Boxen und
 # Grundplatten nach Gridfinity, 3D-Vorschau, Export 3MF und STL.
 # Prüft: Externe sehen nichts, Masse nach Norm, Netz geschlossen,
 # 3MF und STL lesbar, Handy ohne seitliches Rollen.

@@ -179,7 +179,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.889.0";
+const APP_VERSION = "1.895.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3367,7 +3367,7 @@ function seiteSichtbar(pfad) {
   if (profil && profil.nur_zeit) return pfad === "zeit";
   // Das Dienstkonto braucht keine Material-Seite
   if ((pfad === "material" || pfad === "maschinen" || pfad === "statistik" || pfad === "kalender" || pfad === "einlagen" || pfad === "hofer2dto3d" || pfad === "modell3d" || pfad === "gridfinity" || pfad === "qs") && meineRolle() === "dienst") return false;
-  // Gridfinity (seit 1.889.0) nicht für Externe
+  // Gridfinity (seit 1.895.0) nicht für Externe
   if (pfad === "gridfinity" && istExtern()) return false;
   if (pfad === "infoboard" || pfad === "pausenraum") return infoboardSichtbar();
   if (pfad === "bildschirme") return SEITEN.some((s) => s.gruppe === "bildschirme" && seiteSichtbar(s.pfad));
@@ -11219,7 +11219,7 @@ const SEITEN = [
   { pfad: "einlagen",     titel: "Einlagen Generator", zeichen: SYM.einlagen, zeige: reactSeite(Einlagen) },
   // 3D-Viewer für SketchUp-Exporte (seit 1.797.0, Wunsch Patrick 25. November 2026)
   { pfad: "modell3d",     titel: "3D-Viewer", zeichen: SYM.modell3d, zeige: reactSeite(Modell3d) },
-  // Boxen und Grundplatten nach Gridfinity (seit 1.889.0, Wunsch Patrick 27. November 2026)
+  // Boxen und Grundplatten nach Gridfinity (seit 1.895.0, Wunsch Patrick 27. November 2026)
   { pfad: "gridfinity",   titel: "Gridfinity", zeichen: SYM.gridfinity, zeige: reactSeite(Gridfinity) },
   // Reihen lernen als 3D-Snowboard-Spiel, nur für Patrick (seit 1.546.0)
   { pfad: "reihen",       titel: "Hofer + Co Zahlensprint", zeichen: SYM.reihen, zeige: reactSeite(Reihen) },

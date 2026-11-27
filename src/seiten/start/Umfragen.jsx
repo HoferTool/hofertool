@@ -13,7 +13,7 @@
 //  Tabellen: sql/umfragen.sql. Bilder in der Ablage „zeichnungen“ unter
 //  umfragen/.
 // =================================================================
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
 import { Symbol } from "../../teile/zeichnen.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
@@ -32,6 +32,37 @@ function lesen(schluessel, standard) {
 function ablegen(schluessel, wert) {
   try { localStorage.setItem(schluessel, JSON.stringify(wert)); } catch (f) { /* privat */ }
 }
+
+// Zugeklappte Umfragen: am Gerät (hofer.umfrage.zu) und für Angemeldete
+// auch am Konto (Einstellung „umfrageZu“), damit es überall zu bleibt.
+const KLAPP_EINSTELLUNG = "umfrageZu";
+const KLAPP_EREIGNIS = "hofer-umfrage-zu";
+function konto() { return !!(alt.profil && alt.profil.id) && !(alt.istAndererNutzer && alt.istAndererNutzer()); }
+function klappStand() {
+  const m = { ...lesen(KLAPP_SPEICHER, {}) };
+  if (konto() && alt.einstellungWert) {
+    try { Object.assign(m, JSON.parse(alt.einstellungWert(KLAPP_EINSTELLUNG, "") || "{}") || {}); } catch (f) { /* alt */ }
+  }
+  return m;
+}
+function klappSetzen(id, zu) {
+  const m = { ...lesen(KLAPP_SPEICHER, {}), [id]: !!zu };
+  ablegen(KLAPP_SPEICHER, m);
+  if (konto() && alt.einstellungAblegen) {
+    let k = {};
+    try { k = JSON.parse(alt.einstellungWert(KLAPP_EINSTELLUNG, "") || "{}") || {}; } catch (f) { k = {}; }
+    k[id] = !!zu;
+    // Nur die letzten 60 Umfragen, damit die Einstellung klein bleibt
+    const ids = Object.keys(k); if (ids.length > 60) for (const x of ids.slice(0, ids.length - 60)) delete k[x];
+    alt.einstellungAblegen(KLAPP_EINSTELLUNG, JSON.stringify(k));
+  }
+  window.dispatchEvent(new Event(KLAPP_EREIGNIS));
+}
+function ichName() {
+  if (alt.istAndererNutzer && alt.istAndererNutzer()) return "";
+  return String((alt.meinName && alt.meinName()) || "").trim();
+}
+function namGleich(a, b) { return String(a || "").trim().toLowerCase().replace(/\s+/g, " ") === String(b || "").trim().toLowerCase().replace(/\s+/g, " "); }
 
 function fehltTabelle(f) {
   return /umfrage|PGRST205|42P01|schema cache/i.test(String((f && (f.message || f.code)) || ""));
@@ -150,12 +181,22 @@ function Umfrage({ u, neu, admin }) {
   // Zuklappen bis auf den Titel (seit 1.867.0, Wunsch Patrick 26. November
   // 2026: „so zuklappen, dass nur noch der Titel da ist, oder wenn
   // abgestimmt worden ist, soll es zugehen. Neue sind immer offen“).
-  // Gemerkt je Gerät; ohne Eintrag ist zu, wer hier schon abgestimmt hat.
-  const [zu, setZuState] = useState(() => {
-    const m = lesen(KLAPP_SPEICHER, {});
-    return u.id in m ? !!m[u.id] : !!gemerkt;
-  });
-  const setZu = (w) => { setZuState(w); ablegen(KLAPP_SPEICHER, { ...lesen(KLAPP_SPEICHER, {}), [u.id]: w }); };
+  // Seit 1.891.1 (Wunsch Patrick 27. November 2026: „wenn man es
+  // eingeklappt hat oder eine Antwort gegeben hat, soll es eingeklappt
+  // bleiben“): gemerkt am Konto (alle Geräte) und am Gerät, alle Stellen
+  // mit derselben Umfrage gleichen sich ab. Zu ist auch, wer unter seinem
+  // Namen schon abgestimmt hat, egal auf welchem Gerät.
+  const zuGemerkt = klappStand()[u.id];
+  const meinN = ichName();
+  const schonGestimmt = !!gemerkt || (!!meinN && (u.stimmen || []).some((s) => namGleich(s.name, meinN)));
+  const [, auffrischen] = useState(0);
+  useEffect(() => {
+    const f = () => auffrischen((n) => n + 1);
+    window.addEventListener(KLAPP_EREIGNIS, f);
+    return () => window.removeEventListener(KLAPP_EREIGNIS, f);
+  }, []);
+  const zu = zuGemerkt !== undefined ? !!zuGemerkt : schonGestimmt;
+  const setZu = (w) => klappSetzen(u.id, w);
   const { je, leute, max } = auswerten(u);
   const abgestimmt = !!gemerkt && !nochmals;
   const ergebnis = !u.offen || abgestimmt || verwalten;

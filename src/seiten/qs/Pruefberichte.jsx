@@ -25,7 +25,8 @@ import { alt, useDaten } from "../../bruecke.jsx";
 import { passtWoerter } from "../../teile/Suchfeld.jsx";
 import { useSeitenSuche } from "../../teile/seitenSuche.js";
 import { STIL, briefkopf } from "./achtdBlatt.js";
-import { qsSprung, masseInQsOeffnen } from "./qsSprung.js";
+import { qsSprung } from "./qsSprung.js";
+import { istFaellig } from "../../daten/pruefmittel.js";
 import Pruefung, { MasseBlatt } from "../../hoco/Pruefung.jsx";
 import { createPortal } from "react-dom";
 import { gdtTeile, gdtHtml } from "../../teile/zeichenListe.js";
@@ -98,11 +99,11 @@ function aqlStand(k, w) {
 
 const STAND = { laeuft: "läuft", ruesten: "Rüsten", geplant: "geplant", fertig: "fertig" };
 
-// Prüfmasse der HOCO Nr. hier in der QS bearbeiten (seit 1.837.0, Wunsch
-// Patrick 25. November 2026: „prüfbericht soll im qs selber bearbeitet werden
-// nicht stammdaten“). Die Stammdaten haben nur noch die Häkchen der Arten.
+// Stammdaten der HOCO Nr. öffnen, dort stehen die Prüfmasse zum Ändern
+// (seit 1.889.0, Wunsch Patrick 27. November 2026: „prüfmasse knopf soll weg,
+// und dort stammdaten knopf das man es gleich dort ändert“).
 function stammdatenOeffnen(nr) {
-  masseInQsOeffnen(nr);
+  alt.prod.hocoOffen = nr; alt.prod.hocoSuche = nr; alt.hocoFenster();
 }
 
 // Gehört ein Protokoll zu diesem Auftrag? Über die Kennung, sonst die FA Nr.
@@ -188,7 +189,7 @@ function materialText(j) {
 async function protokollAnlegen(hoco, art, j, protokolle, zwischen) {
   const st = await stammMitMassen(hoco);
   if (!st || !(st.zeilen || []).length) {
-    const ok = await alt.nachfragen({ titel: "Noch keine Masse", text: "Für " + hoco + " sind noch keine Prüfmasse erfasst. Unter „Prüfmasse bearbeiten“ eintragen oder einen Excel-Prüfbericht einlesen.", bestaetigen: "Prüfmasse bearbeiten" });
+    const ok = await alt.nachfragen({ titel: "Noch keine Masse", text: "Für " + hoco + " sind noch keine Prüfmasse erfasst. In den Stammdaten eintragen oder einen Excel-Prüfbericht einlesen.", bestaetigen: "Stammdaten öffnen" });
     if (ok) stammdatenOeffnen(hoco);
     return null;
   }
@@ -230,6 +231,30 @@ async function protokollLoeschen(p) {
 
 // =================================================================
 const JOB_SPALTEN = "id, fa_nr, job_number, plan_status, target_quantity, machine_id, planned_from, ended_at, material_bez, material_dm";
+// Maschine als Auswahlliste statt Freitext (Wunsch Patrick 27. November 2026:
+// „maschine soll dropdown menu sein“). Die Liste wird einmal je Sitzung geladen;
+// ein alter Freitext-Wert bleibt als eigener Eintrag sichtbar, damit nichts verloren geht.
+let maschinenVorrat = null;
+function MaschineWahl({ wert, schreibt, setzen }) {
+  const [liste, setListe] = useState(maschinenVorrat || []);
+  useEffect(() => {
+    if (maschinenVorrat) return;
+    let weg = false;
+    alt.db.from("machines").select("id, name, machine_number").then((r) => {
+      const n = [...new Set((r.data || []).map((m) => m.name).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b, "de", { numeric: true }));
+      maschinenVorrat = n;
+      if (!weg) setListe(n);
+    }, () => {});
+    return () => { weg = true; };
+  }, []);
+  const namen = wert && !liste.includes(wert) ? [wert, ...liste] : liste;
+  return <select data-pbmaschinewahl value={wert} disabled={!schreibt} onChange={(x) => setzen(x.target.value)}>
+    <option value="">– wählen –</option>
+    {namen.map((n) => <option key={n} value={n}>{n}</option>)}
+  </select>;
+}
+
 export default function Pruefberichte() {
   if (qsSprung.masse) { pbZustand.masse = qsSprung.masse; qsSprung.masse = null; }
   const [, setF] = useState(0);
@@ -693,14 +718,15 @@ function Protokoll({ p, zurueck }) {
   // Ältere Protokolle mit schon eingetragenen Werten brauchen sie nicht.
   const braucheCheck = art === "erstteil" && !zu && !(w.kopf.checkliste || {}).am && !(e.gut + e.schlecht);
   if (braucheCheck) return <Checkliste w={w} hoco={hoco} schreibt={schreibt} zurueck={zurueck}
-    quittieren={(c) => { const n = { ...w, kopf: { ...w.kopf, checkliste: c } }; setW(n); speichern(n); }} />;
+    quittieren={(c) => { const n = { ...w, kopf: { ...w.kopf, checkliste: c } }; setW(n); speichern(n); }}
+    kopfNeu={(k) => { const n = { ...w, kopf: { ...w.kopf, ...k } }; setW(n); speichern(n); }} />;
   return (
     <div className="pb pb-blattseite" data-pbprotokolloffen={w.id}>
       <div className="pb-kopfzeile pb-werkzeug">
         <button type="button" className="knopf knopf--klein" data-esc-zurueck onClick={zurueck}>← Prüfberichte</button>
         <span className="klein" id="pb-stand">{stand}</span>
         <span className="pst-platz" />
-        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(hoco)}>Prüfmasse {hoco}</button>
+        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(hoco)}>Stammdaten</button>
         <ZeichnungKnopf hoco={hoco} />
         <button type="button" className="knopf knopf--klein" id="pb-drucken" onClick={drucken}>🖨 Drucken</button>
         {darf() ? <button type="button" className="knopf knopf--klein knopf--gefahr-leise" id="pb-loeschen" onClick={loeschen}>Löschen</button> : null}
@@ -723,7 +749,7 @@ function Protokoll({ p, zurueck }) {
         <div className="pb-felder">
           <label className={!String(w.fa_nr || "").trim() ? "pb-pflicht" : ""}>FA Nr.<input value={w.fa_nr || ""} disabled={!schreibt} onChange={(x) => setzen("fa_nr", x.target.value)} /></label>
           {art === "aql" ? <AqlKopf k={w.kopf} schreibt={schreibt} setzen={kopfSetzen} werte={w.werte} /> : null}
-          <label className="pb-felder__rechts">Maschine<input value={w.kopf.maschine || ""} disabled={!schreibt} onChange={(x) => kopfSetzen("maschine", x.target.value)} /></label>
+          <label className="pb-felder__rechts">Maschine<MaschineWahl wert={w.kopf.maschine || ""} schreibt={schreibt} setzen={(v) => kopfSetzen("maschine", v)} /></label>
         </div>
 
         {art === "aql" ? <AqlTabelle zeilen={zeilen} w={w} schreibt={schreibt} aendern={aendern} />
@@ -798,11 +824,27 @@ async function ausbuchen(w, hoco) {
     const { error: fs } = await alt.db.rpc("pruefmittel_schrank_lesen");
     const ohneRpc = !!fs;
     if (ohneRpc && !alt.istAdmin()) return;
-    let pm = (await pruefmittelAlleLaden()).filter((p) => (!p.ort_art || p.ort_art === "schrank") && (p.status || "aktiv") === "aktiv");
-    if (!pm.length && ohneRpc) pm = (await schrankLaden()).data;
+    // Seit 1.891.0 auch gesperrte (Wunsch Patrick 27. November 2026: „wird jetzt ausgebucht,
+    // muss aber bald zur Kontrolle“). Zuerst wird ein gutes Mittel gesucht; nur wenn keines
+    // passt, ein gesperrtes oder fälliges, und dann kommt die Meldung.
+    let pm = (await pruefmittelAlleLaden()).filter((p) => (!p.ort_art || p.ort_art === "schrank") && ["aktiv", "gesperrt"].includes(p.status || "aktiv"));
+    if (!pm.length && ohneRpc) pm = (await schrankLaden()).data.filter((p) => (p.status || "aktiv") !== "weg");
     if (!pm || !pm.length) return;
+    // Prüfdaten (Intervall, letzte Prüfung) für alle lesbar über sql/pruefmittel-ausbuchen-gesperrt.sql
+    const { data: stand } = await alt.db.rpc("pruefmittel_pruefstand_lesen");
+    const standVon = new Map((stand || []).map((x) => [x.id, x]));
+    pm = pm.map((p) => ({ ...p, ...(standVon.get(p.id) || {}), id: p.id }));
+    const schlecht = (p) => (p.status || "aktiv") === "gesperrt" || istFaellig({ ...p, status: "aktiv" });
+    const gut = pm.filter((p) => !schlecht(p));
+    // für die Suche gelten gesperrte als aktiv, sonst übergeht pruefmittelFuer sie
+    const rest = pm.filter(schlecht).map((p) => ({ ...p, status: "aktiv", _vorher: p.status || "aktiv" }));
     const ids = new Set();
-    lehren.forEach((l) => { const x = pruefmittelFuer(l, pm.filter((p) => !ids.has(p.id)), hoco)[0]; if (x) ids.add(x.id); });
+    const kritisch = [];
+    lehren.forEach((l) => {
+      let x = pruefmittelFuer(l, gut.filter((p) => !ids.has(p.id)), hoco)[0];
+      if (!x) { x = pruefmittelFuer(l, rest.filter((p) => !ids.has(p.id)), hoco)[0]; if (x) kritisch.push(x); }
+      if (x) ids.add(x.id);
+    });
     if (!ids.size) return;
     const liste = [...ids];
     const vorher = [];
@@ -824,12 +866,29 @@ async function ausbuchen(w, hoco) {
     if (!n) return;
     if (vorher.length) alt.merkeSchritt(n + " Prüfmittel ausgebucht", alt.rueckRein("pruefmittel", vorher));
     alt.meldung(n + " Prüfmittel auf den Auftrag ausgebucht.", "gut");
+    if (kritisch.length) {
+      const namen = kritisch.map((p) => (p.nr ? p.nr + " " : "") + (p.bezeichnung || "") + (p._vorher === "gesperrt" ? " (gesperrt)" : " (fällig)")).join(", ");
+      alt.meldung("Wird jetzt ausgebucht, muss aber bald zur Kontrolle: " + namen, "warn");
+    }
   } catch (e) { /* still: ohne Prüfmittel geht es weiter */ }
 }
 
-function Checkliste({ w, hoco, schreibt, zurueck, quittieren }) {
+function Checkliste({ w, hoco, schreibt, zurueck, quittieren, kopfNeu }) {
   const punkte = useMemo(() => checkPunkte(w.kopf), [w.kopf]);
   const [haken, setHaken] = useState({});
+  // Anpassen (Wunsch Patrick 27. November 2026: „wenn die Liste mit Prüfmittel nicht stimmt,
+  // soll Anpassen kommen, dann der Bericht, man fügt was hinzu und checkt nochmals die Liste“):
+  // öffnet die Masse der Stammdaten; beim Zurückkommen werden Masse und Kopf neu übernommen
+  // und alle Haken zurückgesetzt, damit die Liste nochmals geprüft wird.
+  const [anpassen, setAnpassen] = useState(false);
+  const fertigAngepasst = async () => {
+    setAnpassen(false);
+    try {
+      const st = await stammMitMassen(hoco);
+      if (st && (st.zeilen || []).length) kopfNeu({ zeilen: st.zeilen, vorlage: st.kopf || {} });
+    } catch (f) { alt.meldung("Masse konnten nicht neu gelesen werden: " + fehlerText(f), "warn"); }
+    setHaken({});
+  };
   const alle = punkte.every(([id]) => haken[id]);
   // Welches Prüfmittel der Verwaltung passt zu jeder Lehre? (seit 1.838.0, Wunsch Patrick:
   // „das nr vom prüfmittel dort auch steht … es soll das mittel selber suchen“)
@@ -844,13 +903,14 @@ function Checkliste({ w, hoco, schreibt, zurueck, quittieren }) {
       {t.slice(0, 3).map((p) => "Prüfmittel " + (p.nr || p.bezeichnung) + " · " + pmOrtText(p)).join(" / ")}
       {t.length > 3 ? " … (" + t.length + ")" : ""}</small>;
   };
+  if (anpassen) return <Pruefung hoco={hoco} modus="qs" darf={schreibt} zurueck={fertigAngepasst} zurueckText="← Zurück zur Checkliste" />;
   return (
     <div className="pb pb-blattseite" data-pbcheckliste={w.id}>
       <div className="pb-kopfzeile pb-werkzeug">
         <button type="button" className="knopf knopf--klein" data-esc-zurueck onClick={zurueck}>← Prüfberichte</button>
         <span className="pst-platz" />
         <ZeichnungKnopf hoco={hoco} />
-        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(hoco)}>Prüfmasse {hoco}</button>
+        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(hoco)}>Stammdaten</button>
       </div>
       <div className="pb-check karte">
         <h2>Erstteilprüfung {hoco}{w.fa_nr ? " · FA " + w.fa_nr : ""}</h2>
@@ -868,6 +928,7 @@ function Checkliste({ w, hoco, schreibt, zurueck, quittieren }) {
         </ul>
         {schreibt ? (
           <div className="pb-check__fuss">
+            <button type="button" className="knopf" id="pb-check-anpassen" title="Masse und Prüfmittel in den Stammdaten ergänzen, danach die Liste nochmals prüfen" onClick={() => setAnpassen(true)}>Anpassen</button>
             <button type="button" className="knopf" onClick={() => setHaken(Object.fromEntries(punkte.map(([id]) => [id, true])))}>Alle abhaken</button>
             <button type="button" className="knopf knopf--haupt" id="pb-check-quittieren" disabled={!alle}
               onClick={() => quittieren({ am: new Date().toISOString(), punkte: punkte.map(([id, t]) => t) })}>✓ Quittieren, weiter zum Protokoll</button>
