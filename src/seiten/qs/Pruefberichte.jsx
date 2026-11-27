@@ -636,8 +636,9 @@ function Protokoll({ p, zurueck }) {
     if (!w.visum) { alt.meldung("Bitte das Visum eintragen.", "warn"); return; }
     // Nicht jedes Mass ist bei jeder Prüfung dran (z. B. nach Eloxieren oder
     // Schleifen erst bei Zwischen- oder Endkontrolle): leere Felder sind
-    // nur bei AQL eine Frage wert (seit 1.826.0, Wunsch Patrick)
-    if (e.offen && art === "aql") {
+    // nur bei AQL und der echten Endkontrolle eine Frage wert, nie bei der
+    // Zwischenkontrolle (seit 1.887.2, Wunsch Patrick: „erst bei end“)
+    if (e.offen && (art === "aql" || (art === "endkontrolle" && !istZwischen(w.kopf)))) {
       const ok = await alt.nachfragen({ titel: "Noch leere Felder", text: e.offen + " Felder sind noch leer. Trotzdem abschliessen?", bestaetigen: "Abschliessen" });
       if (!ok) return;
     }
