@@ -3,12 +3,19 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
-## 1.917.0 (27. November 2026)
+## 1.919.0 (27. November 2026)
 
 - Gridfinity: gespeicherte Einlage aus dem Einlagen Generator als Inhalt einer Box (Taschen im Boden); Einlagen mit Gridfinity-Füssen immer aufs Raster genormt.
 
 ## 1.916.0 (27. November 2026)
 
+## 1.918.0 (27. November 2026)
+
+Kalkulation → Stundensätze: Häkchen „Nicht mehr vorhanden“ je Maschine (`daten.weg`): die Sätze bleiben, alte Kalkulationen rechnen weiter, bei neuen Arbeitsgängen ist die Maschine nicht mehr wählbar, in der Liste unten und durchgestrichen. Löschen weist darauf hin (Patrick hatte zwei Maschinen gelöscht, eine davon in 401 Kalkulationen).
+
+## 1.917.0 (27. November 2026)
+
+Kleine Blase beim Markieren wie die Minisymbolleiste in Word (Wunsch Patrick): markiert man in einem gewöhnlichen Textfeld etwas, erscheint daneben eine Blase mit Ø ± ° ≤ ≥ × und aufklappbar ⌖▾ den Form- und Lagetoleranzen; ein Tipp ersetzt das Markierte. Nur beim Markieren, nicht beim Antippen. Felder mit Format behalten ihre Schreibleiste mit Farben. `src/teile/markierBlase.js`, CSS-Block „1.917.0“, Prüfstand `markier_blase.py`.
 - Gridfinity: Projekte speichern, öffnen und löschen (Tabelle `gridfinity_projekte`).
 
 ## 1.915.1 (27. November 2026)

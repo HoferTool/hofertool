@@ -27,6 +27,7 @@
 // =================================================================
 import { alt } from "../bruecke.jsx";
 import { ZEICHEN, FORM_LAGE } from "./zeichenListe.js";
+import { markierBlaseAnbinden } from "./markierBlase.js";
 const TEXT_TYPEN = new Set(["text", "search", ""]);
 const FARBEN = [["Schwarz", null, "#000000"], ["Rot", "#e03030"], ["Blau", "#1f5fd6"], ["Grün", "#1a8f3c"], ["Orange", "#e07a00"]];
 // Flächen, deren Inhalt FettText.jsx mit Farbe und Grösse speichert
@@ -65,6 +66,8 @@ function feldVon(el) {
 export function schreibleisteAnbinden(d) {
   if (!d || d.__schreibleiste) return;
   d.__schreibleiste = true;
+  // seit 1.917.0: kleine Blase mit Zeichen beim Markieren in reinen Textfeldern
+  markierBlaseAnbinden(d);
   const w = d.defaultView;
   let leiste = null, feld = null, format = false, gemerkt = null, plan = 0, zahlFeld = null;
 
