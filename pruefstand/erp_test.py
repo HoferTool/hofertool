@@ -429,10 +429,13 @@ with sync_playwright() as p:
     pruefe(z.nth(0).locator("input[data-erp-feld='termin']").input_value() == "2026-12-11", "KW 50 im Auftrag = Freitag: %s" % z.nth(0).locator("input[data-erp-feld='termin']").input_value())
     z.nth(0).locator("input[data-erp-feld='termin']").fill("2026-12-15")
     pg.screenshot(path=BILD + "/erp-lieferplan.png")
+    z.nth(1).locator("input[data-erp-feld='abruf']").check(); pg.wait_for_timeout(100)
+    pruefe(z.nth(1).locator("[data-erp-lp-abruf]").count() == 1, "Fälligkeit auf Abruf (seit 1.934.0)")
     oben(pg).locator("[data-erp-speichern]").click(); pg.wait_for_timeout(800)
     pos = [x for x in tabelle(pg, "erp_positionen") if x["artikel_id"] == a["id"]][-1]
     ab = (pos.get("daten") or {}).get("abrufe") or []
     pruefe([x["menge"] for x in ab] == [4000, 2000], "Lieferplan gespeichert: %s" % ab)
+    pruefe(len(ab) == 2 and ab[1].get("abruf") is True and ab[1].get("termin") == "" and ab[1].get("bis") == "2027-02-01", "auf Abruf gespeichert, bis = altes Datum: %s" % ab)
     # Auftragsbestätigung und Liefern je Position (1.818.0)
     with pg.expect_popup() as pop: oben(pg).locator("[data-erp-ab-drucken]").click()
     w = pop.value; w.wait_for_load_state(); pruefe("Auftragsbestätigung" in w.content(), "Auftragsbestätigung druckt"); w.close()

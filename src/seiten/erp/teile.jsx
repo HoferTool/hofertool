@@ -290,9 +290,9 @@ export function abDrucken(d, b) {
     const wid = (/\b1\.\d{4}\b/.exec(werkstoff) || [])[0] || "";
     const titel = a ? (a.bezeichnung || artikelIdxText(a, ix)) : (x.text || "");
     const pe = posPe(x);
-    const abrufe = (xd.abrufe || []).filter((r) => r.termin || r.kw || r.menge);
+    const abrufe = (xd.abrufe || []).filter((r) => r.termin || r.kw || r.menge || r.abruf);
     const lp = abrufe.length
-      ? abrufe.map((r) => "<tr><td>" + esc(r.kw ? "KW " + r.kw : (r.termin ? "KW " + kwText(r.termin) : "")) + "</td><td class='r'>"
+      ? abrufe.map((r) => "<tr><td>" + esc(r.abruf ? "auf Abruf" : r.kw ? "KW " + r.kw : (r.termin ? "KW " + kwText(r.termin) : "")) + "</td><td class='r'>"
         + mengeText(r.menge) + " " + esc(x.einheit || "Stk") + "</td><td>" + esc(r.bemerkung || "") + "</td></tr>").join("")
       : "<tr><td>" + esc(terminText(x)) + "</td><td class='r'>" + mengeText(x.menge) + " " + esc(x.einheit || "Stk") + "</td><td></td></tr>";
     return "<tbody class='pos'>"

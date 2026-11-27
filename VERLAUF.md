@@ -2,6 +2,10 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.934.0 (27. November 2026)
+
+- Test ERP: Fälligkeit im Lieferplan „auf Abruf“ (Häkchen Abruf, ohne Datum, altes Datum bleibt als „bis“, zählt nie als fällig oder Rückstand). `sql/erp-rahmen-auf-abruf.sql`: Termine am 31.12. aus dem Gewatec auf Abruf gesetzt, diese Aufträge sind Rahmenaufträge.
+
 ## 1.933.0 (27. November 2026)
 
 - Test ERP → Logistik: Kachel „Aktuell extern“ zeigt je Lieferant, was für Zusatzarbeit draussen ist (offene Bestellungen ZA extern minus Wareneingang), mit FA, Artikel, Arbeitsgang, Menge, seit wann und Termin zurück. ZA extern anlegen bucht nichts im Lager.
