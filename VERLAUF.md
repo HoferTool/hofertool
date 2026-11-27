@@ -2,9 +2,13 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
-## 1.941.0 (27. November 2026)
+## 1.942.0 (27. November 2026)
 
 - Material in den Stammdaten der HOCO Nr. ohne Lieferant, Menge, Bestellnummer und Termin (Patrick: „siehst du den Fehler?“ zu „CuZn38Pb2 rd 005 mm h9 Prometall 1100kg“; kam immer wieder, weil jeder Auftrag sein Materialfeld mit Bestellangaben in die Stammdaten brachte). `materialOhneBestellung` in `src/daten/materialBestellung.js`, benutzt in `groesseAusAuftrag` und `stammdatenNachziehen`; unterscheidet sich nur die Bestellangabe, kommt keine Rückfrage „Material auch beim Teil ändern?“ mehr. Am Auftrag selbst bleibt alles stehen. Einmal aufgeräumt mit `sql/stammdaten-material-rein.sql` (386 HOCO Nr., alte Werte in `hoco_material_sicherung`, dabei auch Excel-Reste wie 1.4305000000000001). Test `material_stamm.py`.
+
+## 1.941.0 (27. November 2026)
+
+QS → Prüfberichte: „Weitere anzeigen“ unter den Listen (je 30 mehr) statt nur Hinweis auf die Suche. Test pb_mehr.py.
 
 ## 1.940.1 (27. November 2026)
 

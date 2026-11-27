@@ -1,8 +1,8 @@
 -- =================================================================
---  MATERIAL IN DEN STAMMDATEN AUFRÄUMEN (1.941.0, 27. November 2026)
+--  MATERIAL IN DEN STAMMDATEN AUFRÄUMEN (1.942.0, 27. November 2026)
 --  Im Material der HOCO Nr. stand oft auch Lieferant, Menge,
 --  Bestellnummer und Termin („CuZn38Pb2 rd 005 mm h9 Prometall
---  1100kg“), weil es so vom Auftrag übernommen wurde. Seit 1.941.0
+--  1100kg“), weil es so vom Auftrag übernommen wurde. Seit 1.942.0
 --  übernimmt die App nur noch die Bezeichnung (materialOhneBestellung
 --  in src/daten/materialBestellung.js). Dieses Skript räumt einmal
 --  alle schon gespeicherten Einträge gleich auf.

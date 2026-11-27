@@ -17969,3 +17969,6 @@ body.dunkel .pst-teilfeld { background: #fafcfe; border-color: #d6dee8; }
 .pst-wie-protokoll td input:not([type=checkbox]) { padding-top: 5px !important; padding-bottom: 5px !important; }
 .pst-wie-protokoll .pst-tolfelder { margin-top: -3px; }
 .pst-wie-protokoll .pst-teilfeld { height: 20px; }
+
+/* QS → Prüfberichte: „Weitere anzeigen“ unter den Listen (seit 1.941.0) */
+.pb-mehr { flex-direction: column; align-items: center; gap: 6px; }

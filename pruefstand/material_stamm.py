@@ -1,5 +1,5 @@
 # Material in den Stammdaten ohne Lieferant, Menge und Bestellnummer
-# (seit 1.941.0, Patrick 27. November 2026): Am Auftrag darf „Prometall
+# (seit 1.942.0, Patrick 27. November 2026): Am Auftrag darf „Prometall
 # 1100kg“ stehen, in die HOCO Nr. kommt nur die Bezeichnung. Unterscheidet
 # sich nur das, fragt das Fenster nicht „Material auch beim Teil ändern?“.
 import time

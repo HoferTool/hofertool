@@ -179,7 +179,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.941.0";
+const APP_VERSION = "1.942.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -8798,7 +8798,7 @@ async function ladeHocoAusAuftraegenFrisch() {
 
 // Aus Durchmesser und Toleranz des Auftrags wird die Materialgrösse
 // Ohne Lieferant, Menge und Bestellnummer: die gehören zum Auftrag,
-// nicht in die Stammdaten der HOCO Nr. (seit 1.941.0)
+// nicht in die Stammdaten der HOCO Nr. (seit 1.942.0)
 function groesseAusAuftrag(j) {
   return materialOhneBestellung((j && j.material_bez) || "");
 }
