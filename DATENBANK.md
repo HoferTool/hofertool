@@ -127,3 +127,5 @@ In der Publikation `supabase_realtime`: `jobs`, `vacations`, Chat-Tabellen. Die 
 ## Dateiablage (Storage)
 
 Ablagen: `zeichnungen` (öffentlich — Zeichnungen, WBG, Einrichtblätter, Dokumentenpool unter `dok/`), `profilbilder`, `chat`, `temp` (nicht öffentlich, Temp-Ordner je Person unter `<Konto-Kennung>/`, nur die Person selbst liest und ändert, `sql/temp-ordner.sql`; Server-Funktion `temp-aufraeumen` löscht nach 24 Stunden; nicht in der Sicherung), `notizbuecher` (öffentlich, zufällige Namen `JJJJ/….jpg|pdf` — Bilder und PDFs der Notizbücher; beim Entfernen von der Seite bleiben die Dateien liegen, damit Rückgängig sie zurückholen kann).
+
+- `gridfinity_projekte` (seit 1.916.0): gespeicherte Projekte des Gridfinity-Werkzeugs, `name`, `daten` jsonb, Stempel wie `einlagen`; `sql/gridfinity-projekte.sql`.

@@ -17779,7 +17779,16 @@ body.dunkel .gfn-liste button.aktiv { background: #4a3a1c; border-color: #e8b04a
 body.dunkel [data-pstblatt] tbody td input:not([type=checkbox]):focus { background: #13202c; }
 body.dunkel [data-pstblatt] tbody tr:hover td { background: #1a2836; }
 
-/* ---------- 1.916.0: kleine Blase mit Zeichen beim Markieren (markierBlase.js) ---------- */
+/* Gridfinity: Projekte (1.916.0) */
+.gfn-feld { display: grid; gap: 4px; margin: 6px 0; }
+.gfn-feld span { font-size: 13px; color: #5b6773; }
+.gfn-feld input { padding: 8px 10px; border: 1px solid #c9d2dc; border-radius: 8px; font-size: 16px; min-width: 0; }
+.gfn-projektzeile { display: flex; gap: 4px; }
+.gfn-projektzeile > button:first-child { flex: 1; min-width: 0; }
+.gfn-weg { border: 1px solid #dde3ea; background: #fff; border-radius: 8px; width: 36px; cursor: pointer; color: #b03a2e; }
+body.dunkel .gfn-feld input { background: #222a33; border-color: #3a4552; }
+body.dunkel .gfn-weg { background: #222a33; border-color: #3a4552; }
+/* ---------- 1.917.0: kleine Blase mit Zeichen beim Markieren (markierBlase.js) ---------- */
 .markier-blase { position: fixed; left: 0; top: 0; z-index: 2147483001; display: flex; flex-direction: column; gap: 3px;
   padding: 3px; border-radius: 9px; background: #fff; border: 1px solid rgba(20, 40, 80, .18);
   box-shadow: 0 4px 14px rgba(10, 25, 50, .2); max-width: calc(100vw - 8px); animation: markier-blase-rein .12s ease-out; }

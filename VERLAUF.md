@@ -3,9 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
-## 1.916.0 (27. November 2026)
+## 1.917.0 (27. November 2026)
 
-Kleine Blase beim Markieren wie die Minisymbolleiste in Word (Wunsch Patrick): markiert man in einem gewöhnlichen Textfeld etwas, erscheint daneben eine Blase mit Ø ± ° ≤ ≥ × und aufklappbar ⌖▾ den Form- und Lagetoleranzen; ein Tipp ersetzt das Markierte. Nur beim Markieren, nicht beim Antippen. Felder mit Format behalten ihre Schreibleiste mit Farben. `src/teile/markierBlase.js`, CSS-Block „1.916.0“, Prüfstand `markier_blase.py`.
+Kleine Blase beim Markieren wie die Minisymbolleiste in Word (Wunsch Patrick): markiert man in einem gewöhnlichen Textfeld etwas, erscheint daneben eine Blase mit Ø ± ° ≤ ≥ × und aufklappbar ⌖▾ den Form- und Lagetoleranzen; ein Tipp ersetzt das Markierte. Nur beim Markieren, nicht beim Antippen. Felder mit Format behalten ihre Schreibleiste mit Farben. `src/teile/markierBlase.js`, CSS-Block „1.917.0“, Prüfstand `markier_blase.py`.
+- Gridfinity: Projekte speichern, öffnen und löschen (Tabelle `gridfinity_projekte`).
 
 ## 1.915.1 (27. November 2026)
 
