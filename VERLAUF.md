@@ -2,6 +2,9 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.937.0 (27. November 2026)
+- Bestellungen → Artikel: vor der Artikelnummer das kleine 3D-Bild des realen Werkzeugs aus „📚 Reale Werkzeuge“ (HOFERCAM), Maus darüber dreht es, Antippen öffnet es gross zum Drehen und Messen. Nur bei erkannten oder von Hand ergänzten Werkzeugen, nachgeladen (`bestellungen/ArtikelModell.jsx`). Wunsch Patrick.
+
 ## 1.936.0 (27. November 2026)
 - Test ERP, Stammdaten → **Formulare**: Designer für die Druckformulare (Rechnung, Lieferschein, AB, Bestellung, Angebot). Feste Texte (Ursprungserklärung, Ort/Datum/Name, Firmenzeile, Lieferschein-Einleitung, „Ware erhalten“, Bestell-Hinweise, Lieferadresse, Materialzertifikat, Schlusstext, Gruss) ändern oder ausschalten, Platzhalter {nr} {datum} {name} {kunde}, Schriftgrösse 8–12 pt, Strichcode und Bankverbindung ein/aus, Vorschau mit Beispieldaten. Gespeichert in `app_config.formulare` (nur Admin). Prüfstand `formulare_gewatec.py` erweitert.
 

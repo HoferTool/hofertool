@@ -17932,3 +17932,8 @@ body.zieh-laeuft .logi-kachel { touch-action: none; cursor: grabbing; }
 .fd-text{margin:10px 0}
 .fd-text textarea{width:100%;box-sizing:border-box;font:inherit;font-size:13px}
 body.dunkel .fd-rechts{background:#444}
+
+/* 1.937.0: kleines 3D-Bild des realen Werkzeugs in der Artikelliste */
+.bs-artikel__modell { display: inline-flex; flex: none; width: 44px; height: 44px; border-radius: 8px;
+  background: var(--grund); border: 1px solid var(--linie); overflow: hidden; }
+.bs-artikel__modell .cam-mini3d { display: block; }
