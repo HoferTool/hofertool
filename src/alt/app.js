@@ -179,7 +179,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.922.0";
+const APP_VERSION = "1.923.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5601,6 +5601,43 @@ function zeitWischen(b) {
   }, { passive: true });
 }
 
+// Zeilen im Fenster beim Drüberfahren über einen Planwand-Balken:
+// [Schlüssel, Name in den Einstellungen, Gruppe für die Lücken, nur intern].
+// Die Reihenfolge hier ist die bisherige und gilt, bis jemand selbst
+// wählt (seit 1.923.0, Wunsch Patrick 27. November 2026).
+const PLAN_INFO_FELDER = [
+  ["menge", "Fertigungsmenge (Stand / Soll)", 1],
+  ["abruf", "Abrufinformation", 1],
+  ["material", "Material", 2],
+  ["werkstoff", "Werkstoffnummer und Werkstoff", 2],
+  ["matmenge", "Materialmenge", 2],
+  ["liefertermin", "Liefertermin Material", 2],
+  ["matplatz", "Materialplatz", 2],
+  ["zustand", "Zustand", 3],
+  ["maschine", "Maschine", 3],
+  ["zeitraum", "Zeitraum", 3],
+  ["fa", "FA-Nummer", 3],
+  ["znr", "Zeichnungsnummer", 3, true],
+  ["notiz", "Notiz", 3],
+  ["problem", "Problem", 3],
+  ["geaendert", "Letzte Änderung", 4],
+  ["matinfo", "Mat. info. (Materialbedarf)", 4, true],
+];
+
+// Gewählte Zeilen in ihrer Reihenfolge. Gespeichert am Konto als Liste
+// mit Komma („menge,abruf,…“), also auf jedem Gerät gleich. Leer oder
+// nie gewählt = alles wie bisher. Externe immer wie bisher (sie haben
+// die Wahl nicht, Entscheid offen bei Patrick).
+function planInfoWahl() {
+  const alle = PLAN_INFO_FELDER.map((f) => f[0]);
+  if (istExtern()) return alle;
+  const roh = String(einstellungWert("planInfoFelder", "") || "").trim();
+  if (!roh) return alle;
+  const wahl = roh.split(",").map((x) => x.trim()).filter((x) => alle.includes(x));
+  // „-“ heisst bewusst nichts gewählt (nur HOCO Nr. und Siegel)
+  return roh === "-" ? [] : (wahl.length ? wahl : alle);
+}
+
 function balkenInfoVerhalten() {
   const tafel = document.querySelector(".pw-tafel");
   if (!tafel) return;
@@ -5640,60 +5677,51 @@ function balkenInfoVerhalten() {
       // einer Lücke alles zum Material, nach einer Lücke alles andere,
       // ganz unten die letzte Änderung. Fehlt etwas, steht dort ein
       // Hinweis, statt die Zeile ganz wegzulassen.
-      fenster = document.createElement("div");
-      fenster.className = "pw-info";
-      fenster.innerHTML = '<div class="pw-info__kopf">'
-        + '<span class="pw-info__nr">' + esc(j.job_number) + '</span>'
-        + '<span class="siegel-reihe">' + siegelHtml(j.geplant_von) + '</span></div>'
-        // Die Zeile „Material: da / bestellt …“ ganz oben ist seit 1.76.0
-        // weg (Wunsch Patrick 16. Oktober 2026: „verwirrt, soll
-        // übersichtlich sein“)
-        + zeile(j.target_quantity
+      // Seit 1.923.0 wählt jede Person selbst, welche Zeilen in welcher
+      // Reihenfolge kommen (Einstellungen → Allgemein, Wunsch Patrick
+      // 27. November 2026); ohne Wahl genau wie bisher (PLAN_INFO_FELDER).
+      const teile = {
+        menge: () => zeile(j.target_quantity
             ? zahlText(j.stand || 0) + ' / ' + zahlText(j.target_quantity) + ' Stück'
-            : "Keine Fertigungsmenge hinterlegt")
-        + (abruf
+            : "Keine Fertigungsmenge hinterlegt"),
+        abruf: () => (abruf
             ? zeile('<span class="pw-info__was">Abruf</span> ' + esc(abruf), "abruf")
-            : ("abruf_info" in j ? zeile("Keine Abrufinformation", "leer") : ""))
-
-        + luecke
-        + zeile(esc(j.material_bez || "Kein Material eingetragen"))
+            : ("abruf_info" in j ? zeile("Keine Abrufinformation", "leer") : "")),
+        material: () => zeile(esc(j.material_bez || "Kein Material eingetragen")),
         // Vorne die Werkstoffnummer, die die App aus der Bezeichnung
         // erkennt (X8CrNiS18-9 → 1.4305, Wunsch Patrick 16. Oktober 2026)
-        + (g ? zeile('<span class="ws-farbe" style="background:' + auftragFarbe(j).hex + '"></span>'
-              + esc([(werkstoffGenau(j.material_bez) || {}).nr, werkstoffText(g)].filter(Boolean).join(" · ")), "klein") : "")
-        + zeile(String(j.material_menge || "").trim()
+        werkstoff: () => (g ? zeile('<span class="ws-farbe" style="background:' + auftragFarbe(j).hex + '"></span>'
+              + esc([(werkstoffGenau(j.material_bez) || {}).nr, werkstoffText(g)].filter(Boolean).join(" · ")), "klein") : ""),
+        matmenge: () => zeile(String(j.material_menge || "").trim()
             ? '<span class="pw-info__was">Menge</span> ' + esc(j.material_menge)
-            : "Keine Materialmenge")
-        + (String(j.material_liefertermin || "").trim()
-            ? zeile('<span class="pw-info__was">Liefertermin</span> ' + esc(j.material_liefertermin)) : "")
-        + (materialPlatz(j) ? zeile("📦 " + esc(materialPlatz(j))) : "")
-
-        + luecke
-        + zeile(zustand.zeichen + " " + esc(zustand.name))
-        + zeile(esc(j.maschine || "–") + (j.maschine_nr ? " · " + esc(j.maschine_nr) : ""))
-        + (j.planned_from ? zeile("📅 " + esc(zeitraumText(j.planned_from, j.planned_days))) : "")
-        + zeile(String(j.fa_nr || "").trim() ? "FA " + esc(j.fa_nr) : "Kein FA vorhanden")
+            : "Keine Materialmenge"),
+        liefertermin: () => (String(j.material_liefertermin || "").trim()
+            ? zeile('<span class="pw-info__was">Liefertermin</span> ' + esc(j.material_liefertermin)) : ""),
+        matplatz: () => (materialPlatz(j) ? zeile("📦 " + esc(materialPlatz(j))) : ""),
+        zustand: () => zeile(zustand.zeichen + " " + esc(zustand.name)),
+        maschine: () => zeile(esc(j.maschine || "–") + (j.maschine_nr ? " · " + esc(j.maschine_nr) : "")),
+        zeitraum: () => (j.planned_from ? zeile("📅 " + esc(zeitraumText(j.planned_from, j.planned_days))) : ""),
+        fa: () => zeile(String(j.fa_nr || "").trim() ? "FA " + esc(j.fa_nr) : "Kein FA vorhanden"),
         // Zeichnungsnummer (Wunsch Patrick 20. Oktober 2026): aus dem
         // Dateinamen der Zeichnung, sonst aus der WBG. Was noch gelesen
         // werden muss, steht erst als „…“; ohne Nummer fällt die Zeile weg.
         // Nicht für Externe (Entscheid Patrick 20. Oktober 2026)
-        + (!istExtern() && zeichnungNrSofort(j) !== ""
+        znr: () => (!istExtern() && zeichnungNrSofort(j) !== ""
             ? zeile('<span class="pw-info__was">Zeichn. Nr.</span> <span data-wbg-znr>'
               + esc(zeichnungNrSofort(j) || "…") + '</span>', "znr")
-            : "")
-        + zeile("✎ " + (auftragNotiz(j) ? esc(auftragNotiz(j)) : "keine Notiz"))
-        + (j.problem ? zeile("⚠ " + esc(j.problem), "warn") : "")
-
-        + (j.geaendert_am
+            : ""),
+        notiz: () => zeile("✎ " + (auftragNotiz(j) ? esc(auftragNotiz(j)) : "keine Notiz")),
+        problem: () => (j.problem ? zeile("⚠ " + esc(j.problem), "warn") : ""),
+        geaendert: () => (j.geaendert_am
             ? zeile("Letzte Änderung " + esc(datumZeitKurz(j.geaendert_am))
               + (personOderSystem(j.geaendert_von)
                   ? " · " + esc(personOderSystem(j.geaendert_von)) : ""), "klein pw-info__zeile--schluss")
-            : "")
+            : ""),
         // „Mat. info.“ ganz unten, unter der letzten Änderung (1.84.0–1.94.1
         // nur im Auftragsfenster; wieder hier seit 1.95.0, nicht für
         // Externe, Wunsch Patrick 19. Oktober 2026: „ganz nach unten“).
         // „ca.“ rot wie im Fenster.
-        + (() => {
+        matinfo: () => {
             const m = !istExtern() && matInfo(j);
             if (!m) return "";
             return zeile('<span class="pw-info__was">Mat. info.</span> '
@@ -5704,7 +5732,29 @@ function balkenInfoVerhalten() {
               + (m.offen ? zeile(m.offen.stueck && m.sicher === false
                   ? '<span class="mat-info__l">ca.</span> ' + esc(m.offen.text.replace(/^ca\. /, ""))
                   : esc(m.offen.text), "mat-info__offen") : "");
-          })();
+          },
+      };
+      // Lücke, wo die Gruppe wechselt (Menge/Abruf, Material, Übriges);
+      // vor dem Schluss nicht, dort zieht die Zeile selbst einen Strich
+      let inhalt = "", gruppeVorher = null;
+      planInfoWahl().forEach((k) => {
+        const f = PLAN_INFO_FELDER.find((x) => x[0] === k);
+        const html = f && teile[k] ? teile[k]() : "";
+        if (!html) return;
+        if (gruppeVorher !== null && f[2] !== gruppeVorher && f[2] < 4) inhalt += luecke;
+        gruppeVorher = f[2];
+        inhalt += html;
+      });
+
+      fenster = document.createElement("div");
+      fenster.className = "pw-info";
+      fenster.innerHTML = '<div class="pw-info__kopf">'
+        + '<span class="pw-info__nr">' + esc(j.job_number) + '</span>'
+        + '<span class="siegel-reihe">' + siegelHtml(j.geplant_von) + '</span></div>'
+        // Die Zeile „Material: da / bestellt …“ ganz oben ist seit 1.76.0
+        // weg (Wunsch Patrick 16. Oktober 2026: „verwirrt, soll
+        // übersichtlich sein“)
+        + inhalt;
 
       // Vorschau im eigenen Fenster (Knopf oben auf der Planwand): dort
       // statt über der Seitenleiste
@@ -11305,6 +11355,7 @@ Object.assign(alt, {
   problemMelden, zwischenablageSetzen, werkstoffText, planAktualisieren,
   planKonflikteLoesen, planAufruecken, zeichnungErsetzen, zeichnungEntfernen, wbgEntfernen, einrichtblattEntfernen, ablageLoeschen,
   sucheVorladen, schrittZurueck, sucheOeffnen, einstellungenOeffnen, einstellungSetzenWert, einstellungWert,
+  PLAN_INFO_FELDER, planInfoWahl,
   meineRolle, zeichneSeite,
   masseBerechnen, isMobil, istTippgeraet, zuHeute, hocoFenster, sucheDialog, serverStempel,
   stammdatenAufPlanwand, zeichnungAnheften, ladeFerien, zeichnePlanwand, planSyncStarten, neuZeichnen,

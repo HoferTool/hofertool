@@ -132,6 +132,7 @@ function Allgemein({ bin }) {
     <>
       <MeinKonto />
       <Darstellung />
+      {!alt.istExtern() && alt.meineRolle() !== "dienst" && <PlanInfoWahl />}
       {bin && <AnmeldeMeldungen />}
       {(bin || alt.darfDokumenteUndSicherung()) && <Bestellmail />}
       {bin && <Betriebsferien />}
@@ -384,6 +385,60 @@ function Darstellung() {
                 if (s && s.refresh_token) alt.sitzungMerken(p.email, s.refresh_token);
               }
             }} />}
+    </Gruppe>
+  );
+}
+
+// Was im Fenster beim Drüberfahren über einen Planwand-Balken steht
+// (1.923.0, Wunsch Patrick 27. November 2026: „benutzerdefiniert wählen,
+// was im Fenster beim Drüberfahren angezeigt wird“). Häkchen ein/aus und
+// mit ↑ ↓ die Reihenfolge. Gespeichert am Konto, gilt auf jedem Gerät
+// sofort beim nächsten Drüberfahren. Externe haben die Wahl (noch) nicht.
+function PlanInfoWahl() {
+  const felder = alt.PLAN_INFO_FELDER;
+  const name = (k) => (felder.find((f) => f[0] === k) || [])[1];
+  // Liste aller Zeilen: gewählte in ihrer Reihenfolge, danach die übrigen
+  const aufbauen = () => {
+    const wahl = alt.planInfoWahl();
+    return [...wahl.map((k) => ({ k, an: true })),
+            ...felder.filter((f) => !wahl.includes(f[0])).map((f) => ({ k: f[0], an: false }))];
+  };
+  const [liste, setListe] = useState(aufbauen);
+  const ablegen = (neu) => {
+    setListe(neu);
+    const an = neu.filter((x) => x.an).map((x) => x.k);
+    alt.einstellungSetzenWert("planInfoFelder", an.length ? an.join(",") : "-");
+  };
+  const schieben = (i, um) => {
+    const z = i + um;
+    if (z < 0 || z >= liste.length) return;
+    const neu = liste.slice();
+    [neu[i], neu[z]] = [neu[z], neu[i]];
+    ablegen(neu);
+  };
+  const standard = () => {
+    alt.einstellungSetzenWert("planInfoFelder", "");
+    setListe(felder.map((f) => ({ k: f[0], an: true })));
+  };
+  return (
+    <Gruppe titel="Planwand: Fenster beim Drüberfahren"
+      text="Wähle, was im Fenster steht, wenn du über einen Auftrag fährst. Mit den Pfeilen änderst du die Reihenfolge. HOCO Nr. und Siegel stehen immer oben. Gilt auf allen deinen Geräten."
+      aktionen={<button type="button" className="knopf knopf--klein" data-planinfo-standard onClick={standard}>Wie am Anfang</button>}>
+      <ul className="planinfo-wahl">
+        {liste.map((x, i) => (
+          <li key={x.k} className={"planinfo-wahl__zeile" + (x.an ? "" : " planinfo-wahl__zeile--aus")}>
+            <label className="planinfo-wahl__name">
+              <input type="checkbox" data-planinfo={x.k} checked={x.an}
+                onChange={(e) => ablegen(liste.map((y) => (y.k === x.k ? { ...y, an: e.target.checked } : y)))} />
+              <span>{name(x.k)}</span>
+            </label>
+            <button type="button" className="planinfo-wahl__pfeil" aria-label="Nach oben" title="Nach oben"
+              disabled={i === 0} onClick={() => schieben(i, -1)}>↑</button>
+            <button type="button" className="planinfo-wahl__pfeil" aria-label="Nach unten" title="Nach unten"
+              disabled={i === liste.length - 1} onClick={() => schieben(i, 1)}>↓</button>
+          </li>
+        ))}
+      </ul>
     </Gruppe>
   );
 }
