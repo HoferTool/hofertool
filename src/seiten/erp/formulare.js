@@ -142,21 +142,30 @@ function sicher(fn) {
     const w = window.open("", "_blank");
     if (!w) { alt.meldung("Das Druckfenster wurde vom Browser blockiert. Bitte Popups für das HoferTool erlauben.", "warn"); return null; }
     try { w.document.write("<p style='font:14px Arial;padding:20px'>Formular wird erstellt …</p>"); } catch (e) { /* leer lassen */ }
-    vorbereitet = w;
-    try { return fn(...args); }
-    catch (e) {
+    const los = () => {
+      vorbereitet = w;
+      try { return fn(...args); }
+      catch (e) { return fehler(e); }
+      finally { vorbereitet = null; }
+    };
+    const fehler = (e) => {
       const text = (e && e.message) || String(e);
       try { w.document.open(); w.document.write("<p style='font:14px Arial;padding:20px;color:#b00'>Fehler beim Erstellen des Formulars: " + esc(text) + "</p>"); w.document.close(); } catch (f) { /* egal */ }
       alt.meldung("Drucken fehlgeschlagen: " + text, "fehler");
       if (alt.fehlerMerken) alt.fehlerMerken("Drucken", text, e && e.stack ? String(e.stack).split("\n").slice(0, 3).join(" | ") : "");
       return null;
-    } finally { vorbereitet = null; }
+    };
+    // Die Einstellungen aus dem Designer kommen einmal aus der Datenbank;
+    // ohne Verbindung druckt das Formular mit den Standardtexten
+    return formularEinstellungenLaden().then(los, los);
   };
 }
 
 // Ganzes Blatt zusammensetzen und im eigenen Fenster öffnen
-function blattOeffnen({ titel, kopf, spalten, inhalt, fuss, fussHoehe = 0 }) {
-  const html = "<!doctype html><html><head><meta charset='utf-8'><title>" + esc(titel) + "</title><style>" + CSS + "</style></head><body>"
+function blattOeffnen({ titel, kopf, spalten, inhalt, fuss, fussHoehe = 0, form }) {
+  const sg = Number(einst(form).schrift) || 10;
+  const html = "<!doctype html><html><head><meta charset='utf-8'><title>" + esc(titel) + "</title><style>" + CSS
+    + (sg !== 10 ? "body{font-size:" + sg + "pt;line-height:" + (sg * 1.2).toFixed(1) + "pt}" : "") + "</style></head><body>"
     + "<table class='seite'><thead><tr><td>" + briefkopfHtml() + "</td></tr></thead>"
     + "<tbody><tr><td><div class='innen' style='position:relative'><p class='test'>TESTVERSION ERP</p>" + kopfHtml(kopf)
     // Spaltenköpfe im eigenen Tabellenkopf: der Browser wiederholt sie auf
@@ -166,7 +175,8 @@ function blattOeffnen({ titel, kopf, spalten, inhalt, fuss, fussHoehe = 0 }) {
     + "</div></td></tr></tbody>"
     + "<tfoot><tr><td><div style='height:" + (fussHoehe + 10) + "pt'></div></td></tr></tfoot></table>"
     + (fuss || "")
-    + "<script>setTimeout(()=>print(),400)</script></body></html>";
+    + (vorschau ? "" : "<script>setTimeout(()=>print(),400)</script>") + "</body></html>";
+  if (vorschau) return html;
   const w = vorbereitet || window.open("", "_blank");
   if (!w) { alt.meldung("Das Fenster wurde vom Browser blockiert.", "warn"); return null; }
   w.document.open();
@@ -175,13 +185,74 @@ function blattOeffnen({ titel, kopf, spalten, inhalt, fuss, fussHoehe = 0 }) {
   return w;
 }
 
+// =================================================================
+//  DESIGNER (seit 1.936.0, Wunsch Patrick 27. November 2026: „Designer
+//  für Formulare zum Anpassen“; die Texte hat er im Gewatec über
+//  Crystal Reports gesteuert). Je Formular: feste Texte ändern oder
+//  ausschalten, Schriftgrösse, Strichcode und Bankverbindung ein/aus.
+//  Gespeichert in app_config.formulare (nur Admin schreibt).
+//  Platzhalter in den Texten: {nr} {datum} {name} {kunde}
+// =================================================================
+export const FORMULARE = [["re", "Rechnung"], ["ls", "Lieferschein"], ["ab", "Auftragsbestätigung"], ["be", "Bestellung"], ["an", "Angebot"]];
+const URSPRUNG = "Der Ausführer der Waren, auf die sich dieses Handelspapier bezieht, erklärt, dass diese Waren, soweit nicht anders angegeben, präferenzbegünstigte Schweizer Ursprungswaren sind.\nKeine Kumulation angewendet (no cumulation applied)";
+const ORT = "Lohn - Ammannsegg , den {datum}      {name}";
+const GRUSS = "Mit freundlichen Grüssen\nHOFER + CO";
+export const TEXTE = {
+  re: [["ursprung", "Ursprungserklärung", URSPRUNG], ["ort", "Ort, Datum, Name", ORT], ["firma", "Firmenzeile am Schluss", "Hofer + Co Präzisionsdrehteile AG"]],
+  ls: [["intro", "Satz über der Tabelle", "Wir senden Ihnen aufgrund der unten aufgeführten Liefer- und Zahlungsbedingungen:"],
+    ["ursprung", "Ursprungserklärung", URSPRUNG], ["ort", "Ort, Datum, Name", ORT], ["quittung", "Ware erhalten (unten)", "Ware erhalten"]],
+  ab: [["ursprung", "Ursprungserklärung", URSPRUNG], ["ort", "Ort, Datum, Name", ORT], ["gruss", "Gruss", GRUSS]],
+  be: [["zertifikat", "Hinweis oben (nur Rohmaterial)", "Materialzertifikat  beilegen !"],
+    ["hinweis", "Hinweis unten", "Bitte Teilen Sie uns eventuelle Lieferverzögerungen umgehend mit.\nWichtig! Unbedingt die Bestellnummer {nr} auf allen Korrespondenzen vermerken."],
+    ["ab_bitte", "Bitte um Auftragsbestätigung (Rohmaterial, ZA)", "Bitte senden Sie uns eine Auftragsbestätigung!"],
+    ["lieferadresse", "Lieferadresse (nur Rohmaterial)", "Lieferadresse:  " + ADRESSE_HOFER], ["gruss", "Gruss", GRUSS]],
+  an: [["schluss", "Schlusstext", "Ihrem Auftrag, dem wir unsere volle Aufmerksamkeit schenken werden, sehen wir gerne entgegen.\nFür allfällige weitere Fragen stehen wir Ihnen jederzeit zur Verfügung."],
+    ["gruss", "Gruss", GRUSS]],
+};
+// Schalter je Formular: [Name, Bezeichnung, Standard]
+export const SCHALTER = {
+  re: [["codes", "Strichcode", true], ["bank", "Bankverbindung unten", true]],
+  ls: [["codes", "Strichcode", true]], ab: [["codes", "Strichcode", true]], be: [["codes", "Strichcode (Rohmaterial)", true]], an: [],
+};
+export const FORMULAR_SCHLUESSEL = "formulare";
+let einstellungen = {};
+let geladenAm = 0;
+let platz = {}; // Platzhalter des Blatts, das gerade gezeichnet wird
+let vorschau = null; // Entwurf aus dem Designer, solange er eine Vorschau zeichnet
+export async function formularEinstellungenLaden(neu) {
+  if (!neu && Date.now() - geladenAm < 60000) return einstellungen;
+  const r = await alt.zeitlimit(alt.db.from("app_config").select("wert").eq("schluessel", FORMULAR_SCHLUESSEL).limit(1), 5000, "Formulare");
+  if (r.error) throw r.error;
+  const z = (r.data || [])[0];
+  try { einstellungen = z && z.wert ? (typeof z.wert === "string" ? JSON.parse(z.wert) : z.wert) : {}; } catch (e) { einstellungen = {}; }
+  geladenAm = Date.now();
+  return einstellungen;
+}
+export async function formularEinstellungenSpeichern(neu) {
+  const vorher = await alt.rueckSichern("app_config", { schluessel: FORMULAR_SCHLUESSEL });
+  const r = await alt.db.from("app_config").upsert([{ schluessel: FORMULAR_SCHLUESSEL, wert: JSON.stringify(neu) }], { onConflict: "schluessel" });
+  if (r.error) throw r.error;
+  alt.merkeSchritt("Formulare ändern", vorher.length ? alt.rueckRein("app_config", vorher, "schluessel")
+    : alt.rueckWeg("app_config", { schluessel: FORMULAR_SCHLUESSEL }));
+  einstellungen = neu; geladenAm = Date.now();
+}
+const einst = (form) => ((vorschau || einstellungen) || {})[form] || {};
+const schalter = (form, name) => { const w = (einst(form).schalter || {})[name]; return w == null ? true : !!w; };
+// Text eines Formulars als HTML; null, wenn er ausgeschaltet ist
+function text(form, id, werte = {}) {
+  const std = (TEXTE[form] || []).find((x) => x[0] === id);
+  const e = (einst(form).texte || {})[id] || {};
+  if (e.aus) return null;
+  const roh = e.text != null && String(e.text).trim() !== "" ? String(e.text) : (std ? std[2] : "");
+  return esc(roh.replace(/\{(nr|datum|name|kunde)\}/g, (m, k) => ({ ...platz, ...werte })[k] ?? "")).replace(/\n/g, "<br>").replace(/ {2,}/g, (x) => "&nbsp;".repeat(x.length));
+}
+
 // Ursprungserklärung mit Ort, Datum und Sachbearbeiter, wie auf der
 // Gewatec-Rechnung; seit 1.935.5 auch auf Lieferschein und Auftrags-
 // bestätigung (Patrick 27. November 2026: „bring diesen überall“)
-const ursprung = (datum, name) => "<p style='margin:12pt 0 0'>Der Ausführer der Waren, auf die sich dieses Handelspapier bezieht, erklärt, dass diese Waren, "
-  + "soweit nicht anders angegeben, präferenzbegünstigte Schweizer Ursprungswaren sind.<br>Keine Kumulation angewendet (no cumulation applied)</p>"
-  + "<p style='margin:11pt 0 0'>Lohn - Ammannsegg , den " + datumText(datum) + "<span style='display:inline-block;width:24pt'></span>" + esc(name) + "</p>";
-const gruss = (x, name, oben = 30) => "<div class='gruss' style='margin:" + oben + "pt 0 0 " + x + "pt'>Mit freundlichen Grüssen<br>HOFER + CO<br><br>" + esc(name) + "</div>";
+const absatz = (h, rand) => (h ? "<p style='margin:" + rand + "pt 0 0'>" + h + "</p>" : "");
+const ursprung = (form, datum, name) => absatz(text(form, "ursprung"), 12) + absatz(text(form, "ort", { datum: datumText(datum), name }), 11);
+const gruss = (form, x, name, oben = 30) => { const g = text(form, "gruss"); return g == null ? "" : "<div class='gruss' style='margin:" + oben + "pt 0 0 " + x + "pt'>" + g + "<br><br>" + esc(name) + "</div>"; };
 
 // Werkstoff, Werkstoffnummer usw. eines Artikels
 function artikelInfo(d, a, x) {
@@ -248,6 +319,7 @@ function reDruckenBlatt(d, b) {
   const t = BELEGTYP[b.typ] || BELEGTYP.rechnung;
   const { p, an } = partnerInfo(d, b, bd.anschrift || bd.rechnung_an);
   const sb = sachbearbeiter();
+  platz = { nr: b.nr, datum: datumText(b.datum), name: sb.name, kunde: (d.partnerMap.get(b.partner_id) || {}).name || "" };
   const pos = d.posJe.get(b.id) || [];
   const s = belegSumme(d, b);
   const lsGesehen = new Set();
@@ -301,19 +373,19 @@ function reDruckenBlatt(d, b) {
       ["Lieferbedingung", bedingungen(d, ersterLs || b).liefer], ["Versandbedingung", bedingungen(d, ersterLs || b).versand], ["Zahlungsbedingung", bedText(d, bd.zahlung) || bedingungen(d, b).zahlung],
     ].map((z) => z && [z[0], z[1]]), 144, 18).replace(/class='w'>([^<]*)\n/g, "class='w' style='white-space:pre-line'>$1\n") + "</div>"
     + (bd.text ? "<p style='white-space:pre-line;margin:8pt 0 0'>" + esc(bd.text) + "</p>" : "")
-    + ursprung(b.datum, sb.name)
-    + "<p style='margin:13pt 0 0'>Hofer + Co Präzisionsdrehteile AG</p></div>";
+    + ursprung("re", b.datum, sb.name)
+    + absatz(text("re", "firma"), 13) + "</div>";
   const spalten = "<table class='sp'>" + colgroup(SP_RE) + "<tr><th>POS</th><th style='padding-left:11pt'>MENGE</th><th></th><th style='padding-left:16pt'>BENENNUNG</th>"
     + "<th class='nw'>E-PREIS</th><th></th><th>PRO</th><th class='r'>BETRAG (CHF)</th></tr></table><div class='linie' style='margin-top:3pt'></div>";
   return blattOeffnen({
     titel: t.name + " " + b.nr,
     kopf: {
-      titel: t.name, codes: [b.nr, p.nr], codeX: 96, oben: 34, hoehe: 156, kl: 84, kc: 13,
+      titel: t.name, codes: schalter("re", "codes") ? [b.nr, p.nr] : null, codeX: 96, oben: 34, hoehe: 156, kl: 84, kc: 13,
       links: [[t.name + " Nr", b.nr, "wert"], ["Datum", datumText(b.datum)], ["Sachbearbeiter", sb.name], ["Telefon", sb.tel], ["Telefax", sb.fax],
         ["E-Mail", sb.mail], ["Unsere UID Nr.", UID, true], ["", "Knd. Nr:  " + (p.nr || "")]],
       adresse: adresseText(an), adrOben: 41,
     },
-    spalten, inhalt: bloecke + summen, fuss: BANK, fussHoehe: 26,
+    spalten, inhalt: bloecke + summen, fuss: schalter("re", "bank") ? BANK : "", fussHoehe: schalter("re", "bank") ? 26 : 0, form: "re",
   });
 }
 
@@ -326,6 +398,7 @@ function lsDruckenBlatt(d, b) {
   const bd = b.daten || {};
   const { p, an, tel, fax } = partnerInfo(d, b, bd.anschrift || bd.rechnung_an);
   const sb = sachbearbeiter();
+  platz = { nr: b.nr, datum: datumText(b.datum), name: sb.name, kunde: (d.partnerMap.get(b.partner_id) || {}).name || "" };
   const pos = d.posJe.get(b.id) || [];
   // Bis zu diesem Lieferschein geliefert: frühere Lieferscheine derselben Auftragsposition und dieser
   const vorher = (lb) => lb.id === b.id || String(lb.datum || "") < String(b.datum || "")
@@ -374,23 +447,24 @@ function lsDruckenBlatt(d, b) {
     + det([["Verpackung", bd.verpackung || " "], ["Verpackungskosten", verpK ? "CHF    " + chf(verpK) : " "],
       ["Porto", portoK ? "CHF    " + chf(portoK) : " "], ["Gesamtgewicht", gewicht || " "],
       ["Versandbedingung", bed.versand || " "], ["Lieferbedingung", bed.liefer || " "]], 142, 17)
-    + ursprung(b.datum, sb.name)
+    + ursprung("ls", b.datum, sb.name)
     + (bd.text ? "<p style='white-space:pre-line;margin:8pt 0 0'>" + esc(bd.text) + "</p>" : "");
-  const unten = "<div class='unten'><table>" + colgroup([105, 162, 162])
-    + "<tr><td>Ware erhalten</td><td>____________________________</td><td>____________________________</td></tr>"
+  const quittung = text("ls", "quittung");
+  const unten = quittung == null ? "" : "<div class='unten'><table>" + colgroup([105, 162, 162])
+    + "<tr><td>" + quittung + "</td><td>____________________________</td><td>____________________________</td></tr>"
     + "<tr><td></td><td>Datum:</td><td>Unterschrift:</td></tr></table></div>";
   const spalten = "<div class='linie'></div><table class='sp' style='margin:3pt 0'>" + colgroup(SP_LS) + "<tr><th style='padding-left:3pt'>POS</th><th style='padding-left:14pt'>MENGE</th><th></th>"
     + "<th>BENENNUNG</th><th>NETTO</th></tr></table><div class='linie'></div>";
   return blattOeffnen({
     titel: "Lieferschein " + b.nr,
     kopf: {
-      titel: "Lieferschein", codes: [b.nr, p.nr], codeX: 105, oben: 77, hoehe: 222, kl: 97, kc: 12,
+      titel: "Lieferschein", codes: schalter("ls", "codes") ? [b.nr, p.nr] : null, codeX: 105, oben: 77, hoehe: 222, kl: 97, kc: 12,
       links: [["Lieferschein-Nr.", b.nr, "wert"], ["Datum", datumText(b.datum)], ["Sachbearbeiter", sb.name], ["Telefon", sb.tel], ["Telefax", sb.fax], ["E-Mail", sb.mail]],
       adresse: adresseText(an), rechtsOben: 82, rl: 85, rc: 11,
       rechts: [["Kundennummer", p.nr], ["Telefon", tel], ["Telefax", fax]],
-      nach: { y: 204, html: "Wir senden Ihnen aufgrund der unten aufgeführten Liefer- und Zahlungsbedingungen:" },
+      nach: { y: 204, html: text("ls", "intro") || "" },
     },
-    spalten, inhalt: bloecke + schluss, fuss: unten, fussHoehe: 30,
+    spalten, inhalt: bloecke + schluss, fuss: unten, fussHoehe: quittung == null ? 0 : 30, form: "ls",
   });
 }
 
@@ -404,6 +478,7 @@ function abDruckenBlatt(d, b) {
   const { p, an, tel, fax, kontakt } = partnerInfo(d, b, bd.rechnung_an);
   const liefer = bd.anschrift || null;
   const sb = sachbearbeiter();
+  platz = { nr: b.nr, datum: datumText(b.datum), name: sb.name, kunde: (d.partnerMap.get(b.partner_id) || {}).name || "" };
   const pos = d.posJe.get(b.id) || [];
   const s = belegSumme(d, b);
   const bloecke = pos.map((x, i) => {
@@ -426,8 +501,8 @@ function abDruckenBlatt(d, b) {
       liefer ? ["Versandanschrift", "<span class='adr'>" + esc(adresseText(liefer)) + "</span>", "html"] : null,
       ["Versandbedingung", bedingungen(d, b).versand], ["Lieferbedingung", bedingungen(d, b).liefer], ["Zahlungsbedingung", bedingungen(d, b).zahlung]], 143, 16) + "</div>"
     + (bd.text ? "<p style='white-space:pre-line;margin:8pt 0 0'>" + esc(bd.text) + "</p>" : "")
-    + ursprung(b.datum, sb.name)
-    + gruss(320, sb.name, 30);
+    + ursprung("ab", b.datum, sb.name)
+    + gruss("ab", 320, sb.name, 30);
   const spalten = "<div class='linie'></div><table class='sp' style='margin:3pt 0'>" + colgroup(SP_AB)
     + "<tr><th>POS</th><th style='padding-left:11pt'>MENGE</th><th></th><th style='padding-left:-3pt'>Bezeichnung</th><th>PREIS</th><th>PRO</th><th class='r'>BETRAG(CHF)</th></tr></table><div class='linie'></div>";
   return blattOeffnen({
@@ -437,9 +512,9 @@ function abDruckenBlatt(d, b) {
       links: [["Bestätigungs-Nr.", b.nr, "wert"], ["Datum", datumText(b.datum)], ["Sachbearbeiter", sb.name], ["Telefon", sb.tel], ["Telefax", sb.fax], ["E-Mail", sb.mail]],
       adresse: adresseText(an), rechtsX: 297, rechtsOben: 65, rl: 85, rc: 11,
       rechts: [["Ihr Zeichen", bd.zeichen || kontakt.name || ""], ["Kundennummer", p.nr], ["Telefon", tel], ["Telefax", fax]],
-      rechtsCodes: [b.nr, p.nr],
+      rechtsCodes: schalter("ab", "codes") ? [b.nr, p.nr] : null,
     },
-    spalten, inhalt: bloecke + schluss,
+    spalten, inhalt: bloecke + schluss, form: "ab",
   });
 }
 
@@ -467,6 +542,7 @@ function beDruckenBlatt(d, b) {
   const mitPreis = art === "rohmaterial" || art === "za";
   const { an, tel, fax } = partnerInfo(d, b, bd.anschrift);
   const sb = sachbearbeiter();
+  platz = { nr: b.nr, datum: datumText(b.datum), name: sb.name, kunde: (d.partnerMap.get(b.partner_id) || {}).name || "" };
   const pos = d.posJe.get(b.id) || [];
   const s = belegSumme(d, b);
   const heute = datumText(new Date().toISOString().slice(0, 10));
@@ -499,32 +575,31 @@ function beDruckenBlatt(d, b) {
       + vor
       + "<tr><td colspan='3'></td><td colspan='5'>" + lieferplan(x, { datum: true, fettZeilen: art === "rohmaterial" }) + "</td></tr></table>";
   }).join("");
-  const nr = esc(b.nr);
   const schluss = "<div class='linie' style='margin-top:2pt'></div>"
     + (art !== "auftrag_ls" ? "<table style='margin:4pt 0 0 auto' class='b'><tr><td>" + (art === "ls_bestellung" ? "" : "Netto-Warenwert in CHF") + "</td><td>:</td>"
       + "<td class='r' style='width:80pt'>" + (mitPreis ? chf(s.netto) : "") + "</td></tr></table>" : "")
-    + "<p style='margin:" + (art === "auftrag_ls" || art === "ls_bestellung" ? 36 : 12) + "pt 0 0'>Bitte Teilen Sie uns eventuelle Lieferverzögerungen umgehend mit.<br>"
-    + "Wichtig! Unbedingt die Bestellnummer " + nr + " auf allen Korrespondenzen vermerken.</p>"
-    + (mitPreis ? "<p style='margin:11pt 0 0'>Bitte senden Sie uns eine Auftragsbestätigung!</p>" : "")
-    + (art === "rohmaterial" ? "<p class='b' style='margin:9pt 0 0'>Lieferadresse:<span style='display:inline-block;width:8pt'></span>" + esc(ADRESSE_HOFER) + "</p>" : "")
+    + absatz(text("be", "hinweis", { nr: b.nr }), art === "auftrag_ls" || art === "ls_bestellung" ? 36 : 12)
+    + (mitPreis ? absatz(text("be", "ab_bitte"), 11) : "")
+    + (art === "rohmaterial" && text("be", "lieferadresse") ? "<p class='b' style='margin:9pt 0 0'>" + text("be", "lieferadresse") + "</p>" : "")
     + (bd.text ? "<p style='white-space:pre-line;margin:8pt 0 0'>" + esc(bd.text) + "</p>" : "")
-    + gruss(art === "auftrag_ls" || art === "ls_bestellung" ? 320 : 291, sb.name, 18);
+    + gruss("be", art === "auftrag_ls" || art === "ls_bestellung" ? 320 : 291, sb.name, 18);
   const titel = { rohmaterial: "Bestellung", za: "Bestellung", auftrag_ls: "Auftrag / Lieferschein", ls_bestellung: "Lieferschein zu Bestellung" }[art];
   const spalten = "<div class='linie'></div><table class='sp sp9' style='margin:3pt 0'>" + colgroup(SP_BE) + "<tr><th>POS</th><th style='padding-left:17pt'>MENGE</th><th></th>"
     + "<th style='padding-left:-1pt'>BENENNUNG</th>" + (mitPreis ? "<th class='nw'>E-PREIS</th><th></th><th>PRO</th><th class='r'>BETRAG (CHF)</th>" : "<th></th><th></th><th></th><th></th>")
     + "</tr></table><div class='linie'></div>";
   const roh = art === "rohmaterial";
+  const zert = roh ? text("be", "zertifikat") : null;
   return blattOeffnen({
     titel: titel + " " + b.nr,
     kopf: {
-      titel, codes: roh ? [b.nr] : null, codeX: 93, oben: roh ? 28 : 67, hoehe: roh ? 161 : 201, kl: 88, kc: 8,
+      titel, codes: roh && schalter("be", "codes") ? [b.nr] : null, codeX: 93, oben: roh ? 28 : 67, hoehe: roh ? 161 : 201, kl: 88, kc: 8,
       links: [["Bestell-Nr", b.nr, "wert"], [mitPreis ? "Bestelldatum" : "Datum", datumText(b.datum)], ["Sachbearbeiter", sb.name], ["Telefon", sb.tel],
         ["Telefax", sb.fax], ["E-Mail", sb.mail], mitPreis ? ["Druckdatum", heute] : null],
       adresse: adresseText(an), rechtsOben: 83, rl: 72, rc: 12,
       rechts: [["Telefon", tel], ["Telefax", fax]],
-      nach: roh ? { y: 144, html: "<b style='font-size:11pt'>Materialzertifikat  beilegen !</b>" } : null,
+      nach: zert ? { y: 144, html: "<b style='font-size:11pt'>" + zert + "</b>" } : null,
     },
-    spalten, inhalt: bloecke + schluss,
+    spalten, inhalt: bloecke + schluss, form: "be",
   });
 }
 
@@ -537,6 +612,7 @@ export const angebotDrucken = sicher(angebotDruckenBlatt);
 function angebotDruckenBlatt({ k, nr, zeilen, adresse, datumText: dt }) {
   const sb = sachbearbeiter();
   const kopf = k.kopf || {};
+  platz = { nr: nr || "", datum: dt(new Date().toISOString().slice(0, 10)), name: sb.name, kunde: String(adresse || "").split("\n")[0] };
   const ag = k.angebot || {};
   const zeichnung = (kopf.zeichnung || "") + (kopf.index ? " / Index: " + kopf.index : "");
   const teil = det([["Bezeichnung", kopf.bezeichnung, true], ["Werkstoff", (k.material || {}).bez, true], ["Artikel-Code", kopf.artikel, true],
@@ -552,9 +628,8 @@ function angebotDruckenBlatt({ k, nr, zeilen, adresse, datumText: dt }) {
     + "<div style='padding-top:3pt'>" + preise + "</div><div class='linie' style='margin-top:4pt'></div>"
     + "<div style='margin-top:30pt'>" + det([["Lieferfrist", ag.lieferzeit], ["Lieferbedingung", ag.lieferbed], ["Versandbedingung", ag.versand], ["Zahlungsbedingung", ag.zahlung]], 89, 12) + "</div>"
     + (ag.gueltig ? "<p style='white-space:pre-line;margin:12pt 0 0'>" + esc(ag.gueltig) + "</p>" : "")
-    + "<p style='margin:7pt 0 0'>Ihrem Auftrag, dem wir unsere volle Aufmerksamkeit schenken werden, sehen wir gerne entgegen.<br>"
-    + "Für allfällige weitere Fragen stehen wir Ihnen jederzeit zur Verfügung.</p>"
-    + gruss(291, sb.name, 72);
+    + absatz(text("an", "schluss"), 7)
+    + gruss("an", 291, sb.name, 72);
   return blattOeffnen({
     titel: "Angebot " + (nr || ""),
     kopf: {
@@ -564,7 +639,47 @@ function angebotDruckenBlatt({ k, nr, zeilen, adresse, datumText: dt }) {
       adresse: adresse, rechtsX: 291, rechtsOben: 59, rl: 83, rc: 11,
       rechts: [["Ihr Zeichen", kopf.zeichen], ["Kundennummer", kopf.kundencode], ["Telefon", kopf.telefon], ["Telefax", kopf.fax]],
     },
-    inhalt,
+    inhalt, form: "an",
   });
 }
 
+
+// =================================================================
+//  VORSCHAU für den Designer: zeichnet ein Formular mit Beispieldaten
+//  und dem Entwurf (noch nicht gespeichert) und gibt das HTML zurück
+// =================================================================
+export function formularVorschau(form, entwurf, bestellartWahl = "rohmaterial") {
+  const heute = new Date().toISOString().slice(0, 10);
+  const kunde = { id: "vk", nr: "10001", name: "Muster AG", daten: { adresse: { strasse: "Musterstrasse 1", plz: "4500", ort: "Solothurn" }, telefon: "032 000 00 00", versand: "Post" } };
+  const artikel = { id: "va", nr: "A-1000", bezeichnung: "Musterteil Ø 12 x 40", art: form === "be" ? "rohmaterial" : "teil", daten: { material: "1.4305", gewicht: 0.02 } };
+  const ab = { id: "vab", typ: "auftrag", nr: "2026000001", datum: heute, partner_id: "vk", daten: {} };
+  const ls = { id: "vls", typ: "lieferschein", nr: "2026000002", datum: heute, partner_id: "vk", bezug_id: "vab", daten: { verpackung: "Karton" } };
+  const re = { id: "vre", typ: "rechnung", nr: "2026000003", datum: heute, partner_id: "vk", bezug_id: "vls", daten: {} };
+  const be = { id: "vbe", typ: "bestellung", nr: "2026000004", datum: heute, partner_id: "vk", daten: { bestellart: bestellartWahl } };
+  const pab = { id: "pab", beleg_id: "vab", artikel_id: "va", menge: 1000, einheit: "Stk", preis: 0.85, termin: heute, daten: {} };
+  const pls = { id: "pls", beleg_id: "vls", artikel_id: "va", menge: 1000, einheit: "Stk", preis: 0.85, bezug_id: "pab", daten: {} };
+  const pre = { id: "pre", beleg_id: "vre", artikel_id: "va", menge: 1000, einheit: "Stk", preis: 0.85, bezug_id: "pls", daten: {} };
+  const pbe = { id: "pbe", beleg_id: "vbe", artikel_id: "va", menge: 50, einheit: "m", preis: 12.4, termin: heute, daten: {} };
+  const belege = [ab, ls, re, be];
+  const positionen = [pab, pls, pre, pbe];
+  const d = {
+    partnerMap: new Map([["vk", kunde]]), artikelMap: new Map([["va", artikel]]),
+    belegMap: new Map(belege.map((b) => [b.id, b])), posMap: new Map(positionen.map((p) => [p.id, p])),
+    posJe: new Map(belege.map((b) => [b.id, positionen.filter((p) => p.beleg_id === b.id)])),
+    positionen, belege, bedingungen: [],
+  };
+  vorschau = entwurf || {};
+  try {
+    if (form === "re") return reDruckenBlatt(d, re);
+    if (form === "ls") return lsDruckenBlatt(d, ls);
+    if (form === "ab") return abDruckenBlatt(d, ab);
+    if (form === "be") return beDruckenBlatt(d, be);
+    return angebotDruckenBlatt({
+      k: { kopf: { bezeichnung: "Musterteil Ø 12 x 40", artikel: "A-1000", zeichnung: "Z-123" }, material: { bez: "1.4305" }, angebot: { lieferzeit: "4 Wochen" } },
+      nr: "20260001", adresse: "Muster AG\nMusterstrasse 1\n4500 Solothurn", datumText,
+      zeilen: [{ menge: "1'000", preis: "0.85", waehrung: "CHF", pe: "1" }],
+    });
+  } catch (e) {
+    return "<p style='font:14px Arial;padding:20px;color:#b00'>Vorschau nicht möglich: " + esc((e && e.message) || String(e)) + "</p>";
+  } finally { vorschau = null; }
+}

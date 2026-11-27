@@ -2,6 +2,9 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.936.0 (27. November 2026)
+- Test ERP, Stammdaten → **Formulare**: Designer für die Druckformulare (Rechnung, Lieferschein, AB, Bestellung, Angebot). Feste Texte (Ursprungserklärung, Ort/Datum/Name, Firmenzeile, Lieferschein-Einleitung, „Ware erhalten“, Bestell-Hinweise, Lieferadresse, Materialzertifikat, Schlusstext, Gruss) ändern oder ausschalten, Platzhalter {nr} {datum} {name} {kunde}, Schriftgrösse 8–12 pt, Strichcode und Bankverbindung ein/aus, Vorschau mit Beispieldaten. Gespeichert in `app_config.formulare` (nur Admin). Prüfstand `formulare_gewatec.py` erweitert.
+
 ## 1.935.5 (27. November 2026)
 
 - Druckformulare: Die Ursprungserklärung der Rechnung („Der Ausführer der Waren …“ mit Ort, Datum und Name) steht jetzt auch auf Lieferschein und Auftragsbestätigung; der kurze Satz „In der Schweiz ausreichend bearbeitet …“ fällt weg.

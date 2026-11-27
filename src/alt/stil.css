@@ -17921,3 +17921,14 @@ body.zieh-laeuft .logi-kachel { touch-action: none; cursor: grabbing; }
 .planinfo-wahl__zeile:not(:has(.planinfo-wahl__pfeil)) { min-height: 44px; }
 /* 1.934.0: Fälligkeit „auf Abruf“ im Lieferplan */
 .lp-abruf { color: #12407e; font-style: italic; white-space: nowrap; }
+
+/* Formular-Designer im Test ERP (1.936.0): links Einstellungen, rechts
+   Vorschau des A4-Blatts; auf schmalen Geräten untereinander */
+.fd{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.fd-links{flex:1 1 340px;min-width:0;max-width:560px}
+.fd-rechts{flex:1 1 420px;min-width:0;background:#e9e9e9;border-radius:8px;padding:8px}
+.fd-vorschau{width:100%;height:80vh;border:0;background:#fff;display:block}
+.fd-reihe{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin:8px 0}
+.fd-text{margin:10px 0}
+.fd-text textarea{width:100%;box-sizing:border-box;font:inherit;font-size:13px}
+body.dunkel .fd-rechts{background:#444}
