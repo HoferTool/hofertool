@@ -308,11 +308,11 @@ function BelegFenster({ start, id, vorlage, aussen, zu }) {
     </>;
   const fuss = <>
     {b && !bearbeiten && <button className="knopf knopf--gefahr" onClick={belegLoeschen}>Löschen</button>}
-    {b && !bearbeiten && <button className="knopf" data-erp-drucken="" onClick={() => (b.typ === "lieferschein" ? lsDrucken(d, b)
+    {b && !bearbeiten && <button className="knopf" data-erp-drucken="" data-erp-ab-drucken={b.typ === "auftrag" ? "" : undefined} onClick={() => (b.typ === "lieferschein" ? lsDrucken(d, b)
       : b.typ === "rechnung" || b.typ === "gutschrift" || b.typ === "proforma" ? reDrucken(d, b)
-        : b.typ === "bestellung" ? beDrucken(d, b) : belegDrucken(d, b))}>Drucken</button>}
-    {b && !bearbeiten && typ === "auftrag" && b.status !== "storniert" &&
-      <button className="knopf" data-erp-ab-drucken="" onClick={() => abDrucken(d, b)}>Auftragsbestätigung</button>}
+        : b.typ === "bestellung" ? beDrucken(d, b)
+          // Beim Auftrag druckt „Drucken“ die Auftragsbestätigung wie im Gewatec (1.935.2)
+          : b.typ === "auftrag" ? abDrucken(d, b) : belegDrucken(d, b))}>Drucken</button>}
     <span className="gf-fuss__luecke" />
     {geaendert && <span className="klein gf-geaendert">nicht gespeichert</span>}
     <button className="knopf knopf--still" data-nein="" onClick={bearbeiten ? abbrechen : zu}>{bearbeiten && b ? "Abbrechen" : "Beenden"}</button>
