@@ -157,7 +157,7 @@ with sync_playwright() as p:
     pg.click("[data-gf-projekt-loeschen='Prüfbox Elemente']"); pg.wait_for_timeout(300)
     pg.locator(".dialog-huelle button:has-text('Löschen')").click(); pg.wait_for_timeout(500)
     pruefe(not any(x.get("name") == "Prüfbox Elemente" for x in pg.evaluate("() => TEST.daten.gridfinity_projekte || []")), "Projekt gelöscht nach einer Nachfrage")
-    # Einlage als Inhalt der Box (1.917.0): Taschen aus dem Einlagen Generator im Boden
+    # Einlage als Inhalt der Box (1.919.0): Taschen aus dem Einlagen Generator im Boden
     pg.evaluate("""() => { TEST.daten.einlagen = TEST.daten.einlagen || []; TEST.daten.einlagen.push({ id: 'e-probe', name: 'Probe-Einlage', geaendert_am: new Date().toISOString(),
       daten: { app: 'x', version: 1, name: 'Probe-Einlage', base: { W: 125.5, H: 83.5, T: 20, R: 3.75 }, newDepth: 12,
         items: [{ id: 1, name: 'Probe', polys: [{ outer: [[-30,-10],[30,-10],[30,10],[-30,10]], holes: [] }], x: 60, y: 40, ang: 0, depth: 12, grips: [] }],

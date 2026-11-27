@@ -262,7 +262,7 @@ export default function Werkzeug() {
   const teilung = teilbar ? aufteilen(pmRoh.nx, pmRoh.ny, drucker) : null;
   const geteilt = !!(teilung && teilung.geteilt);
 
-  // ---------- Einlage als Inhalt der Box (seit 1.917.0, Patrick wählte
+  // ---------- Einlage als Inhalt der Box (seit 1.919.0, Patrick wählte
   // „Einlage als Inhalt einer Box“): gespeicherte Einlage aus dem Einlagen
   // Generator, ihre Taschen kommen in den Boden der Box ----------
   const [einlagen, setEinlagen] = useState(null);

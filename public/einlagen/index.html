@@ -3061,7 +3061,7 @@ function layApply(o) {
 }
 function laySaveLocal() { if (NUR_RECHNEN) return; try { localStorage.setItem("konturscanner-einlage", JSON.stringify(layData())); } catch (e) {} }
 function layLoadLocal() { try { layApply(JSON.parse(localStorage.getItem("konturscanner-einlage") || "null")); } catch (e) {} }
-// Mit Gridfinity-Füssen ist die Grösse immer genormt (seit 1.917.0, Patrick:
+// Mit Gridfinity-Füssen ist die Grösse immer genormt (seit 1.919.0, Patrick:
 // „die Einlagen sollten von der Grösse her so genormt sein, dass es mit
 // Gridfinity direkt aufgeht“): Breite und Länge auf n × 42 − 0.5 mm
 // aufgerundet (nie kleiner, damit keine Tasche abgeschnitten wird),
@@ -3569,7 +3569,7 @@ function buildTris() {
   }
   return tris;
 }
-// Für das Gridfinity-Werkzeug (seit 1.917.0, Patrick: „Einlage als Inhalt
+// Für das Gridfinity-Werkzeug (seit 1.919.0, Patrick: „Einlage als Inhalt
 // einer Box“): Dreiecke einer gespeicherten Einlage rechnen, ohne Füsse,
 // Verbinder, Keil und Kantenbruch (die Box hat eigene Wände und Füsse),
 // Breite und Länge wie angegeben. Die offene Einlage bleibt unberührt.

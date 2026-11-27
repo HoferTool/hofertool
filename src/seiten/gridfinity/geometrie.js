@@ -197,7 +197,7 @@ export function boxMasse(b) {
 // keine Flächen decken
 export const EINLAGE_Z = GF.fussH + 0.02;
 
-// einlage (seit 1.917.0, Patrick: „Einlage als Inhalt einer Box“): Dreiecke
+// einlage (seit 1.919.0, Patrick: „Einlage als Inhalt einer Box“): Dreiecke
 // aus dem Einlagen Generator ({tris, W, H, T}), werden mittig in die Box
 // gesetzt, die Taschen sind so im Boden der Box. Fächer-Elemente fallen
 // dann weg, der Boxboden ist nur 0.6 mm, damit er die Taschen nicht füllt.

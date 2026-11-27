@@ -52,7 +52,7 @@ with sync_playwright() as p:
     v2 = f().evaluate(VOL_JS)
     erw = 6 * 4 * 3.14159 * 3.25 ** 2 * 2.4
     pruefe(abs((v1 - v2) - erw) < erw * 0.03, "Magnetlöcher nehmen %.0f mm³ weg (erwartet ~%.0f)" % (v1 - v2, erw))
-    # seit 1.917.0 genormt: zu grosser Eckradius wird 3.75, krumme Grösse aufgerundet
+    # seit 1.919.0 genormt: zu grosser Eckradius wird 3.75, krumme Grösse aufgerundet
     f().evaluate("() => { lay.base.R = 10; lay.base.W = 130; lay.base.H = 90; layChanged(); }"); pg.wait_for_timeout(200)
     b = f().evaluate("[lay.base.W, lay.base.H, lay.base.R]")
     pruefe(b == [167.5, 125.5, 3.75], "Genormt: 130 × 90 → 4 × 3 Felder, R 3.75: %s" % b)
