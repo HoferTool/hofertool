@@ -740,7 +740,10 @@ function applySettings(o) {
   if (!o || typeof o !== "object") return;
   SETTINGS.forEach(k => { if (k in o) { if ($(k).type === "checkbox") $(k).checked = !!o[k]; else $(k).value = String(o[k]); } });
 }
-function saveSettings() { try { localStorage.setItem("konturscanner", JSON.stringify(settingsObj())); } catch (e) {} }
+// Im Gridfinity-Werkzeug läuft diese Seite unsichtbar nur zum Rechnen
+// (?rechnen=1): dann nichts im Gerät speichern, die offene Einlage bleibt
+const NUR_RECHNEN = /[?&]rechnen=1/.test(location.search);
+function saveSettings() { if (NUR_RECHNEN) return; try { localStorage.setItem("konturscanner", JSON.stringify(settingsObj())); } catch (e) {} }
 function loadSettings() { try { applySettings(JSON.parse(localStorage.getItem("konturscanner") || "null")); } catch (e) {} }
 
 // ---------- Grundfunktionen ----------
@@ -3056,9 +3059,24 @@ function layApply(o) {
   if (typeof o.name === "string") $("layName").value = o.name;
   lay.sel = -1;
 }
-function laySaveLocal() { try { localStorage.setItem("konturscanner-einlage", JSON.stringify(layData())); } catch (e) {} }
+function laySaveLocal() { if (NUR_RECHNEN) return; try { localStorage.setItem("konturscanner-einlage", JSON.stringify(layData())); } catch (e) {} }
 function layLoadLocal() { try { layApply(JSON.parse(localStorage.getItem("konturscanner-einlage") || "null")); } catch (e) {} }
-function layChanged() { laySaveLocal(); layRender(); layRenderList(); laySyncInputs(); if (lay.view3d) lay3dUpdate(); }
+// Mit Gridfinity-Füssen ist die Grösse immer genormt (seit 1.917.0, Patrick:
+// „die Einlagen sollten von der Grösse her so genormt sein, dass es mit
+// Gridfinity direkt aufgeht“): Breite und Länge auf n × 42 − 0.5 mm
+// aufgerundet (nie kleiner, damit keine Tasche abgeschnitten wird),
+// Eckradius höchstens 3.75 mm wie bei Gridfinity-Boxen.
+function gfNormen() {
+  const C = lay.conn;
+  if (!C || !C.grid || !C.grid.on || !lay.base) return;
+  const B = lay.base, n = L => Math.max(1, Math.ceil((L + 0.5) / GF.p - 1e-6));
+  const W = n(B.W) * GF.p - 0.5, H = n(B.H) * GF.p - 0.5, R = Math.min(B.R, 3.75);
+  if (Math.abs(W - B.W) < 1e-6 && Math.abs(H - B.H) < 1e-6 && R === B.R) return;
+  lay.base = { ...B, W, H, R };
+  ["baseW", "baseH", "baseR"].forEach(id => { const e = $(id); if (e) e.value = lay.base[id.slice(4)]; });
+  if (typeof toast === "function") toast(`Gridfinity: Grösse ${de(W)} × ${de(H)} mm (${n(W)} × ${n(H)} Felder).`);
+}
+function layChanged() { gfNormen(); laySaveLocal(); layRender(); layRenderList(); laySyncInputs(); if (lay.view3d) lay3dUpdate(); }
 function layAddItems(items, switchMode, fresh) {
   if (!items.length) return;
   layPush();
@@ -3551,6 +3569,25 @@ function buildTris() {
   }
   return tris;
 }
+// Für das Gridfinity-Werkzeug (seit 1.917.0, Patrick: „Einlage als Inhalt
+// einer Box“): Dreiecke einer gespeicherten Einlage rechnen, ohne Füsse,
+// Verbinder, Keil und Kantenbruch (die Box hat eigene Wände und Füsse),
+// Breite und Länge wie angegeben. Die offene Einlage bleibt unberührt.
+window.einlageDreiecke = function (daten, W, H) {
+  const vorher = JSON.stringify({ base: lay.base, items: lay.items, conn: lay.conn, newDepth: lay.newDepth, nextId: lay.nextId, sel: lay.sel });
+  const name = $("layName").value;
+  try {
+    layApply(daten);
+    lay.conn = connMerge({});
+    lay.base = { ...lay.base, kante: undefined };
+    if (W > 0 && H > 0) { lay.base.W = W; lay.base.H = H; lay.base.R = Math.min(lay.base.R, 3.65); }
+    return { tris: buildTris().map(t => [t[0], t[1], t[2]]), W: lay.base.W, H: lay.base.H, T: lay.base.T };
+  } finally {
+    const v = JSON.parse(vorher);
+    Object.assign(lay, v);
+    $("layName").value = name;
+  }
+};
 function buildSTL() {
   const tris = buildTris();
   const buf = new ArrayBuffer(84 + tris.length * 50), dv = new DataView(buf), head = new TextEncoder().encode("Einlagen Generator, Einheit mm");
@@ -4000,7 +4037,7 @@ const CONN_SPEC = [
   ["c", "grid.mag", "Magnetlöcher in den Füssen (6.5 × 2.4 mm)"],
   ["b", "gridFit", "Grösse aufs Gridfinity-Raster setzen"],
   ["i", "gridInfo"],
-  ["p", "Unter die Einlage kommen Füsse im Gridfinity-Raster (42 mm je Feld), damit sie in eine Gridfinity-Grundplatte passt. Die Füsse kommen zu der Höhe dazu (4.75 mm), die Taschen bleiben wie sie sind. „Grösse aufs Raster setzen“ rundet Breite und Länge auf ganze Felder (42 mm × Anzahl − 0.5 mm) und setzt den Eckradius auf 3.75 mm. Vertiefte Unterseite, Aussparungen, Magnetlöcher unten und Schlüssellöcher gehen damit nicht."],
+  ["p", "Unter die Einlage kommen Füsse im Gridfinity-Raster (42 mm je Feld), damit sie in eine Gridfinity-Grundplatte passt. Die Füsse kommen zu der Höhe dazu (4.75 mm), die Taschen bleiben wie sie sind. Solange die Füsse an sind, ist die Grösse genormt: Breite und Länge werden von selbst auf ganze Felder aufgerundet (42 mm × Anzahl − 0.5 mm), der Eckradius höchstens 3.75 mm, so passt die Einlage direkt ins Gridfinity. Vertiefte Unterseite, Aussparungen, Magnetlöcher unten und Schlüssellöcher gehen damit nicht."],
   ["h", "mag", "Magnetlöcher"],
   ["c", "mag.on", "Magnetlöcher an den vier Ecken"],
   ["g", [["mag.top", "Oben"], ["mag.bottom", "Unten"]]],

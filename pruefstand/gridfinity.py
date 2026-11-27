@@ -118,6 +118,7 @@ with sync_playwright() as p:
     wand = vorher
     pg.click("[data-gf-element='%d']" % wand); pg.wait_for_timeout(300)
     text0 = pg.inner_text("[data-gf-element='%d']" % wand)
+    pg.evaluate("() => document.querySelector('[data-gf-3d]').scrollIntoView({block: 'center'})"); pg.wait_for_timeout(300)
     kasten = pg.locator("[data-gf-3d] canvas").bounding_box(); stelle = None
     for yy in range(20, 90, 4):
         for xx in range(20, 90, 3):
@@ -130,11 +131,12 @@ with sync_playwright() as p:
     if stelle:
         pg.mouse.down(); pg.wait_for_timeout(200)
         text0 = pg.inner_text("[data-gf-element].aktiv"); nr = pg.get_attribute("[data-gf-element].aktiv", "data-gf-element")
-        pg.mouse.move(stelle[0] + 70, stelle[1] - 50, steps=8); pg.mouse.up(); pg.wait_for_timeout(400)
+        pg.mouse.move(stelle[0] + 40, stelle[1] + 110, steps=10); pg.mouse.up(); pg.wait_for_timeout(400)
         text1 = pg.inner_text("[data-gf-element='%s']" % nr)
         pruefe(text1 != text0, "Ziehen verschiebt das Element: %s → %s" % (text0.replace("\n", " "), text1.replace("\n", " ")))
-        pg.keyboard.press("Control+z"); pg.wait_for_timeout(300)
-        pruefe(pg.inner_text("[data-gf-element='%s']" % nr) == text0, "Strg + Z nimmt das Ziehen zurück")
+        if text1 != text0:
+            pg.keyboard.press("Control+z"); pg.wait_for_timeout(300)
+            pruefe(pg.inner_text("[data-gf-element='%s']" % nr) == text0, "Strg + Z nimmt das Ziehen zurück")
     pg.click("[data-gf-element='%d']" % wand)
     pg.click("[data-gf-drehen]"); pg.wait_for_timeout(300)
     pruefe("quer" in pg.inner_text("[data-gf-element='%d']" % wand), "Drehen macht die Wand quer")
@@ -155,6 +157,24 @@ with sync_playwright() as p:
     pg.click("[data-gf-projekt-loeschen='Prüfbox Elemente']"); pg.wait_for_timeout(300)
     pg.locator(".dialog-huelle button:has-text('Löschen')").click(); pg.wait_for_timeout(500)
     pruefe(not any(x.get("name") == "Prüfbox Elemente" for x in pg.evaluate("() => TEST.daten.gridfinity_projekte || []")), "Projekt gelöscht nach einer Nachfrage")
+    # Einlage als Inhalt der Box (1.917.0): Taschen aus dem Einlagen Generator im Boden
+    pg.evaluate("""() => { TEST.daten.einlagen = TEST.daten.einlagen || []; TEST.daten.einlagen.push({ id: 'e-probe', name: 'Probe-Einlage', geaendert_am: new Date().toISOString(),
+      daten: { app: 'x', version: 1, name: 'Probe-Einlage', base: { W: 125.5, H: 83.5, T: 20, R: 3.75 }, newDepth: 12,
+        items: [{ id: 1, name: 'Probe', polys: [{ outer: [[-30,-10],[30,-10],[30,10],[-30,10]], holes: [] }], x: 60, y: 40, ang: 0, depth: 12, grips: [] }],
+        conn: { grid: { on: true } } } }); }""")
+    name, v, tri = lade_stl(pg); ohne = volumen(v, tri)
+    pg.click("[data-gf-einlage-knopf]"); pg.wait_for_timeout(500)
+    pg.click("[data-gf-einlage-wahl='Probe-Einlage']")
+    pg.wait_for_function("() => /Taschen sind im Boden/.test(document.querySelector('[data-gf-einlage]')?.textContent || '')", timeout=40000)
+    pruefe(pg.input_value("[data-gf='nx']") == "3" and pg.input_value("[data-gf='ny']") == "2" and pg.input_value("[data-gf='u']") == "4", "Box passt sich der Einlage an: 3 × 2 × 4")
+    pruefe(pg.locator("[data-gf-elemente]").count() == 0, "mit Einlage keine Fächer-Elemente")
+    name, v, tri = lade_stl(pg)
+    mit = volumen(v, tri)
+    pruefe(kanten_geschlossen(tri) == 0 and mit > 0, "Box mit Einlage geschlossen (%.0f mm³)" % mit)
+    pruefe(teile_zaehlen(tri) >= 2 and masse(v)[:2] == [125.5, 83.5], "Einlage sitzt in der Box %s" % masse(v))
+    pg.screenshot(path=BILD + "/gf-einlage.png")
+    pg.click("[data-gf-einlage-weg]"); pg.wait_for_timeout(400)
+    pruefe(pg.locator("[data-gf-elemente]").count() == 1, "Einlage herausnehmen: Fächer wieder da")
 
     pruefe(pg.locator("[data-gf-export='stl'], [data-gf-export='3mf']").count() == 0, "nur noch ein Knopf STL")
 

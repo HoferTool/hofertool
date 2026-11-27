@@ -12,10 +12,33 @@ import { useEntwurfZurueck } from "../../teile/lokalZurueck.js";
 import {
   BOX_VORGABE, PLATTE_VORGABE, boxPruefen, plattePruefen, boxMasse, platteMasse,
   boxNetz, platteNetz, verbinderNetz, distanzNetz, distanzPlan, distanzDruck, stlBinaer, netzeVereinen, GF,
-  DRUCKER, aufteilen, stueckArten, stueckeVorschau, elementeLage,
+  DRUCKER, aufteilen, stueckArten, stueckeVorschau, elementeLage, EINLAGE_Z,
 } from "./geometrie.js";
 
 const SPEICHER = "hofer.gridfinity";
+
+// Der Einlagen Generator rechnet die Einlage (Taschen) für die Box. Er läuft
+// dazu unsichtbar in einem eigenen Rahmen mit ?rechnen=1 (speichert dort
+// nichts), einmal geladen für alle weiteren Einlagen.
+let rechner = null;
+function einlageRechner() {
+  if (!rechner) rechner = new Promise((ok, fehler) => {
+    const fr = document.createElement("iframe");
+    fr.setAttribute("aria-hidden", "true"); fr.tabIndex = -1;
+    fr.style.cssText = "position:fixed;left:-10000px;top:0;width:800px;height:600px;visibility:hidden;border:0";
+    fr.src = import.meta.env.BASE_URL + "einlagen/index.html?rechnen=1";
+    const uhr = setTimeout(() => { rechner = null; fehler(new Error("Einlagen Generator lädt nicht")); }, 30000);
+    fr.onload = () => {
+      clearTimeout(uhr);
+      const w = fr.contentWindow;
+      if (w && typeof w.einlageDreiecke === "function") ok(w);
+      else { rechner = null; fehler(new Error("Einlagen Generator zu alt")); }
+    };
+    document.body.appendChild(fr);
+  });
+  return rechner;
+}
+const felderFuer = (L) => Math.max(1, Math.ceil((L + 0.5) / GF.raster - 1e-6));
 
 function laden() {
   try {
@@ -239,14 +262,58 @@ export default function Werkzeug() {
   const teilung = teilbar ? aufteilen(pmRoh.nx, pmRoh.ny, drucker) : null;
   const geteilt = !!(teilung && teilung.geteilt);
 
+  // ---------- Einlage als Inhalt der Box (seit 1.917.0, Patrick wählte
+  // „Einlage als Inhalt einer Box“): gespeicherte Einlage aus dem Einlagen
+  // Generator, ihre Taschen kommen in den Boden der Box ----------
+  const [einlagen, setEinlagen] = useState(null);
+  const [einlageGeo, setEinlageGeo] = useState(null);
+  const [einlageText, setEinlageText] = useState("");
+  const einlageId = boxFest.einlage && boxFest.einlage.id;
+  const bmFest = boxMasse(boxFest);
+  useEffect(() => {
+    if (!einlageId || stand.art !== "box") { setEinlageGeo(null); setEinlageText(""); return undefined; }
+    let weg = false;
+    (async () => {
+      setEinlageText("Einlage wird gerechnet …");
+      const { data, error } = await alt.db.from("einlagen").select("id, name, daten").eq("id", einlageId).maybeSingle();
+      if (weg) return;
+      if (error || !data || !data.daten || !data.daten.base) { setEinlageGeo(null); setEinlageText("Die Einlage gibt es nicht mehr."); return; }
+      try {
+        const w = await einlageRechner();
+        const B = data.daten.base;
+        // knapp kleiner als die Box aussen, damit sich keine Flächen decken
+        const g = w.einlageDreiecke(data.daten, Math.min(B.W, bmFest.W - 0.2), Math.min(B.H, bmFest.D - 0.2));
+        if (weg) return;
+        setEinlageGeo({ id: data.id, tris: g.tris, W: g.W, H: g.H, T: g.T, roh: { W: B.W, H: B.H, T: B.T } });
+        setEinlageText("");
+      } catch (f) { if (!weg) { setEinlageGeo(null); setEinlageText("Einlage nicht gerechnet: " + (f.message || f)); } }
+    })();
+    return () => { weg = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [einlageId, stand.art, bmFest.W, bmFest.D]);
+  async function einlagenLaden() {
+    const { data, error } = await alt.db.from("einlagen").select("id, name, geaendert_am").order("geaendert_am", { ascending: false }).limit(300);
+    setEinlagen(error ? [] : data || []);
+  }
+  async function einlageWaehlen(x) {
+    const { data, error } = await alt.db.from("einlagen").select("id, name, daten").eq("id", x.id).maybeSingle();
+    if (error || !data || !data.daten || !data.daten.base) { alt.meldung("Einlage nicht gefunden.", "fehler"); return; }
+    const B = data.daten.base;
+    const nx = Math.min(10, felderFuer(B.W)), ny = Math.min(10, felderFuer(B.H));
+    // Höhe in 7-mm-Einheiten: Einlage ganz drin, mit Stapelrand 1 mm Luft
+    const u = Math.min(30, Math.max(1, Math.ceil((EINLAGE_Z + (+B.T || 0) + (stand.box.rand !== false ? 1 : 0)) / GF.einheit - 1e-6)));
+    setEinlagen(null); setGewaehlt(-1);
+    setStand((s) => ({ ...s, box: { ...s.box, nx, ny, u, einlage: { id: data.id, name: data.name } } }));
+  }
+
   const netz = useMemo(() => {
     try {
-      if (stand.art === "box") return boxNetz(box);
+      if (stand.art === "box") return boxNetz(box, einlageGeo && box.einlage && einlageGeo.id === box.einlage.id ? einlageGeo : null);
       return geteilt ? stueckeVorschau(platte, teilung) : platteNetz(platte);
     }
     catch (f) { alt.fehlerMerken && alt.fehlerMerken("Gridfinity", String(f)); return null; }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stand.art, drucker, JSON.stringify(stand.art === "box" ? box : platte)]);
+  }, [stand.art, drucker, einlageGeo, JSON.stringify(stand.art === "box" ? box : platte)]);
 
   // Distanzstücke an ihrem Platz, nur für die Vorschau (grau)
   const distanzPlatz = useMemo(() => (stand.art !== "platte" ? null : geteilt
@@ -257,7 +324,9 @@ export default function Werkzeug() {
   const bm = boxMasse(box), pm = platteMasse(platte);
   const dp = distanzPlan(platte, drucker);
   const dateiName = stand.art === "box"
-    ? `gridfinity-box-${box.nx}x${box.ny}x${box.u}` + (box.fx * box.fy > 1 ? `-${box.fx}x${box.fy}faecher` : "")
+    ? `gridfinity-box-${box.nx}x${box.ny}x${box.u}` + (boxFest.einlage
+      ? "-" + boxFest.einlage.name.toLowerCase().replace(/[^a-z0-9äöü]+/g, "-").replace(/^-|-$/g, "").slice(0, 40)
+      : box.fx * box.fy > 1 ? `-${box.fx}x${box.fy}faecher` : "")
     : `gridfinity-platte-${pm.nx}x${pm.ny}` + (platte.art === "schublade" ? `-${Math.round(pm.W)}x${Math.round(pm.D)}mm` : "");
   const breit = stand.art === "box" ? bm.W : pm.W, tief = stand.art === "box" ? bm.D : pm.D;
   const passt = (w, d) => (w <= bett.a && d <= bett.b) || (w <= bett.b && d <= bett.a);
@@ -351,6 +420,34 @@ export default function Werkzeug() {
               <Zahl titel="Tiefe" name="ny" wert={box.ny} setzen={b("ny")} min={1} max={10} einheit="Felder" hinweis={mm(bm.D) + " mm"} />
               <Zahl titel="Höhe" name="u" wert={box.u} setzen={b("u")} min={1} max={30} einheit="× 7 mm" hinweis={mm(bm.H) + " mm" + (box.rand ? " + Stapelrand" : "")} />
             </section>
+            <section className="gfn-gruppe" data-gf-einlagegruppe>
+              <div className="gfn-kopf">
+                <h3>Einlage</h3>
+                <button type="button" className="gfn-hinzu__knopf" data-gf-einlage-knopf aria-expanded={!!einlagen}
+                  onClick={() => (einlagen ? setEinlagen(null) : einlagenLaden())}>{boxFest.einlage ? "Andere Einlage" : "Einlage einsetzen"}</button>
+              </div>
+              {boxFest.einlage ? <>
+                <p className="gfn-text" data-gf-einlage>
+                  <b>{boxFest.einlage.name}</b>{einlageGeo && einlageGeo.id === boxFest.einlage.id
+                    ? <> · {mm(einlageGeo.roh.W)} × {mm(einlageGeo.roh.H)} mm, {mm(einlageGeo.roh.T)} mm hoch. Die Taschen sind im Boden der Box.</> : null}
+                </p>
+                {einlageGeo && einlageGeo.id === boxFest.einlage.id && (einlageGeo.roh.W > bmFest.W + 0.01 || einlageGeo.roh.H > bmFest.D + 0.01) &&
+                  <p className="gfn-text gfn-warnung" data-gf-einlage-gross>Die Einlage ist grösser als die Box und wird am Rand abgeschnitten.</p>}
+                {einlageGeo && einlageGeo.id === boxFest.einlage.id && EINLAGE_Z + einlageGeo.roh.T > bmFest.H - (boxFest.rand ? 1 : 0) + 0.01 &&
+                  <p className="gfn-text gfn-warnung">Die Einlage ist höher als die Box: Höhe vergrössern.</p>}
+                {einlageText && <p className="gfn-text">{einlageText}</p>}
+                <button type="button" className="knopf" data-gf-einlage-weg onClick={() => setStand((s) => ({ ...s, box: { ...s.box, einlage: null } }))}>Einlage herausnehmen</button>
+              </> : <p className="gfn-text">Eine gespeicherte Einlage aus dem Einlagen Generator in die Box setzen. Ihre Werkzeugtaschen kommen in den Boden.</p>}
+              {einlagen && <ul className="gfn-liste" data-gf-einlageliste>
+                {einlagen.map((x) => (
+                  <li key={x.id}><button type="button" data-gf-einlage-wahl={x.name} onClick={() => einlageWaehlen(x)}>
+                    <b>{x.name}</b><span>{x.geaendert_am ? alt.datumZeitKurz(x.geaendert_am) : ""}</span>
+                  </button></li>
+                ))}
+                {!einlagen.length && <li className="gfn-text">Noch keine Einlagen im Einlagen Generator gespeichert.</li>}
+              </ul>}
+            </section>
+            {!boxFest.einlage && <>
             <section className="gfn-gruppe">
               <h3>Fächer als Vorlage</h3>
               {/* Vorlage wie im Gridfinity-Generator; setzt die Elemente neu */}
@@ -378,7 +475,7 @@ export default function Werkzeug() {
                   <li key={i}>
                     <button type="button" data-gf-element={i} className={i === gewaehlt ? "aktiv" : ""} onClick={() => setGewaehlt(i === gewaehlt ? -1 : i)}>
                       <b>{elementName(e, i, box.elemente)}</b>
-                      <span>{e.a === "x" ? "längs, " + mm(e.p * lage.iw) + " mm von links" : "quer, " + mm(e.p * lage.id) + " mm von vorne"}</span>
+                      <span>{e.a === "x" ? "längs, " + mm(e.p * lage.iw) + " mm von links" : "quer, " + mm(e.p * lage.id) + " mm von vorne"}, {mm((e.bis - e.von) * (e.a === "x" ? lage.id : lage.iw))} lang</span>
                     </button>
                   </li>
                 ))}
@@ -390,6 +487,7 @@ export default function Werkzeug() {
                 <button type="button" className="knopf" data-gf-loeschen onClick={elementLoeschen}>Löschen</button>
               </div>}
             </section>
+            </>}
             <section className="gfn-gruppe">
               <h3>Ausführung</h3>
               <Schalter titel="Stapelrand" name="rand" an={box.rand} setzen={b("rand")} text="Boxen lassen sich aufeinander stellen" />
@@ -474,7 +572,7 @@ export default function Werkzeug() {
 
         <div className="gfn-vorschau">
           <Vorschau netz={netz} extra={distanzPlatz}
-            griffe={stand.art === "box" && lage ? lage.teile : null} gewaehlt={gewaehlt}
+            griffe={stand.art === "box" && lage && !boxFest.einlage ? lage.teile : null} gewaehlt={gewaehlt}
             waehlen={setGewaehlt} ziehen={elementZiehen} loslassen={loslassen} />
           <div className="gfn-fuss">
             <div className="gfn-masse" data-gf-masse>

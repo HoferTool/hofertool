@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.917.0 (27. November 2026)
+
+- Gridfinity: gespeicherte Einlage aus dem Einlagen Generator als Inhalt einer Box (Taschen im Boden); Einlagen mit Gridfinity-Füssen immer aufs Raster genormt.
+
 ## 1.916.0 (27. November 2026)
 
 - Gridfinity: Projekte speichern, öffnen und löschen (Tabelle `gridfinity_projekte`).

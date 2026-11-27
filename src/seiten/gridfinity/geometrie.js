@@ -183,6 +183,7 @@ export function boxPruefen(b) {
     wand: z(b.wand, 0.8, 3, 1.2), boden: z(b.boden, 0.6, 5, 1.2),
     fx: Math.round(z(b.fx, 1, 20, 1)), fy: Math.round(z(b.fy, 1, 20, 1)),
     rand: !!b.rand, magnete: !!b.magnete, magD: z(b.magD, 3, 7, 6.5), magH: z(b.magH, 1, 4, 2.4),
+    einlage: b.einlage && b.einlage.id ? { id: String(b.einlage.id), name: String(b.einlage.name || "Einlage") } : null,
     elemente: elementePruefen(b.elemente, Math.round(z(b.fx, 1, 20, 1)), Math.round(z(b.fy, 1, 20, 1))),
   };
 }
@@ -192,8 +193,17 @@ export function boxMasse(b) {
   return { W, D, H, gesamt: H + (b.rand ? 3.9 : 0) };
 }
 
-export function boxNetz(eingabe) {
+// Unterkante einer Einlage in der Box: knapp im Boden der Box, damit sich
+// keine Flächen decken
+export const EINLAGE_Z = GF.fussH + 0.02;
+
+// einlage (seit 1.917.0, Patrick: „Einlage als Inhalt einer Box“): Dreiecke
+// aus dem Einlagen Generator ({tris, W, H, T}), werden mittig in die Box
+// gesetzt, die Taschen sind so im Boden der Box. Fächer-Elemente fallen
+// dann weg, der Boxboden ist nur 0.6 mm, damit er die Taschen nicht füllt.
+export function boxNetz(eingabe, einlage = null) {
   const b = boxPruefen(eingabe);
+  if (einlage) { b.elemente = []; b.boden = Math.min(b.boden, 0.6); }
   const n = neuesNetz();
   const { W, D, H } = boxMasse(b);
   const R = GF.boxR, t = b.wand;
@@ -297,6 +307,11 @@ export function boxNetz(eingabe) {
       if (tief < 4 || a1 - a0 < 5) continue;
       ziehen(w, [[0, boden - 0.1], [tief, oben], [0, oben]].map(([v, z]) => [sv(v), z]), a0, a1);
     }
+  }
+
+  if (einlage) {
+    const P = (p) => [p[0] - einlage.W / 2, p[1] - einlage.H / 2, p[2] + EINLAGE_Z];
+    for (const [a, c, d] of einlage.tris) dreieck(n, P(a), P(c), P(d));
   }
 
   // Stapelrand oben: Gegenstück zum Fuss, damit die nächste Box hält
