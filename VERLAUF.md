@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.891.0 (27. November 2026)
+
+Test ERP: Hauptreiter „Artikel“ (Artikelliste) nach Kalkulation, Stammdaten nach Rechnungen, Reiter Lagerjournal entfernt (Wunsch Patrick: „habe ja alles in den modulen“).
+
 ## 1.890.0 (27. November 2026)
 
 QS → Prüfprotokoll: Maschine ist eine Auswahlliste aller Maschinen statt Freitext; ein alter Freitext-Wert bleibt als Eintrag stehen (Wunsch Patrick: „maschine soll dropdown menu sein“).
