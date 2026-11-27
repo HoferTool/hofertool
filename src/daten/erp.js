@@ -148,7 +148,9 @@ export function naechstePartnerNr(d, art) {
 // nie kleiner als der Startwert und nie kleiner als die höchste + 1.
 export const NUMMERN_KONFIG = "erp_nummern";
 export const NUMMERNKREISE = [
-  ...Object.entries(BELEGTYP).map(([typ, t]) => ({ typ, name: t.mehr, muster: (j) => String(j), stellen: 4 })),
+  // Fertigungsaufträge mit 6 Stellen wie die FA Nr. der WBGs (2026008598): seit 1.907.0
+  // stehen die FAs der Planwand im Test ERP, neue zählen dort weiter (Wunsch Patrick 27. November 2026)
+  ...Object.entries(BELEGTYP).map(([typ, t]) => ({ typ, name: t.mehr, muster: (j) => String(j), stellen: typ === "fertigung" ? 6 : 4 })),
   { typ: "kalkulation", name: "Kalkulationen", muster: (j) => String(j), stellen: 4 },
 ];
 export const nummerText = (kreis, jahr, n) => kreis.muster(jahr) + String(n).padStart(kreis.stellen, "0");

@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.907.0 (27. November 2026)
+
+Test ERP: die 95 Aufträge der Planwand mit FA Nr. stehen als Fertigungsaufträge im Test ERP, mit derselben Nummer, dem Arbeitsplan des Artikels, Sollmenge, Index aus der WBG und Maschine/Stand im Kopf („Planwand“); fertige sind abgeschlossen, kein Lagerbestand gebucht (`sql/erp-fa-aus-planwand.sql`, eingespielt, mehrfach ausführbar; Wunsch Patrick). Neue FAs zählen mit 6 Stellen weiter (2026008599).
+
 ## 1.906.0 (27. November 2026)
 
 - Gridfinity Box: Beschriftungsleiste weg, Fächer wie im Gridfinity-Generator (Unterteilungen, „Ein Fach je Feld“, Griffmulde), Vorgabehöhe 3.

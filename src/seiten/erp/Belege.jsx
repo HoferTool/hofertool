@@ -249,6 +249,9 @@ function BelegFenster({ start, id, vorlage, aussen, zu }) {
       {(typ === "auftrag" || typ === "bestellung") && <KF label="Art" nurLesen wert={kopf.art === "rahmen" ? "Rahmenauftrag" : "Einzelauftrag"} />}
       <KF label="Stand" nurLesen wert={<span className={"erp-schild " + stand[1]}>{stand[0]}</span>} />
       {kopf.daten.ihre_nr && <KF label={typ === "bestellung" ? "AB Lieferant" : "Ihre Bestellung"} nurLesen wert={kopf.daten.ihre_nr} />}
+      {/* FA aus der Planwand (seit 1.907.0, sql/erp-fa-aus-planwand.sql): Maschine und Stand beim Übernehmen */}
+      {typ === "fertigung" && kopf.daten.planwand && <KF label="Planwand" nurLesen wert={"Maschine " + (kopf.daten.planwand.maschine || kopf.daten.planwand.maschine_nr || "–")
+        + " · " + ({ geplant: "geplant", ruesten: "rüsten", laeuft: "läuft", fertig: "fertig" }[kopf.daten.planwand.stand] || kopf.daten.planwand.stand || "")} />}
       {bezug && <KF label="Aus" nurLesen wert={BELEGTYP[bezug.typ].name + " " + bezug.nr}
         menue={[[BELEGTYP[bezug.typ].name + " " + bezug.nr + " öffnen", () => belegOeffnen(d, aussen, bezug)]]} />}
     </>;
