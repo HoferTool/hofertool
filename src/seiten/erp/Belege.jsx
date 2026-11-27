@@ -65,7 +65,10 @@ export function belegStand(d, b) {
   }
   if (b.typ === "fertigung") {
     const a = anteil((p) => gebucht(d, p.id, "fertig"));
-    const begonnen = d.bewegungen.some((x) => x.beleg_id === b.id) || ((b.daten || {}).ap || []).some((x) => x.erledigt_am);
+    // Läuft oder rüstet der Auftrag auf der Planwand, ist der FA auch „in Arbeit“ (seit 1.911.1, Patrick:
+    // „warum gibt es keine in Arbeit?“; vorher nur mit abgehaktem Arbeitsgang oder Buchung)
+    const pw = ((b.daten || {}).planwand || {}).stand;
+    const begonnen = pw === "laeuft" || pw === "ruesten" || d.bewegungen.some((x) => x.beleg_id === b.id) || ((b.daten || {}).ap || []).some((x) => x.erledigt_am);
     return [a === 2 ? "fertig" : a === 1 ? "teilweise fertig" : begonnen ? "in Arbeit" : "offen", a === 2 ? "erp-gut" : ""];
   }
   if (b.typ === "lieferschein") {
