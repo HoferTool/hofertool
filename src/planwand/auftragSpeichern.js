@@ -35,7 +35,7 @@ async function faNrFrei(faNr, auftrag) {
 async function stammdatenNachziehen(hocoNummer, daten) {
   const db = alt.db;
   // Nur die Bezeichnung, ohne Lieferant, Menge und Bestellnummer (seit
-  // 1.907.0, Patrick 27. November 2026: kam sonst immer wieder in die Stammdaten)
+  // 1.941.0, Patrick 27. November 2026: kam sonst immer wieder in die Stammdaten)
   const material = materialOhneBestellung(daten.material_bez) || null;
   try {
     const r = await db.from("hoco_parts").select("*").eq("hoco_nr", hocoNummer).limit(1);

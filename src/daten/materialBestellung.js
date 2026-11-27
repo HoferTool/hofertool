@@ -231,8 +231,9 @@ export function materialOhneBestellung(text) {
     // Excel-Reste: 1.4305000000000001 → 1.4305, 2.0400999999999998 → 2.0401
     .replace(/(^|[^\d.])(\d\.\d{4})(\d{8,})(?![\d.])/g, (t, vor, z, rest) => vor + Number(z + rest).toFixed(4))
     .replace(/(^|\D)20\d{8}(?!\d)/g, "$1 ")
-    .replace(/\bTE\s*:?\s*\d{1,2}\.{1,2}\d{1,2}\.\d{2,4}(?!\d)/gi, " ")
-    .replace(/(^|[^\d.])\d{1,2}\.{1,2}\d{1,2}\.(\d{4}|\d{2})(?![\d.])/g, "$1 ")
+    // Nur echte Tage und Monate: „1.41.04“ ist kein Datum
+    .replace(/\bTE\s*:?\s*(0?[1-9]|[12]\d|3[01])\.{1,2}(0?[1-9]|1[0-2])\.\d{2,4}(?!\d)/gi, " ")
+    .replace(/(^|[^\d.])(0?[1-9]|[12]\d|3[01])\.{1,2}(0?[1-9]|1[0-2])\.(\d{4}|\d{2})(?![\d.])/g, "$1 ")
     .replace(/\bTE\s*:?/g, " ")
     .replace(/\bKW\s*\d{1,2}\b/gi, " ")
     // kg auch direkt vor dem Lieferanten („220kgSteeltec“)

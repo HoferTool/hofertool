@@ -11,7 +11,7 @@ import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { einrichtblattAppOeffnen } from "../einrichtblatt/Blatt.jsx";
 import { protokollWwZeigen } from "../pad/Werkzeugwechsel.jsx";
 import Pruefung from "./Pruefung.jsx";
-import { QS_NEU } from "../daten/pruefbericht.js";
+import { QS_NEU, stammLaden, stammSpeichern } from "../daten/pruefbericht.js";
 import { stueckzeitText, stueckzeitFragen, stueckzeitSetzen, laengeText, laengeSetzen, artInfoFragen }
   from "../daten/stueckzahl.js";
 
@@ -20,6 +20,13 @@ const sicher = (name) => name.replace(/[^A-Za-z0-9.\-]/g, "_");
 export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
   const { daten, neu } = useDaten(() => teilLaden(t, darf), [t]);
   const [pdfStand, setPdfStand] = useState("");
+  // Kopf des Prüfberichts (Allg. Toleranz) für die Angaben oben, seit 1.938.0
+  const [pstKopf, setPstKopf] = useState(null);
+  useEffect(() => {
+    let weg = false;
+    if (QS_NEU && !alt.istExtern()) stammLaden(t.hoco_nr).then((x) => { if (!weg) setPstKopf((x && x.kopf) || {}); }, () => {});
+    return () => { weg = true; };
+  }, [t.hoco_nr]);
   const { meldung, fehlertext } = alt;
   const db = alt.db;
   // Nach einer Änderung an den Stammdaten die ganze Liste frisch. Das
@@ -86,6 +93,28 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
   // Index von Hand (seit 1.841.0, Wunsch Patrick 25. November 2026: „alles
   // muss einen Index haben, wenn keiner da ist, soll es leer sein und man
   // gibt ihn an“): in den Stammdaten bzw. je FA Nr. am Auftrag, mit Rückgängig
+  // Artikel, Zeichnung und Allg. Toleranz wie im Prüfbericht-Kopf (seit 1.938.0, Patrick
+  // 27. November 2026: „die Sachen, die oben stehen, sollen so in Stammdaten eingebaut werden“).
+  // Artikel und Zeichnung stehen in hoco_parts, der Prüfbericht liest sie von dort.
+  const angabeAendern = async (feld, label, jetzt) => {
+    const w = await alt.dialogFelder({ titel: label + " " + t.hoco_nr,
+      felder: [{ name: "v", label, wert: jetzt || "" }], bestaetigen: "Speichern" });
+    if (!w) return;
+    const neu = String(w.v || "").trim() || null;
+    try {
+      if (feld === "alltol") {
+        const k = { ...(pstKopf || {}), alltol: neu || "" };
+        await stammSpeichern(t.hoco_nr, { kopf: k });
+        setPstKopf(k);
+        fertig("Allg. Toleranz gespeichert.");
+        return;
+      }
+      const u = await db.from("hoco_parts").update({ [feld]: neu }).eq("hoco_nr", t.hoco_nr);
+      if (u.error) throw u.error;
+      alt.merkeSchritt(label + " " + t.hoco_nr, [alt.rueckSetz("hoco_parts", { [feld]: t[feld] || null }, { hoco_nr: t.hoco_nr })]);
+      fertig(label + " gespeichert.");
+    } catch (f) { fehler(f); }
+  };
   const indexStamm = async (jetzt) => {
     const w = await alt.dialogFelder({ titel: "Index " + t.hoco_nr,
       felder: [{ name: "idx", label: "Index (leer = noch keiner)", wert: jetzt || "" }], bestaetigen: "Speichern" });
@@ -162,6 +191,10 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
         {/* „Allgemeine Infos“ ist weg (Wunsch 5. Oktober 2026), die Spalte bleibt */}
         {/* Die Artikelbezeichnung ebenso (Wunsch 8. Oktober 2026) */}
         <div className="hocoteil__angaben">
+          {!alt.istExtern() && [["bezeichnung", "Artikel", t.bezeichnung], ["zeichnungs_nr", "Zeichnung", t.zeichnungs_nr],
+            ...(QS_NEU ? [["alltol", "Allg. Toleranz", (pstKopf || {}).alltol]] : [])].map(([f, l, v]) => (
+            <span className="hocoteil__angabe" key={f} data-hocoangabe={f}><small>{l}</small>
+              {darf ? <button className="knopf knopf--klein" onClick={() => angabeAendern(f, l, v)}>{v || "eintragen"}</button> : <b>{v || "—"}</b>}</span>))}
           <span className="hocoteil__angabe"><small>Material</small><b>{t.material || "—"}</b></span>
           {mitLaenge && <span className="hocoteil__angabe" data-hocolaenge={t.teil_laenge_mm || ""}>
             <small>Länge</small>
@@ -249,8 +282,6 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
       </section>
 
       {QS_NEU && <Pruefung hoco={t.hoco_nr} darf={darf} />}
-      {/* Prüfmasse auch direkt hier (seit 1.889.0, Wunsch Patrick 27. November 2026) */}
-      {QS_NEU && <Pruefung hoco={t.hoco_nr} darf={darf} modus="qs" />}
       {/* „Gelaufen auf“ ist weg (Wunsch 8. Oktober 2026) */}
       {faListe.length > 0 && <section className="karte hocoteil__karte">
         <div className="karte__kopf"><h2>FA Nummern</h2><span className="marke">{faListe.length}</span></div>

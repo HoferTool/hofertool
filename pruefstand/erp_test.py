@@ -120,6 +120,13 @@ with sync_playwright() as p:
     oben(pg).locator("[data-erp-ag='0'] input").click(); pg.wait_for_timeout(800)
     fa = [b for b in tabelle(pg, "erp_belege") if b["typ"] == "fertigung"]
     pruefe(bool(fa[0]["daten"]["ap"][0].get("erledigt_am")) and oben(pg).locator("[data-erp-ag='0'] input").is_checked(), "Arbeitsgang abgehakt")
+    # Arbeitsgang im FA öffnen und ändern (seit 1.921.0)
+    oben(pg).locator("[data-erp-ag-oeffnen='0']").click(); pg.wait_for_selector(".dialog input[data-erp-feld='maschine']")
+    dlg = pg.locator(".dialog:has(input[data-erp-feld='maschine'])").last
+    pruefe(dlg.locator("[data-erp-feld='pauschal']").count() == 1, "Arbeitsgang mit Feld Pauschalzeit (seit 1.925.0)")
+    dlg.locator("input[data-erp-feld='maschine']").fill("125"); dlg.locator("[data-erp-speichern]").click(); pg.wait_for_timeout(800)
+    fa = [b for b in tabelle(pg, "erp_belege") if b["typ"] == "fertigung"]
+    pruefe(fa[0]["daten"]["ap"][0].get("maschine") == "125" and bool(fa[0]["daten"]["ap"][0].get("erledigt_am")), "Arbeitsgang im FA geöffnet und geändert: %s" % fa[0]["daten"]["ap"][0])
     oben(pg).locator("[data-erp-aktion='material']").click(); pg.wait_for_selector(".dialog:has-text('Material für') input")
     pg.locator(".dialog:has-text('Material für') input[data-erp-feld='menge']").fill("30")
     pg.locator(".dialog:has-text('Material für') [data-erp-ja]").click(); pg.wait_for_timeout(800)
@@ -181,6 +188,111 @@ with sync_playwright() as p:
 
     # Reiter Rückverfolgung gibt es seit 1.888.0 nicht mehr
     pruefe(pg.locator("[data-erp-reiter='rueck']").count() == 0, "kein Reiter Rückverfolgung")
+
+    # Reiter Fertigung zeigt ohne Suche alle FAs, Häkchen je Stand (seit 1.909.0)
+    pg.click("[data-erp-reiter='fertigung']"); pg.wait_for_timeout(300)
+    pg.evaluate("TEST.erpAlle = false")
+    pg.click("[data-erp-reiter='auftrag']"); pg.wait_for_timeout(100); pg.click("[data-erp-reiter='fertigung']"); pg.wait_for_timeout(300)
+    zahl_fa = lambda: pg.locator(".erp-tabelle tbody tr").count()
+    vorher = zahl_fa()
+    pruefe(vorher >= 1 and pg.locator("[data-erp-fa-stand]").count() == 6, "Fertigung ohne Suche: %s Zeilen, Häkchen je Stand" % vorher)
+    pruefe("Planwand" in pg.inner_text(".erp-tabelle thead"), "Liste der FAs mit Spalte Planwand")
+    stand = pg.locator(".erp-tabelle tbody tr").first.locator("td").last.inner_text().strip()
+    pg.locator("[data-erp-fa-stand='%s'] input" % stand).uncheck(); pg.wait_for_timeout(150)
+    pruefe(zahl_fa() < vorher or pg.locator(".karte--hinweis").count() > 0, "Häkchen „%s“ weg blendet aus" % stand)
+    pg.locator("[data-erp-fa-stand='%s'] input" % stand).check()
+    pg.evaluate("TEST.erpAlle = true")
+    pg.click("[data-erp-reiter='auftrag']"); pg.wait_for_timeout(300)
+
+    # Bestellungen: ohne Suche alle, Häkchen Rohmaterial / ZA extern / Andere (seit 1.913.0)
+    pg.evaluate("TEST.erpAlle = false")
+    pg.click("[data-erp-reiter='bestellung']"); pg.wait_for_timeout(300)
+    n_be = pg.locator(".erp-tabelle tbody tr").count()
+    pruefe(n_be >= 1 and pg.locator("[data-erp-be-art]").count() == 3, "Bestellungen ohne Suche: %s, Häkchen je Art" % n_be)
+    for w in ("roh", "za", "andere"):
+        pg.locator("[data-erp-be-art='%s'] input" % w).uncheck()
+    pg.wait_for_timeout(150)
+    pruefe(pg.locator(".erp-tabelle tbody tr").count() == 0, "alle Häkchen weg: keine Bestellung")
+    pg.locator("[data-erp-be-art='roh'] input").check(); pg.wait_for_timeout(150)
+    n_roh = pg.locator(".erp-tabelle tbody tr").count()
+    pg.locator("[data-erp-be-art='za'] input").check(); pg.locator("[data-erp-be-art='andere'] input").check()
+    pruefe(n_roh <= n_be, "nur Rohmaterial: %s von %s" % (n_roh, n_be))
+    pg.evaluate("TEST.erpAlle = true")
+
+    # Logistik: Kachel Wareneingang ZA extern (seit 1.920.0)
+    pg.click("[data-erp-reiter='logistik']"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-logi-funktion]").count() == 0, "Logistik: beim Öffnen unten noch nichts (seit 1.929.0)")
+    pg.click("[data-logi-kachel='we-za']"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-logi-kachel='we-za']").count() == 1 and pg.locator("[data-logi-funktion='we-za']").count() == 1,
+           "Logistik mit Kachel und Liste Wareneingang ZA extern")
+    pg.screenshot(path=BILD + "/erp-logistik.png")
+    # Kachel ZA extern anlegen (seit 1.925.0): externer Arbeitsgang im offenen FA wird zur Bestellung beim Lieferanten
+    pg.evaluate("""() => { const fa = TEST.daten.erp_belege.find(b => b.typ === 'fertigung');
+      fa.status = 'offen'; fa.daten = { ...fa.daten, ap: [...fa.daten.ap, { pos: 30, bez: 'Härten', code: 'HAERT', extern: true, lieferant_nr: '70001', pauschal: 5, pauschal_einheit: 'Tag' }] };
+      fa.daten.planwand = { job_id: 'jwbg', maschine: '124', stand: 'laeuft' };
+      const au = TEST.daten.erp_belege.filter(b => b.typ === 'auftrag').map(b => b.id);
+      const t = new Date(); t.setDate(t.getDate() + 3);
+      TEST.daten.erp_positionen.filter(q => au.includes(q.beleg_id)).forEach(q => { q.termin = t.toISOString().slice(0, 10); q.daten = { ...(q.daten || {}), abrufe: [] }; q.menge = Number(q.menge) + 100; });
+      TEST.daten.jobs = TEST.daten.jobs || []; TEST.daten.jobs.push({ id: 'jwbg', wbg_url: 'https://example.invalid/wbg.pdf' });
+      TEST.daten.production_records = TEST.daten.production_records || []; TEST.daten.production_records.push({ id: 'pr1', job_id: 'jwbg', quantity: 1234, record_date: '2026-11-27' });
+      TEST.daten.erp_positionen.filter(q => q.beleg_id === fa.id).forEach(q => { q.menge = Number(q.menge) + 50; });
+      const a = TEST.daten.erp_artikel.find(x => x.id === 'a1'); a.arbeitsplan = [...(a.arbeitsplan || []), { pos: 90, bez: 'Härten', code: 'HAERT', extern: true, lieferant_nr: '70001', pauschal: 5 }]; }""")
+    pg.evaluate("location.hash='#/'"); pg.wait_for_timeout(500)
+    pg.evaluate("location.hash='#/erp'"); pg.wait_for_selector("[data-erp-reiter='logistik']"); pg.wait_for_timeout(500)
+    pg.click("[data-erp-reiter='logistik']"); pg.wait_for_timeout(500)
+    pg.click("[data-logi-kachel='za-neu']"); pg.wait_for_timeout(300)
+    z = pg.locator("[data-logi-funktion='za-neu'] .erp-tabelle tbody tr")
+    pruefe(z.count() == 1 and "Stahl AG" in z.first.inner_text() and "HAERT" in z.first.inner_text(), "ZA extern anlegen: offener externer Arbeitsgang mit Lieferant")
+    z.first.click(); pg.wait_for_timeout(600)
+    pruefe(oben(pg).count() == 1 and "Stahl AG" in oben(pg).inner_text(), "neue Bestellung ZA extern vorausgefüllt")
+    pg.screenshot(path=BILD + "/erp-za-neu.png")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    if pg.locator(".dialog-huelle [data-ja]").count(): pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(300)
+    # Kacheln ziehen (seit 1.926.0): ZA extern anlegen vor Wareneingang
+    q = pg.locator("[data-logi-kachel='za-neu']").bounding_box(); w = pg.locator("[data-logi-kachel='we-za']").bounding_box()
+    pg.mouse.move(q["x"] + 30, q["y"] + 30); pg.mouse.down(); pg.mouse.move(q["x"] + 10, q["y"] + 20, steps=3)
+    pg.mouse.move(w["x"] + 30, w["y"] + 30, steps=8); pg.mouse.up(); pg.wait_for_timeout(300)
+    reihe = pg.evaluate("[...document.querySelectorAll('[data-logi-kachel]')].map(k => k.dataset.logiKachel)")
+    pruefe(reihe[:2] == ["za-neu", "we-za"] and pg.locator("[data-logi-funktion='za-neu']").count() == 1, "Kacheln verschoben, Ziehen öffnet nichts: %s" % reihe)
+    # Kachel WBG drucken (seit 1.928.0)
+    pg.click("[data-logi-kachel='wbg']"); pg.wait_for_timeout(800)
+    z = pg.locator("[data-logi-funktion='wbg'] .erp-tabelle tbody tr")
+    pruefe(z.count() == 1 and "vorhanden" in z.first.inner_text() and pg.locator("[data-logi-wbg-drucken]").count() == 1, "WBG drucken: FA mit WBG und Knopf Drucken")
+    pg.locator("[data-logi-wbg-mehr]").click(); pg.locator("[data-logi-wbg-mehr]").click()
+    pruefe(pg.locator("[data-logi-wbg-kopien]").inner_text() == "3", "WBG drucken: Anzahl wählbar")
+    # Kachel Lieferschein anlegen (seit 1.928.0)
+    pg.click("[data-logi-kachel='ls-neu']"); pg.wait_for_timeout(300)
+    pg.locator("[data-logi-ls-alle] input").check(); pg.wait_for_timeout(200)
+    n_ls = pg.locator("[data-logi-funktion='ls-neu'] .erp-tabelle tbody tr").count()
+    pruefe(pg.locator("[data-logi-funktion='ls-neu']").count() == 1, "Lieferschein anlegen: Liste da (%s Positionen mit Häkchen „auch ohne Bestand“)" % n_ls)
+    pg.click("[data-logi-kachel='fa']"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-logi-funktion='fa'] [data-erp-fa-stand]").count() >= 4, "FA Übersicht mit Häkchen je Stand")
+    # Kachel Lieferplan Liste (seit 1.929.0)
+    pg.click("[data-logi-kachel='lieferplan']"); pg.wait_for_timeout(300)
+    n_lp = pg.locator("[data-logi-funktion='lieferplan'] .erp-tabelle tbody tr").count()
+    with pg.expect_popup() as pop:
+        pg.click("[data-logi-lp-drucken]")
+    blatt = pop.value; blatt.wait_for_load_state()
+    txt = blatt.content()
+    pruefe(n_lp >= 1 and "Offene Lieferungen" in txt and "Rüstmenge" in txt and "landscape" in txt, "Lieferplan Liste: %s Fälligkeiten, Blatt quer zum Drucken" % n_lp)
+    blatt.close()
+    pg.click("[data-logi-kachel='extern']"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-logi-funktion='extern']").count() == 1, "Aktuell extern: Liste da")
+    # Kachel Fertigung einlagern (seit 1.927.0)
+    pg.click("[data-logi-kachel='einlagern']"); pg.wait_for_timeout(300)
+    z = pg.locator("[data-logi-funktion='einlagern'] .erp-tabelle tbody tr")
+    pg.wait_for_timeout(500)
+    pruefe(z.count() >= 1 and "1'234" in z.first.inner_text() and "Läuft" in z.first.inner_text(), "Fertigung einlagern: offener FA mit Stand, Planwand und Stückzahl: %s" % (z.first.inner_text() if z.count() else ""))
+    z.first.click(); pg.wait_for_timeout(800)
+    pruefe(pg.locator(".dialog:has-text('ertig')").count() >= 1, "Fertigmeldung geht auf")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    if pg.locator(".dialog-huelle [data-ja]").count(): pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(300)
+    # Ohne FA über den Arbeitsplan des Artikels
+    pg.click("[data-logi-kachel='za-neu']"); pg.wait_for_timeout(300)
+    pg.click("[data-logi-za-ap]"); pg.wait_for_selector("[data-logi-ap-fenster] input")
+    pg.fill("[data-logi-ap-fenster] input", "10007"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-logi-ap-fenster] .erp-tabelle tbody tr").count() >= 1, "ZA extern über den Arbeitsplan: Artikel mit externem Arbeitsgang")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
 
     # Spaltenkopf antippen sortiert (seit 1.898.0): Hofer-Artikel nach Index auf- und absteigend
     pg.click("[data-erp-reiter='stamm']"); pg.wait_for_timeout(300)
@@ -317,10 +429,17 @@ with sync_playwright() as p:
     pruefe(z.nth(0).locator("input[data-erp-feld='termin']").input_value() == "2026-12-11", "KW 50 im Auftrag = Freitag: %s" % z.nth(0).locator("input[data-erp-feld='termin']").input_value())
     z.nth(0).locator("input[data-erp-feld='termin']").fill("2026-12-15")
     pg.screenshot(path=BILD + "/erp-lieferplan.png")
+    z.nth(1).locator("input[data-erp-feld='abruf']").check(); pg.wait_for_timeout(100)
+    pruefe(z.nth(1).locator("[data-erp-lp-abruf]").count() == 1, "Fälligkeit auf Abruf (seit 1.934.0)")
+    pruefe(z.nth(1).locator("[data-erp-lp-abruf]").inner_text().strip() == "auf Abruf", "nur „auf Abruf“, kein bis-Text")
+    z.nth(1).locator("input[data-erp-feld='abruf']").uncheck(); pg.wait_for_timeout(100)
+    pruefe(z.nth(1).locator("input[data-erp-feld='termin']").input_value() == "", "Häkchen weg: Datum leer zum Eintragen")
+    z.nth(1).locator("input[data-erp-feld='abruf']").check(); pg.wait_for_timeout(100)
     oben(pg).locator("[data-erp-speichern]").click(); pg.wait_for_timeout(800)
     pos = [x for x in tabelle(pg, "erp_positionen") if x["artikel_id"] == a["id"]][-1]
     ab = (pos.get("daten") or {}).get("abrufe") or []
     pruefe([x["menge"] for x in ab] == [4000, 2000], "Lieferplan gespeichert: %s" % ab)
+    pruefe(len(ab) == 2 and ab[1].get("abruf") is True and ab[1].get("termin") == "" and ab[1].get("bis") == "2027-02-01", "auf Abruf gespeichert, bis = altes Datum: %s" % ab)
     # Auftragsbestätigung und Liefern je Position (1.818.0)
     with pg.expect_popup() as pop: oben(pg).locator("[data-erp-ab-drucken]").click()
     w = pop.value; w.wait_for_load_state(); pruefe("Auftragsbestätigung" in w.content(), "Auftragsbestätigung druckt"); w.close()

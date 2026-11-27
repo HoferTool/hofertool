@@ -33,7 +33,7 @@ import { gdtTeile, gdtHtml } from "../../teile/zeichenListe.js";
 import { dokZeigen } from "../../teile/DokAbruf.jsx";
 import {
   ARTEN, artVon, artName, istZwischen, TEILE, AQL_WERTE, aqlPlan, fehltTabelle, protokolleLaden, dateienLaden, vorlageLaden, stammSpeichern,
-  stammLaden, stammMitMassen, toleranz, toleranzText, istPruefen, lehrenAus, pruefmittelFuer, pruefmittelAlleLaden, pmOrtText, bildVon, zeilenId,
+  stammLaden, stammMitMassen, toleranz, tolVon, kopfInStammdaten, pmAnzeige, toleranzText, istPruefen, lehrenAus, pruefmittelFuer, pruefmittelAlleLaden, pmOrtText, bildVon, zeilenId,
 } from "../../daten/pruefbericht.js";
 
 // Offenes Protokoll und Suche bleiben beim Reiterwechsel
@@ -82,9 +82,9 @@ export function auswerten(p) {
     for (const z of zeilen) { const v = (w[z.id] || {}).nio; if (v === undefined || v === "") offen++; else if (Number(v) > 0) schlecht += Number(v); else gut++; }
   } else if (k.art === "ll") {
     const aus = new Set(k.auswahl || []);
-    for (const pr of w.proben || []) for (const z of zeilen) if (aus.has(z.id)) zaehle((pr.w || {})[z.id], toleranz(z.soll));
+    for (const pr of w.proben || []) for (const z of zeilen) if (aus.has(z.id)) zaehle((pr.w || {})[z.id], tolVon(z));
   } else {
-    for (const z of zeilen) { const t = toleranz(z.soll); for (let i = 0; i < TEILE; i++) zaehle((w[z.id] || [])[i], t); }
+    for (const z of zeilen) { const t = tolVon(z); for (let i = 0; i < TEILE; i++) zaehle((w[z.id] || [])[i], t); }
   }
   return { gut, schlecht, offen };
 }
@@ -155,22 +155,29 @@ export function anstehend(jobs, stamm, protokolle) {
 // Erstteilprüfung geht der Auftrag danach auf „läuft“.
 async function altGeprueft(t) {
   const name = artName({ art: t.art }).name;
-  if (!(await alt.nachfragen({ titel: "Im alten System geprüft?", text: name + " für " + t.j.job_number + (t.j.fa_nr ? " (FA " + t.j.fa_nr + ")" : "") + " wurde mit dem bisherigen System gemacht. Der Punkt fällt weg, im Tool wird nichts dokumentiert." + (t.art === "erstteil" ? " Der Auftrag geht danach auf „läuft“." : ""), bestaetigen: "Ja, weitergeben" }))) return false;
+  // Seit 1.940.0 heisst der Knopf „Skip“ (Patrick 27. November 2026: „den dürfen die Leute
+  // brauchen, wenn sie es manuell machen ohne System, aber der Prozess soll weitergehen“):
+  // Erstteil → Auftrag läuft → Zwischenkontrolle; Zwischenkontrolle → später Endkontrolle.
+  const stufe = t.zwischen ? "Zwischenkontrolle" : name;
+  const weiter = t.art === "erstteil" ? " Der Auftrag geht danach auf „läuft“, dann kommt die Zwischenkontrolle."
+    : t.zwischen ? " Die Endkontrolle kommt später trotzdem." : "";
+  if (!(await alt.nachfragen({ titel: stufe + " überspringen?", text: stufe + " für " + t.j.job_number + (t.j.fa_nr ? " (FA " + t.j.fa_nr + ")" : "") + " wird von Hand ohne System gemacht. Im Tool wird nichts dokumentiert, der Ablauf geht weiter." + weiter, bestaetigen: "Skip" }))) return false;
   const jetzt = new Date().toISOString();
   const { data, error } = await alt.db.from("pruefprotokolle").insert({
     hoco_nr: t.j.job_number, fa_nr: t.j.fa_nr || null, job_id: t.j.id || null,
-    kopf: { art: t.art, alt: true, zeilen: [], vorlage: {}, bemerkung: "Im alten System geprüft", ...(t.j.maschine ? { maschine: t.j.maschine } : {}) },
-    werte: {}, datum: heute(), entscheid: "freigabe", visum: "altes System", abgeschlossen_am: jetzt,
+    kopf: { art: t.art, alt: true, zeilen: [], vorlage: {}, bemerkung: "Übersprungen (Skip), von Hand ohne System geprüft",
+      ...(t.zwischen ? { kontrolle: "zwischen" } : {}), ...(t.j.maschine ? { maschine: t.j.maschine } : {}) },
+    werte: {}, datum: heute(), entscheid: "freigabe", visum: "Skip", abgeschlossen_am: jetzt,
   }).select().single();
   if (error) { alt.meldung("Konnte nicht speichern: " + error.message, "fehler"); return false; }
-  alt.merkeSchritt(name + " im alten System " + t.j.job_number, [alt.rueckWeg("pruefprotokolle", { id: data.id })]);
+  alt.merkeSchritt(stufe + " übersprungen " + t.j.job_number, [alt.rueckWeg("pruefprotokolle", { id: data.id })]);
   if (t.art === "erstteil" && t.j.id) {
     try {
       const { data: j } = await alt.db.from("jobs").select("*").eq("id", t.j.id).maybeSingle();
       if (j && j.plan_status !== "laeuft" && j.plan_status !== "fertig" && !j.ended_at) await alt.zustandSetzen(j, "laeuft");
     } catch (e) { alt.meldung("Weitergegeben, aber „läuft“ ging nicht: " + fehlerText(e), "warn"); return true; }
   }
-  alt.meldung(name + " " + t.j.job_number + " weitergegeben.", "gut");
+  alt.meldung(stufe + " " + t.j.job_number + " übersprungen, es geht weiter.", "gut");
   return true;
 }
 
@@ -189,7 +196,7 @@ function materialText(j) {
 async function protokollAnlegen(hoco, art, j, protokolle, zwischen) {
   const st = await stammMitMassen(hoco);
   if (!st || !(st.zeilen || []).length) {
-    const ok = await alt.nachfragen({ titel: "Noch keine Masse", text: "Für " + hoco + " sind noch keine Prüfmasse erfasst. In den Stammdaten eintragen oder einen Excel-Prüfbericht einlesen.", bestaetigen: "Stammdaten öffnen" });
+    const ok = await alt.nachfragen({ titel: "Noch keine Masse", text: "Für " + hoco + " sind noch keine Prüfmasse erfasst. Bitte zuerst im Prüfbericht eintragen.", bestaetigen: "Stammdaten öffnen" });
     if (ok) stammdatenOeffnen(hoco);
     return null;
   }
@@ -426,8 +433,8 @@ function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
                       <b>{t.j.job_number}</b>
                       <small>{t.j.maschine || "?"} · {t.zwischen ? "Zwischenkontrolle" : (STAND[t.j.plan_status] || "")}{t.p ? " · in Arbeit" : ""}</small>
                     </button>
-                    {darf() ? <button type="button" className="pb-todo__alt" data-pbalt={t.j.id} title="Wurde mit dem bisherigen System geprüft, nur weitergeben"
-                      onClick={async () => { if (await altGeprueft(t)) neu(); }}>✓ alt</button> : null}
+                    {darf() ? <button type="button" className="pb-todo__alt" data-pbalt={t.j.id} title="Von Hand ohne System geprüft: überspringen, der Ablauf geht weiter"
+                      onClick={async () => { if (await altGeprueft(t)) neu(); }}>Skip</button> : null}
                   </li>
                 ))}
               </ul>
@@ -459,7 +466,7 @@ function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
                     <td data-pbmaschine>{(p.kopf || {}).maschine || (jobMaschine.get(p.job_id) || "") || <span className="klein">–</span>}</td>
                     <td>{datumText(p.datum || p.erstellt_am)}</td>
                     <td className="nowrap">{e.schlecht ? <b className="pb-rot">{e.schlecht} n.i.O. </b> : null}<span className="klein">{e.gut} i.O.</span></td>
-                    <td>{p.abgeschlossen_am ? ((p.kopf || {}).alt ? "✓ im alten System" : "✓ " + (entscheidText(p.entscheid) || "abgeschlossen")) : "in Arbeit"}</td>
+                    <td>{p.abgeschlossen_am ? ((p.kopf || {}).alt ? "⏭ übersprungen (Skip)" : "✓ " + (entscheidText(p.entscheid) || "abgeschlossen")) : "in Arbeit"}</td>
                     <td className="klein nowrap">{zeitText(p.geaendert_am || p.erstellt_am)}</td>
                     <td className="nowrap">{darf() ? <button type="button" className="knopf knopf--klein knopf--gefahr-leise" title="Protokoll löschen" data-pbweg={p.id}
                       onClick={(x) => { x.stopPropagation(); loeschen(p); }}>✕</button> : null}</td>
@@ -545,7 +552,7 @@ function VorlageLeer({ v, zurueck }) {
 
   const zeileSetzen = (id, n, val) => setW((x) => ({ ...x, zeilen: x.zeilen.map((z) => (z.id === id ? { ...z, [n]: val } : z)) }));
   const zeileWeg = (id) => setW((x) => ({ ...x, zeilen: x.zeilen.filter((z) => z.id !== id) }));
-  const zeilenLeeren = (ids) => setW((x) => ({ ...x, zeilen: x.zeilen.map((z) => (!ids.has(z.id) ? z : "abschnitt" in z ? { ...z, abschnitt: "" } : { ...z, nr: "", soll: "", pm: "", ll: false })) }));
+  const zeilenLeeren = (ids) => setW((x) => ({ ...x, zeilen: x.zeilen.map((z) => (!ids.has(z.id) ? z : "abschnitt" in z ? { ...z, abschnitt: "" } : { ...z, nr: "", soll: "", pm: "", ll: false, pm_nr: null, pm_id: null, pm_ids: null, pm_art: null, tol_min: undefined, tol_max: undefined })) }));
   const zeilenWeg = (ids) => setW((x) => ({ ...x, zeilen: x.zeilen.filter((z) => !ids.has(z.id)) }));
   const zeileDazu = (abschnitt, bei) => setW((x) => {
     const nrn = x.zeilen.map((z) => parseInt(z.nr, 10)).filter((n) => !isNaN(n));
@@ -568,8 +575,9 @@ function VorlageLeer({ v, zurueck }) {
     setLaeuft(true);
     try {
       const arten = stamm && (stamm.arten || []).length ? stamm.arten : ["erstteil", "endkontrolle"];
+      const kopf = await kopfInStammdaten(v.hoco, w.kopf);
       await stammSpeichern(v.hoco, { arten, aql: stamm ? stamm.aql ?? null : null, niveau: stamm ? stamm.niveau || null : null,
-        zeilen: w.zeilen.map((z) => ({ ...z })), kopf: { ...w.kopf } });
+        zeilen: w.zeilen.map((z) => ({ ...z })), kopf });
       const s = await stammLaden(v.hoco).catch(() => null);
       if (s) s.__bestaetigt = true;
       setStamm(s); setGeaendert(false);
@@ -586,7 +594,7 @@ function VorlageLeer({ v, zurueck }) {
     const sp = TEILE + 4;
     const reihen = w.zeilen.map((z) => ("abschnitt" in z)
       ? "<tr class='ab'><td colspan='" + sp + "'>" + h(z.abschnitt) + "</td></tr>"
-      : "<tr><td>" + h(z.nr) + "</td><td>" + sollHtml(z) + "</td><td>" + h(toleranzText(toleranz(z.soll))) + "</td>" + "<td></td>".repeat(TEILE) + "<td>" + h(z.pm) + "</td></tr>").join("");
+      : "<tr><td>" + h(z.nr) + "</td><td>" + sollHtml(z) + "</td><td>" + h(toleranzText(tolVon(z))) + "</td>" + "<td></td>".repeat(TEILE) + "<td>" + h(pmAnzeige(z)) + "</td></tr>").join("");
     const html = "<style>" + STIL + "</style><style>.pbp{font-family:Arial,sans-serif;color:#111;font-size:10pt}.pbp h1{font-size:15pt;margin:0 0 6px;color:#003884}.pbp .pbp-kf{display:grid;grid-template-columns:repeat(4,1fr);gap:3px 12px;margin-bottom:8px}.pbp .pbp-kf small{color:#666;display:block;font-size:8pt}.pbp table{width:100%;border-collapse:collapse}.pbp th,.pbp td{border:1px solid #999;padding:2px 4px;text-align:left;font-size:9pt;height:7mm}.pbp th{background:#e8eef6}.pbp tr.ab td{background:#f3f3f3;font-weight:700}</style>"
       + briefkopf() + "<div class='inhalt pbp'><h1>" + h(titel) + "</h1><div class='pbp-kf'>" + kf + "</div><table><thead><tr><th>Nr.</th><th>Soll</th><th>Toleranz</th>"
       + [...Array(TEILE)].map((_, i) => "<th>Teil " + (i + 1) + "</th>").join("") + "<th>Prüfmittel/Hinweis</th></tr></thead><tbody>" + reihen + "</tbody></table></div>";
@@ -616,7 +624,7 @@ function VorlageLeer({ v, zurueck }) {
   );
   return (
     <div className="pb" data-pbvorlage={v.hoco}>
-      {createPortal(<MasseBlatt w={w} hoco={v.hoco} schreibt={darf()} zeileSetzen={zeileSetzen} zeileWeg={zeileWeg} zeilenLeeren={zeilenLeeren}
+      {createPortal(<MasseBlatt w={w} hoco={v.hoco} schreibt={darf()} kopfSetzen={(k, x) => setW((y) => ({ ...y, kopf: { ...y.kopf, [k]: x } }))} zeileSetzen={zeileSetzen} zeileWeg={zeileWeg} zeilenLeeren={zeilenLeeren}
         zeilenWeg={zeilenWeg} zeileDazu={zeileDazu} schieben={schieben} neuFokus={neuFokus} geaendert={geaendert} laeuft={laeuft}
         speichern={speichern} zu={zurueck} titel={titel} label={"Prüfbericht " + v.hoco} weiterText={"Prüfbericht " + v.hoco + " · Fortsetzung"}
         extra={extra} zuText="Die Änderungen an der Vorlage sind noch nicht in den Stammdaten gespeichert." />, document.body)}
@@ -954,7 +962,7 @@ function IstFeld({ wert, t, an, setzen, name }) {
 }
 
 function SollZelle({ z }) {
-  const t = toleranz(z.soll);
+  const t = tolVon(z);
   return <><td className="pb-nr">{z.nr}</td><td className="pb-soll" title={t ? "Toleranz " + toleranzText(t) : ""}>{bildVon(z) ? <img className="pb-massbild" src={bildVon(z)} alt="" data-pbbild /> : null}<Gdt t={z.soll} /></td></>;
 }
 
@@ -981,8 +989,8 @@ function TeileTabelle({ zeilen, w, schreibt, aendern }) {
             : (
               <tr key={z.id}>
                 <SollZelle z={z} />
-                {[...Array(TEILE)].map((_, i) => <td key={i}><IstFeld wert={(w.werte[z.id] || [])[i]} t={toleranz(z.soll)} an={schreibt} name={z.id + "-" + i} setzen={(v) => setze(z.id, i, v)} /></td>)}
-                <td className="pb-pm">{z.pm}</td>
+                {[...Array(TEILE)].map((_, i) => <td key={i}><IstFeld wert={(w.werte[z.id] || [])[i]} t={tolVon(z)} an={schreibt} name={z.id + "-" + i} setzen={(v) => setze(z.id, i, v)} /></td>)}
+                <td className="pb-pm">{pmAnzeige(z)}</td>
               </tr>
             ))}
         </tbody>
@@ -1023,7 +1031,7 @@ function AqlTabelle({ zeilen, w, schreibt, aendern }) {
         <tbody>
           {zeilen.map((z) => {
             if (z.abschnitt) return <tr key={z.id} className="pb-abschnitt"><td colSpan={7}>{z.abschnitt}</td></tr>;
-            const v = w.werte[z.id] || {}, t = toleranz(z.soll);
+            const v = w.werte[z.id] || {}, t = tolVon(z);
             const nio = Number(v.nio) || 0;
             return (
               <tr key={z.id} className={plan && nio > plan.ac ? "pb-zeile--rot" : ""}>
@@ -1032,7 +1040,7 @@ function AqlTabelle({ zeilen, w, schreibt, aendern }) {
                 <td><input className={"pb-ist" + (v.nio === undefined || v.nio === "" ? "" : nio > 0 ? " pb-ist--schlecht" : " pb-ist--gut")} data-pbnio={z.id} inputMode="numeric" disabled={!schreibt} value={v.nio ?? ""} onChange={(x) => setze(z.id, "nio", x.target.value.replace(/\D/g, ""))} /></td>
                 <td><IstFeld wert={v.min} t={t} an={schreibt} name={z.id + "-min"} setzen={(x) => setze(z.id, "min", x)} /></td>
                 <td><IstFeld wert={v.max} t={t} an={schreibt} name={z.id + "-max"} setzen={(x) => setze(z.id, "max", x)} /></td>
-                <td className="pb-pm">{z.pm}</td>
+                <td className="pb-pm">{pmAnzeige(z)}</td>
               </tr>
             );
           })}
@@ -1072,7 +1080,7 @@ function LlTabelle({ zeilen, w, schreibt, aendern }) {
           {masse(zeilen).map((z) => (
             <label key={z.id} className={"pb-wahl" + (auswahl.has(z.id) ? " pb-wahl--an" : "")} data-pbll={z.id}>
               <input type="checkbox" checked={auswahl.has(z.id)} disabled={!schreibt} onChange={() => umschalten(z.id)} />
-              <b>{z.nr}</b> <Gdt t={z.soll} /> <small>{z.pm}</small>
+              <b>{z.nr}</b> <Gdt t={z.soll} /> <small>{pmAnzeige(z)}</small>
             </label>
           ))}
         </div>
@@ -1104,9 +1112,9 @@ function LlTabelle({ zeilen, w, schreibt, aendern }) {
           {liste.map((z) => (
             <tr key={z.id}>
               <SollZelle z={z} />
-              {proben.map((pr) => <td key={pr.id}><IstFeld wert={(pr.w || {})[z.id]} t={toleranz(z.soll)} an={schreibt} name={z.id + "-" + pr.id}
+              {proben.map((pr) => <td key={pr.id}><IstFeld wert={(pr.w || {})[z.id]} t={tolVon(z)} an={schreibt} name={z.id + "-" + pr.id}
                 setzen={(v) => probeSetzen(pr.id, (p) => ({ ...p, w: { ...(p.w || {}), [z.id]: v } }))} /></td>)}
-              <td className="pb-pm">{z.pm}</td>
+              <td className="pb-pm">{pmAnzeige(z)}</td>
             </tr>
           ))}
           <tr className="pb-visum"><td colSpan={2}>Visum</td>
@@ -1132,25 +1140,25 @@ function protokollHtml(w, hoco) {
     kopfZ = "<th>Geprüft</th><th>n.i.O.</th><th>Min.</th><th>Max.</th>";
     koerper = zeilen.map((z) => {
       if (z.abschnitt) return "<tr class='ab'><td colspan='7'>" + h(z.abschnitt) + "</td></tr>";
-      const x = w.werte[z.id] || {}, t = toleranz(z.soll);
+      const x = w.werte[z.id] || {}, t = tolVon(z);
       return "<tr><td>" + h(z.nr) + "</td><td>" + sollHtml(z) + "</td><td>" + h(x.geprueft || (plan ? plan.n : "")) + "</td><td"
-        + (Number(x.nio) > 0 ? " style='color:#c00;font-weight:700'" : "") + ">" + h(x.nio) + "</td><td" + farbe(x.min, t) + ">" + h(x.min) + "</td><td" + farbe(x.max, t) + ">" + h(x.max) + "</td><td>" + h(z.pm) + "</td></tr>";
+        + (Number(x.nio) > 0 ? " style='color:#c00;font-weight:700'" : "") + ">" + h(x.nio) + "</td><td" + farbe(x.min, t) + ">" + h(x.min) + "</td><td" + farbe(x.max, t) + ">" + h(x.max) + "</td><td>" + h(pmAnzeige(z)) + "</td></tr>";
     }).join("");
   } else if (art === "ll") {
     const aus = new Set(k.auswahl || []), proben = (w.werte || {}).proben || [];
     kopfZ = proben.map((p) => "<th>" + h(datumText(p.datum)) + "<br>" + h(p.zeit) + "</th>").join("");
     koerper = zeilen.filter((z) => !z.abschnitt && aus.has(z.id)).map((z) => {
-      const t = toleranz(z.soll);
+      const t = tolVon(z);
       return "<tr><td>" + h(z.nr) + "</td><td>" + sollHtml(z) + "</td>"
-        + proben.map((p) => "<td" + farbe((p.w || {})[z.id], t) + ">" + h((p.w || {})[z.id]) + "</td>").join("") + "<td>" + h(z.pm) + "</td></tr>";
+        + proben.map((p) => "<td" + farbe((p.w || {})[z.id], t) + ">" + h((p.w || {})[z.id]) + "</td>").join("") + "<td>" + h(pmAnzeige(z)) + "</td></tr>";
     }).join("") + "<tr><td colspan='2'>Visum</td>" + proben.map((p) => "<td>" + h(p.visum) + "</td>").join("") + "<td></td></tr>";
   } else {
     kopfZ = [...Array(TEILE)].map((_, i) => "<th>Teil " + (i + 1) + "</th>").join("");
     koerper = zeilen.map((z) => {
       if (z.abschnitt) return "<tr class='ab'><td colspan='" + (TEILE + 3) + "'>" + h(z.abschnitt) + "</td></tr>";
-      const t = toleranz(z.soll), a = w.werte[z.id] || [];
+      const t = tolVon(z), a = w.werte[z.id] || [];
       return "<tr><td>" + h(z.nr) + "</td><td>" + sollHtml(z) + "</td>"
-        + [...Array(TEILE)].map((_, i) => "<td" + farbe(a[i], t) + ">" + h(a[i]) + "</td>").join("") + "<td>" + h(z.pm) + "</td></tr>";
+        + [...Array(TEILE)].map((_, i) => "<td" + farbe(a[i], t) + ">" + h(a[i]) + "</td>").join("") + "<td>" + h(pmAnzeige(z)) + "</td></tr>";
     }).join("");
   }
   const plan = art === "aql" ? aqlPlan(k.los, k.aql, k.niveau) : null;

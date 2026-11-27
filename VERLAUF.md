@@ -2,6 +2,198 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.941.0 (27. November 2026)
+
+- Material in den Stammdaten der HOCO Nr. ohne Lieferant, Menge, Bestellnummer und Termin (Patrick: „siehst du den Fehler?“ zu „CuZn38Pb2 rd 005 mm h9 Prometall 1100kg“; kam immer wieder, weil jeder Auftrag sein Materialfeld mit Bestellangaben in die Stammdaten brachte). `materialOhneBestellung` in `src/daten/materialBestellung.js`, benutzt in `groesseAusAuftrag` und `stammdatenNachziehen`; unterscheidet sich nur die Bestellangabe, kommt keine Rückfrage „Material auch beim Teil ändern?“ mehr. Am Auftrag selbst bleibt alles stehen. Einmal aufgeräumt mit `sql/stammdaten-material-rein.sql` (386 HOCO Nr., alte Werte in `hoco_material_sicherung`, dabei auch Excel-Reste wie 1.4305000000000001). Test `material_stamm.py`.
+
+## 1.940.1 (27. November 2026)
+
+- Test ERP: Lieferplan zeigt bei Abruf nur noch „auf Abruf“ ohne „(bis …)“-Text; Häkchen weg lässt das Datum leer zum Eintragen.
+
+## 1.940.0 (27. November 2026)
+
+QS: Knopf „✓ alt“ heisst „Skip“: von Hand ohne System geprüft, der Ablauf geht weiter (Erstteil → läuft → Zwischenkontrolle; Skip der Zwischenkontrolle lässt die Endkontrolle offen).
+
+## 1.939.0 (27. November 2026)
+
+QS: Lehren, die im Masse-Blatt nur als Text stehen, werden beim Öffnen automatisch mit dem passenden aktiven Mittel der Verwaltung verbunden. Prüfmittel erscheinen im Bericht mit Nr. und abgekürzt (GLD, LD, LR, GewLD, GewLR, GRL, KR, BMS, IMS), Messuhr heisst im Bericht „Messuhr digital“; gespeichert bleibt der volle Text (pm_nr neu).
+
+## 1.938.0 (27. November 2026)
+
+QS: Vorlage (Masse-Blatt) sieht aus wie das Prüfprotokoll beim Ausfüllen (Kopfraster bearbeitbar, Teil 1–5 und Fuss grau, Min/Max unter dem Soll, Zeilenknöpfe rechts neben dem Blatt). Stammdaten zeigen Artikel, Zeichnung und Allg. Toleranz; der Prüfbericht liest Artikel, Zeichnung, Index aus den Stammdaten und schreibt Änderungen zurück, ein anderer Index nur nach Rückfrage (sonst index_eigen).
+
+## 1.937.0 (27. November 2026)
+- Bestellungen → Artikel: vor der Artikelnummer das kleine 3D-Bild des realen Werkzeugs aus „📚 Reale Werkzeuge“ (HOFERCAM), Maus darüber dreht es, Antippen öffnet es gross zum Drehen und Messen. Nur bei erkannten oder von Hand ergänzten Werkzeugen, nachgeladen (`bestellungen/ArtikelModell.jsx`). Wunsch Patrick.
+
+## 1.936.0 (27. November 2026)
+- Test ERP, Stammdaten → **Formulare**: Designer für die Druckformulare (Rechnung, Lieferschein, AB, Bestellung, Angebot). Feste Texte (Ursprungserklärung, Ort/Datum/Name, Firmenzeile, Lieferschein-Einleitung, „Ware erhalten“, Bestell-Hinweise, Lieferadresse, Materialzertifikat, Schlusstext, Gruss) ändern oder ausschalten, Platzhalter {nr} {datum} {name} {kunde}, Schriftgrösse 8–12 pt, Strichcode und Bankverbindung ein/aus, Vorschau mit Beispieldaten. Gespeichert in `app_config.formulare` (nur Admin). Prüfstand `formulare_gewatec.py` erweitert.
+
+## 1.935.5 (27. November 2026)
+
+- Druckformulare: Die Ursprungserklärung der Rechnung („Der Ausführer der Waren …“ mit Ort, Datum und Name) steht jetzt auch auf Lieferschein und Auftragsbestätigung; der kurze Satz „In der Schweiz ausreichend bearbeitet …“ fällt weg.
+
+## 1.935.4 (27. November 2026)
+
+- Druckformulare: Liefer-, Versand- und Zahlungsbedingung kommen, wenn sie im Beleg leer sind, aus dem Ursprungsbeleg (Auftrag) oder vom Kunden; beim Lieferschein Gewicht, Verpackungskosten und Porto auch aus den Gewatec-Daten.
+
+## 1.935.3 (27. November 2026)
+
+- Test ERP: „Drucken“ im Auftrag druckt die Auftragsbestätigung im Gewatec-Aufbau (der eigene Knopf „Auftragsbestätigung“ fällt weg).
+
+## 1.935.2 (27. November 2026)
+
+- Pausenraum: Ein offenes Spiel geht nicht mehr nach 2 Minuten von selbst zu; Bildschirmschoner und Neuladen bei neuer Fassung warten, bis man es mit „Schliessen“ beendet.
+
+## 1.935.1 (27. November 2026)
+
+- Druckformulare: Druckfenster geht sofort beim Klick auf; ein Fehler beim Erstellen steht im Fenster und als Meldung, statt dass nichts passiert.
+
+## 1.935.0 (27. November 2026)
+
+- Test ERP: Rechnung, Lieferschein, Auftragsbestätigung, Bestellung (vier Arten: Rohmaterial, ZA extern, Auftrag / Lieferschein, Lieferschein zu Bestellung) und Angebot aus der Kalkulation drucken genau im Aufbau der Gewatec-Formulare (`src/seiten/erp/formulare.js`). Neu: Feld „Bestellart“ und Bearbeitungsvorschrift je Bestellposition; Verpackung und Porto der Lieferscheine zählen in die Rechnungssumme. Test `pruefstand/formulare_gewatec.py`.
+
+## 1.934.0 (27. November 2026)
+
+- Test ERP: Fälligkeit im Lieferplan „auf Abruf“ (Häkchen Abruf, ohne Datum, altes Datum bleibt als „bis“, zählt nie als fällig oder Rückstand). `sql/erp-rahmen-auf-abruf.sql`: Termine am 31.12. aus dem Gewatec auf Abruf gesetzt, diese Aufträge sind Rahmenaufträge.
+
+## 1.933.0 (27. November 2026)
+
+- Test ERP → Logistik: Kachel „Aktuell extern“ zeigt je Lieferant, was für Zusatzarbeit draussen ist (offene Bestellungen ZA extern minus Wareneingang), mit FA, Artikel, Arbeitsgang, Menge, seit wann und Termin zurück. ZA extern anlegen bucht nichts im Lager.
+
+## 1.931.0 (27. November 2026)
+
+- Planwand: Auch das Auftragsfenster ist je Person einstellbar (Einstellungen → Allgemein → „Planwand: Auftragsfenster“): 17 Teile ein/aus (Zustand, FA, Menge, Abruf, Siegel, Maschine, Termin, Material …, Zeichnung, Dokumente, Frühere Probleme), „Alles zeigen“. Gespeichert am Konto als Liste der ausgeschalteten Teile (`auftragFensterAus`). Gilt nur für bestehende Aufträge; ein neuer Auftrag zeigt alles, eine fehlende Pflicht-Abrufinformation oder Maschine bleibt sichtbar. Externe nicht. Test `pruefstand/auftragfenster_wahl.py`.
+
+## 1.932.0 (27. November 2026)
+
+- Einlagen Generator im Aufbau wie Gridfinity: Einstellungen links, Arbeitsfläche rechts über die ganze Höhe, die Seite rollt nicht mehr.
+
+## 1.932.0 (27. November 2026)
+
+- Test ERP → Logistik → WBG drucken: Anzahl Kopien je FA mit − und + (1 bis 20) vor „Drucken“.
+
+## 1.929.0 (27. November 2026)
+
+- Test ERP → Logistik: Kachel „Lieferplan Liste“ (fällige Lieferungen im Zeitraum von/bis aus den Lieferplänen, nach Kunde und Termin, Geliefertes abgezogen, Lagerort und Lagerbestand; „Drucken“ als Blatt „Offene Lieferungen“ quer wie das Gewatec-Blatt mit Spalten Rüstmenge und Verpackung zum Ausfüllen).
+- Beim Wechsel in den Reiter Logistik ist unten nichts offen (nur nach Neuladen kommt die letzte Kachel wieder).
+- „Fertigung einlagern“ zeigt Stand und Planwand wie im Reiter Fertigung und die aktuelle Stückzahl (letzter Zählerstand aus `production_records`).
+
+## 1.928.0 (27. November 2026)
+
+- Test ERP → Logistik: drei neue Kacheln. „WBG drucken“ (offene FAs mit Planwand-Auftrag, WBG aus `jobs.wbg_url`, Knopf „Drucken“ schickt sie über den Pool-Rechner an den Drucker Spedition, Zeile antippen zeigt sie an). „Lieferschein anlegen“ (offene Auftragspositionen nach Fälligkeit aus dem Lieferplan, mit Bestand, Antippen öffnet den Lieferschein für diese Position, Häkchen „Auch ohne Lagerbestand“). „FA Übersicht“ (Liste wie im Reiter Fertigung).
+
+## 1.927.0 (27. November 2026)
+
+- Test ERP → Logistik: Kachel „Fertigung einlagern“ mit den offenen FAs (noch nicht ganz fertig gemeldet), laufende und rüstende Planwand-Aufträge zuerst; Antippen öffnet die Fertigmeldung (Menge, Lagerart, Platz).
+
+## 1.926.0 (27. November 2026)
+
+- Test ERP → Logistik: Kacheln lassen sich mit Maus oder Finger verschieben (ab 8 Punkten Bewegung, Antippen öffnet weiter); Reihenfolge je Person in der Einstellung `erpLogistikReihe`.
+
+## 1.925.0 (27. November 2026)
+
+- Test ERP → Logistik: neue Kachel „ZA extern anlegen“. Listet die externen Arbeitsgänge offener FAs ohne Bestellung; Antippen öffnet eine neue Bestellung ZA extern, ausgefüllt mit Lieferant, Artikel, Menge und Termin (heute + Pauschalzeit), verknüpft über `daten.fa_id`/`ag_pos`. Ohne FA im Einzelfall über den Arbeitsplan des Artikels (`ZaAusArbeitsplan`).
+- Arbeitsgang-Fenster mit Pauschalzeit und Einheit (`pauschal`, `pauschal_einheit`); Artikel-Arbeitsplan zeigt bei extern die Pauschalzeit.
+- Rote Anzeige „überfällig“ steht in der Zeile der Zahl und verdeckt den Titel nicht mehr.
+- `sql/erp-arbeitsplan-gewatec-details.sql`: Maschine, Stückzeit, Rüstzeit, Lieferant und Pauschalzeit aus dem Gewatec-Export 4 in Artikel und FAs (nur leere Felder).
+
+## 1.924.0 (27. November 2026)
+
+- Planwand: Was im Fenster beim Drüberfahren über einen Auftrag steht, wählt jede Person selbst (Einstellungen → Allgemein → „Planwand: Fenster beim Drüberfahren“): Häkchen je Zeile, Reihenfolge mit ↑ ↓, „Wie am Anfang“. Gespeichert am Konto (`planInfoFelder`, Komma-Liste, „-“ = nichts), ohne Wahl wie bisher. Externe haben die Wahl nicht (Entscheid Patrick 27. November 2026). Liste `PLAN_INFO_FELDER` in `app.js`, Test `pruefstand/planinfo_wahl.py`.
+
+## 1.923.0 (27. November 2026)
+
+- Gridfinity passt auf einen Bildschirm: Reiter neben dem Titel, Vorschau so hoch wie der Bildschirm, Einstellungen rollen für sich, auf breiten Bildschirmen in zwei Spalten.
+
+## 1.922.0 (27. November 2026)
+
+- Gridfinity: neuer Reiter „Schublade“: Masse eingeben, Boxen und Einlagen auf dem Raster anordnen und ziehen, Draufsicht und 3D, im Projekt gespeichert.
+
+## 1.921.0 (27. November 2026)
+
+- Test ERP: Arbeitsgänge im Fertigungsauftrag lassen sich mit „Öffnen“ ansehen und ändern (Arbeitsplatz, Stückzeit, Rüstzeit, Extern, Hinweis), gespeichert im FA (`daten.ap`); die Zeile zeigt Stückzeit und Rüsten.
+
+## 1.920.0 (27. November 2026)
+
+Test ERP: neuer Reiter „Logistik“ mit Dashboard aus Kacheln (dunkelblau wie der Kopf, Zahl offen, rotes Schild überfällig). Erste Kachel „Wareneingang ZA extern“: offene Positionen der Bestellungen ZA extern nach Fälligkeit, Zeile antippen bucht den Wareneingang (`EingangFenster`), Nr. öffnet die Bestellung (`src/seiten/erp/Logistik.jsx`; Wunsch Patrick).
+
+## 1.919.0 (27. November 2026)
+
+- Gridfinity: gespeicherte Einlage aus dem Einlagen Generator als Inhalt einer Box (Taschen im Boden); Einlagen mit Gridfinity-Füssen immer aufs Raster genormt.
+
+## 1.918.0 (27. November 2026)
+
+Kalkulation → Stundensätze: Häkchen „Nicht mehr vorhanden“ je Maschine (`daten.weg`): die Sätze bleiben, alte Kalkulationen rechnen weiter, bei neuen Arbeitsgängen ist die Maschine nicht mehr wählbar, in der Liste unten und durchgestrichen. Löschen weist darauf hin (Patrick hatte zwei Maschinen gelöscht, eine davon in 401 Kalkulationen).
+
+## 1.917.0 (27. November 2026)
+
+Kleine Blase beim Markieren wie die Minisymbolleiste in Word (Wunsch Patrick): markiert man in einem gewöhnlichen Textfeld etwas, erscheint daneben eine Blase mit Ø ± ° ≤ ≥ × und aufklappbar ⌖▾ den Form- und Lagetoleranzen; ein Tipp ersetzt das Markierte. Nur beim Markieren, nicht beim Antippen. Felder mit Format behalten ihre Schreibleiste mit Farben. `src/teile/markierBlase.js`, CSS-Block „1.917.0“, Prüfstand `markier_blase.py`.
+
+## 1.916.0 (27. November 2026)
+
+- Gridfinity: Projekte speichern, öffnen und löschen (Tabelle `gridfinity_projekte`).
+
+## 1.915.1 (27. November 2026)
+
+Qualitätssicherung → Ausschussmeldungen: Maschinen und Meldungen der externen Firma (Zurbrügg) sehen nur noch Externe, wie im Pad Mode (`padParkVerborgen`, Wunsch Patrick 27. November 2026).
+
+## 1.915.0 (27. November 2026)
+
+- Gridfinity Box: Leiste geht schräg bis auf den Boden (liegt auf wie der Scoop).
+
+## 1.914.2 (27. November 2026)
+
+Prüfmittel suchen: Grenzlehrdorne der Verwaltung im Format „5.028 / 5.034“ werden erkannt; aus dem Soll wird ähnlich gesucht (Spiel 0.002 statt 0.001), auch Lehrringe und Rachenlehren. Steht nur „Grenzlehrdorn“ o. ä. als Hinweis, öffnet das Fenster auf Prüfmittel mit dem passenden Mittel vorgewählt; Checkliste und Ausbuchen finden es ebenso.
+
+## 1.914.1 (27. November 2026)
+
+Masse-Blatt ruhiger wie ein Tabellen-Editor (Platzhalter nur im angetippten Feld, blauer Rahmen, Knöpfe blass bis man über die Zeile fährt). Fehler des alten Tools wie „ú⌀~2~3~.~5~ ~+~0~.~0~3~û“ werden beim Lesen, Anzeigen und Rechnen zu „Ø23.5 +0.03“ bereinigt, auch bei schon gespeicherten Massen.
+
+## 1.914.0 (27. November 2026)
+
+Test ERP: die Liste der FAs hat die Spalte „Planwand“ mit dem Zeichen und Zustand wie auf dem Balken (○ Geplant, 🔧 Rüsten, ▶ Läuft, ✔ Fertig) und der Maschine (`planwandZelle` in `Belege.jsx`; Wunsch Patrick).
+
+## 1.913.0 (27. November 2026)
+
+Test ERP: Reiter Bestellungen zeigt gleich alle Bestellungen (neuste oben) mit Häkchen Rohmaterial / ZA extern / Andere (ZA extern = Hofer-Artikel in der Bestellung oder Fremdleistung aus dem Gewatec, `bestellArt` in `Belege.jsx`; Wunsch Patrick).
+## 1.912.1 (27. November 2026)
+
+Prüfmittel-Fenster zeigt alle Mittel der Verwaltung (vorher nur 80, ohne Stifte und Ausgeschiedene), mit Anzahl.
+
+## 1.912.0 (27. November 2026)
+
+Masse-Blatt: Toleranz als zwei Felder Min und Max, vorausgefüllt aus dem Soll, ohne Farbe; Geändertes gilt für die rot/grün-Auswertung (z.tol_min/z.tol_max). GDT-Rahmen: µ der alten Schrift = Koaxialität ◎.
+
+## 1.911.1 (27. November 2026)
+
+Test ERP: ein FA steht auf „in Arbeit“, wenn sein Auftrag auf der Planwand läuft oder rüstet (`daten.planwand.stand`), nicht erst mit abgehaktem Arbeitsgang (Patrick: „warum gibt es keine in Arbeit?“).
+
+## 1.911.0 (27. November 2026)
+
+- Gridfinity Box: Fächer-Elemente Wand, Leiste, Scoop hinzufügen und in der 3D-Vorschau mit der Maus ziehen.
+## 1.910.0 (27. November 2026)
+
+QS: Excel-Berichte mit „#“ statt „Nr.“ werden gelesen (Zeile M = Material übersprungen); Toleranzrahmen aus der GDT-Schrift wie „{µ~|Ø~0~.~0~2~|A~}“ werden zu „µ Ø0.02 A“. Masse-Blatt: Toleranz von Hand überschreibbar (z.tol, gilt für Auswertung und Vorschläge); Knopf Form/Lage gleich gross wie Ø und ±; Symbole auch in Eingabefeldern grösser (Schrift GdtGross mit size-adjust).
+
+## 1.909.0 (27. November 2026)
+
+Test ERP: Reiter Fertigung zeigt gleich alle FAs (neuste oben), mit Häkchen je Stand (offen, in Arbeit, teilweise fertig, fertig, abgeschlossen, storniert; storniert anfangs aus), die Suche grenzt weiter ein (Wunsch Patrick). Dazu 23 offene Fremdleistungen aus dem Gewatec-Export als Bestellungen (`sql/erp-fremdleistungen-gewatec.sql`, eingespielt): die erste Übernahme nahm nur Positionen mit offener Menge, bei Fremdleistungen steht die Liefermenge im Gewatec aber gleich der Menge.
+
+## 1.908.2 (27. November 2026)
+
+Prüfmittel/Hinweis-Fenster: Vorschläge nach dem Soll. Lehren, deren Masse die Grenzen oder das Nennmass treffen, stehen zuoberst mit Schild „passt“, danach übrige Lehren, dann Messmittel (Patrick: „warum keine Grenzlehrdorne vorgeschlagen“).
+
+## 1.908.1 (27. November 2026)
+
+Masse-Blatt: kein Bild mehr als Mass einfügen (Knopf und Strg + V weg); alte Bilder aus Excel bleiben sichtbar (Patrick: „braucht es nie“).
+
+## 1.908.0 (27. November 2026)
+
+Stammdaten der HOCO Nr.: die zweite Karte „Prüfmasse“ ist weg; in der Karte Prüfung gibt es den Knopf „Prüfbericht“, der zu QS springt und die Masse als Vorlage zum Bearbeiten öffnet. Der Knopf „Excel-Prüfbericht einlesen“ fällt weg, Excel kommt nur noch über den Ordner (Wunsch Patrick).
+
+## 1.907.0 (27. November 2026)
+
+Test ERP: die 95 Aufträge der Planwand mit FA Nr. stehen als Fertigungsaufträge im Test ERP, mit derselben Nummer, dem Arbeitsplan des Artikels, Sollmenge, Index aus der WBG und Maschine/Stand im Kopf („Planwand“); fertige sind abgeschlossen, kein Lagerbestand gebucht (`sql/erp-fa-aus-planwand.sql`, eingespielt, mehrfach ausführbar; Wunsch Patrick). Neue FAs zählen mit 6 Stellen weiter (2026008599). Neue FAs der Planwand legt seither der Auslöser `jobs_erp_fa` (`sql/erp-fa-laufend.sql`, eingespielt) von selbst an.
 
 ## 1.906.0 (27. November 2026)
 

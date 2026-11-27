@@ -73,7 +73,7 @@ export function berichtAusExcel(roh) {
     const a = zelle(r, o).trim();
     if (tabStart === null) {
       let gefunden = 0;
-      for (let s = 1; s <= 4 && !gefunden; s++) if (/^(nr|pos)\.?$/i.test(zelle(r, s).trim()) && /soll|mass|merkmal/i.test(zelle(r, s + 1))) gefunden = s;
+      for (let s = 1; s <= 4 && !gefunden; s++) if (/^(nr|pos|#)\.?$/i.test(zelle(r, s).trim()) && /soll|mass|merkmal/i.test(zelle(r, s + 1))) gefunden = s;
       if (gefunden) { tabStart = r; o = gefunden; continue; }
     }
     // Ende der Tabelle: „Prüf-Entscheid“, bei älteren Blättern „Freigabe Maschine …“, „Datum / Visum“ oder „Bemerkungen“
@@ -145,6 +145,8 @@ export function berichtAusExcel(roh) {
     const ist = istSp.map((s) => zelle(r, s));
     const bild = nr ? bildJe[r] : null;
     if (!nr && !soll && !pm) continue;
+    // Zeile „M“ = Material (ältere Blätter mit „#“ statt „Nr.“), steht schon im Kopf
+    if (/^M$/i.test(nr)) continue;
     // „übrige Masse auf Seite 2“ war früher der Hinweis auf die zweite Datei;
     // die Seiten kommen jetzt zusammen, darum fällt er weg (Patrick 26. November 2026)
     if (!nr && /(übrig|restlich|weitere)\S*\s+mass\S*.*seite\s*\d/i.test(soll)) continue;
@@ -188,7 +190,7 @@ export function vorlageAus(berichte) {
 // Gibt { min, max, einheit } oder null (ohne Mass, nur Gewinde, Material …)
 const NUR_MAX = /^(ra|rz|rmax|rundlauf|planlauf|gesamtlauf|position|ebenheit|parallel\w*|rechtwink\w*|koaxial\w*|konzentr\w*|symmetrie|geradheit|rundheit|zylindr\w*|kb)\b/i;
 export function toleranz(soll) {
-  let s = String(soll || "").trim().replace(/^Ø\s*/, "").replace(/\s*x\s*45°\s*$/i, "")
+  let s = symbolUmwandeln(soll).trim().replace(/^Ø\s*/, "").replace(/\s*x\s*45°\s*$/i, "")
     .replace(/\s+\d+\s*x\s*$/i, "").trim();
   if (!s || /^M\s*\d/i.test(s)) return null;
   const grad = /°/.test(s) ? "°" : "";
@@ -213,10 +215,49 @@ export function toleranz(soll) {
   return { min: rund(nenn + Math.min(...ab)), max: rund(nenn + Math.max(...ab)), einheit: grad };
 }
 
+// Toleranz einer Zeile: Min und Max von Hand überschreibbar (z.tol_min / z.tol_max, seit
+// 1.912.0, Patrick 27. November 2026: „Feld, dass man Max und Min eingibt, und du schaust,
+// als wär's von dir, und machst rot/grün“). Leeres Feld = Wert aus dem Soll.
+// z.tol (Text, nur 1.910.0) gilt weiter, falls vorhanden.
+const zahlOder = (v) => { const x = String(v ?? "").trim().replace(",", "."); return x === "" || isNaN(Number(x)) ? undefined : Number(x); };
+// Prüfmittel im Bericht kurz und mit Nr. (Patrick 27. November 2026: „soll mit Nr. dort stehen,
+// aber Grenzlehrdorn abkürzen, allgemein solche Begriffe abkürzen; Messuhr soll Messuhr digital
+// heissen, im Bericht, in der Verwaltung sein lassen“). Gespeichert bleibt der volle Text,
+// damit Checkliste und Ausbuchen die Lehren weiter erkennen; gekürzt wird nur beim Anzeigen.
+const KURZ = [
+  [/gewinde-?\s*lehr-?\s*dorn/gi, "GewLD"], [/gewinde-?\s*lehr-?\s*ring/gi, "GewLR"],
+  [/grenz-?\s*lehr-?\s*dorn/gi, "GLD"], [/grenz-?\s*rachen-?\s*lehre/gi, "GRL"],
+  [/lehr-?\s*dorn/gi, "LD"], [/lehr-?\s*ring/gi, "LR"], [/kontroll-?\s*ring/gi, "KR"],
+  [/bügel-?\s*messschraube/gi, "BMS"], [/innen-?\s*messschraube/gi, "IMS"],
+  [/\bmessuhr\b(?!\s*digital)/gi, "Messuhr digital"],
+];
+export function pmKurz(text) {
+  let t = String(text || "");
+  for (const [re, k] of KURZ) t = t.replace(re, k);
+  return t.replace(/\s+/g, " ").trim();
+}
+export const pmAnzeige = (z) => [z && z.pm_nr, pmKurz(z && z.pm)].filter(Boolean).join(" ");
+
+export function tolVon(z) {
+  const h = String((z && z.tol) || "").trim();
+  let auto = null;
+  if (h) {
+    const k = /^(≤|<=|max\.?)\s*([\d.,]+)$/i.exec(h);
+    auto = k ? { min: null, max: Number(k[2].replace(",", ".")), einheit: "" } : toleranz(h);
+  } else auto = toleranz(z && z.soll);
+  const mi = zahlOder(z && z.tol_min), ma = zahlOder(z && z.tol_max);
+  if (mi === undefined && ma === undefined) return auto;
+  const min = mi !== undefined ? mi : auto ? auto.min : null;
+  const max = ma !== undefined ? ma : auto ? auto.max : null;
+  if (min === null && max === null) return null;
+  return { min, max: max === null || max === undefined ? Infinity : max, einheit: (auto && auto.einheit) || "" };
+}
+
 export function toleranzText(t) {
   if (!t) return "";
   const e = t.einheit || "";
   if (t.min === null) return "≤ " + t.max + e;
+  if (t.max === Infinity) return "≥ " + t.min + e;
   return t.min + e + " … " + t.max + e;
 }
 
@@ -254,7 +295,7 @@ export function lehrenAus(vorlage) {
     if (LEHRE_RE.test(pm)) {
       const name = pm.replace(/\s*[ØøD]?\s*\d+(?:[.,]\d+)?\s*(\/\s*\d+(?:[.,]\d+)?)?\s*$/, "").trim() || pm;
       let mass = (/(\d+(?:[.,]\d+)?\s*\/\s*\d+(?:[.,]\d+)?)/.exec(pm) || [])[1] || "";
-      const t = toleranz(zl.soll);
+      const t = tolVon(zl);
       // Seit 1.872.0 zählt auch ein Soll wie „M 1.6 2 x“ (mit Leerzeichen) als Gewinde,
       // auch wenn in der Spalte nur „Lehre“ steht (Patrick 26. November 2026).
       if (!mass && (/gewinde/i.test(pm) || /^\s*M\s*\d/i.test(String(zl.soll || "")))) mass = String(zl.soll || "").replace(/\s+\d+\s*x\s*$/i, "").trim().replace(/^M\s+(?=\d)/i, "M");
@@ -293,6 +334,10 @@ function gewindeVon(t) {
 }
 function grenzenPm(p) {
   const s = String(p.nennmass || p.mass || "").trim();
+  // „5.028 / 5.034“: Gut- und Ausschussmass direkt (Patrick 27. November 2026: Grenzlehrdorne
+  // in der Verwaltung stehen oft so und wurden darum nie gefunden)
+  const gm = /^Ø?\s*(\d+[.,]\d+)\s*[\/–]\s*(\d+[.,]\d+)\b/.exec(s);
+  if (gm && n(gm[2]) > n(gm[1]) && n(gm[2]) - n(gm[1]) < 1) return { min: n(gm[1]), max: n(gm[2]) };
   const m = /^Ø?\s*(\d+(?:[.,]\d+)?)\s*(?:[A-Za-z]{1,2}\d{1,2})?\s*(.*)$/.exec(s);
   if (!m) return null;
   const nenn = n(m[1]);
@@ -310,7 +355,8 @@ function grenzenLehre(lehre) {
     return { min: n(m[1]), max: n(m[2]), spiel: 0.5 * Math.pow(10, -stellen) + 0.0006 };
   }
   const t = toleranz(lehre.soll);
-  return t && t.min !== null ? { min: t.min, max: t.max, spiel: 0.0011 } : null;
+  // aus dem Soll gerechnet: ähnlich statt genau gleich (Patrick: „ähnlich suchen“)
+  return t && t.min !== null ? { min: t.min, max: t.max, spiel: 0.0021 } : null;
 }
 const istStift = (p) => STIFT_RE.test((p.typ || "") + " " + (p.bezeichnung || ""));
 
@@ -339,7 +385,7 @@ export function pruefmittelFuer(lehre, liste, hoco) {
       // „M5“ in der Lehre passt zu „M5“ und „M5x0.8“ (Regelgewinde)
       return pg === gew || (!/x/.test(gew) && pg.split("x")[0] === gew);
     }
-    if (g && /lehrdorn|grenzdorn/i.test(art) && !/gewinde/i.test(art)) {
+    if (g && /lehrdorn|grenzdorn|lehrring|grenzring|rachenlehre|kontrollring/i.test(art) && !/gewinde/i.test(art)) {
       const pg = grenzenPm(p);
       if (pg) return Math.abs(pg.min - g.min) <= g.spiel && Math.abs(pg.max - g.max) <= g.spiel;
     }
@@ -468,17 +514,65 @@ export async function stammLaden(hoco) {
   return hoco ? (data || [])[0] || null : data || [];
 }
 
+// Kopf des Prüfberichts und Stammdaten der HOCO Nr. hängen zusammen (seit 1.938.0,
+// Patrick 27. November 2026: „die Sachen, die oben stehen, sollen so in Stammdaten
+// eingebaut werden; wenn dort was geändert wird, soll es mitändern, ausser Index,
+// dann soll es fragen, ob ein neuer Index entsteht“). Artikel, Zeichnung und Index
+// kommen aus hoco_parts; ein Index, den man im Prüfbericht bewusst anders liess
+// (index_eigen), bleibt. Allg. Toleranz steht nur im Prüfbericht-Kopf (pruef_stamm).
+async function teilAngaben(hoco) {
+  try {
+    const { data } = await alt.db.from("hoco_parts").select("bezeichnung, zeichnungs_nr, index_nr").eq("hoco_nr", hoco).maybeSingle();
+    return data || null;
+  } catch (_) { return null; }
+}
+export function kopfMitTeil(kopf, tp) {
+  const k = { ...(kopf || {}) };
+  if (!tp) return k;
+  if (tp.bezeichnung) k.bezeichnung = tp.bezeichnung;
+  if (tp.zeichnungs_nr) k.zeichnung = tp.zeichnungs_nr;
+  if (tp.index_nr && !k.index_eigen) k.index = tp.index_nr;
+  return k;
+}
+// Beim Speichern im Prüfbericht: Artikel und Zeichnung gehen in die Stammdaten,
+// ein anderer Index nur nach Rückfrage. Gibt den Kopf zum Speichern zurück.
+export async function kopfInStammdaten(hoco, kopf) {
+  const k = { ...(kopf || {}) };
+  const tp = await teilAngaben(hoco);
+  if (!tp || !alt.darfSchreiben() || alt.istExtern()) return k;
+  const neu = {};
+  const bez = String(k.bezeichnung || "").trim(), zei = String(k.zeichnung || "").trim(), idx = String(k.index || "").trim();
+  if (bez && bez !== (tp.bezeichnung || "")) neu.bezeichnung = bez;
+  if (zei && zei !== (tp.zeichnungs_nr || "")) neu.zeichnungs_nr = zei;
+  if (idx && idx !== (tp.index_nr || "")) {
+    const ja = await alt.nachfragen({ titel: "Neuer Index?",
+      text: "Im Prüfbericht steht Index " + idx + ", in den Stammdaten von " + hoco + " " + (tp.index_nr ? "Index " + tp.index_nr : "noch keiner") + ". Entsteht damit ein neuer Index?",
+      bestaetigen: "Ja, neuer Index " + idx, abbrechen: "Nein, nur im Prüfbericht" });
+    if (ja) { neu.index_nr = idx; delete k.index_eigen; } else k.index_eigen = true;
+  } else if (idx === (tp.index_nr || "")) delete k.index_eigen;
+  if (!Object.keys(neu).length) return k;
+  const vorher = {};
+  for (const f of Object.keys(neu)) vorher[f] = tp[f] ?? null;
+  const { error } = await alt.db.from("hoco_parts").update(neu).eq("hoco_nr", hoco);
+  if (error) { alt.meldung("Stammdaten nicht nachgeführt: " + (error.message || error), "warn"); return k; }
+  alt.merkeSchritt("Stammdaten " + hoco + " aus dem Prüfbericht", [alt.rueckSetz("hoco_parts", vorher, { hoco_nr: hoco })]);
+  return k;
+}
+
 // Stamm einer HOCO Nr. mit Masse: gespeicherte, sonst still aus den
 // früher abgelegten Excel-Vorlagen (Ordner oder von Hand vor 1.779.0)
 export async function stammMitMassen(hoco) {
-  const st = await stammLaden(hoco).catch((f) => { if (fehltTabelle(f)) return null; throw f; });
-  if (st && (st.zeilen || []).length) return { ...st, zeilen: nachProdAbsaetze(st.zeilen), aus: "stamm" };
+  const [st0, tp] = await Promise.all([stammLaden(hoco).catch((f) => { if (fehltTabelle(f)) return null; throw f; }), teilAngaben(hoco)]);
+  const st = st0 ? { ...st0, kopf: kopfMitTeil(st0.kopf, tp) } : st0;
+  // gespeicherte Masse mit Fehlern des alten Tools (Tilden, ú…û) beim Laden bereinigen
+  const sauber = (z) => (z && typeof z.soll === "string" && /~|⌀/.test(z.soll) ? { ...z, soll: symbolUmwandeln(z.soll) } : z);
+  if (st && (st.zeilen || []).length) return { ...st, zeilen: nachProdAbsaetze(st.zeilen.map(sauber)), aus: "stamm" };
   const dateien = await dateienLaden(hoco).catch(() => []);
-  if (!dateien.length) return st ? { ...st, aus: "stamm" } : null;
+  if (!dateien.length) return st ? { ...st, aus: "stamm" } : tp ? { hoco_nr: hoco, arten: [], aql: null, niveau: null, zeilen: [], kopf: kopfMitTeil({}, tp), aus: "neu" } : null;
   try {
     const v = await vorlageLaden(dateien);
     return { hoco_nr: hoco, arten: (st && st.arten) || [], aql: st && st.aql, niveau: st && st.niveau,
-      zeilen: v.zeilen, kopf: { ...(v.kopf || {}), ...((st && st.kopf) || {}) }, aus: "excel" };
+      zeilen: v.zeilen, kopf: kopfMitTeil({ ...(v.kopf || {}), ...((st0 && st0.kopf) || {}) }, tp), aus: "excel" };
   } catch (_) { return st ? { ...st, aus: "stamm" } : null; }
 }
 

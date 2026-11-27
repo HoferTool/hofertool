@@ -103,16 +103,118 @@ with sync_playwright() as p:
     # Fächer wie bei Gridfinity (1.906.0): ein Fach je Feld, Griffmulde, keine Beschriftungsleiste
     pruefe(pg.locator("[data-gf='leiste']").count() == 0, "Beschriftungsleiste ist weg")
     pg.click("[data-gf-jefeld]"); pg.wait_for_timeout(400)
-    pruefe(pg.input_value("[data-gf='fx']") == pg.input_value("[data-gf='nx']") and pg.input_value("[data-gf='fy']") == pg.input_value("[data-gf='ny']"), "Ein Fach je Feld: " + pg.input_value("[data-gf='fx']") + pg.input_value("[data-gf='fy']") + pg.input_value("[data-gf='nx']") + pg.input_value("[data-gf='ny']"))
+    pruefe(pg.input_value("[data-gf='fx']") == pg.input_value("[data-gf='nx']") and pg.input_value("[data-gf='fy']") == pg.input_value("[data-gf='ny']"), "Ein Fach je Feld")
     name, v, tri = lade_stl(pg)
     mit = volumen(v, tri)
-    pruefe(kanten_geschlossen(tri) == 0 and mit > 0, "Fächer mit Griffmulde geschlossen")
-    pg.click("[data-gf='mulde']"); pg.wait_for_timeout(400)
+    pruefe(kanten_geschlossen(tri) == 0 and mit > 0, "Fächer mit Scoop geschlossen")
+    # Elemente (1.911.0): Hinzufügen Wand, Leiste, Scoop; anklicken und ziehen in der Vorschau
+    vorher = pg.locator("[data-gf-element]").count()
+    for t in ("wand", "leiste", "scoop"):
+        pg.click("[data-gf-hinzu-knopf]"); pg.click("[data-gf-hinzu='%s']" % t); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-gf-element]").count() == vorher + 3, "drei Elemente hinzugefügt")
     name, v, tri = lade_stl(pg)
-    pruefe(volumen(v, tri) < mit - 500, "Griffmulde bringt Material vorne (%.0f gegen %.0f mm³)" % (mit, volumen(v, tri)))
-    pg.click("[data-gf='mulde']")
+    pruefe(kanten_geschlossen(tri) == 0 and volumen(v, tri) > mit, "Box mit neuen Elementen geschlossen")
+    # neue Wand wählen, in der Vorschau eine Stelle mit Griff suchen und ziehen
+    wand = vorher
+    pg.click("[data-gf-element='%d']" % wand); pg.wait_for_timeout(300)
+    text0 = pg.inner_text("[data-gf-element='%d']" % wand)
+    pg.evaluate("() => document.querySelector('[data-gf-3d]').scrollIntoView({block: 'center'})"); pg.wait_for_timeout(300)
+    kasten = pg.locator("[data-gf-3d] canvas").bounding_box(); stelle = None
+    for yy in range(20, 90, 4):
+        for xx in range(20, 90, 3):
+            x = kasten["x"] + kasten["width"] * xx / 100; y = kasten["y"] + kasten["height"] * yy / 100
+            pg.mouse.move(x, y)
+            if pg.evaluate("() => document.querySelector('[data-gf-3d] canvas').style.cursor") == "grab":
+                stelle = (x, y); break
+        if stelle: break
+    pruefe(stelle is not None, "Element in der Vorschau greifbar")
+    if stelle:
+        pg.mouse.down(); pg.wait_for_timeout(200)
+        text0 = pg.inner_text("[data-gf-element].aktiv"); nr = pg.get_attribute("[data-gf-element].aktiv", "data-gf-element")
+        pg.mouse.move(stelle[0] + 40, stelle[1] + 110, steps=10); pg.mouse.up(); pg.wait_for_timeout(400)
+        text1 = pg.inner_text("[data-gf-element='%s']" % nr)
+        pruefe(text1 != text0, "Ziehen verschiebt das Element: %s → %s" % (text0.replace("\n", " "), text1.replace("\n", " ")))
+        if text1 != text0:
+            pg.keyboard.press("Control+z"); pg.wait_for_timeout(300)
+            pruefe(pg.inner_text("[data-gf-element='%s']" % nr) == text0, "Strg + Z nimmt das Ziehen zurück")
+    pg.click("[data-gf-element='%d']" % wand)
+    pg.click("[data-gf-drehen]"); pg.wait_for_timeout(300)
+    pruefe("quer" in pg.inner_text("[data-gf-element='%d']" % wand), "Drehen macht die Wand quer")
+    pg.click("[data-gf-loeschen]"); pg.wait_for_timeout(300)
+    pg.locator(".dialog-huelle button:has-text('Löschen')").click(); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-gf-element]").count() == vorher + 2, "Löschen nach einer Nachfrage")
+    pg.screenshot(path=BILD + "/gf-elemente.png")
+    # Projekte (1.916.0): speichern, ändern, wieder öffnen, löschen
+    pg.fill("[data-gf-projektname]", "Prüfbox Elemente"); pg.click("[data-gf-projekt-speichern]"); pg.wait_for_timeout(500)
+    n_el = pg.locator("[data-gf-element]").count()
+    pruefe(any(x.get("name") == "Prüfbox Elemente" for x in pg.evaluate("() => TEST.daten.gridfinity_projekte || []")), "Projekt in der Datenbank gespeichert")
+    pg.click("[data-gf-projekt-neu]"); pg.wait_for_timeout(400)
+    pruefe(pg.locator("[data-gf-element]").count() != n_el, "Neu setzt die Box zurück")
+    pg.click("[data-gf-projekte-knopf]"); pg.wait_for_timeout(400)
+    pg.click("[data-gf-projekt-oeffnen='Prüfbox Elemente']"); pg.wait_for_timeout(500)
+    pruefe(pg.locator("[data-gf-element]").count() == n_el and pg.input_value("[data-gf-projektname]") == "Prüfbox Elemente", "Projekt öffnet mit allen Elementen")
+    pg.click("[data-gf-projekte-knopf]"); pg.wait_for_timeout(300)
+    pg.click("[data-gf-projekt-loeschen='Prüfbox Elemente']"); pg.wait_for_timeout(300)
+    pg.locator(".dialog-huelle button:has-text('Löschen')").click(); pg.wait_for_timeout(500)
+    pruefe(not any(x.get("name") == "Prüfbox Elemente" for x in pg.evaluate("() => TEST.daten.gridfinity_projekte || []")), "Projekt gelöscht nach einer Nachfrage")
+    # Einlage als Inhalt der Box (1.919.0): Taschen aus dem Einlagen Generator im Boden
+    pg.evaluate("""() => { TEST.daten.einlagen = TEST.daten.einlagen || []; TEST.daten.einlagen.push({ id: 'e-probe', name: 'Probe-Einlage', geaendert_am: new Date().toISOString(),
+      daten: { app: 'x', version: 1, name: 'Probe-Einlage', base: { W: 125.5, H: 83.5, T: 20, R: 3.75 }, newDepth: 12,
+        items: [{ id: 1, name: 'Probe', polys: [{ outer: [[-30,-10],[30,-10],[30,10],[-30,10]], holes: [] }], x: 60, y: 40, ang: 0, depth: 12, grips: [] }],
+        conn: { grid: { on: true } } } }); }""")
+    name, v, tri = lade_stl(pg); ohne = volumen(v, tri)
+    pg.click("[data-gf-einlage-knopf]"); pg.wait_for_timeout(500)
+    pg.click("[data-gf-einlage-wahl='Probe-Einlage']")
+    pg.wait_for_function("() => /Taschen sind im Boden/.test(document.querySelector('[data-gf-einlage]')?.textContent || '')", timeout=40000)
+    pruefe(pg.input_value("[data-gf='nx']") == "3" and pg.input_value("[data-gf='ny']") == "2" and pg.input_value("[data-gf='u']") == "4", "Box passt sich der Einlage an: 3 × 2 × 4")
+    pruefe(pg.locator("[data-gf-elemente]").count() == 0, "mit Einlage keine Fächer-Elemente")
+    name, v, tri = lade_stl(pg)
+    mit = volumen(v, tri)
+    pruefe(kanten_geschlossen(tri) == 0 and mit > 0, "Box mit Einlage geschlossen (%.0f mm³)" % mit)
+    pruefe(teile_zaehlen(tri) >= 2 and masse(v)[:2] == [125.5, 83.5], "Einlage sitzt in der Box %s" % masse(v))
+    pg.screenshot(path=BILD + "/gf-einlage.png")
+    pg.click("[data-gf-einlage-weg]"); pg.wait_for_timeout(400)
+    pruefe(pg.locator("[data-gf-elemente]").count() == 1, "Einlage herausnehmen: Fächer wieder da")
 
     pruefe(pg.locator("[data-gf-export='stl'], [data-gf-export='3mf']").count() == 0, "nur noch ein Knopf STL")
+
+    # Schublade layouten (1.922.0): Masse, Raster, Boxen und Einlagen ziehen
+    pg.click("[data-gf-art='schublade']"); pg.wait_for_selector("[data-gf-oben]")
+    pruefe("10 × 7 Felder" in pg.inner_text("[data-gf-sraster]"), "Schublade 430×309 = 10 × 7: " + pg.inner_text("[data-gf-sraster]"))
+    pg.click("[data-gf-shinzu]"); pg.click("[data-gf-sneu='box']"); pg.wait_for_timeout(200)
+    pg.fill("[data-gf='snx']", "2"); pg.press("[data-gf='snx']", "Enter"); pg.wait_for_timeout(200)
+    pg.click("[data-gf-shinzu]"); pg.click("[data-gf-sneu='einlage']"); pg.wait_for_timeout(400)
+    pg.click("[data-gf-swahl-name='Probe-Einlage']"); pg.wait_for_timeout(400)
+    teile = pg.evaluate("() => JSON.parse(localStorage.getItem('hofer.gridfinity')).schublade.teile")
+    pruefe(len(teile) == 2 and teile[0]["nx"] == 2 and teile[1]["typ"] == "einlage" and (teile[1]["nx"], teile[1]["ny"], teile[1]["x"]) == (3, 2, 2),
+           "Box 2×1 und Einlage 3×2 daneben: %s" % [(t["typ"], t["nx"], t["ny"], t["x"], t["y"]) for t in teile])
+    pg.wait_for_timeout(800)   # Strg + Z fasst Änderungen innert 0,7 s zusammen
+    # Box mit der Maus um 4 Felder nach rechts und 2 nach hinten ziehen
+    bx = pg.locator("[data-gf-sblock='Box']").bounding_box()
+    sv = pg.locator("[data-gf-oben]").bounding_box()
+    feld = pg.evaluate("() => document.querySelector('[data-gf-oben]').getScreenCTM().a * 42")
+    pg.mouse.move(bx["x"] + 15, bx["y"] + bx["height"] - 10); pg.mouse.down()
+    for k in range(1, 9): pg.mouse.move(bx["x"] + 15 + k * feld * 0.75, bx["y"] + bx["height"] - 10 - k * feld * 0.25)
+    pg.mouse.up(); pg.wait_for_timeout(300)
+    teile = pg.evaluate("() => JSON.parse(localStorage.getItem('hofer.gridfinity')).schublade.teile")
+    pruefe((teile[0]["x"], teile[0]["y"]) == (6, 2), "Box gezogen auf Feld 6/2: %s" % [(t["x"], t["y"]) for t in teile])
+    pg.keyboard.press("Control+z"); pg.wait_for_timeout(300)
+    teile = pg.evaluate("() => JSON.parse(localStorage.getItem('hofer.gridfinity')).schublade.teile")
+    pruefe(len(teile) == 2 and (teile[0]["x"], teile[0]["y"]) == (0, 0), "Strg + Z holt die Box zurück")
+    pg.screenshot(path=BILD + "/gf-schublade.png")
+    pg.click("[data-gf-sansicht='3d']"); pg.wait_for_selector("[data-gf-3d] canvas", timeout=30000); pg.wait_for_timeout(400)
+    pruefe(pg.locator("[data-gf-schublade] [data-gf-3d] canvas").count() == 1, "3D-Ansicht der Schublade")
+    pg.click("[data-gf-sansicht='oben']")
+    # Projekt mit der Schublade speichern
+    pg.fill("[data-gf-projektname]", "Prüfschublade"); pg.click("[data-gf-projekt-speichern]"); pg.wait_for_timeout(400)
+    pr = [x for x in pg.evaluate("() => TEST.daten.gridfinity_projekte || []") if x.get("name") == "Prüfschublade"]
+    pruefe(pr and pr[0]["daten"]["art"] == "schublade" and len(pr[0]["daten"]["schublade"]["teile"]) == 2, "Schublade im Projekt gespeichert")
+    pg.click("[data-gf-steil='Probe-Einlage']"); pg.click("[data-gf-soeffnen]")
+    pg.wait_for_function("() => /Taschen sind im Boden/.test(document.querySelector('[data-gf-einlage]')?.textContent || '')", timeout=40000)
+    pruefe(pg.locator("[data-gf-art='box'].aktiv").count() == 1 and pg.input_value("[data-gf='nx']") == "3", "Einlage im Reiter Box geöffnet")
+    pg.click("[data-gf-art='schublade']"); pg.click("[data-gf-splatte]"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-gf-art='platte'].aktiv").count() == 1 and "10 × 7 Felder" in pg.inner_text("[data-gf-felder]"), "Grundplatte zur Schublade geöffnet")
+    pg.click("[data-gf-projekt-neu]"); pg.click("[data-gf-art='box']"); pg.wait_for_timeout(300)
 
     # Grundplatte aus Schubladenmass
     pg.click("[data-gf-art='platte']"); pg.click("[data-gf-platte='schublade']")
@@ -173,6 +275,11 @@ with sync_playwright() as p:
     pg.screenshot(path=BILD + "/gf-platte.png")
     pg.reload(); pg.wait_for_selector("[data-gf-3d] canvas", timeout=30000)
     pruefe(pg.locator("[data-gf-art='platte'].aktiv").count() == 1, "nach Neuladen wieder bei der Grundplatte")
+    # Alles auf einen Bildschirm (1.923.0): die Seite rollt nicht, nur die Einstellungen für sich
+    for art in ["box", "platte", "schublade"]:
+        pg.click("[data-gf-art='%s']" % art); pg.wait_for_timeout(400)
+        h = pg.evaluate("() => [document.documentElement.scrollHeight, innerHeight]")
+        pruefe(h[0] <= h[1] + 1, "%s passt auf den Bildschirm %s" % (art, h))
     pruefe(not pf, "keine Fehler auf der Seite: %s" % pf)
     br.close()
 

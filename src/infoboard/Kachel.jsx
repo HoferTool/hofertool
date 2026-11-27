@@ -128,12 +128,16 @@ export function KachelFlaeche({ feld, breite, hoehe, antippen }) {
 export function KachelGross({ feld, breite, hoehe, zu, inhaltZeigen }) {
   const flaeche = useRef(null);
   const [box, setBox] = useState(null);
-  // Nach zwei Minuten ohne Berührung von selbst zu
+  // Nach zwei Minuten ohne Berührung von selbst zu, ausser bei einem
+  // Spiel: das bleibt offen, bis man es mit „Schliessen“ beendet
+  // (Patrick 27. November 2026: „nicht rausfallen, drinn sein bis man es beendet“)
+  const istSpiel = (feld.inhalt || {}).art === "spiel";
   const [zuletzt, setZuletzt] = useState(Date.now);
   useEffect(() => {
+    if (istSpiel) return undefined;
     const t = setTimeout(zu, ZU_MS - (Date.now() - zuletzt));
     return () => clearTimeout(t);
-  }, [zuletzt, zu]);
+  }, [zuletzt, zu, istSpiel]);
   useLayoutEffect(() => {
     const el = flaeche.current;
     if (el) setBox({ b: el.clientWidth, h: el.clientHeight });
@@ -155,7 +159,8 @@ export function KachelGross({ feld, breite, hoehe, zu, inhaltZeigen }) {
     tb = { b, h: b * v };
   }
   return (
-    <div className="ib-gross" data-ib="gross" style={{ width: breite, height: hoehe, "--kf": feld.farbe || KACHEL_FARBEN[0][0] }}
+    <div className="ib-gross" data-ib="gross" data-spiel-offen={istSpiel ? "" : undefined}
+      style={{ width: breite, height: hoehe, "--kf": feld.farbe || KACHEL_FARBEN[0][0] }}
       onPointerDown={(e) => { e.stopPropagation(); setZuletzt(Date.now()); }}>
       <div className="ib-gross__kopf">
         <span className="ib-gross__titel">{feld.zeichen ? feld.zeichen + " " : ""}{feld.titel}</span>

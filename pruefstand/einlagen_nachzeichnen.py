@@ -162,6 +162,10 @@ with sync_playwright() as p:
     ende = rad.get("zuletzt") or start
     soll = [start[0] - ende[0], start[1] - ende[1]]
     pruefe(soll[0] >= 40 and soll[1] >= 25, "Radtaste: Bewegung kam an: %s" % json.dumps(rad))
+    # Seit 1.930.0 (Aufbau wie Gridfinity) ist die Arbeitsfläche niedriger und das Blatt
+    # schmaler: verschoben wird nur so weit, wie es Platz zum Rollen hat
+    platz = f.evaluate("[$('viewer').scrollWidth - $('viewer').clientWidth, $('viewer').scrollHeight - $('viewer').clientHeight]")
+    soll = [min(soll[0], platz[0] - s0[0]), min(soll[1], platz[1] - s0[1])]
     pruefe(abs(s1[0] - s0[0] - soll[0]) < 3 and abs(s1[1] - s0[1] - soll[1]) < 3, "Radtaste verschiebt: %s → %s, Soll %s %s" % (s0, s1, soll, json.dumps(rad)))
     pruefe(f.evaluate("st.edit.strokes.length") == 4, "Verschieben setzt keinen Punkt")
     f.evaluate("setZoom(1)"); pg.wait_for_timeout(300)

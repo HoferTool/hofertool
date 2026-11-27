@@ -84,10 +84,17 @@ export default function Einlagen() {
       const oben = r.getBoundingClientRect().top + window.scrollY;
       const unten = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--navhoehe")) || 0;
       const handy = document.body.classList.contains("mobil") || window.innerWidth <= 640;
-      r.style.height = Math.max(420, window.innerHeight - oben - (handy ? unten : 0) - 8) + "px";
+      let h = Math.max(420, Math.floor(window.innerHeight - oben - (handy ? unten : 0) - 8));
+      r.style.height = h + "px";
+      // Rand der Seite unter dem Rahmen: was danach noch übersteht, abziehen,
+      // sonst rollt die Seite doch (1.930.0)
+      const ueber = document.documentElement.scrollHeight - window.innerHeight;
+      if (!handy && ueber > 0 && ueber < 120) { h = Math.max(420, h - ueber); r.style.height = h + "px"; }
     };
     anpassen();
     window.addEventListener("resize", anpassen);
+    // Listen oben auf- und zuklappen verschiebt den Rahmen
+    const ro = new ResizeObserver(anpassen); ro.observe(document.body);
     // Kommt man an dieses Gerät zurück, die Fassung vom Server holen,
     // falls inzwischen an einem anderen Gerät weitergearbeitet wurde
     const sichtbar = () => { if (document.visibilityState === "visible") abgleichen(); };
@@ -96,6 +103,7 @@ export default function Einlagen() {
     const zurueck = () => nachRueckgaengig();
     window.addEventListener("hofer-rueckgaengig", zurueck);
     return () => {
+      ro.disconnect();
       window.removeEventListener("resize", anpassen);
       document.removeEventListener("visibilitychange", sichtbar);
       window.removeEventListener("hofer-rueckgaengig", zurueck);

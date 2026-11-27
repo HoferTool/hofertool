@@ -9,29 +9,60 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { alt } from "../../bruecke.jsx";
 import { useEntwurfZurueck } from "../../teile/lokalZurueck.js";
+import Schublade, { SCHUBLADE_VORGABE, schubladePruefen } from "./Schublade.jsx";
 import {
   BOX_VORGABE, PLATTE_VORGABE, boxPruefen, plattePruefen, boxMasse, platteMasse,
   boxNetz, platteNetz, verbinderNetz, distanzNetz, distanzPlan, distanzDruck, stlBinaer, netzeVereinen, GF,
-  DRUCKER, aufteilen, stueckArten, stueckeVorschau,
+  DRUCKER, aufteilen, stueckArten, stueckeVorschau, elementeLage, EINLAGE_Z,
 } from "./geometrie.js";
 
 const SPEICHER = "hofer.gridfinity";
+
+// Der Einlagen Generator rechnet die Einlage (Taschen) für die Box. Er läuft
+// dazu unsichtbar in einem eigenen Rahmen mit ?rechnen=1 (speichert dort
+// nichts), einmal geladen für alle weiteren Einlagen.
+let rechner = null;
+function einlageRechner() {
+  if (!rechner) rechner = new Promise((ok, fehler) => {
+    const fr = document.createElement("iframe");
+    fr.setAttribute("aria-hidden", "true"); fr.tabIndex = -1;
+    fr.style.cssText = "position:fixed;left:-10000px;top:0;width:800px;height:600px;visibility:hidden;border:0";
+    fr.src = import.meta.env.BASE_URL + "einlagen/index.html?rechnen=1";
+    const uhr = setTimeout(() => { rechner = null; fehler(new Error("Einlagen Generator lädt nicht")); }, 30000);
+    fr.onload = () => {
+      clearTimeout(uhr);
+      const w = fr.contentWindow;
+      if (w && typeof w.einlageDreiecke === "function") ok(w);
+      else { rechner = null; fehler(new Error("Einlagen Generator zu alt")); }
+    };
+    document.body.appendChild(fr);
+  });
+  return rechner;
+}
+const felderFuer = (L) => Math.max(1, Math.ceil((L + 0.5) / GF.raster - 1e-6));
 
 function laden() {
   try {
     const s = JSON.parse(localStorage.getItem(SPEICHER) || "null");
     if (s && typeof s === "object") return {
       v: 2,
-      art: s.art === "platte" ? "platte" : "box",
+      art: ["platte", "schublade"].includes(s.art) ? s.art : "box",
       drucker: DRUCKER[s.drucker] ? s.drucker : "x1c",
+      projekt: s.projekt && s.projekt.id ? { id: s.projekt.id, name: String(s.projekt.name || "") } : null,
       // Fassung 2 (1.906.0): Höhe einmal auf die Vorgabe 3 zurück (Patrick)
       box: { ...BOX_VORGABE, ...(s.box || {}), ...(s.v === 2 ? {} : { u: BOX_VORGABE.u }) },
       platte: { ...PLATTE_VORGABE, ...(s.platte || {}) },
+      schublade: schubladePruefen(s.schublade),
     };
   } catch { /* privates Fenster: Vorgabe */ }
-  return { v: 2, art: "box", drucker: "x1c", box: { ...BOX_VORGABE }, platte: { ...PLATTE_VORGABE } };
+  return { v: 2, art: "box", drucker: "x1c", box: { ...BOX_VORGABE }, platte: { ...PLATTE_VORGABE }, schublade: { ...SCHUBLADE_VORGABE } };
 }
 
+// Name eines Elements in der Liste: „Wand 2“
+const TYPNAME = { wand: "Wand", leiste: "Leiste", scoop: "Scoop" };
+function elementName(e, i, alle) {
+  return TYPNAME[e.typ] + " " + (alle.slice(0, i + 1).filter((o) => o.typ === e.typ).length);
+}
 const mm = (x) => (Math.round(x * 10) / 10).toString().replace(".", ",");
 
 // Zahl mit − und + daneben: auf dem iPad leichter als Tippen
@@ -88,8 +119,156 @@ export default function Werkzeug() {
   useEntwurfZurueck(stand, setStand, true, alt.meldung);
   useEffect(() => { try { localStorage.setItem(SPEICHER, JSON.stringify(stand)); } catch { /* egal */ } }, [stand]);
 
-  const box = boxPruefen(stand.box), platte = plattePruefen(stand.platte);
+  // Fächer-Elemente: gewählt und, während gezogen wird, der Zwischenstand
+  // (erst beim Loslassen gespeichert, sonst füllt jede Bewegung Strg + Z)
+  const [gewaehlt, setGewaehlt] = useState(-1);
+  const [zug, setZug] = useState(null);
+  const [menue, setMenue] = useState(false);
+  const boxFest = boxPruefen(stand.box), platte = plattePruefen(stand.platte);
+  const box = zug ? boxPruefen({ ...stand.box, elemente: zug }) : boxFest;
   const b = (k) => (v) => setStand((s) => ({ ...s, box: { ...s.box, [k]: v } }));
+  // Unterteilungen sind eine Vorlage: sie setzen die Elemente neu
+  const bRaster = (k) => (v) => { setGewaehlt(-1); setStand((s) => ({ ...s, box: { ...s.box, [k]: v, elemente: null } })); };
+  const elementeSetzen = (liste) => setStand((s) => ({ ...s, box: { ...s.box, elemente: liste } }));
+  // ---------- Projekte (seit 1.916.0, Patrick: „mache noch einen Speicher
+  // für Projekte“): Tabelle gridfinity_projekte (sql/gridfinity-projekte.sql),
+  // damit ein Projekt an jedem Gerät wieder aufgeht ----------
+  const [projekte, setProjekte] = useState(null);
+  const [liste, setListe] = useState(false);
+  const projekt = stand.projekt && stand.projekt.id ? stand.projekt : null;
+  const [projektName, setProjektName] = useState(projekt ? projekt.name : "");
+  const tabFehlt = (e) => /gridfinity_projekte/.test(e.message || "") && /exist|schema cache/i.test(e.message || "");
+  async function projekteLaden() {
+    const { data, error } = await alt.db.from("gridfinity_projekte").select("id, name, geaendert_am").order("geaendert_am", { ascending: false }).limit(300);
+    if (error) { setProjekte([]); if (!tabFehlt(error)) alt.meldung("Projekte nicht geladen: " + alt.fehlertext(error), "fehler"); return; }
+    setProjekte(data || []);
+  }
+  useEffect(() => { projekteLaden(); }, []);
+  async function projektSpeichern(alsNeu = false) {
+    const name = projektName.trim() || ({ box: "Box ", platte: "Grundplatte ", schublade: "Schublade " }[stand.art] || "") + new Date().toLocaleDateString("de-CH");
+    const daten = { art: stand.art, drucker: stand.drucker, box: stand.box, platte: stand.platte, schublade: stand.schublade };
+    let antwort = null;
+    if (projekt && !alsNeu) antwort = await alt.db.from("gridfinity_projekte").update({ name, daten }).eq("id", projekt.id).select("id, name").maybeSingle();
+    if (!antwort || (!antwort.error && !antwort.data)) antwort = await alt.db.from("gridfinity_projekte").insert({ name, daten }).select("id, name").single();
+    if (antwort.error) {
+      alt.meldung(tabFehlt(antwort.error) ? "Projekte gehen noch nicht: die Tabelle fehlt (sql/gridfinity-projekte.sql)." : "Nicht gespeichert: " + alt.fehlertext(antwort.error), "fehler");
+      return;
+    }
+    setProjektName(antwort.data.name);
+    setStand((s) => ({ ...s, projekt: { id: antwort.data.id, name: antwort.data.name } }));
+    alt.meldung("Projekt „" + antwort.data.name + "“ gespeichert.", "gut");
+    projekteLaden();
+  }
+  async function projektOeffnen(x) {
+    const { data, error } = await alt.db.from("gridfinity_projekte").select("id, name, daten").eq("id", x.id).maybeSingle();
+    if (error || !data) { alt.meldung("Projekt nicht gefunden.", "fehler"); return; }
+    const d = data.daten || {};
+    setGewaehlt(-1); setZug(null); setListe(false); setProjektName(data.name);
+    setStand((s) => ({
+      ...s, v: 2, art: ["platte", "schublade"].includes(d.art) ? d.art : "box", drucker: DRUCKER[d.drucker] ? d.drucker : s.drucker,
+      box: { ...BOX_VORGABE, ...(d.box || {}) }, platte: { ...PLATTE_VORGABE, ...(d.platte || {}) },
+      schublade: schubladePruefen(d.schublade),
+      projekt: { id: data.id, name: data.name },
+    }));
+  }
+  async function projektLoeschen(x) {
+    const ok = await alt.nachfragen({ titel: "Löschen", text: "Projekt „" + x.name + "“ wird gelöscht.", bestaetigen: "Löschen", gefahr: true });
+    if (!ok) return;
+    const { error } = await alt.db.from("gridfinity_projekte").delete().eq("id", x.id);
+    if (error) { alt.meldung("Nicht gelöscht: " + alt.fehlertext(error), "fehler"); return; }
+    if (projekt && projekt.id === x.id) setStand((s) => ({ ...s, projekt: null }));
+    projekteLaden();
+  }
+  function projektNeu() {
+    setGewaehlt(-1); setProjektName("");
+    setStand((s) => ({ ...s, projekt: null, box: { ...BOX_VORGABE }, platte: { ...PLATTE_VORGABE }, schublade: { ...SCHUBLADE_VORGABE } }));
+  }
+  // Aus dem Reiter Schublade: ein Teil im Reiter Box, die Grundplatte im
+  // Reiter Grundplatte öffnen (dort wird die STL gespeichert)
+  function ausSchublade(w) {
+    setGewaehlt(-1); setZug(null);
+    if (w.art === "platte") {
+      setStand((s) => ({ ...s, art: "platte", platte: { ...s.platte, art: "schublade", breite: w.breite, tiefe: w.tiefe, distanz: true } }));
+      return;
+    }
+    const t = w.teil;
+    const neu = t.box ? { ...BOX_VORGABE, ...t.box, nx: t.nx, ny: t.ny }
+      : { ...BOX_VORGABE, nx: t.nx, ny: t.ny, u: t.u, einlage: t.einlage || null, elemente: t.einlage ? [] : null };
+    setStand((s) => ({ ...s, art: "box", box: neu }));
+  }
+
+  const lage = useMemo(() => (stand.art === "box" ? elementeLage(box) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [stand.art, JSON.stringify(box)]);
+  const sel = gewaehlt >= 0 && gewaehlt < box.elemente.length ? box.elemente[gewaehlt] : null;
+
+  // Ziehen in der Vorschau: start und punkt in mm (Boxmitte = 0)
+  function elementZiehen(i, art, start, punkt) {
+    const L = elementeLage(boxFest), e = boxFest.elemente[i];
+    if (!e) return;
+    const quer = e.a === "x" ? L.iw : L.id, laengs = e.a === "x" ? L.id : L.iw;
+    const lv = (pt) => (e.a === "x" ? { u: pt.y + L.id / 2, v: pt.x + L.iw / 2 } : { u: pt.x + L.iw / 2, v: pt.y + L.id / 2 });
+    const a0 = lv(start), a1 = lv(punkt);
+    // Einrasten: an andere Elemente gleicher Richtung, Aussenwand, sonst 0.5 mm
+    const rasten = (wert, ziele, weit) => {
+      let best = Math.round(wert * 2) / 2, d = weit;
+      for (const z of ziele) if (Math.abs(z - wert) < d) { d = Math.abs(z - wert); best = z; }
+      return best;
+    };
+    const anderQ = boxFest.elemente.filter((o, k) => k !== i && o.a === e.a).map((o) => o.p * quer);
+    const anderL = boxFest.elemente.filter((o) => o.a !== e.a && o.typ === "wand").map((o) => o.p * laengs);
+    const n = { ...e };
+    if (art === "mitte") {
+      n.p = rasten(e.p * quer + (a1.v - a0.v), [...anderQ, ...(e.typ === "wand" ? [] : [0, quer])], 2) / quer;
+      // längs verschieben, Länge bleibt; Enden rasten an Querwänden und Rand
+      const len = (e.bis - e.von) * laengs;
+      let von = Math.min(laengs - len, Math.max(0, e.von * laengs + (a1.u - a0.u)));
+      const vonR = rasten(von, [0, ...anderL], 3), bisR = rasten(von + len, [laengs, ...anderL], 3);
+      von = Math.abs(vonR - von) <= Math.abs(bisR - (von + len)) ? vonR : bisR - len;
+      von = Math.min(laengs - len, Math.max(0, von));
+      n.von = von / laengs; n.bis = (von + len) / laengs;
+    } else {
+      const u = Math.min(laengs, Math.max(0, rasten(a1.u, [0, laengs, ...anderL], 3))) / laengs;
+      if (art === "von") n.von = Math.min(u, e.bis - 0.03); else n.bis = Math.max(u, e.von + 0.03);
+    }
+    setZug(boxFest.elemente.map((o, k) => (k === i ? n : o)));
+  }
+  function loslassen() {
+    // nur speichern, wenn sich etwas bewegt hat (sonst leerer Strg-Z-Schritt)
+    setZug((z) => { if (z && JSON.stringify(z) !== JSON.stringify(boxFest.elemente)) elementeSetzen(z); return null; });
+  }
+  function hinzufuegen(typ) {
+    setMenue(false);
+    const el = boxFest.elemente;
+    let neu;
+    if (typ === "wand") {
+      // in die grösste Lücke zwischen den Längswänden
+      const ps = [0, ...el.filter((o) => o.typ === "wand" && o.a === "x").map((o) => o.p), 1].sort((x, y) => x - y);
+      let p = 0.5, luecke = 0;
+      for (let k = 1; k < ps.length; k++) if (ps[k] - ps[k - 1] > luecke) { luecke = ps[k] - ps[k - 1]; p = (ps[k] + ps[k - 1]) / 2; }
+      neu = { typ, a: "x", p, von: 0, bis: 1, s: 1 };
+    } else {
+      // Scoop vorne an ein Fach, Leiste hinten an ein Fach, wo noch keine ist
+      const s0 = typ === "scoop" ? 1 : -1;
+      const quer = el.filter((o) => o.typ === "wand" && o.a === "y").map((o) => o.p);
+      const orte = typ === "scoop" ? [0, ...quer] : [1, ...quer];
+      const p = orte.find((q) => !el.some((o) => o.typ === typ && o.a === "y" && o.s === s0 && Math.abs(o.p - q) < 1e-4)) ?? 0.5;
+      neu = { typ, a: "y", p, von: 0, bis: 1, s: s0 };
+    }
+    elementeSetzen([...boxFest.elemente, neu]);
+    setGewaehlt(boxFest.elemente.length);
+  }
+  function elementAendern(aenderung) {
+    if (!sel) return;
+    elementeSetzen(boxFest.elemente.map((o, k) => (k === gewaehlt ? { ...o, ...aenderung } : o)));
+  }
+  async function elementLoeschen() {
+    if (!sel) return;
+    const ok = await alt.nachfragen({ titel: "Löschen", text: elementName(sel, gewaehlt, boxFest.elemente) + " wird gelöscht.", bestaetigen: "Löschen", gefahr: true });
+    if (!ok) return;
+    elementeSetzen(boxFest.elemente.filter((o, k) => k !== gewaehlt));
+    setGewaehlt(-1);
+  }
   const p = (k) => (v) => setStand((s) => ({ ...s, platte: { ...s.platte, [k]: v } }));
 
   const drucker = DRUCKER[stand.drucker] ? stand.drucker : "x1c", bett = DRUCKER[drucker];
@@ -99,14 +278,59 @@ export default function Werkzeug() {
   const teilung = teilbar ? aufteilen(pmRoh.nx, pmRoh.ny, drucker) : null;
   const geteilt = !!(teilung && teilung.geteilt);
 
+  // ---------- Einlage als Inhalt der Box (seit 1.919.0, Patrick wählte
+  // „Einlage als Inhalt einer Box“): gespeicherte Einlage aus dem Einlagen
+  // Generator, ihre Taschen kommen in den Boden der Box ----------
+  const [einlagen, setEinlagen] = useState(null);
+  const [einlageGeo, setEinlageGeo] = useState(null);
+  const [einlageText, setEinlageText] = useState("");
+  const einlageId = boxFest.einlage && boxFest.einlage.id;
+  const bmFest = boxMasse(boxFest);
+  useEffect(() => {
+    if (!einlageId || stand.art !== "box") { setEinlageGeo(null); setEinlageText(""); return undefined; }
+    let weg = false;
+    (async () => {
+      setEinlageText("Einlage wird gerechnet …");
+      const { data, error } = await alt.db.from("einlagen").select("id, name, daten").eq("id", einlageId).maybeSingle();
+      if (weg) return;
+      if (error || !data || !data.daten || !data.daten.base) { setEinlageGeo(null); setEinlageText("Die Einlage gibt es nicht mehr."); return; }
+      try {
+        const w = await einlageRechner();
+        const B = data.daten.base;
+        // knapp kleiner als die Box aussen, damit sich keine Flächen decken
+        const g = w.einlageDreiecke(data.daten, Math.min(B.W, bmFest.W - 0.2), Math.min(B.H, bmFest.D - 0.2));
+        if (weg) return;
+        setEinlageGeo({ id: data.id, tris: g.tris, W: g.W, H: g.H, T: g.T, roh: { W: B.W, H: B.H, T: B.T } });
+        setEinlageText("");
+      } catch (f) { if (!weg) { setEinlageGeo(null); setEinlageText("Einlage nicht gerechnet: " + (f.message || f)); } }
+    })();
+    return () => { weg = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [einlageId, stand.art, bmFest.W, bmFest.D]);
+  async function einlagenLaden() {
+    const { data, error } = await alt.db.from("einlagen").select("id, name, geaendert_am").order("geaendert_am", { ascending: false }).limit(300);
+    setEinlagen(error ? [] : data || []);
+  }
+  async function einlageWaehlen(x) {
+    const { data, error } = await alt.db.from("einlagen").select("id, name, daten").eq("id", x.id).maybeSingle();
+    if (error || !data || !data.daten || !data.daten.base) { alt.meldung("Einlage nicht gefunden.", "fehler"); return; }
+    const B = data.daten.base;
+    const nx = Math.min(10, felderFuer(B.W)), ny = Math.min(10, felderFuer(B.H));
+    // Höhe in 7-mm-Einheiten: Einlage ganz drin, mit Stapelrand 1 mm Luft
+    const u = Math.min(30, Math.max(1, Math.ceil((EINLAGE_Z + (+B.T || 0) + (stand.box.rand !== false ? 1 : 0)) / GF.einheit - 1e-6)));
+    setEinlagen(null); setGewaehlt(-1);
+    setStand((s) => ({ ...s, box: { ...s.box, nx, ny, u, einlage: { id: data.id, name: data.name } } }));
+  }
+
   const netz = useMemo(() => {
     try {
-      if (stand.art === "box") return boxNetz(box);
+      if (stand.art === "schublade") return null;
+      if (stand.art === "box") return boxNetz(box, einlageGeo && box.einlage && einlageGeo.id === box.einlage.id ? einlageGeo : null);
       return geteilt ? stueckeVorschau(platte, teilung) : platteNetz(platte);
     }
     catch (f) { alt.fehlerMerken && alt.fehlerMerken("Gridfinity", String(f)); return null; }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stand.art, drucker, JSON.stringify(stand.art === "box" ? box : platte)]);
+  }, [stand.art, drucker, einlageGeo, JSON.stringify(stand.art === "box" ? box : platte)]);
 
   // Distanzstücke an ihrem Platz, nur für die Vorschau (grau)
   const distanzPlatz = useMemo(() => (stand.art !== "platte" ? null : geteilt
@@ -117,7 +341,9 @@ export default function Werkzeug() {
   const bm = boxMasse(box), pm = platteMasse(platte);
   const dp = distanzPlan(platte, drucker);
   const dateiName = stand.art === "box"
-    ? `gridfinity-box-${box.nx}x${box.ny}x${box.u}` + (box.fx * box.fy > 1 ? `-${box.fx}x${box.fy}faecher` : "")
+    ? `gridfinity-box-${box.nx}x${box.ny}x${box.u}` + (boxFest.einlage
+      ? "-" + boxFest.einlage.name.toLowerCase().replace(/[^a-z0-9äöü]+/g, "-").replace(/^-|-$/g, "").slice(0, 40)
+      : box.fx * box.fy > 1 ? `-${box.fx}x${box.fy}faecher` : "")
     : `gridfinity-platte-${pm.nx}x${pm.ny}` + (platte.art === "schublade" ? `-${Math.round(pm.W)}x${Math.round(pm.D)}mm` : "");
   const breit = stand.art === "box" ? bm.W : pm.W, tief = stand.art === "box" ? bm.D : pm.D;
   const passt = (w, d) => (w <= bett.a && d <= bett.b) || (w <= bett.b && d <= bett.a);
@@ -151,18 +377,37 @@ export default function Werkzeug() {
     alt.meldung(`${name}.${format} gespeichert.`, "gut");
   }
 
-  return (
-    <div className="gfn-werkzeug">
-      <div className="gfn-wahl" role="tablist">
-        {[["box", "Box"], ["platte", "Grundplatte"]].map(([w, t]) => (
-          <button key={w} role="tab" aria-selected={stand.art === w} data-gf-art={w}
-            className={"gfn-wahl__knopf" + (stand.art === w ? " aktiv" : "")}
-            onClick={() => setStand((s) => ({ ...s, art: w }))}>{t}</button>
-        ))}
-      </div>
-
-      <div className="gfn-raster">
-        <div className="gfn-einstellungen">
+  // Projekt und Drucker stehen in jedem Reiter zuoberst
+  const kopfTeil = <>
+          <section className="gfn-gruppe" data-gf-projekt>
+            <div className="gfn-kopf">
+              <h3>Projekt</h3>
+              <button type="button" className="gfn-hinzu__knopf" data-gf-projekte-knopf aria-expanded={liste}
+                onClick={() => { setListe((l) => !l); projekteLaden(); }}>Projekte{projekte && projekte.length ? " (" + projekte.length + ")" : ""}</button>
+            </div>
+            <label className="gfn-feld">
+              <span>Name</span>
+              <input value={projektName} data-gf-projektname placeholder="z. B. Schublade Drehbank 3" onChange={(e) => setProjektName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); projektSpeichern(); } }} />
+            </label>
+            <div className="gfn-elementknoepfe">
+              <button type="button" className="knopf knopf--haupt" data-gf-projekt-speichern onClick={() => projektSpeichern()}>{projekt ? "Speichern" : "Als Projekt speichern"}</button>
+              {projekt && <button type="button" className="knopf" data-gf-projekt-kopie onClick={() => projektSpeichern(true)}>Als neues</button>}
+              <button type="button" className="knopf" data-gf-projekt-neu onClick={projektNeu}>Neu</button>
+            </div>
+            {projekt && <p className="gfn-text">Offen: {projekt.name}. Änderungen erst mit „Speichern“ im Projekt.</p>}
+            {liste && <ul className="gfn-liste" data-gf-projektliste>
+              {(projekte || []).map((x) => (
+                <li key={x.id} className="gfn-projektzeile">
+                  <button type="button" data-gf-projekt-oeffnen={x.name} className={projekt && projekt.id === x.id ? "aktiv" : ""} onClick={() => projektOeffnen(x)}>
+                    <b>{x.name}</b><span>{x.geaendert_am ? alt.datumZeitKurz(x.geaendert_am) : ""}</span>
+                  </button>
+                  <button type="button" className="gfn-weg" aria-label={"Projekt " + x.name + " löschen"} data-gf-projekt-loeschen={x.name} onClick={() => projektLoeschen(x)}>✕</button>
+                </li>
+              ))}
+              {projekte && !projekte.length && <li className="gfn-text">Noch keine Projekte gespeichert.</li>}
+            </ul>}
+          </section>
           {/* Drucker zuoberst (Patrick: „nimm die Drucker-Wahl hoch zur Grösse“) */}
           <section className="gfn-gruppe" data-gf-druckerwahl>
               <h3>Drucker</h3>
@@ -175,6 +420,46 @@ export default function Werkzeug() {
               </div>
               <p className="gfn-text">Nutzbar {bett.a} × {bett.b} mm.</p>
           </section>
+  </>;
+
+  // Alles auf einen Bildschirm (Patrick: „dass man alles direkt sieht und
+  // nicht nach unten scrollen muss“): die Höhe ab Oberkante des Rasters bis
+  // zum unteren Rand als CSS-Variable, Einstellungen rollen dann für sich
+  const werkRef = useRef(null);
+  useEffect(() => {
+    const el = werkRef.current;
+    if (!el) return undefined;
+    const messen = () => {
+      const r = el.querySelector(".gfn-raster");
+      if (!r) return;
+      // Platz unter dem Werkzeug (Rand der Seite) mitrechnen, sonst rollt die Seite doch
+      let h = Math.max(460, Math.floor(window.innerHeight - r.getBoundingClientRect().top - window.scrollY - 8));
+      el.style.setProperty("--gfn-h", h + "px");
+      // was danach noch übersteht (Rand der Seite), abziehen
+      const ueber = document.documentElement.scrollHeight - window.innerHeight;
+      if (ueber > 0 && ueber < 120) el.style.setProperty("--gfn-h", Math.max(460, h - ueber) + "px");
+    };
+    messen();
+    window.addEventListener("resize", messen);
+    const ro = new ResizeObserver(messen); ro.observe(document.body);
+    return () => { window.removeEventListener("resize", messen); ro.disconnect(); };
+  }, [stand.art]);
+
+  return (
+    <div className="gfn-werkzeug" ref={werkRef}>
+      <div className="gfn-wahl" role="tablist">
+        {[["box", "Box"], ["platte", "Grundplatte"], ["schublade", "Schublade"]].map(([w, t]) => (
+          <button key={w} role="tab" aria-selected={stand.art === w} data-gf-art={w}
+            className={"gfn-wahl__knopf" + (stand.art === w ? " aktiv" : "")}
+            onClick={() => setStand((s) => ({ ...s, art: w }))}>{t}</button>
+        ))}
+      </div>
+
+      {stand.art === "schublade" ? <Schublade sch={stand.schublade} kopf={kopfTeil} oeffnen={ausSchublade} Vorschau={Vorschau} Zahl={Zahl}
+        setSch={(v) => setStand((s) => ({ ...s, schublade: v }))} /> :
+      <div className="gfn-raster">
+        <div className="gfn-einstellungen"><div className="gfn-spalten">
+          {kopfTeil}
           {stand.art === "box" ? <>
             <section className="gfn-gruppe">
               <h3>Grösse</h3>
@@ -182,15 +467,74 @@ export default function Werkzeug() {
               <Zahl titel="Tiefe" name="ny" wert={box.ny} setzen={b("ny")} min={1} max={10} einheit="Felder" hinweis={mm(bm.D) + " mm"} />
               <Zahl titel="Höhe" name="u" wert={box.u} setzen={b("u")} min={1} max={30} einheit="× 7 mm" hinweis={mm(bm.H) + " mm" + (box.rand ? " + Stapelrand" : "")} />
             </section>
-            <section className="gfn-gruppe">
-              <h3>Fächer</h3>
-              {/* wie im Gridfinity-Generator: Unterteilungen in X und Y, Griffmulde vorne */}
-              <Zahl titel="Unterteilungen Breite" name="fx" wert={box.fx} setzen={b("fx")} min={1} max={20} />
-              <Zahl titel="Unterteilungen Tiefe" name="fy" wert={box.fy} setzen={b("fy")} min={1} max={20} />
-              <button type="button" className="knopf" data-gf-jefeld
-                onClick={() => setStand((s) => ({ ...s, box: { ...s.box, fx: box.nx, fy: box.ny } }))}>Ein Fach je Feld</button>
-              <Schalter titel="Griffmulde" name="mulde" an={box.mulde} setzen={b("mulde")} text="Gerundeter Übergang vorne in jedem Fach, Kleinteile lassen sich herausschieben" />
+            <section className="gfn-gruppe" data-gf-einlagegruppe>
+              <div className="gfn-kopf">
+                <h3>Einlage</h3>
+                <button type="button" className="gfn-hinzu__knopf" data-gf-einlage-knopf aria-expanded={!!einlagen}
+                  onClick={() => (einlagen ? setEinlagen(null) : einlagenLaden())}>{boxFest.einlage ? "Andere Einlage" : "Einlage einsetzen"}</button>
+              </div>
+              {boxFest.einlage ? <>
+                <p className="gfn-text" data-gf-einlage>
+                  <b>{boxFest.einlage.name}</b>{einlageGeo && einlageGeo.id === boxFest.einlage.id
+                    ? <> · {mm(einlageGeo.roh.W)} × {mm(einlageGeo.roh.H)} mm, {mm(einlageGeo.roh.T)} mm hoch. Die Taschen sind im Boden der Box.</> : null}
+                </p>
+                {einlageGeo && einlageGeo.id === boxFest.einlage.id && (einlageGeo.roh.W > bmFest.W + 0.01 || einlageGeo.roh.H > bmFest.D + 0.01) &&
+                  <p className="gfn-text gfn-warnung" data-gf-einlage-gross>Die Einlage ist grösser als die Box und wird am Rand abgeschnitten.</p>}
+                {einlageGeo && einlageGeo.id === boxFest.einlage.id && EINLAGE_Z + einlageGeo.roh.T > bmFest.H - (boxFest.rand ? 1 : 0) + 0.01 &&
+                  <p className="gfn-text gfn-warnung">Die Einlage ist höher als die Box: Höhe vergrössern.</p>}
+                {einlageText && <p className="gfn-text">{einlageText}</p>}
+                <button type="button" className="knopf" data-gf-einlage-weg onClick={() => setStand((s) => ({ ...s, box: { ...s.box, einlage: null } }))}>Einlage herausnehmen</button>
+              </> : <p className="gfn-text">Eine gespeicherte Einlage aus dem Einlagen Generator in die Box setzen. Ihre Werkzeugtaschen kommen in den Boden.</p>}
+              {einlagen && <ul className="gfn-liste" data-gf-einlageliste>
+                {einlagen.map((x) => (
+                  <li key={x.id}><button type="button" data-gf-einlage-wahl={x.name} onClick={() => einlageWaehlen(x)}>
+                    <b>{x.name}</b><span>{x.geaendert_am ? alt.datumZeitKurz(x.geaendert_am) : ""}</span>
+                  </button></li>
+                ))}
+                {!einlagen.length && <li className="gfn-text">Noch keine Einlagen im Einlagen Generator gespeichert.</li>}
+              </ul>}
             </section>
+            {!boxFest.einlage && <>
+            <section className="gfn-gruppe">
+              <h3>Fächer als Vorlage</h3>
+              {/* Vorlage wie im Gridfinity-Generator; setzt die Elemente neu */}
+              <Zahl titel="Unterteilungen Breite" name="fx" wert={box.fx} setzen={bRaster("fx")} min={1} max={20} />
+              <Zahl titel="Unterteilungen Tiefe" name="fy" wert={box.fy} setzen={bRaster("fy")} min={1} max={20} />
+              <button type="button" className="knopf" data-gf-jefeld
+                onClick={() => { setGewaehlt(-1); setStand((s) => ({ ...s, box: { ...s.box, fx: box.nx, fy: box.ny, elemente: null } })); }}>Ein Fach je Feld</button>
+            </section>
+            <section className="gfn-gruppe" data-gf-elemente>
+              <div className="gfn-kopf">
+                <h3>Elemente</h3>
+                <div className="gfn-hinzu">
+                  <button type="button" className="gfn-hinzu__knopf" data-gf-hinzu-knopf aria-expanded={menue}
+                    onClick={() => setMenue((m) => !m)}>Hinzufügen +</button>
+                  {menue && <div className="gfn-menue" role="menu">
+                    {[["wand", "Wand", "▯"], ["leiste", "Leiste", "◹"], ["scoop", "Scoop", "◢"]].map(([t, n, z]) => (
+                      <button key={t} type="button" role="menuitem" data-gf-hinzu={t} onClick={() => hinzufuegen(t)}><span aria-hidden>{z}</span> {n}</button>
+                    ))}
+                  </div>}
+                </div>
+              </div>
+              <p className="gfn-text">In der Vorschau anklicken und mit der Maus ziehen. An einem Ende ziehen ändert die Länge. Rastet an Wänden ein.</p>
+              <ul className="gfn-liste">
+                {box.elemente.map((e, i) => (
+                  <li key={i}>
+                    <button type="button" data-gf-element={i} className={i === gewaehlt ? "aktiv" : ""} onClick={() => setGewaehlt(i === gewaehlt ? -1 : i)}>
+                      <b>{elementName(e, i, box.elemente)}</b>
+                      <span>{e.a === "x" ? "längs, " + mm(e.p * lage.iw) + " mm von links" : "quer, " + mm(e.p * lage.id) + " mm von vorne"}, {mm((e.bis - e.von) * (e.a === "x" ? lage.id : lage.iw))} lang</span>
+                    </button>
+                  </li>
+                ))}
+                {!box.elemente.length && <li className="gfn-text">Keine Elemente: ein grosses Fach.</li>}
+              </ul>
+              {sel && <div className="gfn-elementknoepfe">
+                <button type="button" className="knopf" data-gf-drehen onClick={() => elementAendern({ a: sel.a === "x" ? "y" : "x" })}>Drehen</button>
+                {sel.typ !== "wand" && <button type="button" className="knopf" data-gf-seite onClick={() => elementAendern({ s: -sel.s })}>Seite wechseln</button>}
+                <button type="button" className="knopf" data-gf-loeschen onClick={elementLoeschen}>Löschen</button>
+              </div>}
+            </section>
+            </>}
             <section className="gfn-gruppe">
               <h3>Ausführung</h3>
               <Schalter titel="Stapelrand" name="rand" an={box.rand} setzen={b("rand")} text="Boxen lassen sich aufeinander stellen" />
@@ -271,10 +615,12 @@ export default function Werkzeug() {
                 : null}
             </section>
           </>}
-        </div>
+        </div></div>
 
         <div className="gfn-vorschau">
-          <Vorschau netz={netz} extra={distanzPlatz} />
+          <Vorschau netz={netz} extra={distanzPlatz}
+            griffe={stand.art === "box" && lage && !boxFest.einlage ? lage.teile : null} gewaehlt={gewaehlt}
+            waehlen={setGewaehlt} ziehen={elementZiehen} loslassen={loslassen} />
           <div className="gfn-fuss">
             <div className="gfn-masse" data-gf-masse>
               <b>{mm(breit)} × {mm(tief)} × {mm(netz ? netz.max[2] - netz.min[2] : 0)} mm</b>
@@ -290,14 +636,17 @@ export default function Werkzeug() {
             </div>
           </div>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }
 
 // ---------- 3D-Vorschau ----------
-function Vorschau({ netz, extra }) {
+function Vorschau({ netz, extra, griffe, gewaehlt, waehlen, ziehen, loslassen }) {
   const flaeche = useRef(null);
+  // Rückrufe in einer Ref, damit die Maus-Behandlung nur einmal angemeldet wird
+  const cb = useRef({});
+  cb.current = { griffe, waehlen, ziehen, loslassen };
   const welt = useRef(null);
   const ersteAnsicht = useRef(true);
 
@@ -328,7 +677,65 @@ function Vorschau({ netz, extra }) {
     };
     groesse();
     const ro = new ResizeObserver(groesse); ro.observe(el);
-    welt.current = { renderer, szene, kamera, steuer, teil: null, raster: null };
+    welt.current = { renderer, szene, kamera, steuer, teil: null, raster: null, griffe: null };
+
+    // Fächer-Elemente anklicken und ziehen (Patrick: „wie bei Gridfinity mit
+    // Drag and Drop“). Läuft vor OrbitControls (Capture), damit ein Griff
+    // an einem Element nicht die Ansicht dreht.
+    const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), punkt = new THREE.Vector3();
+    const strahl = (ev) => {
+      const r = renderer.domElement.getBoundingClientRect();
+      ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
+      ray.setFromCamera(ndc, kamera);
+    };
+    const treffer = (ev) => {
+      const w = welt.current;
+      if (!w || !w.griffe || !cb.current.griffe) return null;
+      strahl(ev);
+      return ray.intersectObjects(w.griffe.children.filter((o) => o.userData.i >= 0), false)[0] || null;
+    };
+    let zieh = null, unten = null;
+    const runter = (ev) => {
+      unten = { x: ev.clientX, y: ev.clientY };
+      const h = treffer(ev);
+      if (!h) return;
+      const i = h.object.userData.i, g = cb.current.griffe[i];
+      const z0 = welt.current.griffe.position.z;
+      const p = { x: h.point.x, y: h.point.y };
+      const laengsX = h.object.userData.a === "y";
+      const u = laengsX ? p.x : p.y, u0 = laengsX ? g.x0 : g.y0, u1 = laengsX ? g.x1 : g.y1;
+      const greif = Math.min(8, (u1 - u0) / 4);
+      const art = u - u0 < greif ? "von" : u1 - u < greif ? "bis" : "mitte";
+      zieh = { i, art, start: p, ebene: new THREE.Plane(new THREE.Vector3(0, 0, 1), -(h.point.z)), z0 };
+      ev.stopImmediatePropagation(); ev.preventDefault();
+      steuer.enabled = false;
+      try { renderer.domElement.setPointerCapture(ev.pointerId); } catch { /* egal */ }
+      cb.current.waehlen(i);
+    };
+    const bewegen = (ev) => {
+      if (!zieh) {
+        if (ev.buttons) return;
+        const h = treffer(ev);
+        renderer.domElement.style.cursor = h ? "grab" : "";
+        return;
+      }
+      strahl(ev);
+      if (ray.ray.intersectPlane(zieh.ebene, punkt)) cb.current.ziehen(zieh.i, zieh.art, zieh.start, { x: punkt.x, y: punkt.y });
+      renderer.domElement.style.cursor = "grabbing";
+    };
+    const hoch = (ev) => {
+      if (zieh) {
+        zieh = null; steuer.enabled = true; cb.current.loslassen();
+        renderer.domElement.style.cursor = "grab";
+      } else if (unten && Math.hypot(ev.clientX - unten.x, ev.clientY - unten.y) < 4 && cb.current.griffe) {
+        cb.current.waehlen(-1);   // Klick ins Leere hebt die Wahl auf
+      }
+      unten = null;
+    };
+    renderer.domElement.addEventListener("pointerdown", runter, true);
+    renderer.domElement.addEventListener("pointermove", bewegen);
+    renderer.domElement.addEventListener("pointerup", hoch);
+    renderer.domElement.addEventListener("pointercancel", hoch);
     return () => {
       cancelAnimationFrame(lauf); ro.disconnect(); steuer.dispose();
       const w = welt.current;
@@ -378,6 +785,39 @@ function Vorschau({ netz, extra }) {
       ersteAnsicht.current = false; w.groesse = Math.round(gross);
     }
   }, [netz, extra]);
+
+  // Griffe: unsichtbare Kästen zum Anklicken, das gewählte Element orange
+  useEffect(() => {
+    const w = welt.current;
+    if (!w) return;
+    if (w.griffe) {
+      w.szene.remove(w.griffe);
+      w.griffe.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+      w.griffe = null;
+    }
+    if (!griffe || !netz) return;
+    const gruppe = new THREE.Group();
+    gruppe.position.z = -netz.min[2];
+    griffe.forEach((g, i) => {
+      const dx = Math.max(g.x1 - g.x0, 2.5), dy = Math.max(g.y1 - g.y0, 2.5), dz = Math.max(g.z1 - g.z0, 1);
+      const an = i === gewaehlt;
+      const m = new THREE.Mesh(new THREE.BoxGeometry(dx + 0.3, dy + 0.3, dz + 0.3),
+        new THREE.MeshStandardMaterial({ color: 0xe8b04a, transparent: true, opacity: an ? 0.85 : 0, depthWrite: an, roughness: 0.6 }));
+      m.position.set((g.x0 + g.x1) / 2, (g.y0 + g.y1) / 2, (g.z0 + g.z1) / 2);
+      m.userData = { i, a: g.a };
+      gruppe.add(m);
+      if (an) {
+        // Punkte an den Enden: dort ziehen ändert die Länge
+        for (const e of [0, 1]) {
+          const k = new THREE.Mesh(new THREE.SphereGeometry(2.2, 16, 12), new THREE.MeshStandardMaterial({ color: 0xd2453a }));
+          k.position.set(g.a === "y" ? (e ? g.x1 : g.x0) : (g.x0 + g.x1) / 2, g.a === "y" ? (g.y0 + g.y1) / 2 : (e ? g.y1 : g.y0), g.z1 + 1);
+          k.userData = { i: -1 };
+          gruppe.add(k);
+        }
+      }
+    });
+    w.szene.add(gruppe); w.griffe = gruppe;
+  }, [griffe, gewaehlt, netz]);
 
   return <div className="gfn-3d" ref={flaeche} data-gf-3d />;
 }
