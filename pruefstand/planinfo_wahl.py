@@ -44,7 +44,7 @@ with sync_playwright() as p:
     # Einstellungen öffnen: FA ausschalten, Zustand ganz nach oben
     pg.mouse.move(5, 5)
     oeffne(pg)
-    pruefe("16 Zeilen zur Wahl", pg.locator(".planinfo-wahl__zeile").count() == 16)
+    pruefe("16 Zeilen zur Wahl", pg.locator("[data-planinfo]").count() == 16)
     pg.locator("[data-planinfo='fa']").uncheck()
     for _ in range(7):
         z = pg.locator(".planinfo-wahl__zeile").filter(has=pg.locator("[data-planinfo='zustand']"))

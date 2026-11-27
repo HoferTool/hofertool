@@ -2,8 +2,15 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.931.0 (27. November 2026)
 
-## 1.930.0 (27. November 2026)
+- Planwand: Auch das Auftragsfenster ist je Person einstellbar (Einstellungen → Allgemein → „Planwand: Auftragsfenster“): 17 Teile ein/aus (Zustand, FA, Menge, Abruf, Siegel, Maschine, Termin, Material …, Zeichnung, Dokumente, Frühere Probleme), „Alles zeigen“. Gespeichert am Konto als Liste der ausgeschalteten Teile (`auftragFensterAus`). Gilt nur für bestehende Aufträge; ein neuer Auftrag zeigt alles, eine fehlende Pflicht-Abrufinformation oder Maschine bleibt sichtbar. Externe nicht. Test `pruefstand/auftragfenster_wahl.py`.
+
+## 1.932.0 (27. November 2026)
+
+- Einlagen Generator im Aufbau wie Gridfinity: Einstellungen links, Arbeitsfläche rechts über die ganze Höhe, die Seite rollt nicht mehr.
+
+## 1.932.0 (27. November 2026)
 
 - Test ERP → Logistik → WBG drucken: Anzahl Kopien je FA mit − und + (1 bis 20) vor „Drucken“.
 

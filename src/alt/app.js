@@ -179,7 +179,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.930.0";
+const APP_VERSION = "1.932.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5636,6 +5636,28 @@ function planInfoWahl() {
   const wahl = roh.split(",").map((x) => x.trim()).filter((x) => alle.includes(x));
   // „-“ heisst bewusst nichts gewählt (nur HOCO Nr. und Siegel)
   return roh === "-" ? [] : (wahl.length ? wahl : alle);
+}
+
+// Teile des Auftragsfensters, die jede Person aus- und einschalten kann
+// (seit 1.931.0, Wunsch Patrick 27. November 2026: „auch das Fenster,
+// wenn man den Auftrag öffnet“). Gespeichert wird, was AUS ist, damit
+// später neue Teile von selbst sichtbar sind.
+const AUFTRAG_FENSTER_FELDER = [
+  ["zustand", "Zustand"], ["fa", "FA Nr."], ["menge", "Fertigungsmenge"],
+  ["abruf", "Abrufinformation"], ["siegel", "Siegel"],
+  ["maschine", "Maschine"], ["termin", "Ab, Tage, Bis"],
+  ["material", "Material"], ["matplatz", "Materialplatz"],
+  ["matmenge", "Menge vorhanden oder bestellt"], ["liefertermin", "Liefertermin"],
+  ["notiz", "Notiz für die Maschine"],
+  ["matinfo", "Mat. info."], ["stueckzeit", "Stückzeit"],
+  ["zeichnung", "Zeichnung (Vorschau)"], ["dokumente", "Dokumente (Zeichnung, Einrichtblatt, WBG)"],
+  ["probleme", "Frühere Probleme"],
+];
+function auftragFensterAus() {
+  if (istExtern()) return [];
+  const alle = AUFTRAG_FENSTER_FELDER.map((f) => f[0]);
+  return String(einstellungWert("auftragFensterAus", "") || "").split(",")
+    .map((x) => x.trim()).filter((x) => alle.includes(x));
 }
 
 function balkenInfoVerhalten() {
@@ -11355,7 +11377,7 @@ Object.assign(alt, {
   problemMelden, zwischenablageSetzen, werkstoffText, planAktualisieren,
   planKonflikteLoesen, planAufruecken, zeichnungErsetzen, zeichnungEntfernen, wbgEntfernen, einrichtblattEntfernen, ablageLoeschen,
   sucheVorladen, schrittZurueck, sucheOeffnen, einstellungenOeffnen, einstellungSetzenWert, einstellungWert,
-  PLAN_INFO_FELDER, planInfoWahl,
+  PLAN_INFO_FELDER, planInfoWahl, AUFTRAG_FENSTER_FELDER, auftragFensterAus,
   meineRolle, zeichneSeite,
   masseBerechnen, isMobil, istTippgeraet, zuHeute, hocoFenster, sucheDialog, serverStempel,
   stammdatenAufPlanwand, zeichnungAnheften, ladeFerien, zeichnePlanwand, planSyncStarten, neuZeichnen,

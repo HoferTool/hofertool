@@ -433,11 +433,11 @@ export default function Werkzeug() {
       const r = el.querySelector(".gfn-raster");
       if (!r) return;
       // Platz unter dem Werkzeug (Rand der Seite) mitrechnen, sonst rollt die Seite doch
-      let unten = 0;
-      for (let e = el.parentElement; e && e !== document.body; e = e.parentElement) {
-        const st = getComputedStyle(e); unten += (parseFloat(st.paddingBottom) || 0) + (parseFloat(st.borderBottomWidth) || 0);
-      }
-      el.style.setProperty("--gfn-h", Math.max(460, Math.floor(window.innerHeight - r.getBoundingClientRect().top - window.scrollY - unten - 4)) + "px");
+      let h = Math.max(460, Math.floor(window.innerHeight - r.getBoundingClientRect().top - window.scrollY - 8));
+      el.style.setProperty("--gfn-h", h + "px");
+      // was danach noch übersteht (Rand der Seite), abziehen
+      const ueber = document.documentElement.scrollHeight - window.innerHeight;
+      if (ueber > 0 && ueber < 120) el.style.setProperty("--gfn-h", Math.max(460, h - ueber) + "px");
     };
     messen();
     window.addEventListener("resize", messen);

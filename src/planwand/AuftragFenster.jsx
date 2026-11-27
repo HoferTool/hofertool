@@ -410,6 +410,15 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   // Notiz auch mit eigenem Häkchen „Notiz bearbeiten“ (seit 1.333.0)
   const darfNotiz = alt.darfNotiz ? alt.darfNotiz() : darfPlatz;
   const extern = alt.istExtern();
+  // Was im Fenster steht, wählt jede Person selbst (Einstellungen →
+  // Allgemein, seit 1.931.0, Wunsch Patrick 27. November 2026). Nur bei
+  // bestehenden Aufträgen; ein neuer Auftrag zeigt immer alles, damit
+  // kein Pflichtfeld versteckt ist. Externe sehen immer alles wie bisher.
+  const aus = auftrag && !extern ? alt.auftragFensterAus() : [];
+  const zeig = (k) => !aus.includes(k);
+  // Spalten einer Zeile an die sichtbaren Felder anpassen, damit keine
+  // leeren Lücken bleiben
+  const spalten = (n, voll) => (n < voll ? { gridTemplateColumns: "repeat(" + n + ", minmax(0, 1fr))" } : undefined);
   const kopfRef = useRef(null);
   useZiehen(kopfRef, zu, auftrag, extern);
   const maschinen = alt.prod.maschinen || [];
@@ -815,7 +824,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
           onClick={() => { zu(); alt.problemQuittieren(auftrag, b); }}>✓ Erledigt</button>}
       </div>}
 
-      {auftrag && auftrag.job_number && <FruehereProbleme hoco={auftrag.job_number} />}
+      {auftrag && auftrag.job_number && zeig("probleme") && <FruehereProbleme hoco={auftrag.job_number} />}
 
       {nurLesen && auftrag && <p className="klein auf-nurlesen" id="pl-nurlesen">
         Nur zum Ansehen. {extern ? "" : "Ändern lässt sich hier der Zustand, und mit „Problem“ meldest du, was fehlt oder klemmt."}</p>}
@@ -824,7 +833,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
           Links alles zum Auftrag und Material, unten die Notiz.
           Rechts die Zeichnung quer, darunter die Dokumente
           (Wunsch Patrick 6. Oktober 2026). */}
-      <div className="auf-raster">
+      <div className={"auf-raster" + (["matinfo", "stueckzeit", "zeichnung", "dokumente"].some(zeig) ? "" : " auf-raster--ohne-rechts")}>
 
         {/* Links: Auftrag, Material, Notiz */}
         <div className="auf-spalte auf-spalte--links">
@@ -836,28 +845,33 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
           </>}
           {/* Zustand als ein Auswahlfeld statt fünf Knöpfe: braucht
               eine Zeile statt drei. Auch ohne Planrecht wählbar. */}
-          <div className="auf-dreier auf-dreier--gleich">
-            <label className="feld"><span>Zustand</span>
+          {(() => { const n = ["zustand", "fa", "menge"].filter(zeig).length; return n > 0 && (
+          <div className="auf-dreier auf-dreier--gleich" style={spalten(n, 3)}>
+            {zeig("zustand") && <label className="feld"><span>Zustand</span>
               <select id="pl-zustand" className={"auf-zustandwahl auf-zustandwahl--" + w.zustand}
                 disabled={extern} value={w.zustand} onChange={(e) => setze("zustand", e.target.value)}>
                 {Object.keys(alt.PLANSTATUS).map((k) => (
                   <option key={k} value={k} data-plstatus={k}>
                     {alt.PLANSTATUS[k].zeichen} {alt.PLANSTATUS[k].name}</option>
                 ))}
-              </select></label>
-            <label className="feld"><span>FA Nr.</span>
+              </select></label>}
+            {zeig("fa") && <label className="feld"><span>FA Nr.</span>
               <input id="pl-fa-nr" type="text" autoComplete="off" value={w.faNr} readOnly={!darf}
-                onChange={(e) => setze("faNr", e.target.value)} /></label>
-            <label className="feld"><span>Fertigungsmenge</span>
+                onChange={(e) => setze("faNr", e.target.value)} /></label>}
+            {zeig("menge") && <label className="feld"><span>Fertigungsmenge</span>
               <input id="pl-menge" inputMode="decimal" readOnly={nurLesen} type="number" min="0" step="1" value={w.menge}
-                onChange={(e) => setze("menge", e.target.value)} /></label>
-          </div>
+                onChange={(e) => setze("menge", e.target.value)} /></label>}
+          </div>); })()}
           {/* Gleich darunter die Abrufinformation, daneben das Siegel.
               Damit das Fenster auf dem Laptop ohne Rollen Platz hat,
               steht die Maschine dafür in der Zeile mit Ab, Tage und Bis. */}
-          <div className="auf-zweier auf-zweier--abruf">
+          {(() => {
+            const abrufZeigen = zeig("abruf") || (abrufMuss && !w.abruf.trim());
+            const n = (abrufZeigen ? 1 : 0) + (zeig("siegel") ? 1 : 0);
+            return n > 0 && (
+          <div className="auf-zweier auf-zweier--abruf" style={spalten(n, 2)}>
             {/* Freier Text, keine Regel: „je 1000 Stk KW 44, 45, 46“ */}
-            <label className="feld auf-abruf"><span>Abrufinformation{abrufMuss ? " *" : ""}</span>
+            {abrufZeigen && <label className="feld auf-abruf"><span>Abrufinformation{abrufMuss ? " *" : ""}</span>
               {/* Mehrzeilig: Shift + Enter gibt eine neue Zeile, Enter allein
                   tut nichts wie vorher im einzeiligen Feld (Wunsch Patrick
                   9. Oktober 2026). Das Feld wächst mit dem Text. */}
@@ -868,9 +882,9 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                 value={w.abruf} onChange={(e) => setze("abruf", e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) e.preventDefault(); }} />
               {abrufFehlt && !w.abruf.trim() && <span className="feldhinweis feldhinweis--fehlt" id="pl-abruf-fehlt">
-                Ohne Abrufinformation lässt sich der Auftrag nicht speichern.</span>}</label>
+                Ohne Abrufinformation lässt sich der Auftrag nicht speichern.</span>}</label>}
 
-            <div className="feld auf-siegel"><span className="feldlabel">Siegel</span>
+            {zeig("siegel") && <div className="feld auf-siegel"><span className="feldlabel">Siegel</span>
               {!planerListe.length && !planerExtra.length
                 ? <span className="feldhinweis">Niemand ist als Planer hinterlegt. Das wird in den
                     Einstellungen bei der Person angehakt, zusammen mit einem Kürzel.</span>
@@ -885,31 +899,37 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                       className="planerknopf aktiv" title={alt.siegelName(k) || k} disabled={nurLesen}
                       onClick={() => planerUmschalten(k)}>{k}</button>)}
                   </div>}
-            </div>
-          </div>
-          <div className="auf-vierer">
-            <label className="feld"><span>Maschine</span>
+            </div>}
+          </div>); })()}
+          {(() => {
+            const masch = zeig("maschine") || !w.maschine, termin = zeig("termin");
+            const n = (masch ? 1 : 0) + (termin ? 3 : 0);
+            return n > 0 && (
+          <div className="auf-vierer" style={!masch ? { gridTemplateColumns: "minmax(0, 1fr) 56px minmax(0, 1fr)" }
+            : !termin ? { gridTemplateColumns: "minmax(0, 1fr)" } : undefined}>
+            {masch && <label className="feld"><span>Maschine</span>
               <select id="pl-maschine" disabled={!darf} value={w.maschine}
                 onChange={(e) => setze("maschine", e.target.value)}>
                 {!w.maschine && <option value="">Maschine wählen</option>}
                 {maschinen.map((m) => <option key={m.id} value={m.id}>
                   {m.name + (m.machine_number ? " (" + m.machine_number + ")" : "")}</option>)}
-              </select></label>
-            <label className="feld"><span>Ab</span>
+              </select></label>}
+            {termin && <><label className="feld"><span>Ab</span>
               <input id="pl-von" type="date" readOnly={nurLesen} value={w.von} onChange={(e) => vonAendern(e.target.value)} /></label>
             <label className="feld"><span>Tage</span>
               <input id="pl-tage" inputMode="decimal" readOnly={nurLesen} type="number" min="1" step="1" value={w.tage}
                 onChange={(e) => tageAendern(e.target.value)} /></label>
             <label className="feld"><span>Bis</span>
-              <input id="pl-bis" type="date" readOnly={nurLesen} value={w.bis} onChange={(e) => bisAendern(e.target.value)} /></label>
-          </div>
+              <input id="pl-bis" type="date" readOnly={nurLesen} value={w.bis} onChange={(e) => bisAendern(e.target.value)} /></label></>}
+          </div>); })()}
           {!auftrag && !w.von && <span className="feldhinweis" id="pl-ans-ende">
             Ohne Datum kommt der Auftrag ans Ende der Maschine.</span>}
 
-          <div className="auf-trenner" />
-          <div className="auf-zweier">
+          {["material", "matplatz", "matmenge", "liefertermin"].some(zeig) && <div className="auf-trenner" />}
+          {(() => { const n = ["material", "matplatz"].filter(zeig).length; return n > 0 && (
+          <div className="auf-zweier" style={spalten(n, 2)}>
             {/* Alles in einem Feld, so wie es an der Stange steht */}
-            <label className="feld"><span>Material</span>
+            {zeig("material") && <label className="feld"><span>Material</span>
               <input id="pl-mat-bez" type="text" readOnly={nurLesen} list="pl-matliste" autoComplete="off"
                 placeholder="z. B. X10CrNiS18-9 rd 011 mm h8" value={w.matBez}
                 onChange={(e) => setze("matBez", e.target.value)} />
@@ -920,16 +940,17 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                         Farben und Material zuordnen</span>
                     : <><span className="ws-farbe" style={{ background: alt.farbeVon(gruppe.farbe).hex }} />
                         {gruppe.name}</>}
-              </span></label>
+              </span></label>}
             {/* Eigenes Feld, unabhängig von Notiz und Bestellung */}
-            <label className="feld" id="pl-ortfeld"><span>Materialplatz</span>
+            {zeig("matplatz") && <label className="feld" id="pl-ortfeld"><span>Materialplatz</span>
               <input type="text" id="pl-matort" maxLength={120} readOnly={!darfPlatz}
                 placeholder="z. B. Regal 4 oben, Palette bei der Säge" value={w.matOrt}
-                onChange={(e) => setze("matOrt", e.target.value)} /></label>
-          </div>
-          <div className="auf-zweier auf-zweier--menge">
+                onChange={(e) => setze("matOrt", e.target.value)} /></label>}
+          </div>); })()}
+          {(() => { const n = ["matmenge", "liefertermin"].filter(zeig).length; return n > 0 && (
+          <div className="auf-zweier auf-zweier--menge" style={spalten(n, 2)}>
             {/* div statt label: das Häkchen darunter ist ein eigenes label */}
-            <div className="feld"><span>Menge vorhanden oder bestellt</span>
+            {zeig("matmenge") && <div className="feld"><span>Menge vorhanden oder bestellt</span>
               <input id="pl-menge-mat" type="text" readOnly={nurLesen} value={w.matMenge}
                 onChange={(e) => setze("matMenge", e.target.value)} />
               {/* Etwa bestellt, aber noch nicht da: das rote M bleibt */}
@@ -939,30 +960,30 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                 <input type="checkbox" id="pl-m-trotzdem" checked={w.mTrotzdem}
                   disabled={nurLesen || !mSpalte}
                   onChange={(e) => setze("mTrotzdem", e.target.checked)} />
-                <span>M trotzdem zeigen</span></label></div>
-            <label className="feld"><span>Liefertermin</span>
+                <span>M trotzdem zeigen</span></label></div>}
+            {zeig("liefertermin") && <label className="feld"><span>Liefertermin</span>
               <input id="pl-liefer" type="text" readOnly={nurLesen} value={w.liefer}
-                onChange={(e) => setze("liefer", e.target.value)} /></label>
-          </div>
+                onChange={(e) => setze("liefer", e.target.value)} /></label>}
+          </div>); })()}
           {/* Keine Farbwahl mehr: die Farbe kommt nur vom Material (Wunsch
               Patrick 16. Oktober 2026: „Die Option Farben auszuwählen kannst
               du rausnehmen“) */}
 
 
           {/* Die Notiz füllt, was in der linken Spalte noch frei ist */}
-          <label className="feld feld--wachsend auf-notiz"><span>Notiz für die Maschine</span>
+          {zeig("notiz") && <label className="feld feld--wachsend auf-notiz"><span>Notiz für die Maschine</span>
             <textarea id="pl-notiz" ref={notizFeld} readOnly={!darf && !darfNotiz} value={w.notiz}
-              onChange={(e) => notizAendern(e.target.value)} /></label>
+              onChange={(e) => notizAendern(e.target.value)} /></label>}
         </div>
 
         {/* Rechts: Zeichnung quer, darunter die Dokumente */}
-        <div className="auf-spalte auf-spalte--zeichnung">
+        {["matinfo", "stueckzeit", "zeichnung", "dokumente"].some(zeig) && <div className="auf-spalte auf-spalte--zeichnung">
           {/* Mindestmenge für die ganze Fertigungsmenge und darunter für
               die noch offenen Stück, über der Zeichnung, genau wie in der
               Schnellvorschau (Wunsch Patrick 26. Oktober 2026; vorher
               über dem Zustand). Ist die Länge nicht bestätigt, steht
               „ca.“ vor der Zahl; antippen oder darüberfahren erklärt es. */}
-          {auftrag && matInfo(auftrag) && (() => {
+          {auftrag && zeig("matinfo") && matInfo(auftrag) && (() => {
             const m = matInfo(auftrag);
             const ca = <button type="button" className="mat-info__l"
               title={MAT_INFO_ERKLAERUNG} aria-label={MAT_INFO_ERKLAERUNG}
@@ -974,10 +995,10 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                   ? <>{ca} {m.offen.text.replace(/^ca\. /, "")}</> : m.offen.text}</div>}
             </div>;
           })()}
-          {stueckzeit !== undefined && <div className="mat-info" id="pl-stueckzeit">
+          {stueckzeit !== undefined && zeig("stueckzeit") && <div className="mat-info" id="pl-stueckzeit">
             <b>Stückzeit:</b> {stueckzeit === null ? "fehlt" : stueckzeitText(stueckzeit)}
 </div>}
-          <div className="feld auf-zeichnung">
+          {zeig("zeichnung") && <div className="feld auf-zeichnung">
             <Vorschau adresse={w.pdf || ""} titel={titelZeichnung} />
             {imHaus && <ImHausEinblendung treffer={imHaus.treffer} bild={imHaus.bild} weg={() => setImHaus(null)}
               // Eintragen nur, wer das Feld ändern darf; gespeichert wird mit Speichern
@@ -985,9 +1006,9 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                 const bisher = String(aktuell.current.matMenge || "").trim();
                 setze("matMenge", bisher ? bisher + " + " + text : text);
                 alt.meldung("Bei „Menge vorhanden oder bestellt“ eingetragen. Zum Behalten Speichern drücken.", "gut");
-              }} />}</div>
+              }} />}</div>}
           {/* Dokumente direkt unter der Zeichnung, nebeneinander */}
-          <div className="auf-dokumente">
+          {zeig("dokumente") && <div className="auf-dokumente">
             <div className="auf-dok"><span className="feldlabel">Zeichnung</span>
               <div className="auf-dok__knoepfe">
                 <Anhang was="PDF" ordner="zeichnung" adresse={w.pdf} setzen={(x) => setze("pdf", x)}
@@ -1028,8 +1049,8 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
 
             {/* Den Knopf Spezialwerkzeuge gibt es seit 1.443.0 nicht mehr (Wunsch
                 Patrick 6. November 2026: „wird ja mit Stern gekennzeichnet“) */}
-          </div>
-        </div>
+          </div>}
+        </div>}
       </div>
 
       <div className="dialog__knoepfe auf-fuss">

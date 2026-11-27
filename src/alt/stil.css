@@ -17904,6 +17904,18 @@ body.dunkel .planinfo-wahl__pfeil { border-color: rgba(255,255,255,.25); }
 body.zieh-laeuft .logi-kachel { touch-action: none; cursor: grabbing; }
 /* 1.929.0: Lieferplan Liste, Zeitraum von/bis im Kopf */
 .logi-funktion .feld-inline { display: inline-flex; align-items: center; gap: 6px; margin-right: 10px; font-size: 14px; }
-/* 1.930.0: WBG drucken mit Anzahl je Zeile */
+/* 1.932.0: WBG drucken mit Anzahl je Zeile */
 .logi-wbg-druck { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .logi-wbg-druck b { min-width: 18px; text-align: center; }
+
+
+/* 1.930.0: Einlagen Generator wie Gridfinity auf einen Bildschirm: Leiste
+   oben schmaler, damit der Arbeitsfläche mehr Höhe bleibt */
+@media (min-width: 700px) {
+  .einlagen__leiste { gap: 6px; margin-bottom: 6px; }
+  .einlagen__leiste .knopf { padding: 6px 12px; min-height: 0; font-size: .9rem; }
+}
+
+/* Auftragsfenster ohne rechte Spalte (alles dort ausgeschaltet, 1.931.0) */
+.dialog--auftrag .auf-raster.auf-raster--ohne-rechts { grid-template-columns: minmax(0, 1fr) !important; }
+.planinfo-wahl__zeile:not(:has(.planinfo-wahl__pfeil)) { min-height: 44px; }
