@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.923.0 (27. November 2026)
+
+- Gridfinity passt auf einen Bildschirm: Reiter neben dem Titel, Vorschau so hoch wie der Bildschirm, Einstellungen rollen für sich, auf breiten Bildschirmen in zwei Spalten.
+
 ## 1.922.0 (27. November 2026)
 
 - Gridfinity: neuer Reiter „Schublade“: Masse eingeben, Boxen und Einlagen auf dem Raster anordnen und ziehen, Draufsicht und 3D, im Projekt gespeichert.
