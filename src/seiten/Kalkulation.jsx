@@ -971,7 +971,9 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
                     <label className="feld kalk-feld"><span>Maschine</span>
                       <select id={"kalk-ag-m-" + i} value={a.masch || ""} onChange={(e) => setze("ags." + i + ".masch", e.target.value)}>
                         <option value="">– wählen –</option>
-                        {maschinen.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                        {/* „Nicht mehr vorhanden“ (seit 1.918.0) nur, wenn sie hier schon steht: alte Kalkulationen rechnen weiter */}
+                        {maschinen.filter((m) => !(m.daten && m.daten.weg) || m.id === a.masch)
+                          .map((m) => <option key={m.id} value={m.id}>{m.name}{m.daten && m.daten.weg ? " (nicht mehr vorhanden)" : ""}</option>)}
                       </select>
                       {r && r.satz && <span className="feldhinweis">{chf(r.satz.eff)} CHF/h{r.satz.lauf ? " bei " + chf(r.satz.lauf, 1) + " Std/Tag" : ""}, Rüsten {chf(r.satz.ruest)} CHF/h</span>}
                     </label>
@@ -1379,7 +1381,8 @@ function Stundensaetze({ maschinen, neu, zurueck }) {
       <h1 className="seitentitel">Stundensätze der Maschinen</h1>
       <p className="hinweis kalk-hinweis-oben">Wie im Gewatec unter Produktionsmittel → Stundensatz, aber jede Maschine
         nur einmal: Die Laufzeit am Tag trägst du beim Arbeitsgang ein, der Stundensatz passt sich an.</p>
-      {maschinen.map((m) => (
+      {/* Nicht mehr vorhandene Maschinen unten */}
+      {[...maschinen].sort((a, b) => !!(a.daten && a.daten.weg) - !!(b.daten && b.daten.weg)).map((m) => (
         <MaschineKarte key={m.id} m={m} offen={offen === m.id} umschalten={() => setOffen(offen === m.id ? null : m.id)} neu={neu} />
       ))}
       <button className="knopf knopf--haupt" id="kalk-masch-neu" onClick={anlegen}>+ Maschine</button>
@@ -1401,14 +1404,14 @@ function MaschineKarte({ m, offen, umschalten, neu }) {
   }, [x]);
   const f = (name) => ({ wert: x.daten[name], setzen: (w) => setX((v) => ({ ...v, daten: { ...v.daten, [name]: w } })) });
   async function loeschen() {
-    const weg = await alt.loeschen({ titel: "Stundensatz löschen?", text: m.name + " wird gelöscht. Kalkulationen, die ihn brauchen, rechnen dort mit 0.",
+    const weg = await alt.loeschen({ titel: "Stundensatz löschen?", text: m.name + " wird gelöscht. Kalkulationen, die ihn brauchen, rechnen dort mit 0. Gibt es die Maschine nur nicht mehr, besser „Nicht mehr vorhanden“ anhaken.",
       tabelle: "kalk_maschinen", id: m.id, rueckText: "Stundensatz löschen" });
     if (weg) neu();
   }
   return (
     <section className="karte kalk-masch" data-kmasch={m.id}>
-      <button className="kalk-masch__kopf" onClick={umschalten} aria-expanded={offen}>
-        <b>{x.name}</b>
+      <button className={"kalk-masch__kopf" + (x.daten.weg ? " kalk-masch--weg" : "")} onClick={umschalten} aria-expanded={offen}>
+        <b>{x.name}{x.daten.weg ? " · nicht mehr vorhanden" : ""}</b>
         <span>{chf(s.eff)} CHF/h <small>fix {chf(s.fix)} · var {chf(s.var)} · Rüsten {chf(s.ruest)}</small></span>
       </button>
       {offen && <div className="kalk-masch__inhalt">
@@ -1481,6 +1484,11 @@ function MaschineKarte({ m, offen, umschalten, neu }) {
                 </table>
               </div>}
             </>}
+        {/* Statt löschen (seit 1.918.0, Patrick 27. November 2026: Maschinen, die wir nicht mehr haben):
+            Sätze bleiben, alte Kalkulationen rechnen weiter, für neue Arbeitsgänge nicht mehr wählbar */}
+        <label className="feld-haken kalk-masch-weg" data-kmasch-nichtmehr={m.id}>
+          <input type="checkbox" checked={!!x.daten.weg} onChange={(e) => setX((v) => ({ ...v, daten: { ...v.daten, weg: e.target.checked } }))} />
+          <span>Nicht mehr vorhanden (alte Kalkulationen rechnen weiter, für neue nicht mehr wählbar)</span></label>
         <button className="linkknopf linkknopf--gefahr" data-kmasch-weg={m.id} onClick={loeschen}>Diese Maschine löschen</button>
       </div>}
     </section>

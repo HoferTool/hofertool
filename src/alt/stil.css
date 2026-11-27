@@ -17811,3 +17811,7 @@ body.pad-offen .markier-blase__knopf { min-width: 44px; height: 44px; font-size:
 body.dunkel .markier-blase { background: #1c2533; border-color: rgba(255, 255, 255, .18); }
 body.dunkel .markier-blase__knopf:hover { background: #2a3546; }
 body.dunkel .markier-blase__formlage { border-color: rgba(255, 255, 255, .15); }
+
+/* 1.918.0: Stundensatz einer Maschine, die es nicht mehr gibt */
+.kalk-masch--weg b { color: #8a949e; text-decoration: line-through; }
+.kalk-masch-weg { margin: 10px 0; }
