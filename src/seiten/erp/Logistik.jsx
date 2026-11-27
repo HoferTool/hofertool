@@ -4,7 +4,8 @@
 // Zweite Kachel „ZA extern anlegen“ seit 1.925.0 (Patrick 27. November 2026).
 // Oben Kacheln je Funktion mit Zahl; ein Tipp öffnet die Funktion darunter.
 // Weitere Funktionen kommen als neue Kachel in KACHELN dazu.
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { teilMerken } from "../../teile/wiederherstellen.js";
 import { useGemerkt } from "../../bruecke.jsx";
@@ -83,17 +84,61 @@ const KACHELN = [
     zeichen: "🚚", zahl: (d) => offeneZaAnlegen(d).length, einheit: "zu bestellen" },
 ];
 
+// Reihenfolge der Kacheln je Person (Patrick 27. November 2026: „die Kacheln will ich schieben können“)
+const REIHE = "erpLogistikReihe";
+function reiheLesen() {
+  const r = String((alt.einstellungWert && alt.einstellungWert(REIHE, "")) || "").split(",").filter(Boolean);
+  return r.filter((id) => KACHELN.some((k) => k.id === id)).concat(KACHELN.map((k) => k.id).filter((id) => !r.includes(id)));
+}
+
 export default function Logistik({ d, neu }) {
   const [kachel, setKachel] = useState(gemerkt.kachel);
+  const [reihe, setReihe] = useState(reiheLesen);
   useGemerkt(gemerkt, { kachel });
+  // Ziehen mit Maus, Finger oder Stift: erst ab 8 Punkten Bewegung, sonst bleibt es ein Antippen
+  const zug = useRef(null);
+  const runter = (e, id) => {
+    if (e.button > 0) return;
+    zug.current = { id, x: e.clientX, y: e.clientY, aktiv: false, reihe: reihe.slice() };
+    const bewegen = (ev) => {
+      const z = zug.current; if (!z) return;
+      if (!z.aktiv && Math.hypot(ev.clientX - z.x, ev.clientY - z.y) < 8) return;
+      z.aktiv = true; document.body.classList.add("zieh-laeuft");
+      const ziel = document.elementFromPoint(ev.clientX, ev.clientY);
+      const k = ziel && ziel.closest("[data-logi-kachel]");
+      const zid = k && k.getAttribute("data-logi-kachel");
+      if (zid && zid !== z.id) {
+        const r = z.reihe.filter((x) => x !== z.id);
+        r.splice(z.reihe.indexOf(zid), 0, z.id);
+        z.reihe = r; setReihe(r);
+      }
+    };
+    const los = () => {
+      const z = zug.current;
+      window.removeEventListener("pointermove", bewegen); window.removeEventListener("pointerup", los); window.removeEventListener("pointercancel", los);
+      document.body.classList.remove("zieh-laeuft");
+      if (z && z.aktiv) {
+        z.nachZug = true;
+        try { alt.einstellungAblegen && alt.einstellungAblegen(REIHE, z.reihe.join(",")); } catch (_) { /* nur Komfort */ }
+      }
+      setTimeout(() => { zug.current = null; }, 0);
+    };
+    window.addEventListener("pointermove", bewegen); window.addEventListener("pointerup", los); window.addEventListener("pointercancel", los);
+  };
+  const tippen = (id) => {
+    if (zug.current && zug.current.nachZug) return;
+    setKachel(kachel === id ? null : id);
+  };
+  const liste = reihe.map((id) => KACHELN.find((k) => k.id === id)).filter(Boolean);
   return (
     <div className="erp-logistik">
       <div className="logi-kacheln">
-        {KACHELN.map((k) => {
+        {liste.map((k) => {
           const n = k.zahl(d), w = k.warn ? k.warn(d) : 0;
           return (
             <button key={k.id} className={"logi-kachel" + (kachel === k.id ? " aktiv" : "")} data-logi-kachel={k.id}
-              onClick={() => setKachel(kachel === k.id ? null : k.id)}>
+              onPointerDown={(e) => runter(e, k.id)} onClick={() => tippen(k.id)}
+              onDragStart={(e) => e.preventDefault()} title="Antippen öffnet, ziehen verschiebt">
               <span className="logi-kachel__zeichen" aria-hidden="true">{k.zeichen}</span>
               <span className="logi-kachel__titel">{k.titel}</span>
               <span className="logi-kachel__zahl"><b>{n}</b> {k.einheit}

@@ -17899,3 +17899,6 @@ body.dunkel .planinfo-wahl__pfeil { border-color: rgba(255,255,255,.25); }
 
 /* 1.925.0: rote Anzeige „überfällig“ in der Zeile der Zahl statt oben rechts über dem Titel */
 .logi-kachel__warn { position: static; display: inline-block; vertical-align: middle; margin-left: 8px; }
+/* 1.926.0: Logistik-Kacheln lassen sich ziehen; beim Ziehen kein Markieren und kein Rollen per Finger */
+.logi-kachel { touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+body.zieh-laeuft .logi-kachel { touch-action: none; cursor: grabbing; }

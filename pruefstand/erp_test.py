@@ -239,6 +239,12 @@ with sync_playwright() as p:
     pg.screenshot(path=BILD + "/erp-za-neu.png")
     pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
     if pg.locator(".dialog-huelle [data-ja]").count(): pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(300)
+    # Kacheln ziehen (seit 1.926.0): ZA extern anlegen vor Wareneingang
+    q = pg.locator("[data-logi-kachel='za-neu']").bounding_box(); w = pg.locator("[data-logi-kachel='we-za']").bounding_box()
+    pg.mouse.move(q["x"] + 30, q["y"] + 30); pg.mouse.down(); pg.mouse.move(q["x"] + 10, q["y"] + 20, steps=3)
+    pg.mouse.move(w["x"] + 30, w["y"] + 30, steps=8); pg.mouse.up(); pg.wait_for_timeout(300)
+    reihe = pg.evaluate("[...document.querySelectorAll('[data-logi-kachel]')].map(k => k.dataset.logiKachel)")
+    pruefe(reihe[:2] == ["za-neu", "we-za"] and pg.locator("[data-logi-funktion='za-neu']").count() == 1, "Kacheln verschoben, Ziehen öffnet nichts: %s" % reihe)
     # Ohne FA über den Arbeitsplan des Artikels
     pg.click("[data-logi-za-ap]"); pg.wait_for_selector("[data-logi-ap-fenster] input")
     pg.fill("[data-logi-ap-fenster] input", "10007"); pg.wait_for_timeout(300)

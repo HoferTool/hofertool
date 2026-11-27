@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.926.0 (27. November 2026)
+
+- Test ERP → Logistik: Kacheln lassen sich mit Maus oder Finger verschieben (ab 8 Punkten Bewegung, Antippen öffnet weiter); Reihenfolge je Person in der Einstellung `erpLogistikReihe`.
+
 ## 1.925.0 (27. November 2026)
 
 - Test ERP → Logistik: neue Kachel „ZA extern anlegen“. Listet die externen Arbeitsgänge offener FAs ohne Bestellung; Antippen öffnet eine neue Bestellung ZA extern, ausgefüllt mit Lieferant, Artikel, Menge und Termin (heute + Pauschalzeit), verknüpft über `daten.fa_id`/`ag_pos`. Ohne FA im Einzelfall über den Arbeitsplan des Artikels (`ZaAusArbeitsplan`).
