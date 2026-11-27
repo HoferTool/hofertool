@@ -1190,7 +1190,7 @@ function MaterialFenster({ d, b, zu, fertig }) {
   );
 }
 
-function FertigFenster({ d, b, zu, fertig }) {
+export function FertigFenster({ d, b, zu, fertig }) {
   const p = (d.posJe.get(b.id) || [])[0];
   const a = p && d.artikelMap.get(p.artikel_id);
   const offen = p ? Math.max(0, zahl(p.menge) - gebucht(d, p.id, "fertig")) : 0;

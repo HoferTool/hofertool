@@ -10,7 +10,7 @@ import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { teilMerken } from "../../teile/wiederherstellen.js";
 import { useGemerkt } from "../../bruecke.jsx";
 import { Tabelle, Suche, passt } from "./teile.jsx";
-import { bestellArt, EingangFenster, belegOeffnen } from "./Belege.jsx";
+import { bestellArt, EingangFenster, FertigFenster, belegOeffnen } from "./Belege.jsx";
 import { allesLaden, gebucht, zahl, mengeText, artikelText, partnerText, datumText, posIdx } from "../../daten/erp.js";
 
 const gemerkt = { kachel: "we-za" };
@@ -51,6 +51,21 @@ export function offeneZaAnlegen(d) {
   return z.sort((x, y) => String(y.fa.nr).localeCompare(String(x.fa.nr)));
 }
 
+// Offene FAs, deren Teile noch nicht ganz eingelagert (fertig gemeldet) sind (seit 1.927.0)
+export function offeneEinlagern(d) {
+  const z = [];
+  d.belege.filter((b) => b.typ === "fertigung" && b.status !== "storniert" && b.status !== "abgeschlossen").forEach((b) => {
+    (d.posJe.get(b.id) || []).filter((p) => p.artikel_id).forEach((p) => {
+      const ein = gebucht(d, p.id, "fertig");
+      const offen = Math.max(0, zahl(p.menge) - ein);
+      if (offen > 0) z.push({ b, p, ein, offen, pw: (b.daten || {}).planwand || null });
+    });
+  });
+  // Laufende und rüstende Aufträge der Planwand zuerst, dann neueste FA-Nr.
+  const rang = (x) => (x.pw && /laeuft|ruesten/.test(x.pw.stand || "") ? 0 : 1);
+  return z.sort((x, y) => rang(x) - rang(y) || String(y.b.nr).localeCompare(String(x.b.nr)));
+}
+
 // Termin = heute + Pauschalzeit (Tage, bei Stunden aufgerundet auf ganze Tage)
 function zaTermin(ag) {
   const n = Number(ag.pauschal) || 0;
@@ -80,6 +95,8 @@ const KACHELN = [
   { id: "we-za", titel: "Wareneingang ZA extern", text: "Teile von der Zusatzarbeit beim Lieferanten zurück einbuchen",
     zeichen: "📦", zahl: (d) => offeneZaPositionen(d).length, einheit: "offen",
     warn: (d) => offeneZaPositionen(d).filter((x) => x.p.termin && x.p.termin < heute()).length, warnText: "überfällig" },
+  { id: "einlagern", titel: "Fertigung einlagern", text: "Fertige Teile aus der Fertigung ins Lager buchen",
+    zeichen: "🏭", zahl: (d) => offeneEinlagern(d).length, einheit: "offen" },
   { id: "za-neu", titel: "ZA extern anlegen", text: "Externe Arbeitsgänge offener FAs beim Lieferanten bestellen",
     zeichen: "🚚", zahl: (d) => offeneZaAnlegen(d).length, einheit: "zu bestellen" },
 ];
@@ -149,6 +166,7 @@ export default function Logistik({ d, neu }) {
       </div>
       {kachel === "we-za" && <WareneingangZa d={d} neu={neu} />}
       {kachel === "za-neu" && <ZaAnlegen d={d} neu={neu} />}
+      {kachel === "einlagern" && <Einlagern d={d} neu={neu} />}
     </div>
   );
 }
@@ -241,5 +259,37 @@ function ZaAusArbeitsplan({ d, neu, zu }) {
             x.lief ? partnerText(x.lief) : (x.ag.maschine || "–"), x.ag.pauschal ? x.ag.pauschal + " " + (x.ag.pauschal_einheit || "") : "–"] }))} />
       <div className="dialog-knoepfe"><button type="button" className="knopf knopf--still" onClick={zu}>Schliessen</button></div>
     </div>
+  );
+}
+
+// Wunsch Patrick 27. November 2026: „eine Kachel für Teile aus Fertigung einlagern“
+function Einlagern({ d, neu }) {
+  const [suche, setSuche] = useState("");
+  const liste = offeneEinlagern(d).filter(({ b, p, pw }) => {
+    const k = d.partnerMap.get(b.partner_id) || {};
+    return passt(suche, [b.nr, k.nr, k.name, artikelText(d.artikelMap.get(p.artikel_id)), pw && pw.maschine].join(" "));
+  });
+  const buchen = async (b) => {
+    const n = await allesLaden();
+    fensterOeffnen((zu) => <FertigFenster d={n} b={n.belegMap.get(b.id) || b} zu={zu} fertig={async () => { neu(); }} />);
+  };
+  return (
+    <section className="logi-funktion" data-logi-funktion="einlagern">
+      <div className="mat-kopf">
+        <h2 className="logi-funktion__titel">Fertigung einlagern</h2>
+        <Suche wert={suche} setzen={setSuche} platzhalter="FA, Kunde, Artikel, Maschine …" />
+      </div>
+      <p className="klein">Zeile antippen meldet Teile des FA fertig und lagert sie ein: Menge, Lagerart und Lagerplatz eingeben. Die FA-Nummer öffnet den FA.</p>
+      <Tabelle kopf={["FA", "Kunde", "Artikel", "Planwand", "Soll", "Eingelagert", "Offen"]}
+        leer="Keine offenen Fertigungsaufträge."
+        zeilen={liste.map(({ b, p, ein, offen, pw }) => ({
+          key: p.id, klick: () => buchen(b),
+          zellen: [<a href="#" data-logi-fa={b.nr} onClick={(e) => { e.preventDefault(); e.stopPropagation(); belegOeffnen(d, neu, b); }}>{b.nr}</a>,
+            partnerText(d.partnerMap.get(b.partner_id)),
+            artikelText(d.artikelMap.get(p.artikel_id)) + (posIdx(d, p) ? " · Index " + posIdx(d, p) : ""),
+            pw ? [pw.maschine, ({ geplant: "geplant", ruesten: "rüsten", laeuft: "läuft", fertig: "fertig" })[pw.stand] || pw.stand].filter(Boolean).join(" · ") : "–",
+            mengeText(p.menge), mengeText(ein), <b>{mengeText(offen)}</b>],
+        }))} />
+    </section>
   );
 }

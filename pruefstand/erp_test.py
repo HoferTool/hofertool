@@ -227,6 +227,7 @@ with sync_playwright() as p:
     # Kachel ZA extern anlegen (seit 1.925.0): externer Arbeitsgang im offenen FA wird zur Bestellung beim Lieferanten
     pg.evaluate("""() => { const fa = TEST.daten.erp_belege.find(b => b.typ === 'fertigung');
       fa.status = 'offen'; fa.daten = { ...fa.daten, ap: [...fa.daten.ap, { pos: 30, bez: 'Härten', code: 'HAERT', extern: true, lieferant_nr: '70001', pauschal: 5, pauschal_einheit: 'Tag' }] };
+      TEST.daten.erp_positionen.filter(q => q.beleg_id === fa.id).forEach(q => { q.menge = Number(q.menge) + 50; });
       const a = TEST.daten.erp_artikel.find(x => x.id === 'a1'); a.arbeitsplan = [...(a.arbeitsplan || []), { pos: 90, bez: 'Härten', code: 'HAERT', extern: true, lieferant_nr: '70001', pauschal: 5 }]; }""")
     pg.evaluate("location.hash='#/'"); pg.wait_for_timeout(500)
     pg.evaluate("location.hash='#/erp'"); pg.wait_for_selector("[data-erp-reiter='logistik']"); pg.wait_for_timeout(500)
@@ -245,6 +246,14 @@ with sync_playwright() as p:
     pg.mouse.move(w["x"] + 30, w["y"] + 30, steps=8); pg.mouse.up(); pg.wait_for_timeout(300)
     reihe = pg.evaluate("[...document.querySelectorAll('[data-logi-kachel]')].map(k => k.dataset.logiKachel)")
     pruefe(reihe[:2] == ["za-neu", "we-za"] and pg.locator("[data-logi-funktion='za-neu']").count() == 1, "Kacheln verschoben, Ziehen öffnet nichts: %s" % reihe)
+    # Kachel Fertigung einlagern (seit 1.927.0)
+    pg.click("[data-logi-kachel='einlagern']"); pg.wait_for_timeout(300)
+    z = pg.locator("[data-logi-funktion='einlagern'] .erp-tabelle tbody tr")
+    pruefe(z.count() >= 1, "Fertigung einlagern: offener FA in der Liste (%s)" % z.count())
+    z.first.click(); pg.wait_for_timeout(800)
+    pruefe(pg.locator(".dialog:has-text('ertig')").count() >= 1, "Fertigmeldung geht auf")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    if pg.locator(".dialog-huelle [data-ja]").count(): pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(300)
     # Ohne FA über den Arbeitsplan des Artikels
     pg.click("[data-logi-za-ap]"); pg.wait_for_selector("[data-logi-ap-fenster] input")
     pg.fill("[data-logi-ap-fenster] input", "10007"); pg.wait_for_timeout(300)

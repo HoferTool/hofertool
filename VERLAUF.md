@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.927.0 (27. November 2026)
+
+- Test ERP → Logistik: Kachel „Fertigung einlagern“ mit den offenen FAs (noch nicht ganz fertig gemeldet), laufende und rüstende Planwand-Aufträge zuerst; Antippen öffnet die Fertigmeldung (Menge, Lagerart, Platz).
+
 ## 1.926.0 (27. November 2026)
 
 - Test ERP → Logistik: Kacheln lassen sich mit Maus oder Finger verschieben (ab 8 Punkten Bewegung, Antippen öffnet weiter); Reihenfolge je Person in der Einstellung `erpLogistikReihe`.
