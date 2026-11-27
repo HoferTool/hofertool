@@ -942,7 +942,7 @@ function Arbeitsgaenge({ d, b, frisch }) {
           <label className="feld-haken erp-ag" data-erp-ag={i}>
             <input type="checkbox" checked={!!x.erledigt_am} onChange={(e) => haken(i, e.target.checked)} />
             <span><b>{x.pos || (i + 1) * 10}</b> {x.bez}{x.maschine ? " · " + x.maschine : ""}{x.te ? " · Stückzeit " + x.te + " s" : ""}
-              {x.ruest ? " · Rüsten " + x.ruest + " h" : ""}{x.extern ? " · extern" : ""}{x.pruef ? " · " + x.pruef : ""}
+              {x.ruest ? " · Rüsten " + x.ruest + " h" : ""}{x.extern ? " · extern" : ""}{x.pauschal ? " · Pauschal " + x.pauschal + " " + (x.pauschal_einheit || "") : ""}{x.pruef ? " · " + x.pruef : ""}
               {x.erledigt_am && <small> · erledigt {datumText(x.erledigt_am)}</small>}</span>
           </label>
           <button type="button" className="knopf knopf--klein" data-erp-ag-oeffnen={i} onClick={() => oeffnen(i)}>Öffnen</button>

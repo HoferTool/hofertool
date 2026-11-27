@@ -467,6 +467,8 @@ export const AG_FORM = [
   { name: "maschine", label: "Arbeitsplatz (Betriebsmittel, extern: Lieferant)", breit: true },
   { name: "te", label: "Stückzeit s", typ: "zahl" }, { name: "ruest", label: "Rüstzeit h", typ: "zahl" },
   { name: "extern", label: "Extern", typ: "haken" },
+  // Pauschalzeit der Fremdarbeit wie im Gewatec (seit 1.925.0), meist in Tagen
+  { name: "pauschal", label: "Pauschalzeit (extern)", typ: "zahl" }, { name: "pauschal_einheit", label: "Einheit Pauschalzeit", platzhalter: "Tag" },
   { name: "pruef", label: "Prüfung / Hinweis", typ: "textarea", zeilen: 2, breit: true },
 ];
 
@@ -499,7 +501,7 @@ function ArbeitsplanReiter({ w, setW, set, roh }) {
     {/* Reihenfolge mit Ziehen wie in der Kalkulation (seit 1.804.0, Wunsch Patrick 25. November 2026) */}
     <div className="gf-tab-huelle erp-ap">
       <div className="erp-ap__zeile erp-ap__kopf" aria-hidden="true">
-        <span>Pos</span><span>I/E</span><span>AG-Code</span><span>Beschreibung</span><span>Arbeitsplatz</span><span className="rechts">SZ s</span><span className="rechts">RZ h</span>
+        <span>Pos</span><span>I/E</span><span>AG-Code</span><span>Beschreibung</span><span>Arbeitsplatz</span><span className="rechts">SZ s / Pauschal</span><span className="rechts">RZ h</span>
       </div>
       {!ap.length && <div className="gf-tab__leer">Noch kein Arbeitsgang. Meist kommt er aus der Kalkulation.</div>}
       <ZiehListe id="erp-ap-liste" className="erp-ap__liste" darf={true}
@@ -513,7 +515,7 @@ function ArbeitsplanReiter({ w, setW, set, roh }) {
           <div className={"erp-ap__zeile erp-klick" + (wahl === i ? " gewaehlt" : "")} data-erp-zeile={i}
             onClick={() => setWahl(i)} onDoubleClick={() => bearbeiten(i)}>
             <span>{(i + 1) * 10}</span><span>{x.extern ? "E" : "I"}</span><span>{x.code || x.ag_code || ""}</span><span>{x.bez || ""}</span>
-            <span>{x.maschine || ""}</span><span className="rechts">{x.te || ""}</span><span className="rechts">{x.ruest || ""}</span>
+            <span>{x.maschine || ""}</span><span className="rechts">{x.extern && x.pauschal ? x.pauschal + " " + (x.pauschal_einheit || "") : x.te || ""}</span><span className="rechts">{x.ruest || ""}</span>
           </div> }))} />
     </div>
     <div className="gf-zeile gf-knoepfe">

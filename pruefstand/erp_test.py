@@ -123,6 +123,7 @@ with sync_playwright() as p:
     # Arbeitsgang im FA öffnen und ändern (seit 1.921.0)
     oben(pg).locator("[data-erp-ag-oeffnen='0']").click(); pg.wait_for_selector(".dialog input[data-erp-feld='maschine']")
     dlg = pg.locator(".dialog:has(input[data-erp-feld='maschine'])").last
+    pruefe(dlg.locator("[data-erp-feld='pauschal']").count() == 1, "Arbeitsgang mit Feld Pauschalzeit (seit 1.925.0)")
     dlg.locator("input[data-erp-feld='maschine']").fill("125"); dlg.locator("[data-erp-speichern]").click(); pg.wait_for_timeout(800)
     fa = [b for b in tabelle(pg, "erp_belege") if b["typ"] == "fertigung"]
     pruefe(fa[0]["daten"]["ap"][0].get("maschine") == "125" and bool(fa[0]["daten"]["ap"][0].get("erledigt_am")), "Arbeitsgang im FA geöffnet und geändert: %s" % fa[0]["daten"]["ap"][0])
@@ -223,6 +224,26 @@ with sync_playwright() as p:
     pruefe(pg.locator("[data-logi-kachel='we-za']").count() == 1 and pg.locator("[data-logi-funktion='we-za']").count() == 1,
            "Logistik mit Kachel und Liste Wareneingang ZA extern")
     pg.screenshot(path=BILD + "/erp-logistik.png")
+    # Kachel ZA extern anlegen (seit 1.925.0): externer Arbeitsgang im offenen FA wird zur Bestellung beim Lieferanten
+    pg.evaluate("""() => { const fa = TEST.daten.erp_belege.find(b => b.typ === 'fertigung');
+      fa.status = 'offen'; fa.daten = { ...fa.daten, ap: [...fa.daten.ap, { pos: 30, bez: 'Härten', code: 'HAERT', extern: true, lieferant_nr: '70001', pauschal: 5, pauschal_einheit: 'Tag' }] };
+      const a = TEST.daten.erp_artikel.find(x => x.id === 'a1'); a.arbeitsplan = [...(a.arbeitsplan || []), { pos: 90, bez: 'Härten', code: 'HAERT', extern: true, lieferant_nr: '70001', pauschal: 5 }]; }""")
+    pg.evaluate("location.hash='#/'"); pg.wait_for_timeout(500)
+    pg.evaluate("location.hash='#/erp'"); pg.wait_for_selector("[data-erp-reiter='logistik']"); pg.wait_for_timeout(500)
+    pg.click("[data-erp-reiter='logistik']"); pg.wait_for_timeout(500)
+    pg.click("[data-logi-kachel='za-neu']"); pg.wait_for_timeout(300)
+    z = pg.locator("[data-logi-funktion='za-neu'] .erp-tabelle tbody tr")
+    pruefe(z.count() == 1 and "Stahl AG" in z.first.inner_text() and "HAERT" in z.first.inner_text(), "ZA extern anlegen: offener externer Arbeitsgang mit Lieferant")
+    z.first.click(); pg.wait_for_timeout(600)
+    pruefe(oben(pg).count() == 1 and "Stahl AG" in oben(pg).inner_text(), "neue Bestellung ZA extern vorausgefüllt")
+    pg.screenshot(path=BILD + "/erp-za-neu.png")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    if pg.locator(".dialog-huelle [data-ja]").count(): pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(300)
+    # Ohne FA über den Arbeitsplan des Artikels
+    pg.click("[data-logi-za-ap]"); pg.wait_for_selector("[data-logi-ap-fenster] input")
+    pg.fill("[data-logi-ap-fenster] input", "10007"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-logi-ap-fenster] .erp-tabelle tbody tr").count() >= 1, "ZA extern über den Arbeitsplan: Artikel mit externem Arbeitsgang")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
 
     # Spaltenkopf antippen sortiert (seit 1.898.0): Hofer-Artikel nach Index auf- und absteigend
     pg.click("[data-erp-reiter='stamm']"); pg.wait_for_timeout(300)

@@ -3,6 +3,13 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.925.0 (27. November 2026)
+
+- Test ERP → Logistik: neue Kachel „ZA extern anlegen“. Listet die externen Arbeitsgänge offener FAs ohne Bestellung; Antippen öffnet eine neue Bestellung ZA extern, ausgefüllt mit Lieferant, Artikel, Menge und Termin (heute + Pauschalzeit), verknüpft über `daten.fa_id`/`ag_pos`. Ohne FA im Einzelfall über den Arbeitsplan des Artikels (`ZaAusArbeitsplan`).
+- Arbeitsgang-Fenster mit Pauschalzeit und Einheit (`pauschal`, `pauschal_einheit`); Artikel-Arbeitsplan zeigt bei extern die Pauschalzeit.
+- Rote Anzeige „überfällig“ steht in der Zeile der Zahl und verdeckt den Titel nicht mehr.
+- `sql/erp-arbeitsplan-gewatec-details.sql`: Maschine, Stückzeit, Rüstzeit, Lieferant und Pauschalzeit aus dem Gewatec-Export 4 in Artikel und FAs (nur leere Felder).
+
 ## 1.924.0 (27. November 2026)
 
 - Planwand: Was im Fenster beim Drüberfahren über einen Auftrag steht, wählt jede Person selbst (Einstellungen → Allgemein → „Planwand: Fenster beim Drüberfahren“): Häkchen je Zeile, Reihenfolge mit ↑ ↓, „Wie am Anfang“. Gespeichert am Konto (`planInfoFelder`, Komma-Liste, „-“ = nichts), ohne Wahl wie bisher. Externe haben die Wahl nicht (Entscheid Patrick 27. November 2026). Liste `PLAN_INFO_FELDER` in `app.js`, Test `pruefstand/planinfo_wahl.py`.

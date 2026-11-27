@@ -17896,3 +17896,6 @@ body.dunkel .gfn-oben__feld { fill: #2a3546; }
 .planinfo-wahl__pfeil:disabled { opacity: .3; cursor: default; }
 body.dunkel .planinfo-wahl__zeile { background: rgba(255,255,255,.04); border-color: rgba(255,255,255,.18); }
 body.dunkel .planinfo-wahl__pfeil { border-color: rgba(255,255,255,.25); }
+
+/* 1.925.0: rote Anzeige „überfällig“ in der Zeile der Zahl statt oben rechts über dem Titel */
+.logi-kachel__warn { position: static; display: inline-block; vertical-align: middle; margin-left: 8px; }
