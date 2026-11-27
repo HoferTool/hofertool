@@ -128,7 +128,7 @@ document.addEventListener("pointerdown", (e) => {
   // Fenster über den ganzen Bildschirm lassen sich nicht sinnvoll ziehen
   if (r.width >= innerWidth - 4 && r.height >= innerHeight - 4) return;
   const v = verschiebung(f);
-  zug = { h, f, x0: e.clientX, y0: e.clientY, vx: v.x, vy: v.y, r, los: false };
+  zug = { h, f, x0: e.clientX, y0: e.clientY, vx: v.x, vy: v.y, r, los: false, pid: e.pointerId };
 }, true);
 
 // Über den Rand des Browsers hinaus gezogen: das Fenster zieht in ein
@@ -151,8 +151,17 @@ function zuFuer(h) {
   };
 }
 
+// Ohne Pointer Capture meldet der Browser keine Bewegung mehr, sobald die Maus
+// das Fenster verlässt: der Rand wurde bei schnellem Ziehen nie erreicht
+// (Patrick 27. November 2026: „kann die Fenster noch immer nicht aus dem
+// HoferTool heraus bewegen“).
+function fangLos(z) {
+  try { if (z && z.f.hasPointerCapture && z.f.hasPointerCapture(z.pid)) z.f.releasePointerCapture(z.pid); } catch (f) { /* egal */ }
+}
+
 function herausziehen(z, e) {
   const { h, f, x0, y0, r } = z;
+  fangLos(z);
   zug = null;
   document.body.classList.remove("fenster-zieht");
   const griff = { x: x0 - r.left, y: y0 - r.top };
@@ -174,9 +183,10 @@ document.addEventListener("pointermove", (e) => {
     zug.los = true;
     document.body.classList.add("fenster-zieht");
     freiMachen(zug.h);
+    try { zug.f.setPointerCapture(zug.pid); } catch (f) { /* egal */ }
   }
-  const draussen = e.clientX <= 0 || e.clientY <= 0
-    || e.clientX >= innerWidth - 1 || e.clientY >= innerHeight - 1;
+  const draussen = e.clientX <= 3 || e.clientY <= 3
+    || e.clientX >= innerWidth - 4 || e.clientY >= innerHeight - 4;
   if (draussen && herausMoeglich()) { herausziehen(zug, e); e.preventDefault(); return; }
   // Der Titel bleibt immer erreichbar: oben nicht über den Rand,
   // seitlich und unten mindestens 80 Punkte sichtbar
@@ -187,7 +197,13 @@ document.addEventListener("pointermove", (e) => {
   e.preventDefault();
 }, true);
 
-const zugEnde = () => {
+const zugEnde = (e) => {
+  // Losgelassen ausserhalb (die letzte Bewegung kam nicht mehr an)
+  if (zug && zug.los && e && e.type === "pointerup" && herausMoeglich()
+    && (e.clientX < 0 || e.clientY < 0 || e.clientX > innerWidth || e.clientY > innerHeight)) {
+    herausziehen(zug, e); return;
+  }
+  fangLos(zug);
   if (zug && zug.los) {
     document.body.classList.remove("fenster-zieht");
     // Der Klick nach dem Loslassen soll nichts auslösen

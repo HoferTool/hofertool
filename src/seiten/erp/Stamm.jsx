@@ -8,6 +8,7 @@
 // (Patrick: „alles was blau und unterstrichen ist, kann ich mit rechts
 // klicken und es zeigt dann logische Schnittstellen“).
 import { createContext, useContext, useRef, useState, useEffect } from "react";
+import { speichernFragen } from "../../teile/Dialoge.jsx";
 
 const MenueKontext = createContext(null);
 
@@ -137,8 +138,16 @@ export function BildFlaeche({ text, attr }) {
   return <div className="gf-bildflaeche" {...(attr || {})}><span>{text || "Bild"}</span><small>kommt mit dem Dokumentenmanagement</small></div>;
 }
 
-// Vor dem Schliessen mit Änderungen einmal nachfragen
-export async function schliessenFragen(geaendert, alt) {
+// Vor dem Schliessen mit Änderungen einmal nachfragen: Speichern,
+// Verwerfen oder Abbrechen. → true (zu, nicht gespeichert),
+// "gespeichert" (gespeichert, speichern hat evtl. selbst geschlossen)
+// oder false (offen lassen)
+export async function schliessenFragen(geaendert, alt, speichern) {
   if (!geaendert) return true;
-  return alt.nachfragen({ titel: "Nicht gespeichert", text: "Änderungen verwerfen?", bestaetigen: "Verwerfen", gefahr: true });
+  if (!speichern) return alt.nachfragen({ titel: "Nicht gespeichert", text: "Änderungen verwerfen?", bestaetigen: "Verwerfen", gefahr: true });
+  const w = await speichernFragen();
+  if (w === "verwerfen") return true;
+  if (w !== "speichern") return false;
+  try { await speichern(); return "gespeichert"; }
+  catch (e) { alt.meldung(e?.message || String(e), "fehler"); return false; }
 }

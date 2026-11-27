@@ -229,10 +229,10 @@ function BelegFenster({ start, id, vorlage, aussen, zu }) {
   const bearbeitenStarten = () => { basis.current = JSON.stringify([kopf, pos]); setBearbeiten(true); };
   const geaendert = bearbeiten && JSON.stringify([kopf, pos]) !== basis.current;
   const abbrechen = async () => {
-    if (!(await schliessenFragen(geaendert, alt))) return;
+    const r = await schliessenFragen(geaendert, alt, speichern); if (!r || r === "gespeichert") return;
     if (b) { setBearbeiten(false); setKopf(kopfAus(b)); setPos(posAus(d.posJe.get(b.id) || [])); } else zu();
   };
-  const schliessen = async () => { if (await schliessenFragen(geaendert, alt)) zu(); };
+  const schliessen = async () => { if (await schliessenFragen(geaendert, alt, speichern)) zu(); };
   const stand = b ? belegStand(d, b) : null;
   const summe = b && mitPreis(typ) ? belegSumme(d, b) : null;
   const titel = t.name + " " + (b ? b.nr : "neu") + (kopf.art === "rahmen" ? " · Rahmenauftrag" : "")
@@ -644,7 +644,7 @@ function PositionFenster({ d, aussen, b, p, frisch, zu }) {
     alt.meldung("Position " + p.pos + " gelöscht.", "gut");
     await frisch(); zu();
   };
-  const schliessen = async () => { if (await schliessenFragen(geaendert, alt)) zu(); };
+  const schliessen = async () => { if ((await schliessenFragen(geaendert, alt, speichern)) === true) zu(); };
   const artMenue = a && [["Artikel öffnen", () => artikelFensterOeffnen(d, aussen, a)], ["Artikel-Cockpit", () => cockpitOeffnen(d, aussen, a)]];
 
   const kopf = <>
@@ -816,7 +816,7 @@ function LieferplanFenster({ d, aussen, b, p, frisch, zu }) {
     alt.meldung("Lieferplan gespeichert.", "gut");
     await frisch(); zu();
   };
-  const schliessen = async () => { if (await schliessenFragen(geaendert, alt)) zu(); };
+  const schliessen = async () => { if ((await schliessenFragen(geaendert, alt, speichern)) === true) zu(); };
   const kopf = <>
     <KF label="Auftrag" nurLesen wert={<b>{b.nr}</b>} />
     <KF label="Position" nurLesen wert={p.pos} />

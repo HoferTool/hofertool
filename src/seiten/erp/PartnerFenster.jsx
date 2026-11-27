@@ -76,7 +76,7 @@ function PartnerFenster({ start, aussen, p0, art, reiter0, zu }) {
     alt.meldung((kunde ? "Kunde " : "Lieferant ") + r.nr + " gespeichert.", "gut");
   };
 
-  const schliessen = async () => { if (await schliessenFragen(geaendert, alt)) zu(); };
+  const schliessen = async () => { if (await schliessenFragen(geaendert, alt, speichern)) zu(); };
   const weg = async () => {
     if (!p) return zu();
     if (d.belege.some((b) => b.partner_id === p.id) || d.artikel.some((a) => a.kunde_id === p.id)) {

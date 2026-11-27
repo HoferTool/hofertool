@@ -152,7 +152,7 @@ function ArtikelFenster({ start, aussen, a0, was, zu }) {
     alt.meldung("Artikel " + artikelText(r) + " gespeichert.", "gut");
   };
 
-  const schliessen = async () => { if (await schliessenFragen(geaendert, alt)) zu(); };
+  const schliessen = async () => { if (await schliessenFragen(geaendert, alt, speichern)) zu(); };
   const artLoeschen = async () => {
     if (!a) return zu();
     if (d.positionen.some((p) => p.artikel_id === a.id) || d.bewegungen.some((x) => x.artikel_id === a.id)) {
@@ -573,22 +573,36 @@ function LagerReiter({ d, a, neu, aussen }) {
           klick: () => umbuchenOeffnen(d, e, neu),
           zellen: [(e.idx || "–") + (a.art === "hofer" && (e.idx || "") !== (a.idx || "") ? " (alt)" : ""), e.charge,
             l ? l.lagerart : "–", l ? l.platz : "–", mengeText(e.menge) + " " + (a.einheit || "")] }; })} />
-    <p className="klein">Zeile antippen zum Umbuchen, Zubuchen oder Abbuchen, immer mit Vermerk.{" "}
-      <button type="button" className="knopf knopf--klein" data-erp-zubuchen-neu="" onClick={() => umbuchenOeffnen(d, null, neu, a)}>+ Zubuchen</button></p>
+    <p className="klein">Zeile antippen: Umbuchen, Zubuchen oder Abbuchen auf diesem Bestand. „+ Zubuchen neuer Bestand“ für neue Charge, Index oder Platz.{" "}
+      <button type="button" className="knopf knopf--klein" data-erp-zubuchen-neu="" onClick={() => umbuchenOeffnen(d, null, neu, a)}>+ Zubuchen neuer Bestand</button></p>
     <p className="gf-summe">Bestand gesamt <b>{mengeText(summe)} {a.einheit}</b></p>
     <h4 className="erp-lager-bew">Lagerbewegungen</h4>
     <BewegungListe d={d} artikelId={a.id} aussen={aussen} />
   </>;
 }
 
+// Häkchen je Belegart (Wunsch Patrick 27. November 2026: „hier will ich
+// checkboxen für die belegart“), wie bei den Lagerbewegungen. Nur Arten, die
+// beim Artikel vorkommen; abgewählte merkt sich das Fenster nur, solange es offen ist.
 function BelegeReiter({ d, a, aussen }) {
+  const [aus, setAus] = useState({});
   if (!a) return <p className="klein">Erst speichern.</p>;
-  const pos = d.positionen.filter((p) => p.artikel_id === a.id).map((p) => ({ p, b: d.belegMap.get(p.beleg_id) })).filter((x) => x.b)
+  const alle = d.positionen.filter((p) => p.artikel_id === a.id).map((p) => ({ p, b: d.belegMap.get(p.beleg_id) })).filter((x) => x.b)
     .sort((x, y) => (y.b.datum || "").localeCompare(x.b.datum || ""));
-  return <GTabelle kopf={["Beleg", "Nr.", "Datum", "Partner", "Menge", "Preis", "Stand"]} rechts={[4, 5]} leer="Noch in keinem Beleg."
+  const typen = Object.keys(BELEGTYP).filter((t) => alle.some((x) => x.b.typ === t));
+  const pos = alle.filter((x) => !aus[x.b.typ]);
+  return <>
+    {typen.length > 1 && <div className="mat-kopf"><span className="erp-bew-arten">
+      {typen.map((t) => <label key={t} data-erp-beleg-art={t}>
+        <input type="checkbox" checked={!aus[t]} onChange={(e) => setAus({ ...aus, [t]: !e.target.checked })} /> {BELEGTYP[t].name}
+        {" "}<span className="klein">({alle.filter((x) => x.b.typ === t).length})</span>
+      </label>)}
+    </span></div>}
+    <GTabelle kopf={["Beleg", "Nr.", "Datum", "Partner", "Menge", "Preis", "Stand"]} rechts={[4, 5]} leer="Noch in keinem Beleg."
     zeilen={pos.map(({ p, b }) => ({ key: p.id, klick: () => belegOeffnen(d, aussen, b),
       zellen: [BELEGTYP[b.typ].name, <b>{b.nr}</b>, datumText(b.datum), partnerText(d.partnerMap.get(b.partner_id)),
-        mengeText(p.menge) + " " + (p.einheit || ""), p.preis != null ? chf(p.preis) : "", belegStand(d, b)[0]] }))} />;
+        mengeText(p.menge) + " " + (p.einheit || ""), p.preis != null ? chf(p.preis) : "", belegStand(d, b)[0]] }))} />
+  </>;
 }
 
 export function preislisteDrucken(d, a) {
