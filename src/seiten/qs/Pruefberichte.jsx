@@ -189,7 +189,7 @@ function materialText(j) {
 async function protokollAnlegen(hoco, art, j, protokolle, zwischen) {
   const st = await stammMitMassen(hoco);
   if (!st || !(st.zeilen || []).length) {
-    const ok = await alt.nachfragen({ titel: "Noch keine Masse", text: "Für " + hoco + " sind noch keine Prüfmasse erfasst. In den Stammdaten eintragen oder einen Excel-Prüfbericht einlesen.", bestaetigen: "Stammdaten öffnen" });
+    const ok = await alt.nachfragen({ titel: "Noch keine Masse", text: "Für " + hoco + " sind noch keine Prüfmasse erfasst. Bitte zuerst im Prüfbericht eintragen.", bestaetigen: "Stammdaten öffnen" });
     if (ok) stammdatenOeffnen(hoco);
     return null;
   }
