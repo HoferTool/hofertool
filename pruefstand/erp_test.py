@@ -120,6 +120,12 @@ with sync_playwright() as p:
     oben(pg).locator("[data-erp-ag='0'] input").click(); pg.wait_for_timeout(800)
     fa = [b for b in tabelle(pg, "erp_belege") if b["typ"] == "fertigung"]
     pruefe(bool(fa[0]["daten"]["ap"][0].get("erledigt_am")) and oben(pg).locator("[data-erp-ag='0'] input").is_checked(), "Arbeitsgang abgehakt")
+    # Arbeitsgang im FA öffnen und ändern (seit 1.921.0)
+    oben(pg).locator("[data-erp-ag-oeffnen='0']").click(); pg.wait_for_selector(".dialog input[data-erp-feld='maschine']")
+    dlg = pg.locator(".dialog:has(input[data-erp-feld='maschine'])").last
+    dlg.locator("input[data-erp-feld='maschine']").fill("125"); dlg.locator("[data-erp-speichern]").click(); pg.wait_for_timeout(800)
+    fa = [b for b in tabelle(pg, "erp_belege") if b["typ"] == "fertigung"]
+    pruefe(fa[0]["daten"]["ap"][0].get("maschine") == "125" and bool(fa[0]["daten"]["ap"][0].get("erledigt_am")), "Arbeitsgang im FA geöffnet und geändert: %s" % fa[0]["daten"]["ap"][0])
     oben(pg).locator("[data-erp-aktion='material']").click(); pg.wait_for_selector(".dialog:has-text('Material für') input")
     pg.locator(".dialog:has-text('Material für') input[data-erp-feld='menge']").fill("30")
     pg.locator(".dialog:has-text('Material für') [data-erp-ja]").click(); pg.wait_for_timeout(800)
@@ -211,6 +217,12 @@ with sync_playwright() as p:
     pg.locator("[data-erp-be-art='za'] input").check(); pg.locator("[data-erp-be-art='andere'] input").check()
     pruefe(n_roh <= n_be, "nur Rohmaterial: %s von %s" % (n_roh, n_be))
     pg.evaluate("TEST.erpAlle = true")
+
+    # Logistik: Kachel Wareneingang ZA extern (seit 1.920.0)
+    pg.click("[data-erp-reiter='logistik']"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-logi-kachel='we-za']").count() == 1 and pg.locator("[data-logi-funktion='we-za']").count() == 1,
+           "Logistik mit Kachel und Liste Wareneingang ZA extern")
+    pg.screenshot(path=BILD + "/erp-logistik.png")
 
     # Spaltenkopf antippen sortiert (seit 1.898.0): Hofer-Artikel nach Index auf- und absteigend
     pg.click("[data-erp-reiter='stamm']"); pg.wait_for_timeout(300)

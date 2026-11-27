@@ -178,7 +178,7 @@ with sync_playwright() as p:
 
     pruefe(pg.locator("[data-gf-export='stl'], [data-gf-export='3mf']").count() == 0, "nur noch ein Knopf STL")
 
-    # Schublade layouten (1.921.0): Masse, Raster, Boxen und Einlagen ziehen
+    # Schublade layouten (1.922.0): Masse, Raster, Boxen und Einlagen ziehen
     pg.click("[data-gf-art='schublade']"); pg.wait_for_selector("[data-gf-oben]")
     pruefe("10 × 7 Felder" in pg.inner_text("[data-gf-sraster]"), "Schublade 430×309 = 10 × 7: " + pg.inner_text("[data-gf-sraster]"))
     pg.click("[data-gf-shinzu]"); pg.click("[data-gf-sneu='box']"); pg.wait_for_timeout(200)

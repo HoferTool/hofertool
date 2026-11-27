@@ -7,13 +7,14 @@ import { allesLaden } from "../../daten/erp.js";
 import Stammdaten, { Artikel } from "./Stammdaten.jsx";
 import Kalkulation from "../Kalkulation.jsx";
 import { BelegListe, Rechnungen, Fibu } from "./Belege.jsx";
+import Logistik from "./Logistik.jsx";
 
 // Reihenfolge: zuerst Kalkulation, Stammdaten gleich nach Rechnungen
 // (Wunsch Patrick 21. November 2026; 27. November 2026: Artikel nach Kalkulation,
 // Stammdaten nach Rechnungen, kein Lagerjournal mehr)
 const REITER = [
   ["kalk", "Kalkulation"], ["artikel", "Artikel"],
-  ["auftrag", "Aufträge"], ["fertigung", "Fertigung"], ["bestellung", "Bestellungen"], ["lieferschein", "Lieferscheine"],
+  ["auftrag", "Aufträge"], ["fertigung", "Fertigung"], ["bestellung", "Bestellungen"], ["logistik", "Logistik"], ["lieferschein", "Lieferscheine"],
   ["rechnung", "Rechnungen"], ["stamm", "Stammdaten"], ["fibu", "Fibu"],
 ];
 const gemerkt = { reiter: "kalk", kalk: "modul" };
@@ -47,6 +48,7 @@ export default function ErpInhalt({ auffrischen }) {
           hinweis="Lieferscheine entstehen im Auftrag und liefern nur Bestand mit demselben Index." />}
         {reiter === "rechnung" && <Rechnungen d={d} neu={neu} />}
         {reiter === "fibu" && <Fibu d={d} neu={neu} />}
+        {reiter === "logistik" && <Logistik d={d} neu={neu} />}
         {reiter === "artikel" && <Artikel d={d} neu={neu} />}
         {reiter === "kalk" && <div className="erp-kalk">
           {/* Das bestehende Modul Kalkulation steht seit 1.672.0 hier (Wunsch Patrick) */}

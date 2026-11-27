@@ -1,5 +1,5 @@
 // =================================================================
-//  GRIDFINITY: SCHUBLADE LAYOUTEN (seit 1.921.0, Wunsch Patrick
+//  GRIDFINITY: SCHUBLADE LAYOUTEN (seit 1.922.0, Wunsch Patrick
 //  27. November 2026: „ein Tab, wo man visuell anschauen kann, wenn man
 //  Masse für eine Schublade eingibt, dass man dann die ganze Schublade mit
 //  Boxen und Einlagen layouten kann“)
