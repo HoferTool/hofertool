@@ -266,8 +266,8 @@ export function lehrenAus(vorlage) {
       const key = (name + "|" + (t ? toleranzText(t) : mass)).toLowerCase();
       const da = lehren.get(key);
       const vonHand = /\d\s*\/\s*\d/.test(pm);
-      if (da) { da.nr.push(zl.nr || "–"); if (vonHand && !da.vonHand) { da.mass = mass; da.vonHand = true; } }
-      else lehren.set(key, { name, mass, soll: zl.soll, nr: [zl.nr || "–"], vonHand });
+      if (da) { da.nr.push(zl.nr || "–"); if (vonHand && !da.vonHand) { da.mass = mass; da.vonHand = true; } if (!da.pmId && zl.pm_id) da.pmId = zl.pm_id; }
+      else lehren.set(key, { name, mass, soll: zl.soll, nr: [zl.nr || "–"], vonHand, ...(zl.pm_id ? { pmId: zl.pm_id } : {}) });
     } else if (!KEIN_MESSMITTEL.test(pm) && !SELBST_RE.test(pm)) {
       const w = pm.split(/[\/Ø(]/)[0].trim();
       if (!w) continue;
@@ -315,6 +315,11 @@ function grenzenLehre(lehre) {
 const istStift = (p) => STIFT_RE.test((p.typ || "") + " " + (p.bezeichnung || ""));
 
 export function pruefmittelFuer(lehre, liste, hoco) {
+  // Im Masse-Blatt fest gewähltes Mittel (seit 1.897.0) zuerst, sonst wie bisher suchen
+  if (lehre && lehre.pmId) {
+    const x = (liste || []).find((p) => p.id === lehre.pmId && (!p.status || p.status === "aktiv"));
+    if (x) return [x];
+  }
   const name = String(lehre.name || "");
   const gew = /gewinde/i.test(name) || /^\s*M\s*\d/i.test(String(lehre.mass || "")) || /^\s*M\s*\d/i.test(String(lehre.soll || ""))
     ? gewindeVon(lehre.mass || lehre.soll) || gewindeVon(lehre.soll) : "";

@@ -17,6 +17,7 @@ import {
   bildVon, massBildHochladen,
 } from "../daten/pruefbericht.js";
 import { FormLage } from "../einrichtblatt/markiert.jsx";
+import { pmWaehlen } from "./PmWahl.jsx";
 
 const KOPF = [["bezeichnung", "Artikel"], ["zeichnung", "Zeichnung"], ["index", "Index"], ["alltol", "Allg. Toleranz"]];
 
@@ -291,6 +292,12 @@ export function MasseBlatt({ w, hoco, schreibt, zeileSetzen, zeileWeg, zeilenLee
     zeileSetzen(id, "soll", neu);
     requestAnimationFrame(() => { try { el.focus(); el.setSelectionRange(a + zeichen.length, a + zeichen.length); } catch (_) { /* egal */ } });
   };
+  // Prüfmittel/Hinweis über ein kleines Fenster wählen (seit 1.897.0)
+  const pmFenster = async (z) => {
+    if (!schreibt) return;
+    const r = await pmWaehlen(z, hoco);
+    if (r) for (const [k, v] of Object.entries(r)) zeileSetzen(z.id, k, v);
+  };
   // Bild je Mass: aus dem Excel gelesen, hochgeladen oder mit Strg + V
   const [laedt, setLaedt] = useState(null);
   const bildSetzen = async (id, datei) => {
@@ -353,7 +360,7 @@ export function MasseBlatt({ w, hoco, schreibt, zeileSetzen, zeileWeg, zeilenLee
               <p className="klein pst-a4-kopf">{[v.bezeichnung, v.zeichnung ? "Zeichnung " + v.zeichnung : "", v.index ? "Index " + v.index : "", v.alltol ? "Allg. Toleranz " + v.alltol : ""].filter(Boolean).join(" · ")}</p>
             </> : <p className="klein pst-a4-weiter">{weiterText || "Prüfmasse " + hoco + " · Fortsetzung"}</p>}
             <table className="pst-a4-tabelle">
-              <thead><tr>{schreibt ? <th className="pst-c-kopf" title="Zeilen markieren: antippen, ziehen, Shift oder Strg" /> : null}<th className="pst-c-nr">Nr.</th><th>Soll</th><th className="pst-c-tol">Toleranz</th><th>Prüfmittel</th><th className="pst-c-ll" title="Kommt auf die Langläufer-Liste">LL</th>{schreibt ? <th className="pst-c-kn" /> : null}</tr></thead>
+              <thead><tr>{schreibt ? <th className="pst-c-kopf" title="Zeilen markieren: antippen, ziehen, Shift oder Strg" /> : null}<th className="pst-c-nr">Nr.</th><th>Soll</th><th className="pst-c-tol">Toleranz</th><th>Prüfmittel/Hinweis</th><th className="pst-c-ll" title="Kommt auf die Langläufer-Liste">LL</th>{schreibt ? <th className="pst-c-kn" /> : null}</tr></thead>
               <tbody>
                 {seite.map(({ z, i }) => "abschnitt" in z ? (
                   <tr key={z.id} className={"pst-abschnitt" + (mark.has(z.id) ? " pst-markiert" : "")} data-pstzeile={z.id}>
@@ -377,7 +384,9 @@ export function MasseBlatt({ w, hoco, schreibt, zeileSetzen, zeileWeg, zeilenLee
                         : <button type="button" className="pst-bildknopf" title="Bild des Masses einfügen (oder Strg + V im Feld)" data-pstbildneu={z.id} onClick={() => bildWaehlen(z.id)}>🖼</button>) : null}
                     </div></td>
                     <td className="pst-c-tol">{(() => { const t = toleranz(z.soll); return t ? toleranzText(t) : "—"; })()}</td>
-                    <td><input value={z.pm || ""} disabled={!schreibt} onChange={(e) => zeileSetzen(z.id, "pm", e.target.value)} onKeyDown={enter(i)} /></td>
+                    <td><input className="pst-pm" data-pstpm={z.id} readOnly value={z.pm || ""} disabled={!schreibt} placeholder={schreibt ? "wählen …" : ""}
+                      title="Antippen: Prüfmittel, Prüfstifte oder Hinweis wählen"
+                      onClick={() => pmFenster(z)} onKeyDown={(e) => { if (e.key === " " || e.key === "F2") { e.preventDefault(); pmFenster(z); } else enter(i)(e); }} /></td>
                     <td className="pst-c-ll"><input type="checkbox" checked={!!z.ll} disabled={!schreibt} onChange={() => zeileSetzen(z.id, "ll", !z.ll)} /></td>
                     {schreibt ? <td className="pst-c-kn">
                       <button type="button" className="knopf knopf--klein" title="Abschnitt davor einfügen" data-pstabschnittdavor="" onClick={() => zeileDazu(true, i)}>§</button>
@@ -386,7 +395,7 @@ export function MasseBlatt({ w, hoco, schreibt, zeileSetzen, zeileWeg, zeilenLee
                 ))}
               </tbody>
             </table>
-            {!w.zeilen.length ? <p className="hinweis">Noch keine Masse. Mit „+ Mass“ beginnen, Enter im Feld Prüfmittel gibt die nächste Zeile.</p> : null}
+            {!w.zeilen.length ? <p className="hinweis">Noch keine Masse. Mit „+ Mass“ beginnen, Prüfmittel/Hinweis antippen zum Wählen, Enter dort gibt die nächste Zeile.</p> : null}
             <p className="pst-a4-fuss klein">Seite {n + 1} von {seiten.length}</p>
           </div>
         ))}
