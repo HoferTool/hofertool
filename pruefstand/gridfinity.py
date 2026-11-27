@@ -1,5 +1,6 @@
 # Gridfinity (1.895.0, Wunsch Patrick 27. November 2026): Boxen und
 # Grundplatten nach Gridfinity, 3D-Vorschau, Export 3MF und STL.
+# 1.899.0: Magnet-Sockel in den Ecken, Anschliessbar mit Verbindern.
 # Prüft: Externe sehen nichts, Masse nach Norm, Netz geschlossen,
 # 3MF und STL lesbar, Handy ohne seitliches Rollen.
 import time, os, io, zipfile, struct, re
@@ -95,7 +96,17 @@ with sync_playwright() as p:
     pruefe(masse(v) == [299.5, 199.5, 4.4] and kanten_geschlossen(tri) == 0 and volumen(v, tri) > 0, "Platte geschlossen %s, %s" % (masse(v), name))
     pg.click("[data-gf-platte='felder']"); pg.click("[data-gf='pmagnete']"); pg.wait_for_timeout(400)
     name, dateien, v, tri = lade_3mf(pg)
-    pruefe(masse(v) == [168.0, 126.0, 7.6] and kanten_geschlossen(tri) == 0 and volumen(v, tri) > 0, "Platte 4×3 mit Magneten %s" % masse(v))
+    pruefe(masse(v) == [168.0, 126.0, 7.9] and kanten_geschlossen(tri) == 0 and volumen(v, tri) > 0, "Platte 4×3 mit Magnet-Sockeln %s" % masse(v))
+    # Anschliessbar (1.899.0): Kerben am Rand, Verbinder als eigene Datei
+    pg.fill("[data-gf='magD']", "6,2"); pg.press("[data-gf='magD']", "Enter")
+    pg.click("[data-gf='anschluss']"); pg.wait_for_timeout(400)
+    pruefe("3 an der Seite mit 4" in pg.inner_text("[data-gf-verbinder]"), "Verbinder je Stoss: " + pg.inner_text("[data-gf-verbinder]"))
+    name, dateien, v2, tri2 = lade_3mf(pg)
+    pruefe(kanten_geschlossen(tri2) == 0 and volumen(v2, tri2) < volumen(v, tri), "anschliessbar geschlossen, Kerben nehmen Material weg")
+    with pg.expect_download() as d: pg.click("[data-gf-export='verbinder']")
+    z = zipfile.ZipFile(d.value.path()); m = z.read("3D/3dmodel.model").decode()
+    vv = [tuple(float(x) for x in t) for t in re.findall(r'<vertex x="([-\d.e]+)" y="([-\d.e]+)" z="([-\d.e]+)"', m)]
+    pruefe(d.value.suggested_filename == "gridfinity-verbinder.3mf" and masse(vv)[0] < 10, "Verbinder %s %s" % (d.value.suggested_filename, masse(vv)))
     pg.screenshot(path=BILD + "/gf-platte.png")
     pg.reload(); pg.wait_for_selector("[data-gf-3d] canvas", timeout=30000)
     pruefe(pg.locator("[data-gf-art='platte'].aktiv").count() == 1, "nach Neuladen wieder bei der Grundplatte")

@@ -17709,3 +17709,6 @@ th.erp-sortkopf { cursor: pointer; user-select: none; white-space: nowrap; }
 th.erp-sortkopf:hover { text-decoration: underline; }
 th.erp-sortkopf--an { color: #0b5cad; }
 body.dunkel th.erp-sortkopf--an { color: #8cc4ff !important; }
+/* Gridfinity: Magnetmasse eingerückt unter dem Schalter (1.899.0) */
+.gfn-unter { margin: -4px 0 10px 30px; padding-left: 10px; border-left: 2px solid var(--linie-stark); }
+.gfn-export { flex-wrap: wrap; }

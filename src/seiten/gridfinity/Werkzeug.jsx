@@ -11,7 +11,7 @@ import { alt } from "../../bruecke.jsx";
 import { useEntwurfZurueck } from "../../teile/lokalZurueck.js";
 import {
   BOX_VORGABE, PLATTE_VORGABE, boxPruefen, plattePruefen, boxMasse, platteMasse,
-  boxNetz, platteNetz, stlBinaer, dreiMF, GF,
+  boxNetz, platteNetz, verbinderNetz, verbinderJeKante, stlBinaer, dreiMF, GF,
 } from "./geometrie.js";
 
 const SPEICHER = "hofer.gridfinity";
@@ -61,6 +61,16 @@ function Zahl({ titel, wert, setzen, min, max, schritt = 1, einheit, hinweis, na
   );
 }
 
+// Grösse der Magnete (Loch), Vorgabe nach Gridfinity 6,5 × 2,4 für Magnete 6 × 2
+function MagnetMasse({ d, h, setD, setH }) {
+  return (
+    <div className="gfn-unter">
+      <Zahl titel="Magnet Ø" name="magD" wert={d} setzen={setD} min={3} max={7} schritt={0.1} einheit="mm" />
+      <Zahl titel="Magnet Höhe" name="magH" wert={h} setzen={setH} min={1} max={4} schritt={0.1} einheit="mm" />
+    </div>
+  );
+}
+
 function Schalter({ titel, an, setzen, name, text }) {
   return (
     <label className="gfn-schalter">
@@ -86,15 +96,17 @@ export default function Werkzeug() {
   }, [stand.art, JSON.stringify(stand.art === "box" ? box : platte)]);
 
   const bm = boxMasse(box), pm = platteMasse(platte);
-  const name = stand.art === "box"
+  const dateiName = stand.art === "box"
     ? `gridfinity-box-${box.nx}x${box.ny}x${box.u}` + (box.fx * box.fy > 1 ? `-${box.fx}x${box.fy}faecher` : "")
     : `gridfinity-platte-${pm.nx}x${pm.ny}` + (platte.art === "schublade" ? `-${Math.round(pm.W)}x${Math.round(pm.D)}mm` : "");
   const breit = stand.art === "box" ? bm.W : pm.W, tief = stand.art === "box" ? bm.D : pm.D;
   const zuGross = Math.max(breit, tief) > DRUCKBETT;
 
-  async function speichern(format) {
-    if (!netz) return;
-    const daten = format === "3mf" ? await dreiMF(netz, name) : stlBinaer(netz, name);
+  async function speichern(format, verbinder = false) {
+    const nz = verbinder ? verbinderNetz(platte) : netz;
+    const name = verbinder ? "gridfinity-verbinder" : dateiName;
+    if (!nz) return;
+    const daten = format === "3mf" ? await dreiMF(nz, name) : stlBinaer(nz, name);
     const blob = new Blob([daten], { type: format === "3mf" ? "model/3mf" : "model/stl" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -133,7 +145,8 @@ export default function Werkzeug() {
               <Schalter titel="Stapelrand" name="rand" an={box.rand} setzen={b("rand")} text="Boxen lassen sich aufeinander stellen" />
               <Schalter titel="Beschriftungsleiste" name="leiste" an={box.leiste} setzen={b("leiste")} text="Schräge Leiste hinten in jedem Fach" />
               {box.leiste && <Zahl titel="Leiste tief" name="leisteB" wert={box.leisteB} setzen={b("leisteB")} min={6} max={30} einheit="mm" />}
-              <Schalter titel="Magnetlöcher" name="magnete" an={box.magnete} setzen={b("magnete")} text="Für Magnete 6 × 2 mm, vier je Feld unten" />
+              <Schalter titel="Magnetlöcher" name="magnete" an={box.magnete} setzen={b("magnete")} text="Vier je Feld unten in den Füssen" />
+              {box.magnete && <MagnetMasse d={box.magD} h={box.magH} setD={b("magD")} setH={b("magH")} />}
               <Zahl titel="Wand" name="wand" wert={box.wand} setzen={b("wand")} min={0.8} max={3} schritt={0.2} einheit="mm" />
               <Zahl titel="Boden" name="boden" wert={box.boden} setzen={b("boden")} min={0.6} max={5} schritt={0.2} einheit="mm" />
             </section>
@@ -159,7 +172,13 @@ export default function Werkzeug() {
             </section>
             <section className="gfn-gruppe">
               <h3>Ausführung</h3>
-              <Schalter titel="Magnetlöcher" name="pmagnete" an={platte.magnete} setzen={p("magnete")} text="Vier je Feld, Platte wird 7,6 statt 4,4 mm hoch" />
+              <Schalter titel="Magnetlöcher" name="pmagnete" an={platte.magnete} setzen={p("magnete")} text="Feld bleibt offen, in jeder Ecke ein Sockel mit Loch" />
+              {platte.magnete && <MagnetMasse d={platte.magD} h={platte.magH} setD={p("magD")} setH={p("magH")} />}
+              <Schalter titel="Anschliessbar" name="anschluss" an={platte.anschluss} setzen={p("anschluss")} text="Kerben am Rand, Platten mit Verbindern aneinander stecken" />
+              {platte.anschluss && <p className="gfn-text" data-gf-verbinder>
+                Verbinder je Stoss: {verbinderJeKante(platte).breit} an der Seite mit {pm.nx} Feldern, {verbinderJeKante(platte).tief} an der Seite mit {pm.ny} Feldern. Verbinder von unten in die Kerben beider Platten drücken.
+              </p>}
+              <p className="gfn-text">Höhe {mm(pm.H)} mm</p>
             </section>
           </>}
         </div>
@@ -174,6 +193,8 @@ export default function Werkzeug() {
             <div className="gfn-export">
               <button className="knopf knopf--haupt" data-gf-export="3mf" disabled={!netz} onClick={() => speichern("3mf")}>3MF speichern</button>
               <button className="knopf" data-gf-export="stl" disabled={!netz} onClick={() => speichern("stl")}>STL</button>
+              {stand.art === "platte" && platte.anschluss &&
+                <button className="knopf" data-gf-export="verbinder" onClick={() => speichern("3mf", true)}>Verbinder 3MF</button>}
             </div>
           </div>
         </div>

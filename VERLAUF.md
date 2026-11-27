@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.899.0 (27. November 2026)
+
+Gridfinity-Grundplatte: Magnetlöcher als Eck-Sockel im offenen Feld (wie Patricks Bild), Magnet Ø und Höhe einstellbar, neue Option „Anschliessbar“ mit Kerben am Rand und Verbinder zum Speichern.
+
 ## 1.898.0 (27. November 2026)
 
 Test ERP und Kalkulation: in allen Listen sortiert ein Tipp auf den Spaltenkopf nach dieser Spalte (aufsteigend ▲, nochmals absteigend ▼, ein dritter Tipp zurück), Zahlen und Daten richtig als Zahl bzw. Datum, Leere hinten (`src/teile/sortieren.js`, `Tabelle`/`SortKopf` in `teile.jsx`, `GTabelle`; Wunsch Patrick: „in allen Suchfenstern nach Spalte sortieren“). Die Kalkulationen sortieren alle Treffer, die übrigen Listen die gezeigten Zeilen.

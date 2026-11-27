@@ -80,12 +80,18 @@ export function verbinden(n, ringe, zu = false) {
 
 // Ebene Fläche mit Löchern, nach oben (oben=true) oder unten zeigend
 export function deckel(n, aussen, loecher = [], oben = true) {
-  const v = (r) => r.map((q) => new Vector2(q[0], q[1]));
+  // Mit winzigem Zittern zerlegen: die Zerlegung lässt Punkte weg, die
+  // genau auf einer Linie liegen, das gäbe offene Kanten (T-Stösse)
+  let zz = 12345;
+  const zit = () => { zz = (zz * 16807) % 2147483647; return (zz / 2147483647 - 0.5) * 2e-5; };
+  const v = (r) => r.map((q) => new Vector2(q[0] + zit(), q[1] + zit()));
   const alle = [aussen, ...loecher].flat();
-  const faces = ShapeUtils.triangulateShape(v(aussen), loecher.map(v));
+  const va = v(aussen), vl = loecher.map(v);
+  const zw = [va, ...vl].flat();   // Richtung aus den gezitterten Punkten: flache Dreiecke bleiben stimmig
+  const faces = ShapeUtils.triangulateShape(va, vl);
   for (const [a, b, c] of faces) {
     const A = alle[a], B = alle[b], C = alle[c];
-    const f = (B[0] - A[0]) * (C[1] - A[1]) - (B[1] - A[1]) * (C[0] - A[0]);
+    const f = (zw[b].x - zw[a].x) * (zw[c].y - zw[a].y) - (zw[b].y - zw[a].y) * (zw[c].x - zw[a].x);
     if ((f > 0) === oben) dreieck(n, A, B, C); else dreieck(n, A, C, B);
   }
 }
@@ -100,8 +106,7 @@ function quader(n, x0, y0, z0, x1, y1, z1) {
 
 // Magnetlöcher: Wand zur Lochmitte, Boden des Lochs.
 // richtung +1: Loch geht von z nach oben (Box-Fuss), −1: nach unten (Platte)
-function magnetLoch(n, cx, cy, z, richtung) {
-  const d = GF.mag.d, t = GF.mag.t;
+function magnetLoch(n, cx, cy, z, richtung, d = GF.mag.d, t = GF.mag.t) {
   const unten = kreis(cx, cy, d, richtung > 0 ? z : z - t), obenR = kreis(cx, cy, d, richtung > 0 ? z + t : z);
   verbinden(n, [obenR, unten]);                       // abwärts = nach innen
   if (richtung > 0) deckel(n, obenR, [], false); else deckel(n, unten, [], true);
@@ -111,7 +116,7 @@ const magnetPunkte = (cx, cy) => [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b
 // =================================================================
 //  BOX
 // =================================================================
-export const BOX_VORGABE = { nx: 2, ny: 1, u: 3, wand: 1.2, boden: 1.2, fx: 2, fy: 1, rand: true, magnete: false, leiste: true, leisteB: 12 };
+export const BOX_VORGABE = { nx: 2, ny: 1, u: 3, wand: 1.2, boden: 1.2, fx: 2, fy: 1, rand: true, magnete: false, magD: 6.5, magH: 2.4, leiste: true, leisteB: 12 };
 
 export function boxPruefen(b) {
   const z = (v, min, max, std) => { v = Number(v); return Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : std; };
@@ -119,7 +124,7 @@ export function boxPruefen(b) {
     nx: Math.round(z(b.nx, 1, 10, 2)), ny: Math.round(z(b.ny, 1, 10, 1)), u: Math.round(z(b.u, 1, 30, 3)),
     wand: z(b.wand, 0.8, 3, 1.2), boden: z(b.boden, 0.6, 5, 1.2),
     fx: Math.round(z(b.fx, 1, 20, 1)), fy: Math.round(z(b.fy, 1, 20, 1)),
-    rand: !!b.rand, magnete: !!b.magnete, leiste: !!b.leiste, leisteB: z(b.leisteB, 6, 30, 12),
+    rand: !!b.rand, magnete: !!b.magnete, magD: z(b.magD, 3, 7, 6.5), magH: z(b.magH, 1, 4, 2.4), leiste: !!b.leiste, leisteB: z(b.leisteB, 6, 30, 12),
   };
 }
 
@@ -145,10 +150,10 @@ export function boxNetz(eingabe) {
     const top = GF.fuss[GF.fuss.length - 1];
     ringe.push(rring(cx, cy, top[1], top[1], top[2], GF.fussH + 0.3));   // in den Körper hinein
     verbinden(n, ringe);
-    const loecher = b.magnete ? magnetPunkte(cx, cy).map(([x, y]) => kreis(x, y, GF.mag.d, 0)) : [];
+    const loecher = b.magnete ? magnetPunkte(cx, cy).map(([x, y]) => kreis(x, y, b.magD, 0)) : [];
     deckel(n, ringe[0], loecher, false);
     deckel(n, ringe[ringe.length - 1], [], true);
-    if (b.magnete) for (const [x, y] of magnetPunkte(cx, cy)) magnetLoch(n, x, y, 0, 1);
+    if (b.magnete) for (const [x, y] of magnetPunkte(cx, cy)) magnetLoch(n, x, y, 0, 1, b.magD, b.magH);
   }
 
   // Körper als Becher: aussen hoch, oben rüber, innen runter, Boden
@@ -208,8 +213,19 @@ export function boxNetz(eingabe) {
 
 // =================================================================
 //  GRUNDPLATTE
+//  Offener Rahmen (leicht). Mit Magneten (seit 1.899.0, Wunsch Patrick
+//  27. November 2026 mit Bild: „die Magnetlöcher sollen so aussehen“)
+//  bleibt das Feld offen, in jeder Ecke sitzt unten ein Sockel mit dem
+//  Loch, darüber 0.5 mm Luft, weil der Fuss der Box etwas unter das
+//  Profil ragt. „Anschliessbar“ schneidet unten an jedem Stoss zweier
+//  Felder am Rand eine Schwalbenschwanz-Kerbe ein; zwei Platten hält ein
+//  Verbinder (eigene Datei), der von unten in beide Kerben gesteckt wird.
 // =================================================================
-export const PLATTE_VORGABE = { art: "felder", nx: 4, ny: 3, breite: 300, tiefe: 200, magnete: false };
+export const PLATTE_VORGABE = { art: "felder", nx: 4, ny: 3, breite: 300, tiefe: 200, magnete: false, magD: 6.5, magH: 2.4, anschluss: false };
+
+// Kerbe: Breite an der Kante 2·a, innen 2·b, Tiefe d
+const KERBE = { a: 3, b: 5, d: 5, spiel: 0.15 };
+const SOCKEL_H = 3;     // Höhe unten, wenn nur anschliessbar
 
 export function plattePruefen(p) {
   const z = (v, min, max, std) => { v = Number(v); return Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : std; };
@@ -217,51 +233,186 @@ export function plattePruefen(p) {
     art: p.art === "schublade" ? "schublade" : "felder",
     nx: Math.round(z(p.nx, 1, 20, 4)), ny: Math.round(z(p.ny, 1, 20, 3)),
     breite: z(p.breite, 42, 1000, 300), tiefe: z(p.tiefe, 42, 1000, 200),
-    magnete: !!p.magnete,
+    magnete: !!p.magnete, magD: z(p.magD, 3, 7, 6.5), magH: z(p.magH, 1, 4, 2.4),
+    anschluss: !!p.anschluss,
   };
+}
+
+// Höhe des Sockels unten (0 = kein Sockel, Feld bis unten offen)
+function sockelHoehe(p) {
+  return Math.max(p.anschluss ? SOCKEL_H : 0, p.magnete ? p.magH + 0.6 : 0);
 }
 
 // Felder und Aussenmasse. Bei „Schublade“ füllt die Platte die Schublade
 // (0.5 mm Luft), der Rest wird gleichmässig als Rand verteilt.
 export function platteMasse(p) {
+  const zs = sockelHoehe(p);
+  const H = 4.4 + (zs > 0 ? zs + 0.5 : 0);
   if (p.art === "schublade") {
     const W = p.breite - 0.5, D = p.tiefe - 0.5;
     const nx = Math.max(1, Math.floor(W / GF.raster)), ny = Math.max(1, Math.floor(D / GF.raster));
-    return { nx, ny, W: Math.max(W, nx * GF.raster), D: Math.max(D, ny * GF.raster), H: p.magnete ? 4.4 + 3.2 : 4.4 };
+    return { nx, ny, W: Math.max(W, nx * GF.raster), D: Math.max(D, ny * GF.raster), H, zs };
   }
-  return { nx: p.nx, ny: p.ny, W: p.nx * GF.raster, D: p.ny * GF.raster, H: p.magnete ? 4.4 + 3.2 : 4.4 };
+  return { nx: p.nx, ny: p.ny, W: p.nx * GF.raster, D: p.ny * GF.raster, H, zs };
+}
+
+// Öffnung eines Felds unten: das Feld (Einzug 2.85) ohne die vier
+// Eck-Sockel, Sockel gerundet um das Magnetloch. Viertel q gehört zur Ecke
+// (q + 1) % 4 von rring (q = 0: oben rechts).
+function sockelMasse(magD) {
+  const e = GF.raster / 2 - 2.85, a = GF.mag.a;
+  const R = Math.min(magD / 2 + 1.6, e - a - 0.05);
+  return { e, a, R, pc: a - R };
+}
+const dreh = (cx, cy, q, x, y, z) => {
+  const c = Math.round(Math.cos(q * Math.PI / 2)), s = Math.round(Math.sin(q * Math.PI / 2));
+  return [cx + x * c - y * s, cy + x * s + y * c, z];
+};
+function viertelInnen(cx, cy, magD, z, q) {
+  const { e, a, R, pc } = sockelMasse(magD);
+  const v = [[e, pc], [a, pc]];
+  for (let i = 1; i < 8; i++) {
+    const w = -Math.PI / 2 - (i / 8) * Math.PI / 2;
+    v.push([a + R * Math.cos(w), a + R * Math.sin(w)]);
+  }
+  v.push([pc, a], [pc, e]);
+  return v.map(([x, y]) => dreh(cx, cy, q, x, y, z));
+}
+function feldUnten(cx, cy, magD, z) {
+  return [0, 1, 2, 3].flatMap((q) => viertelInnen(cx, cy, magD, z, q));
+}
+// Ecke k eines abgerundeten Rechtecks, genau wie in rring
+function eckBogen(cx, cy, w, h, r, z, k) {
+  r = Math.max(0.2, Math.min(r, w / 2 - 0.01, h / 2 - 0.01));
+  const [x, y, a0] = [[cx + w / 2 - r, cy - h / 2 + r, -Math.PI / 2], [cx + w / 2 - r, cy + h / 2 - r, 0],
+    [cx - w / 2 + r, cy + h / 2 - r, Math.PI / 2], [cx - w / 2 + r, cy - h / 2 + r, Math.PI]][k];
+  const p = [];
+  for (let i = 0; i <= 6; i++) { const a = a0 + (i / 6) * Math.PI / 2; p.push([x + r * Math.cos(a), y + r * Math.sin(a), z]); }
+  return p;
+}
+// Feld-Ring mit Zusatzpunkten auf den Kanten bei ±pc, damit die Sockel
+// ohne offene Kanten an den Ring anschliessen
+function feldRingX(cx, cy, e, pc, z) {
+  const s = GF.raster - 2 * e, r = GF.platteR - e, p = [];
+  for (let k = 0; k < 4; k++) {
+    p.push(...eckBogen(cx, cy, s, s, r, z, k));
+    // Kante nach Ecke k, im Gegenuhrzeigersinn: −pc, dann +pc in Laufrichtung
+    p.push(dreh(cx, cy, k, s / 2, -pc, z), dreh(cx, cy, k, s / 2, pc, z));
+  }
+  return p;
+}
+// Oberseite eines Eck-Sockels (Viertel q)
+function sockelOben(cx, cy, magD, z, q) {
+  const { e, pc } = sockelMasse(magD);
+  const innen = viertelInnen(cx, cy, magD, z, q);
+  const s = GF.raster - 2 * 2.85;
+  return [dreh(cx, cy, q, e, pc, z), ...eckBogen(cx, cy, s, s, GF.platteR - 2.85, z, (q + 1) % 4),
+    dreh(cx, cy, q, pc, e, z), ...innen.slice(1, -1).reverse()];
+}
+
+// Stösse der Felder am Rand: Lage entlang der Kante (Felder nebeneinander)
+function stoesse(nx, ny) {
+  const sx = [], sy = [];
+  for (let i = 1; i < nx; i++) sx.push((i - nx / 2) * GF.raster);
+  for (let j = 1; j < ny; j++) sy.push((j - ny / 2) * GF.raster);
+  return { sx, sy };
+}
+
+// Umriss mit Kerben (kerben=true) oder nur mit den Punkten der Kerbenmündung
+// (gleiche Punkte auf der Kante, damit die Flächen sauber anschliessen)
+function umriss(W, D, z, st, kerben) {
+  const r = GF.platteR, E = 6;
+  const ecken = [[W / 2 - r, -D / 2 + r, -Math.PI / 2], [W / 2 - r, D / 2 - r, 0], [-W / 2 + r, D / 2 - r, Math.PI / 2], [-W / 2 + r, -D / 2 + r, Math.PI]];
+  // Kanten nach den Ecken: rechts (+y), oben (−x), links (−y), unten (+x)
+  const kanten = [
+    { lage: st.sy, punkt: (s, t) => [W / 2 - t, s] },
+    { lage: st.sx.map((x) => -x), punkt: (s, t) => [-s, D / 2 - t] },
+    { lage: st.sy.map((y) => -y), punkt: (s, t) => [-W / 2 + t, -s] },
+    { lage: st.sx, punkt: (s, t) => [s, -D / 2 + t] },
+  ];
+  const p = [];
+  ecken.forEach(([x, y, a0], k) => {
+    for (let i = 0; i <= E; i++) { const a = a0 + (i / E) * Math.PI / 2; p.push([x + r * Math.cos(a), y + r * Math.sin(a), z]); }
+    const kt = kanten[k];
+    for (const s of [...kt.lage].sort((u, v) => u - v)) {
+      const { a, b, d } = KERBE;
+      p.push([...kt.punkt(s - a, 0), z]);
+      if (kerben) p.push([...kt.punkt(s - b, d), z], [...kt.punkt(s + b, d), z]);
+      p.push([...kt.punkt(s + a, 0), z]);
+    }
+  });
+  return { p, kerben: kanten.flatMap((kt) => kt.lage.map((s) => [[s - KERBE.a, 0], [s - KERBE.b, KERBE.d], [s + KERBE.b, KERBE.d], [s + KERBE.a, 0]].map(([u, t]) => [...kt.punkt(u, t), z]))) };
 }
 
 export function platteNetz(eingabe) {
   const p = plattePruefen(eingabe);
   const n = neuesNetz();
-  const { nx, ny, W, D, H } = platteMasse(p);
-  const zt = H, zb = H - 4.4;           // Oberkante, Boden der Felder
-  const aussen = (z) => rring(0, 0, W, D, GF.platteR, z);
+  const { nx, ny, W, D, H, zs } = platteMasse(p);
+  const zt = H, zb = H - 4.4;           // Oberkante, unteres Ende des Profils
+  const st = p.anschluss ? stoesse(nx, ny) : { sx: [], sy: [] };
   // Feld-Ringe von oben nach unten (abwärts = Fläche zeigt ins Feld).
   // Oben 0.25 mm eingezogen, sonst stossen Nachbarfelder mit Wandstärke 0
   // aneinander.
-  const feldRinge = (cx, cy) => [[0.25, zt], [2.15, zt - 1.9], [2.15, zt - 3.7], [2.85, zb]]
-    .map(([e, z]) => rring(cx, cy, GF.raster - 2 * e, GF.raster - 2 * e, GF.platteR - e, z));
+  const pcS = sockelMasse(p.magD).pc;
+  const feldRinge = (cx, cy) => zs > 0
+    ? [[0.25, zt], [2.15, zt - 1.9], [2.15, zt - 3.7], [2.85, zb], [2.85, zs]].map(([e, z]) => feldRingX(cx, cy, e, pcS, z))
+    : [[0.25, zt], [2.15, zt - 1.9], [2.15, zt - 3.7], [2.85, zb]]
+      .map(([e, z]) => rring(cx, cy, GF.raster - 2 * e, GF.raster - 2 * e, GF.platteR - e, z));
   const felder = [];
   for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++)
     felder.push([(i - (nx - 1) / 2) * GF.raster, (j - (ny - 1) / 2) * GF.raster]);
-
-  verbinden(n, [aussen(0), aussen(zt)]);
   const ringe = felder.map(([x, y]) => feldRinge(x, y));
-  deckel(n, aussen(zt), ringe.map((r) => r[0]), true);
-  for (const r of ringe) verbinden(n, r);
-  if (p.magnete) {
+
+  if (zs > 0) {
+    // Aussen: unten mit Kerben bis zur Sockelhöhe, darüber glatt
+    const unten0 = umriss(W, D, 0, st, true), untenS = umriss(W, D, zs, st, true);
+    const obenS = umriss(W, D, zs, st, false), obenT = umriss(W, D, zt, st, false);
+    verbinden(n, [unten0.p, untenS.p]);
+    verbinden(n, [obenS.p, obenT.p]);
+    for (const k of untenS.kerben) deckel(n, k, [], false);
+    deckel(n, obenT.p, ringe.map((r) => r[0]), true);
+    const loecher = felder.map(([x, y]) => feldUnten(x, y, p.magD, 0));
     felder.forEach(([x, y], k) => {
-      const mp = magnetPunkte(x, y);
-      deckel(n, ringe[k][3], mp.map(([a, b]) => kreis(a, b, GF.mag.d, zb)), true);
-      for (const [a, b] of mp) magnetLoch(n, a, b, zb, -1);
+      verbinden(n, ringe[k]);
+      const offen = feldUnten(x, y, p.magD, zs);
+      // Oberseite der Sockel, mit den Magnetlöchern (Viertel q ↔ Magnet q)
+      for (let q = 0; q < 4; q++) {
+        const m = dreh(x, y, q, GF.mag.a, GF.mag.a, zs);
+        deckel(n, sockelOben(x, y, p.magD, zs, q), p.magnete ? [kreis(m[0], m[1], p.magD, zs)] : [], true);
+        if (p.magnete) magnetLoch(n, m[0], m[1], zs, -1, p.magD, p.magH);
+      }
+      verbinden(n, [offen, loecher[k]]);
     });
-    deckel(n, aussen(0), [], false);
+    deckel(n, unten0.p, loecher, false);
   } else {
+    const aussen = (z) => rring(0, 0, W, D, GF.platteR, z);
+    verbinden(n, [aussen(0), aussen(zt)]);
+    deckel(n, aussen(zt), ringe.map((r) => r[0]), true);
+    for (const r of ringe) verbinden(n, r);
     deckel(n, aussen(0), ringe.map((r) => r[3]), false);
   }
   return fertig(n, { ...p, nx, ny, W, D, H });
+}
+
+// Anzahl Verbinder, um Platten gleicher Grösse aneinander zu reihen: je Stoss
+export function verbinderJeKante(p) {
+  const { nx, ny } = platteMasse(plattePruefen(p));
+  return { breit: nx - 1, tief: ny - 1 };
+}
+
+// Verbinder: zwei Schwalbenschwänze Rücken an Rücken, etwas kleiner als
+// die Kerben, flacher als der Sockel
+export function verbinderNetz(eingabe) {
+  const p = plattePruefen(eingabe);
+  const { zs } = platteMasse({ ...p, anschluss: true });
+  const n = neuesNetz();
+  const { a, b, d, spiel: c } = KERBE;
+  const h = Math.max(1.5, zs - 0.4);
+  const form = (z) => [[-(b - c), -(d - c)], [b - c, -(d - c)], [a - c, 0], [b - c, d - c], [-(b - c), d - c], [-(a - c), 0]].map(([x, y]) => [x, y, z]);
+  verbinden(n, [form(0), form(h)]);
+  deckel(n, form(0), [], false);
+  deckel(n, form(h), [], true);
+  return fertig(n, { verbinder: true });
 }
 
 // ---------- Abschluss ----------
