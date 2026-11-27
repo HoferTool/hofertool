@@ -2,6 +2,10 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.934.1 (27. November 2026)
+
+- Test ERP: Lieferplan zeigt bei Abruf nur noch „auf Abruf“ ohne „(bis …)“-Text; Häkchen weg lässt das Datum leer zum Eintragen.
+
 ## 1.934.0 (27. November 2026)
 
 - Test ERP: Fälligkeit im Lieferplan „auf Abruf“ (Häkchen Abruf, ohne Datum, altes Datum bleibt als „bis“, zählt nie als fällig oder Rückstand). `sql/erp-rahmen-auf-abruf.sql`: Termine am 31.12. aus dem Gewatec auf Abruf gesetzt, diese Aufträge sind Rahmenaufträge.

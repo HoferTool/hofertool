@@ -431,6 +431,10 @@ with sync_playwright() as p:
     pg.screenshot(path=BILD + "/erp-lieferplan.png")
     z.nth(1).locator("input[data-erp-feld='abruf']").check(); pg.wait_for_timeout(100)
     pruefe(z.nth(1).locator("[data-erp-lp-abruf]").count() == 1, "Fälligkeit auf Abruf (seit 1.934.0)")
+    pruefe(z.nth(1).locator("[data-erp-lp-abruf]").inner_text().strip() == "auf Abruf", "nur „auf Abruf“, kein bis-Text")
+    z.nth(1).locator("input[data-erp-feld='abruf']").uncheck(); pg.wait_for_timeout(100)
+    pruefe(z.nth(1).locator("input[data-erp-feld='termin']").input_value() == "", "Häkchen weg: Datum leer zum Eintragen")
+    z.nth(1).locator("input[data-erp-feld='abruf']").check(); pg.wait_for_timeout(100)
     oben(pg).locator("[data-erp-speichern]").click(); pg.wait_for_timeout(800)
     pos = [x for x in tabelle(pg, "erp_positionen") if x["artikel_id"] == a["id"]][-1]
     ab = (pos.get("daten") or {}).get("abrufe") or []

@@ -770,9 +770,12 @@ export function lieferplanOeffnen(d, aussen, b, p, frisch) {
 // „Auf Abruf“ (seit 1.934.0, Patrick 27. November 2026: Termine am 31.12. aus dem Gewatec sind
 // Rahmenaufträge, die offenen Mengen „müssen auf Abruf gesetzt werden“): Fälligkeit ohne Datum,
 // zählt nie als fällig oder Rückstand; das frühere Datum bleibt als „bis“ (Ende des Rahmens)
-export const lpText = (x) => (x.abruf ? "auf Abruf" + (x.bis ? " (bis " + datumText(x.bis) + ")" : "") : x.kw ? "KW " + x.kw : datumText(x.termin));
+export const lpText = (x) => (x.abruf ? "auf Abruf" : x.kw ? "KW " + x.kw : datumText(x.termin));
 function lpZeileSetzen(z, name, x) {
-  if (name === "abruf") return x ? { ...z, abruf: true, bis: z.bis || z.termin || "", termin: "", kw: "" } : { ...z, abruf: false };
+  if (name === "abruf") return x ? { ...z, abruf: true, bis: z.bis || z.termin || "", termin: "", kw: "" }
+    // Häkchen weg: Datum bleibt leer zum Eintragen; „bis“ wird nirgends angezeigt
+    // (Patrick 27. November 2026: „lass den text generell weg. wir stellen einfach auf abruf“)
+    : { ...z, abruf: false };
   if (name === "termin") return { ...z, termin: x, kw: x ? kwText(x) : "" };
   if (name === "kw") { const t = kwZuDatum(x, new Date(), 4); return t ? { ...z, kw: x, termin: t } : { ...z, kw: x }; }
   return { ...z, [name]: x };
@@ -812,7 +815,7 @@ function LieferplanAnsicht({ d, aussen, p, zeilen, setZeilen }) {
                   <td>{zeichen(v)}</td>
                   <td className="rechts">{i + 1}</td>
                   <td><input type="checkbox" checked={!!z.abruf} title="Auf Abruf (ohne festen Termin)" data-erp-feld="abruf" onChange={(e) => setZ(i, "abruf", e.target.checked)} /></td>
-                  {z.abruf ? <td colSpan={2} className="lp-abruf" data-erp-lp-abruf="">auf Abruf{z.bis ? " (bis " + datumText(z.bis) + ")" : ""}</td> : <>
+                  {z.abruf ? <td colSpan={2} className="lp-abruf" data-erp-lp-abruf="">auf Abruf</td> : <>
                   <td><input type="date" value={z.termin || ""} data-erp-feld="termin" onChange={(e) => setZ(i, "termin", e.target.value)} /></td>
                   <td><input className="lp-kw" value={z.kw ?? (z.termin ? kwText(z.termin) : "")} placeholder="KW" data-erp-feld="kw" onChange={(e) => setZ(i, "kw", e.target.value)} /></td></>}
                   <td><input className="gf-rechts lp-menge" inputMode="decimal" value={z.menge ?? ""} data-erp-feld="menge" onChange={(e) => setZ(i, "menge", e.target.value)} /></td>
