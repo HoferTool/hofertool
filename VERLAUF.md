@@ -2,6 +2,10 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.933.0 (27. November 2026)
+
+- Test ERP → Logistik: Kachel „Aktuell extern“ zeigt je Lieferant, was für Zusatzarbeit draussen ist (offene Bestellungen ZA extern minus Wareneingang), mit FA, Artikel, Arbeitsgang, Menge, seit wann und Termin zurück. ZA extern anlegen bucht nichts im Lager.
+
 ## 1.931.0 (27. November 2026)
 
 - Planwand: Auch das Auftragsfenster ist je Person einstellbar (Einstellungen → Allgemein → „Planwand: Auftragsfenster“): 17 Teile ein/aus (Zustand, FA, Menge, Abruf, Siegel, Maschine, Termin, Material …, Zeichnung, Dokumente, Frühere Probleme), „Alles zeigen“. Gespeichert am Konto als Liste der ausgeschalteten Teile (`auftragFensterAus`). Gilt nur für bestehende Aufträge; ein neuer Auftrag zeigt alles, eine fehlende Pflicht-Abrufinformation oder Maschine bleibt sichtbar. Externe nicht. Test `pruefstand/auftragfenster_wahl.py`.

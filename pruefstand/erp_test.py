@@ -276,6 +276,8 @@ with sync_playwright() as p:
     txt = blatt.content()
     pruefe(n_lp >= 1 and "Offene Lieferungen" in txt and "Rüstmenge" in txt and "landscape" in txt, "Lieferplan Liste: %s Fälligkeiten, Blatt quer zum Drucken" % n_lp)
     blatt.close()
+    pg.click("[data-logi-kachel='extern']"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-logi-funktion='extern']").count() == 1, "Aktuell extern: Liste da")
     # Kachel Fertigung einlagern (seit 1.927.0)
     pg.click("[data-logi-kachel='einlagern']"); pg.wait_for_timeout(300)
     z = pg.locator("[data-logi-funktion='einlagern'] .erp-tabelle tbody tr")

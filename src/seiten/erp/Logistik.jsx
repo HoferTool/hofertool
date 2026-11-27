@@ -206,6 +206,10 @@ const KACHELN = [
     zeichen: "📋", zahl: (d) => d.belege.filter((b) => b.typ === "fertigung" && b.status !== "storniert" && b.status !== "abgeschlossen").length, einheit: "offen" },
   { id: "lieferplan", titel: "Lieferplan Liste", text: "Fällige Lieferungen im Zeitraum, nach Kunde, zum Drucken",
     zeichen: "🗓️", zahl: (d) => lieferplanListe(d, heute(), plusTage(heute(), 14)).length, einheit: "in 14 Tagen" },
+  // Seit 1.933.0 (Patrick 27. November 2026): ZA extern bucht nichts im Lager (das Lager EXT wird vorerst
+  // nicht benutzt); was draussen ist, ergibt sich aus den offenen Bestellungen ZA extern minus Wareneingang
+  { id: "extern", titel: "Aktuell extern", text: "Was ist wo und wie viel beim Lieferanten draussen",
+    zeichen: "🧭", zahl: (d) => offeneZaPositionen(d).length, einheit: "Positionen" },
   { id: "za-neu", titel: "ZA extern anlegen", text: "Externe Arbeitsgänge offener FAs beim Lieferanten bestellen",
     zeichen: "🚚", zahl: (d) => offeneZaAnlegen(d).length, einheit: "zu bestellen" },
 ];
@@ -283,6 +287,7 @@ export default function Logistik({ d, neu }) {
       {kachel === "wbg" && <WbgDrucken d={d} neu={neu} />}
       {kachel === "ls-neu" && <LieferscheinAnlegen d={d} neu={neu} />}
       {kachel === "lieferplan" && <LieferplanListe d={d} neu={neu} />}
+      {kachel === "extern" && <AktuellExtern d={d} neu={neu} />}
       {kachel === "fa" && <section className="logi-funktion" data-logi-funktion="fa">
         <h2 className="logi-funktion__titel">FA Übersicht</h2><BelegListe d={d} neu={neu} typ="fertigung" ohneNeu /></section>}
     </div>
@@ -576,6 +581,34 @@ function LieferplanListe({ d, neu }) {
             zellen: [partnerText(d.partnerMap.get(b.partner_id)), datumText(termin), b.nr + "-" + Math.round(p.pos / 10),
               a ? (a.bezeichnung || a.nr) : p.text || "", a ? a.nr : "", l.plaetze, mengeText(l.menge), <b>{mengeText(offen)}</b>] };
         })} />
+    </section>
+  );
+}
+
+function AktuellExtern({ d, neu }) {
+  const [suche, setSuche] = useState("");
+  const lief = (b) => partnerText(d.partnerMap.get(b.partner_id));
+  const liste = offeneZaPositionen(d).filter(({ b, p }) =>
+    passt(suche, [lief(b), b.nr, (b.daten || {}).fa_nr, artikelText(d.artikelMap.get(p.artikel_id)), p.text].join(" ")))
+    .sort((x, y) => lief(x.b).localeCompare(lief(y.b)) || String(x.p.termin || "9999").localeCompare(String(y.p.termin || "9999")));
+  const summe = new Map();
+  liste.forEach(({ b, offen }) => summe.set(b.partner_id, (summe.get(b.partner_id) || 0) + offen));
+  return (
+    <section className="logi-funktion" data-logi-funktion="extern">
+      <div className="mat-kopf">
+        <h2 className="logi-funktion__titel">Aktuell extern</h2>
+        <Suche wert={suche} setzen={setSuche} platzhalter="Lieferant, Bestellung, FA, Artikel …" />
+      </div>
+      <p className="klein">Teile bei Lieferanten für Zusatzarbeit (ZA extern): bestellt minus schon zurück. Im Lager wird dabei nichts gebucht. Zeile antippen öffnet die Bestellung.
+        {summe.size > 0 && <> Total: {[...summe.entries()].map(([id, n]) => (d.partnerMap.get(id) || {}).name + " " + mengeText(n)).join(" · ")}</>}</p>
+      <Tabelle kopf={["Lieferant", "Bestellung", "FA", "Artikel", "Arbeitsgang", "Draussen", "Seit", "Zurück erwartet"]}
+        leer="Im Moment ist nichts extern."
+        zeilen={liste.map(({ b, p, offen }) => ({
+          key: p.id, klick: () => belegOeffnen(d, neu, b), klasse: p.termin && p.termin < heute() ? "erp-rot" : "", sort: [null, null, null, null, null, null, b.datum || "", p.termin || ""],
+          zellen: [lief(b), b.nr, (b.daten || {}).fa_nr || "–",
+            artikelText(d.artikelMap.get(p.artikel_id)) + (posIdx(d, p) ? " · Index " + posIdx(d, p) : ""),
+            p.text || "", <b>{mengeText(offen)}</b>, b.datum ? datumText(b.datum) : "–", p.termin ? datumText(p.termin) : "–"],
+        }))} />
     </section>
   );
 }
