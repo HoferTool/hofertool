@@ -123,8 +123,10 @@ function startFehler(text) {
 //  Einstellungen
 // -----------------------------------------------------------------
 
-const SUPABASE_URL = "https://lzhqwbxfwqamauntehof.supabase.co";
-const SUPABASE_KEY = "sb_publishable_MLN71MehUtWldj_GVLDBvw_OCJODSCW";
+// TEST EIGENER SERVER (27. November 2026): Dieser Zweig zeigt auf die
+// eigene VM über den Cloudflare Tunnel. Nie so nach main übernehmen.
+const SUPABASE_URL = "https://api.hofertool.ch";
+const SUPABASE_KEY = "sb_publishable_tgAGlp5VcFbqcLqUVjVZga_k0TwzsYy";
 const APP_NAME = "Hofer + Co.";
 const APP_UNTERTITEL = "HOFER TOOL";
 // Wer sich nur mit dem Namen anmeldet, bekommt diese Endung angehängt.
