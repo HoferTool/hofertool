@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.908.2 (27. November 2026)
+
+Prüfmittel/Hinweis-Fenster: Vorschläge nach dem Soll. Lehren, deren Masse die Grenzen oder das Nennmass treffen, stehen zuoberst mit Schild „passt“, danach übrige Lehren, dann Messmittel (Patrick: „warum keine Grenzlehrdorne vorgeschlagen“).
+
 ## 1.908.1 (27. November 2026)
 
 Masse-Blatt: kein Bild mehr als Mass einfügen (Knopf und Strg + V weg); alte Bilder aus Excel bleiben sichtbar (Patrick: „braucht es nie“).

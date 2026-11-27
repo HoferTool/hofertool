@@ -17716,3 +17716,5 @@ body.dunkel th.erp-sortkopf--an { color: #8cc4ff !important; }
 /* Gridfinity: Liste der Plattenstücke (1.902.0) */
 .gfn-stueck { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; }
 .gfn-stueck .knopf { padding: 4px 12px; }
+.pmw-vorschlag { margin-left: auto; background: #e3f4e8; color: #17643a; border-radius: 6px; padding: 1px 7px; font-size: 12px; font-weight: 600; }
+body.dunkel .pmw-vorschlag { background: #1d4a30; }
