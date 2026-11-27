@@ -17937,3 +17937,35 @@ body.dunkel .fd-rechts{background:#444}
 .bs-artikel__modell { display: inline-flex; flex: none; width: 44px; height: 44px; border-radius: 8px;
   background: var(--grund); border: 1px solid var(--linie); overflow: hidden; }
 .bs-artikel__modell .cam-mini3d { display: block; }
+/* Masse-Blatt wie das Prüfprotokoll (seit 1.938.0) */
+.pst-kopfraster { margin: 6px 0 10px; }
+.pst-kopfraster small { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .03em; color: #6b7a8a; }
+.pst-kopffeld { font: inherit; font-weight: 700; font-size: 14px; border: 0; border-bottom: 1px dashed #b9c6d4; background: transparent; padding: 2px 0; width: 100%; outline: none; }
+.pst-kopffeld:focus { border-bottom: 2px solid #2f6fd6; }
+.pst-grau { opacity: .45; pointer-events: none; }
+.pst-a4 .pb-felder.pst-grau { margin-bottom: 8px; }
+.pst-wie-protokoll { table-layout: fixed; width: 100%; }
+.pst-wie-protokoll .pst-c-kopf { width: 22px; }
+.pst-wie-protokoll .pst-c-nr { width: 34px; }
+.pst-wie-protokoll .pst-c-soll { width: 150px; }
+.pst-wie-protokoll .pst-c-teil { width: 52px; }
+.pst-wie-protokoll .pst-c-ll { width: 26px; }
+.pst-teilfeld { display: block; height: 22px; margin: 3px; border: 1px solid #d6dee8; border-radius: 5px; background: #fafcfe; }
+.pst-wie-protokoll .pst-tolfelder { display: flex; padding: 0 4px 3px; font-size: 11px; color: #6b7a8a; }
+.pst-wie-protokoll .pst-tolfelder .pst-tol { font-size: 11px !important; padding: 1px 2px !important; color: #4a5866; }
+/* Knöpfe je Zeile ausserhalb des Blatts rechts, damit die Tabelle wie im Protokoll aussieht */
+.pst-wie-protokoll tr { position: relative; }
+.pst-wie-protokoll th.pst-c-kn { width: 0; padding: 0 !important; border: 0; }
+.pst-wie-protokoll td.pst-c-kn { position: absolute; left: 100%; top: 0; bottom: 0; display: flex; align-items: center; gap: 2px; padding: 0 0 0 8px !important; border: 0; background: transparent !important; white-space: nowrap; }
+.pst-wie-protokoll td.pst-c-kn .knopf--klein { background: #fff !important; }
+.pst-a4 { overflow: visible; }
+.pst-fuss-vorschau { margin-top: 10px; font-size: 13px; }
+.pst-fuss-vorschau .pb-entscheid { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+.pst-fuss-feld { display: flex; flex-direction: column; gap: 3px; }
+.pst-fuss-feld textarea, .pst-fuss-zeile input { border: 1px solid #c8d3df; border-radius: 8px; padding: 5px 8px; }
+.pst-fuss-zeile { display: flex; gap: 12px; margin-top: 6px; }
+.pst-fuss-zeile label { display: flex; flex-direction: column; gap: 3px; }
+body.dunkel .pst-teilfeld { background: #fafcfe; border-color: #d6dee8; }
+.pst-wie-protokoll td input:not([type=checkbox]) { padding-top: 5px !important; padding-bottom: 5px !important; }
+.pst-wie-protokoll .pst-tolfelder { margin-top: -3px; }
+.pst-wie-protokoll .pst-teilfeld { height: 20px; }

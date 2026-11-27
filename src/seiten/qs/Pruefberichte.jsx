@@ -33,7 +33,7 @@ import { gdtTeile, gdtHtml } from "../../teile/zeichenListe.js";
 import { dokZeigen } from "../../teile/DokAbruf.jsx";
 import {
   ARTEN, artVon, artName, istZwischen, TEILE, AQL_WERTE, aqlPlan, fehltTabelle, protokolleLaden, dateienLaden, vorlageLaden, stammSpeichern,
-  stammLaden, stammMitMassen, toleranz, tolVon, toleranzText, istPruefen, lehrenAus, pruefmittelFuer, pruefmittelAlleLaden, pmOrtText, bildVon, zeilenId,
+  stammLaden, stammMitMassen, toleranz, tolVon, kopfInStammdaten, toleranzText, istPruefen, lehrenAus, pruefmittelFuer, pruefmittelAlleLaden, pmOrtText, bildVon, zeilenId,
 } from "../../daten/pruefbericht.js";
 
 // Offenes Protokoll und Suche bleiben beim Reiterwechsel
@@ -568,8 +568,9 @@ function VorlageLeer({ v, zurueck }) {
     setLaeuft(true);
     try {
       const arten = stamm && (stamm.arten || []).length ? stamm.arten : ["erstteil", "endkontrolle"];
+      const kopf = await kopfInStammdaten(v.hoco, w.kopf);
       await stammSpeichern(v.hoco, { arten, aql: stamm ? stamm.aql ?? null : null, niveau: stamm ? stamm.niveau || null : null,
-        zeilen: w.zeilen.map((z) => ({ ...z })), kopf: { ...w.kopf } });
+        zeilen: w.zeilen.map((z) => ({ ...z })), kopf });
       const s = await stammLaden(v.hoco).catch(() => null);
       if (s) s.__bestaetigt = true;
       setStamm(s); setGeaendert(false);
@@ -616,7 +617,7 @@ function VorlageLeer({ v, zurueck }) {
   );
   return (
     <div className="pb" data-pbvorlage={v.hoco}>
-      {createPortal(<MasseBlatt w={w} hoco={v.hoco} schreibt={darf()} zeileSetzen={zeileSetzen} zeileWeg={zeileWeg} zeilenLeeren={zeilenLeeren}
+      {createPortal(<MasseBlatt w={w} hoco={v.hoco} schreibt={darf()} kopfSetzen={(k, x) => setW((y) => ({ ...y, kopf: { ...y.kopf, [k]: x } }))} zeileSetzen={zeileSetzen} zeileWeg={zeileWeg} zeilenLeeren={zeilenLeeren}
         zeilenWeg={zeilenWeg} zeileDazu={zeileDazu} schieben={schieben} neuFokus={neuFokus} geaendert={geaendert} laeuft={laeuft}
         speichern={speichern} zu={zurueck} titel={titel} label={"Prüfbericht " + v.hoco} weiterText={"Prüfbericht " + v.hoco + " · Fortsetzung"}
         extra={extra} zuText="Die Änderungen an der Vorlage sind noch nicht in den Stammdaten gespeichert." />, document.body)}
