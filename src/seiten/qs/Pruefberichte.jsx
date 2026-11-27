@@ -240,12 +240,16 @@ function MaschineWahl({ wert, schreibt, setzen }) {
   useEffect(() => {
     if (maschinenVorrat) return;
     let weg = false;
-    alt.db.from("machines").select("id, name, machine_number").then((r) => {
-      const n = [...new Set((r.data || []).map((m) => m.name).filter(Boolean))]
+    // Ohne Maschinen externer Parks (Patrick 27. November 2026: „externe Maschinen müssen
+    // nicht mitbedacht werden, sie brauchen von uns nur die Planwand“)
+    (async () => {
+      await alt.ladeParks(false);
+      const m = (await alt.ladeMaschinen(false)).filter((x) => !alt.parkIstExtern(x.park_id));
+      const n = [...new Set(m.map((x) => x.name).filter(Boolean))]
         .sort((a, b) => a.localeCompare(b, "de", { numeric: true }));
       maschinenVorrat = n;
       if (!weg) setListe(n);
-    }, () => {});
+    })().catch(() => {});
     return () => { weg = true; };
   }, []);
   const namen = wert && !liste.includes(wert) ? [wert, ...liste] : liste;
@@ -268,9 +272,13 @@ export default function Pruefberichte() {
       alt.db.from("jobs").select(JOB_SPALTEN).eq("plan_status", "fertig").gte("ended_at", new Date(Date.now() - 60 * 864e5).toISOString()),
       dateienLaden().catch(() => []),
     ]);
-    const jobs = (jobsR.data || []).concat(fertigR.data || []);
+    let jobs = (jobsR.data || []).concat(fertigR.data || []);
     const ids = [...new Set(jobs.map((j) => j.machine_id).filter(Boolean))];
-    const m = ids.length ? (await alt.db.from("machines").select("id, name").in("id", ids)).data || [] : [];
+    const m = ids.length ? (await alt.db.from("machines").select("id, name, park_id").in("id", ids)).data || [] : [];
+    // Aufträge auf Maschinen externer Parks prüft die QS nicht (Patrick 27. November 2026)
+    try { await alt.ladeParks(false); } catch (_) { /* ohne Parks alle zeigen */ }
+    const extern = new Set(m.filter((x) => alt.parkIstExtern(x.park_id)).map((x) => x.id));
+    if (extern.size) jobs = jobs.filter((j) => !extern.has(j.machine_id));
     const name = new Map(m.map((x) => [x.id, x.name]));
     for (const j of jobs) j.maschine = name.get(j.machine_id) || "";
     // Index der Stammdaten für Berichte, aus denen die Aufgabe keinen lesen konnte

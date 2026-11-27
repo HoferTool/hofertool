@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.905.1 (27. November 2026)
+
+QS → Prüfberichte: Maschinen externer Parks fehlen in der Maschinen-Auswahl, und ihre Aufträge stehen nicht mehr bei den offenen Prüfungen (Patrick: „externe Maschinen müssen nicht mitbedacht werden“).
+
 ## 1.905.0 (27. November 2026)
 
 - Gridfinity: alle Dateien als STL statt 3MF; Eckwinkel als ein Körper.
