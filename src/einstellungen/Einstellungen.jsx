@@ -133,6 +133,7 @@ function Allgemein({ bin }) {
       <MeinKonto />
       <Darstellung />
       {!alt.istExtern() && alt.meineRolle() !== "dienst" && <PlanInfoWahl />}
+      {!alt.istExtern() && alt.meineRolle() !== "dienst" && <AuftragFensterWahl />}
       {bin && <AnmeldeMeldungen />}
       {(bin || alt.darfDokumenteUndSicherung()) && <Bestellmail />}
       {bin && <Betriebsferien />}
@@ -436,6 +437,33 @@ function PlanInfoWahl() {
               disabled={i === 0} onClick={() => schieben(i, -1)}>↑</button>
             <button type="button" className="planinfo-wahl__pfeil" aria-label="Nach unten" title="Nach unten"
               disabled={i === liste.length - 1} onClick={() => schieben(i, 1)}>↓</button>
+          </li>
+        ))}
+      </ul>
+    </Gruppe>
+  );
+}
+
+// Was im Auftragsfenster steht, wenn man einen bestehenden Auftrag öffnet
+// (1.931.0, Wunsch Patrick 27. November 2026). Nur ein/aus, die Anordnung
+// bleibt, weil das Fenster als Formular aufgebaut ist. Ein neuer Auftrag
+// zeigt immer alles, damit kein Pflichtfeld fehlt.
+function AuftragFensterWahl() {
+  const felder = alt.AUFTRAG_FENSTER_FELDER;
+  const [aus, setAus] = useState(() => alt.auftragFensterAus());
+  const ablegen = (neu) => { setAus(neu); alt.einstellungSetzenWert("auftragFensterAus", neu.join(",")); };
+  return (
+    <Gruppe titel="Planwand: Auftragsfenster"
+      text="Wähle, was im Fenster steht, wenn du einen Auftrag öffnest. Ein neuer Auftrag zeigt immer alles. Gilt auf allen deinen Geräten."
+      aktionen={<button type="button" className="knopf knopf--klein" data-auftragwahl-standard onClick={() => ablegen([])}>Alles zeigen</button>}>
+      <ul className="planinfo-wahl">
+        {felder.map(([k, name]) => (
+          <li key={k} className={"planinfo-wahl__zeile" + (aus.includes(k) ? " planinfo-wahl__zeile--aus" : "")}>
+            <label className="planinfo-wahl__name">
+              <input type="checkbox" data-auftragwahl={k} checked={!aus.includes(k)}
+                onChange={(e) => ablegen(e.target.checked ? aus.filter((x) => x !== k) : [...aus, k])} />
+              <span>{name}</span>
+            </label>
           </li>
         ))}
       </ul>

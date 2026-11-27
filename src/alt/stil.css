@@ -17912,3 +17912,7 @@ body.zieh-laeuft .logi-kachel { touch-action: none; cursor: grabbing; }
   .einlagen__leiste { gap: 6px; margin-bottom: 6px; }
   .einlagen__leiste .knopf { padding: 6px 12px; min-height: 0; font-size: .9rem; }
 }
+
+/* Auftragsfenster ohne rechte Spalte (alles dort ausgeschaltet, 1.931.0) */
+.dialog--auftrag .auf-raster.auf-raster--ohne-rechts { grid-template-columns: minmax(0, 1fr) !important; }
+.planinfo-wahl__zeile:not(:has(.planinfo-wahl__pfeil)) { min-height: 44px; }
