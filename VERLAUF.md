@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.892.0 (27. November 2026)
+
+QS → Erstteilprüfung: passt kein gutes Prüfmittel, wird auch ein gesperrtes oder fälliges aus dem Schrank ausgebucht, mit der Meldung „Wird jetzt ausgebucht, muss aber bald zur Kontrolle“ (Wunsch Patrick). SQL `sql/pruefmittel-ausbuchen-gesperrt.sql` ist eingespielt. Prüfstand: Test pruefberichte prüft Meldung und Maschinen-Auswahl, Knopf Stammdaten.
+
 ## 1.891.0 (27. November 2026)
 
 Test ERP: Hauptreiter „Artikel“ (Artikelliste) nach Kalkulation, Stammdaten nach Rechnungen, Reiter Lagerjournal entfernt (Wunsch Patrick: „habe ja alles in den modulen“).
