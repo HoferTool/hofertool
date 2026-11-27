@@ -4,13 +4,14 @@
 // Zweite Kachel „ZA extern anlegen“ seit 1.925.0 (Patrick 27. November 2026).
 // Oben Kacheln je Funktion mit Zahl; ein Tipp öffnet die Funktion darunter.
 // Weitere Funktionen kommen als neue Kachel in KACHELN dazu.
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { teilMerken } from "../../teile/wiederherstellen.js";
 import { useGemerkt } from "../../bruecke.jsx";
 import { Tabelle, Suche, passt } from "./teile.jsx";
-import { bestellArt, EingangFenster, FertigFenster, belegOeffnen } from "./Belege.jsx";
+import { poolDruckLaden, poolWbgDrucker, poolDrucken, pdfSeitenAlsJpg } from "../../teile/poolDruck.js";
+import { bestellArt, BelegListe, EingangFenster, FertigFenster, LieferscheinFenster, belegOeffnen, geliefert, chargenWahl } from "./Belege.jsx";
 import { allesLaden, gebucht, zahl, mengeText, artikelText, partnerText, datumText, posIdx } from "../../daten/erp.js";
 
 const gemerkt = { kachel: "we-za" };
@@ -66,6 +67,32 @@ export function offeneEinlagern(d) {
   return z.sort((x, y) => rang(x) - rang(y) || String(y.b.nr).localeCompare(String(x.b.nr)));
 }
 
+// Offene FAs mit Auftrag auf der Planwand: dort hängt die WBG (jobs.wbg_url), seit 1.928.0
+export function wbgFas(d) {
+  return d.belege.filter((b) => b.typ === "fertigung" && b.status !== "storniert" && b.status !== "abgeschlossen"
+    && (b.daten || {}).planwand && b.daten.planwand.job_id)
+    .sort((x, y) => String(y.nr).localeCompare(String(x.nr)));
+}
+
+// Offene Auftragspositionen zum Liefern (seit 1.928.0): Fälligkeit aus dem Lieferplan
+// (erste noch nicht gedeckte Fälligkeit), sonst der Termin der Position; dazu der Bestand
+// desselben Artikels und Index, aus dem der Lieferschein liefern kann
+export function offeneLieferungen(d) {
+  const z = [];
+  d.belege.filter((b) => b.typ === "auftrag" && b.status !== "storniert" && b.status !== "abgeschlossen").forEach((b) => {
+    (d.posJe.get(b.id) || []).filter((p) => p.artikel_id).forEach((p) => {
+      const g = geliefert(d, p);
+      const offen = Math.max(0, zahl(p.menge) - g);
+      if (!(offen > 0)) return;
+      let kum = 0, faellig = p.termin || "";
+      for (const x of ((p.daten || {}).abrufe || [])) { kum += zahl(x.menge); if (kum > g + 1e-9) { faellig = x.termin || faellig; break; } }
+      const lager = chargenWahl(d, p.artikel_id, posIdx(d, p)).reduce((s2, c) => s2 + c[2].menge, 0);
+      z.push({ b, p, offen, faellig, lager });
+    });
+  });
+  return z.sort((x, y) => String(x.faellig || "9999").localeCompare(String(y.faellig || "9999")));
+}
+
 // Termin = heute + Pauschalzeit (Tage, bei Stunden aufgerundet auf ganze Tage)
 function zaTermin(ag) {
   const n = Number(ag.pauschal) || 0;
@@ -97,6 +124,14 @@ const KACHELN = [
     warn: (d) => offeneZaPositionen(d).filter((x) => x.p.termin && x.p.termin < heute()).length, warnText: "überfällig" },
   { id: "einlagern", titel: "Fertigung einlagern", text: "Fertige Teile aus der Fertigung ins Lager buchen",
     zeichen: "🏭", zahl: (d) => offeneEinlagern(d).length, einheit: "offen" },
+  { id: "wbg", titel: "WBG drucken", text: "Werkbegleitschein der offenen FAs auf dem Drucker der Spedition",
+    zeichen: "🖨️", zahl: (d) => wbgFas(d).length, einheit: "FAs" },
+  { id: "ls-neu", titel: "Lieferschein anlegen", text: "Offene Aufträge mit Teilen am Lager an den Kunden liefern",
+    zeichen: "📄", zahl: (d) => offeneLieferungen(d).filter((x) => x.lager > 0).length, einheit: "lieferbar",
+    warn: (d) => offeneLieferungen(d).filter((x) => x.faellig && x.faellig < heute()).length, warnText: "überfällig" },
+  // FA Übersicht: dieselbe Liste wie im Reiter Fertigung, mit Häkchen je Stand (seit 1.928.0)
+  { id: "fa", titel: "FA Übersicht", text: "Alle Fertigungsaufträge mit Stand und Planwand",
+    zeichen: "📋", zahl: (d) => d.belege.filter((b) => b.typ === "fertigung" && b.status !== "storniert" && b.status !== "abgeschlossen").length, einheit: "offen" },
   { id: "za-neu", titel: "ZA extern anlegen", text: "Externe Arbeitsgänge offener FAs beim Lieferanten bestellen",
     zeichen: "🚚", zahl: (d) => offeneZaAnlegen(d).length, einheit: "zu bestellen" },
 ];
@@ -167,6 +202,10 @@ export default function Logistik({ d, neu }) {
       {kachel === "we-za" && <WareneingangZa d={d} neu={neu} />}
       {kachel === "za-neu" && <ZaAnlegen d={d} neu={neu} />}
       {kachel === "einlagern" && <Einlagern d={d} neu={neu} />}
+      {kachel === "wbg" && <WbgDrucken d={d} neu={neu} />}
+      {kachel === "ls-neu" && <LieferscheinAnlegen d={d} neu={neu} />}
+      {kachel === "fa" && <section className="logi-funktion" data-logi-funktion="fa">
+        <h2 className="logi-funktion__titel">FA Übersicht</h2><BelegListe d={d} neu={neu} typ="fertigung" ohneNeu /></section>}
     </div>
   );
 }
@@ -289,6 +328,114 @@ function Einlagern({ d, neu }) {
             artikelText(d.artikelMap.get(p.artikel_id)) + (posIdx(d, p) ? " · Index " + posIdx(d, p) : ""),
             pw ? [pw.maschine, ({ geplant: "geplant", ruesten: "rüsten", laeuft: "läuft", fertig: "fertig" })[pw.stand] || pw.stand].filter(Boolean).join(" · ") : "–",
             mengeText(p.menge), mengeText(ein), <b>{mengeText(offen)}</b>],
+        }))} />
+    </section>
+  );
+}
+
+// Wunsch Patrick 27. November 2026: „eine Kachel WBG drucken auf den Spedi-Drucker“.
+// Gedruckt wird wie mit „Spedition WBG“ im Betrachter: über den Pool-Rechner auf den zweiten
+// WBG-Drucker (Einstellungen → Dokumente → „Drucker Spedition WBG“).
+function WbgDrucken({ d, neu }) {
+  const [suche, setSuche] = useState("");
+  const [wbg, setWbg] = useState(null); // job_id → wbg_url
+  const [spedi, setSpedi] = useState(undefined);
+  const [druckt, setDruckt] = useState({});
+  const fas = wbgFas(d);
+  const ids = fas.map((b) => b.daten.planwand.job_id);
+  useEffect(() => {
+    let weg = false;
+    (async () => {
+      const m = new Map();
+      for (let i = 0; i < ids.length; i += 100) {
+        const r = await alt.db.from("jobs").select("id, wbg_url").in("id", ids.slice(i, i + 100));
+        ((r && r.data) || []).forEach((j) => { if (j.wbg_url) m.set(j.id, j.wbg_url); });
+      }
+      if (!weg) setWbg(m);
+    })().catch(() => { if (!weg) setWbg(new Map()); });
+    poolDruckLaden().then((k) => { if (!weg) setSpedi(poolWbgDrucker(k)[1] || ""); }).catch(() => { if (!weg) setSpedi(""); });
+    return () => { weg = true; };
+  }, [ids.join(",")]);
+  const liste = fas.filter((b) => {
+    const p = (d.posJe.get(b.id) || []).find((x) => x.artikel_id);
+    const k = d.partnerMap.get(b.partner_id) || {};
+    return passt(suche, [b.nr, k.nr, k.name, p && artikelText(d.artikelMap.get(p.artikel_id)), b.daten.planwand.maschine].join(" "));
+  });
+  const drucken = async (b, url) => {
+    if (!spedi) { alt.meldung("Unter Einstellungen → Dokumente ist kein „Drucker Spedition WBG“ gewählt.", "warn"); return; }
+    setDruckt((x) => ({ ...x, [b.id]: true }));
+    try {
+      const a = await fetch(url);
+      if (!a.ok) throw new Error("WBG nicht erreichbar");
+      const daten = new Uint8Array(await a.arrayBuffer());
+      const { pdfjs } = await import("../../teile/PdfAnsicht.jsx");
+      const seiten = await pdfSeitenAlsJpg(await pdfjs(), daten);
+      await poolDrucken({ art: "bilder", bilder: seiten.map((x) => x.blob), titel: "WBG FA " + b.nr, kopien: 1, drucker: spedi });
+    } catch (f) {
+      alt.meldung("Drucken ging nicht: " + (alt.fehlertext ? alt.fehlertext(f) : String(f && f.message || f)), "fehler");
+    } finally { setDruckt((x) => ({ ...x, [b.id]: false })); }
+  };
+  const ansehen = (b, url) => alt.betrachter && alt.betrachter(url, "WBG FA " + b.nr, true);
+  return (
+    <section className="logi-funktion" data-logi-funktion="wbg">
+      <div className="mat-kopf">
+        <h2 className="logi-funktion__titel">WBG drucken</h2>
+        <Suche wert={suche} setzen={setSuche} platzhalter="FA, Kunde, Artikel, Maschine …" />
+      </div>
+      <p className="klein">„Drucken“ schickt die WBG sofort an den Drucker der Spedition. Zeile antippen zeigt die WBG zuerst an.
+        {spedi === "" && <b className="erp-rot"> Kein Drucker Spedition gewählt (Einstellungen → Dokumente).</b>}</p>
+      <Tabelle kopf={["FA", "Kunde", "Artikel", "Planwand", "WBG", ""]}
+        leer="Keine offenen FAs mit Auftrag auf der Planwand."
+        zeilen={liste.map((b) => {
+          const p = (d.posJe.get(b.id) || []).find((x) => x.artikel_id);
+          const pw = b.daten.planwand;
+          const url = wbg && wbg.get(pw.job_id);
+          return {
+            key: b.id, klick: url ? () => ansehen(b, url) : undefined,
+            zellen: [<a href="#" data-logi-fa={b.nr} onClick={(e) => { e.preventDefault(); e.stopPropagation(); belegOeffnen(d, neu, b); }}>{b.nr}</a>,
+              partnerText(d.partnerMap.get(b.partner_id)),
+              p ? artikelText(d.artikelMap.get(p.artikel_id)) + (posIdx(d, p) ? " · Index " + posIdx(d, p) : "") : "–",
+              [pw.maschine, ({ geplant: "geplant", ruesten: "rüsten", laeuft: "läuft", fertig: "fertig" })[pw.stand] || pw.stand].filter(Boolean).join(" · "),
+              wbg == null ? "…" : url ? "vorhanden" : <span className="erp-rot">keine WBG</span>,
+              url ? <button type="button" className="knopf knopf--klein knopf--spedition" data-logi-wbg-drucken={b.nr} disabled={!!druckt[b.id]}
+                onClick={(e) => { e.stopPropagation(); drucken(b, url); }}>{druckt[b.id] ? "Druckt …" : "Drucken"}</button> : ""],
+          };
+        })} />
+    </section>
+  );
+}
+
+// Wunsch Patrick 27. November 2026: „eine Kachel Lieferschein anlegen“
+function LieferscheinAnlegen({ d, neu }) {
+  const [suche, setSuche] = useState("");
+  const [alle, setAlle] = useState(false);
+  const liste = offeneLieferungen(d).filter(({ b, p, lager }) => {
+    if (!alle && !(lager > 0)) return false;
+    const k = d.partnerMap.get(b.partner_id) || {};
+    return passt(suche, [b.nr, k.nr, k.name, artikelText(d.artikelMap.get(p.artikel_id)), (b.daten || {}).ihre_bestellung].join(" "));
+  });
+  const liefern = async (b, p) => {
+    const n = await allesLaden();
+    fensterOeffnen((zu) => <LieferscheinFenster d={n} b={n.belegMap.get(b.id) || b} nurPos={p.id} zu={zu} fertig={async () => { neu(); }} />);
+  };
+  return (
+    <section className="logi-funktion" data-logi-funktion="ls-neu">
+      <div className="mat-kopf">
+        <h2 className="logi-funktion__titel">Lieferschein anlegen</h2>
+        <Suche wert={suche} setzen={setSuche} platzhalter="Auftrag, Kunde, Artikel …" />
+        <label className="feld-haken" data-logi-ls-alle=""><input type="checkbox" checked={alle} onChange={(e) => setAlle(e.target.checked)} /> Auch ohne Lagerbestand</label>
+      </div>
+      <p className="klein">Zeile antippen erstellt den Lieferschein für diese Position: Menge und Charge wählen, speichern. Die Auftragsnummer öffnet den Auftrag.</p>
+      <Tabelle kopf={["Fällig", "Auftrag", "Kunde", "Artikel", "Offen", "Am Lager"]}
+        leer={alle ? "Keine offenen Auftragspositionen." : "Nichts lieferbar: keine offene Position mit Teilen am Lager."}
+        zeilen={liste.map(({ b, p, offen, faellig, lager }) => ({
+          key: p.id, klasse: faellig && faellig < heute() ? "erp-rot" : (lager > 0 ? "" : "erp-blass"),
+          klick: lager > 0 ? () => liefern(b, p) : undefined, sort: [faellig || ""],
+          zellen: [faellig ? datumText(faellig) : "–",
+            <a href="#" data-logi-beleg={b.nr} onClick={(e) => { e.preventDefault(); e.stopPropagation(); belegOeffnen(d, neu, b); }}>{b.nr}</a>,
+            partnerText(d.partnerMap.get(b.partner_id)),
+            artikelText(d.artikelMap.get(p.artikel_id)) + (posIdx(d, p) ? " · Index " + posIdx(d, p) : ""),
+            <b>{mengeText(offen)}</b>, mengeText(lager)],
         }))} />
     </section>
   );

@@ -607,7 +607,7 @@ function Positionen({ d, kopf, pos, setPos, bearbeiten, b, aussen, frisch, start
   );
 }
 
-function geliefert(d, p) {
+export function geliefert(d, p) {
   return folgePositionen(d, p.id, "lieferschein").reduce((s, x) => s + zahl(x.menge), 0);
 }
 
@@ -896,7 +896,7 @@ function LieferplanFenster({ d, aussen, b, p, frisch, zu }) {
   );
 }
 
-function naechsterAbruf(d, p) {
+export function naechsterAbruf(d, p) {
   let kum = 0;
   const g = geliefert(d, p);
   for (const x of p.daten.abrufe || []) { kum += zahl(x.menge); if (kum > g + 1e-9) return kum - g; }
@@ -1044,12 +1044,12 @@ async function faErstellen(d, b, aussen) {
 
 // Bestand eines Artikels als Auswahl. Nur genau dieser Artikel samt Index:
 // Bestand mit Index A kann einen Auftrag mit Index B nie beliefern.
-function chargenWahl(d, artikelId, idx) {
+export function chargenWahl(d, artikelId, idx) {
   return bestand(d, artikelId).filter((e) => e.menge > 0 && (idx == null || e.idx === idx))
     .map((e) => [e.charge + "|" + (e.lager_id || ""), "Charge " + e.charge + " · " + lagerText(d, e.lager_id) + " · " + mengeText(e.menge), e]);
 }
 
-function LieferscheinFenster({ d, b, zu, fertig, nurPos }) {
+export function LieferscheinFenster({ d, b, zu, fertig, nurPos }) {
   // Aus einer Position: nur diese; aus dem Kopf: alle zur Auswahl
   const pos = (d.posJe.get(b.id) || []).filter((p) => p.artikel_id && (!nurPos || p.id === nurPos));
   const [w, setW] = useState(() => pos.map((p) => {

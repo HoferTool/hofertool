@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.928.0 (27. November 2026)
+
+- Test ERP → Logistik: drei neue Kacheln. „WBG drucken“ (offene FAs mit Planwand-Auftrag, WBG aus `jobs.wbg_url`, Knopf „Drucken“ schickt sie über den Pool-Rechner an den Drucker Spedition, Zeile antippen zeigt sie an). „Lieferschein anlegen“ (offene Auftragspositionen nach Fälligkeit aus dem Lieferplan, mit Bestand, Antippen öffnet den Lieferschein für diese Position, Häkchen „Auch ohne Lagerbestand“). „FA Übersicht“ (Liste wie im Reiter Fertigung).
+
 ## 1.927.0 (27. November 2026)
 
 - Test ERP → Logistik: Kachel „Fertigung einlagern“ mit den offenen FAs (noch nicht ganz fertig gemeldet), laufende und rüstende Planwand-Aufträge zuerst; Antippen öffnet die Fertigmeldung (Menge, Lagerart, Platz).

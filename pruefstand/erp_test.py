@@ -227,6 +227,8 @@ with sync_playwright() as p:
     # Kachel ZA extern anlegen (seit 1.925.0): externer Arbeitsgang im offenen FA wird zur Bestellung beim Lieferanten
     pg.evaluate("""() => { const fa = TEST.daten.erp_belege.find(b => b.typ === 'fertigung');
       fa.status = 'offen'; fa.daten = { ...fa.daten, ap: [...fa.daten.ap, { pos: 30, bez: 'Härten', code: 'HAERT', extern: true, lieferant_nr: '70001', pauschal: 5, pauschal_einheit: 'Tag' }] };
+      fa.daten.planwand = { job_id: 'jwbg', maschine: '124', stand: 'laeuft' };
+      TEST.daten.jobs = TEST.daten.jobs || []; TEST.daten.jobs.push({ id: 'jwbg', wbg_url: 'https://example.invalid/wbg.pdf' });
       TEST.daten.erp_positionen.filter(q => q.beleg_id === fa.id).forEach(q => { q.menge = Number(q.menge) + 50; });
       const a = TEST.daten.erp_artikel.find(x => x.id === 'a1'); a.arbeitsplan = [...(a.arbeitsplan || []), { pos: 90, bez: 'Härten', code: 'HAERT', extern: true, lieferant_nr: '70001', pauschal: 5 }]; }""")
     pg.evaluate("location.hash='#/'"); pg.wait_for_timeout(500)
@@ -246,6 +248,17 @@ with sync_playwright() as p:
     pg.mouse.move(w["x"] + 30, w["y"] + 30, steps=8); pg.mouse.up(); pg.wait_for_timeout(300)
     reihe = pg.evaluate("[...document.querySelectorAll('[data-logi-kachel]')].map(k => k.dataset.logiKachel)")
     pruefe(reihe[:2] == ["za-neu", "we-za"] and pg.locator("[data-logi-funktion='za-neu']").count() == 1, "Kacheln verschoben, Ziehen öffnet nichts: %s" % reihe)
+    # Kachel WBG drucken (seit 1.928.0)
+    pg.click("[data-logi-kachel='wbg']"); pg.wait_for_timeout(800)
+    z = pg.locator("[data-logi-funktion='wbg'] .erp-tabelle tbody tr")
+    pruefe(z.count() == 1 and "vorhanden" in z.first.inner_text() and pg.locator("[data-logi-wbg-drucken]").count() == 1, "WBG drucken: FA mit WBG und Knopf Drucken")
+    # Kachel Lieferschein anlegen (seit 1.928.0)
+    pg.click("[data-logi-kachel='ls-neu']"); pg.wait_for_timeout(300)
+    pg.locator("[data-logi-ls-alle] input").check(); pg.wait_for_timeout(200)
+    n_ls = pg.locator("[data-logi-funktion='ls-neu'] .erp-tabelle tbody tr").count()
+    pruefe(pg.locator("[data-logi-funktion='ls-neu']").count() == 1, "Lieferschein anlegen: Liste da (%s Positionen mit Häkchen „auch ohne Bestand“)" % n_ls)
+    pg.click("[data-logi-kachel='fa']"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-logi-funktion='fa'] [data-erp-fa-stand]").count() >= 4, "FA Übersicht mit Häkchen je Stand")
     # Kachel Fertigung einlagern (seit 1.927.0)
     pg.click("[data-logi-kachel='einlagern']"); pg.wait_for_timeout(300)
     z = pg.locator("[data-logi-funktion='einlagern'] .erp-tabelle tbody tr")
