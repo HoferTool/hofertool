@@ -170,7 +170,7 @@ export function elementeLage(eingabe) {
     const q = -Q / 2 + w.p * Q, u0 = -L / 2 + w.von * L, u1 = -L / 2 + w.bis * L;
     const breit = w.typ === "wand" ? tw / 2 : w.typ === "scoop" ? Math.min(20, (oben - boden) * 0.6) : 12;
     const v0 = w.typ === "wand" ? q - breit : w.s > 0 ? q : q - breit, v1 = w.typ === "wand" ? q + breit : w.s > 0 ? q + breit : q;
-    const z0 = w.typ === "leiste" ? oben - 12 : boden, z1 = w.typ === "scoop" ? boden + breit : oben;
+    const z0 = boden, z1 = w.typ === "scoop" ? boden + breit : oben;
     return w.a === "x" ? { a: w.a, x0: v0, x1: v1, y0: u0, y1: u1, z0, z1 } : { a: w.a, x0: u0, x1: u1, y0: v0, y1: v1, z0, z1 };
   });
   return { iw, id, tw, boden, oben, teile, elemente: b.elemente };
@@ -290,10 +290,12 @@ export function boxNetz(eingabe) {
       prof.push([0, zf + r + 0.1]);
       ziehen(w, prof.map(([v, z]) => [sv(v), z]), a0, a1);
     } else {
-      // Beschriftungsleiste: Dreieck oben an der Wand, unten 45°, druckt ohne Stützen
+      // Beschriftungsleiste: oben flach zum Beschriften, darunter schräg bis
+      // auf den Boden (seit 1.912.0, Patrick: „Leiste so, dass sie wie der
+      // Scoop aufliegt“), steht damit fest und druckt ohne Stützen
       const tief = Math.min(12, hoehe - 1, platz(w) - 2);
       if (tief < 4 || a1 - a0 < 5) continue;
-      ziehen(w, [[0, oben], [0, oben - tief], [tief, oben]].map(([v, z]) => [sv(v), z]), a0, a1);
+      ziehen(w, [[0, boden - 0.1], [tief, oben], [0, oben]].map(([v, z]) => [sv(v), z]), a0, a1);
     }
   }
 

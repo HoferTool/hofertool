@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.912.0 (27. November 2026)
+
+- Gridfinity Box: Leiste geht schräg bis auf den Boden (liegt auf wie der Scoop).
+
 ## 1.911.0 (27. November 2026)
 
 - Gridfinity Box: Fächer-Elemente Wand, Leiste, Scoop hinzufügen und in der 3D-Vorschau mit der Maus ziehen.
