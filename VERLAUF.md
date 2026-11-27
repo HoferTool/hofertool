@@ -2,6 +2,10 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.935.1 (27. November 2026)
+
+- Druckformulare: Druckfenster geht sofort beim Klick auf; ein Fehler beim Erstellen steht im Fenster und als Meldung, statt dass nichts passiert.
+
 ## 1.935.0 (27. November 2026)
 
 - Test ERP: Rechnung, Lieferschein, Auftragsbestätigung, Bestellung (vier Arten: Rohmaterial, ZA extern, Auftrag / Lieferschein, Lieferschein zu Bestellung) und Angebot aus der Kalkulation drucken genau im Aufbau der Gewatec-Formulare (`src/seiten/erp/formulare.js`). Neu: Feld „Bestellart“ und Bearbeitungsvorschrift je Bestellposition; Verpackung und Porto der Lieferscheine zählen in die Rechnungssumme. Test `pruefstand/formulare_gewatec.py`.

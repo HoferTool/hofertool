@@ -132,6 +132,28 @@ function kopfHtml(k) {
     + "</div>";
 }
 
+// Druckfenster sofort beim Klick öffnen (sonst kann der Browser es als
+// ungefragtes Fenster sperren) und jeden Fehler beim Zusammensetzen im
+// Fenster und als Meldung zeigen, statt dass still nichts passiert
+// (1.935.1, Patrick 27. November 2026: „wenn ich drucken drücke passiert nichts“)
+let vorbereitet = null;
+function sicher(fn) {
+  return (...args) => {
+    const w = window.open("", "_blank");
+    if (!w) { alt.meldung("Das Druckfenster wurde vom Browser blockiert. Bitte Popups für das HoferTool erlauben.", "warn"); return null; }
+    try { w.document.write("<p style='font:14px Arial;padding:20px'>Formular wird erstellt …</p>"); } catch (e) { /* leer lassen */ }
+    vorbereitet = w;
+    try { return fn(...args); }
+    catch (e) {
+      const text = (e && e.message) || String(e);
+      try { w.document.open(); w.document.write("<p style='font:14px Arial;padding:20px;color:#b00'>Fehler beim Erstellen des Formulars: " + esc(text) + "</p>"); w.document.close(); } catch (f) { /* egal */ }
+      alt.meldung("Drucken fehlgeschlagen: " + text, "fehler");
+      if (alt.fehlerMerken) alt.fehlerMerken("Drucken", text, e && e.stack ? String(e.stack).split("\n").slice(0, 3).join(" | ") : "");
+      return null;
+    } finally { vorbereitet = null; }
+  };
+}
+
 // Ganzes Blatt zusammensetzen und im eigenen Fenster öffnen
 function blattOeffnen({ titel, kopf, spalten, inhalt, fuss, fussHoehe = 0 }) {
   const html = "<!doctype html><html><head><meta charset='utf-8'><title>" + esc(titel) + "</title><style>" + CSS + "</style></head><body>"
@@ -145,8 +167,9 @@ function blattOeffnen({ titel, kopf, spalten, inhalt, fuss, fussHoehe = 0 }) {
     + "<tfoot><tr><td><div style='height:" + (fussHoehe + 10) + "pt'></div></td></tr></tfoot></table>"
     + (fuss || "")
     + "<script>setTimeout(()=>print(),400)</script></body></html>";
-  const w = window.open("", "_blank");
+  const w = vorbereitet || window.open("", "_blank");
   if (!w) { alt.meldung("Das Fenster wurde vom Browser blockiert.", "warn"); return null; }
+  w.document.open();
   w.document.write(html);
   w.document.close();
   return w;
@@ -198,7 +221,8 @@ function lieferplan(x, { datum, fettZeilen } = {}) {
 //  RECHNUNG (auch Gutschrift und Proforma)
 // =================================================================
 const SP_RE = [18, 58, 5, 207, 40, 6, 57, 90];
-export function reDrucken(d, b) {
+export const reDrucken = sicher(reDruckenBlatt);
+function reDruckenBlatt(d, b) {
   const bd = b.daten || {};
   const t = BELEGTYP[b.typ] || BELEGTYP.rechnung;
   const { p, an } = partnerInfo(d, b, bd.anschrift || bd.rechnung_an);
@@ -278,7 +302,8 @@ export function reDrucken(d, b) {
 //  LIEFERSCHEIN
 // =================================================================
 const SP_LS = [18, 58, 5, 288, 112];
-export function lsDrucken(d, b) {
+export const lsDrucken = sicher(lsDruckenBlatt);
+function lsDruckenBlatt(d, b) {
   const bd = b.daten || {};
   const { p, an, tel, fax } = partnerInfo(d, b, bd.anschrift || bd.rechnung_an);
   const sb = sachbearbeiter();
@@ -348,7 +373,8 @@ export function lsDrucken(d, b) {
 //  AUFTRAGSBESTÄTIGUNG
 // =================================================================
 const SP_AB = [18, 58, 5, 217, 36, 57, 90];
-export function abDrucken(d, b) {
+export const abDrucken = sicher(abDruckenBlatt);
+function abDruckenBlatt(d, b) {
   const bd = b.daten || {};
   const { p, an, tel, fax, kontakt } = partnerInfo(d, b, bd.rechnung_an);
   const liefer = bd.anschrift || null;
@@ -408,7 +434,8 @@ export function bestellart(d, b) {
   return erste && erste.art === "rohmaterial" ? "rohmaterial" : "za";
 }
 const SP_BE = [18, 58, 5, 207, 40, 6, 57, 90];
-export function beDrucken(d, b) {
+export const beDrucken = sicher(beDruckenBlatt);
+function beDruckenBlatt(d, b) {
   const bd = b.daten || {};
   const art = bestellart(d, b);
   const mitPreis = art === "rohmaterial" || art === "za";
@@ -480,7 +507,8 @@ export function beDrucken(d, b) {
 //  k = Kalkulation, nr = Angebots-Nr., zeilen = [{ menge, preis, waehrung, pe }]
 // =================================================================
 const SP_AN = [42, 51, 8, 42, 102, 6, 59, 20, 151];
-export function angebotDrucken({ k, nr, zeilen, adresse, datumText: dt }) {
+export const angebotDrucken = sicher(angebotDruckenBlatt);
+function angebotDruckenBlatt({ k, nr, zeilen, adresse, datumText: dt }) {
   const sb = sachbearbeiter();
   const kopf = k.kopf || {};
   const ag = k.angebot || {};
