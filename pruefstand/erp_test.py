@@ -258,6 +258,8 @@ with sync_playwright() as p:
     pg.click("[data-logi-kachel='wbg']"); pg.wait_for_timeout(800)
     z = pg.locator("[data-logi-funktion='wbg'] .erp-tabelle tbody tr")
     pruefe(z.count() == 1 and "vorhanden" in z.first.inner_text() and pg.locator("[data-logi-wbg-drucken]").count() == 1, "WBG drucken: FA mit WBG und Knopf Drucken")
+    pg.locator("[data-logi-wbg-mehr]").click(); pg.locator("[data-logi-wbg-mehr]").click()
+    pruefe(pg.locator("[data-logi-wbg-kopien]").inner_text() == "3", "WBG drucken: Anzahl wählbar")
     # Kachel Lieferschein anlegen (seit 1.928.0)
     pg.click("[data-logi-kachel='ls-neu']"); pg.wait_for_timeout(300)
     pg.locator("[data-logi-ls-alle] input").check(); pg.wait_for_timeout(200)

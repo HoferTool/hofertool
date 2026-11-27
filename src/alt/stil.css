@@ -17904,3 +17904,6 @@ body.dunkel .planinfo-wahl__pfeil { border-color: rgba(255,255,255,.25); }
 body.zieh-laeuft .logi-kachel { touch-action: none; cursor: grabbing; }
 /* 1.929.0: Lieferplan Liste, Zeitraum von/bis im Kopf */
 .logi-funktion .feld-inline { display: inline-flex; align-items: center; gap: 6px; margin-right: 10px; font-size: 14px; }
+/* 1.930.0: WBG drucken mit Anzahl je Zeile */
+.logi-wbg-druck { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.logi-wbg-druck b { min-width: 18px; text-align: center; }

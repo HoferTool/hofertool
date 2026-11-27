@@ -438,6 +438,9 @@ function WbgDrucken({ d, neu }) {
   const [wbg, setWbg] = useState(null); // job_id → wbg_url
   const [spedi, setSpedi] = useState(undefined);
   const [druckt, setDruckt] = useState({});
+  // Anzahl Kopien je FA (Patrick 27. November 2026: „beim WBG-Druck soll die Menge ausgewählt werden können“)
+  const [kopien, setKopien] = useState({});
+  const kop = (b) => Math.max(1, Math.min(20, Number(kopien[b.id]) || 1));
   const fas = wbgFas(d);
   const ids = fas.map((b) => b.daten.planwand.job_id);
   useEffect(() => {
@@ -467,7 +470,7 @@ function WbgDrucken({ d, neu }) {
       const daten = new Uint8Array(await a.arrayBuffer());
       const { pdfjs } = await import("../../teile/PdfAnsicht.jsx");
       const seiten = await pdfSeitenAlsJpg(await pdfjs(), daten);
-      await poolDrucken({ art: "bilder", bilder: seiten.map((x) => x.blob), titel: "WBG FA " + b.nr, kopien: 1, drucker: spedi });
+      await poolDrucken({ art: "bilder", bilder: seiten.map((x) => x.blob), titel: "WBG FA " + b.nr, kopien: kop(b), drucker: spedi });
     } catch (f) {
       alt.meldung("Drucken ging nicht: " + (alt.fehlertext ? alt.fehlertext(f) : String(f && f.message || f)), "fehler");
     } finally { setDruckt((x) => ({ ...x, [b.id]: false })); }
@@ -479,9 +482,9 @@ function WbgDrucken({ d, neu }) {
         <h2 className="logi-funktion__titel">WBG drucken</h2>
         <Suche wert={suche} setzen={setSuche} platzhalter="FA, Kunde, Artikel, Maschine …" />
       </div>
-      <p className="klein">„Drucken“ schickt die WBG sofort an den Drucker der Spedition. Zeile antippen zeigt die WBG zuerst an.
+      <p className="klein">Mit − und + die Anzahl wählen, „Drucken“ schickt die WBG sofort an den Drucker der Spedition. Zeile antippen zeigt die WBG zuerst an.
         {spedi === "" && <b className="erp-rot"> Kein Drucker Spedition gewählt (Einstellungen → Dokumente).</b>}</p>
-      <Tabelle kopf={["FA", "Kunde", "Artikel", "Planwand", "WBG", ""]}
+      <Tabelle kopf={["FA", "Kunde", "Artikel", "Planwand", "WBG", "Anzahl / Drucken"]}
         leer="Keine offenen FAs mit Auftrag auf der Planwand."
         zeilen={liste.map((b) => {
           const p = (d.posJe.get(b.id) || []).find((x) => x.artikel_id);
@@ -494,8 +497,14 @@ function WbgDrucken({ d, neu }) {
               p ? artikelText(d.artikelMap.get(p.artikel_id)) + (posIdx(d, p) ? " · Index " + posIdx(d, p) : "") : "–",
               [pw.maschine, ({ geplant: "geplant", ruesten: "rüsten", laeuft: "läuft", fertig: "fertig" })[pw.stand] || pw.stand].filter(Boolean).join(" · "),
               wbg == null ? "…" : url ? "vorhanden" : <span className="erp-rot">keine WBG</span>,
-              url ? <button type="button" className="knopf knopf--klein knopf--spedition" data-logi-wbg-drucken={b.nr} disabled={!!druckt[b.id]}
-                onClick={(e) => { e.stopPropagation(); drucken(b, url); }}>{druckt[b.id] ? "Druckt …" : "Drucken"}</button> : ""],
+              url ? <span className="logi-wbg-druck" onClick={(e) => e.stopPropagation()}>
+                <button type="button" className="knopf knopf--klein" aria-label="Weniger" disabled={kop(b) <= 1}
+                  onClick={() => setKopien((x) => ({ ...x, [b.id]: kop(b) - 1 }))}>−</button>
+                <b data-logi-wbg-kopien={b.nr} title="Anzahl">{kop(b)}</b>
+                <button type="button" className="knopf knopf--klein" aria-label="Mehr" data-logi-wbg-mehr={b.nr} disabled={kop(b) >= 20}
+                  onClick={() => setKopien((x) => ({ ...x, [b.id]: kop(b) + 1 }))}>+</button>
+                <button type="button" className="knopf knopf--klein knopf--spedition" data-logi-wbg-drucken={b.nr} disabled={!!druckt[b.id]}
+                  onClick={() => drucken(b, url)}>{druckt[b.id] ? "Druckt …" : "Drucken"}</button></span> : ""],
           };
         })} />
     </section>

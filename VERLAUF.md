@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.930.0 (27. November 2026)
+
+- Test ERP → Logistik → WBG drucken: Anzahl Kopien je FA mit − und + (1 bis 20) vor „Drucken“.
+
 ## 1.929.0 (27. November 2026)
 
 - Test ERP → Logistik: Kachel „Lieferplan Liste“ (fällige Lieferungen im Zeitraum von/bis aus den Lieferplänen, nach Kunde und Termin, Geliefertes abgezogen, Lagerort und Lagerbestand; „Drucken“ als Blatt „Offene Lieferungen“ quer wie das Gewatec-Blatt mit Spalten Rüstmenge und Verpackung zum Ausfüllen).
