@@ -116,9 +116,15 @@ export async function vorschlaege(text, hersteller, ohneId) {
     const nummer = t.split(/\s+/).filter((w) => { const n = normal(w); return n.length < 2 || !u.altNorm.includes(n); }).join(" ").trim();
     if (!nummer) continue;
     try {
-      const r = await alt.zeitlimit(alt.db.from("artikel_uebersicht").select("*")
-        .eq("supplier_name", u.neu).limit(3000), 12000, "Artikel");
-      const treffer = aehnlicheTreffer(nummer, r.data || [],
+      // Je Lieferant einmal je Minute holen, das Einlesen der Excel
+      // fragt sonst für jeden Platz alle Artikel neu ab
+      if (!s.lieferant) s.lieferant = {};
+      if (!s.lieferant[u.neu]) {
+        const r = await alt.zeitlimit(alt.db.from("artikel_uebersicht").select("*")
+          .eq("supplier_name", u.neu).limit(3000), 12000, "Artikel");
+        s.lieferant[u.neu] = r.data || [];
+      }
+      const treffer = aehnlicheTreffer(nummer, s.lieferant[u.neu],
         (a) => [a.article_number, a.name, a.description], [], 5);
       treffer.forEach((a, i) => dazu(Object.assign({}, a, { aehnlich: false }), 40 - i,
         "„" + u.alt + "“ heisst jetzt " + u.neu));
@@ -126,5 +132,16 @@ export async function vorschlaege(text, hersteller, ohneId) {
   }
 
   return [...je.values()].sort((x, y) => y.wert - x.wert).slice(0, 5)
-    .map((v) => ({ artikel: v.artikel, grund: v.grund }));
+    .map((v) => ({ artikel: v.artikel, grund: v.grund, wert: v.wert }));
+}
+
+// Der beste gelernte Vorschlag für das Einlesen eines Excel-Einrichtblatts
+// (seit 1.874.0, Wunsch Patrick 27. November 2026: „bei EB liest es das
+// Excel und dort soll es dann vorgeschlagen werden“): der Platz bekommt
+// ihn, bleibt aber rot, bis jemand bestätigt
+export async function besterVorschlag(text, hersteller) {
+  try {
+    const v = await vorschlaege(text, hersteller);
+    return v.length ? v[0] : null;
+  } catch (f) { return null; }
 }

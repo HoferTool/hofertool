@@ -13,6 +13,7 @@
 // =================================================================
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
+import { lernen } from "../daten/werkzeugLernen.js";
 import { lokalZurueckAnmelden, entwurfVerlauf, verlaufMerken, verlaufZurueck } from "../teile/lokalZurueck.js";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
@@ -723,6 +724,7 @@ function platzDaten(p, nr) {
   if (p.article_id && z.werkzeug) z.article_id = p.article_id;
   else delete z.bezeichnung;
   if (z.article_id && p.ungeprueft) z.ungeprueft = true;
+  if (z.ungeprueft && p.gelernt) z.gelernt = p.gelernt;
   if (z.article_id && p.spezial) z.spezial = true;
   if (p.bild) z.bild = p.bild;
   return z;
@@ -780,7 +782,7 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
     setArtikel(a);
     setP(Object.assign({}, p, { article_id: a.id, werkzeug: a.article_number || a.name || "", bezeichnung: a.article_number ? artikelBezeichnung(a) : "",
       hersteller: a.supplier_name || "",
-      spezial_id: null, ungeprueft: false, spezial: !!a.spezial, bild: artikelBilder[a.id] || p.bild || null }));
+      spezial_id: null, ungeprueft: false, gelernt: null, spezial: !!a.spezial, bild: artikelBilder[a.id] || p.bild || null }));
   };
   const waehlen = async () => {
     const a = await werkzeugWaehlen({ suche: p.article_id && !p.ungeprueft ? "" : (p.werkzeug || ""), spezial: !!(artikel && artikel.spezial),
@@ -936,7 +938,12 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
         <span className="eba-pf-titel">Werkzeug</span>
         {p.article_id && p.ungeprueft
           ? <div className="eba-pf-artikel eba-pf-artikel--frei" data-pf-bestaetigen="">{wzZeile("werkzeug")}
-              <span>Aus dem Excel{p.hersteller ? ", " + p.hersteller : ""}. Noch nicht hinterlegt: „Auswählen“, die Suche steht schon da. Fehlt es, dort neu anlegen.</span></div>
+              {p.gelernt && artikel && artikel.id === p.article_id
+                ? <span data-pf-gelernt="">Vorschlag aus früherer Wahl: <b>{artikel.article_number}</b>{artikel.supplier_name ? " · " + artikel.supplier_name : ""} ({p.gelernt}).{" "}
+                    <button type="button" className="knopf knopf--klein" data-pf-gelernt-ok=""
+                      onClick={() => { const a = artikel; lernen(p.werkzeug, p.hersteller, a); nehmen(a); }}>✓ Vorschlag übernehmen</button>
+                    {" "}Sonst „Auswählen“.</span>
+                : <span>Aus dem Excel{p.hersteller ? ", " + p.hersteller : ""}. Noch nicht hinterlegt: „Auswählen“, die Suche steht schon da. Fehlt es, dort neu anlegen.</span>}</div>
           : p.article_id
           ? <div className="eba-pf-artikel eba-pf-artikel--zeilen">{wzZeile("hersteller")}{wzZeile("werkzeug")}{wzZeile("bezeichnung")}
               {artikel && artikel.spezial && <span>Spezialwerkzeug</span>}</div>
@@ -948,7 +955,7 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
           <button className={"knopf knopf--klein" + (werkzeugOffen(p) ? " knopf--haupt" : "")} data-pf-waehlen="" onClick={waehlen}>
             {p.werkzeug ? (p.article_id && !p.ungeprueft ? "Anderes Werkzeug wählen" : "Auswählen") : "Werkzeug wählen"}</button>
           {p.werkzeug && <button className="knopf knopf--klein knopf--still" data-pf-wzweg=""
-            onClick={() => setP(Object.assign({}, p, { werkzeug: "", bezeichnung: "", hersteller: "", article_id: null, spezial_id: null, ungeprueft: false }))}>Entfernen</button>}
+            onClick={() => setP(Object.assign({}, p, { werkzeug: "", bezeichnung: "", hersteller: "", article_id: null, spezial_id: null, ungeprueft: false, gelernt: null }))}>Entfernen</button>}
         </div>
       </div>
       <label className="feld"><span>Notiz Mitte</span>

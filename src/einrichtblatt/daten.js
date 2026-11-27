@@ -14,6 +14,7 @@ import { excelRoh, blattAusExcel } from "./excelEinlesen.js";
 import { eigeneBilderSetzen } from "./bilder.js";
 import { sinnbildFuerBild } from "./sinnbilder.js";
 import { platzName } from "./vorlagen.js";
+import { besterVorschlag } from "../daten/werkzeugLernen.js";
 
 export const TABELLE = "einrichtblatt_app";
 
@@ -493,6 +494,12 @@ export async function excelVorlesen(hocoNr, typ, excelUrl, { artikel } = {}) {
         // Selbst zugeordnet: bleibt rot, bis jemand bestätigt, dass es
         // dieses Werkzeug ist (Wunsch Patrick, 26. Oktober 2026)
         if (id) { z.article_id = id; z.ungeprueft = true; }
+        else {
+          // Sonst das, was früher zu diesem Excel-Text gewählt wurde
+          // (werkzeug_gelernt), ebenfalls rot bis bestätigt
+          const v = await besterVorschlag(z.werkzeug, z.hersteller);
+          if (v && v.artikel && v.artikel.id) { z.article_id = v.artikel.id; z.ungeprueft = true; z.gelernt = v.grund; }
+        }
       } catch (f) { /* dann ohne Artikel */ }
     }
     if (Object.keys(z).length) plaetze[nr] = z;
