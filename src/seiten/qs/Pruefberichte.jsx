@@ -28,6 +28,7 @@ import { STIL, briefkopf } from "./achtdBlatt.js";
 import { qsSprung, masseInQsOeffnen } from "./qsSprung.js";
 import Pruefung, { MasseBlatt } from "../../hoco/Pruefung.jsx";
 import { createPortal } from "react-dom";
+import { gdtTeile, gdtHtml } from "../../teile/zeichenListe.js";
 import { dokZeigen } from "../../teile/DokAbruf.jsx";
 import {
   ARTEN, artVon, artName, istZwischen, TEILE, AQL_WERTE, aqlPlan, fehltTabelle, protokolleLaden, dateienLaden, vorlageLaden, stammSpeichern,
@@ -885,7 +886,13 @@ function IstFeld({ wert, t, an, setzen, name }) {
 
 function SollZelle({ z }) {
   const t = toleranz(z.soll);
-  return <><td className="pb-nr">{z.nr}</td><td className="pb-soll" title={t ? "Toleranz " + toleranzText(t) : ""}>{bildVon(z) ? <img className="pb-massbild" src={bildVon(z)} alt="" data-pbbild /> : null}{z.soll}</td></>;
+  return <><td className="pb-nr">{z.nr}</td><td className="pb-soll" title={t ? "Toleranz " + toleranzText(t) : ""}>{bildVon(z) ? <img className="pb-massbild" src={bildVon(z)} alt="" data-pbbild /> : null}<Gdt t={z.soll} /></td></>;
+}
+
+// Form- und Lagetoleranzen in eigener Symbolschrift, damit alle gleich gross und lesbar sind
+function Gdt({ t }) {
+  const p = gdtTeile(t);
+  return typeof p === "string" ? p : p.map((x) => (typeof x === "string" ? x : <span className="gdt" key={x.k}>{x.gdt}</span>));
 }
 
 // Erstteilprüfung / Endkontrolle: 5 Teile, alle Masse
@@ -996,7 +1003,7 @@ function LlTabelle({ zeilen, w, schreibt, aendern }) {
           {masse(zeilen).map((z) => (
             <label key={z.id} className={"pb-wahl" + (auswahl.has(z.id) ? " pb-wahl--an" : "")} data-pbll={z.id}>
               <input type="checkbox" checked={auswahl.has(z.id)} disabled={!schreibt} onChange={() => umschalten(z.id)} />
-              <b>{z.nr}</b> {z.soll} <small>{z.pm}</small>
+              <b>{z.nr}</b> <Gdt t={z.soll} /> <small>{z.pm}</small>
             </label>
           ))}
         </div>
@@ -1044,7 +1051,7 @@ function LlTabelle({ zeilen, w, schreibt, aendern }) {
 
 // ---------- PDF mit dem Briefkopf ----------
 // Soll im PDF, mit dem Bild des Masses aus dem alten Bericht oder von Hand
-const sollHtml = (z) => (bildVon(z) ? '<img class="pb-massbild" style="max-height:12mm;max-width:45mm;display:block" src="' + h(bildVon(z)) + '" alt="">' : "") + h(z.soll);
+const sollHtml = (z) => (bildVon(z) ? '<img class="pb-massbild" style="max-height:12mm;max-width:45mm;display:block" src="' + h(bildVon(z)) + '" alt="">' : "") + gdtHtml(h(z.soll));
 const h = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 function protokollHtml(w, hoco) {
   const k = w.kopf || {}, art = k.art || "erstteil", v = k.vorlage || {};

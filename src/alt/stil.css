@@ -17633,3 +17633,11 @@ body.dunkel .pd-vorschlag .pd-zeile--vorschlag { background: #2a2a2a; }
   box-shadow: 0 12px 40px rgba(0, 20, 60, .28);
 }
 body.dunkel .kalk-fenster { background: #1b2430; }
+
+/* 1.888.0: Form- und Lagetoleranzen grösser und gleich gross. Die Zeichen stammen aus
+   verschiedenen Schriften, manche waren winzig; eine eigene Symbolschrift mit fester
+   Breite gibt allen dieselbe Grösse (Wunsch Patrick 27. November 2026). */
+.gdt { font-family: "Segoe UI Symbol", "Apple Symbols", "Cambria Math", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif;
+  font-size: 1.25em; display: inline-block; width: 1.2em; text-align: center; line-height: 1; vertical-align: -0.08em; }
+.pst-soll, .schreibleiste__zeichen, .eba-markier .schreibleiste__zeichen {
+  font-family: Aptos, "Segoe UI", "Segoe UI Symbol", "Apple Symbols", "Cambria Math", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif; }
