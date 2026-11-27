@@ -1,7 +1,7 @@
 // =================================================================
 //  GRIDFINITY-WERKZEUG (seit 1.895.0, Wunsch Patrick 27. November 2026)
 //  Links die Einstellungen, rechts die 3D-Vorschau, unten der Export als
-//  3MF oder STL. Die Einstellungen merkt sich das Gerät (localStorage
+//  STL (seit 1.905.0 nur noch STL, Wunsch Patrick). Die Einstellungen merkt sich das Gerät (localStorage
 //  „hofer.gridfinity“), Strg + Z nimmt die letzte Änderung zurück.
 // =================================================================
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -11,7 +11,7 @@ import { alt } from "../../bruecke.jsx";
 import { useEntwurfZurueck } from "../../teile/lokalZurueck.js";
 import {
   BOX_VORGABE, PLATTE_VORGABE, boxPruefen, plattePruefen, boxMasse, platteMasse,
-  boxNetz, platteNetz, verbinderNetz, distanzNetz, distanzPlan, distanzDruck, stlBinaer, dreiMF, GF,
+  boxNetz, platteNetz, verbinderNetz, distanzNetz, distanzPlan, distanzDruck, stlBinaer, netzeVereinen, GF,
   DRUCKER, aufteilen, stueckArten, stueckeVorschau,
 } from "./geometrie.js";
 
@@ -124,7 +124,8 @@ export default function Werkzeug() {
   // Klammern: je Schnitt eine je Feld entlang des Stosses
   const klammern = geteilt ? (teilung.xs.length - 1) * pm.ny + (teilung.ys.length - 1) * pm.nx : 0;
 
-  async function speichern(format, verbinder = false, stueck = null) {
+  function speichern(verbinder = false, stueck = null) {
+    const format = "stl";
     let nz, name;
     if (stueck) {
       nz = platteNetz({ ...platte, art: "felder", nx: stueck.nx, ny: stueck.ny, anschluss: true });
@@ -135,10 +136,11 @@ export default function Werkzeug() {
       name = `gridfinity-distanz-${Math.round(platte.breite)}x${Math.round(platte.tiefe)}mm`;
     } else if (verbinder) { nz = verbinderNetz(platte); name = "gridfinity-klammer"; }
     else { nz = netz; name = dateiName; }
-    if (format === "stl" && Array.isArray(nz)) return;
     if (!nz) return;
-    const daten = format === "3mf" ? await dreiMF(nz, name) : stlBinaer(nz, name);
-    const blob = new Blob([daten], { type: format === "3mf" ? "model/3mf" : "model/stl" });
+    // Mehrere Teile (Distanzstücke) als ein STL; im Slicer „In Objekte teilen“
+    if (Array.isArray(nz)) nz = netzeVereinen(nz);
+    const daten = stlBinaer(nz, name);
+    const blob = new Blob([daten], { type: "model/stl" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = name + "." + format;
@@ -247,7 +249,7 @@ export default function Werkzeug() {
                   {" "}{[dp.gx, dp.gy].filter((x) => x).map(mm).join(" / ")} mm dick, Höhe {mm(pm.H)} mm. Eigene Datei, jedes Teil einzeln.</>
                 : <>Kein Distanzstück nötig, der Rest ist kleiner als 1 mm.</>}</p>}
               {platte.distanz && dp.teile.length > 0 &&
-                <button className="knopf" data-gf-export="distanz" onClick={() => speichern("3mf", "distanz")}>Distanzstücke 3MF</button>}
+                <button className="knopf" data-gf-export="distanz" onClick={() => speichern("distanz")}>Distanzstücke STL</button>}
             </section>}
             <section className="gfn-gruppe" data-gf-druckergruppe>
               <h3>Aufteilen</h3>
@@ -257,7 +259,7 @@ export default function Werkzeug() {
                 {arten.map((a) => (
                   <div key={a.nx + "x" + a.ny} className="gfn-stueck">
                     <span>{a.anzahl} × {a.nx} × {a.ny} Felder</span>
-                    <button className="knopf" data-gf-stueck={a.nx + "x" + a.ny} onClick={() => speichern("3mf", false, a)}>3MF</button>
+                    <button className="knopf" data-gf-stueck={a.nx + "x" + a.ny} onClick={() => speichern(false, a)}>STL</button>
                   </div>
                 ))}
               </div> : !teilbar && !passt(pm.W, pm.D)
@@ -277,11 +279,10 @@ export default function Werkzeug() {
             </div>
             <div className="gfn-export">
               {!geteilt && <>
-                <button className="knopf knopf--haupt" data-gf-export="3mf" disabled={!netz} onClick={() => speichern("3mf")}>3MF speichern</button>
-                <button className="knopf" data-gf-export="stl" disabled={!netz} onClick={() => speichern("stl")}>STL</button>
+                <button className="knopf knopf--haupt" data-gf-export="haupt" disabled={!netz} onClick={() => speichern()}>STL speichern</button>
               </>}
               {stand.art === "platte" && (pm.anschluss || geteilt) &&
-                <button className="knopf" data-gf-export="verbinder" onClick={() => speichern("3mf", true)}>Klammer 3MF</button>}
+                <button className="knopf" data-gf-export="verbinder" onClick={() => speichern(true)}>Klammer STL</button>}
             </div>
           </div>
         </div>

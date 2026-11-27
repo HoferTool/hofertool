@@ -104,6 +104,17 @@ function quader(n, x0, y0, z0, x1, y1, z1) {
   deckel(n, r(z1), [], true);
 }
 
+// Gerades Prisma aus einem Umriss (x,y), Richtung wird selbst geprüft
+function prisma(n, umr, z0, z1) {
+  let f = 0;
+  for (let i = 0; i < umr.length; i++) { const a = umr[i], b = umr[(i + 1) % umr.length]; f += a[0] * b[1] - b[0] * a[1]; }
+  const u = f < 0 ? [...umr].reverse() : umr;
+  const r = (z) => u.map((q) => [q[0], q[1], z]);
+  verbinden(n, [r(z0), r(z1)]);
+  deckel(n, r(z0), [], false);
+  deckel(n, r(z1), [], true);
+}
+
 // Magnetlöcher: Wand zur Lochmitte, Boden des Lochs.
 // richtung +1: Loch geht von z nach oben (Box-Fuss), −1: nach unten (Platte)
 function magnetLoch(n, cx, cy, z, richtung, d = GF.mag.d, t = GF.mag.t) {
@@ -459,16 +470,15 @@ export function distanzPlan(eingabe, druckerId = "x1c") {
     (gx ? T - gy : Infinity) - 1, (gy ? B - gx : Infinity) - 1)));
   const L = Math.min(p.schenkel, schenkelMax);
   const leisteMax = Math.floor(bett.a - 4);
-  const spiegeln = (sx, sy, [a, b, c, d]) => [
-    sx < 0 ? -B + a : B - c, sy < 0 ? -T + b : T - d, sx < 0 ? -B + c : B - a, sy < 0 ? -T + d : T - b];
+  const spiegeln = (sx, sy, [a, b]) => [sx < 0 ? -B + a : B - a, sy < 0 ? -T + b : T - b];
+  const rechteck = (x0, y0, x1, y1) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
   const teile = [];
   for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
     // in der Ecke (-B, -T) gerechnet, dann gespiegelt
-    const roh = [];
-    if (gx) roh.push([0, 0, gx, gy + L]);                       // Schenkel an der Seite
-    // 0.05 versetzt, damit die zwei Quader keine Kante teilen (sonst nicht dicht)
-    if (gy) roh.push([gx ? 0.05 : 0, 0, gx + L, gy]);           // Schenkel vorne/hinten
-    teile.push({ art: "winkel", quader: roh.map((q) => spiegeln(sx, sy, q)), h: m.H });
+    // Ein Körper in L-Form (Slicer „in Objekte teilen“ trennt ihn nicht)
+    const roh = gx && gy ? [[0, 0], [gx + L, 0], [gx + L, gy], [gx, gy], [gx, gy + L], [0, gy + L]]
+      : gx ? rechteck(0, 0, gx, L) : rechteck(0, 0, L, gy);
+    teile.push({ art: "winkel", umriss: roh.map((q) => spiegeln(sx, sy, q)), h: m.H });
   }
   if (p.distanzArt === "rand") {
     const luft = 0.5;
@@ -481,18 +491,18 @@ export function distanzPlan(eingabe, druckerId = "x1c") {
     };
     if (gx) for (const sx of [-1, 1]) reihe(-T + gy + L + luft, T - gy - L - luft, (a, b, l) => {
       const x0 = sx < 0 ? -B : B - gx;
-      teile.push({ art: "leiste", quader: [[x0, a, x0 + gx, b]], h: m.H, lang: l, breit: gx });
+      teile.push({ art: "leiste", umriss: rechteck(x0, a, x0 + gx, b), h: m.H, lang: l, breit: gx });
     });
     if (gy) for (const sy of [-1, 1]) reihe(-B + gx + L + luft, B - gx - L - luft, (a, b, l) => {
       const y0 = sy < 0 ? -T : T - gy;
-      teile.push({ art: "leiste", quader: [[a, y0, b, y0 + gy]], h: m.H, lang: l, breit: gy });
+      teile.push({ art: "leiste", umriss: rechteck(a, y0, b, y0 + gy), h: m.H, lang: l, breit: gy });
     });
   }
   return { teile, schenkel: L, schenkelMax, leisteMax, gx, gy };
 }
 export function distanzTeile(eingabe, druckerId) { return distanzPlan(eingabe, druckerId).teile; }
-const umriss = (s) => [Math.min(...s.quader.map((q) => q[0])), Math.min(...s.quader.map((q) => q[1])),
-  Math.max(...s.quader.map((q) => q[2])), Math.max(...s.quader.map((q) => q[3]))];
+const umriss = (s) => [Math.min(...s.umriss.map((q) => q[0])), Math.min(...s.umriss.map((q) => q[1])),
+  Math.max(...s.umriss.map((q) => q[0])), Math.max(...s.umriss.map((q) => q[1]))];
 // An ihrem Platz in der Schublade, als ein Netz (für die Vorschau)
 // t (Aufteilung): Winkel rücken mit dem Stück daneben mit, wie in stueckeVorschau
 export function distanzNetz(eingabe, t = null, druckerId) {
@@ -510,8 +520,7 @@ export function distanzNetz(eingabe, t = null, druckerId) {
   for (const s of teile) {
     const [x0, y0, x1, y1] = umriss(s);
     const dx = verschub((x0 + x1) / 2, nx, t ? t.xs : []), dy = verschub((y0 + y1) / 2, ny, t ? t.ys : []);
-    // Schenkel als zwei sich überlappende Quader (Slicer vereinigt)
-    for (const q of s.quader) quader(n, q[0] + dx, q[1] + dy, 0, q[2] + dx, q[3] + dy, s.h);
+    prisma(n, s.umriss.map((q) => [q[0] + dx, q[1] + dy]), 0, s.h);
   }
   return fertig(n, { distanz: true, anzahl: teile.length });
 }
@@ -526,11 +535,10 @@ export function distanzDruck(eingabe, druckerId) {
     const w = drehen ? y1 - y0 : x1 - x0, d = drehen ? x1 - x0 : y1 - y0;
     if (x > 0 && x + w > bett.a) { x = 0; y += reiheT + 5; reiheT = 0; }
     const n = neuesNetz();
-    for (const q of s.quader) {
-      const a = [q[0] - x0, q[1] - y0, q[2] - x0, q[3] - y0];
-      const r = drehen ? [a[1], a[0], a[3], a[2]] : a;
-      quader(n, r[0] + x, r[1] + y, 0, r[2] + x, r[3] + y, s.h);
-    }
+    prisma(n, s.umriss.map((q) => {
+      const a = [q[0] - x0, q[1] - y0], b = drehen ? [a[1], a[0]] : a;
+      return [b[0] + x, b[1] + y];
+    }), 0, s.h);
     x += w + 5; reiheT = Math.max(reiheT, d);
     return fertig(n, {});
   });
@@ -649,6 +657,16 @@ export function offeneKanten(netz) {
 }
 
 // ---------- Export ----------
+// Mehrere Netze zu einem (Teile bleiben getrennte Körper)
+export function netzeVereinen(liste) {
+  const n = { pos: [], tri: [] };
+  for (const m of liste) {
+    const off = n.pos.length / 3;
+    for (const x of m.pos) n.pos.push(x);
+    for (const v of m.tri) n.tri.push(v + off);
+  }
+  return fertig(n, {});
+}
 export function stlBinaer(netz, name = "gridfinity") {
   const { pos, tri } = netz;
   const anz = tri.length / 3;
