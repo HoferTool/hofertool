@@ -76,6 +76,15 @@ with sync_playwright() as p:
             pruefe("danach abgestimmt", pg.locator(".umf__danke").count() == 1)
             pruefe("Ergebnis mit Balken", pg.locator(".umf-v__balken").count() == 3)
             pg.locator("#db-umfragen").screenshot(path=SP + "umfrage_nachher.png")
+            # 1.891.1: zugeklappt bleibt zu, auch nach Seitenwechsel und Neuladen
+            pg.click("[data-umfklapp='u-1']"); pg.wait_for_timeout(150)
+            pg.evaluate("location.hash = '#/material'"); pg.wait_for_timeout(500)
+            pg.evaluate("location.hash = '#/dashboard'"); pg.wait_for_timeout(1200)
+            pruefe("zu bleibt nach Seitenwechsel", pg.locator(".umf.umf--klapp").count() == 1)
+            pruefe("am Konto gemerkt", "u-1" in str(pg.evaluate("localStorage.getItem('hofer.umfrage.zu')")))
+            pg.reload(wait_until="domcontentloaded"); pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1500)
+            pruefe("zu bleibt nach Neuladen", pg.locator("#db-umfragen .umf.umf--klapp").count() == 1)
+            pg.click("[data-umfklapp='u-1']"); pg.wait_for_timeout(150)
             # Neue Umfrage
             pg.click("#umf-neu"); pg.wait_for_selector(".umf-bearbeiten")
             pg.fill("#umf-titel", "Pizza oder Döner?")

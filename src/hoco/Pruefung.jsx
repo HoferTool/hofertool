@@ -12,7 +12,6 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { STIL, briefkopf } from "../seiten/qs/achtdBlatt.js";
 import { alt } from "../bruecke.jsx";
-import { masseInQsOeffnen } from "../seiten/qs/qsSprung.js";
 import {
   ARTEN, AQL_WERTE, stammMitMassen, stammSpeichern, excelMasse, zeilenId, toleranz, toleranzText, fehltTabelle, lehrenAus,
   bildVon, massBildHochladen,
@@ -141,10 +140,6 @@ export default function Pruefung({ hoco, darf, modus = "stamm", zurueck }) {
             <option value="">II (Vorgabe)</option><option>I</option><option>II</option><option>III</option></select></label>
         </div>
       ) : null}
-      <div className="pst-blattknopf">
-        <span className="klein">{anzahl ? anzahl + " Prüfmasse hinterlegt." : "Noch keine Prüfmasse."} Bearbeitet werden sie unter Qualitätssicherung → Prüfberichte.</span>
-        <button type="button" className="knopf knopf--klein" id="pst-zu-qs" onClick={() => masseInQsOeffnen(hoco)}>Prüfmasse in der QS öffnen</button>
-      </div>
       {knoepfeUnten(false)}
     </section>
   );

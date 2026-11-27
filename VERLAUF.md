@@ -3,6 +3,34 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.892.0 (27. November 2026)
+
+Test ERP: Reiter Rückverfolgung entfernt (Wunsch Patrick: „den Reiter Rückverfolgung kannst du entfernen“); `Rueckverfolgung` in `Belege.jsx` bleibt unbenutzt. Dazu aus 1.887.0: Kopf der Startseite ohne Kacheln, grosse Fenster gehen gleich frei auf.
+
+## 1.891.0 (27. November 2026)
+
+Test ERP: Hauptreiter „Artikel“ (Artikelliste) nach Kalkulation, Stammdaten nach Rechnungen, Reiter Lagerjournal entfernt (Wunsch Patrick: „habe ja alles in den modulen“).
+
+## 1.890.0 (27. November 2026)
+
+QS → Prüfprotokoll: Maschine ist eine Auswahlliste aller Maschinen statt Freitext; ein alter Freitext-Wert bleibt als Eintrag stehen (Wunsch Patrick: „maschine soll dropdown menu sein“).
+
+## 1.889.0 (27. November 2026)
+
+QS → Prüfberichte: Knopf „Prüfmasse“ ersetzt durch „Stammdaten“, der die HOCO-Stammdaten öffnet; dort stehen jetzt auch Kopf, Masse-Blatt, Excel-Import und Lehren (Wunsch Patrick: „dort stammdaten knopf das man es gleich dort ändert“).
+
+## 1.888.0 (27. November 2026)
+
+QS: GD&T-Symbole grösser und gleich gross; Zeichen aus dem alten Excel-Tool werden in die richtigen Symbole umgeschrieben.
+
+## 1.887.2 (27. November 2026)
+
+QS: Frage nach leeren Feldern nur noch bei AQL und Endkontrolle, nicht bei der Zwischenkontrolle.
+
+## 1.887.1 (27. November 2026)
+
+QS: Überschrift im Protokoll heisst nur noch „Prüfprotokoll“.
+
 ## 1.886.1
 
 Test ERP: Im Kopf der Startseite fällt die Kachel „Rechnungen … offen“ weg, eine Rechnung ist nach der Rechnungsstellung erledigt (Wunsch Patrick 27. November 2026). Der Reiter Rechnungen bleibt.
@@ -1115,3 +1143,4 @@ Planwand mit Ziehen, Verlängern, Nachrücken und Lücke schliessen · Produktio
 - **1.524.0** (13. November 2026): Planer und Material-Lieferanten zeigen das Logo des Lieferanten (Symbol der Website wie in Bestellungen, sonst die Anfangsbuchstaben); je Lieferant neue Felder „Website“ und „Eigenes Logo“, ohne Website nimmt die App eine Adresse oder Mail-Domain aus der Bemerkung (`lieferantLogoDaten` in `src/daten/planer.js`).
 - **1.522.0** (13. November 2026): Knopf „Vollbild“ oben auf der Planwand (vier Ecken, nur am Computer, nicht für Externe) öffnet die Planwand in einem eigenen Tab ohne Kopfzeile und Menü (`#/planwand/vollbild`, `src/planwand/vollbildTab.js`); der erste Klick schaltet echtes Vollbild ein, Escape fragt „Vollbild schliessen?“, Enter schliesst den Tab. Prüfstand `planwand_vollbild.py`.
 - **1.521.0** (13. November 2026): Planer nicht mehr im Pad Mode, sondern als eigener Tab über den Knopf neben Symbole auf der Planwand (nur Admins); neue Todos mit Schieber „Nur für mich“ (Vorgabe) oder „Alle Admins“ (`sql/planer-todos-fuer.sql`, eingespielt).
+- 1.891.1 (27.11.2026): Umfragen bleiben zugeklappt (am Konto und Gerät gemerkt, auch nach Neuladen).

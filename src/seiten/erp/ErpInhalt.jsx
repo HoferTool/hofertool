@@ -4,17 +4,17 @@ import { teilMerken } from "../../teile/wiederherstellen.js";
 import { useState, useEffect } from "react";
 import { useDaten, useGemerkt } from "../../bruecke.jsx";
 import { allesLaden } from "../../daten/erp.js";
-import Stammdaten from "./Stammdaten.jsx";
-import { BewegungListe } from "./Bewegungen.jsx";
+import Stammdaten, { Artikel } from "./Stammdaten.jsx";
 import Kalkulation from "../Kalkulation.jsx";
 import { BelegListe, Rechnungen, Fibu } from "./Belege.jsx";
 
-// Reihenfolge: zuerst Kalkulation, dann Stammdaten, dann der Rest
-// (Wunsch Patrick 21. November 2026)
+// Reihenfolge: zuerst Kalkulation, Stammdaten gleich nach Rechnungen
+// (Wunsch Patrick 21. November 2026; 27. November 2026: Artikel nach Kalkulation,
+// Stammdaten nach Rechnungen, kein Lagerjournal mehr)
 const REITER = [
-  ["kalk", "Kalkulation"], ["stamm", "Stammdaten"],
+  ["kalk", "Kalkulation"], ["artikel", "Artikel"],
   ["auftrag", "Aufträge"], ["fertigung", "Fertigung"], ["bestellung", "Bestellungen"], ["lieferschein", "Lieferscheine"],
-  ["rechnung", "Rechnungen"], ["fibu", "Fibu"], ["journal", "Lagerjournal"],
+  ["rechnung", "Rechnungen"], ["stamm", "Stammdaten"], ["fibu", "Fibu"],
 ];
 const gemerkt = { reiter: "kalk", kalk: "modul" };
 // Nach dem Neuladen wieder im selben Reiter und Unterreiter (Wunsch Patrick 25. November 2026)
@@ -47,8 +47,7 @@ export default function ErpInhalt({ auffrischen }) {
           hinweis="Lieferscheine entstehen im Auftrag und liefern nur Bestand mit demselben Index." />}
         {reiter === "rechnung" && <Rechnungen d={d} neu={neu} />}
         {reiter === "fibu" && <Fibu d={d} neu={neu} />}
-        {reiter === "journal" && <div className="erp-journal"><p className="hinweis">Alle Lagerbewegungen über alle Artikel. Zeile antippen öffnet den Beleg.</p>
-          <BewegungListe d={d} journal /></div>}
+        {reiter === "artikel" && <Artikel d={d} neu={neu} />}
         {reiter === "kalk" && <div className="erp-kalk">
           {/* Das bestehende Modul Kalkulation steht seit 1.672.0 hier (Wunsch Patrick) */}
           {/* Artikel und Arbeitsplan übernimmt seit 1.848.0 der Knopf in der offenen Kalkulation */}

@@ -85,8 +85,6 @@ with sync_playwright() as p:
 
     # seit 1.864.0: Listen erst mit Suchbegriff, Lagerbewegungen gleich (Patrick 26. November 2026)
     pg.evaluate("TEST.erpAlle = false")
-    pg.click("[data-erp-reiter='journal']"); pg.wait_for_timeout(400)
-    pruefe(pg.locator(".erp-journal tr[data-erp-zeile]").count() >= 1, "Lagerjournal zeigt Bewegungen ohne Suchbegriff")
     pg.click("[data-erp-reiter='auftrag']"); pg.wait_for_timeout(300)
     pruefe("Suchbegriff eintippen" in pg.locator("#inhalt").inner_text(), "Belegliste wartet auf Suchbegriff")
     pg.evaluate("TEST.erpAlle = true")
@@ -213,9 +211,9 @@ with sync_playwright() as p:
     pruefe(len(a2) == 1 and not (a2[0]["daten"] or {}).get("rohmaterial_id") and a2[0]["daten"]["material"] == "CuZn39Pb3 rd 8"
            and not [x for x in tabelle(pg, "erp_artikel") if x["art"] == "rohmaterial" and "CuZn" in x["nr"]],
            "Fehlendes Rohmaterial nur als Text, nicht angelegt")
-    # Reihenfolge der Reiter: Kalkulation, Stammdaten, Rest
+    # Reihenfolge der Reiter: Kalkulation, Artikel, Rest
     pruefe(pg.locator("[data-erp-reiter]").first.get_attribute("data-erp-reiter") == "kalk"
-           and pg.locator("[data-erp-reiter]").nth(1).get_attribute("data-erp-reiter") == "stamm", "Reiter: Kalkulation zuerst")
+           and pg.locator("[data-erp-reiter]").nth(1).get_attribute("data-erp-reiter") == "artikel", "Reiter: Kalkulation zuerst")
     # Artikelfenster mit Preisliste, Herkunft, Rohmaterial, Platz für Zeichnung und 3D
     pg.click("[data-erp-reiter='stamm']"); pg.wait_for_timeout(300)
     pg.click("[data-erp-stamm='artikel']"); pg.wait_for_timeout(300)
@@ -445,26 +443,6 @@ with sync_playwright() as p:
     kk = korrs()
     pruefe(sorted(x["menge"] for x in kk) == [-3, 5] and len({x["lager_id"] for x in kk}) == 1, "Ab- und Zubuchen als Korrektur: %s" % kk)
 
-    # Lagerjournal: alle Bewegungen über alle Artikel
-    for _ in range(4):
-        if pg.locator(".dialog-huelle").count() == 0: break
-        pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
-    pg.click("[data-erp-reiter='journal']"); pg.wait_for_selector("[data-erp-journal-summe]")
-    alleB = tabelle(pg, "erp_bewegungen")
-    zeilen = pg.locator(".erp-journal [data-erp-bewegungen] tbody tr").count()
-    pruefe(zeilen == len(alleB), "Lagerjournal zeigt alle Bewegungen: %s von %s" % (zeilen, len(alleB)))
-    pruefe(str(len(alleB)) in pg.inner_text("[data-erp-journal-summe]"), "Lagerjournal Summe")
-    for k in ("zu", "ab", "korrektur", "gewatec"): pg.locator(".erp-journal [data-erp-bew-art='%s'] input" % k).uncheck()
-    pg.wait_for_timeout(300)
-    pruefe(pg.locator(".erp-journal [data-erp-bewegungen] tbody tr").count() == 2, "Lagerjournal Filter Umbuchung")
-    for k in ("zu", "ab", "korrektur", "gewatec"): pg.locator(".erp-journal [data-erp-bew-art='%s'] input" % k).check()
-    pg.fill("input[data-erp-journal-von]", "2000-01-01"); pg.fill("input[data-erp-journal-bis]", "2000-01-02"); pg.wait_for_timeout(300)
-    pruefe(pg.locator(".erp-journal [data-erp-bewegungen] tbody tr:not(:has(.gf-tab__leer))").count() == 0, "Lagerjournal Zeitraum")
-    pg.fill("input[data-erp-journal-von]", ""); pg.fill("input[data-erp-journal-bis]", ""); pg.wait_for_timeout(300)
-    with pg.expect_download() as dl:
-        pg.click("[data-erp-journal-csv]")
-    pruefe(dl.value.suggested_filename.startswith("Lagerjournal-"), "Lagerjournal CSV")
-    pg.screenshot(path=BILD + "/erp-journal.png", full_page=True)
 
     # Kalkulation: Kunde, Artikel und Material aus den Stammdaten wählen
     for _ in range(4):

@@ -11,6 +11,7 @@
 //  letzten Spalte, welche Lehren es braucht.
 // =================================================================
 import { alt } from "../bruecke.jsx";
+import { symbolUmwandeln } from "../teile/zeichenListe.js";
 
 // Schalter für die ganze neue QS (Prüfberichte, Reklamationen, Prüfmittel-
 // verwaltung, QS-Massnahmen, Sperre vor „läuft“). Seit 1.860.0 aus, Wunsch
@@ -60,7 +61,8 @@ export function indexNorm(t) {
 // Tabelle (alte .xls haben das Prüfmittel in I statt H).
 export function berichtAusExcel(roh) {
   const z = roh.zellen || {};
-  const zelle = (r, s) => (z[r + ":" + s] || {}).text || "";
+  // Zeichen aus Symbolschriften alter Excel (Wingdings, Symbol, GDT-Schriften) gleich umwandeln
+  const zelle = (r, s) => symbolUmwandeln((z[r + ":" + s] || {}).text || "");
   const zeilenNr = [...new Set(Object.values(z).map((c) => c.z))].sort((a, b) => a - b);
   const kopf = {};
   const teilweise = [];

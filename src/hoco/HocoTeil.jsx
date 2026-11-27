@@ -249,6 +249,8 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
       </section>
 
       {QS_NEU && <Pruefung hoco={t.hoco_nr} darf={darf} />}
+      {/* Prüfmasse auch direkt hier (seit 1.889.0, Wunsch Patrick 27. November 2026) */}
+      {QS_NEU && <Pruefung hoco={t.hoco_nr} darf={darf} modus="qs" />}
       {/* „Gelaufen auf“ ist weg (Wunsch 8. Oktober 2026) */}
       {faListe.length > 0 && <section className="karte hocoteil__karte">
         <div className="karte__kopf"><h2>FA Nummern</h2><span className="marke">{faListe.length}</span></div>
