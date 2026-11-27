@@ -17854,7 +17854,37 @@ body.dunkel .gfn-oben { background: #141b25; border-color: rgba(255, 255, 255, .
 body.dunkel .gfn-oben__lade { fill: #1c2533; stroke: #8a98aa; }
 body.dunkel .gfn-oben__feld { fill: #2a3546; }
 
-/* Einstellungen: Zeilen im Fenster beim Drüberfahren über die Planwand (1.923.0) */
+/* 1.923.0: Gridfinity auf einen Bildschirm (Patrick: „dass man alles direkt
+   sieht und nicht nach unten scrollen muss“). Ab Tablet-Breite: Reiter neben
+   dem Titel, Raster so hoch wie der Rest des Bildschirms (--gfn-h misst
+   Werkzeug.jsx), Einstellungen rollen für sich, breit in zwei Spalten,
+   Vorschau füllt die Höhe. Handy bleibt untereinander. */
+@media (min-width: 761px) {
+  .gfn-seite { position: relative; }
+  .gfn-seite > .seitentitel { margin-bottom: 8px; }
+  .gfn-werkzeug > .gfn-wahl { position: absolute; top: 0; right: 0; }
+  .gfn-werkzeug { gap: 0; }
+  .gfn-raster { height: var(--gfn-h, calc(100vh - 160px)); min-height: 460px; align-items: stretch; }
+  .gfn-einstellungen { overflow-y: auto; overscroll-behavior: contain; padding: 0 6px 4px 0; scrollbar-gutter: stable; }
+  .gfn-spalten { display: flex; flex-direction: column; gap: 10px; }
+  .gfn-gruppe { padding: 12px 14px; }
+  .gfn-gruppe h3 { margin-bottom: 6px; }
+  .gfn-zahl { margin-bottom: 4px; }
+  .gfn-vorschau { position: static; min-height: 0; gap: 8px; }
+  .gfn-vorschau > .gfn-wahl--klein { margin-bottom: 0; align-self: flex-start; }
+  .gfn-3d { flex: 1 1 0; height: auto; min-height: 240px; }
+  .gfn-oben { flex: 1 1 0; min-height: 0; max-height: none; height: 100%; }
+}
+/* Breite Bildschirme: Einstellungen in zwei Spalten nebeneinander */
+@media (min-width: 1300px) {
+  .gfn-raster { grid-template-columns: minmax(560px, 640px) 1fr; }
+  .gfn-spalten { display: block; columns: 2; column-gap: 10px; }
+  .gfn-spalten > * { break-inside: avoid; margin-bottom: 10px; }
+}
+@media (min-width: 761px) {
+  .gfn-spalten [data-gf-projekt] .gfn-elementknoepfe .knopf { padding: 6px 12px; font-size: .9rem; }
+}
+/* Einstellungen: Zeilen im Fenster beim Drüberfahren über die Planwand (1.924.0) */
 .planinfo-wahl { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-width: 520px; }
 .planinfo-wahl__zeile { display: flex; align-items: center; gap: 6px; padding: 4px 6px;
   border: 1px solid var(--linie, #d8dde5); border-radius: 8px; background: var(--flaeche, #fff); }

@@ -390,7 +390,7 @@ function Darstellung() {
 }
 
 // Was im Fenster beim Drüberfahren über einen Planwand-Balken steht
-// (1.923.0, Wunsch Patrick 27. November 2026: „benutzerdefiniert wählen,
+// (1.924.0, Wunsch Patrick 27. November 2026: „benutzerdefiniert wählen,
 // was im Fenster beim Drüberfahren angezeigt wird“). Häkchen ein/aus und
 // mit ↑ ↓ die Reihenfolge. Gespeichert am Konto, gilt auf jedem Gerät
 // sofort beim nächsten Drüberfahren. Externe haben die Wahl (noch) nicht.

@@ -422,8 +422,31 @@ export default function Werkzeug() {
           </section>
   </>;
 
+  // Alles auf einen Bildschirm (Patrick: „dass man alles direkt sieht und
+  // nicht nach unten scrollen muss“): die Höhe ab Oberkante des Rasters bis
+  // zum unteren Rand als CSS-Variable, Einstellungen rollen dann für sich
+  const werkRef = useRef(null);
+  useEffect(() => {
+    const el = werkRef.current;
+    if (!el) return undefined;
+    const messen = () => {
+      const r = el.querySelector(".gfn-raster");
+      if (!r) return;
+      // Platz unter dem Werkzeug (Rand der Seite) mitrechnen, sonst rollt die Seite doch
+      let unten = 0;
+      for (let e = el.parentElement; e && e !== document.body; e = e.parentElement) {
+        const st = getComputedStyle(e); unten += (parseFloat(st.paddingBottom) || 0) + (parseFloat(st.borderBottomWidth) || 0);
+      }
+      el.style.setProperty("--gfn-h", Math.max(460, Math.floor(window.innerHeight - r.getBoundingClientRect().top - window.scrollY - unten - 4)) + "px");
+    };
+    messen();
+    window.addEventListener("resize", messen);
+    const ro = new ResizeObserver(messen); ro.observe(document.body);
+    return () => { window.removeEventListener("resize", messen); ro.disconnect(); };
+  }, [stand.art]);
+
   return (
-    <div className="gfn-werkzeug">
+    <div className="gfn-werkzeug" ref={werkRef}>
       <div className="gfn-wahl" role="tablist">
         {[["box", "Box"], ["platte", "Grundplatte"], ["schublade", "Schublade"]].map(([w, t]) => (
           <button key={w} role="tab" aria-selected={stand.art === w} data-gf-art={w}
@@ -435,7 +458,7 @@ export default function Werkzeug() {
       {stand.art === "schublade" ? <Schublade sch={stand.schublade} kopf={kopfTeil} oeffnen={ausSchublade} Vorschau={Vorschau} Zahl={Zahl}
         setSch={(v) => setStand((s) => ({ ...s, schublade: v }))} /> :
       <div className="gfn-raster">
-        <div className="gfn-einstellungen">
+        <div className="gfn-einstellungen"><div className="gfn-spalten">
           {kopfTeil}
           {stand.art === "box" ? <>
             <section className="gfn-gruppe">
@@ -592,7 +615,7 @@ export default function Werkzeug() {
                 : null}
             </section>
           </>}
-        </div>
+        </div></div>
 
         <div className="gfn-vorschau">
           <Vorschau netz={netz} extra={distanzPlatz}

@@ -179,7 +179,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.923.0";
+const APP_VERSION = "1.924.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5604,7 +5604,7 @@ function zeitWischen(b) {
 // Zeilen im Fenster beim Drüberfahren über einen Planwand-Balken:
 // [Schlüssel, Name in den Einstellungen, Gruppe für die Lücken, nur intern].
 // Die Reihenfolge hier ist die bisherige und gilt, bis jemand selbst
-// wählt (seit 1.923.0, Wunsch Patrick 27. November 2026).
+// wählt (seit 1.924.0, Wunsch Patrick 27. November 2026).
 const PLAN_INFO_FELDER = [
   ["menge", "Fertigungsmenge (Stand / Soll)", 1],
   ["abruf", "Abrufinformation", 1],
@@ -5677,7 +5677,7 @@ function balkenInfoVerhalten() {
       // einer Lücke alles zum Material, nach einer Lücke alles andere,
       // ganz unten die letzte Änderung. Fehlt etwas, steht dort ein
       // Hinweis, statt die Zeile ganz wegzulassen.
-      // Seit 1.923.0 wählt jede Person selbst, welche Zeilen in welcher
+      // Seit 1.924.0 wählt jede Person selbst, welche Zeilen in welcher
       // Reihenfolge kommen (Einstellungen → Allgemein, Wunsch Patrick
       // 27. November 2026); ohne Wahl genau wie bisher (PLAN_INFO_FELDER).
       const teile = {

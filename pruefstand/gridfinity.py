@@ -192,7 +192,7 @@ with sync_playwright() as p:
     # Box mit der Maus um 4 Felder nach rechts und 2 nach hinten ziehen
     bx = pg.locator("[data-gf-sblock='Box']").bounding_box()
     sv = pg.locator("[data-gf-oben]").bounding_box()
-    feld = sv["width"] / 442 * 42
+    feld = pg.evaluate("() => document.querySelector('[data-gf-oben]').getScreenCTM().a * 42")
     pg.mouse.move(bx["x"] + 15, bx["y"] + bx["height"] - 10); pg.mouse.down()
     for k in range(1, 9): pg.mouse.move(bx["x"] + 15 + k * feld * 0.75, bx["y"] + bx["height"] - 10 - k * feld * 0.25)
     pg.mouse.up(); pg.wait_for_timeout(300)
@@ -275,6 +275,11 @@ with sync_playwright() as p:
     pg.screenshot(path=BILD + "/gf-platte.png")
     pg.reload(); pg.wait_for_selector("[data-gf-3d] canvas", timeout=30000)
     pruefe(pg.locator("[data-gf-art='platte'].aktiv").count() == 1, "nach Neuladen wieder bei der Grundplatte")
+    # Alles auf einen Bildschirm (1.923.0): die Seite rollt nicht, nur die Einstellungen für sich
+    for art in ["box", "platte", "schublade"]:
+        pg.click("[data-gf-art='%s']" % art); pg.wait_for_timeout(400)
+        h = pg.evaluate("() => [document.documentElement.scrollHeight, innerHeight]")
+        pruefe(h[0] <= h[1] + 1, "%s passt auf den Bildschirm %s" % (art, h))
     pruefe(not pf, "keine Fehler auf der Seite: %s" % pf)
     br.close()
 

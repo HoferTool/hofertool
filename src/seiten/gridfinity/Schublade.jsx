@@ -106,9 +106,11 @@ export default function Schublade({ sch: roh, setSch, oeffnen, Vorschau, Zahl, k
   const ox = (sch.breite - pm.W) / 2, oy = (sch.tiefe - pm.D) / 2;   // Raster mittig in der Schublade
   const zx = (i) => ox + i * GF.raster, zy = (j) => sch.tiefe - oy - j * GF.raster;   // Feldecke → SVG
   const punktZuFeld = (ev) => {
-    const r = svg.current.getBoundingClientRect();
-    const vb = svg.current.viewBox.baseVal;
-    const sx = vb.x + (ev.clientX - r.left) / r.width * vb.width, sy = vb.y + (ev.clientY - r.top) / r.height * vb.height;
+    // über die Bildschirm-Matrix: stimmt auch, wenn die Fläche nicht
+    // genau das Seitenverhältnis der Schublade hat (Ränder links/rechts)
+    const pt = svg.current.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY;
+    const q = pt.matrixTransform(svg.current.getScreenCTM().inverse());
+    const sx = q.x, sy = q.y;
     return { fx: (sx - ox) / GF.raster, fy: (sch.tiefe - oy - sy) / GF.raster };
   };
   const ziehen = useRef(null), zugRef = useRef(null);
@@ -154,7 +156,7 @@ export default function Schublade({ sch: roh, setSch, oeffnen, Vorschau, Zahl, k
 
   return (
     <div className="gfn-raster" data-gf-schublade>
-      <div className="gfn-einstellungen">
+      <div className="gfn-einstellungen"><div className="gfn-spalten">
         {kopf}
         <section className="gfn-gruppe">
           <h3>Schublade innen</h3>
@@ -209,7 +211,7 @@ export default function Schublade({ sch: roh, setSch, oeffnen, Vorschau, Zahl, k
             </div>
           </div>}
         </section>
-      </div>
+      </div></div>
 
       <div className="gfn-vorschau">
         <div className="gfn-wahl gfn-wahl--klein">

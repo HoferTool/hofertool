@@ -3,9 +3,13 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
-## 1.923.0 (27. November 2026)
+## 1.924.0 (27. November 2026)
 
 - Planwand: Was im Fenster beim Drüberfahren über einen Auftrag steht, wählt jede Person selbst (Einstellungen → Allgemein → „Planwand: Fenster beim Drüberfahren“): Häkchen je Zeile, Reihenfolge mit ↑ ↓, „Wie am Anfang“. Gespeichert am Konto (`planInfoFelder`, Komma-Liste, „-“ = nichts), ohne Wahl wie bisher. Externe haben die Wahl nicht (Entscheid Patrick 27. November 2026). Liste `PLAN_INFO_FELDER` in `app.js`, Test `pruefstand/planinfo_wahl.py`.
+
+## 1.923.0 (27. November 2026)
+
+- Gridfinity passt auf einen Bildschirm: Reiter neben dem Titel, Vorschau so hoch wie der Bildschirm, Einstellungen rollen für sich, auf breiten Bildschirmen in zwei Spalten.
 
 ## 1.922.0 (27. November 2026)
 

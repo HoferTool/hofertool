@@ -1,4 +1,4 @@
-# Fenster beim Drüberfahren frei wählbar (1.923.0, Wunsch Patrick
+# Fenster beim Drüberfahren frei wählbar (1.924.0, Wunsch Patrick
 # 27. November 2026): Ohne Wahl wie bisher; in Einstellungen → Allgemein
 # Zeilen ausschalten und umordnen, danach zeigt die Vorschau genau das.
 import time
