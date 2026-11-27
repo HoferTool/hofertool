@@ -255,6 +255,7 @@ with sync_playwright() as p:
     pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
     if pg.locator(".dialog-huelle [data-ja]").count(): pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(300)
     # Ohne FA über den Arbeitsplan des Artikels
+    pg.click("[data-logi-kachel='za-neu']"); pg.wait_for_timeout(300)
     pg.click("[data-logi-za-ap]"); pg.wait_for_selector("[data-logi-ap-fenster] input")
     pg.fill("[data-logi-ap-fenster] input", "10007"); pg.wait_for_timeout(300)
     pruefe(pg.locator("[data-logi-ap-fenster] .erp-tabelle tbody tr").count() >= 1, "ZA extern über den Arbeitsplan: Artikel mit externem Arbeitsgang")
