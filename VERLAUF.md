@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.909.0 (27. November 2026)
+
+Test ERP: Reiter Fertigung zeigt gleich alle FAs (neuste oben), mit Häkchen je Stand (offen, in Arbeit, teilweise fertig, fertig, abgeschlossen, storniert; storniert anfangs aus), die Suche grenzt weiter ein (Wunsch Patrick). Dazu 23 offene Fremdleistungen aus dem Gewatec-Export als Bestellungen (`sql/erp-fremdleistungen-gewatec.sql`, eingespielt): die erste Übernahme nahm nur Positionen mit offener Menge, bei Fremdleistungen steht die Liefermenge im Gewatec aber gleich der Menge.
+
 ## 1.908.2 (27. November 2026)
 
 Prüfmittel/Hinweis-Fenster: Vorschläge nach dem Soll. Lehren, deren Masse die Grenzen oder das Nennmass treffen, stehen zuoberst mit Schild „passt“, danach übrige Lehren, dann Messmittel (Patrick: „warum keine Grenzlehrdorne vorgeschlagen“).
