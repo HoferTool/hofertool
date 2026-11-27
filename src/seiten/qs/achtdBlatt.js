@@ -24,6 +24,7 @@ const HOFER = "Hofer + Co. Präzisionsdrehteile\nAlte Bernstrasse 24\nCH-4573 Lo
 export const STIL = `
 .rkpdf { font: 9.2pt/1.45 Aptos, "Segoe UI", Arial, sans-serif; color: #1a1f29; background: #fff; }
 .rkpdf * { box-sizing: border-box; }
+.rkpdf .gdt { font-family: "Segoe UI Symbol","Apple Symbols","Cambria Math","Noto Sans Symbols 2","DejaVu Sans",sans-serif; font-size: 1.25em; display: inline-block; width: 1.2em; text-align: center; line-height: 1; }
 .rkpdf .balken { background: #003884; color: #fff; height: 30mm; padding: 0 9mm;
   display: flex; align-items: center; justify-content: space-between; }
 .rkpdf .balken img { height: 21mm; width: auto; display: block; }
