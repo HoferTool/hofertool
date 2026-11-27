@@ -25,7 +25,7 @@ import { alt, useDaten } from "../../bruecke.jsx";
 import { passtWoerter } from "../../teile/Suchfeld.jsx";
 import { useSeitenSuche } from "../../teile/seitenSuche.js";
 import { STIL, briefkopf } from "./achtdBlatt.js";
-import { qsSprung, masseInQsOeffnen } from "./qsSprung.js";
+import { qsSprung } from "./qsSprung.js";
 import Pruefung, { MasseBlatt } from "../../hoco/Pruefung.jsx";
 import { createPortal } from "react-dom";
 import { gdtTeile, gdtHtml } from "../../teile/zeichenListe.js";
@@ -98,11 +98,11 @@ function aqlStand(k, w) {
 
 const STAND = { laeuft: "läuft", ruesten: "Rüsten", geplant: "geplant", fertig: "fertig" };
 
-// Prüfmasse der HOCO Nr. hier in der QS bearbeiten (seit 1.837.0, Wunsch
-// Patrick 25. November 2026: „prüfbericht soll im qs selber bearbeitet werden
-// nicht stammdaten“). Die Stammdaten haben nur noch die Häkchen der Arten.
+// Stammdaten der HOCO Nr. öffnen, dort stehen die Prüfmasse zum Ändern
+// (seit 1.889.0, Wunsch Patrick 27. November 2026: „prüfmasse knopf soll weg,
+// und dort stammdaten knopf das man es gleich dort ändert“).
 function stammdatenOeffnen(nr) {
-  masseInQsOeffnen(nr);
+  alt.prod.hocoOffen = nr; alt.prod.hocoSuche = nr; alt.hocoFenster();
 }
 
 // Gehört ein Protokoll zu diesem Auftrag? Über die Kennung, sonst die FA Nr.
@@ -188,7 +188,7 @@ function materialText(j) {
 async function protokollAnlegen(hoco, art, j, protokolle, zwischen) {
   const st = await stammMitMassen(hoco);
   if (!st || !(st.zeilen || []).length) {
-    const ok = await alt.nachfragen({ titel: "Noch keine Masse", text: "Für " + hoco + " sind noch keine Prüfmasse erfasst. Unter „Prüfmasse bearbeiten“ eintragen oder einen Excel-Prüfbericht einlesen.", bestaetigen: "Prüfmasse bearbeiten" });
+    const ok = await alt.nachfragen({ titel: "Noch keine Masse", text: "Für " + hoco + " sind noch keine Prüfmasse erfasst. In den Stammdaten eintragen oder einen Excel-Prüfbericht einlesen.", bestaetigen: "Stammdaten öffnen" });
     if (ok) stammdatenOeffnen(hoco);
     return null;
   }
@@ -700,7 +700,7 @@ function Protokoll({ p, zurueck }) {
         <button type="button" className="knopf knopf--klein" data-esc-zurueck onClick={zurueck}>← Prüfberichte</button>
         <span className="klein" id="pb-stand">{stand}</span>
         <span className="pst-platz" />
-        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(hoco)}>Prüfmasse {hoco}</button>
+        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(hoco)}>Stammdaten</button>
         <ZeichnungKnopf hoco={hoco} />
         <button type="button" className="knopf knopf--klein" id="pb-drucken" onClick={drucken}>🖨 Drucken</button>
         {darf() ? <button type="button" className="knopf knopf--klein knopf--gefahr-leise" id="pb-loeschen" onClick={loeschen}>Löschen</button> : null}
@@ -850,7 +850,7 @@ function Checkliste({ w, hoco, schreibt, zurueck, quittieren }) {
         <button type="button" className="knopf knopf--klein" data-esc-zurueck onClick={zurueck}>← Prüfberichte</button>
         <span className="pst-platz" />
         <ZeichnungKnopf hoco={hoco} />
-        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(hoco)}>Prüfmasse {hoco}</button>
+        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(hoco)}>Stammdaten</button>
       </div>
       <div className="pb-check karte">
         <h2>Erstteilprüfung {hoco}{w.fa_nr ? " · FA " + w.fa_nr : ""}</h2>
