@@ -2,6 +2,10 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.935.4 (27. November 2026)
+
+- Druckformulare: Liefer-, Versand- und Zahlungsbedingung kommen, wenn sie im Beleg leer sind, aus dem Ursprungsbeleg (Auftrag) oder vom Kunden; beim Lieferschein Gewicht, Verpackungskosten und Porto auch aus den Gewatec-Daten.
+
 ## 1.935.3 (27. November 2026)
 
 - Test ERP: „Drucken“ im Auftrag druckt die Auftragsbestätigung im Gewatec-Aufbau (der eigene Knopf „Auftragsbestätigung“ fällt weg).

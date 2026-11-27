@@ -194,6 +194,21 @@ function artikelInfo(d, a, x) {
 const peZahl = (x) => String(posPe(x));
 const bedText = (d, id) => (d.bedingungen.find((x) => x.id === id) || {}).text || "";
 
+// Liefer-, Versand- und Zahlungsbedingung: zuerst vom Beleg selbst, sonst
+// vom Beleg, aus dem er entstand (Lieferschein → Auftrag, Rechnung →
+// Lieferschein → Auftrag), sonst vom Kunden. Aus dem Gewatec übernommene
+// Belege haben diese Felder oft leer (Patrick 27. November 2026: „hier fehlen
+// die Versandbedingungen etc.“).
+function bedingungen(d, b) {
+  const kette = [];
+  let x = b;
+  for (let i = 0; x && i < 4; i++) { kette.push(x.daten || {}); x = x.bezug_id && d.belegMap.get(x.bezug_id); }
+  const pd = ((d.partnerMap.get(b.partner_id) || {}).daten) || {};
+  kette.push(pd);
+  const erst = (k) => { for (const z of kette) if (z[k]) return z[k]; return ""; };
+  return { liefer: bedText(d, erst("liefer")), zahlung: bedText(d, erst("zahlung")), versand: erst("versand") };
+}
+
 // Partner: Anschrift, Telefon, Fax, Ansprechpartner
 function partnerInfo(d, b, anschrift) {
   const p = d.partnerMap.get(b.partner_id) || {};
@@ -277,7 +292,7 @@ function reDruckenBlatt(d, b) {
     + sz("Rechnungsbetrag in  CHF", chf(s.brutto), true) + "</table>"
     + "<div style='margin-top:8pt'>" + det([
       ["Lieferadresse", [liefAdr[0], liefAdr[1]].filter(Boolean).join(", ") + (liefAdr.length > 2 ? ",\n" + liefAdr.slice(2).join(", ") : ""), ""],
-      ["Lieferbedingung", bedText(d, bd.liefer)], ["Versandbedingung", lsd.versand || bd.versand || ""], ["Zahlungsbedingung", bedText(d, bd.zahlung)],
+      ["Lieferbedingung", bedingungen(d, ersterLs || b).liefer], ["Versandbedingung", bedingungen(d, ersterLs || b).versand], ["Zahlungsbedingung", bedText(d, bd.zahlung) || bedingungen(d, b).zahlung],
     ].map((z) => z && [z[0], z[1]]), 144, 18).replace(/class='w'>([^<]*)\n/g, "class='w' style='white-space:pre-line'>$1\n") + "</div>"
     + (bd.text ? "<p style='white-space:pre-line;margin:8pt 0 0'>" + esc(bd.text) + "</p>" : "")
     + "<p style='margin:12pt 0 0'>Der Ausführer der Waren, auf die sich dieses Handelspapier bezieht, erklärt, dass diese Waren, soweit nicht anders angegeben, präferenzbegünstigte Schweizer Ursprungswaren sind.<br>"
@@ -343,12 +358,18 @@ function lsDruckenBlatt(d, b) {
       + "<table style='margin:6pt 0 4pt -1pt'>" + (ap ? mz("Gesamtmenge", gesamt) : "") + mz("Gelieferte Menge", gel) + "</table>"
       + "</td></tr></table>";
   }).join("");
-  const brutto = n(bd.gewicht_brutto);
+  const bed = bedingungen(d, b);
+  const gw = bd.gewatec || {};
+  // Aus dem Gewatec übernommen: Gewicht und Summen stehen im Rohsatz
+  if (!netto) netto = n(bd.gewicht) || n(gw.GewichtNetto);
+  const brutto = n(bd.gewicht_brutto) || (n(gw.GewichtBrutto) !== netto ? n(gw.GewichtBrutto) : 0);
+  const verpK = n(bd.verp_kosten) || n(gw.SummeVerpackung);
+  const portoK = n(bd.porto) || n(gw.SummePorto);
   const gewicht = [brutto ? brutto.toFixed(1) + " kg brutto" : "", netto ? netto.toFixed(1) + " kg netto" : ""].filter(Boolean).join(" / ");
   const schluss = "<div class='linie' style='margin-top:2pt;padding-top:3pt'></div>"
-    + det([["Verpackung", bd.verpackung || " "], ["Verpackungskosten", bd.verp_kosten ? "CHF    " + chf(n(bd.verp_kosten)) : " "],
-      ["Porto", bd.porto ? "CHF    " + chf(n(bd.porto)) : " "], ["Gesamtgewicht", gewicht || " "],
-      ["Versandbedingung", bd.versand || " "], ["Lieferbedingung", bedText(d, bd.liefer) || " "]], 142, 17)
+    + det([["Verpackung", bd.verpackung || " "], ["Verpackungskosten", verpK ? "CHF    " + chf(verpK) : " "],
+      ["Porto", portoK ? "CHF    " + chf(portoK) : " "], ["Gesamtgewicht", gewicht || " "],
+      ["Versandbedingung", bed.versand || " "], ["Lieferbedingung", bed.liefer || " "]], 142, 17)
     + "<div style='padding-left:3pt'>In der Schweiz ausreichend bearbeitet gemäss Freihandelsabkommen CH/EU (\"no cumulation applied\")</div>"
     + (bd.text ? "<p style='white-space:pre-line;margin:8pt 0 0'>" + esc(bd.text) + "</p>" : "");
   const unten = "<div class='unten'><table>" + colgroup([105, 162, 162])
@@ -399,7 +420,7 @@ function abDruckenBlatt(d, b) {
     + "<table style='margin:4pt 0 0 auto' class='b'><tr><td>Netto-Warenwert in CHF :</td><td class='r' style='width:90pt'>" + chf(s.netto) + "</td></tr></table>"
     + "<div style='margin-top:12pt'>" + det([
       liefer ? ["Versandanschrift", "<span class='adr'>" + esc(adresseText(liefer)) + "</span>", "html"] : null,
-      ["Versandbedingung", bd.versand || ""], ["Lieferbedingung", bedText(d, bd.liefer)], ["Zahlungsbedingung", bedText(d, bd.zahlung)]], 143, 16) + "</div>"
+      ["Versandbedingung", bedingungen(d, b).versand], ["Lieferbedingung", bedingungen(d, b).liefer], ["Zahlungsbedingung", bedingungen(d, b).zahlung]], 143, 16) + "</div>"
     + (bd.text ? "<p style='white-space:pre-line;margin:8pt 0 0'>" + esc(bd.text) + "</p>" : "")
     + gruss(320, sb.name, 42);
   const spalten = "<div class='linie'></div><table class='sp' style='margin:3pt 0'>" + colgroup(SP_AB)
