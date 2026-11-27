@@ -9,6 +9,7 @@
 //  auf, siehe planAktualisieren).
 // =================================================================
 import { alt } from "../bruecke.jsx";
+import { materialOhneBestellung } from "../daten/materialBestellung.js";
 
 // Die FA Nr. gibt es genau einmal. Steht sie schon auf einem anderen
 // Auftrag, wird abgebrochen, bevor die Datenbank es mit einer
@@ -33,31 +34,35 @@ async function faNrFrei(faNr, auftrag) {
 // etwas anderes da, wird nachgefragt, statt still zu überschreiben.
 async function stammdatenNachziehen(hocoNummer, daten) {
   const db = alt.db;
+  // Nur die Bezeichnung, ohne Lieferant, Menge und Bestellnummer (seit
+  // 1.907.0, Patrick 27. November 2026: kam sonst immer wieder in die Stammdaten)
+  const material = materialOhneBestellung(daten.material_bez) || null;
   try {
     const r = await db.from("hoco_parts").select("*").eq("hoco_nr", hocoNummer).limit(1);
     const teilJetzt = (r.data || [])[0];
     if (!teilJetzt) {
       await db.from("hoco_parts").upsert([{
         hoco_nr: hocoNummer,
-        material: daten.material_bez || null,
+        material,
         zeichnung_url: daten.drawing_url || null,
       }], { onConflict: "hoco_nr", ignoreDuplicates: true });
       return;
     }
     const nach = {};
-    if (!teilJetzt.material && daten.material_bez) nach.material = daten.material_bez;
+    if (!teilJetzt.material && material) nach.material = material;
     if (!teilJetzt.zeichnung_url && daten.drawing_url) nach.zeichnung_url = daten.drawing_url;
-    if (teilJetzt.material && daten.material_bez
-        && teilJetzt.material.trim() !== daten.material_bez.trim()) {
+    // Unterscheiden sich nur Lieferant oder Menge, nicht nachfragen
+    if (teilJetzt.material && material
+        && materialOhneBestellung(teilJetzt.material) !== material) {
       const uebernehmen = await alt.nachfragen({
         titel: "Material auch beim Teil ändern?",
         text: "Bei " + hocoNummer + " steht \"" + teilJetzt.material
-            + "\". Am Auftrag hast du \"" + daten.material_bez
+            + "\". Am Auftrag hast du \"" + material
             + "\" eingetragen. Soll das Teil mitgeändert werden? "
             + "Es gilt dann für alle künftigen Aufträge.",
         bestaetigen: "Ja, beim Teil ändern",
         abbrechen: "Nein, nur dieser Auftrag" });
-      if (uebernehmen) nach.material = daten.material_bez;
+      if (uebernehmen) nach.material = material;
     }
     if (Object.keys(nach).length) await db.from("hoco_parts").update(nach).eq("hoco_nr", hocoNummer);
   } catch (f) { /* die Stammdaten holen es beim nächsten Öffnen nach */ }
@@ -140,7 +145,7 @@ export async function auftragSpeichern({ auftrag, daten, geaendert, nr, b, zu })
       // sonst findet das Einrichtblatt nichts
       try {
         await db.from("hoco_parts").upsert([{
-          hoco_nr: nr, material: daten.material_bez || null, zeichnung_url: daten.drawing_url || null,
+          hoco_nr: nr, material: materialOhneBestellung(daten.material_bez) || null, zeichnung_url: daten.drawing_url || null,
         }], { onConflict: "hoco_nr", ignoreDuplicates: true });
       } catch (f) { /* kommt spätestens im HOCO-Reiter dazu */ }
     }

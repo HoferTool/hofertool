@@ -205,3 +205,40 @@ export function alleBestellungenLesen(text) {
   });
   return raus;
 }
+
+// -----------------------------------------------------------------
+//  MATERIAL FÜR DIE STAMMDATEN
+//  Im Materialfeld am Auftrag steht oft auch, woher und wie viel
+//  („CuZn38Pb2 rd 005 mm h9 Prometall 1100kg“). Das gehört zum
+//  Auftrag, nicht zur HOCO Nr.: In die Stammdaten kommt nur die
+//  Bezeichnung (Patrick 27. November 2026: „siehst du den Fehler?“,
+//  es kam immer wieder, weil jeder neue Auftrag es mitbrachte).
+//  Weg kommen: Bestellnummer, Menge (kg, Stg., Stk., Meter), Termin
+//  (TE: 22.09.25, KW08), Lieferant, alles ab „Lager“, „ab Rahmen“,
+//  „Mat BE“, „bestellt“; dazu Excel-Reste wie 1.4305000000000001.
+//  Ohne Rückblick in den Mustern (iPad mit Safari 16.1).
+// -----------------------------------------------------------------
+const LIEFERANTEN = ["steeltec", "notz", "prometall", "prormetall", "metalix", "l\\.\\s?klein", "klein",
+  "looser", "schmobi", "allega", "valbruna", "pfenninger", "cellpack", "apso parts"];
+const LIEFERANT_WORT = new RegExp("(^|[\\s(,;/])(" + LIEFERANTEN.join("|") + ")(?=$|[\\s),;:/.\\d])", "gi");
+// Ab hier ist der Rest nur Lager- oder Bestellangabe
+const AB_HIER_WEG = /((\bmaterial\s+)?\(?\s*(\d[\d.,']*\s*kg\s*)?(noch\s+)?(ab|am|an|von|im)?\s*lager\b|\bab\s+rahmen\b|\bmat\.?\s*be\b|\bmaterial\s+muss\b|\bbestellt\b|\bwerden\s+angeliefert\b|\bauch\s+für\b|\bgesamt\s+\d|[\s-]*(\bfenster\s+)?\bnord\s+liegend).*$/i;
+
+export function materialOhneBestellung(text) {
+  let s = String(text || "");
+  if (!s.trim()) return "";
+  s = s.replace(AB_HIER_WEG, " ")
+    // Excel-Reste: 1.4305000000000001 → 1.4305, 2.0400999999999998 → 2.0401
+    .replace(/(^|[^\d.])(\d\.\d{4})(\d{8,})(?![\d.])/g, (t, vor, z, rest) => vor + Number(z + rest).toFixed(4))
+    .replace(/(^|\D)20\d{8}(?!\d)/g, "$1 ")
+    .replace(/\bTE\s*:?\s*\d{1,2}\.{1,2}\d{1,2}\.\d{2,4}(?!\d)/gi, " ")
+    .replace(/(^|[^\d.])\d{1,2}\.{1,2}\d{1,2}\.(\d{4}|\d{2})(?![\d.])/g, "$1 ")
+    .replace(/\bTE\s*:?/g, " ")
+    .replace(/\bKW\s*\d{1,2}\b/gi, " ")
+    // kg auch direkt vor dem Lieferanten („220kgSteeltec“)
+    .replace(/\(?\s*\d+(?:['.,]\d+)*\s*kg\.?\s*\)?/gi, " ")
+    .replace(/\(?\s*\d+(?:['.,]\d+)*\s*(stg|stk|stangen?|meter)(?![a-zäöü])\.?\s*\)?/gi, " ")
+    .replace(LIEFERANT_WORT, "$1 ");
+  return s.replace(/\(\s*\)/g, " ").replace(/\s+/g, " ")
+    .replace(/[\s+|(,:;\-]+$/, "").replace(/^[\s+|,:;]+/, "").trim();
+}
