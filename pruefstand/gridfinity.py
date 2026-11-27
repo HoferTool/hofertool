@@ -108,6 +108,21 @@ with sync_playwright() as p:
     zu = all(kanten_geschlossen([tuple(int(x) for x in t) for t in re.findall(r'<triangle v1="(\d+)" v2="(\d+)" v3="(\d+)"', o)]) == 0 for o in obj)
     vd = [tuple(float(x) for x in t) for t in re.findall(r'<vertex x="([-\d.e]+)" y="([-\d.e]+)" z="([-\d.e]+)"', m)]
     pruefe(len(obj) == 4 and zu and masse(vd)[0] < 250 and masse(vd)[2] == 4.4, "4 einzelne Eckwinkel %s, %s" % (masse(vd), d.value.suggested_filename))
+    # Ganzer Rand (1.904.0): Winkel plus Leisten dazwischen, jede druckbar
+    pg.click("[data-gf-distanzart='rand']"); pg.wait_for_timeout(400)
+    t = pg.inner_text("[data-gf-distanz]")
+    pruefe("4 lose Winkel" in t and "6 Leisten" in t and "213,4 / 169,5 mm lang" in t, "Ganzer Rand: " + t)
+    with pg.expect_download() as d: pg.click("[data-gf-export='distanz']")
+    m = zipfile.ZipFile(d.value.path()).read("3D/3dmodel.model").decode()
+    obj = re.findall(r"<object .*?</object>", m)
+    zu = all(kanten_geschlossen([tuple(int(x) for x in t) for t in re.findall(r'<triangle v1="(\d+)" v2="(\d+)" v3="(\d+)"', o)]) == 0 for o in obj)
+    vd = [tuple(float(x) for x in t) for t in re.findall(r'<vertex x="([-\d.e]+)" y="([-\d.e]+)" z="([-\d.e]+)"', m)]
+    pruefe(len(obj) == 10 and zu and masse(vd)[0] <= 252, "10 Randteile, Reihen so breit wie das Bett %s" % masse(vd))
+    pg.fill("[data-gf='schenkel']", "500"); pg.press("[data-gf='schenkel']", "Enter"); pg.wait_for_timeout(300)
+    pruefe(pg.input_value("[data-gf='schenkel']") == "146", "Schenkel begrenzt: " + pg.input_value("[data-gf='schenkel']"))
+    pg.fill("[data-gf='schenkel']", "40"); pg.press("[data-gf='schenkel']", "Enter")
+    pg.click("[data-gf-distanzart='ecken']"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-gf-druckerwahl]").count() == 1, "Druckerwahl zuoberst")
     # X1 Carbon: 10 × 7 wird 2 × 5×4 und 2 × 5×3
     t = pg.inner_text("[data-gf-stuecke]")
     pruefe("4 Stücke" in t and "2 × 5 × 4 Felder" in t and "2 × 5 × 3 Felder" in t and "17 Klammern" in t, "Aufteilung X1C: " + t)

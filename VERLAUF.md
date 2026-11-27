@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.904.0 (27. November 2026)
+
+- Gridfinity: Distanzstücke wahlweise nur Ecken oder ganzer Rand (Leisten druckbar lang), Schenkellänge einstellbar; Druckerwahl zuoberst.
+
 ## 1.903.0 (27. November 2026)
 
 - Gridfinity: Distanzstücke nur noch als vier lose Eckwinkel statt Klötze rundum.

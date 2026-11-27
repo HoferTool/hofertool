@@ -11,7 +11,7 @@ import { alt } from "../../bruecke.jsx";
 import { useEntwurfZurueck } from "../../teile/lokalZurueck.js";
 import {
   BOX_VORGABE, PLATTE_VORGABE, boxPruefen, plattePruefen, boxMasse, platteMasse,
-  boxNetz, platteNetz, verbinderNetz, distanzNetz, distanzTeile, distanzDruck, stlBinaer, dreiMF, GF,
+  boxNetz, platteNetz, verbinderNetz, distanzNetz, distanzPlan, distanzDruck, stlBinaer, dreiMF, GF,
   DRUCKER, aufteilen, stueckArten, stueckeVorschau,
 } from "./geometrie.js";
 
@@ -108,11 +108,12 @@ export default function Werkzeug() {
 
   // Distanzstücke an ihrem Platz, nur für die Vorschau (grau)
   const distanzPlatz = useMemo(() => (stand.art !== "platte" ? null : geteilt
-    ? distanzNetz(platte, teilung)
-    : distanzNetz(platte)),
+    ? distanzNetz(platte, teilung, drucker)
+    : distanzNetz(platte, null, drucker)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [stand.art, drucker, JSON.stringify(platte)]);
   const bm = boxMasse(box), pm = platteMasse(platte);
+  const dp = distanzPlan(platte, drucker);
   const dateiName = stand.art === "box"
     ? `gridfinity-box-${box.nx}x${box.ny}x${box.u}` + (box.fx * box.fy > 1 ? `-${box.fx}x${box.fy}faecher` : "")
     : `gridfinity-platte-${pm.nx}x${pm.ny}` + (platte.art === "schublade" ? `-${Math.round(pm.W)}x${Math.round(pm.D)}mm` : "");
@@ -130,7 +131,7 @@ export default function Werkzeug() {
       name = `gridfinity-platte-${stueck.nx}x${stueck.ny}-stueck`;
     } else if (verbinder === "distanz") {
       // jeder Klotz ein eigenes Teil in der Datei, nicht mit der Platte verbunden
-      nz = distanzDruck(platte); if (!nz.length) return;
+      nz = distanzDruck(platte, drucker); if (!nz.length) return;
       name = `gridfinity-distanz-${Math.round(platte.breite)}x${Math.round(platte.tiefe)}mm`;
     } else if (verbinder) { nz = verbinderNetz(platte); name = "gridfinity-klammer"; }
     else { nz = netz; name = dateiName; }
@@ -158,6 +159,18 @@ export default function Werkzeug() {
 
       <div className="gfn-raster">
         <div className="gfn-einstellungen">
+          {/* Drucker zuoberst (Patrick: „nimm die Drucker-Wahl hoch zur Grösse“) */}
+          <section className="gfn-gruppe" data-gf-druckerwahl>
+              <h3>Drucker</h3>
+              <div className="gfn-wahl gfn-wahl--klein">
+                {Object.entries(DRUCKER).map(([w, d]) => (
+                  <button key={w} type="button" data-gf-drucker={w}
+                    className={"gfn-wahl__knopf" + (drucker === w ? " aktiv" : "")}
+                    onClick={() => setStand((s) => ({ ...s, drucker: w }))}>{d.name.replace("Bambu Lab ", "")}</button>
+                ))}
+              </div>
+              <p className="gfn-text">Nutzbar {bett.a} × {bett.b} mm.</p>
+          </section>
           {stand.art === "box" ? <>
             <section className="gfn-gruppe">
               <h3>Grösse</h3>
@@ -219,23 +232,26 @@ export default function Werkzeug() {
                   Grundplatte angeschlossen sein, eigene Option“): lose Klötze,
                   eigene Datei, die Platte selbst bleibt ohne sie. */}
               <h3>Distanzstücke</h3>
-              <Schalter titel="Distanzstücke machen" name="distanz" an={platte.distanz} setzen={p("distanz")} text="Lose Klötze füllen den Rest der Schublade, nicht mit der Platte verbunden. Die Platte wird dafür ohne Rand gemacht." />
-              {platte.distanz && <p className="gfn-text" data-gf-distanz>{distanzTeile(platte).length
-                ? <>{distanzTeile(platte).length} lose Winkel für die Ecken, Schenkel {distanzTeile(platte)[0].schenkel} mm lang, {[distanzTeile(platte)[0].gx, distanzTeile(platte)[0].gy].filter((x) => x).map(mm).join(" / ")} mm dick, Höhe {mm(pm.H)} mm. Eigene Datei, jeder Winkel ein eigenes Teil.</>
+              <Schalter titel="Distanzstücke machen" name="distanz" an={platte.distanz} setzen={p("distanz")} text="Lose Teile füllen den Rest der Schublade, nicht mit der Platte verbunden. Die Platte wird dafür ohne Rand gemacht." />
+              {platte.distanz && <div className="gfn-wahl gfn-wahl--klein">
+                {[["ecken", "Nur Ecken"], ["rand", "Ganzer Rand"]].map(([w, t]) => (
+                  <button key={w} type="button" data-gf-distanzart={w}
+                    className={"gfn-wahl__knopf" + (platte.distanzArt === w ? " aktiv" : "")} onClick={() => p("distanzArt")(w)}>{t}</button>
+                ))}
+              </div>}
+              {platte.distanz && dp.teile.length > 0 &&
+                <Zahl titel="Winkel Schenkel" name="schenkel" wert={Math.min(platte.schenkel, dp.schenkelMax)} setzen={p("schenkel")} min={20} max={dp.schenkelMax} schritt={5} einheit="mm" hinweis={"höchstens " + dp.schenkelMax + " mm"} />}
+              {platte.distanz && <p className="gfn-text" data-gf-distanz>{dp.teile.length
+                ? <>{dp.teile.filter((t) => t.art === "winkel").length} lose Winkel für die Ecken{dp.teile.some((t) => t.art === "leiste")
+                  ? <>, dazu {dp.teile.filter((t) => t.art === "leiste").length} Leisten dazwischen ({[...new Set(dp.teile.filter((t) => t.art === "leiste").map((t) => mm(t.lang)))].join(" / ")} mm lang, höchstens {dp.leisteMax} mm)</> : null}.
+                  {" "}{[dp.gx, dp.gy].filter((x) => x).map(mm).join(" / ")} mm dick, Höhe {mm(pm.H)} mm. Eigene Datei, jedes Teil einzeln.</>
                 : <>Kein Distanzstück nötig, der Rest ist kleiner als 1 mm.</>}</p>}
-              {platte.distanz && distanzTeile(platte).length > 0 &&
+              {platte.distanz && dp.teile.length > 0 &&
                 <button className="knopf" data-gf-export="distanz" onClick={() => speichern("3mf", "distanz")}>Distanzstücke 3MF</button>}
             </section>}
             <section className="gfn-gruppe" data-gf-druckergruppe>
-              <h3>Drucker</h3>
-              <div className="gfn-wahl gfn-wahl--klein">
-                {Object.entries(DRUCKER).map(([w, d]) => (
-                  <button key={w} type="button" data-gf-drucker={w}
-                    className={"gfn-wahl__knopf" + (drucker === w ? " aktiv" : "")}
-                    onClick={() => setStand((s) => ({ ...s, drucker: w }))}>{d.name.replace("Bambu Lab ", "")}</button>
-                ))}
-              </div>
-              <p className="gfn-text">Nutzbar {bett.a} × {bett.b} mm.</p>
+              <h3>Aufteilen</h3>
+              {!geteilt && passt(pm.W, pm.D) && <p className="gfn-text">Passt in einem Stück auf den {bett.name}.</p>}
               {geteilt ? <div data-gf-stuecke>
                 <p className="gfn-text">Zu gross für ein Mal: {teilung.stuecke.length} Stücke, mit {klammern} Klammern verbunden.</p>
                 {arten.map((a) => (

@@ -224,7 +224,7 @@ export function boxNetz(eingabe) {
 //  Klammer (Λ-Form, 19.6 mm lang), die von oben über beide Schienen
 //  schnappt. Masse genau aus der STL.
 // =================================================================
-export const PLATTE_VORGABE = { art: "felder", nx: 4, ny: 3, breite: 300, tiefe: 200, magnete: false, magD: 6.5, magH: 2.4, anschluss: false, distanz: false };
+export const PLATTE_VORGABE = { art: "felder", nx: 4, ny: 3, breite: 300, tiefe: 200, magnete: false, magD: 6.5, magH: 2.4, anschluss: false, distanz: false, distanzArt: "ecken", schenkel: 40 };
 
 const BUCHT = 10;   // halbe Länge der Aussparung am Rand (20 mm)
 // Schiene: [Höhe, Abstand der Innenkante vom Plattenrand]
@@ -238,6 +238,7 @@ export function plattePruefen(p) {
     breite: z(p.breite, 42, 1000, 300), tiefe: z(p.tiefe, 42, 1000, 200),
     magnete: !!p.magnete, magD: z(p.magD, 3, 7, 6.5), magH: z(p.magH, 1, 4, 2.4),
     anschluss: !!p.anschluss, distanz: !!p.distanz,
+    distanzArt: p.distanzArt === "rand" ? "rand" : "ecken", schenkel: z(p.schenkel, 20, 400, 40),
   };
 }
 
@@ -434,36 +435,68 @@ export function platteNetz(eingabe) {
 // über die ganze Länge sein, es reicht an den Ecken“): jeder Winkel hat
 // zwei Schenkel, 40 mm über die Plattenecke hinaus, so dick wie der Spalt.
 // Ist ein Spalt unter 1 mm, bleibt nur der andere Schenkel.
-const KLOTZ_L = 40;
-export function distanzTeile(eingabe) {
+// Seit 1.904.0 wählbar (Patrick: „Option ob ganzer Rand oder nur Ecken,
+// die Randstücke dürfen länger sein als 40 mm, einfach so, dass es noch
+// druckbar ist“): Schenkellänge einstellbar, begrenzt durch das Druckbett
+// und die halbe Schubladenseite; „ganzer Rand“ füllt zwischen den Winkeln
+// mit geraden Leisten, jede höchstens so lang, wie das Bett hergibt.
+// Gibt { teile, schenkel, schenkelMax, leisteMax } zurück.
+export function distanzPlan(eingabe, druckerId = "x1c") {
   const p = plattePruefen(eingabe);
   const m = platteMasse(p);
-  if (p.art !== "schublade" || !p.distanz) return [];
-  // 0.2 mm Luft zwischen Winkel und Platte, damit alles leicht hineingeht
-  const gx = m.gx - 0.2, gy = m.gy - 0.2;
-  if (gx < 1 && gy < 1) return [];
-  const B = m.innenB / 2, T = m.innenT / 2, t = [];
+  const leer = { teile: [], schenkel: 0, schenkelMax: 0, leisteMax: 0 };
+  if (p.art !== "schublade" || !p.distanz) return leer;
+  // 0.2 mm Luft zwischen Teil und Platte, damit alles leicht hineingeht
+  let gx = m.gx - 0.2, gy = m.gy - 0.2;
+  if (gx < 1) gx = 0; if (gy < 1) gy = 0;
+  if (!gx && !gy) return leer;
+  const bett = DRUCKER[druckerId] || DRUCKER.x1c;
+  const B = m.innenB / 2, T = m.innenT / 2;
+  // Winkel muss aufs Bett passen (Rand 2 mm schon abgezogen) und darf die
+  // Seitenmitte nicht erreichen, sonst stossen zwei Winkel zusammen
+  const schenkelMax = Math.floor(Math.max(10, Math.min(
+    Math.min(bett.a, bett.b) - Math.max(gx, gy),
+    (gx ? T - gy : Infinity) - 1, (gy ? B - gx : Infinity) - 1)));
+  const L = Math.min(p.schenkel, schenkelMax);
+  const leisteMax = Math.floor(bett.a - 4);
+  const spiegeln = (sx, sy, [a, b, c, d]) => [
+    sx < 0 ? -B + a : B - c, sy < 0 ? -T + b : T - d, sx < 0 ? -B + c : B - a, sy < 0 ? -T + d : T - b];
+  const teile = [];
   for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
     // in der Ecke (-B, -T) gerechnet, dann gespiegelt
     const roh = [];
-    if (gx >= 1) roh.push([0, 0, gx, Math.max(gy, 0) + KLOTZ_L]);      // Schenkel an der Seite
+    if (gx) roh.push([0, 0, gx, gy + L]);                       // Schenkel an der Seite
     // 0.05 versetzt, damit die zwei Quader keine Kante teilen (sonst nicht dicht)
-    if (gy >= 1) roh.push([gx >= 1 ? 0.05 : 0, 0, Math.max(gx, 0) + KLOTZ_L, gy]); // Schenkel vorne/hinten
-    const quader = roh.map(([a, b, c, d]) => {
-      const xa = sx < 0 ? -B + a : B - c, xb = sx < 0 ? -B + c : B - a;
-      const ya = sy < 0 ? -T + b : T - d, yb = sy < 0 ? -T + d : T - b;
-      return [xa, ya, xb, yb];
-    });
-    t.push({ quader, h: m.H, gx: gx >= 1 ? gx : 0, gy: gy >= 1 ? gy : 0, schenkel: KLOTZ_L });
+    if (gy) roh.push([gx ? 0.05 : 0, 0, gx + L, gy]);           // Schenkel vorne/hinten
+    teile.push({ art: "winkel", quader: roh.map((q) => spiegeln(sx, sy, q)), h: m.H });
   }
-  return t;
+  if (p.distanzArt === "rand") {
+    const luft = 0.5;
+    // Leisten zwischen den Winkeln, gleich lang, je höchstens leisteMax
+    const reihe = (von, bis, mache) => {
+      const len = bis - von;
+      if (len < 5) return;
+      const k = Math.ceil((len + luft) / (leisteMax + luft)), l = (len - (k - 1) * luft) / k;
+      for (let i = 0; i < k; i++) mache(von + i * (l + luft), von + i * (l + luft) + l, l);
+    };
+    if (gx) for (const sx of [-1, 1]) reihe(-T + gy + L + luft, T - gy - L - luft, (a, b, l) => {
+      const x0 = sx < 0 ? -B : B - gx;
+      teile.push({ art: "leiste", quader: [[x0, a, x0 + gx, b]], h: m.H, lang: l, breit: gx });
+    });
+    if (gy) for (const sy of [-1, 1]) reihe(-B + gx + L + luft, B - gx - L - luft, (a, b, l) => {
+      const y0 = sy < 0 ? -T : T - gy;
+      teile.push({ art: "leiste", quader: [[a, y0, b, y0 + gy]], h: m.H, lang: l, breit: gy });
+    });
+  }
+  return { teile, schenkel: L, schenkelMax, leisteMax, gx, gy };
 }
+export function distanzTeile(eingabe, druckerId) { return distanzPlan(eingabe, druckerId).teile; }
 const umriss = (s) => [Math.min(...s.quader.map((q) => q[0])), Math.min(...s.quader.map((q) => q[1])),
   Math.max(...s.quader.map((q) => q[2])), Math.max(...s.quader.map((q) => q[3]))];
 // An ihrem Platz in der Schublade, als ein Netz (für die Vorschau)
 // t (Aufteilung): Winkel rücken mit dem Stück daneben mit, wie in stueckeVorschau
-export function distanzNetz(eingabe, t = null) {
-  const teile = distanzTeile(eingabe);
+export function distanzNetz(eingabe, t = null, druckerId) {
+  const teile = distanzTeile(eingabe, druckerId);
   if (!teile.length) return null;
   const { nx, ny } = platteMasse(plattePruefen(eingabe));
   const verschub = (c, n, liste) => {
@@ -482,14 +515,23 @@ export function distanzNetz(eingabe, t = null) {
   }
   return fertig(n, { distanz: true, anzahl: teile.length });
 }
-// Zum Drucken: jeder Winkel ein eigenes Netz, nebeneinander mit 5 mm Abstand
-export function distanzDruck(eingabe) {
-  let x = 0;
-  return distanzTeile(eingabe).map((s) => {
-    const [x0, y0, x1] = umriss(s);
+// Zum Drucken: jedes Teil ein eigenes Netz, Leisten längs gelegt, in
+// Reihen so breit wie das Druckbett (5 mm Abstand)
+export function distanzDruck(eingabe, druckerId) {
+  const bett = DRUCKER[druckerId] || DRUCKER.x1c;
+  let x = 0, y = 0, reiheT = 0;
+  return distanzTeile(eingabe, druckerId).map((s) => {
+    const [x0, y0, x1, y1] = umriss(s);
+    const drehen = s.art === "leiste" && y1 - y0 > x1 - x0;
+    const w = drehen ? y1 - y0 : x1 - x0, d = drehen ? x1 - x0 : y1 - y0;
+    if (x > 0 && x + w > bett.a) { x = 0; y += reiheT + 5; reiheT = 0; }
     const n = neuesNetz();
-    for (const q of s.quader) quader(n, q[0] - x0 + x, q[1] - y0, 0, q[2] - x0 + x, q[3] - y0, s.h);
-    x += x1 - x0 + 5;
+    for (const q of s.quader) {
+      const a = [q[0] - x0, q[1] - y0, q[2] - x0, q[3] - y0];
+      const r = drehen ? [a[1], a[0], a[3], a[2]] : a;
+      quader(n, r[0] + x, r[1] + y, 0, r[2] + x, r[3] + y, s.h);
+    }
+    x += w + 5; reiheT = Math.max(reiheT, d);
     return fertig(n, {});
   });
 }
