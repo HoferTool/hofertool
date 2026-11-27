@@ -320,11 +320,32 @@ function esc(t) {
   return String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 }
 
+// Grosse Fenster (Test ERP, Kalkulation) gehen gleich als eigenes Browserfenster
+// auf, nicht erst nach dem Hinausziehen (Wunsch Patrick 27. November 2026:
+// „mach von anfang an einen eigenen tab daraus“). Kleine Rückfragen bleiben in
+// der App. Sperrt der Browser das Fenster, bleibt es still in der App. Im
+// Prüfstand nur mit TEST.eigenesFenster.
+const GROSS_SEL = ":scope > .gf, :scope > .erp-fenster--gross, :scope > .kalk-fenster";
+function gleichHeraus(h) {
+  if (window.TEST && !window.TEST.eigenesFenster) return false;
+  if (!herausMoeglich()) return false;
+  let gross = null;
+  try { gross = h.querySelector(GROSS_SEL); } catch (f) { return false; }
+  if (!gross) return false;
+  const ok = inEigenesFenster(h, zuFuer(h), { titel: titelVon(h) + " – HoferTool", still: true });
+  if (ok) { leisteZeichnen(); return true; }
+  return false;
+}
+
 // ---------- Beobachten ----------
 new MutationObserver((meldungen) => {
   let neu = false;
   meldungen.forEach((m) => {
-    m.addedNodes.forEach((n) => { if (istFenster(n)) { aufnehmen(n); neu = true; } });
+    m.addedNodes.forEach((n) => {
+      if (!istFenster(n)) return;
+      if (gleichHeraus(n)) return;
+      aufnehmen(n); neu = true;
+    });
     m.removedNodes.forEach((n) => { if (ordnung.includes(n)) { entfernen(n); neu = true; } });
   });
   if (neu) leisteZeichnen();

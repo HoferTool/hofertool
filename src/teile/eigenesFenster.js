@@ -161,6 +161,7 @@ export function inEigenesFenster(huelle, zu, { titel, lage, still } = {}) {
     document.addEventListener(art, merkDort, { capture: true, passive: true });
   });
   const neue = new MutationObserver((meldungen) => {
+    if (dort > hier) return;
     if (!d.hasFocus() && !(hier > dort)) return;
     meldungen.forEach((m) => m.addedNodes.forEach((n) => {
       if (n.nodeType !== 1 || !n.classList || !n.classList.contains("dialog-huelle")) return;
