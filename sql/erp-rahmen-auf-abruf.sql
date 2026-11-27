@@ -11,14 +11,13 @@
 update public.erp_positionen q set daten = jsonb_set(q.daten, '{abrufe}', (
     select jsonb_agg(case when substr(e->>'termin', 6, 5) = '12-31'
       then e || jsonb_build_object('abruf', true, 'bis', e->>'termin', 'termin', '', 'kw', '') else e end order by o)
-    from jsonb_array_elements(q.daten->'abrufe') with ordinality x(e, o))), geaendert_am = now()
+    from jsonb_array_elements(q.daten->'abrufe') with ordinality x(e, o)))
 from public.erp_belege b
 where b.id = q.beleg_id and b.typ = 'auftrag' and jsonb_typeof(q.daten->'abrufe') = 'array'
   and exists (select 1 from jsonb_array_elements(q.daten->'abrufe') e where substr(e->>'termin', 6, 5) = '12-31');
 
 update public.erp_positionen q set daten = coalesce(q.daten, '{}'::jsonb) || jsonb_build_object('abrufe', jsonb_build_array(
-    jsonb_build_object('termin', '', 'kw', '', 'abruf', true, 'bis', to_char(q.termin, 'YYYY-MM-DD'), 'menge', q.menge, 'bemerkung', ''))),
-  geaendert_am = now()
+    jsonb_build_object('termin', '', 'kw', '', 'abruf', true, 'bis', to_char(q.termin, 'YYYY-MM-DD'), 'menge', q.menge, 'bemerkung', '')))
 from public.erp_belege b
 where b.id = q.beleg_id and b.typ = 'auftrag' and to_char(q.termin, 'MM-DD') = '12-31'
   and coalesce(jsonb_array_length(case when jsonb_typeof(q.daten->'abrufe') = 'array' then q.daten->'abrufe' end), 0) = 0;
