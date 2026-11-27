@@ -718,7 +718,8 @@ function Protokoll({ p, zurueck }) {
   // Ältere Protokolle mit schon eingetragenen Werten brauchen sie nicht.
   const braucheCheck = art === "erstteil" && !zu && !(w.kopf.checkliste || {}).am && !(e.gut + e.schlecht);
   if (braucheCheck) return <Checkliste w={w} hoco={hoco} schreibt={schreibt} zurueck={zurueck}
-    quittieren={(c) => { const n = { ...w, kopf: { ...w.kopf, checkliste: c } }; setW(n); speichern(n); }} />;
+    quittieren={(c) => { const n = { ...w, kopf: { ...w.kopf, checkliste: c } }; setW(n); speichern(n); }}
+    kopfNeu={(k) => { const n = { ...w, kopf: { ...w.kopf, ...k } }; setW(n); speichern(n); }} />;
   return (
     <div className="pb pb-blattseite" data-pbprotokolloffen={w.id}>
       <div className="pb-kopfzeile pb-werkzeug">
@@ -872,9 +873,22 @@ async function ausbuchen(w, hoco) {
   } catch (e) { /* still: ohne Prüfmittel geht es weiter */ }
 }
 
-function Checkliste({ w, hoco, schreibt, zurueck, quittieren }) {
+function Checkliste({ w, hoco, schreibt, zurueck, quittieren, kopfNeu }) {
   const punkte = useMemo(() => checkPunkte(w.kopf), [w.kopf]);
   const [haken, setHaken] = useState({});
+  // Anpassen (Wunsch Patrick 27. November 2026: „wenn die Liste mit Prüfmittel nicht stimmt,
+  // soll Anpassen kommen, dann der Bericht, man fügt was hinzu und checkt nochmals die Liste“):
+  // öffnet die Masse der Stammdaten; beim Zurückkommen werden Masse und Kopf neu übernommen
+  // und alle Haken zurückgesetzt, damit die Liste nochmals geprüft wird.
+  const [anpassen, setAnpassen] = useState(false);
+  const fertigAngepasst = async () => {
+    setAnpassen(false);
+    try {
+      const st = await stammMitMassen(hoco);
+      if (st && (st.zeilen || []).length) kopfNeu({ zeilen: st.zeilen, vorlage: st.kopf || {} });
+    } catch (f) { alt.meldung("Masse konnten nicht neu gelesen werden: " + fehlerText(f), "warn"); }
+    setHaken({});
+  };
   const alle = punkte.every(([id]) => haken[id]);
   // Welches Prüfmittel der Verwaltung passt zu jeder Lehre? (seit 1.838.0, Wunsch Patrick:
   // „das nr vom prüfmittel dort auch steht … es soll das mittel selber suchen“)
@@ -889,6 +903,7 @@ function Checkliste({ w, hoco, schreibt, zurueck, quittieren }) {
       {t.slice(0, 3).map((p) => "Prüfmittel " + (p.nr || p.bezeichnung) + " · " + pmOrtText(p)).join(" / ")}
       {t.length > 3 ? " … (" + t.length + ")" : ""}</small>;
   };
+  if (anpassen) return <Pruefung hoco={hoco} modus="qs" darf={schreibt} zurueck={fertigAngepasst} zurueckText="← Zurück zur Checkliste" />;
   return (
     <div className="pb pb-blattseite" data-pbcheckliste={w.id}>
       <div className="pb-kopfzeile pb-werkzeug">
@@ -913,6 +928,7 @@ function Checkliste({ w, hoco, schreibt, zurueck, quittieren }) {
         </ul>
         {schreibt ? (
           <div className="pb-check__fuss">
+            <button type="button" className="knopf" id="pb-check-anpassen" title="Masse und Prüfmittel in den Stammdaten ergänzen, danach die Liste nochmals prüfen" onClick={() => setAnpassen(true)}>Anpassen</button>
             <button type="button" className="knopf" onClick={() => setHaken(Object.fromEntries(punkte.map(([id]) => [id, true])))}>Alle abhaken</button>
             <button type="button" className="knopf knopf--haupt" id="pb-check-quittieren" disabled={!alle}
               onClick={() => quittieren({ am: new Date().toISOString(), punkte: punkte.map(([id, t]) => t) })}>✓ Quittieren, weiter zum Protokoll</button>

@@ -25,7 +25,7 @@ const KOPF = [["bezeichnung", "Artikel"], ["zeichnung", "Zeichnung"], ["index", 
 // Kopf, Blatt und Excel. Seit 1.837.0, Wunsch Patrick 25. November 2026:
 // „prüfbericht soll im qs selber bearbeitet werden nicht stammdaten, dort
 // soll dan nur hacken gestzet werden was notwenig ist“.
-export default function Pruefung({ hoco, darf, modus = "stamm", zurueck }) {
+export default function Pruefung({ hoco, darf, modus = "stamm", zurueck, zurueckText = "← Prüfberichte" }) {
   const qs = modus === "qs";
   const [st, setSt] = useState(null);      // gespeicherter bzw. geladener Stand
   const [w, setW] = useState(null);        // Arbeitsstand
@@ -147,7 +147,7 @@ export default function Pruefung({ hoco, darf, modus = "stamm", zurueck }) {
   return (
     <section className="karte pst" id="pst">
       <div className="karte__kopf">
-        {zurueck ? <button type="button" className="knopf knopf--klein" id="pst-zurueck" onClick={zurueck}>← Prüfberichte</button> : null}
+        {zurueck ? <button type="button" className="knopf knopf--klein" id="pst-zurueck" onClick={zurueck}>{zurueckText}</button> : null}
         <h2>Prüfmasse {hoco}</h2>
         <span className="klein">{anzahl} Masse · gilt für alle Prüfprotokolle dieser HOCO Nr.</span></div>
 

@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.894.0 (27. November 2026)
+
+QS → Erstteilprüfung: Checkliste mit Knopf „Anpassen“; er öffnet die Masse der Stammdaten, beim Zurückkommen werden Masse und Prüfmittel neu übernommen und alle Haken zurückgesetzt (Wunsch Patrick: „anpassen kommen, dann der Bericht … und checkt nochmals die Liste“).
+
 ## 1.893.0 (27. November 2026)
 
 Pad Mode: Ist auf Startbild, Parks, Typen oder Maschinen Platz übrig, werden die Kacheln grösser, bis sie den freien Platz füllen, ohne Rollen (Wunsch Patrick: „diese felder dürfen schon etwas grösser sein“). `src/pad/einpassen.js` wählt dafür die Spaltenzahl, bei der die Kacheln am grössten werden (letzte Reihe höchstens eine weniger), höchstens 2,6-fach; am Handy unverändert. Prüfstand `pad_kacheln_gross.py`.
