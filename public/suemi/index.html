@@ -366,6 +366,10 @@ button.zeile-verw{width:100%;text-align:left}
 .an-spaene{position:absolute;left:0;right:0;height:0}
 .an-staub{position:absolute;top:-2px;border-radius:50%;opacity:0;animation:staub .5s var(--t) cubic-bezier(.2,.7,.3,1) forwards}
 .an-staub.lang{border-radius:2px}
+.an-liegen{position:fixed;inset:0;z-index:57;pointer-events:none;overflow:hidden;transition:opacity 1.2s ease}
+.an-liegen.aus{opacity:0}
+.an-liegen i{position:absolute;opacity:0;animation:liegen var(--d) var(--t) cubic-bezier(.25,.6,.35,1) forwards}
+@keyframes liegen{0%{opacity:1;transform:translate(var(--sx),var(--sy)) rotate(0)}100%{opacity:.95;transform:translate(0,0) rotate(var(--r))}}
 @keyframes staub{0%{opacity:1;transform:translate(0,0) rotate(0)}100%{opacity:.85;transform:translate(var(--x),var(--y)) rotate(var(--r))}}
 .an-haelfte{position:fixed;inset:0;z-index:55;overflow:hidden;pointer-events:none;transition:transform .7s cubic-bezier(.6,0,.3,1)}
 .an-haelfte.oben{clip-path:inset(0 0 50% 0)}.an-haelfte.unten{clip-path:inset(50% 0 0 0)}
@@ -609,7 +613,7 @@ function saegen(el, fertig) {
       document.body.appendChild(h); return h;
     });
     // viele Späne, die mit dem Sägeblatt mitlaufen und nach hinten oben bzw. unten spritzen
-    const n = innerWidth < 600 ? 110 : 160, toene = ["#e8c08a", "#d9a86a", "#f3d6a8", "#c48b4f", "#fff1d6"];
+    const n = innerWidth < 600 ? 160 : 240, toene = ["#e8c08a", "#d9a86a", "#f3d6a8", "#c48b4f", "#fff1d6"];
     for (let i = 0; i < n; i++) {
       const x = Math.random(), hoch = Math.random() < .5, p = document.createElement("span"), g = 2 + Math.random() * 5;
       p.className = "an-staub" + (Math.random() < .35 ? " lang" : "");
@@ -620,6 +624,24 @@ function saegen(el, fertig) {
       p.style.setProperty("--r", Math.round(Math.random() * 720 - 360) + "deg");
       haelften[hoch ? 0 : 1].querySelector(".an-spaene").appendChild(p);
     }
+    // dazu viele Späne, die vom Schnitt aus über die ganze Seite fliegen und dort liegen bleiben,
+    // auch noch auf der neuen Seite, bis sie langsam verblassen
+    const liegen = document.createElement("div"); liegen.className = "an-liegen";
+    const m = innerWidth < 600 ? 260 : 480, W = innerWidth, H = innerHeight;
+    for (let i = 0; i < m; i++) {
+      const p = document.createElement("i"), g = 2 + Math.random() * 5, lang = Math.random() < .4;
+      const zx = Math.random() * W, zy = Math.random() * H, qx = Math.random() * W;
+      p.style.cssText = `left:${zx.toFixed(0)}px;top:${zy.toFixed(0)}px;width:${g.toFixed(1)}px;height:${(g * (lang ? 2.3 : 1)).toFixed(1)}px;border-radius:${lang ? "2px" : "50%"};background:${toene[i % toene.length]}`;
+      p.style.setProperty("--sx", Math.round(qx - zx) + "px");
+      p.style.setProperty("--sy", Math.round(my - zy) + "px");
+      p.style.setProperty("--t", ((qx / W) * .85 + Math.random() * .1).toFixed(3) + "s");
+      p.style.setProperty("--d", (.45 + Math.random() * .5).toFixed(2) + "s");
+      p.style.setProperty("--r", Math.round(Math.random() * 900 - 450) + "deg");
+      liegen.appendChild(p);
+    }
+    document.body.appendChild(liegen);
+    setTimeout(() => liegen.classList.add("aus"), 3200);
+    setTimeout(() => liegen.remove(), 4500);
     const s = document.createElement("div"); s.className = "an-saege"; s.style.top = my + "px";
     s.innerHTML = `<div class="an-schnitt"></div><div class="an-blatt">${SAEGE_SVG}</div>`;
     document.body.appendChild(s);
