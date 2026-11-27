@@ -28,6 +28,7 @@ import { STIL, briefkopf } from "./achtdBlatt.js";
 import { qsSprung, masseInQsOeffnen } from "./qsSprung.js";
 import Pruefung, { MasseBlatt } from "../../hoco/Pruefung.jsx";
 import { createPortal } from "react-dom";
+import { dokZeigen } from "../../teile/DokAbruf.jsx";
 import {
   ARTEN, artVon, artName, istZwischen, TEILE, AQL_WERTE, aqlPlan, fehltTabelle, protokolleLaden, dateienLaden, vorlageLaden, stammSpeichern,
   stammLaden, stammMitMassen, toleranz, toleranzText, istPruefen, lehrenAus, pruefmittelFuer, pruefmittelAlleLaden, pmOrtText, bildVon, zeilenId,
@@ -48,6 +49,20 @@ const zeitText = (d) => { if (!d) return ""; const x = new Date(d); return datum
 // Ausfüllen, Freigabe und Abschliessen darf jeder ausser Externen und Dienst
 // (Wunsch Patrick 25. November 2026: „dafür brauchts keine Rechte, jeder darf das ausfüllen und Freigabe erteilen“)
 const darf = () => !alt.istExtern() && alt.meineRolle() !== "dienst";
+
+// Zeichnung zur HOCO Nr. ansehen, jederzeit aus Protokoll, Checkliste und
+// Vorlage (Wunsch Patrick 27. November 2026: „zum Ansehen und Nachschauen“).
+async function zeichnungZeigen(hoco) {
+  try {
+    const { data } = await alt.db.from("hoco_parts").select("zeichnung_url").eq("hoco_nr", hoco).maybeSingle();
+    dokZeigen({ art: "zeichnung", titel: "Zeichnung " + hoco, adresse: (data && data.zeichnung_url) || null, hoco });
+  } catch (f) { alt.meldung("Zeichnung ging nicht: " + fehlerText(f), "fehler"); }
+}
+function ZeichnungKnopf({ hoco }) {
+  if (!hoco || alt.istExtern()) return null;
+  return <button type="button" className="knopf knopf--klein" data-pbzeichnung={hoco} onClick={() => zeichnungZeigen(hoco)}>📄 Zeichnung</button>;
+}
+
 
 const ENTSCHEIDE = [["freigabe", "Freigabe"], ["nacharbeit", "Nacharbeit / Sortieren"], ["neu", "Neuanfertigung"]];
 const entscheidText = (e) => (ENTSCHEIDE.find((x) => x[0] === e) || [])[1] || "";
@@ -559,6 +574,7 @@ function VorlageLeer({ v, zurueck }) {
   );
   const extra = (
     <>
+      <ZeichnungKnopf hoco={v.hoco} />
       <button type="button" className="knopf knopf--klein" id="pb-vorlage-drucken" onClick={drucken}>Drucken</button>
       {teilweise.length ? <span className="pb-rot klein" id="pb-vorlage-teilweise">⚠ Zum Teil nicht lesbar: {teilweise.join("; ")}. Fehlende Masse direkt im Blatt ergänzen.</span> : null}
       <span className="klein" id="pb-vorlage-stand">{hatMasse && !geaendert ? "✓ In den Stammdaten gespeichert" : hatMasse ? "In den Stammdaten stehen " + stamm.zeilen.length + " Zeilen" : "Noch nicht in den Stammdaten"}</span>
@@ -683,6 +699,7 @@ function Protokoll({ p, zurueck }) {
         <span className="klein" id="pb-stand">{stand}</span>
         <span className="pst-platz" />
         <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(hoco)}>Prüfmasse {hoco}</button>
+        <ZeichnungKnopf hoco={hoco} />
         <button type="button" className="knopf knopf--klein" id="pb-drucken" onClick={drucken}>🖨 Drucken</button>
         {darf() ? <button type="button" className="knopf knopf--klein knopf--gefahr-leise" id="pb-loeschen" onClick={loeschen}>Löschen</button> : null}
       </div>
@@ -830,6 +847,7 @@ function Checkliste({ w, hoco, schreibt, zurueck, quittieren }) {
       <div className="pb-kopfzeile pb-werkzeug">
         <button type="button" className="knopf knopf--klein" data-esc-zurueck onClick={zurueck}>← Prüfberichte</button>
         <span className="pst-platz" />
+        <ZeichnungKnopf hoco={hoco} />
         <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(hoco)}>Prüfmasse {hoco}</button>
       </div>
       <div className="pb-check karte">

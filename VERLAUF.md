@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.884.0 (27. November 2026)
+
+Prüfberichte: Knopf „📄 Zeichnung“ in Protokoll, Checkliste und Vorlage öffnet die Zeichnung zur HOCO Nr. zum Nachschauen, nicht für Externe (Wunsch Patrick 27. November 2026).
+
 ## 1.873.2 (27. November 2026)
 
 Auftragsfenster: mit Mat. info. und Stückzeit über der Zeichnung ragte die Vorschau bei 1280 × 720 über die Knöpfe Zeichnung / Einrichtblatt / WBG, jetzt wächst der Behälter mit und die Spalte rollt (Prüfstand `auftrag_layout.py` war rot). Prüfstand `pdf_gross.py` an 1.860.1 angepasst (Seiten 1–2 bleiben gezeichnet, gewartet wird auf Seite 20).
