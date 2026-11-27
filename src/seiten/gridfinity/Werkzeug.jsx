@@ -11,7 +11,7 @@ import { alt } from "../../bruecke.jsx";
 import { useEntwurfZurueck } from "../../teile/lokalZurueck.js";
 import {
   BOX_VORGABE, PLATTE_VORGABE, boxPruefen, plattePruefen, boxMasse, platteMasse,
-  boxNetz, platteNetz, verbinderNetz, stlBinaer, dreiMF, GF,
+  boxNetz, platteNetz, verbinderNetz, distanzNetz, distanzTeile, stlBinaer, dreiMF, GF,
 } from "./geometrie.js";
 
 const SPEICHER = "hofer.gridfinity";
@@ -29,6 +29,12 @@ function laden() {
   return { art: "box", box: { ...BOX_VORGABE }, platte: { ...PLATTE_VORGABE } };
 }
 
+// Gleiche Distanzstücke zusammenfassen: „4 × 154,3 × 4,6 mm“
+function gruppiert(teile) {
+  const g = new Map();
+  for (const t of teile) { const k = mm(t.lang) + " × " + mm(t.breit) + " mm"; g.set(k, (g.get(k) || 0) + 1); }
+  return [...g].map(([k, n]) => n + " Stück " + k).join(", ");
+}
 const mm = (x) => (Math.round(x * 10) / 10).toString().replace(".", ",");
 
 // Zahl mit − und + daneben: auf dem iPad leichter als Tippen
@@ -95,6 +101,10 @@ export default function Werkzeug() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stand.art, JSON.stringify(stand.art === "box" ? box : platte)]);
 
+  // Distanzstücke an ihrem Platz, nur für die Vorschau (grau)
+  const distanzPlatz = useMemo(() => (stand.art === "platte" ? distanzNetz(platte, false) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [stand.art, JSON.stringify(platte)]);
   const bm = boxMasse(box), pm = platteMasse(platte);
   const dateiName = stand.art === "box"
     ? `gridfinity-box-${box.nx}x${box.ny}x${box.u}` + (box.fx * box.fy > 1 ? `-${box.fx}x${box.fy}faecher` : "")
@@ -103,8 +113,8 @@ export default function Werkzeug() {
   const zuGross = Math.max(breit, tief) > DRUCKBETT;
 
   async function speichern(format, verbinder = false) {
-    const nz = verbinder ? verbinderNetz(platte) : netz;
-    const name = verbinder ? "gridfinity-klammer" : dateiName;
+    const nz = verbinder === "distanz" ? distanzNetz(platte) : verbinder ? verbinderNetz(platte) : netz;
+    const name = verbinder === "distanz" ? `gridfinity-distanz-${Math.round(platte.breite)}x${Math.round(platte.tiefe)}mm` : verbinder ? "gridfinity-klammer" : dateiName;
     if (!nz) return;
     const daten = format === "3mf" ? await dreiMF(nz, name) : stlBinaer(nz, name);
     const blob = new Blob([daten], { type: format === "3mf" ? "model/3mf" : "model/stl" });
@@ -165,9 +175,14 @@ export default function Werkzeug() {
               </> : <>
                 <Zahl titel="Schublade innen breit" name="breite" wert={platte.breite} setzen={p("breite")} min={42} max={1000} schritt={1} einheit="mm" />
                 <Zahl titel="Schublade innen tief" name="tiefe" wert={platte.tiefe} setzen={p("tiefe")} min={42} max={1000} schritt={1} einheit="mm" />
-                <p className="gfn-text" data-gf-felder>
+                <Schalter titel="Distanzstücke statt Rand" name="distanz" an={platte.distanz} setzen={p("distanz")} text="Platte ohne Rand, lose Leisten füllen den Rest der Schublade" />
+                {platte.distanz ? <p className="gfn-text" data-gf-felder>
+                  Passt {pm.nx} × {pm.ny} Felder ({mm(pm.W)} × {mm(pm.D)} mm). {distanzTeile(platte).length
+                    ? <>Distanzstücke: {gruppiert(distanzTeile(platte))}, Höhe {mm(pm.H)} mm.</>
+                    : <>Kein Distanzstück nötig, der Rest ist kleiner als 1 mm.</>}
+                </p> : <p className="gfn-text" data-gf-felder>
                   Passt {pm.nx} × {pm.ny} Felder, Rand ringsum {mm((pm.W - pm.nx * GF.raster) / 2)} / {mm((pm.D - pm.ny * GF.raster) / 2)} mm (0,5 mm Luft zur Schublade).
-                </p>
+                </p>}
               </>}
             </section>
             <section className="gfn-gruppe">
@@ -175,8 +190,8 @@ export default function Werkzeug() {
               <Schalter titel="Magnetlöcher" name="pmagnete" an={platte.magnete} setzen={p("magnete")} text="Feld bleibt offen, in jeder Ecke ein Sockel mit Loch" />
               {platte.magnete && <MagnetMasse d={platte.magD} h={platte.magH} setD={p("magD")} setH={p("magH")} />}
               <Schalter titel="Anschliessbar" name="anschluss" an={platte.anschluss} setzen={p("anschluss")} text="Wie im Gridfinity-Generator: Schienen am Rand, Platten mit Klammern verbinden" />
-              {platte.anschluss && (platte.art === "schublade"
-                ? <p className="gfn-text gfn-warnung" data-gf-verbinder>Geht nur mit „Anzahl Felder“: beim Schubladenmass liegt ein Rand zwischen den Platten.</p>
+              {platte.anschluss && (platte.art === "schublade" && !platte.distanz
+                ? <p className="gfn-text gfn-warnung" data-gf-verbinder>Geht beim Schubladenmass nur mit „Distanzstücke statt Rand“, sonst liegt ein Rand zwischen den Platten.</p>
                 : <p className="gfn-text" data-gf-verbinder>
                   Eine Klammer je Feld am Stoss: {pm.nx} an der Seite mit {pm.nx} Feldern, {pm.ny} an der Seite mit {pm.ny} Feldern. Platten nebeneinander legen, Klammer von oben über beide Schienen drücken.
                 </p>)}
@@ -186,7 +201,7 @@ export default function Werkzeug() {
         </div>
 
         <div className="gfn-vorschau">
-          <Vorschau netz={netz} />
+          <Vorschau netz={netz} extra={distanzPlatz} />
           <div className="gfn-fuss">
             <div className="gfn-masse" data-gf-masse>
               <b>{mm(breit)} × {mm(tief)} × {mm(netz ? netz.max[2] - netz.min[2] : 0)} mm</b>
@@ -197,6 +212,8 @@ export default function Werkzeug() {
               <button className="knopf" data-gf-export="stl" disabled={!netz} onClick={() => speichern("stl")}>STL</button>
               {stand.art === "platte" && pm.anschluss &&
                 <button className="knopf" data-gf-export="verbinder" onClick={() => speichern("3mf", true)}>Klammer 3MF</button>}
+              {distanzPlatz &&
+                <button className="knopf" data-gf-export="distanz" onClick={() => speichern("3mf", "distanz")}>Distanzstücke 3MF</button>}
             </div>
           </div>
         </div>
@@ -206,7 +223,7 @@ export default function Werkzeug() {
 }
 
 // ---------- 3D-Vorschau ----------
-function Vorschau({ netz }) {
+function Vorschau({ netz, extra }) {
   const flaeche = useRef(null);
   const welt = useRef(null);
   const ersteAnsicht = useRef(true);
@@ -253,7 +270,16 @@ function Vorschau({ netz }) {
     if (!w) return;
     if (w.teil) { w.szene.remove(w.teil); w.teil.geometry.dispose(); w.teil.material.dispose(); w.teil = null; }
     if (w.raster) { w.szene.remove(w.raster); w.raster = null; }
+    if (w.extra) { w.szene.remove(w.extra); w.extra.geometry.dispose(); w.extra.material.dispose(); w.extra = null; }
     if (!netz) return;
+    if (extra) {
+      const ge = new THREE.BufferGeometry();
+      ge.setAttribute("position", new THREE.BufferAttribute(extra.pos, 3));
+      ge.setIndex(new THREE.BufferAttribute(extra.tri, 1));
+      const fe = ge.toNonIndexed(); ge.dispose(); fe.computeVertexNormals();
+      w.extra = new THREE.Mesh(fe, new THREE.MeshStandardMaterial({ color: 0x9aa5b1, roughness: 0.7 }));
+      w.szene.add(w.extra);
+    }
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.BufferAttribute(netz.pos, 3));
     g.setIndex(new THREE.BufferAttribute(netz.tri, 1));
@@ -263,7 +289,8 @@ function Vorschau({ netz }) {
     teil.position.z = -netz.min[2];
     w.szene.add(teil); w.teil = teil;
     // Raster 42 mm als Boden, damit die Grösse sichtbar ist
-    const gross = Math.max(netz.max[0] - netz.min[0], netz.max[1] - netz.min[1]);
+    const mx = extra ? [Math.max(netz.max[0], extra.max[0]) - Math.min(netz.min[0], extra.min[0]), Math.max(netz.max[1], extra.max[1]) - Math.min(netz.min[1], extra.min[1])] : [netz.max[0] - netz.min[0], netz.max[1] - netz.min[1]];
+    const gross = Math.max(mx[0], mx[1]);
     const felder = Math.ceil(gross / GF.raster) + 2;
     const raster = new THREE.GridHelper(felder * GF.raster, felder, 0x8a99a8, 0xc3ccd5);
     raster.rotation.x = Math.PI / 2; raster.position.z = -0.05;
@@ -277,7 +304,7 @@ function Vorschau({ netz }) {
       w.steuer.update();
       ersteAnsicht.current = false; w.groesse = Math.round(gross);
     }
-  }, [netz]);
+  }, [netz, extra]);
 
   return <div className="gfn-3d" ref={flaeche} data-gf-3d />;
 }

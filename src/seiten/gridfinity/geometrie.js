@@ -224,7 +224,7 @@ export function boxNetz(eingabe) {
 //  Klammer (Λ-Form, 19.6 mm lang), die von oben über beide Schienen
 //  schnappt. Masse genau aus der STL.
 // =================================================================
-export const PLATTE_VORGABE = { art: "felder", nx: 4, ny: 3, breite: 300, tiefe: 200, magnete: false, magD: 6.5, magH: 2.4, anschluss: false };
+export const PLATTE_VORGABE = { art: "felder", nx: 4, ny: 3, breite: 300, tiefe: 200, magnete: false, magD: 6.5, magH: 2.4, anschluss: false, distanz: false };
 
 const BUCHT = 10;   // halbe Länge der Aussparung am Rand (20 mm)
 // Schiene: [Höhe, Abstand der Innenkante vom Plattenrand]
@@ -237,7 +237,7 @@ export function plattePruefen(p) {
     nx: Math.round(z(p.nx, 1, 20, 4)), ny: Math.round(z(p.ny, 1, 20, 3)),
     breite: z(p.breite, 42, 1000, 300), tiefe: z(p.tiefe, 42, 1000, 200),
     magnete: !!p.magnete, magD: z(p.magD, 3, 7, 6.5), magH: z(p.magH, 1, 4, 2.4),
-    anschluss: !!p.anschluss,
+    anschluss: !!p.anschluss, distanz: !!p.distanz,
   };
 }
 
@@ -250,6 +250,12 @@ export function platteMasse(p) {
   if (p.art === "schublade") {
     const W = p.breite - 0.5, D = p.tiefe - 0.5;
     const nx = Math.max(1, Math.floor(W / GF.raster)), ny = Math.max(1, Math.floor(D / GF.raster));
+    // Mit Distanzstücken (seit 1.901.0) hat die Platte keinen Rand, den
+    // Rest füllen lose Leisten; dann geht auch „Anschliessbar“
+    if (p.distanz) {
+      const gx = Math.max(0, (W - nx * GF.raster) / 2), gy = Math.max(0, (D - ny * GF.raster) / 2);
+      return { nx, ny, W: nx * GF.raster, D: ny * GF.raster, H, zs, anschluss: p.anschluss, gx, gy, innenB: W, innenT: D };
+    }
     return { nx, ny, W: Math.max(W, nx * GF.raster), D: Math.max(D, ny * GF.raster), H, zs, anschluss: false };
   }
   return { nx: p.nx, ny: p.ny, W: p.nx * GF.raster, D: p.ny * GF.raster, H, zs, anschluss: p.anschluss };
@@ -410,6 +416,48 @@ export function platteNetz(eingabe) {
   }
   if (p.magnete) for (const f of felder) for (let q = 0; q < 4; q++) sockel(n, f.x, f.y, q, zs, p);
   return fertig(n, { ...p, nx, ny, W, D, H });
+}
+
+// =================================================================
+//  DISTANZSTÜCKE (seit 1.901.0, Wunsch Patrick 27. November 2026: „wenn
+//  die Schublade nicht aufgeht, z.B. 430 × 309, noch Rändchen machen, damit
+//  das System beim Auf- und Zumachen nicht herumgeworfen wird; sie sollen
+//  als Distanz dienen und nicht angeschlossen sein“)
+//  Lose Leisten so hoch wie die Platte: links und rechts über die ganze
+//  Tiefe der Schublade, vorne und hinten zwischen diesen. Länger als
+//  DRUCK_MAX wird in gleiche Stücke geteilt. Schmaler als 1 mm fällt weg.
+// =================================================================
+const DRUCK_MAX = 240;
+export function distanzTeile(eingabe) {
+  const p = plattePruefen(eingabe);
+  const m = platteMasse(p);
+  if (p.art !== "schublade" || !p.distanz) return [];
+  const t = [];
+  const teilen = (lang) => { const k = Math.max(1, Math.ceil(lang / DRUCK_MAX)); return Array.from({ length: k }, (_, i) => [i * lang / k, (i + 1) * lang / k]); };
+  // 0.2 mm Luft zwischen Leiste und Platte, damit alles leicht hineingeht
+  const gx = m.gx - 0.2, gy = m.gy - 0.2;
+  if (gx >= 1) for (const sx of [-1, 1]) for (const [a, b] of teilen(m.innenT)) {
+    const x0 = sx < 0 ? -m.innenB / 2 : m.innenB / 2 - gx;
+    t.push({ x0, x1: x0 + gx, y0: -m.innenT / 2 + a, y1: -m.innenT / 2 + b, lang: b - a, breit: gx });
+  }
+  const links = gx >= 1 ? -m.innenB / 2 + gx : -m.innenB / 2, rechts = -links;
+  if (gy >= 1) for (const sy of [-1, 1]) for (const [a, b] of teilen(rechts - links)) {
+    const y0 = sy < 0 ? -m.innenT / 2 : m.innenT / 2 - gy;
+    t.push({ x0: links + a, x1: links + b, y0, y1: y0 + gy, lang: b - a, breit: gy });
+  }
+  return t.map((s) => ({ ...s, h: m.H }));
+}
+// druck=true: alle Stücke flach nebeneinander zum Drucken, sonst an ihrem Platz in der Schublade
+export function distanzNetz(eingabe, druck = true) {
+  const teile = distanzTeile(eingabe);
+  if (!teile.length) return null;
+  const n = neuesNetz();
+  let y = 0;
+  for (const s of teile) {
+    if (druck) { quader(n, 0, y, 0, s.lang, y + s.breit, s.h); y += s.breit + 5; }
+    else quader(n, s.x0, s.y0, 0, s.x1, s.y1, s.h);
+  }
+  return fertig(n, { distanz: true, anzahl: teile.length });
 }
 
 // Klammern: eine je Feld entlang des Stosses

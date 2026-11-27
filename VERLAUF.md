@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.901.0 (27. November 2026)
+
+Gridfinity-Grundplatte: Distanzstücke statt Rand beim Schubladenmass (lose Leisten, Vorschau grau, eigene 3MF).
+
 ## 1.900.0 (27. November 2026)
 
 Gridfinity-Grundplatte: „Anschliessbar“ jetzt genau wie im Gridfinity-Generator (nach Patricks STL): Aussparung mit Schiene in der Mitte jedes Randfelds, Λ-Klammer zum Speichern.

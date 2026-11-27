@@ -1,7 +1,7 @@
 # Gridfinity (1.895.0, Wunsch Patrick 27. November 2026): Boxen und
 # Grundplatten nach Gridfinity, 3D-Vorschau, Export 3MF und STL.
 # 1.899.0: Magnet-Sockel in den Ecken. 1.900.0: Anschliessbar wie im
-# Gridfinity-Generator (Schienen am Rand, Λ-Klammer).
+# Gridfinity-Generator (Schienen am Rand, Λ-Klammer). 1.901.0: Distanzstücke.
 # Prüft: Externe sehen nichts, Masse nach Norm, Netz geschlossen,
 # 3MF und STL lesbar, Handy ohne seitliches Rollen.
 import time, os, io, zipfile, struct, re
@@ -95,6 +95,20 @@ with sync_playwright() as p:
     pruefe(pg.locator("[data-gf-warnung]").count() == 1, "Hinweis Druckbett bei 299,5 mm")
     name, dateien, v, tri = lade_3mf(pg)
     pruefe(masse(v) == [299.5, 199.5, 4.4] and kanten_geschlossen(tri) == 0 and volumen(v, tri) > 0, "Platte geschlossen %s, %s" % (masse(v), name))
+    # Distanzstücke (1.901.0): Schublade 430 × 309, Platte ohne Rand, lose Leisten
+    pg.fill("[data-gf='breite']", "430"); pg.press("[data-gf='breite']", "Enter")
+    pg.fill("[data-gf='tiefe']", "309"); pg.press("[data-gf='tiefe']", "Enter")
+    pg.click("[data-gf='distanz']"); pg.wait_for_timeout(400)
+    t = pg.inner_text("[data-gf-felder]")
+    pruefe("10 × 7 Felder (420 × 294 mm)" in t and "4 Stück 154,3 × 4,6 mm" in t and "4 Stück 210,2 × 7,1 mm" in t, "Distanzstücke: " + t)
+    name, dateien, v, tri = lade_3mf(pg)
+    pruefe(masse(v)[:2] == [420.0, 294.0], "Platte ohne Rand %s" % masse(v))
+    with pg.expect_download() as d: pg.click("[data-gf-export='distanz']")
+    z = zipfile.ZipFile(d.value.path()); m = z.read("3D/3dmodel.model").decode()
+    vd = [tuple(float(x) for x in t) for t in re.findall(r'<vertex x="([-\d.e]+)" y="([-\d.e]+)" z="([-\d.e]+)"', m)]
+    td = [tuple(int(x) for x in t) for t in re.findall(r'<triangle v1="(\d+)" v2="(\d+)" v3="(\d+)"', m)]
+    pruefe(len(td) == 8 * 12 and kanten_geschlossen(td) == 0 and masse(vd)[0] < 240 and masse(vd)[2] == 4.4, "8 Distanzstücke zum Drucken %s, %s" % (masse(vd), d.value.suggested_filename))
+    pg.click("[data-gf='distanz']")
     pg.click("[data-gf-platte='felder']"); pg.click("[data-gf='pmagnete']"); pg.wait_for_timeout(400)
     name, dateien, v, tri = lade_3mf(pg)
     pruefe(masse(v) == [168.0, 126.0, 7.9] and kanten_geschlossen(tri) == 0 and volumen(v, tri) > 0, "Platte 4×3 mit Magnet-Sockeln %s" % masse(v))
