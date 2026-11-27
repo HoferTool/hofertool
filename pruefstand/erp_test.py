@@ -428,6 +428,20 @@ with sync_playwright() as p:
     pruefe(pg.locator("[data-erp-bewegungen] tbody tr").count() == 2, "Filter Umbuchung")
     pg.screenshot(path=BILD + "/erp-bewegungen.png", full_page=True)
 
+    # Abbuchen und Zubuchen von Hand (Korrektur am selben Platz)
+    def korr(modus, menge, grund):
+        pg.locator("tr[data-erp-zeile^='a1|']:has-text('Regal 7')").first.click(); pg.wait_for_selector("[data-erp-umbuchen]")
+        u = pg.locator("[data-erp-umbuchen]")
+        u.locator("[data-erp-modus='%s']" % modus).click(); pg.wait_for_timeout(200)
+        u.locator("[data-erp-feld='menge']").fill(str(menge))
+        u.locator("[data-erp-feld='grund']").fill(grund)
+        u.locator("[data-erp-speichern]").click(); pg.wait_for_timeout(900)
+    def korrs(): return [x for x in tabelle(pg, "erp_bewegungen") if x["art"] == "korrektur" and x.get("notiz") in ("Bruch", "Gezählt")]
+    korr("ab", 3, "Bruch")
+    korr("zu", 5, "Gezählt")
+    kk = korrs()
+    pruefe(sorted(x["menge"] for x in kk) == [-3, 5] and len({x["lager_id"] for x in kk}) == 1, "Ab- und Zubuchen als Korrektur: %s" % kk)
+
     # Lagerjournal: alle Bewegungen über alle Artikel
     for _ in range(4):
         if pg.locator(".dialog-huelle").count() == 0: break

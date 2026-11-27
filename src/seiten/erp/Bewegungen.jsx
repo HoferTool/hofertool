@@ -14,54 +14,92 @@ import { Feld, LagerEingabe, lagerStart, lagerAus, Suche, passt } from "./teile.
 import { GTabelle } from "./Stamm.jsx";
 import { belegOeffnen } from "./Belege.jsx";
 
-// ---------- Umbuchen ----------
-export function umbuchenOeffnen(d, e, neu) {
-  fensterOeffnen((zu) => <Umbuchen d={d} e={e} neu={neu} zu={zu} />);
+// ---------- Umbuchen, Zubuchen, Abbuchen ----------
+// Seit 1.878.0 (Wunsch Patrick 27. November 2026: „hier muss ich auch zubuchen
+// und abbuchen können für manuelle Korrekturen“): im selben Fenster die Wahl
+// Umbuchen / Zubuchen / Abbuchen. Zu- und Abbuchen sind eine Bewegung mit Art
+// „korrektur“ (+ bzw. −) am selben Platz, gleiche Charge und gleicher Index,
+// der Vermerk ist Pflicht. Ohne e (kein Bestand) bucht es neu zu: Charge,
+// Index und Platz gibt man selbst an (a = Artikel).
+export function umbuchenOeffnen(d, e, neu, a) {
+  fensterOeffnen((zu) => <Umbuchen d={d} e={e} artikel={a} neu={neu} zu={zu} />);
 }
 
-function Umbuchen({ d, e, neu, zu }) {
-  const a = d.artikelMap.get(e.artikel_id) || {};
-  const von = d.lagerMap.get(e.lager_id);
+const MODI = [["um", "Umbuchen"], ["zu", "Zubuchen"], ["ab", "Abbuchen"]];
+
+function Umbuchen({ d, e, artikel, neu, zu }) {
+  const a = (e ? d.artikelMap.get(e.artikel_id) : artikel) || {};
+  const von = e ? d.lagerMap.get(e.lager_id) : null;
   const start = lagerStart(d, a);
   // Vorschlag Ziel: bei HFL das Fertiglager, sonst leer lassen (Patrick wählt)
   if (von && von.lagerart === "HFL") start.lart = "FL";
   else if (von && a.art === "hofer") start.lart = von.lagerart === "FL" ? "SPL" : "FL";
-  if (a.art === "hofer") start.lplatz = "";
-  const [w, setW] = useState({ ...start, menge: String(e.menge), grund: "" });
+  if (a.art === "hofer" && e) start.lplatz = "";
+  const [modus, setModus] = useState(e && e.menge > 0 ? "um" : "zu");
+  const [w, setW] = useState({ ...start, menge: e ? String(e.menge) : "", grund: "",
+    charge: "", idx: a.idx || "" });
   const [laeuft, setLaeuft] = useState(false);
   const setzen = (k, v) => setW((x) => ({ ...x, [k]: v }));
+  const modusSetzen = (m) => {
+    setModus(m);
+    // Beim Zubuchen startet die Menge leer, beim Um- und Abbuchen mit dem Bestand
+    setW((x) => ({ ...x, menge: m === "zu" ? "" : String(e ? e.menge : "") }));
+  };
   const los = async () => {
     setLaeuft(true);
     try {
       const m = zahl(w.menge);
       if (!(m > 0)) throw new Error("Menge fehlt.");
-      if (m > e.menge + 1e-9) throw new Error("Am Platz liegen nur " + mengeText(e.menge) + ".");
-      if (!String(w.grund).trim()) throw new Error("Bitte einen Vermerk eintragen: was, wer oder warum.");
-      const ziel = await lagerAus(d, a, w);
-      if (!ziel) throw new Error("Ziel fehlt.");
-      if (ziel === e.lager_id) throw new Error("Ziel ist derselbe Platz.");
-      const nach = d.lagerMap.get(ziel);
-      const gemeinsam = { artikel_id: e.artikel_id, charge: e.charge, art: "umbuchung", notiz: String(w.grund).trim(), idx: e.idx || "" };
-      await buchen({ ...gemeinsam, lager_id: e.lager_id, menge: -m, herkunft: "→ " + lagerName(nach) });
-      await buchen({ ...gemeinsam, lager_id: ziel, menge: m, herkunft: "von " + lagerName(von) });
-      alt.meldung(mengeText(m) + " " + (a.einheit || "") + " nach " + lagerName(nach) + " umgebucht.", "gut");
+      if (modus !== "zu" && m > e.menge + 1e-9) throw new Error("Am Platz liegen nur " + mengeText(e.menge) + ".");
+      const grund = String(w.grund).trim();
+      if (!grund) throw new Error("Bitte einen Vermerk eintragen: was, wer oder warum.");
+      if (modus === "um") {
+        const ziel = await lagerAus(d, a, w);
+        if (!ziel) throw new Error("Ziel fehlt.");
+        if (ziel === e.lager_id) throw new Error("Ziel ist derselbe Platz.");
+        const nach = d.lagerMap.get(ziel);
+        const gemeinsam = { artikel_id: e.artikel_id, charge: e.charge, art: "umbuchung", notiz: grund, idx: e.idx || "" };
+        await buchen({ ...gemeinsam, lager_id: e.lager_id, menge: -m, herkunft: "→ " + lagerName(nach) });
+        await buchen({ ...gemeinsam, lager_id: ziel, menge: m, herkunft: "von " + lagerName(von) });
+        alt.meldung(mengeText(m) + " " + (a.einheit || "") + " nach " + lagerName(nach) + " umgebucht.", "gut");
+      } else if (e) {
+        await buchen({ artikel_id: e.artikel_id, charge: e.charge, art: "korrektur", notiz: grund, idx: e.idx || "",
+          lager_id: e.lager_id, menge: modus === "zu" ? m : -m, herkunft: "Korrektur von Hand" });
+        alt.meldung(mengeText(m) + " " + (a.einheit || "") + (modus === "zu" ? " zugebucht." : " abgebucht."), "gut");
+      } else {
+        const ziel = await lagerAus(d, a, w);
+        if (!ziel) throw new Error("Lagerplatz fehlt.");
+        const charge = String(w.charge).trim();
+        if (!charge) throw new Error("Charge fehlt.");
+        await buchen({ artikel_id: a.id, charge, art: "korrektur", notiz: grund, idx: String(w.idx || "").trim(),
+          lager_id: ziel, menge: m, herkunft: "Korrektur von Hand" });
+        alt.meldung(mengeText(m) + " " + (a.einheit || "") + " nach " + lagerName(d.lagerMap.get(ziel)) + " zugebucht.", "gut");
+      }
       zu(); neu && neu();
     } catch (err) { alt.meldung(alt.fehlertext(err), "fehler"); setLaeuft(false); }
   };
+  const titel = (MODI.find((x) => x[0] === modus) || MODI[0])[1];
   return (
     <div className="dialog erp-fenster erp-fenster--breit" role="dialog" data-erp-umbuchen="">
-      <h2>Umbuchen</h2>
-      <p className="klein"><b>{artikelText(a)}</b>{e.idx ? " · Index " + e.idx : ""} · Charge {e.charge}<br />
-        Von <b>{lagerName(von)}</b>, dort {mengeText(e.menge)} {a.einheit || ""}</p>
+      <h2>{e ? titel : "Zubuchen"}</h2>
+      {e && <div className="reiter" data-erp-buchmodus="">
+        {MODI.map(([k, t]) => <button key={k} className={"reiter__knopf" + (modus === k ? " aktiv" : "")}
+          data-erp-modus={k} onClick={() => modusSetzen(k)}>{t}</button>)}
+      </div>}
+      <p className="klein"><b>{artikelText(a)}</b>{e && e.idx ? " · Index " + e.idx : ""}{e ? " · Charge " + e.charge : ""}
+        {e && <><br />{modus === "um" ? "Von " : "Am Platz "}<b>{lagerName(von)}</b>, dort {mengeText(e.menge)} {a.einheit || ""}</>}</p>
       <div className="erp-formular">
+        {!e && <Feld f={{ name: "charge", label: "Charge" }} wert={w.charge} setzen={(v) => setzen("charge", v)} />}
+        {!e && a.art === "hofer" && <Feld f={{ name: "idx", label: "Index" }} wert={w.idx} setzen={(v) => setzen("idx", v)} />}
         <Feld f={{ name: "menge", label: "Menge", typ: "zahl" }} wert={w.menge} setzen={(v) => setzen("menge", v)} />
-        <LagerEingabe d={d} artikel={a} w={w} setzen={setzen} id="umbuchen" />
+        {(modus === "um" || !e) && <LagerEingabe d={d} artikel={a} w={w} setzen={setzen} id="umbuchen" />}
         <Feld f={{ name: "grund", label: "Vermerk: was, wer, warum", breit: true, typ: "textarea", zeilen: 2,
-          platzhalter: "z. B. Masshaltigkeit prüfen, gesperrt von QS" }} wert={w.grund} setzen={(v) => setzen("grund", v)} />
+          platzhalter: modus === "um" ? "z. B. Masshaltigkeit prüfen, gesperrt von QS" : "z. B. Inventur, Zählfehler korrigiert" }}
+          wert={w.grund} setzen={(v) => setzen("grund", v)} />
       </div>
       <div className="dialog__knoepfe">
         <button className="knopf knopf--still" data-nein="" onClick={zu}>Abbrechen</button>
-        <button className="knopf knopf--haupt" disabled={laeuft} data-erp-speichern="" onClick={los}>Umbuchen</button>
+        <button className="knopf knopf--haupt" disabled={laeuft} data-erp-speichern="" onClick={los}>{e ? titel : "Zubuchen"}</button>
       </div>
     </div>
   );

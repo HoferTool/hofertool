@@ -517,20 +517,21 @@ function LagerReiter({ d, a, neu, aussen }) {
   if (!a) return <p className="klein">Erst speichern.</p>;
   const liste = bestand(d, a.id);
   const summe = liste.reduce((s, e) => s + e.menge, 0);
-  // Wunsch Patrick 27. November 2026: Lagerbewegungen zuoberst, darunter die
-  // Bestandesübersicht nach Charge (antippen = Umbuchen).
+  // Wunsch Patrick 27. November 2026: zuerst die Bestandesübersicht nach Charge
+  // (antippen = Umbuchen), darunter die Lagerbewegungen.
   return <>
-    <h4 className="erp-lager-bew">Lagerbewegungen</h4>
-    <BewegungListe d={d} artikelId={a.id} aussen={aussen} />
     <h4 className="erp-lager-bew">Bestandesübersicht</h4>
     <GTabelle kopf={["Index", "Charge", "Lagerart", "Lagerplatz", "Menge"]} rechts={[4]} leer="Kein Bestand."
       zeilen={liste.map((e) => { const l = d.lagerMap.get(e.lager_id);
         return { key: e.idx + "|" + e.charge + e.lager_id, klasse: e.menge < 0 ? "erp-minus" : "",
-          klick: e.menge > 0 ? () => umbuchenOeffnen(d, e, neu) : undefined,
+          klick: () => umbuchenOeffnen(d, e, neu),
           zellen: [(e.idx || "–") + (a.art === "hofer" && (e.idx || "") !== (a.idx || "") ? " (alt)" : ""), e.charge,
             l ? l.lagerart : "–", l ? l.platz : "–", mengeText(e.menge) + " " + (a.einheit || "")] }; })} />
-    {liste.some((e) => e.menge > 0) && <p className="klein">Zeile antippen zum Umbuchen (z. B. HFL → FL, FL → SPL).</p>}
+    <p className="klein">Zeile antippen zum Umbuchen, Zubuchen oder Abbuchen, immer mit Vermerk.{" "}
+      <button type="button" className="knopf knopf--klein" data-erp-zubuchen-neu="" onClick={() => umbuchenOeffnen(d, null, neu, a)}>+ Zubuchen</button></p>
     <p className="gf-summe">Bestand gesamt <b>{mengeText(summe)} {a.einheit}</b></p>
+    <h4 className="erp-lager-bew">Lagerbewegungen</h4>
+    <BewegungListe d={d} artikelId={a.id} aussen={aussen} />
   </>;
 }
 
