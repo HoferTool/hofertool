@@ -90,7 +90,7 @@ export function offeneLieferungen(d) {
       const offen = Math.max(0, zahl(p.menge) - g);
       if (!(offen > 0)) return;
       let kum = 0, faellig = p.termin || "";
-      for (const x of ((p.daten || {}).abrufe || [])) { kum += zahl(x.menge); if (kum > g + 1e-9) { faellig = x.termin || faellig; break; } }
+      for (const x of ((p.daten || {}).abrufe || [])) { kum += zahl(x.menge); if (kum > g + 1e-9) { faellig = x.abruf ? "" : x.termin || faellig; break; } }
       const lager = chargenWahl(d, p.artikel_id, posIdx(d, p)).reduce((s2, c) => s2 + c[2].menge, 0);
       z.push({ b, p, offen, faellig, lager });
     });
@@ -542,7 +542,7 @@ function LieferscheinAnlegen({ d, neu }) {
         zeilen={liste.map(({ b, p, offen, faellig, lager }) => ({
           key: p.id, klasse: faellig && faellig < heute() ? "erp-rot" : (lager > 0 ? "" : "erp-blass"),
           klick: lager > 0 ? () => liefern(b, p) : undefined, sort: [faellig || ""],
-          zellen: [faellig ? datumText(faellig) : "–",
+          zellen: [faellig ? datumText(faellig) : "auf Abruf / –",
             <a href="#" data-logi-beleg={b.nr} onClick={(e) => { e.preventDefault(); e.stopPropagation(); belegOeffnen(d, neu, b); }}>{b.nr}</a>,
             partnerText(d.partnerMap.get(b.partner_id)),
             artikelText(d.artikelMap.get(p.artikel_id)) + (posIdx(d, p) ? " · Index " + posIdx(d, p) : ""),

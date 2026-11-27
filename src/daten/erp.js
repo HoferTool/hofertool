@@ -365,7 +365,7 @@ export function preisFuerMenge(a, menge) {
 }
 
 // Verpackung und Porto der Lieferscheine, aus denen eine Rechnung
-// entstand (seit 1.934.0, wie im Gewatec „Summe Porto u. Verpackung“).
+// entstand (seit 1.935.0, wie im Gewatec „Summe Porto u. Verpackung“).
 // Jeder Lieferschein zählt einmal, auch wenn er mehrere Positionen hat.
 export function belegNebenkosten(d, beleg) {
   if (!beleg || (beleg.typ !== "rechnung" && beleg.typ !== "gutschrift" && beleg.typ !== "proforma")) return 0;

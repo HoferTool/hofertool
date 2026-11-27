@@ -1307,7 +1307,7 @@ function Angebot({ k, setze, nr, rechnung }) {
   const [laeuft, setLaeuft] = useState(false);
   async function pdf() {
     setLaeuft(true);
-    // Seit 1.934.0 wie das Angebot aus dem Gewatec, als Druckblatt im
+    // Seit 1.935.0 wie das Angebot aus dem Gewatec, als Druckblatt im
     // eigenen Fenster (Drucken → „Als PDF speichern“), gleich wie die
     // übrigen Formulare
     try {

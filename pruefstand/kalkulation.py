@@ -153,7 +153,7 @@ with sync_playwright() as p:
     pruefe(len(gesp) == 3 and gesp[2]["lose"] == "4", "mit Speichern gespeichert mit eigenen Losen: %s" % gesp)
     pruefe("Gespeichert" in pg.inner_text("#kalk-stand"), "Stand nach Speichern")
 
-    # Seit 1.934.0 ein Druckblatt wie im Gewatec im eigenen Fenster
+    # Seit 1.935.0 ein Druckblatt wie im Gewatec im eigenen Fenster
     with pg.expect_popup() as dl:
         pg.locator("[data-kalk-reiter='angebot']").click(); pg.click("#kalk-pdf")
     w = dl.value; w.wait_for_load_state()

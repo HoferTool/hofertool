@@ -626,7 +626,7 @@ function Lieferplan({ d, p }) {
     <ul className="erp-abrufe">{(p.daten.abrufe || []).map((x, i) => {
       const m = zahl(x.menge);
       const da = Math.min(m, rest); rest -= da;
-      return <li key={i} className={da >= m ? "erp-gut" : ""}>{x.kw ? "KW " + x.kw : datumText(x.termin)}: {mengeText(m)}
+      return <li key={i} className={da >= m ? "erp-gut" : ""}>{lpText(x)}: {mengeText(m)}
         {da > 0 && da < m ? " (" + mengeText(da) + " geliefert)" : da >= m ? " ✓" : ""}</li>;
     })}</ul>
   );
@@ -775,7 +775,12 @@ export function lieferplanOeffnen(d, aussen, b, p, frisch) {
 // Zeichen erledigt / offen / im Rückstand und Offen aufgelaufen, rechts die
 // Lieferungen, unten die Summen. Gebraucht im Lieferplan-Fenster und beim
 // Bearbeiten des Auftrags.
+// „Auf Abruf“ (seit 1.934.0, Patrick 27. November 2026: Termine am 31.12. aus dem Gewatec sind
+// Rahmenaufträge, die offenen Mengen „müssen auf Abruf gesetzt werden“): Fälligkeit ohne Datum,
+// zählt nie als fällig oder Rückstand; das frühere Datum bleibt als „bis“ (Ende des Rahmens)
+export const lpText = (x) => (x.abruf ? "auf Abruf" + (x.bis ? " (bis " + datumText(x.bis) + ")" : "") : x.kw ? "KW " + x.kw : datumText(x.termin));
 function lpZeileSetzen(z, name, x) {
+  if (name === "abruf") return x ? { ...z, abruf: true, bis: z.bis || z.termin || "", termin: "", kw: "" } : { ...z, abruf: false };
   if (name === "termin") return { ...z, termin: x, kw: x ? kwText(x) : "" };
   if (name === "kw") { const t = kwZuDatum(x, new Date(), 4); return t ? { ...z, kw: x, termin: t } : { ...z, kw: x }; }
   return { ...z, [name]: x };
@@ -806,16 +811,18 @@ function LieferplanAnsicht({ d, aussen, p, zeilen, setZeilen }) {
         <div className="lp-teil">
           <div className="lp-titel">Fälligkeiten</div>
           <div className="gf-tab-huelle"><table className="gf-tab lp-tab">
-            <thead><tr><th /><th className="rechts">Pos.</th><th>Datum</th><th>KW</th><th className="rechts">Menge</th><th className="rechts">Offen</th><th>Bemerkung</th><th /></tr></thead>
+            <thead><tr><th /><th className="rechts">Pos.</th><th>Abruf</th><th>Datum</th><th>KW</th><th className="rechts">Menge</th><th className="rechts">Offen</th><th>Bemerkung</th><th /></tr></thead>
             <tbody>
-              {!zeilen.length && <tr><td colSpan={8} className="gf-tab__leer">Noch keine Fälligkeit.</td></tr>}
+              {!zeilen.length && <tr><td colSpan={9} className="gf-tab__leer">Noch keine Fälligkeit.</td></tr>}
               {zeilen.map((z, i) => {
                 const v = verteilt[i];
                 return <tr key={i} data-erp-lp-zeile={i} className={v.m && v.da >= v.m ? "lp-gut" : v.faellig ? "lp-rot" : "lp-offen"}>
                   <td>{zeichen(v)}</td>
                   <td className="rechts">{i + 1}</td>
+                  <td><input type="checkbox" checked={!!z.abruf} title="Auf Abruf (ohne festen Termin)" data-erp-feld="abruf" onChange={(e) => setZ(i, "abruf", e.target.checked)} /></td>
+                  {z.abruf ? <td colSpan={2} className="lp-abruf" data-erp-lp-abruf="">auf Abruf{z.bis ? " (bis " + datumText(z.bis) + ")" : ""}</td> : <>
                   <td><input type="date" value={z.termin || ""} data-erp-feld="termin" onChange={(e) => setZ(i, "termin", e.target.value)} /></td>
-                  <td><input className="lp-kw" value={z.kw ?? (z.termin ? kwText(z.termin) : "")} placeholder="KW" data-erp-feld="kw" onChange={(e) => setZ(i, "kw", e.target.value)} /></td>
+                  <td><input className="lp-kw" value={z.kw ?? (z.termin ? kwText(z.termin) : "")} placeholder="KW" data-erp-feld="kw" onChange={(e) => setZ(i, "kw", e.target.value)} /></td></>}
                   <td><input className="gf-rechts lp-menge" inputMode="decimal" value={z.menge ?? ""} data-erp-feld="menge" onChange={(e) => setZ(i, "menge", e.target.value)} /></td>
                   <td className="rechts">{v.offen > 0 ? mengeText(v.offen) : ""}</td>
                   <td><input value={z.bemerkung || ""} data-erp-feld="bemerkung" onChange={(e) => setZ(i, "bemerkung", e.target.value)} /></td>
@@ -859,13 +866,15 @@ function LieferplanAnsicht({ d, aussen, p, zeilen, setZeilen }) {
 }
 
 function lpAbrufe(zeilen) {
-  return zeilen.filter((z) => zahl(z.menge) > 0 || z.termin || z.kw)
-    .map((z) => ({ termin: z.termin || "", kw: z.kw || (z.termin ? kwText(z.termin) : ""), menge: zahl(z.menge), bemerkung: z.bemerkung || "" }))
+  return zeilen.filter((z) => zahl(z.menge) > 0 || z.termin || z.kw || z.abruf)
+    .map((z) => (z.abruf ? { termin: "", kw: "", abruf: true, bis: z.bis || "", menge: zahl(z.menge), bemerkung: z.bemerkung || "" }
+      : { termin: z.termin || "", kw: z.kw || (z.termin ? kwText(z.termin) : ""), menge: zahl(z.menge), bemerkung: z.bemerkung || "" }))
     .sort((u, v) => (u.termin || "9").localeCompare(v.termin || "9"));
 }
 
 function LieferplanFenster({ d, aussen, b, p, frisch, zu }) {
-  const start = (p.daten.abrufe || []).map((x) => ({ termin: x.termin || "", kw: x.termin ? kwText(x.termin) : (x.kw || ""), menge: String(x.menge ?? ""), bemerkung: x.bemerkung || "" }));
+  const start = (p.daten.abrufe || []).map((x) => ({ termin: x.termin || "", kw: x.termin ? kwText(x.termin) : (x.kw || ""), menge: String(x.menge ?? ""), bemerkung: x.bemerkung || "",
+    ...(x.abruf ? { abruf: true, bis: x.bis || "" } : {}) }));
   const [zeilen, setZeilen] = useState(start);
   const [laeuft, setLaeuft] = useState(false);
   const geaendert = JSON.stringify(zeilen) !== JSON.stringify(start);

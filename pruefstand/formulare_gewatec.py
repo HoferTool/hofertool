@@ -1,4 +1,4 @@
-# Druckformulare wie im Gewatec (1.934.0): Rechnung, Lieferschein,
+# Druckformulare wie im Gewatec (1.935.0): Rechnung, Lieferschein,
 # Auftragsbestätigung, Bestellung in vier Arten und Angebot. Erfundene
 # Musterdaten (keine echten Kunden). Jedes Blatt wird als PDF gedruckt;
 # mit FORMULAR_BILDER=<ordner> bleiben PDF und PNG zum Ansehen liegen.

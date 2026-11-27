@@ -2,9 +2,13 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
-## 1.934.0 (27. November 2026)
+## 1.935.0 (27. November 2026)
 
 - Test ERP: Rechnung, Lieferschein, Auftragsbestätigung, Bestellung (vier Arten: Rohmaterial, ZA extern, Auftrag / Lieferschein, Lieferschein zu Bestellung) und Angebot aus der Kalkulation drucken genau im Aufbau der Gewatec-Formulare (`src/seiten/erp/formulare.js`). Neu: Feld „Bestellart“ und Bearbeitungsvorschrift je Bestellposition; Verpackung und Porto der Lieferscheine zählen in die Rechnungssumme. Test `pruefstand/formulare_gewatec.py`.
+
+## 1.934.0 (27. November 2026)
+
+- Test ERP: Fälligkeit im Lieferplan „auf Abruf“ (Häkchen Abruf, ohne Datum, altes Datum bleibt als „bis“, zählt nie als fällig oder Rückstand). `sql/erp-rahmen-auf-abruf.sql`: Termine am 31.12. aus dem Gewatec auf Abruf gesetzt, diese Aufträge sind Rahmenaufträge.
 
 ## 1.933.0 (27. November 2026)
 

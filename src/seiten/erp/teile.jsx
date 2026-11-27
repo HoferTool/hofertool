@@ -240,5 +240,5 @@ export function belegDrucken(d, b) {
 }
 
 // Auftragsbestätigung, Lieferschein, Rechnung und Bestellung wie im
-// Gewatec stehen seit 1.934.0 in formulare.js
+// Gewatec stehen seit 1.935.0 in formulare.js
 export { code39Svg, abDrucken, lsDrucken, reDrucken, beDrucken } from "./formulare.js";

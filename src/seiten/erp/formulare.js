@@ -1,5 +1,5 @@
 // =================================================================
-//  DRUCKFORMULARE WIE IM GEWATEC (seit 1.934.0)
+//  DRUCKFORMULARE WIE IM GEWATEC (seit 1.935.0)
 //  Wunsch Patrick 27. November 2026: Rechnung, Lieferschein,
 //  Auftragsbestätigung, Angebot und Bestellung (vier Arten) sollen
 //  genau so aussehen wie die Formulare aus dem Gewatec. Die Masse
@@ -183,9 +183,9 @@ function partnerInfo(d, b, anschrift) {
 function lieferplan(x, { datum, fettZeilen } = {}) {
   const xd = x.daten || {};
   const ein = esc(x.einheit || "Stk");
-  const abrufe = (xd.abrufe || []).filter((r) => r.termin || r.kw || r.menge);
+  const abrufe = (xd.abrufe || []).filter((r) => r.termin || r.kw || r.menge || r.abruf);
   const zeilen = abrufe.length
-    ? abrufe.map((r) => [datum && r.termin ? datumText(r.termin) : r.kw ? "KW " + r.kw : r.termin ? "KW " + kwText(r.termin) : "auf Abruf", r.menge, r.bemerkung || ""])
+    ? abrufe.map((r) => [r.abruf ? "auf Abruf" : datum && r.termin ? datumText(r.termin) : r.kw ? "KW " + r.kw : r.termin ? "KW " + kwText(r.termin) : "auf Abruf", r.menge, r.bemerkung || ""])
     : [[datum && x.termin ? datumText(x.termin) : terminText(x) || "auf Abruf", x.menge, xd.lp_bemerkung || ""]];
   return "<div class='lpt' style='margin-top:9pt'>LIEFERPLAN:</div>"
     + "<table class='lp' style='margin:6pt 0 4pt'>" + colgroup([90, 51, 12, 200])

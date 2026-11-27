@@ -17919,3 +17919,5 @@ body.zieh-laeuft .logi-kachel { touch-action: none; cursor: grabbing; }
 /* Auftragsfenster ohne rechte Spalte (alles dort ausgeschaltet, 1.931.0) */
 .dialog--auftrag .auf-raster.auf-raster--ohne-rechts { grid-template-columns: minmax(0, 1fr) !important; }
 .planinfo-wahl__zeile:not(:has(.planinfo-wahl__pfeil)) { min-height: 44px; }
+/* 1.934.0: Fälligkeit „auf Abruf“ im Lieferplan */
+.lp-abruf { color: #12407e; font-style: italic; white-space: nowrap; }
