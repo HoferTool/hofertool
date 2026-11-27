@@ -221,6 +221,8 @@ with sync_playwright() as p:
 
     # Logistik: Kachel Wareneingang ZA extern (seit 1.920.0)
     pg.click("[data-erp-reiter='logistik']"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-logi-funktion]").count() == 0, "Logistik: beim Öffnen unten noch nichts (seit 1.929.0)")
+    pg.click("[data-logi-kachel='we-za']"); pg.wait_for_timeout(300)
     pruefe(pg.locator("[data-logi-kachel='we-za']").count() == 1 and pg.locator("[data-logi-funktion='we-za']").count() == 1,
            "Logistik mit Kachel und Liste Wareneingang ZA extern")
     pg.screenshot(path=BILD + "/erp-logistik.png")
@@ -228,7 +230,11 @@ with sync_playwright() as p:
     pg.evaluate("""() => { const fa = TEST.daten.erp_belege.find(b => b.typ === 'fertigung');
       fa.status = 'offen'; fa.daten = { ...fa.daten, ap: [...fa.daten.ap, { pos: 30, bez: 'Härten', code: 'HAERT', extern: true, lieferant_nr: '70001', pauschal: 5, pauschal_einheit: 'Tag' }] };
       fa.daten.planwand = { job_id: 'jwbg', maschine: '124', stand: 'laeuft' };
+      const au = TEST.daten.erp_belege.filter(b => b.typ === 'auftrag').map(b => b.id);
+      const t = new Date(); t.setDate(t.getDate() + 3);
+      TEST.daten.erp_positionen.filter(q => au.includes(q.beleg_id)).forEach(q => { q.termin = t.toISOString().slice(0, 10); q.daten = { ...(q.daten || {}), abrufe: [] }; q.menge = Number(q.menge) + 100; });
       TEST.daten.jobs = TEST.daten.jobs || []; TEST.daten.jobs.push({ id: 'jwbg', wbg_url: 'https://example.invalid/wbg.pdf' });
+      TEST.daten.production_records = TEST.daten.production_records || []; TEST.daten.production_records.push({ id: 'pr1', job_id: 'jwbg', quantity: 1234, record_date: '2026-11-27' });
       TEST.daten.erp_positionen.filter(q => q.beleg_id === fa.id).forEach(q => { q.menge = Number(q.menge) + 50; });
       const a = TEST.daten.erp_artikel.find(x => x.id === 'a1'); a.arbeitsplan = [...(a.arbeitsplan || []), { pos: 90, bez: 'Härten', code: 'HAERT', extern: true, lieferant_nr: '70001', pauschal: 5 }]; }""")
     pg.evaluate("location.hash='#/'"); pg.wait_for_timeout(500)
@@ -259,10 +265,20 @@ with sync_playwright() as p:
     pruefe(pg.locator("[data-logi-funktion='ls-neu']").count() == 1, "Lieferschein anlegen: Liste da (%s Positionen mit Häkchen „auch ohne Bestand“)" % n_ls)
     pg.click("[data-logi-kachel='fa']"); pg.wait_for_timeout(300)
     pruefe(pg.locator("[data-logi-funktion='fa'] [data-erp-fa-stand]").count() >= 4, "FA Übersicht mit Häkchen je Stand")
+    # Kachel Lieferplan Liste (seit 1.929.0)
+    pg.click("[data-logi-kachel='lieferplan']"); pg.wait_for_timeout(300)
+    n_lp = pg.locator("[data-logi-funktion='lieferplan'] .erp-tabelle tbody tr").count()
+    with pg.expect_popup() as pop:
+        pg.click("[data-logi-lp-drucken]")
+    blatt = pop.value; blatt.wait_for_load_state()
+    txt = blatt.content()
+    pruefe(n_lp >= 1 and "Offene Lieferungen" in txt and "Rüstmenge" in txt and "landscape" in txt, "Lieferplan Liste: %s Fälligkeiten, Blatt quer zum Drucken" % n_lp)
+    blatt.close()
     # Kachel Fertigung einlagern (seit 1.927.0)
     pg.click("[data-logi-kachel='einlagern']"); pg.wait_for_timeout(300)
     z = pg.locator("[data-logi-funktion='einlagern'] .erp-tabelle tbody tr")
-    pruefe(z.count() >= 1, "Fertigung einlagern: offener FA in der Liste (%s)" % z.count())
+    pg.wait_for_timeout(500)
+    pruefe(z.count() >= 1 and "1'234" in z.first.inner_text() and "Läuft" in z.first.inner_text(), "Fertigung einlagern: offener FA mit Stand, Planwand und Stückzahl: %s" % (z.first.inner_text() if z.count() else ""))
     z.first.click(); pg.wait_for_timeout(800)
     pruefe(pg.locator(".dialog:has-text('ertig')").count() >= 1, "Fertigmeldung geht auf")
     pg.keyboard.press("Escape"); pg.wait_for_timeout(300)

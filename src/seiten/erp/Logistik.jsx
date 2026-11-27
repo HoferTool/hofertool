@@ -10,14 +10,19 @@ import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { teilMerken } from "../../teile/wiederherstellen.js";
 import { useGemerkt } from "../../bruecke.jsx";
 import { Tabelle, Suche, passt } from "./teile.jsx";
+import { briefBlatt } from "../../teile/briefkopf.js";
 import { poolDruckLaden, poolWbgDrucker, poolDrucken, pdfSeitenAlsJpg } from "../../teile/poolDruck.js";
-import { bestellArt, BelegListe, EingangFenster, FertigFenster, LieferscheinFenster, belegOeffnen, geliefert, chargenWahl } from "./Belege.jsx";
-import { allesLaden, gebucht, zahl, mengeText, artikelText, partnerText, datumText, posIdx } from "../../daten/erp.js";
+import { bestellArt, BelegListe, belegStand, planwandZelle, EingangFenster, FertigFenster, LieferscheinFenster, belegOeffnen, geliefert, chargenWahl } from "./Belege.jsx";
+import { allesLaden, gebucht, zahl, mengeText, artikelText, partnerText, datumText, posIdx, lagerName } from "../../daten/erp.js";
 
-const gemerkt = { kachel: "we-za" };
-teilMerken("erp-logistik", () => ({ ...gemerkt }), (z) => { Object.assign(gemerkt, z); });
+// Beim Wechsel in den Reiter ist unten nichts offen (Wunsch Patrick 27. November 2026); nur nach
+// dem Neuladen der Seite kommt die zuletzt offene Kachel wieder („Neuladen wie vorher“)
+const gemerkt = { kachel: null };
+let wiederhergestellt = false;
+teilMerken("erp-logistik", () => ({ ...gemerkt }), (z) => { Object.assign(gemerkt, z); wiederhergestellt = true; });
 
 const heute = () => new Date().toISOString().slice(0, 10);
+const plusTage = (iso, n) => { const t = new Date(iso + "T12:00:00"); t.setDate(t.getDate() + n); return t.toISOString().slice(0, 10); };
 
 // Offene Positionen der Bestellungen ZA extern (Zusatzarbeit extern): noch nicht ganz eingegangen
 export function offeneZaPositionen(d) {
@@ -93,6 +98,73 @@ export function offeneLieferungen(d) {
   return z.sort((x, y) => String(x.faellig || "9999").localeCompare(String(y.faellig || "9999")));
 }
 
+// Fällige Lieferungen im Zeitraum (seit 1.929.0, Patrick 27. November 2026 mit dem Blatt
+// „Offene Lieferungen“ aus dem Gewatec): je Fälligkeit des Lieferplans der noch offene Teil
+// (Lieferungen werden der Reihe nach angerechnet), ohne Lieferplan der Termin der Position
+export function lieferplanListe(d, von, bis) {
+  const z = [];
+  d.belege.filter((b) => b.typ === "auftrag" && b.status !== "storniert" && b.status !== "abgeschlossen").forEach((b) => {
+    (d.posJe.get(b.id) || []).filter((p) => p.artikel_id || p.text).forEach((p) => {
+      let rest = geliefert(d, p);
+      const abrufe = ((p.daten || {}).abrufe || []).filter((x) => zahl(x.menge) > 0);
+      const faell = abrufe.length ? abrufe.map((x) => ({ termin: String(x.termin || "").slice(0, 10), menge: zahl(x.menge) }))
+        : [{ termin: p.termin || "", menge: zahl(p.menge) }];
+      faell.forEach((f) => {
+        const ab = Math.min(rest, f.menge); rest -= ab;
+        const offen = f.menge - ab;
+        if (offen > 1e-9 && f.termin && f.termin >= von && f.termin <= bis) z.push({ b, p, termin: f.termin, offen });
+      });
+    });
+  });
+  const kunde = (x) => { const k = d.partnerMap.get(x.b.partner_id) || {}; return (k.nr || "") + " " + (k.name || ""); };
+  return z.sort((x, y) => kunde(x).localeCompare(kunde(y)) || x.termin.localeCompare(y.termin) || String(x.b.nr).localeCompare(String(y.b.nr)));
+}
+
+// Lager eines Artikels mit Index: Plätze und Menge (wie „Lagerort“ und „Lag. Best.“ im Gewatec-Blatt)
+function lagerVon(d, p) {
+  if (!p.artikel_id) return { plaetze: "", menge: 0 };
+  const e = chargenWahl(d, p.artikel_id, posIdx(d, p)).map((c) => c[2]);
+  const plaetze = [...new Set(e.map((x) => { const l = d.lagerMap.get(x.lager_id); return l ? l.platz || lagerName(l) : ""; }).filter(Boolean))].join(", ");
+  return { plaetze, menge: e.reduce((s2, x) => s2 + x.menge, 0) };
+}
+
+function lieferplanDrucken(d, liste, von, bis) {
+  const esc = alt.esc;
+  const jetzt = new Date();
+  const gruppen = new Map();
+  liste.forEach((x) => { const k = x.b.partner_id || ""; if (!gruppen.has(k)) gruppen.set(k, []); gruppen.get(k).push(x); });
+  const inhalt = [...gruppen.entries()].map(([kid, zeilen]) => {
+    const k = d.partnerMap.get(kid) || {};
+    return "<tbody class='gr'><tr class='kunde'><td colspan='10'>" + esc((k.nr || "") + "   " + (k.name || "ohne Kunde")) + "</td></tr>"
+      + zeilen.map(({ b, p, termin, offen }) => {
+        const a = d.artikelMap.get(p.artikel_id);
+        const l = lagerVon(d, p);
+        return "<tr><td>" + datumText(termin) + "</td><td>" + esc(b.nr + "-" + Math.round(p.pos / 10)) + "</td><td>" + esc(a ? (a.bezeichnung || a.nr) : p.text || "")
+          + "</td><td>" + esc(a ? a.nr : "") + "</td><td class='lo'>" + esc(l.plaetze) + "</td><td class='r'>" + mengeText(l.menge) + "</td><td class='r'>" + mengeText(offen)
+          + "</td><td><span class='linie'></span></td><td><span class='linie'></span></td></tr>";
+      }).join("") + "</tbody>";
+  }).join("");
+  let roh = "<!doctype html><html><head><meta charset='utf-8'><title>Offene Lieferungen</title><style>"
+    + "body{font:9pt Arial,sans-serif;margin:0;color:#111}h1{font-size:16pt;margin:0;font-weight:700}"
+    + ".kopf{display:flex;align-items:baseline;gap:12mm;margin-bottom:4mm}.kopf b{font-size:11pt}.kopf .druck{margin-left:auto;font-size:8.5pt}"
+    + "table.ol{width:100%;border-collapse:collapse}table.ol thead th{border-bottom:1.5px solid #111;text-align:left;padding:3px 4px;font-size:8.5pt}"
+    + "table.ol td{padding:2px 4px;vertical-align:bottom}.r{text-align:right}th.r{text-align:right}.lo{max-width:28mm;overflow:hidden;white-space:nowrap}"
+    + ".kunde td{font-weight:700;font-size:10pt;padding-top:9px}.gr{page-break-inside:avoid}"
+    + ".linie{display:block;border-bottom:1px solid #111;height:12px;min-width:30mm}.test{color:#b00;font-weight:bold}@media print{.test{display:none}}"
+    + "</style></head><body><!--INHALT--><p class='test'>TESTVERSION ERP</p>"
+    + "<div class='kopf'><h1>Offene Lieferungen</h1><b>von " + datumText(von) + "</b><b>bis " + datumText(bis) + "</b>"
+    + "<span class='druck'>Druck: " + datumText(jetzt.toISOString().slice(0, 10)) + " / " + jetzt.toTimeString().slice(0, 5) + "</span></div>"
+    + "<table class='ol'><thead><tr><th>Termin</th><th>Auftr. Nr</th><th>Artikel</th><th>Art. Nr.</th><th>Lagerort</th><th class='r'>Lag. Best.</th>"
+    + "<th class='r'>Menge</th><th>Rüstmenge</th><th>Verpackung</th></tr></thead>" + (inhalt || "<tbody><tr><td colspan='9'>Keine fälligen Lieferungen im Zeitraum.</td></tr></tbody>") + "</table>"
+    + "<script>setTimeout(()=>print(),400)</script></body></html>";
+  // Briefkopf wie bei allen Blättern, aber quer wie das Gewatec-Blatt (viele Spalten)
+  roh = briefBlatt(roh).replace("@page{size:A4;", "@page{size:A4 landscape;");
+  const w = window.open("", "_blank");
+  if (!w) { alt.meldung("Das Fenster wurde vom Browser blockiert.", "warn"); return; }
+  w.document.write(roh);
+  w.document.close();
+}
+
 // Termin = heute + Pauschalzeit (Tage, bei Stunden aufgerundet auf ganze Tage)
 function zaTermin(ag) {
   const n = Number(ag.pauschal) || 0;
@@ -132,6 +204,8 @@ const KACHELN = [
   // FA Übersicht: dieselbe Liste wie im Reiter Fertigung, mit Häkchen je Stand (seit 1.928.0)
   { id: "fa", titel: "FA Übersicht", text: "Alle Fertigungsaufträge mit Stand und Planwand",
     zeichen: "📋", zahl: (d) => d.belege.filter((b) => b.typ === "fertigung" && b.status !== "storniert" && b.status !== "abgeschlossen").length, einheit: "offen" },
+  { id: "lieferplan", titel: "Lieferplan Liste", text: "Fällige Lieferungen im Zeitraum, nach Kunde, zum Drucken",
+    zeichen: "🗓️", zahl: (d) => lieferplanListe(d, heute(), plusTage(heute(), 14)).length, einheit: "in 14 Tagen" },
   { id: "za-neu", titel: "ZA extern anlegen", text: "Externe Arbeitsgänge offener FAs beim Lieferanten bestellen",
     zeichen: "🚚", zahl: (d) => offeneZaAnlegen(d).length, einheit: "zu bestellen" },
 ];
@@ -144,7 +218,11 @@ function reiheLesen() {
 }
 
 export default function Logistik({ d, neu }) {
-  const [kachel, setKachel] = useState(gemerkt.kachel);
+  const [kachel, setKachel] = useState(() => {
+    const k = wiederhergestellt ? gemerkt.kachel : null;
+    wiederhergestellt = false;
+    return k;
+  });
   const [reihe, setReihe] = useState(reiheLesen);
   useGemerkt(gemerkt, { kachel });
   // Ziehen mit Maus, Finger oder Stift: erst ab 8 Punkten Bewegung, sonst bleibt es ein Antippen
@@ -204,6 +282,7 @@ export default function Logistik({ d, neu }) {
       {kachel === "einlagern" && <Einlagern d={d} neu={neu} />}
       {kachel === "wbg" && <WbgDrucken d={d} neu={neu} />}
       {kachel === "ls-neu" && <LieferscheinAnlegen d={d} neu={neu} />}
+      {kachel === "lieferplan" && <LieferplanListe d={d} neu={neu} />}
       {kachel === "fa" && <section className="logi-funktion" data-logi-funktion="fa">
         <h2 className="logi-funktion__titel">FA Übersicht</h2><BelegListe d={d} neu={neu} typ="fertigung" ohneNeu /></section>}
     </div>
@@ -304,6 +383,23 @@ function ZaAusArbeitsplan({ d, neu, zu }) {
 // Wunsch Patrick 27. November 2026: „eine Kachel für Teile aus Fertigung einlagern“
 function Einlagern({ d, neu }) {
   const [suche, setSuche] = useState("");
+  // Aktuelle Stückzahl je Planwand-Auftrag: letzter Zählerstand (production_records.quantity ist der
+  // Gesamtzähler seit Auftragsbeginn), Wunsch Patrick 27. November 2026
+  const [stk, setStk] = useState(null);
+  const jobIds = [...new Set(offeneEinlagern(d).map((x) => x.pw && x.pw.job_id).filter(Boolean))];
+  useEffect(() => {
+    let weg = false;
+    (async () => {
+      const m = new Map();
+      for (let i = 0; i < jobIds.length; i += 100) {
+        const r = await alt.db.from("production_records").select("job_id, quantity, record_date")
+          .in("job_id", jobIds.slice(i, i + 100)).order("record_date", { ascending: false });
+        ((r && r.data) || []).forEach((x) => { if (!m.has(x.job_id)) m.set(x.job_id, Number(x.quantity) || 0); });
+      }
+      if (!weg) setStk(m);
+    })().catch(() => { if (!weg) setStk(new Map()); });
+    return () => { weg = true; };
+  }, [jobIds.join(",")]);
   const liste = offeneEinlagern(d).filter(({ b, p, pw }) => {
     const k = d.partnerMap.get(b.partner_id) || {};
     return passt(suche, [b.nr, k.nr, k.name, artikelText(d.artikelMap.get(p.artikel_id)), pw && pw.maschine].join(" "));
@@ -319,15 +415,16 @@ function Einlagern({ d, neu }) {
         <Suche wert={suche} setzen={setSuche} platzhalter="FA, Kunde, Artikel, Maschine …" />
       </div>
       <p className="klein">Zeile antippen meldet Teile des FA fertig und lagert sie ein: Menge, Lagerart und Lagerplatz eingeben. Die FA-Nummer öffnet den FA.</p>
-      <Tabelle kopf={["FA", "Kunde", "Artikel", "Planwand", "Soll", "Eingelagert", "Offen"]}
+      <Tabelle kopf={["FA", "Kunde", "Artikel", "Stand", "Planwand", "Soll", "Stückzahl", "Eingelagert", "Offen"]}
         leer="Keine offenen Fertigungsaufträge."
         zeilen={liste.map(({ b, p, ein, offen, pw }) => ({
           key: p.id, klick: () => buchen(b),
           zellen: [<a href="#" data-logi-fa={b.nr} onClick={(e) => { e.preventDefault(); e.stopPropagation(); belegOeffnen(d, neu, b); }}>{b.nr}</a>,
             partnerText(d.partnerMap.get(b.partner_id)),
             artikelText(d.artikelMap.get(p.artikel_id)) + (posIdx(d, p) ? " · Index " + posIdx(d, p) : ""),
-            pw ? [pw.maschine, ({ geplant: "geplant", ruesten: "rüsten", laeuft: "läuft", fertig: "fertig" })[pw.stand] || pw.stand].filter(Boolean).join(" · ") : "–",
-            mengeText(p.menge), mengeText(ein), <b>{mengeText(offen)}</b>],
+            belegStand(d, b)[0], planwandZelle(b) || "–",
+            mengeText(p.menge), stk == null ? "…" : (pw && stk.has(pw.job_id) ? <span data-logi-stk="">{mengeText(stk.get(pw.job_id))}</span> : "–"),
+            mengeText(ein), <b>{mengeText(offen)}</b>],
         }))} />
     </section>
   );
@@ -437,6 +534,39 @@ function LieferscheinAnlegen({ d, neu }) {
             artikelText(d.artikelMap.get(p.artikel_id)) + (posIdx(d, p) ? " · Index " + posIdx(d, p) : ""),
             <b>{mengeText(offen)}</b>, mengeText(lager)],
         }))} />
+    </section>
+  );
+}
+
+const lpZeit = { von: "", bis: "" };
+teilMerken("erp-logistik-lieferplan", () => ({ ...lpZeit }), (z) => { Object.assign(lpZeit, z); });
+
+// Wunsch Patrick 27. November 2026: „Kachel Lieferplan Liste: alle fälligen Lieferungen für den
+// gewünschten Zeitraum, sortiert nach Kunde, zum Drucken, nach dem angehängten Beispiel“
+function LieferplanListe({ d, neu }) {
+  const [von, setVon] = useState(lpZeit.von || heute());
+  const [bis, setBis] = useState(lpZeit.bis || plusTage(heute(), 14));
+  lpZeit.von = von; lpZeit.bis = bis;
+  const liste = von && bis ? lieferplanListe(d, von, bis) : [];
+  return (
+    <section className="logi-funktion" data-logi-funktion="lieferplan">
+      <div className="mat-kopf">
+        <h2 className="logi-funktion__titel">Lieferplan Liste</h2>
+        <label className="feld-inline">von <input type="date" value={von} data-logi-lp-von="" onChange={(e) => setVon(e.target.value)} /></label>
+        <label className="feld-inline">bis <input type="date" value={bis} data-logi-lp-bis="" onChange={(e) => setBis(e.target.value)} /></label>
+        <button type="button" className="knopf knopf--klein" data-logi-lp-drucken="" disabled={!von || !bis}
+          onClick={() => lieferplanDrucken(d, liste, von, bis)}>Drucken</button>
+      </div>
+      <p className="klein">Alle Fälligkeiten aus den Lieferplänen der offenen Aufträge im Zeitraum, nach Kunde und Termin. Bereits Geliefertes ist abgezogen. Zeile antippen öffnet den Auftrag.</p>
+      <Tabelle kopf={["Kunde", "Termin", "Auftr. Nr", "Artikel", "Art. Nr.", "Lagerort", "Lag. Best.", "Menge"]}
+        leer="Keine fälligen Lieferungen im Zeitraum."
+        zeilen={liste.map(({ b, p, termin, offen }, i) => {
+          const a = d.artikelMap.get(p.artikel_id);
+          const l = lagerVon(d, p);
+          return { key: p.id + "|" + termin + "|" + i, klick: () => belegOeffnen(d, neu, b), sort: [null, termin],
+            zellen: [partnerText(d.partnerMap.get(b.partner_id)), datumText(termin), b.nr + "-" + Math.round(p.pos / 10),
+              a ? (a.bezeichnung || a.nr) : p.text || "", a ? a.nr : "", l.plaetze, mengeText(l.menge), <b>{mengeText(offen)}</b>] };
+        })} />
     </section>
   );
 }

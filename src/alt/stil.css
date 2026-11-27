@@ -17902,3 +17902,5 @@ body.dunkel .planinfo-wahl__pfeil { border-color: rgba(255,255,255,.25); }
 /* 1.926.0: Logistik-Kacheln lassen sich ziehen; beim Ziehen kein Markieren und kein Rollen per Finger */
 .logi-kachel { touch-action: pan-y; user-select: none; -webkit-user-select: none; }
 body.zieh-laeuft .logi-kachel { touch-action: none; cursor: grabbing; }
+/* 1.929.0: Lieferplan Liste, Zeitraum von/bis im Kopf */
+.logi-funktion .feld-inline { display: inline-flex; align-items: center; gap: 6px; margin-right: 10px; font-size: 14px; }

@@ -88,7 +88,7 @@ let faStaende = FA_STAENDE.filter((w) => w !== "storniert");
 // Zustand des Auftrags auf der Planwand mit demselben Zeichen wie auf dem Balken
 // (○ Geplant, 🔧 Rüsten, ▶ Läuft, ✔ Fertig) und Maschine (seit 1.914.0, Wunsch Patrick
 // 27. November 2026: „in der Liste der FAs den Status und auch das Symbol“)
-function planwandZelle(b) {
+export function planwandZelle(b) {
   const pw = (b.daten || {}).planwand;
   if (!pw || !pw.stand) return "";
   const z = (alt.PLANSTATUS || {})[pw.stand] || { name: pw.stand, zeichen: "" };
