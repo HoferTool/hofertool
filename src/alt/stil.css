@@ -17778,3 +17778,27 @@ body.dunkel .gfn-liste button.aktiv { background: #4a3a1c; border-color: #e8b04a
 [data-pstblatt] tr:hover .pst-c-kn .knopf--klein, [data-pstblatt] tr:focus-within .pst-c-kn .knopf--klein { opacity: 1; border-color: var(--linie-stark); }
 body.dunkel [data-pstblatt] tbody td input:not([type=checkbox]):focus { background: #13202c; }
 body.dunkel [data-pstblatt] tbody tr:hover td { background: #1a2836; }
+
+/* ---------- 1.915.0: kleine Blase mit Zeichen beim Markieren (markierBlase.js) ---------- */
+.markier-blase { position: fixed; left: 0; top: 0; z-index: 2147483001; display: flex; flex-direction: column; gap: 3px;
+  padding: 3px; border-radius: 9px; background: #fff; border: 1px solid rgba(20, 40, 80, .18);
+  box-shadow: 0 4px 14px rgba(10, 25, 50, .2); max-width: calc(100vw - 8px); animation: markier-blase-rein .12s ease-out; }
+.markier-blase[hidden] { display: none !important; }
+@keyframes markier-blase-rein { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .markier-blase { animation: none; } }
+.markier-blase__reihe { display: flex; gap: 2px; flex-wrap: wrap; }
+.markier-blase__formlage { display: flex; flex-wrap: wrap; gap: 2px; max-width: 260px; padding-top: 3px; border-top: 1px solid #e3e8ef; }
+.markier-blase__formlage[hidden] { display: none; }
+.markier-blase__knopf { min-width: 30px; height: 30px; padding: 0 5px; border-radius: 7px; border: 1px solid transparent;
+  background: none; color: #102040; font: 700 17px/1 Aptos, "Segoe UI", "Segoe UI Symbol", "Apple Symbols", "Cambria Math", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif;
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center; touch-action: manipulation;
+  -webkit-user-select: none; user-select: none; }
+.markier-blase__knopf:hover { background: #e3ebf7; }
+.markier-blase__mehr { font-size: 14px; color: #3a4a66; }
+.markier-blase .gdt-knopf { font-size: 18px; font-weight: 400; }
+/* Finger brauchen grössere Ziele */
+@media (pointer: coarse) { .markier-blase__knopf { min-width: 40px; height: 40px; font-size: 20px; } .markier-blase__formlage { max-width: 300px; } }
+body.pad-offen .markier-blase__knopf { min-width: 44px; height: 44px; font-size: 22px; }
+body.dunkel .markier-blase { background: #1c2533; border-color: rgba(255, 255, 255, .18); }
+body.dunkel .markier-blase__knopf:hover { background: #2a3546; }
+body.dunkel .markier-blase__formlage { border-color: rgba(255, 255, 255, .15); }
