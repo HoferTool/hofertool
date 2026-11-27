@@ -52,11 +52,14 @@ with sync_playwright() as p:
     v2 = f().evaluate(VOL_JS)
     erw = 6 * 4 * 3.14159 * 3.25 ** 2 * 2.4
     pruefe(abs((v1 - v2) - erw) < erw * 0.03, "Magnetlöcher nehmen %.0f mm³ weg (erwartet ~%.0f)" % (v1 - v2, erw))
-    # zu grosser Eckradius: Fuss an der Ecke ragt hinaus
-    f().evaluate("() => { lay.base.R = 10; layChanged(); }"); pg.wait_for_timeout(200)
+    # seit 1.919.0 genormt: zu grosser Eckradius wird 3.75, krumme Grösse aufgerundet
+    f().evaluate("() => { lay.base.R = 10; lay.base.W = 130; lay.base.H = 90; layChanged(); }"); pg.wait_for_timeout(200)
+    b = f().evaluate("[lay.base.W, lay.base.H, lay.base.R]")
+    pruefe(b == [167.5, 125.5, 3.75], "Genormt: 130 × 90 → 4 × 3 Felder, R 3.75: %s" % b)
     w = f().evaluate("connModel().warns.filter(x => x.startsWith('Gridfinity'))")
-    pruefe(len(w) == 4, "R 10: 4 Eckfüsse gemeldet: %s" % len(w))
-    pruefe(f().evaluate(DICHT_JS), "R 10: Netz geschlossen")
+    pruefe(len(w) == 0, "genormt: keine Warnung: %s" % w)
+    pruefe(f().evaluate(DICHT_JS), "genormt: Netz geschlossen")
+    f().evaluate("() => { lay.base.W = 125.5; lay.base.H = 83.5; layChanged(); }")
     f().evaluate("() => { lay.base.R = 3.75; lay.conn.key.on = true; lay.conn.stack.on = true; lay.conn.stack.free = true; lay.base.kante = {art: 'fase', s: 1, oben: {}, unten: {l: true, r: true, t: true, b: true}}; layChanged(); }"); pg.wait_for_timeout(200)
     w = f().evaluate("connModel().warns")
     pruefe(any("Schlüssellöcher" in x for x in w) and any("vertieft" in x for x in w) and any("Kantenbruch" in x for x in w), "Unpassendes gemeldet: %s" % w)

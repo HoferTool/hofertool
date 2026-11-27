@@ -8,7 +8,8 @@
 import { useState, useRef, useEffect } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
-import { Feld, Tabelle, Suche, passt, tun, belegDrucken, abDrucken, lsDrucken, LagerEingabe, lagerStart, lagerAus, ohneSuche, sucheLeer } from "./teile.jsx";
+import { BESTELLARTEN } from "./formulare.js";
+import { Feld, Tabelle, Suche, passt, tun, formular, belegDrucken, abDrucken, lsDrucken, reDrucken, beDrucken, LagerEingabe, lagerStart, lagerAus, ohneSuche, sucheLeer } from "./teile.jsx";
 import {
   allesLaden, einfuegen, aendern, loeschen, naechsteBelegNr, BELEGTYP, MWST, zahl, chf, mengeText, artikelText,
   partnerText, datumText, terminText, bestand, buchen, gebucht, folgePositionen, belegSumme, chargeVerfolgen, fibuText,
@@ -16,7 +17,7 @@ import {
 } from "../../daten/erp.js";
 import { GFenster, KF, GTabelle, schliessenFragen } from "./Stamm.jsx";
 import { partnerFensterOeffnen } from "./PartnerFenster.jsx";
-import { artikelFensterOeffnen } from "./ArtikelFenster.jsx";
+import { artikelFensterOeffnen, AG_FORM } from "./ArtikelFenster.jsx";
 import { cockpitOeffnen } from "./Cockpit.jsx";
 
 const heute = () => new Date().toISOString().slice(0, 10);
@@ -65,7 +66,10 @@ export function belegStand(d, b) {
   }
   if (b.typ === "fertigung") {
     const a = anteil((p) => gebucht(d, p.id, "fertig"));
-    const begonnen = d.bewegungen.some((x) => x.beleg_id === b.id) || ((b.daten || {}).ap || []).some((x) => x.erledigt_am);
+    // Läuft oder rüstet der Auftrag auf der Planwand, ist der FA auch „in Arbeit“ (seit 1.911.1, Patrick:
+    // „warum gibt es keine in Arbeit?“; vorher nur mit abgehaktem Arbeitsgang oder Buchung)
+    const pw = ((b.daten || {}).planwand || {}).stand;
+    const begonnen = pw === "laeuft" || pw === "ruesten" || d.bewegungen.some((x) => x.beleg_id === b.id) || ((b.daten || {}).ap || []).some((x) => x.erledigt_am);
     return [a === 2 ? "fertig" : a === 1 ? "teilweise fertig" : begonnen ? "in Arbeit" : "offen", a === 2 ? "erp-gut" : ""];
   }
   if (b.typ === "lieferschein") {
@@ -78,29 +82,75 @@ export function belegStand(d, b) {
   return [b.status || "offen", ""];
 }
 
+// Stände eines Fertigungsauftrags (belegStand); die Wahl der Häkchen bleibt, solange die Seite offen ist
+const FA_STAENDE = ["offen", "in Arbeit", "teilweise fertig", "fertig", "abgeschlossen", "storniert"];
+let faStaende = FA_STAENDE.filter((w) => w !== "storniert");
+
+// Zustand des Auftrags auf der Planwand mit demselben Zeichen wie auf dem Balken
+// (○ Geplant, 🔧 Rüsten, ▶ Läuft, ✔ Fertig) und Maschine (seit 1.914.0, Wunsch Patrick
+// 27. November 2026: „in der Liste der FAs den Status und auch das Symbol“)
+export function planwandZelle(b) {
+  const pw = (b.daten || {}).planwand;
+  if (!pw || !pw.stand) return "";
+  const z = (alt.PLANSTATUS || {})[pw.stand] || { name: pw.stand, zeichen: "" };
+  const masch = pw.maschine || pw.maschine_nr;
+  return <span className={"erp-pw erp-pw--" + pw.stand} data-erp-pw={pw.stand}>{z.zeichen} {z.name}{masch ? " · " + masch : ""}</span>;
+}
+
+// Art einer Bestellung (seit 1.913.0, Wunsch Patrick 27. November 2026: „in Bestellungen filtern nach
+// Rohmaterial und ZA extern“): ZA extern = Zusatzarbeit extern (Fremdleistung), d. h. ein Hofer-Artikel
+// geht zum Lieferanten, oder aus dem Gewatec als Fremdleistung übernommen
+const BE_ARTEN = [["roh", "Rohmaterial"], ["za", "ZA extern"], ["andere", "Andere"]];
+let beArten = BE_ARTEN.map(([w]) => w);
+export function bestellArt(d, b) {
+  const pos = d.posJe.get(b.id) || [];
+  const arten = pos.map((p) => (d.artikelMap.get(p.artikel_id) || {}).art);
+  if ((b.daten || {}).fremdleistung || arten.includes("hofer")) return "za";
+  if (arten.includes("rohmaterial")) return "roh";
+  return "andere";
+}
+
 // ---------- Liste je Belegart ----------
 export function BelegListe({ d, neu, typ, ohneNeu, hinweis }) {
   const [suche, setSuche] = useState("");
   const [nurOffen, setNurOffen] = useState(false);
+  // Fertigung zeigt gleich alle FAs, Häkchen je Stand wählen, was man sieht
+  // (seit 1.909.0, Wunsch Patrick 27. November 2026: „nicht nur die Suchtreffer, sondern alle, mit Checkboxen“)
+  const mitStand = typ === "fertigung";
+  const [staende, setStaende] = useState(() => new Set(faStaende));
+  const standUm = (w, an) => setStaende((v) => { const n = new Set(v); if (an) n.add(w); else n.delete(w); faStaende = [...n]; return n; });
+  const mitArt = typ === "bestellung";
+  const [arten, setArten] = useState(() => new Set(beArten));
+  const artUm = (w, an) => setArten((v) => { const n = new Set(v); if (an) n.add(w); else n.delete(w); beArten = [...n]; return n; });
   const t = BELEGTYP[typ];
-  const warten = ohneSuche(suche) && !nurOffen;
+  // Bestellungen sind wenige: wie Fertigung gleich alle zeigen, gefiltert mit den Häkchen
+  const warten = !mitStand && !mitArt && ohneSuche(suche) && !nurOffen;
   const liste = warten ? [] : d.belege.filter((b) => b.typ === typ).filter((b) => {
     const p = d.partnerMap.get(b.partner_id) || {};
     const pos = (d.posJe.get(b.id) || []).map((x) => artikelText(d.artikelMap.get(x.artikel_id)) + " " + (x.text || "")).join(" ");
     return passt(suche, [b.nr, p.nr, p.name, (b.daten || {}).ihre_nr, pos, datumText(b.datum)].join(" "));
   }).map((b) => ({ b, stand: belegStand(d, b) }))
-    .filter((x) => !nurOffen || !/^(geliefert|eingegangen|fertig|verrechnet|in Fibu|storniert|abgeschlossen)$/.test(x.stand[0]));
+    .filter((x) => !nurOffen || !/^(geliefert|eingegangen|fertig|verrechnet|in Fibu|storniert|abgeschlossen)$/.test(x.stand[0]))
+    .filter((x) => !mitStand || staende.has(x.stand[0]))
+    .filter((x) => !mitArt || arten.has(bestellArt(d, x.b)))
+    // Neuste Nr. oben (Fertigung, Bestellungen)
+    .sort((x, y) => (mitStand || mitArt ? String(y.b.nr).localeCompare(String(x.b.nr)) : 0));
   return (
     <>
       <div className="mat-kopf">
         {!ohneNeu && <button className="knopf knopf--haupt" data-erp-neu={typ}
           onClick={() => belegOeffnen(d, neu, null, { typ })}>+ {t.name}</button>}
         <Suche wert={suche} setzen={setSuche} platzhalter="Nr., Kunde, Artikel …" fokus />
-        <label className="feld-haken"><input type="checkbox" checked={nurOffen} onChange={(e) => setNurOffen(e.target.checked)} />
-          <span>Nur offene</span></label>
+        {!mitStand && <label className="feld-haken"><input type="checkbox" checked={nurOffen} onChange={(e) => setNurOffen(e.target.checked)} />
+          <span>Nur offene</span></label>}
+        {mitArt && BE_ARTEN.map(([w, text]) => <label key={w} className="feld-haken" data-erp-be-art={w}>
+          <input type="checkbox" checked={arten.has(w)} onChange={(e) => artUm(w, e.target.checked)} /><span>{text}</span></label>)}
+        {mitStand && FA_STAENDE.map((w) => <label key={w} className="feld-haken" data-erp-fa-stand={w}>
+          <input type="checkbox" checked={staende.has(w)} onChange={(e) => standUm(w, e.target.checked)} /><span>{w}</span></label>)}
       </div>
       {hinweis && <p className="klein">{hinweis}</p>}
-      <Tabelle kopf={["Nr.", "Datum", t.partner === "lieferant" ? "Lieferant" : "Kunde", "Artikel", mitPreis(typ) ? "Netto CHF" : "Menge", "Stand"]}
+      <Tabelle kopf={["Nr.", "Datum", t.partner === "lieferant" ? "Lieferant" : "Kunde", "Artikel", mitPreis(typ) ? "Netto CHF" : "Menge"]
+          .concat(mitStand ? ["Planwand"] : []).concat(["Stand"])}
         leer={warten ? sucheLeer(t.mehr) + " Oder „Nur offene“ anhaken." : "Keine " + t.mehr + " gefunden."}
         zeilen={liste.map(({ b, stand }) => {
           const pos = d.posJe.get(b.id) || [];
@@ -110,7 +160,8 @@ export function BelegListe({ d, neu, typ, ohneNeu, hinweis }) {
             key: b.id, klasse: stand[1], klick: () => belegOeffnen(d, neu, b),
             zellen: [<b>{b.nr}</b>, datumText(b.datum), partnerText(d.partnerMap.get(b.partner_id)) + (b.art === "rahmen" ? " · Rahmen" : ""),
               art.slice(0, 3).join(", ") + (art.length > 3 ? " …" : ""),
-              mitPreis(typ) ? chf(belegSumme(d, b).netto) : mengeText(pos.reduce((s, x) => s + zahl(x.menge), 0)), stand[0]],
+              mitPreis(typ) ? chf(belegSumme(d, b).netto) : mengeText(pos.reduce((s, x) => s + zahl(x.menge), 0))]
+              .concat(mitStand ? [planwandZelle(b)] : []).concat([stand[0]]),
           };
         })} />
     </>
@@ -229,10 +280,10 @@ function BelegFenster({ start, id, vorlage, aussen, zu }) {
   const bearbeitenStarten = () => { basis.current = JSON.stringify([kopf, pos]); setBearbeiten(true); };
   const geaendert = bearbeiten && JSON.stringify([kopf, pos]) !== basis.current;
   const abbrechen = async () => {
-    if (!(await schliessenFragen(geaendert, alt))) return;
+    const r = await schliessenFragen(geaendert, alt, speichern); if (!r || r === "gespeichert") return;
     if (b) { setBearbeiten(false); setKopf(kopfAus(b)); setPos(posAus(d.posJe.get(b.id) || [])); } else zu();
   };
-  const schliessen = async () => { if (await schliessenFragen(geaendert, alt)) zu(); };
+  const schliessen = async () => { if (await schliessenFragen(geaendert, alt, speichern)) zu(); };
   const stand = b ? belegStand(d, b) : null;
   const summe = b && mitPreis(typ) ? belegSumme(d, b) : null;
   const titel = t.name + " " + (b ? b.nr : "neu") + (kopf.art === "rahmen" ? " · Rahmenauftrag" : "")
@@ -249,14 +300,19 @@ function BelegFenster({ start, id, vorlage, aussen, zu }) {
       {(typ === "auftrag" || typ === "bestellung") && <KF label="Art" nurLesen wert={kopf.art === "rahmen" ? "Rahmenauftrag" : "Einzelauftrag"} />}
       <KF label="Stand" nurLesen wert={<span className={"erp-schild " + stand[1]}>{stand[0]}</span>} />
       {kopf.daten.ihre_nr && <KF label={typ === "bestellung" ? "AB Lieferant" : "Ihre Bestellung"} nurLesen wert={kopf.daten.ihre_nr} />}
+      {/* FA aus der Planwand (seit 1.907.0, sql/erp-fa-aus-planwand.sql): Maschine und Stand beim Übernehmen */}
+      {typ === "fertigung" && kopf.daten.planwand && <KF label="Planwand" nurLesen wert={"Maschine " + (kopf.daten.planwand.maschine || kopf.daten.planwand.maschine_nr || "–")
+        + " · " + ({ geplant: "geplant", ruesten: "rüsten", laeuft: "läuft", fertig: "fertig" }[kopf.daten.planwand.stand] || kopf.daten.planwand.stand || "")} />}
       {bezug && <KF label="Aus" nurLesen wert={BELEGTYP[bezug.typ].name + " " + bezug.nr}
         menue={[[BELEGTYP[bezug.typ].name + " " + bezug.nr + " öffnen", () => belegOeffnen(d, aussen, bezug)]]} />}
     </>;
   const fuss = <>
     {b && !bearbeiten && <button className="knopf knopf--gefahr" onClick={belegLoeschen}>Löschen</button>}
-    {b && !bearbeiten && <button className="knopf" data-erp-drucken="" onClick={() => (b.typ === "lieferschein" ? lsDrucken(d, b) : belegDrucken(d, b))}>Drucken</button>}
-    {b && !bearbeiten && typ === "auftrag" && b.status !== "storniert" &&
-      <button className="knopf" data-erp-ab-drucken="" onClick={() => abDrucken(d, b)}>Auftragsbestätigung</button>}
+    {b && !bearbeiten && <button className="knopf" data-erp-drucken="" data-erp-ab-drucken={b.typ === "auftrag" ? "" : undefined} onClick={() => (b.typ === "lieferschein" ? lsDrucken(d, b)
+      : b.typ === "rechnung" || b.typ === "gutschrift" || b.typ === "proforma" ? reDrucken(d, b)
+        : b.typ === "bestellung" ? beDrucken(d, b)
+          // Beim Auftrag druckt „Drucken“ die Auftragsbestätigung wie im Gewatec (1.935.3)
+          : b.typ === "auftrag" ? abDrucken(d, b) : belegDrucken(d, b))}>Drucken</button>}
     <span className="gf-fuss__luecke" />
     {geaendert && <span className="klein gf-geaendert">nicht gespeichert</span>}
     <button className="knopf knopf--still" data-nein="" onClick={bearbeiten ? abbrechen : zu}>{bearbeiten && b ? "Abbrechen" : "Beenden"}</button>
@@ -314,6 +370,8 @@ function KopfFelder({ d, kopf, setKopf, setDaten, teil }) {
     <KF label="Datum" typ="datum" name="datum" wert={kopf.datum} setzen={setK("datum")} />
     {(typ === "auftrag" || typ === "bestellung") && <KF label="Art" name="art" wert={kopf.art} setzen={setK("art")}
       auswahl={[["einzel", "Einzelauftrag"], ["rahmen", "Rahmenauftrag (Lieferplan)"]]} />}
+    {typ === "bestellung" && <KF label="Bestellart" name="bestellart" wert={kopf.daten.bestellart || ""} setzen={(w) => setDaten("bestellart", w)}
+      auswahl={[["", "— von selbst —"]].concat(BESTELLARTEN)} />}
     <KF label="Status" name="status" wert={kopf.status} setzen={setK("status")} auswahl={[["offen", "offen"], ["abgeschlossen", "abgeschlossen"], ["storniert", "storniert"]]} />
     <KF label={typ === "bestellung" ? "AB Lieferant" : "Ihre Bestellung"} name="ihre_nr" wert={kopf.daten.ihre_nr} setzen={(w) => setDaten("ihre_nr", w)} />
     {typ === "auftrag" && <KF label="Bestelldatum" name="ihre_datum" typ="datum" wert={kopf.daten.ihre_datum} setzen={(w) => setDaten("ihre_datum", w)} />}
@@ -378,6 +436,7 @@ function KopfAnsicht({ d, b }) {
     [BELEGTYP[b.typ].partner === "lieferant" ? "Lieferant" : "Kunde", partnerText(p)],
     ["Datum", datumText(b.datum)],
     bez && ["Aus", BELEGTYP[bez.typ].name + " " + bez.nr],
+    b.typ === "bestellung" && bd.bestellart && ["Bestellart", (BESTELLARTEN.find((x) => x[0] === bd.bestellart) || [])[1] || bd.bestellart],
     bd.ihre_nr && [b.typ === "bestellung" ? "AB Lieferant" : "Ihre Bestellung", bd.ihre_nr],
     bd.ihre_datum && ["Bestelldatum", datumText(bd.ihre_datum)],
     bd.zeichen && ["Ihr Zeichen", bd.zeichen],
@@ -540,6 +599,8 @@ function Positionen({ d, kopf, pos, setPos, bearbeiten, b, aussen, frisch, start
                 onClick={() => setPos((l) => l.filter((_, j) => j !== i))}>✕</button>
             </div>
             <Feld f={{ name: "text", label: "Text (ohne Artikel: freie Position)", breit: true }} wert={p.text} setzen={(w) => setzen(i, "text", w)} />
+            {typ === "bestellung" && <Feld f={{ name: "vorschrift", label: "Bearbeitungsvorschrift", typ: "textarea", breit: true }}
+              wert={p.daten.vorschrift || ""} setzen={(w) => setzen(i, "daten", { ...p.daten, vorschrift: w })} />}
             {(rahmen || (p.daten.abrufe || []).length > 0) && <div className="erp-feld--breit"><div className="lp-legende">Lieferplan</div>
               <LieferplanAnsicht d={d} aussen={aussen} p={p}
                 zeilen={(p.daten.abrufe || []).map((x) => ({ ...x, kw: x.kw || (x.termin ? kwText(x.termin) : ""), menge: x.menge ?? "" }))}
@@ -554,7 +615,7 @@ function Positionen({ d, kopf, pos, setPos, bearbeiten, b, aussen, frisch, start
   );
 }
 
-function geliefert(d, p) {
+export function geliefert(d, p) {
   return folgePositionen(d, p.id, "lieferschein").reduce((s, x) => s + zahl(x.menge), 0);
 }
 
@@ -565,7 +626,7 @@ function Lieferplan({ d, p }) {
     <ul className="erp-abrufe">{(p.daten.abrufe || []).map((x, i) => {
       const m = zahl(x.menge);
       const da = Math.min(m, rest); rest -= da;
-      return <li key={i} className={da >= m ? "erp-gut" : ""}>{x.kw ? "KW " + x.kw : datumText(x.termin)}: {mengeText(m)}
+      return <li key={i} className={da >= m ? "erp-gut" : ""}>{lpText(x)}: {mengeText(m)}
         {da > 0 && da < m ? " (" + mengeText(da) + " geliefert)" : da >= m ? " ✓" : ""}</li>;
     })}</ul>
   );
@@ -644,7 +705,7 @@ function PositionFenster({ d, aussen, b, p, frisch, zu }) {
     alt.meldung("Position " + p.pos + " gelöscht.", "gut");
     await frisch(); zu();
   };
-  const schliessen = async () => { if (await schliessenFragen(geaendert, alt)) zu(); };
+  const schliessen = async () => { if ((await schliessenFragen(geaendert, alt, speichern)) === true) zu(); };
   const artMenue = a && [["Artikel öffnen", () => artikelFensterOeffnen(d, aussen, a)], ["Artikel-Cockpit", () => cockpitOeffnen(d, aussen, a)]];
 
   const kopf = <>
@@ -714,7 +775,12 @@ export function lieferplanOeffnen(d, aussen, b, p, frisch) {
 // Zeichen erledigt / offen / im Rückstand und Offen aufgelaufen, rechts die
 // Lieferungen, unten die Summen. Gebraucht im Lieferplan-Fenster und beim
 // Bearbeiten des Auftrags.
+// „Auf Abruf“ (seit 1.934.0, Patrick 27. November 2026: Termine am 31.12. aus dem Gewatec sind
+// Rahmenaufträge, die offenen Mengen „müssen auf Abruf gesetzt werden“): Fälligkeit ohne Datum,
+// zählt nie als fällig oder Rückstand; das frühere Datum bleibt als „bis“ (Ende des Rahmens)
+export const lpText = (x) => (x.abruf ? "auf Abruf" + (x.bis ? " (bis " + datumText(x.bis) + ")" : "") : x.kw ? "KW " + x.kw : datumText(x.termin));
 function lpZeileSetzen(z, name, x) {
+  if (name === "abruf") return x ? { ...z, abruf: true, bis: z.bis || z.termin || "", termin: "", kw: "" } : { ...z, abruf: false };
   if (name === "termin") return { ...z, termin: x, kw: x ? kwText(x) : "" };
   if (name === "kw") { const t = kwZuDatum(x, new Date(), 4); return t ? { ...z, kw: x, termin: t } : { ...z, kw: x }; }
   return { ...z, [name]: x };
@@ -745,16 +811,18 @@ function LieferplanAnsicht({ d, aussen, p, zeilen, setZeilen }) {
         <div className="lp-teil">
           <div className="lp-titel">Fälligkeiten</div>
           <div className="gf-tab-huelle"><table className="gf-tab lp-tab">
-            <thead><tr><th /><th className="rechts">Pos.</th><th>Datum</th><th>KW</th><th className="rechts">Menge</th><th className="rechts">Offen</th><th>Bemerkung</th><th /></tr></thead>
+            <thead><tr><th /><th className="rechts">Pos.</th><th>Abruf</th><th>Datum</th><th>KW</th><th className="rechts">Menge</th><th className="rechts">Offen</th><th>Bemerkung</th><th /></tr></thead>
             <tbody>
-              {!zeilen.length && <tr><td colSpan={8} className="gf-tab__leer">Noch keine Fälligkeit.</td></tr>}
+              {!zeilen.length && <tr><td colSpan={9} className="gf-tab__leer">Noch keine Fälligkeit.</td></tr>}
               {zeilen.map((z, i) => {
                 const v = verteilt[i];
                 return <tr key={i} data-erp-lp-zeile={i} className={v.m && v.da >= v.m ? "lp-gut" : v.faellig ? "lp-rot" : "lp-offen"}>
                   <td>{zeichen(v)}</td>
                   <td className="rechts">{i + 1}</td>
+                  <td><input type="checkbox" checked={!!z.abruf} title="Auf Abruf (ohne festen Termin)" data-erp-feld="abruf" onChange={(e) => setZ(i, "abruf", e.target.checked)} /></td>
+                  {z.abruf ? <td colSpan={2} className="lp-abruf" data-erp-lp-abruf="">auf Abruf{z.bis ? " (bis " + datumText(z.bis) + ")" : ""}</td> : <>
                   <td><input type="date" value={z.termin || ""} data-erp-feld="termin" onChange={(e) => setZ(i, "termin", e.target.value)} /></td>
-                  <td><input className="lp-kw" value={z.kw ?? (z.termin ? kwText(z.termin) : "")} placeholder="KW" data-erp-feld="kw" onChange={(e) => setZ(i, "kw", e.target.value)} /></td>
+                  <td><input className="lp-kw" value={z.kw ?? (z.termin ? kwText(z.termin) : "")} placeholder="KW" data-erp-feld="kw" onChange={(e) => setZ(i, "kw", e.target.value)} /></td></>}
                   <td><input className="gf-rechts lp-menge" inputMode="decimal" value={z.menge ?? ""} data-erp-feld="menge" onChange={(e) => setZ(i, "menge", e.target.value)} /></td>
                   <td className="rechts">{v.offen > 0 ? mengeText(v.offen) : ""}</td>
                   <td><input value={z.bemerkung || ""} data-erp-feld="bemerkung" onChange={(e) => setZ(i, "bemerkung", e.target.value)} /></td>
@@ -798,13 +866,15 @@ function LieferplanAnsicht({ d, aussen, p, zeilen, setZeilen }) {
 }
 
 function lpAbrufe(zeilen) {
-  return zeilen.filter((z) => zahl(z.menge) > 0 || z.termin || z.kw)
-    .map((z) => ({ termin: z.termin || "", kw: z.kw || (z.termin ? kwText(z.termin) : ""), menge: zahl(z.menge), bemerkung: z.bemerkung || "" }))
+  return zeilen.filter((z) => zahl(z.menge) > 0 || z.termin || z.kw || z.abruf)
+    .map((z) => (z.abruf ? { termin: "", kw: "", abruf: true, bis: z.bis || "", menge: zahl(z.menge), bemerkung: z.bemerkung || "" }
+      : { termin: z.termin || "", kw: z.kw || (z.termin ? kwText(z.termin) : ""), menge: zahl(z.menge), bemerkung: z.bemerkung || "" }))
     .sort((u, v) => (u.termin || "9").localeCompare(v.termin || "9"));
 }
 
 function LieferplanFenster({ d, aussen, b, p, frisch, zu }) {
-  const start = (p.daten.abrufe || []).map((x) => ({ termin: x.termin || "", kw: x.termin ? kwText(x.termin) : (x.kw || ""), menge: String(x.menge ?? ""), bemerkung: x.bemerkung || "" }));
+  const start = (p.daten.abrufe || []).map((x) => ({ termin: x.termin || "", kw: x.termin ? kwText(x.termin) : (x.kw || ""), menge: String(x.menge ?? ""), bemerkung: x.bemerkung || "",
+    ...(x.abruf ? { abruf: true, bis: x.bis || "" } : {}) }));
   const [zeilen, setZeilen] = useState(start);
   const [laeuft, setLaeuft] = useState(false);
   const geaendert = JSON.stringify(zeilen) !== JSON.stringify(start);
@@ -816,7 +886,7 @@ function LieferplanFenster({ d, aussen, b, p, frisch, zu }) {
     alt.meldung("Lieferplan gespeichert.", "gut");
     await frisch(); zu();
   };
-  const schliessen = async () => { if (await schliessenFragen(geaendert, alt)) zu(); };
+  const schliessen = async () => { if ((await schliessenFragen(geaendert, alt, speichern)) === true) zu(); };
   const kopf = <>
     <KF label="Auftrag" nurLesen wert={<b>{b.nr}</b>} />
     <KF label="Position" nurLesen wert={p.pos} />
@@ -843,7 +913,7 @@ function LieferplanFenster({ d, aussen, b, p, frisch, zu }) {
   );
 }
 
-function naechsterAbruf(d, p) {
+export function naechsterAbruf(d, p) {
   let kum = 0;
   const g = geliefert(d, p);
   for (const x of p.daten.abrufe || []) { kum += zahl(x.menge); if (kum > g + 1e-9) return kum - g; }
@@ -870,15 +940,30 @@ function Arbeitsgaenge({ d, b, frisch }) {
     const r = await tun(() => aendern("erp_belege", b.id, { daten: { ...b.daten, ap: neu } }));
     if (r !== null) frisch();
   };
+  // Position öffnen wie im Artikelfenster (seit 1.921.0, Patrick 27. November 2026: „ich kann die
+  // Arbeitsplan-Positionen nicht öffnen“); Änderungen gelten nur für diesen FA
+  const oeffnen = (i) => {
+    const x = ap[i];
+    formular({ titel: "Arbeitsgang " + (x.pos || (i + 1) * 10) + " · FA " + b.nr, felder: AG_FORM, breit: true,
+      wert: { ...x, code: x.code || x.ag_code || "" },
+      speichern: async (w) => {
+        const neu = ap.map((y, j) => (j === i ? { ...y, ...w } : y));
+        await aendern("erp_belege", b.id, { daten: { ...b.daten, ap: neu } });
+        frisch();
+      } });
+  };
   return (
     <fieldset className="erp-liste erp-feld--breit"><legend>Arbeitsplan</legend>
       {ap.map((x, i) => (
-        <label key={i} className="feld-haken erp-ag" data-erp-ag={i}>
-          <input type="checkbox" checked={!!x.erledigt_am} onChange={(e) => haken(i, e.target.checked)} />
-          <span><b>{x.pos || (i + 1) * 10}</b> {x.bez}{x.maschine ? " · " + x.maschine : ""}{x.te ? " · te " + x.te + " s" : ""}
-            {x.extern ? " · extern" : ""}{x.pruef ? " · " + x.pruef : ""}
-            {x.erledigt_am && <small> · erledigt {datumText(x.erledigt_am)}</small>}</span>
-        </label>))}
+        <div key={i} className="erp-ag-zeile">
+          <label className="feld-haken erp-ag" data-erp-ag={i}>
+            <input type="checkbox" checked={!!x.erledigt_am} onChange={(e) => haken(i, e.target.checked)} />
+            <span><b>{x.pos || (i + 1) * 10}</b> {x.bez}{x.maschine ? " · " + x.maschine : ""}{x.te ? " · Stückzeit " + x.te + " s" : ""}
+              {x.ruest ? " · Rüsten " + x.ruest + " h" : ""}{x.extern ? " · extern" : ""}{x.pauschal ? " · Pauschal " + x.pauschal + " " + (x.pauschal_einheit || "") : ""}{x.pruef ? " · " + x.pruef : ""}
+              {x.erledigt_am && <small> · erledigt {datumText(x.erledigt_am)}</small>}</span>
+          </label>
+          <button type="button" className="knopf knopf--klein" data-erp-ag-oeffnen={i} onClick={() => oeffnen(i)}>Öffnen</button>
+        </div>))}
     </fieldset>
   );
 }
@@ -976,12 +1061,12 @@ async function faErstellen(d, b, aussen) {
 
 // Bestand eines Artikels als Auswahl. Nur genau dieser Artikel samt Index:
 // Bestand mit Index A kann einen Auftrag mit Index B nie beliefern.
-function chargenWahl(d, artikelId, idx) {
+export function chargenWahl(d, artikelId, idx) {
   return bestand(d, artikelId).filter((e) => e.menge > 0 && (idx == null || e.idx === idx))
     .map((e) => [e.charge + "|" + (e.lager_id || ""), "Charge " + e.charge + " · " + lagerText(d, e.lager_id) + " · " + mengeText(e.menge), e]);
 }
 
-function LieferscheinFenster({ d, b, zu, fertig, nurPos }) {
+export function LieferscheinFenster({ d, b, zu, fertig, nurPos }) {
   // Aus einer Position: nur diese; aus dem Kopf: alle zur Auswahl
   const pos = (d.posJe.get(b.id) || []).filter((p) => p.artikel_id && (!nurPos || p.id === nurPos));
   const [w, setW] = useState(() => pos.map((p) => {
@@ -1042,7 +1127,7 @@ function LieferscheinFenster({ d, b, zu, fertig, nurPos }) {
   );
 }
 
-function EingangFenster({ d, b, zu, fertig }) {
+export function EingangFenster({ d, b, zu, fertig }) {
   const pos = (d.posJe.get(b.id) || []).filter((p) => p.artikel_id);
   const [w, setW] = useState(() => pos.map((p) => {
     const offen = Math.max(0, zahl(p.menge) - gebucht(d, p.id, "eingang"));
@@ -1122,7 +1207,7 @@ function MaterialFenster({ d, b, zu, fertig }) {
   );
 }
 
-function FertigFenster({ d, b, zu, fertig }) {
+export function FertigFenster({ d, b, zu, fertig }) {
   const p = (d.posJe.get(b.id) || [])[0];
   const a = p && d.artikelMap.get(p.artikel_id);
   const offen = p ? Math.max(0, zahl(p.menge) - gebucht(d, p.id, "fertig")) : 0;

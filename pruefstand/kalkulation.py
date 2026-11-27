@@ -90,8 +90,9 @@ with sync_playwright() as p:
     pruefe(band[0] == "4.06 EUR", "Angebot in EUR mit Kurs 1.07: %s" % band)
     pruefe(pg.input_value("#kalk-kurs") == "1.07", "Kurs eingetragen")
     pg.screenshot(path=BILD + "/kalk-preis.png", full_page=True)
-    with pg.expect_download() as dl:
+    with pg.expect_popup() as dl:
         pg.locator("[data-kalk-reiter='angebot']").click(); pg.click("#kalk-pdf")
+    dl.value.close()
     pruefe("4.06 EUR" in pg.locator("#kalk-vorschau").inner_text(), "Vorschau in EUR")
     pg.locator("[data-kalk-reiter='preis']").click(); pg.select_option("#kalk-waehrung", "CHF"); pg.wait_for_timeout(300)
     band = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()
@@ -152,9 +153,12 @@ with sync_playwright() as p:
     pruefe(len(gesp) == 3 and gesp[2]["lose"] == "4", "mit Speichern gespeichert mit eigenen Losen: %s" % gesp)
     pruefe("Gespeichert" in pg.inner_text("#kalk-stand"), "Stand nach Speichern")
 
-    with pg.expect_download() as dl:
+    # Seit 1.935.0 ein Druckblatt wie im Gewatec im eigenen Fenster
+    with pg.expect_popup() as dl:
         pg.locator("[data-kalk-reiter='angebot']").click(); pg.click("#kalk-pdf")
-    pruefe(dl.value.suggested_filename == "Angebot 20225174.pdf", "Angebot als PDF: %s" % dl.value.suggested_filename)
+    w = dl.value; w.wait_for_load_state()
+    pruefe(w.title() == "Angebot 20225174" and "Preis (exkl. MwSt.)" in w.inner_text("body"), "Angebot als Druckblatt: %s" % w.title())
+    w.close()
     pg.screenshot(path=BILD + "/kalk-angebot.png", full_page=True)
 
     # Escape: zurück zur Liste
@@ -202,6 +206,12 @@ with sync_playwright() as p:
     lauf = pg.locator("[id^='kalk-mlauf-']").inner_text()
     pruefe("18.60" in lauf and "16.53" in lauf and "21.65" in lauf, "Laufzeiten-Tabelle: %s" % lauf.replace("\n", " ")[:120])
     pg.screenshot(path=BILD + "/kalk-saetze.png", full_page=True)
+    # Häkchen „Nicht mehr vorhanden“ (seit 1.918.0): Sätze bleiben, Maschine wandert nach unten, durchgestrichen
+    mid = pg.locator(".kalk-masch >> nth=0").get_attribute("data-kmasch")
+    pg.locator("[data-kmasch-nichtmehr='%s'] input" % mid).check(); pg.wait_for_timeout(1600)
+    mz = [x for x in pg.evaluate("TEST.daten.kalk_maschinen") if x["id"] == mid]
+    pruefe(mz and (mz[0].get("daten") or {}).get("weg") is True, "Nicht mehr vorhanden gespeichert")
+    pg.locator("[data-kmasch-nichtmehr='%s'] input" % mid).uncheck(); pg.wait_for_timeout(1600)
 
     pg.set_viewport_size({"width": 390, "height": 844})
     pg.click("#kalk-zurueck"); pg.wait_for_timeout(400)

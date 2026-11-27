@@ -10,15 +10,18 @@
 //  Vermerk kalkulationSehen am Konto, auch in der Datenbank.
 // =================================================================
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { alt, useDaten, useGemerkt } from "../bruecke.jsx";
 import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import { ZiehListe } from "../teile/ZiehListe.jsx";
 import { useSeitenSuche } from "../teile/seitenSuche.js";
 import { teilMerken } from "../teile/wiederherstellen.js";
 import { auswahlDialog } from "../teile/Dialoge.jsx";
+import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { materialZerlegen, werkstoffGenau } from "../daten/material.js";
 import { naechsteNummer, nummernLaden } from "../daten/erp.js";
 import { artikelAusKalkulation } from "./erp/KalkTab.jsx";
+import { useSortierung, sortiert, sortPfeil } from "../teile/sortieren.js";
 import {
   z, chf, stundensatz, staffelRechnen, leereKalkulation, kalkulationenLaden, kalkulationLaden, kalkVorschau, maschinenLaden,
   kalkulationSpeichern, maschineSpeichern, BEISPIEL_MASCHINEN, beispielKalkulation, START_MASCHINEN, startArbeitsplan, kostenstelleFuer, WAEHRUNGEN, kursHolen, PREISEINHEITEN, peWert, peText, EXTERN_NEBEN, FGK_DREHEN, SPEZ_GEWICHT, PREIS_JE_STAFFEL, preisInStaffeln, adresseVon, adresseZeilen, MAT_FORMEN,
@@ -60,10 +63,52 @@ export default function Kalkulation({ auffrischen }) {
   useGemerkt(gemerkt, { offen, saetze });
   const liste = useDaten(kalkulationenLaden, [auffrischen]);
   const masch = useDaten(maschinenLaden, [auffrischen]);
+  const zuRef = useRef(null);
+  const zuFenster = useRef(null);
+  const [fensterEl, setFensterEl] = useState(null);
+  const listeRef = useRef(liste);
+  listeRef.current = liste;
+  // Seit 1.886.0 geht eine Kalkulation als Fenster auf (Wunsch Patrick 27. November 2026):
+  // so lässt es sich verschieben und mit dem Fensterverwalter als eigenes Browserfenster
+  // auf einen anderen Bildschirm ziehen. Jeder Weg zum Schliessen (X, Escape, daneben
+  // tippen, Fensterleiste, eigenes Fenster) fragt vorher nach Ungespeichertem.
+  useEffect(() => {
+    if (!offen || !masch.daten) return undefined;
+    const id = offen;
+    let fertig = false;
+    let zu = null;
+    const pruefenZu = async () => { if (fertig) return; if (await verlassenOk()) zu && zu(); };
+    // Das Fenster hat eine eigene React-Wurzel, die nur einmal zeichnet. Der Inhalt kommt
+    // darum als Portal von hier, damit Maschinen und Liste frisch bleiben.
+    zu = fensterOeffnen((z) => {
+      zuFenster.current = z;
+      return <div className="kalk-fenster" ref={(el) => { if (el) setFensterEl(el); }} />;
+    }, () => { fertig = true; zuRef.current = null; zuFenster.current = null; setFensterEl(null); setOffen((v) => (v === id ? null : v)); listeRef.current.neu(); }, "kalk-huelle");
+    const h = [...document.querySelectorAll(".dialog-huelle.kalk-huelle")].pop();
+    const taste = (e) => {
+      if (e.key !== "Escape" || e.defaultPrevented || !h || !h.isConnected) return;
+      const alle = [...document.querySelectorAll("body > .dialog-huelle")];
+      if (alle[alle.length - 1] !== h) return;
+      e.preventDefault(); e.stopImmediatePropagation(); pruefenZu();
+    };
+    const daneben = (e) => { if (e.target === h) { e.stopImmediatePropagation(); if (e.type === "click") pruefenZu(); } };
+    if (h) {
+      h.__hoferZu = pruefenZu;
+      h.addEventListener("pointerdown", daneben, true);
+      h.addEventListener("click", daneben, true);
+    }
+    window.addEventListener("keydown", taste, true);
+    zuRef.current = pruefenZu;
+    return () => {
+      window.removeEventListener("keydown", taste, true);
+      if (h) { h.removeEventListener("pointerdown", daneben, true); h.removeEventListener("click", daneben, true); }
+      if (!fertig) { fertig = true; zu(); }
+    };
+  }, [offen, !!masch.daten]);
 
   zurueckFn = () => {
     if (saetze) { setSaetze(false); return true; }
-    if (offen) { verlassenOk().then((ok) => { if (ok) { setOffen(null); liste.neu(); } }); return true; }
+    if (offen && zuRef.current) { zuRef.current(); return true; }
     return false;
   };
   useEffect(() => () => { zurueckFn = null; }, []);
@@ -86,14 +131,20 @@ export default function Kalkulation({ auffrischen }) {
   }
 
   if (saetze) {
-    return <Stundensaetze maschinen={masch.daten} neu={masch.neu} zurueck={() => setSaetze(false)} />;
+    return <>{offen && fensterEl ? createPortal(<Offen key={offen} id={offen} maschinen={masch.daten}
+      zurueck={() => zuFenster.current && zuFenster.current()} neu={liste.neu}
+      oeffnen={(n) => { if (zuFenster.current) zuFenster.current(); setTimeout(() => setOffen(n)); }}
+      liste={liste.daten || []} />, fensterEl) : null}
+      <Stundensaetze maschinen={masch.daten} neu={masch.neu} zurueck={() => setSaetze(false)} /></>;
   }
-  if (offen) {
-    return <Offen key={offen} id={offen} maschinen={masch.daten}
-      zurueck={() => { setOffen(null); liste.neu(); }} neu={liste.neu} oeffnen={setOffen} liste={liste.daten || []} />;
-  }
-  return <Liste liste={liste.daten} maschinen={masch.daten} oeffnen={setOffen}
-    neu={() => { liste.neu(); masch.neu(); }} saetze={() => setSaetze(true)} />;
+  const fensterInhalt = offen && fensterEl ? createPortal(
+    <Offen key={offen} id={offen} maschinen={masch.daten}
+      zurueck={() => zuFenster.current && zuFenster.current()} neu={liste.neu}
+      oeffnen={(n) => { if (zuFenster.current) zuFenster.current(); setTimeout(() => setOffen(n)); }}
+      liste={liste.daten || []} />, fensterEl) : null;
+  return <>{fensterInhalt}<Liste liste={liste.daten} maschinen={masch.daten}
+    oeffnen={async (n) => { if (offen && !(await verlassenOk())) return; setOffen(n); }}
+    neu={() => { liste.neu(); masch.neu(); }} saetze={() => setSaetze(true)} /></>;
 }
 
 // Die Liste hat nur Kopf und Vorschau (über 7'000 Kalkulationen aus WinKalk),
@@ -129,6 +180,16 @@ function Liste({ liste, maschinen, oeffnen, neu, saetze }) {
     const text = [k.nr, k.kunde, k.artikel, ...Object.values(kopf)].filter((x) => typeof x === "string").join(" ").toLowerCase();
     return woerter.every((w) => text.includes(w));
   });
+  // Spaltenkopf antippen sortiert alle Treffer, nicht nur die gezeigten 200 (seit 1.898.0)
+  const [sort, sortKlick] = useSortierung();
+  const kalkSortText = (k, i) => {
+    const v = k.vorschau || {};
+    return i === 0 ? k.nr || "" : i === 1 ? k.kunde || "" : i === 2 ? (k.artikel || "") + " " + ((k.kopf && k.kopf.bezeichnung) || "")
+      : i === 3 ? String((v.mengen || [])[0] ?? "") : i === 4 ? (v.preis != null ? String(v.preis) : "")
+      : k.geaendert_am ? String(Date.parse(k.geaendert_am) || "") : "";
+  };
+  const reihe = sortiert(gefunden, sort, kalkSortText);
+  const KOPF = [["Nr."], ["Kunde"], ["Artikel"], ["Staffeln"], ["Preis", "rechts"], ["Geändert"]];
 
   async function anlegen(beispiel) {
     setLaeuft(true);
@@ -169,9 +230,10 @@ function Liste({ liste, maschinen, oeffnen, neu, saetze }) {
              !liste ? <p className="hinweis laedt" id="kalk-laedt">Kalkulationen werden geladen …</p> :
              !gefunden.length ? <p className="hinweis" id="kalk-nichts">Keine Kalkulation gefunden.</p> :
             <table className="tabelle kalk-liste">
-              <thead><tr><th>Nr.</th><th>Kunde</th><th>Artikel</th><th>Staffeln</th><th className="rechts">Preis</th><th>Geändert</th></tr></thead>
+              <thead><tr>{KOPF.map(([t, kl], i) => <th key={t} className={(kl ? kl + " " : "") + "erp-sortkopf" + (sort && sort.spalte === i ? " erp-sortkopf--an" : "")}
+                data-erp-sort={i} title="Antippen sortiert" onClick={() => sortKlick(i)}>{t}{sortPfeil(sort, i)}</th>)}</tr></thead>
               <tbody>
-                {gefunden.slice(0, 200).map((k) => {
+                {reihe.slice(0, 200).map((k) => {
                   const v = k.vorschau || {};
                   return (
                     // Die Klassen je Zelle braucht das Handy: dort wird jede Zeile ein Kärtchen (seit 1.237.1)
@@ -909,7 +971,9 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
                     <label className="feld kalk-feld"><span>Maschine</span>
                       <select id={"kalk-ag-m-" + i} value={a.masch || ""} onChange={(e) => setze("ags." + i + ".masch", e.target.value)}>
                         <option value="">– wählen –</option>
-                        {maschinen.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                        {/* „Nicht mehr vorhanden“ (seit 1.918.0) nur, wenn sie hier schon steht: alte Kalkulationen rechnen weiter */}
+                        {maschinen.filter((m) => !(m.daten && m.daten.weg) || m.id === a.masch)
+                          .map((m) => <option key={m.id} value={m.id}>{m.name}{m.daten && m.daten.weg ? " (nicht mehr vorhanden)" : ""}</option>)}
                       </select>
                       {r && r.satz && <span className="feldhinweis">{chf(r.satz.eff)} CHF/h{r.satz.lauf ? " bei " + chf(r.satz.lauf, 1) + " Std/Tag" : ""}, Rüsten {chf(r.satz.ruest)} CHF/h</span>}
                     </label>
@@ -1243,7 +1307,14 @@ function Angebot({ k, setze, nr, rechnung }) {
   const [laeuft, setLaeuft] = useState(false);
   async function pdf() {
     setLaeuft(true);
-    try { const { angebotPdf } = await import("../daten/kalkulationPdf.js"); await angebotPdf(k, nr, rechnung); }
+    // Seit 1.935.0 wie das Angebot aus dem Gewatec, als Druckblatt im
+    // eigenen Fenster (Drucken → „Als PDF speichern“), gleich wie die
+    // übrigen Formulare
+    try {
+      const { angebotDrucken } = await import("./erp/formulare.js");
+      angebotDrucken({ k, nr, datumText, adresse: [k.kopf.kunde, ...adresseZeilen(k.kopf)].filter(Boolean).join("\n"),
+        zeilen: rechnung.map((r) => ({ menge: chf(r.menge, 0), preis: chf(r.angebotPe), waehrung: r.waehrung, pe: chf(r.pe || 1, 0) })) });
+    }
     catch (e) { alt.meldung(alt.fehlertext(e), "fehler"); }
     setLaeuft(false);
   }
@@ -1260,7 +1331,7 @@ function Angebot({ k, setze, nr, rechnung }) {
         <datalist id="kalk-zahlung-liste">{ZAHLUNGSBEDINGUNGEN.map(([kurz, t]) => <option key={kurz} value={t}>{kurz}</option>)}</datalist>
         <F label="Schlusstext" id="kalk-gueltig" mehrzeilig {...f("gueltig")} />
         <button className="knopf knopf--haupt knopf--breit" id="kalk-pdf" disabled={laeuft || !rechnung.length} onClick={pdf}>
-          {laeuft ? "PDF wird erstellt …" : "Angebot als PDF"}</button>
+          {laeuft ? "Angebot wird erstellt …" : "Angebot drucken / PDF"}</button>
       </section>
       <section className="karte kalk-blatt" id="kalk-vorschau" aria-label="Vorschau des Angebots">
         <div className="kalk-blatt__band"><b>HOFER + CO</b><span>Hofer+Co Präzisionsdrehteile AG · Alte Bernstrasse 24 · CH-4573 Lohn-Ammannsegg</span></div>
@@ -1317,7 +1388,8 @@ function Stundensaetze({ maschinen, neu, zurueck }) {
       <h1 className="seitentitel">Stundensätze der Maschinen</h1>
       <p className="hinweis kalk-hinweis-oben">Wie im Gewatec unter Produktionsmittel → Stundensatz, aber jede Maschine
         nur einmal: Die Laufzeit am Tag trägst du beim Arbeitsgang ein, der Stundensatz passt sich an.</p>
-      {maschinen.map((m) => (
+      {/* Nicht mehr vorhandene Maschinen unten */}
+      {[...maschinen].sort((a, b) => !!(a.daten && a.daten.weg) - !!(b.daten && b.daten.weg)).map((m) => (
         <MaschineKarte key={m.id} m={m} offen={offen === m.id} umschalten={() => setOffen(offen === m.id ? null : m.id)} neu={neu} />
       ))}
       <button className="knopf knopf--haupt" id="kalk-masch-neu" onClick={anlegen}>+ Maschine</button>
@@ -1339,14 +1411,14 @@ function MaschineKarte({ m, offen, umschalten, neu }) {
   }, [x]);
   const f = (name) => ({ wert: x.daten[name], setzen: (w) => setX((v) => ({ ...v, daten: { ...v.daten, [name]: w } })) });
   async function loeschen() {
-    const weg = await alt.loeschen({ titel: "Stundensatz löschen?", text: m.name + " wird gelöscht. Kalkulationen, die ihn brauchen, rechnen dort mit 0.",
+    const weg = await alt.loeschen({ titel: "Stundensatz löschen?", text: m.name + " wird gelöscht. Kalkulationen, die ihn brauchen, rechnen dort mit 0. Gibt es die Maschine nur nicht mehr, besser „Nicht mehr vorhanden“ anhaken.",
       tabelle: "kalk_maschinen", id: m.id, rueckText: "Stundensatz löschen" });
     if (weg) neu();
   }
   return (
     <section className="karte kalk-masch" data-kmasch={m.id}>
-      <button className="kalk-masch__kopf" onClick={umschalten} aria-expanded={offen}>
-        <b>{x.name}</b>
+      <button className={"kalk-masch__kopf" + (x.daten.weg ? " kalk-masch--weg" : "")} onClick={umschalten} aria-expanded={offen}>
+        <b>{x.name}{x.daten.weg ? " · nicht mehr vorhanden" : ""}</b>
         <span>{chf(s.eff)} CHF/h <small>fix {chf(s.fix)} · var {chf(s.var)} · Rüsten {chf(s.ruest)}</small></span>
       </button>
       {offen && <div className="kalk-masch__inhalt">
@@ -1419,6 +1491,11 @@ function MaschineKarte({ m, offen, umschalten, neu }) {
                 </table>
               </div>}
             </>}
+        {/* Statt löschen (seit 1.918.0, Patrick 27. November 2026: Maschinen, die wir nicht mehr haben):
+            Sätze bleiben, alte Kalkulationen rechnen weiter, für neue Arbeitsgänge nicht mehr wählbar */}
+        <label className="feld-haken kalk-masch-weg" data-kmasch-nichtmehr={m.id}>
+          <input type="checkbox" checked={!!x.daten.weg} onChange={(e) => setX((v) => ({ ...v, daten: { ...v.daten, weg: e.target.checked } }))} />
+          <span>Nicht mehr vorhanden (alte Kalkulationen rechnen weiter, für neue nicht mehr wählbar)</span></label>
         <button className="linkknopf linkknopf--gefahr" data-kmasch-weg={m.id} onClick={loeschen}>Diese Maschine löschen</button>
       </div>}
     </section>

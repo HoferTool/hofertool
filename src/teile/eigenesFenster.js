@@ -75,6 +75,7 @@ export function stileUebertragen(d) {
 }
 
 export const eigeneFensterOffen = () => offen.size > 0;
+export const eigeneFensterListe = () => [...offen];
 
 // Beim Abmelden und vor dem Neuladen: alles zu
 export function eigeneFensterZu() {
@@ -160,6 +161,7 @@ export function inEigenesFenster(huelle, zu, { titel, lage, still } = {}) {
     document.addEventListener(art, merkDort, { capture: true, passive: true });
   });
   const neue = new MutationObserver((meldungen) => {
+    if (dort > hier) return;
     if (!d.hasFocus() && !(hier > dort)) return;
     meldungen.forEach((m) => m.addedNodes.forEach((n) => {
       if (n.nodeType !== 1 || !n.classList || !n.classList.contains("dialog-huelle")) return;
@@ -173,7 +175,12 @@ export function inEigenesFenster(huelle, zu, { titel, lage, still } = {}) {
   neue.observe(document.body, { childList: true });
 
   let fertig = false;
+  // w, huelle und der Titel stehen am Eintrag, damit die Fensterleiste
+  // auch Fenster zeigen kann, die in einem eigenen Browserfenster laufen
   const eintrag = {
+    w,
+    huelle,
+    titel: () => { try { return d.title || titel || ""; } catch (f) { return titel || ""; } },
     schliessen: () => {
       if (fertig) return;
       fertig = true;

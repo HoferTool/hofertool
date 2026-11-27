@@ -8,6 +8,9 @@
 // (Patrick: „alles was blau und unterstrichen ist, kann ich mit rechts
 // klicken und es zeigt dann logische Schnittstellen“).
 import { createContext, useContext, useRef, useState, useEffect } from "react";
+import { speichernFragen } from "../../teile/Dialoge.jsx";
+import { useSortierung, sortiert } from "../../teile/sortieren.js";
+import { SortKopf, sortText } from "./teile.jsx";
 
 const MenueKontext = createContext(null);
 
@@ -113,14 +116,17 @@ export function Gruppe({ titel, children, klasse }) {
 }
 
 // Kleine Tabelle in einem Reiter, Zeilen anwählbar
+// Spaltenkopf antippen sortiert (seit 1.898.0)
 export function GTabelle({ kopf, zeilen, leer, wahl, setWahl, rechts }) {
+  const [sort, sortKlick] = useSortierung();
+  const reihe = sortiert(zeilen, sort, sortText);
   return (
     <div className="gf-tab-huelle">
       <table className="gf-tab">
-        <thead><tr>{kopf.map((k, i) => <th key={i} className={rechts && rechts.includes(i) ? "rechts" : ""}>{k}</th>)}</tr></thead>
+        <thead><tr>{kopf.map((k, i) => <SortKopf key={i} k={k} i={i} sort={sort} klick={sortKlick} className={rechts && rechts.includes(i) ? "rechts" : ""} />)}</tr></thead>
         <tbody>
           {!zeilen.length && <tr><td colSpan={kopf.length} className="gf-tab__leer">{leer || "Keine Einträge."}</td></tr>}
-          {zeilen.map((z) => (
+          {reihe.map((z) => (
             <tr key={z.key} className={(wahl === z.key ? "gewaehlt " : "") + (z.klasse || "") + (z.klick || setWahl ? " erp-klick" : "")}
               data-erp-zeile={z.key}
               onClick={() => { if (setWahl) setWahl(z.key); if (z.klick && !setWahl) z.klick(); }}
@@ -137,8 +143,16 @@ export function BildFlaeche({ text, attr }) {
   return <div className="gf-bildflaeche" {...(attr || {})}><span>{text || "Bild"}</span><small>kommt mit dem Dokumentenmanagement</small></div>;
 }
 
-// Vor dem Schliessen mit Änderungen einmal nachfragen
-export async function schliessenFragen(geaendert, alt) {
+// Vor dem Schliessen mit Änderungen einmal nachfragen: Speichern,
+// Verwerfen oder Abbrechen. → true (zu, nicht gespeichert),
+// "gespeichert" (gespeichert, speichern hat evtl. selbst geschlossen)
+// oder false (offen lassen)
+export async function schliessenFragen(geaendert, alt, speichern) {
   if (!geaendert) return true;
-  return alt.nachfragen({ titel: "Nicht gespeichert", text: "Änderungen verwerfen?", bestaetigen: "Verwerfen", gefahr: true });
+  if (!speichern) return alt.nachfragen({ titel: "Nicht gespeichert", text: "Änderungen verwerfen?", bestaetigen: "Verwerfen", gefahr: true });
+  const w = await speichernFragen();
+  if (w === "verwerfen") return true;
+  if (w !== "speichern") return false;
+  try { await speichern(); return "gespeichert"; }
+  catch (e) { alt.meldung(e?.message || String(e), "fehler"); return false; }
 }

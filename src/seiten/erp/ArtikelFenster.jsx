@@ -87,7 +87,7 @@ function ArtikelFenster({ start, aussen, a0, was, zu }) {
   const a = id ? d.artikelMap.get(id) || a0 : null;
   const [w, setW] = useState(() => formAus(a0, was.art, was));
   const [basis, setBasis] = useState(() => JSON.stringify(formAus(a0, was.art, was)));
-  const [reiter, setReiter] = useState(was.reiter || "artikel");
+  const [reiter, setReiter] = useState(was.reiter === "bewegungen" ? "lager" : (was.reiter || "artikel"));
   const [laeuft, setLaeuft] = useState(false);
   const hofer = w.art === "hofer";
   const geaendert = JSON.stringify(w) !== basis;
@@ -152,7 +152,7 @@ function ArtikelFenster({ start, aussen, a0, was, zu }) {
     alt.meldung("Artikel " + artikelText(r) + " gespeichert.", "gut");
   };
 
-  const schliessen = async () => { if (await schliessenFragen(geaendert, alt)) zu(); };
+  const schliessen = async () => { if (await schliessenFragen(geaendert, alt, speichern)) zu(); };
   const artLoeschen = async () => {
     if (!a) return zu();
     if (d.positionen.some((p) => p.artikel_id === a.id) || d.bewegungen.some((x) => x.artikel_id === a.id)) {
@@ -200,7 +200,7 @@ function ArtikelFenster({ start, aussen, a0, was, zu }) {
   </>;
 
   const reiterListe = [["artikel", "Artikel"], hofer && ["verkauf", "Verkauf"], hofer && ["arbeitsplan", "Arbeitsplan"],
-    ["lager", "Lager"], ["bewegungen", "Bewegungen"], ["belege", "Belege"], ["dokumente", "Dokumente"]];
+    ["lager", "Lager"], ["belege", "Belege"], ["dokumente", "Dokumente"], hofer && ["reklamationen", "Reklamationen"]];
 
   return (
     <GFenster titel={titel} kopf={kopf} bild={hofer && a && a.nr ? <ZeichnungVorschau nr={a.nr} titel={titel} /> : <BildFlaeche text={hofer ? "Zeichnung" : "Bild"} />} reiter={reiterListe}
@@ -236,7 +236,6 @@ function ArtikelFenster({ start, aussen, a0, was, zu }) {
       {reiter === "arbeitsplan" && <ArbeitsplanReiter w={w} setW={setW} set={set} roh={roh} />}
 
       {reiter === "lager" && <LagerReiter d={d} a={a} neu={() => frisch()} aussen={aussen} />}
-      {reiter === "bewegungen" && (a ? <BewegungListe d={d} artikelId={a.id} aussen={aussen} /> : <p className="klein">Erst speichern.</p>)}
       {reiter === "belege" && <BelegeReiter d={d} a={a} aussen={aussen} />}
 
       {reiter === "dokumente" && <div className="erp-artfenster__rechts gf-doku">
@@ -248,8 +247,54 @@ function ArtikelFenster({ start, aussen, a0, was, zu }) {
           <ModellFeld nr={hofer && a ? a.nr : ""} w={w} setW={setW} titel={titel} />
         </div>
       </div>}
+
+      {reiter === "reklamationen" && <ReklamationenReiter a={a} />}
     </GFenster>
   );
+}
+
+// Reklamationen aus dem Reklamationsmanagement (QS) zu dieser HOCO Nr. (Wunsch Patrick 27. November 2026).
+// Die Tabelle lesen nur Admins (bin_admin()), darum für alle anderen nur ein Hinweis.
+const RK_STAND = { offen: "Offen", bearbeitung: "In Bearbeitung", abgeschlossen: "Abgeschlossen", abgelehnt: "Abgelehnt" };
+const RK_ART = { kunde: "Kunde", lieferant: "Lieferant", intern: "Intern" };
+function ReklamationenReiter({ a }) {
+  const nr = a && a.nr;
+  const admin = alt.istAdmin && alt.istAdmin();
+  const [liste, setListe] = useState(null);
+  const [fehler, setFehler] = useState("");
+  const laden = async () => {
+    if (!nr || !admin) return;
+    try {
+      const { data, error } = await alt.zeitlimit(alt.db.from("reklamationen").select("*").eq("hoco_nr", nr)
+        .order("eingang", { ascending: false }), 15000, "Reklamationen laden");
+      if (error) throw error;
+      setListe(data || []); setFehler("");
+    } catch (e) { setFehler(String(e.message || e)); setListe([]); }
+  };
+  useEffect(() => { laden(); }, [nr]);
+  if (!admin) return <p className="klein" data-erp-art-rk="">Reklamationen sehen nur Admins.</p>;
+  if (!nr) return <p className="klein" data-erp-art-rk="">Erst den Artikel speichern.</p>;
+  if (!liste) return <p className="klein" data-erp-art-rk="">Wird geladen …</p>;
+  const oeffnen = async (r) => {
+    const m = await import("../qs/Reklamationen.jsx");
+    m.reklamationOeffnen(r, laden, {}, liste);
+  };
+  const neu = async () => {
+    const m = await import("../qs/Reklamationen.jsx");
+    m.reklamationOeffnen({ hoco_nr: nr, art: "kunde", status: "offen" }, laden, {}, liste);
+  };
+  return <div data-erp-art-rk="">
+    {fehler && <p className="fehler">{fehler}</p>}
+    <p><button type="button" className="knopf knopf--klein" data-erp-art-rk-neu="" onClick={neu}>+ Reklamation</button></p>
+    <GTabelle kopf={["Nr.", "Eingang", "Art", "Kunde / Lieferant", "Stand", "Fehler", "Menge"]} rechts={[6]}
+      leer={"Keine Reklamationen zu " + nr + "."}
+      zeilen={liste.map((r) => ({
+        key: r.id, klick: () => oeffnen(r),
+        zellen: [<b data-erp-art-rk-nr={r.nr || ""}>{r.nr || "–"}</b>, r.eingang ? datumText(r.eingang) : "–", RK_ART[r.art] || r.art || "",
+          r.partner || "", RK_STAND[r.status] || r.status || "", r.fehlerart || r.fehler || "",
+          r.menge_reklamiert != null ? alt.zahlText(r.menge_reklamiert) : ""],
+      }))} />
+  </div>;
 }
 
 // Zeichnung der HOCO Nr. (hoco_parts.zeichnung_url, dieselbe wie auf der
@@ -416,12 +461,14 @@ function NotizMitBildern({ w, setW, set }) {
 // Arbeitsplan wie im Gewatec: oben Material und Bedarf, darunter die
 // Arbeitsgänge als Tabelle, bearbeitet je Arbeitsgang in einem Fenster.
 // Nur die Felder, die wir brauchen (Patrick: „wir verwenden nicht alles“).
-const AG_FORM = [
+export const AG_FORM = [
   { name: "code", label: "AG-Code", platzhalter: "z.B. DREH" },
   { name: "bez", label: "Beschreibung", typ: "textarea", zeilen: 3, breit: true },
   { name: "maschine", label: "Arbeitsplatz (Betriebsmittel, extern: Lieferant)", breit: true },
   { name: "te", label: "Stückzeit s", typ: "zahl" }, { name: "ruest", label: "Rüstzeit h", typ: "zahl" },
   { name: "extern", label: "Extern", typ: "haken" },
+  // Pauschalzeit der Fremdarbeit wie im Gewatec (seit 1.925.0), meist in Tagen
+  { name: "pauschal", label: "Pauschalzeit (extern)", typ: "zahl" }, { name: "pauschal_einheit", label: "Einheit Pauschalzeit", platzhalter: "Tag" },
   { name: "pruef", label: "Prüfung / Hinweis", typ: "textarea", zeilen: 2, breit: true },
 ];
 
@@ -430,7 +477,9 @@ function ArbeitsplanReiter({ w, setW, set, roh }) {
   const ap = w.arbeitsplan;
   const setAp = (neu) => setW((v) => ({ ...v, arbeitsplan: neu }));
   const bearbeiten = (i, vorlage) => {
-    const x = i == null ? vorlage : ap[i];
+    const x0 = i == null ? vorlage : ap[i];
+    // Aus dem Gewatec übernommene Arbeitspläne haben den AG-Code in ag_code
+    const x = x0 && !x0.code && x0.ag_code ? { ...x0, code: x0.ag_code } : x0;
     formular({ titel: i == null ? (x.extern ? "Neuer Arbeitsgang extern" : "Neuer Arbeitsgang intern") : "Arbeitsgang " + ((i + 1) * 10),
       felder: AG_FORM, wert: x, breit: true,
       speichern: (neuW) => {
@@ -452,7 +501,7 @@ function ArbeitsplanReiter({ w, setW, set, roh }) {
     {/* Reihenfolge mit Ziehen wie in der Kalkulation (seit 1.804.0, Wunsch Patrick 25. November 2026) */}
     <div className="gf-tab-huelle erp-ap">
       <div className="erp-ap__zeile erp-ap__kopf" aria-hidden="true">
-        <span>Pos</span><span>I/E</span><span>AG-Code</span><span>Beschreibung</span><span>Arbeitsplatz</span><span className="rechts">SZ s</span><span className="rechts">RZ h</span>
+        <span>Pos</span><span>I/E</span><span>AG-Code</span><span>Beschreibung</span><span>Arbeitsplatz</span><span className="rechts">SZ s / Pauschal</span><span className="rechts">RZ h</span>
       </div>
       {!ap.length && <div className="gf-tab__leer">Noch kein Arbeitsgang. Meist kommt er aus der Kalkulation.</div>}
       <ZiehListe id="erp-ap-liste" className="erp-ap__liste" darf={true}
@@ -465,8 +514,8 @@ function ArbeitsplanReiter({ w, setW, set, roh }) {
         eintraege={ap.map((x, i) => ({ key: x._k, inhalt:
           <div className={"erp-ap__zeile erp-klick" + (wahl === i ? " gewaehlt" : "")} data-erp-zeile={i}
             onClick={() => setWahl(i)} onDoubleClick={() => bearbeiten(i)}>
-            <span>{(i + 1) * 10}</span><span>{x.extern ? "E" : "I"}</span><span>{x.code || ""}</span><span>{x.bez || ""}</span>
-            <span>{x.maschine || ""}</span><span className="rechts">{x.te || ""}</span><span className="rechts">{x.ruest || ""}</span>
+            <span>{(i + 1) * 10}</span><span>{x.extern ? "E" : "I"}</span><span>{x.code || x.ag_code || ""}</span><span>{x.bez || ""}</span>
+            <span>{x.maschine || ""}</span><span className="rechts">{x.extern && x.pauschal ? x.pauschal + " " + (x.pauschal_einheit || "") : x.te || ""}</span><span className="rechts">{x.ruest || ""}</span>
           </div> }))} />
     </div>
     <div className="gf-zeile gf-knoepfe">
@@ -518,29 +567,46 @@ function LagerReiter({ d, a, neu, aussen }) {
   if (!a) return <p className="klein">Erst speichern.</p>;
   const liste = bestand(d, a.id);
   const summe = liste.reduce((s, e) => s + e.menge, 0);
+  // Wunsch Patrick 27. November 2026: zuerst die Bestandesübersicht nach Charge
+  // (antippen = Umbuchen), darunter die Lagerbewegungen.
   return <>
+    <h4 className="erp-lager-bew">Bestandesübersicht</h4>
     <GTabelle kopf={["Index", "Charge", "Lagerart", "Lagerplatz", "Menge"]} rechts={[4]} leer="Kein Bestand."
       zeilen={liste.map((e) => { const l = d.lagerMap.get(e.lager_id);
         return { key: e.idx + "|" + e.charge + e.lager_id, klasse: e.menge < 0 ? "erp-minus" : "",
-          klick: e.menge > 0 ? () => umbuchenOeffnen(d, e, neu) : undefined,
+          klick: () => umbuchenOeffnen(d, e, neu),
           zellen: [(e.idx || "–") + (a.art === "hofer" && (e.idx || "") !== (a.idx || "") ? " (alt)" : ""), e.charge,
             l ? l.lagerart : "–", l ? l.platz : "–", mengeText(e.menge) + " " + (a.einheit || "")] }; })} />
-    {liste.some((e) => e.menge > 0) && <p className="klein">Zeile antippen zum Umbuchen (z. B. HFL → FL, FL → SPL).</p>}
+    <p className="klein">Zeile antippen: Umbuchen, Zubuchen oder Abbuchen auf diesem Bestand. „+ Zubuchen neuer Bestand“ für neue Charge, Index oder Platz.{" "}
+      <button type="button" className="knopf knopf--klein" data-erp-zubuchen-neu="" onClick={() => umbuchenOeffnen(d, null, neu, a)}>+ Zubuchen neuer Bestand</button></p>
     <p className="gf-summe">Bestand gesamt <b>{mengeText(summe)} {a.einheit}</b></p>
-    {/* Wunsch Patrick 26. November 2026: im Reiter Lager auch gleich die Bewegungen sehen. */}
     <h4 className="erp-lager-bew">Lagerbewegungen</h4>
     <BewegungListe d={d} artikelId={a.id} aussen={aussen} />
   </>;
 }
 
+// Häkchen je Belegart (Wunsch Patrick 27. November 2026: „hier will ich
+// checkboxen für die belegart“), wie bei den Lagerbewegungen. Nur Arten, die
+// beim Artikel vorkommen; abgewählte merkt sich das Fenster nur, solange es offen ist.
 function BelegeReiter({ d, a, aussen }) {
+  const [aus, setAus] = useState({});
   if (!a) return <p className="klein">Erst speichern.</p>;
-  const pos = d.positionen.filter((p) => p.artikel_id === a.id).map((p) => ({ p, b: d.belegMap.get(p.beleg_id) })).filter((x) => x.b)
+  const alle = d.positionen.filter((p) => p.artikel_id === a.id).map((p) => ({ p, b: d.belegMap.get(p.beleg_id) })).filter((x) => x.b)
     .sort((x, y) => (y.b.datum || "").localeCompare(x.b.datum || ""));
-  return <GTabelle kopf={["Beleg", "Nr.", "Datum", "Partner", "Menge", "Preis", "Stand"]} rechts={[4, 5]} leer="Noch in keinem Beleg."
+  const typen = Object.keys(BELEGTYP).filter((t) => alle.some((x) => x.b.typ === t));
+  const pos = alle.filter((x) => !aus[x.b.typ]);
+  return <>
+    {typen.length > 1 && <div className="mat-kopf"><span className="erp-bew-arten">
+      {typen.map((t) => <label key={t} data-erp-beleg-art={t}>
+        <input type="checkbox" checked={!aus[t]} onChange={(e) => setAus({ ...aus, [t]: !e.target.checked })} /> {BELEGTYP[t].name}
+        {" "}<span className="klein">({alle.filter((x) => x.b.typ === t).length})</span>
+      </label>)}
+    </span></div>}
+    <GTabelle kopf={["Beleg", "Nr.", "Datum", "Partner", "Menge", "Preis", "Stand"]} rechts={[4, 5]} leer="Noch in keinem Beleg."
     zeilen={pos.map(({ p, b }) => ({ key: p.id, klick: () => belegOeffnen(d, aussen, b),
       zellen: [BELEGTYP[b.typ].name, <b>{b.nr}</b>, datumText(b.datum), partnerText(d.partnerMap.get(b.partner_id)),
-        mengeText(p.menge) + " " + (p.einheit || ""), p.preis != null ? chf(p.preis) : "", belegStand(d, b)[0]] }))} />;
+        mengeText(p.menge) + " " + (p.einheit || ""), p.preis != null ? chf(p.preis) : "", belegStand(d, b)[0]] }))} />
+  </>;
 }
 
 export function preislisteDrucken(d, a) {

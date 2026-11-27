@@ -47,6 +47,21 @@ export function nachfragen(o) {
   ));
 }
 
+// Ungespeicherte Änderungen: Speichern, Verwerfen oder Abbrechen.
+// → "speichern", "verwerfen" oder null
+export function speichernFragen(o = {}) {
+  return fensterMitWert(null, (fertig) => (
+    <div className="dialog" role="dialog" aria-modal="true">
+      <h2>{o.titel || "Nicht gespeichert"}</h2><p>{o.text || "Änderungen speichern?"}</p>
+      <div className="dialog__knoepfe">
+        <button className="knopf knopf--still" data-nein="" onClick={() => fertig(null)}>Abbrechen</button>
+        <button className="knopf knopf--gefahr" data-verwerfen="" onClick={() => fertig("verwerfen")}>Verwerfen</button>
+        <button className="knopf knopf--haupt" data-ja="" data-fokus="" onClick={() => fertig("speichern")}>Speichern</button>
+      </div>
+    </div>
+  ));
+}
+
 export function auswahlDialog(titel, optionen, text, untereinander) {
   return fensterMitWert(null, (fertig) => (
     <div className="dialog"><h2>{titel}</h2>
@@ -187,3 +202,7 @@ export function dialogFelder(o) {
   });
 }
 
+
+// Eigenes Fenster, das mit einem Wert endet (z. B. Prüfmittel/Hinweis im Masse-Blatt).
+// zeichne(fertig) gibt das Innere zurück; Escape oder daneben klicken ergibt abbruch.
+export const wertFenster = fensterMitWert;

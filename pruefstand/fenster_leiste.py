@@ -64,6 +64,25 @@ with sync_playwright() as p:
     n = pg.evaluate("document.querySelectorAll('body > .dialog-huelle').length")
     if n: fehler.append(f"Alle schliessen: noch {n} offen")
     if pg.locator(".fensterleiste").count(): fehler.append("Leiste bleibt ohne Fenster")
+    # 1.883.0: grosses Fenster (.gf) geht gleich im eigenen Fenster auf
+    pg.evaluate("() => document.querySelectorAll('body > .dialog-huelle').forEach(h => h.remove())")
+    pg.evaluate("() => { window.TEST = window.TEST || {}; window.TEST.eigenesFenster = true; }")
+    with ctx.expect_page(timeout=5000) as neuSeite:
+        pg.evaluate("""() => { const h = document.createElement('div'); h.className = 'dialog-huelle'; h.id = 'test-gross';
+          h.innerHTML = '<div class="dialog gf"><div class="gf-titel">Grosses Fenster</div></div>'; h.__hoferZu = () => h.remove(); document.body.appendChild(h); }""")
+    pop = neuSeite.value; pop.wait_for_timeout(600)
+    if not pop.locator(".gf").count(): fehler.append("Grosses Fenster nicht im eigenen Fenster")
+    pg.wait_for_timeout(500)
+    if pg.locator(".fensterleiste__chip--aussen").count() != 1: fehler.append("Eigenes Fenster fehlt in der Leiste")
+    # Kleines bleibt in der App (zuletzt in der App geklickt)
+    pg.bring_to_front(); pg.mouse.click(5, 300); pg.wait_for_timeout(200)
+    pg.evaluate("""() => { const h = document.createElement('div'); h.className = 'dialog-huelle'; h.id = 'test-klein';
+      h.innerHTML = '<div class="dialog"><h2>Klein</h2></div>'; h.__hoferZu = () => h.remove(); document.body.appendChild(h); }""")
+    pg.wait_for_timeout(500)
+    if not pg.locator("body > #test-klein").count(): fehler.append("Kleines Fenster nicht in der App")
+    pg.click("[data-fenster-alle]"); pg.wait_for_timeout(800)
+    if not pop.is_closed(): fehler.append("Alle schliessen schliesst eigenes Fenster nicht")
+    pg.evaluate("() => { window.TEST.eigenesFenster = false; }")
     # Handy: keine Leiste
     pg.set_viewport_size({"width": 400, "height": 800})
     pg.evaluate("""() => { const h = document.createElement('div'); h.className = 'dialog-huelle';

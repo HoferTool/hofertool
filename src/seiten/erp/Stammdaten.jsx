@@ -13,11 +13,12 @@ import { stundensatz } from "../../daten/kalkulation.js";
 import { artikelFensterOeffnen, neuerIndex } from "./ArtikelFenster.jsx";
 import { partnerFensterOeffnen } from "./PartnerFenster.jsx";
 import { umbuchenOeffnen, BewegungListe } from "./Bewegungen.jsx";
+import FormularDesigner from "./FormularDesigner.jsx";
 
 export const STAMM_REITER = [
   ["lieferant", "Lieferanten"], ["kunde", "Kunden"], ["artikel", "Artikel"], ["betriebsmittel", "Betriebsmittel"],
   ["liefer", "Lieferbedingungen"], ["zahlung", "Zahlungsbedingungen"],
-  ["lager", "Lager"], ["arbeitsplan", "Arbeitspläne"], ["nummern", "Nummernkreise"],
+  ["lager", "Lager"], ["arbeitsplan", "Arbeitspläne"], ["nummern", "Nummernkreise"], ["formulare", "Formulare"],
 ];
 
 const gemerkt = { reiter: "kunde", artArt: "hofer" };
@@ -38,6 +39,7 @@ export default function Stammdaten({ d, neu }) {
       {reiter === "lager" && <Lager d={d} neu={neu} />}
       {reiter === "arbeitsplan" && <Arbeitsplaene d={d} neu={neu} />}
       {reiter === "nummern" && <Nummernkreise d={d} neu={neu} />}
+      {reiter === "formulare" && <FormularDesigner />}
     </>
   );
 }
@@ -217,7 +219,7 @@ async function ausHoferTool(art, d, neu) {
   neu();
 }
 
-function Artikel({ d, neu }) {
+export function Artikel({ d, neu }) {
   const [art, setArt] = useState(gemerkt.artArt);
   const [suche, setSuche] = useState("");
   const [anzahl, setAnzahl] = useState(200);
@@ -431,10 +433,10 @@ function Lager({ d, neu }) {
           const a = d.artikelMap.get(e.artikel_id) || {};
           const l = d.lagerMap.get(e.lager_id);
           return { key: e.artikel_id + "|" + e.idx + e.charge + e.lager_id, klasse: e.menge < 0 ? "erp-minus" : "",
-            klick: e.menge > 0 ? () => umbuchenOeffnen(d, e, neu) : undefined,
+            klick: () => umbuchenOeffnen(d, e, neu),
             zellen: [<b>{a.nr}</b>, e.idx || "", a.bezeichnung || "", e.charge, l ? l.lagerart : "–", l ? l.platz : "–", mengeText(e.menge) + " " + (a.einheit || "")] };
         })} />
-      <p className="klein">Zeile antippen zum Umbuchen (z. B. HFL → FL, FL → SPL), mit Vermerk.</p>
+      <p className="klein">Zeile antippen zum Umbuchen, Zubuchen oder Abbuchen, immer mit Vermerk.</p>
       <h3>Lagerbewegungen</h3>
       <BewegungListe d={d} aussen={neu} />
     </>

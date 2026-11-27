@@ -25,6 +25,7 @@ import QmAlternativ from "../seiten/QmAlternativ.jsx";
 import "../seiten/Kalender.jsx";
 import Einlagen from "../seiten/Einlagen.jsx";
 import Modell3d from "../seiten/Modell3d.jsx";
+import Gridfinity from "../seiten/Gridfinity.jsx";
 import Hofer2dTo3d from "../seiten/Hofer2dTo3d.jsx";
 import MaschinenSeite, { maschinenZurueck } from "../seiten/Maschinen.jsx";
 import Bildschirme from "../seiten/Bildschirme.jsx";
@@ -178,7 +179,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.873.2";
+const APP_VERSION = "1.936.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3365,7 +3366,9 @@ function seiteSichtbar(pfad) {
   // Konten nur für HOFERTIME (seit 1.626.0) sehen nur ihre Zeiten
   if (profil && profil.nur_zeit) return pfad === "zeit";
   // Das Dienstkonto braucht keine Material-Seite
-  if ((pfad === "material" || pfad === "maschinen" || pfad === "statistik" || pfad === "kalender" || pfad === "einlagen" || pfad === "hofer2dto3d" || pfad === "modell3d" || pfad === "qs") && meineRolle() === "dienst") return false;
+  if ((pfad === "material" || pfad === "maschinen" || pfad === "statistik" || pfad === "kalender" || pfad === "einlagen" || pfad === "hofer2dto3d" || pfad === "modell3d" || pfad === "gridfinity" || pfad === "qs") && meineRolle() === "dienst") return false;
+  // Gridfinity (seit 1.895.0) nicht für Externe
+  if (pfad === "gridfinity" && istExtern()) return false;
   if (pfad === "infoboard" || pfad === "pausenraum") return infoboardSichtbar();
   if (pfad === "bildschirme") return SEITEN.some((s) => s.gruppe === "bildschirme" && seiteSichtbar(s.pfad));
   if (pfad === "startneu") return istAdmin() && !istExtern();
@@ -4588,12 +4591,13 @@ const WERKSTOFFGRUPPEN = {
   // eingetragen (Entscheid 5. Oktober 2026, vorher umgekehrt)
   neusilber:  { name: "Neusilber",      farbe: "gelb",   zusatz: "",
                 spaene: "1608 Neusilber Späne Pb", schrott: "1606 Neusilber Schrott Pb" },
-  messing:    { name: "Messing",        farbe: "orange", zusatz: "",
+  messing:    { name: "Messing",        farbe: "braun", zusatz: "",
                 spaene: "1427 MS 58 Späne", schrott: "1414 MS 58 Schrott" },
-  // Ecobrass auf der Planwand braun seit 1.866.0 (Wunsch Patrick 26. November 2026:
+  // Seit 1.885.0 Messing braun und Ecobrass orange (Wunsch Patrick 27. November 2026:
+  // „wechsle farbe für ecobrass mit messing“); 1.866.0 bis 1.884.x Ecobrass braun (Wunsch Patrick 26. November 2026:
   // „so ein hässliches Gelb“; 15. Oktober bis 26. November wie Messing
   // orange, davor Senf); getrennt bleibt es bei den Spänen
-  messing_ohne_pb: { name: "Messing ohne Blei", farbe: "braun",
+  messing_ohne_pb: { name: "Messing ohne Blei", farbe: "orange",
                 zusatz: "unbedingt separat halten",
                 spaene: "1499 MS ohne Pb", schrott: "1499 MS ohne Pb" },
   titan:      { name: "Titan",          farbe: "violett", zusatz: "" },
@@ -5597,6 +5601,65 @@ function zeitWischen(b) {
   }, { passive: true });
 }
 
+// Zeilen im Fenster beim Drüberfahren über einen Planwand-Balken:
+// [Schlüssel, Name in den Einstellungen, Gruppe für die Lücken, nur intern].
+// Die Reihenfolge hier ist die bisherige und gilt, bis jemand selbst
+// wählt (seit 1.924.0, Wunsch Patrick 27. November 2026).
+const PLAN_INFO_FELDER = [
+  ["menge", "Fertigungsmenge (Stand / Soll)", 1],
+  ["abruf", "Abrufinformation", 1],
+  ["material", "Material", 2],
+  ["werkstoff", "Werkstoffnummer und Werkstoff", 2],
+  ["matmenge", "Materialmenge", 2],
+  ["liefertermin", "Liefertermin Material", 2],
+  ["matplatz", "Materialplatz", 2],
+  ["zustand", "Zustand", 3],
+  ["maschine", "Maschine", 3],
+  ["zeitraum", "Zeitraum", 3],
+  ["fa", "FA-Nummer", 3],
+  ["znr", "Zeichnungsnummer", 3, true],
+  ["notiz", "Notiz", 3],
+  ["problem", "Problem", 3],
+  ["geaendert", "Letzte Änderung", 4],
+  ["matinfo", "Mat. info. (Materialbedarf)", 4, true],
+];
+
+// Gewählte Zeilen in ihrer Reihenfolge. Gespeichert am Konto als Liste
+// mit Komma („menge,abruf,…“), also auf jedem Gerät gleich. Leer oder
+// nie gewählt = alles wie bisher. Externe immer wie bisher (sie haben
+// die Wahl nicht, Entscheid offen bei Patrick).
+function planInfoWahl() {
+  const alle = PLAN_INFO_FELDER.map((f) => f[0]);
+  if (istExtern()) return alle;
+  const roh = String(einstellungWert("planInfoFelder", "") || "").trim();
+  if (!roh) return alle;
+  const wahl = roh.split(",").map((x) => x.trim()).filter((x) => alle.includes(x));
+  // „-“ heisst bewusst nichts gewählt (nur HOCO Nr. und Siegel)
+  return roh === "-" ? [] : (wahl.length ? wahl : alle);
+}
+
+// Teile des Auftragsfensters, die jede Person aus- und einschalten kann
+// (seit 1.931.0, Wunsch Patrick 27. November 2026: „auch das Fenster,
+// wenn man den Auftrag öffnet“). Gespeichert wird, was AUS ist, damit
+// später neue Teile von selbst sichtbar sind.
+const AUFTRAG_FENSTER_FELDER = [
+  ["zustand", "Zustand"], ["fa", "FA Nr."], ["menge", "Fertigungsmenge"],
+  ["abruf", "Abrufinformation"], ["siegel", "Siegel"],
+  ["maschine", "Maschine"], ["termin", "Ab, Tage, Bis"],
+  ["material", "Material"], ["matplatz", "Materialplatz"],
+  ["matmenge", "Menge vorhanden oder bestellt"], ["liefertermin", "Liefertermin"],
+  ["notiz", "Notiz für die Maschine"],
+  ["matinfo", "Mat. info."], ["stueckzeit", "Stückzeit"],
+  ["zeichnung", "Zeichnung (Vorschau)"], ["dokumente", "Dokumente (Zeichnung, Einrichtblatt, WBG)"],
+  ["probleme", "Frühere Probleme"],
+];
+function auftragFensterAus() {
+  if (istExtern()) return [];
+  const alle = AUFTRAG_FENSTER_FELDER.map((f) => f[0]);
+  return String(einstellungWert("auftragFensterAus", "") || "").split(",")
+    .map((x) => x.trim()).filter((x) => alle.includes(x));
+}
+
 function balkenInfoVerhalten() {
   const tafel = document.querySelector(".pw-tafel");
   if (!tafel) return;
@@ -5636,60 +5699,51 @@ function balkenInfoVerhalten() {
       // einer Lücke alles zum Material, nach einer Lücke alles andere,
       // ganz unten die letzte Änderung. Fehlt etwas, steht dort ein
       // Hinweis, statt die Zeile ganz wegzulassen.
-      fenster = document.createElement("div");
-      fenster.className = "pw-info";
-      fenster.innerHTML = '<div class="pw-info__kopf">'
-        + '<span class="pw-info__nr">' + esc(j.job_number) + '</span>'
-        + '<span class="siegel-reihe">' + siegelHtml(j.geplant_von) + '</span></div>'
-        // Die Zeile „Material: da / bestellt …“ ganz oben ist seit 1.76.0
-        // weg (Wunsch Patrick 16. Oktober 2026: „verwirrt, soll
-        // übersichtlich sein“)
-        + zeile(j.target_quantity
+      // Seit 1.924.0 wählt jede Person selbst, welche Zeilen in welcher
+      // Reihenfolge kommen (Einstellungen → Allgemein, Wunsch Patrick
+      // 27. November 2026); ohne Wahl genau wie bisher (PLAN_INFO_FELDER).
+      const teile = {
+        menge: () => zeile(j.target_quantity
             ? zahlText(j.stand || 0) + ' / ' + zahlText(j.target_quantity) + ' Stück'
-            : "Keine Fertigungsmenge hinterlegt")
-        + (abruf
+            : "Keine Fertigungsmenge hinterlegt"),
+        abruf: () => (abruf
             ? zeile('<span class="pw-info__was">Abruf</span> ' + esc(abruf), "abruf")
-            : ("abruf_info" in j ? zeile("Keine Abrufinformation", "leer") : ""))
-
-        + luecke
-        + zeile(esc(j.material_bez || "Kein Material eingetragen"))
+            : ("abruf_info" in j ? zeile("Keine Abrufinformation", "leer") : "")),
+        material: () => zeile(esc(j.material_bez || "Kein Material eingetragen")),
         // Vorne die Werkstoffnummer, die die App aus der Bezeichnung
         // erkennt (X8CrNiS18-9 → 1.4305, Wunsch Patrick 16. Oktober 2026)
-        + (g ? zeile('<span class="ws-farbe" style="background:' + auftragFarbe(j).hex + '"></span>'
-              + esc([(werkstoffGenau(j.material_bez) || {}).nr, werkstoffText(g)].filter(Boolean).join(" · ")), "klein") : "")
-        + zeile(String(j.material_menge || "").trim()
+        werkstoff: () => (g ? zeile('<span class="ws-farbe" style="background:' + auftragFarbe(j).hex + '"></span>'
+              + esc([(werkstoffGenau(j.material_bez) || {}).nr, werkstoffText(g)].filter(Boolean).join(" · ")), "klein") : ""),
+        matmenge: () => zeile(String(j.material_menge || "").trim()
             ? '<span class="pw-info__was">Menge</span> ' + esc(j.material_menge)
-            : "Keine Materialmenge")
-        + (String(j.material_liefertermin || "").trim()
-            ? zeile('<span class="pw-info__was">Liefertermin</span> ' + esc(j.material_liefertermin)) : "")
-        + (materialPlatz(j) ? zeile("📦 " + esc(materialPlatz(j))) : "")
-
-        + luecke
-        + zeile(zustand.zeichen + " " + esc(zustand.name))
-        + zeile(esc(j.maschine || "–") + (j.maschine_nr ? " · " + esc(j.maschine_nr) : ""))
-        + (j.planned_from ? zeile("📅 " + esc(zeitraumText(j.planned_from, j.planned_days))) : "")
-        + zeile(String(j.fa_nr || "").trim() ? "FA " + esc(j.fa_nr) : "Kein FA vorhanden")
+            : "Keine Materialmenge"),
+        liefertermin: () => (String(j.material_liefertermin || "").trim()
+            ? zeile('<span class="pw-info__was">Liefertermin</span> ' + esc(j.material_liefertermin)) : ""),
+        matplatz: () => (materialPlatz(j) ? zeile("📦 " + esc(materialPlatz(j))) : ""),
+        zustand: () => zeile(zustand.zeichen + " " + esc(zustand.name)),
+        maschine: () => zeile(esc(j.maschine || "–") + (j.maschine_nr ? " · " + esc(j.maschine_nr) : "")),
+        zeitraum: () => (j.planned_from ? zeile("📅 " + esc(zeitraumText(j.planned_from, j.planned_days))) : ""),
+        fa: () => zeile(String(j.fa_nr || "").trim() ? "FA " + esc(j.fa_nr) : "Kein FA vorhanden"),
         // Zeichnungsnummer (Wunsch Patrick 20. Oktober 2026): aus dem
         // Dateinamen der Zeichnung, sonst aus der WBG. Was noch gelesen
         // werden muss, steht erst als „…“; ohne Nummer fällt die Zeile weg.
         // Nicht für Externe (Entscheid Patrick 20. Oktober 2026)
-        + (!istExtern() && zeichnungNrSofort(j) !== ""
+        znr: () => (!istExtern() && zeichnungNrSofort(j) !== ""
             ? zeile('<span class="pw-info__was">Zeichn. Nr.</span> <span data-wbg-znr>'
               + esc(zeichnungNrSofort(j) || "…") + '</span>', "znr")
-            : "")
-        + zeile("✎ " + (auftragNotiz(j) ? esc(auftragNotiz(j)) : "keine Notiz"))
-        + (j.problem ? zeile("⚠ " + esc(j.problem), "warn") : "")
-
-        + (j.geaendert_am
+            : ""),
+        notiz: () => zeile("✎ " + (auftragNotiz(j) ? esc(auftragNotiz(j)) : "keine Notiz")),
+        problem: () => (j.problem ? zeile("⚠ " + esc(j.problem), "warn") : ""),
+        geaendert: () => (j.geaendert_am
             ? zeile("Letzte Änderung " + esc(datumZeitKurz(j.geaendert_am))
               + (personOderSystem(j.geaendert_von)
                   ? " · " + esc(personOderSystem(j.geaendert_von)) : ""), "klein pw-info__zeile--schluss")
-            : "")
+            : ""),
         // „Mat. info.“ ganz unten, unter der letzten Änderung (1.84.0–1.94.1
         // nur im Auftragsfenster; wieder hier seit 1.95.0, nicht für
         // Externe, Wunsch Patrick 19. Oktober 2026: „ganz nach unten“).
         // „ca.“ rot wie im Fenster.
-        + (() => {
+        matinfo: () => {
             const m = !istExtern() && matInfo(j);
             if (!m) return "";
             return zeile('<span class="pw-info__was">Mat. info.</span> '
@@ -5700,7 +5754,29 @@ function balkenInfoVerhalten() {
               + (m.offen ? zeile(m.offen.stueck && m.sicher === false
                   ? '<span class="mat-info__l">ca.</span> ' + esc(m.offen.text.replace(/^ca\. /, ""))
                   : esc(m.offen.text), "mat-info__offen") : "");
-          })();
+          },
+      };
+      // Lücke, wo die Gruppe wechselt (Menge/Abruf, Material, Übriges);
+      // vor dem Schluss nicht, dort zieht die Zeile selbst einen Strich
+      let inhalt = "", gruppeVorher = null;
+      planInfoWahl().forEach((k) => {
+        const f = PLAN_INFO_FELDER.find((x) => x[0] === k);
+        const html = f && teile[k] ? teile[k]() : "";
+        if (!html) return;
+        if (gruppeVorher !== null && f[2] !== gruppeVorher && f[2] < 4) inhalt += luecke;
+        gruppeVorher = f[2];
+        inhalt += html;
+      });
+
+      fenster = document.createElement("div");
+      fenster.className = "pw-info";
+      fenster.innerHTML = '<div class="pw-info__kopf">'
+        + '<span class="pw-info__nr">' + esc(j.job_number) + '</span>'
+        + '<span class="siegel-reihe">' + siegelHtml(j.geplant_von) + '</span></div>'
+        // Die Zeile „Material: da / bestellt …“ ganz oben ist seit 1.76.0
+        // weg (Wunsch Patrick 16. Oktober 2026: „verwirrt, soll
+        // übersichtlich sein“)
+        + inhalt;
 
       // Vorschau im eigenen Fenster (Knopf oben auf der Planwand): dort
       // statt über der Seitenleiste
@@ -11018,6 +11094,10 @@ SYM.hofer2dto3d = svg('<path d="M3 4h7v12H3z"/><path d="M5 7.5h3M5 10.5h3"/>'
 SYM.modell3d = svg('<path d="M12 3l7 4v8l-7 4-7-4V7z"/><path d="M5 7l7 4 7-4M12 11v8"/>'
   + '<path d="M2.5 13.5a9.5 4 0 0 0 4 4"/>');
 
+// Gridfinity: Box auf dem 42-mm-Raster
+SYM.gridfinity = svg('<path d="M3 15h18M3 19h18M7 15v4M12 15v4M17 15v4"/>'
+  + '<path d="M6 13V6.5a1.5 1.5 0 0 1 1.5-1.5h9A1.5 1.5 0 0 1 18 6.5V13"/><path d="M9 8.5h6"/>');
+
 SYM.temp = svg('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'
   + '<path d="M12 16v-5"/><path d="M9.5 13.5L12 11l2.5 2.5"/>');
 
@@ -11211,6 +11291,8 @@ const SEITEN = [
   { pfad: "einlagen",     titel: "Einlagen Generator", zeichen: SYM.einlagen, zeige: reactSeite(Einlagen) },
   // 3D-Viewer für SketchUp-Exporte (seit 1.797.0, Wunsch Patrick 25. November 2026)
   { pfad: "modell3d",     titel: "3D-Viewer", zeichen: SYM.modell3d, zeige: reactSeite(Modell3d) },
+  // Boxen und Grundplatten nach Gridfinity (seit 1.895.0, Wunsch Patrick 27. November 2026)
+  { pfad: "gridfinity",   titel: "Gridfinity", zeichen: SYM.gridfinity, zeige: reactSeite(Gridfinity) },
   // Reihen lernen als 3D-Snowboard-Spiel, nur für Patrick (seit 1.546.0)
   { pfad: "reihen",       titel: "Hofer + Co Zahlensprint", zeichen: SYM.reihen, zeige: reactSeite(Reihen) },
   // Alle Bildschirme unter einem Punkt im Menü (seit 1.315.0, Wunsch Patrick
@@ -11243,6 +11325,7 @@ const NEUER_LOOK_MENUE = {
   hofer2dto3d: { gruppe: "hilfsprogramme", titel: "2D → 3D" },
   einlagen: { gruppe: "hilfsprogramme" },
   modell3d: { gruppe: "hilfsprogramme" },
+  gridfinity: { gruppe: "hilfsprogramme" },
   // Zahlensprint (nur mit Vermerk reihenSehen) unter Hilfsprogramme (seit 1.786.0)
   reihen: { gruppe: "hilfsprogramme" },
   bildschirme: { gruppe: "hilfsprogramme" },
@@ -11294,6 +11377,7 @@ Object.assign(alt, {
   problemMelden, zwischenablageSetzen, werkstoffText, planAktualisieren,
   planKonflikteLoesen, planAufruecken, zeichnungErsetzen, zeichnungEntfernen, wbgEntfernen, einrichtblattEntfernen, ablageLoeschen,
   sucheVorladen, schrittZurueck, sucheOeffnen, einstellungenOeffnen, einstellungSetzenWert, einstellungWert,
+  PLAN_INFO_FELDER, planInfoWahl, AUFTRAG_FENSTER_FELDER, auftragFensterAus,
   meineRolle, zeichneSeite,
   masseBerechnen, isMobil, istTippgeraet, zuHeute, hocoFenster, sucheDialog, serverStempel,
   stammdatenAufPlanwand, zeichnungAnheften, ladeFerien, zeichnePlanwand, planSyncStarten, neuZeichnen,

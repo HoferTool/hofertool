@@ -11,6 +11,7 @@
 //  letzten Spalte, welche Lehren es braucht.
 // =================================================================
 import { alt } from "../bruecke.jsx";
+import { symbolUmwandeln } from "../teile/zeichenListe.js";
 
 // Schalter für die ganze neue QS (Prüfberichte, Reklamationen, Prüfmittel-
 // verwaltung, QS-Massnahmen, Sperre vor „läuft“). Seit 1.860.0 aus, Wunsch
@@ -60,7 +61,8 @@ export function indexNorm(t) {
 // Tabelle (alte .xls haben das Prüfmittel in I statt H).
 export function berichtAusExcel(roh) {
   const z = roh.zellen || {};
-  const zelle = (r, s) => (z[r + ":" + s] || {}).text || "";
+  // Zeichen aus Symbolschriften alter Excel (Wingdings, Symbol, GDT-Schriften) gleich umwandeln
+  const zelle = (r, s) => symbolUmwandeln((z[r + ":" + s] || {}).text || "");
   const zeilenNr = [...new Set(Object.values(z).map((c) => c.z))].sort((a, b) => a - b);
   const kopf = {};
   const teilweise = [];
@@ -71,7 +73,7 @@ export function berichtAusExcel(roh) {
     const a = zelle(r, o).trim();
     if (tabStart === null) {
       let gefunden = 0;
-      for (let s = 1; s <= 4 && !gefunden; s++) if (/^(nr|pos)\.?$/i.test(zelle(r, s).trim()) && /soll|mass|merkmal/i.test(zelle(r, s + 1))) gefunden = s;
+      for (let s = 1; s <= 4 && !gefunden; s++) if (/^(nr|pos|#)\.?$/i.test(zelle(r, s).trim()) && /soll|mass|merkmal/i.test(zelle(r, s + 1))) gefunden = s;
       if (gefunden) { tabStart = r; o = gefunden; continue; }
     }
     // Ende der Tabelle: „Prüf-Entscheid“, bei älteren Blättern „Freigabe Maschine …“, „Datum / Visum“ oder „Bemerkungen“
@@ -143,6 +145,8 @@ export function berichtAusExcel(roh) {
     const ist = istSp.map((s) => zelle(r, s));
     const bild = nr ? bildJe[r] : null;
     if (!nr && !soll && !pm) continue;
+    // Zeile „M“ = Material (ältere Blätter mit „#“ statt „Nr.“), steht schon im Kopf
+    if (/^M$/i.test(nr)) continue;
     // „übrige Masse auf Seite 2“ war früher der Hinweis auf die zweite Datei;
     // die Seiten kommen jetzt zusammen, darum fällt er weg (Patrick 26. November 2026)
     if (!nr && /(übrig|restlich|weitere)\S*\s+mass\S*.*seite\s*\d/i.test(soll)) continue;
@@ -186,7 +190,7 @@ export function vorlageAus(berichte) {
 // Gibt { min, max, einheit } oder null (ohne Mass, nur Gewinde, Material …)
 const NUR_MAX = /^(ra|rz|rmax|rundlauf|planlauf|gesamtlauf|position|ebenheit|parallel\w*|rechtwink\w*|koaxial\w*|konzentr\w*|symmetrie|geradheit|rundheit|zylindr\w*|kb)\b/i;
 export function toleranz(soll) {
-  let s = String(soll || "").trim().replace(/^Ø\s*/, "").replace(/\s*x\s*45°\s*$/i, "")
+  let s = symbolUmwandeln(soll).trim().replace(/^Ø\s*/, "").replace(/\s*x\s*45°\s*$/i, "")
     .replace(/\s+\d+\s*x\s*$/i, "").trim();
   if (!s || /^M\s*\d/i.test(s)) return null;
   const grad = /°/.test(s) ? "°" : "";
@@ -211,10 +215,31 @@ export function toleranz(soll) {
   return { min: rund(nenn + Math.min(...ab)), max: rund(nenn + Math.max(...ab)), einheit: grad };
 }
 
+// Toleranz einer Zeile: Min und Max von Hand überschreibbar (z.tol_min / z.tol_max, seit
+// 1.912.0, Patrick 27. November 2026: „Feld, dass man Max und Min eingibt, und du schaust,
+// als wär's von dir, und machst rot/grün“). Leeres Feld = Wert aus dem Soll.
+// z.tol (Text, nur 1.910.0) gilt weiter, falls vorhanden.
+const zahlOder = (v) => { const x = String(v ?? "").trim().replace(",", "."); return x === "" || isNaN(Number(x)) ? undefined : Number(x); };
+export function tolVon(z) {
+  const h = String((z && z.tol) || "").trim();
+  let auto = null;
+  if (h) {
+    const k = /^(≤|<=|max\.?)\s*([\d.,]+)$/i.exec(h);
+    auto = k ? { min: null, max: Number(k[2].replace(",", ".")), einheit: "" } : toleranz(h);
+  } else auto = toleranz(z && z.soll);
+  const mi = zahlOder(z && z.tol_min), ma = zahlOder(z && z.tol_max);
+  if (mi === undefined && ma === undefined) return auto;
+  const min = mi !== undefined ? mi : auto ? auto.min : null;
+  const max = ma !== undefined ? ma : auto ? auto.max : null;
+  if (min === null && max === null) return null;
+  return { min, max: max === null || max === undefined ? Infinity : max, einheit: (auto && auto.einheit) || "" };
+}
+
 export function toleranzText(t) {
   if (!t) return "";
   const e = t.einheit || "";
   if (t.min === null) return "≤ " + t.max + e;
+  if (t.max === Infinity) return "≥ " + t.min + e;
   return t.min + e + " … " + t.max + e;
 }
 
@@ -252,7 +277,7 @@ export function lehrenAus(vorlage) {
     if (LEHRE_RE.test(pm)) {
       const name = pm.replace(/\s*[ØøD]?\s*\d+(?:[.,]\d+)?\s*(\/\s*\d+(?:[.,]\d+)?)?\s*$/, "").trim() || pm;
       let mass = (/(\d+(?:[.,]\d+)?\s*\/\s*\d+(?:[.,]\d+)?)/.exec(pm) || [])[1] || "";
-      const t = toleranz(zl.soll);
+      const t = tolVon(zl);
       // Seit 1.872.0 zählt auch ein Soll wie „M 1.6 2 x“ (mit Leerzeichen) als Gewinde,
       // auch wenn in der Spalte nur „Lehre“ steht (Patrick 26. November 2026).
       if (!mass && (/gewinde/i.test(pm) || /^\s*M\s*\d/i.test(String(zl.soll || "")))) mass = String(zl.soll || "").replace(/\s+\d+\s*x\s*$/i, "").trim().replace(/^M\s+(?=\d)/i, "M");
@@ -264,8 +289,8 @@ export function lehrenAus(vorlage) {
       const key = (name + "|" + (t ? toleranzText(t) : mass)).toLowerCase();
       const da = lehren.get(key);
       const vonHand = /\d\s*\/\s*\d/.test(pm);
-      if (da) { da.nr.push(zl.nr || "–"); if (vonHand && !da.vonHand) { da.mass = mass; da.vonHand = true; } }
-      else lehren.set(key, { name, mass, soll: zl.soll, nr: [zl.nr || "–"], vonHand });
+      if (da) { da.nr.push(zl.nr || "–"); if (vonHand && !da.vonHand) { da.mass = mass; da.vonHand = true; } if (!da.pmId && zl.pm_id) da.pmId = zl.pm_id; }
+      else lehren.set(key, { name, mass, soll: zl.soll, nr: [zl.nr || "–"], vonHand, ...(zl.pm_id ? { pmId: zl.pm_id } : {}) });
     } else if (!KEIN_MESSMITTEL.test(pm) && !SELBST_RE.test(pm)) {
       const w = pm.split(/[\/Ø(]/)[0].trim();
       if (!w) continue;
@@ -291,6 +316,10 @@ function gewindeVon(t) {
 }
 function grenzenPm(p) {
   const s = String(p.nennmass || p.mass || "").trim();
+  // „5.028 / 5.034“: Gut- und Ausschussmass direkt (Patrick 27. November 2026: Grenzlehrdorne
+  // in der Verwaltung stehen oft so und wurden darum nie gefunden)
+  const gm = /^Ø?\s*(\d+[.,]\d+)\s*[\/–]\s*(\d+[.,]\d+)\b/.exec(s);
+  if (gm && n(gm[2]) > n(gm[1]) && n(gm[2]) - n(gm[1]) < 1) return { min: n(gm[1]), max: n(gm[2]) };
   const m = /^Ø?\s*(\d+(?:[.,]\d+)?)\s*(?:[A-Za-z]{1,2}\d{1,2})?\s*(.*)$/.exec(s);
   if (!m) return null;
   const nenn = n(m[1]);
@@ -308,11 +337,17 @@ function grenzenLehre(lehre) {
     return { min: n(m[1]), max: n(m[2]), spiel: 0.5 * Math.pow(10, -stellen) + 0.0006 };
   }
   const t = toleranz(lehre.soll);
-  return t && t.min !== null ? { min: t.min, max: t.max, spiel: 0.0011 } : null;
+  // aus dem Soll gerechnet: ähnlich statt genau gleich (Patrick: „ähnlich suchen“)
+  return t && t.min !== null ? { min: t.min, max: t.max, spiel: 0.0021 } : null;
 }
 const istStift = (p) => STIFT_RE.test((p.typ || "") + " " + (p.bezeichnung || ""));
 
 export function pruefmittelFuer(lehre, liste, hoco) {
+  // Im Masse-Blatt fest gewähltes Mittel (seit 1.897.0) zuerst, sonst wie bisher suchen
+  if (lehre && lehre.pmId) {
+    const x = (liste || []).find((p) => p.id === lehre.pmId && (!p.status || p.status === "aktiv"));
+    if (x) return [x];
+  }
   const name = String(lehre.name || "");
   const gew = /gewinde/i.test(name) || /^\s*M\s*\d/i.test(String(lehre.mass || "")) || /^\s*M\s*\d/i.test(String(lehre.soll || ""))
     ? gewindeVon(lehre.mass || lehre.soll) || gewindeVon(lehre.soll) : "";
@@ -332,7 +367,7 @@ export function pruefmittelFuer(lehre, liste, hoco) {
       // „M5“ in der Lehre passt zu „M5“ und „M5x0.8“ (Regelgewinde)
       return pg === gew || (!/x/.test(gew) && pg.split("x")[0] === gew);
     }
-    if (g && /lehrdorn|grenzdorn/i.test(art) && !/gewinde/i.test(art)) {
+    if (g && /lehrdorn|grenzdorn|lehrring|grenzring|rachenlehre|kontrollring/i.test(art) && !/gewinde/i.test(art)) {
       const pg = grenzenPm(p);
       if (pg) return Math.abs(pg.min - g.min) <= g.spiel && Math.abs(pg.max - g.max) <= g.spiel;
     }
@@ -465,7 +500,9 @@ export async function stammLaden(hoco) {
 // früher abgelegten Excel-Vorlagen (Ordner oder von Hand vor 1.779.0)
 export async function stammMitMassen(hoco) {
   const st = await stammLaden(hoco).catch((f) => { if (fehltTabelle(f)) return null; throw f; });
-  if (st && (st.zeilen || []).length) return { ...st, zeilen: nachProdAbsaetze(st.zeilen), aus: "stamm" };
+  // gespeicherte Masse mit Fehlern des alten Tools (Tilden, ú…û) beim Laden bereinigen
+  const sauber = (z) => (z && typeof z.soll === "string" && /~|⌀/.test(z.soll) ? { ...z, soll: symbolUmwandeln(z.soll) } : z);
+  if (st && (st.zeilen || []).length) return { ...st, zeilen: nachProdAbsaetze(st.zeilen.map(sauber)), aus: "stamm" };
   const dateien = await dateienLaden(hoco).catch(() => []);
   if (!dateien.length) return st ? { ...st, aus: "stamm" } : null;
   try {

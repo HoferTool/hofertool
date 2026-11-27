@@ -25,12 +25,15 @@ import { alt, useDaten } from "../../bruecke.jsx";
 import { passtWoerter } from "../../teile/Suchfeld.jsx";
 import { useSeitenSuche } from "../../teile/seitenSuche.js";
 import { STIL, briefkopf } from "./achtdBlatt.js";
-import { qsSprung, masseInQsOeffnen } from "./qsSprung.js";
+import { qsSprung } from "./qsSprung.js";
+import { istFaellig } from "../../daten/pruefmittel.js";
 import Pruefung, { MasseBlatt } from "../../hoco/Pruefung.jsx";
 import { createPortal } from "react-dom";
+import { gdtTeile, gdtHtml } from "../../teile/zeichenListe.js";
+import { dokZeigen } from "../../teile/DokAbruf.jsx";
 import {
   ARTEN, artVon, artName, istZwischen, TEILE, AQL_WERTE, aqlPlan, fehltTabelle, protokolleLaden, dateienLaden, vorlageLaden, stammSpeichern,
-  stammLaden, stammMitMassen, toleranz, toleranzText, istPruefen, lehrenAus, pruefmittelFuer, pruefmittelAlleLaden, pmOrtText, bildVon, zeilenId,
+  stammLaden, stammMitMassen, toleranz, tolVon, toleranzText, istPruefen, lehrenAus, pruefmittelFuer, pruefmittelAlleLaden, pmOrtText, bildVon, zeilenId,
 } from "../../daten/pruefbericht.js";
 
 // Offenes Protokoll und Suche bleiben beim Reiterwechsel
@@ -49,6 +52,20 @@ const zeitText = (d) => { if (!d) return ""; const x = new Date(d); return datum
 // (Wunsch Patrick 25. November 2026: „dafür brauchts keine Rechte, jeder darf das ausfüllen und Freigabe erteilen“)
 const darf = () => !alt.istExtern() && alt.meineRolle() !== "dienst";
 
+// Zeichnung zur HOCO Nr. ansehen, jederzeit aus Protokoll, Checkliste und
+// Vorlage (Wunsch Patrick 27. November 2026: „zum Ansehen und Nachschauen“).
+async function zeichnungZeigen(hoco) {
+  try {
+    const { data } = await alt.db.from("hoco_parts").select("zeichnung_url").eq("hoco_nr", hoco).maybeSingle();
+    dokZeigen({ art: "zeichnung", titel: "Zeichnung " + hoco, adresse: (data && data.zeichnung_url) || null, hoco });
+  } catch (f) { alt.meldung("Zeichnung ging nicht: " + fehlerText(f), "fehler"); }
+}
+function ZeichnungKnopf({ hoco }) {
+  if (!hoco || alt.istExtern()) return null;
+  return <button type="button" className="knopf knopf--klein" data-pbzeichnung={hoco} onClick={() => zeichnungZeigen(hoco)}>📄 Zeichnung</button>;
+}
+
+
 const ENTSCHEIDE = [["freigabe", "Freigabe"], ["nacharbeit", "Nacharbeit / Sortieren"], ["neu", "Neuanfertigung"]];
 const entscheidText = (e) => (ENTSCHEIDE.find((x) => x[0] === e) || [])[1] || "";
 
@@ -65,9 +82,9 @@ export function auswerten(p) {
     for (const z of zeilen) { const v = (w[z.id] || {}).nio; if (v === undefined || v === "") offen++; else if (Number(v) > 0) schlecht += Number(v); else gut++; }
   } else if (k.art === "ll") {
     const aus = new Set(k.auswahl || []);
-    for (const pr of w.proben || []) for (const z of zeilen) if (aus.has(z.id)) zaehle((pr.w || {})[z.id], toleranz(z.soll));
+    for (const pr of w.proben || []) for (const z of zeilen) if (aus.has(z.id)) zaehle((pr.w || {})[z.id], tolVon(z));
   } else {
-    for (const z of zeilen) { const t = toleranz(z.soll); for (let i = 0; i < TEILE; i++) zaehle((w[z.id] || [])[i], t); }
+    for (const z of zeilen) { const t = tolVon(z); for (let i = 0; i < TEILE; i++) zaehle((w[z.id] || [])[i], t); }
   }
   return { gut, schlecht, offen };
 }
@@ -82,11 +99,11 @@ function aqlStand(k, w) {
 
 const STAND = { laeuft: "läuft", ruesten: "Rüsten", geplant: "geplant", fertig: "fertig" };
 
-// Prüfmasse der HOCO Nr. hier in der QS bearbeiten (seit 1.837.0, Wunsch
-// Patrick 25. November 2026: „prüfbericht soll im qs selber bearbeitet werden
-// nicht stammdaten“). Die Stammdaten haben nur noch die Häkchen der Arten.
+// Stammdaten der HOCO Nr. öffnen, dort stehen die Prüfmasse zum Ändern
+// (seit 1.889.0, Wunsch Patrick 27. November 2026: „prüfmasse knopf soll weg,
+// und dort stammdaten knopf das man es gleich dort ändert“).
 function stammdatenOeffnen(nr) {
-  masseInQsOeffnen(nr);
+  alt.prod.hocoOffen = nr; alt.prod.hocoSuche = nr; alt.hocoFenster();
 }
 
 // Gehört ein Protokoll zu diesem Auftrag? Über die Kennung, sonst die FA Nr.
@@ -172,7 +189,7 @@ function materialText(j) {
 async function protokollAnlegen(hoco, art, j, protokolle, zwischen) {
   const st = await stammMitMassen(hoco);
   if (!st || !(st.zeilen || []).length) {
-    const ok = await alt.nachfragen({ titel: "Noch keine Masse", text: "Für " + hoco + " sind noch keine Prüfmasse erfasst. Unter „Prüfmasse bearbeiten“ eintragen oder einen Excel-Prüfbericht einlesen.", bestaetigen: "Prüfmasse bearbeiten" });
+    const ok = await alt.nachfragen({ titel: "Noch keine Masse", text: "Für " + hoco + " sind noch keine Prüfmasse erfasst. Bitte zuerst im Prüfbericht eintragen.", bestaetigen: "Stammdaten öffnen" });
     if (ok) stammdatenOeffnen(hoco);
     return null;
   }
@@ -214,6 +231,34 @@ async function protokollLoeschen(p) {
 
 // =================================================================
 const JOB_SPALTEN = "id, fa_nr, job_number, plan_status, target_quantity, machine_id, planned_from, ended_at, material_bez, material_dm";
+// Maschine als Auswahlliste statt Freitext (Wunsch Patrick 27. November 2026:
+// „maschine soll dropdown menu sein“). Die Liste wird einmal je Sitzung geladen;
+// ein alter Freitext-Wert bleibt als eigener Eintrag sichtbar, damit nichts verloren geht.
+let maschinenVorrat = null;
+function MaschineWahl({ wert, schreibt, setzen }) {
+  const [liste, setListe] = useState(maschinenVorrat || []);
+  useEffect(() => {
+    if (maschinenVorrat) return;
+    let weg = false;
+    // Ohne Maschinen externer Parks (Patrick 27. November 2026: „externe Maschinen müssen
+    // nicht mitbedacht werden, sie brauchen von uns nur die Planwand“)
+    (async () => {
+      await alt.ladeParks(false);
+      const m = (await alt.ladeMaschinen(false)).filter((x) => !alt.parkIstExtern(x.park_id));
+      const n = [...new Set(m.map((x) => x.name).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b, "de", { numeric: true }));
+      maschinenVorrat = n;
+      if (!weg) setListe(n);
+    })().catch(() => {});
+    return () => { weg = true; };
+  }, []);
+  const namen = wert && !liste.includes(wert) ? [wert, ...liste] : liste;
+  return <select data-pbmaschinewahl value={wert} disabled={!schreibt} onChange={(x) => setzen(x.target.value)}>
+    <option value="">– wählen –</option>
+    {namen.map((n) => <option key={n} value={n}>{n}</option>)}
+  </select>;
+}
+
 export default function Pruefberichte() {
   if (qsSprung.masse) { pbZustand.masse = qsSprung.masse; qsSprung.masse = null; }
   const [, setF] = useState(0);
@@ -227,9 +272,13 @@ export default function Pruefberichte() {
       alt.db.from("jobs").select(JOB_SPALTEN).eq("plan_status", "fertig").gte("ended_at", new Date(Date.now() - 60 * 864e5).toISOString()),
       dateienLaden().catch(() => []),
     ]);
-    const jobs = (jobsR.data || []).concat(fertigR.data || []);
+    let jobs = (jobsR.data || []).concat(fertigR.data || []);
     const ids = [...new Set(jobs.map((j) => j.machine_id).filter(Boolean))];
-    const m = ids.length ? (await alt.db.from("machines").select("id, name").in("id", ids)).data || [] : [];
+    const m = ids.length ? (await alt.db.from("machines").select("id, name, park_id").in("id", ids)).data || [] : [];
+    // Aufträge auf Maschinen externer Parks prüft die QS nicht (Patrick 27. November 2026)
+    try { await alt.ladeParks(false); } catch (_) { /* ohne Parks alle zeigen */ }
+    const extern = new Set(m.filter((x) => alt.parkIstExtern(x.park_id)).map((x) => x.id));
+    if (extern.size) jobs = jobs.filter((j) => !extern.has(j.machine_id));
     const name = new Map(m.map((x) => [x.id, x.name]));
     for (const j of jobs) j.maschine = name.get(j.machine_id) || "";
     // Index der Stammdaten für Berichte, aus denen die Aufgabe keinen lesen konnte
@@ -537,10 +586,10 @@ function VorlageLeer({ v, zurueck }) {
     const sp = TEILE + 4;
     const reihen = w.zeilen.map((z) => ("abschnitt" in z)
       ? "<tr class='ab'><td colspan='" + sp + "'>" + h(z.abschnitt) + "</td></tr>"
-      : "<tr><td>" + h(z.nr) + "</td><td>" + sollHtml(z) + "</td><td>" + h(toleranzText(toleranz(z.soll))) + "</td>" + "<td></td>".repeat(TEILE) + "<td>" + h(z.pm) + "</td></tr>").join("");
+      : "<tr><td>" + h(z.nr) + "</td><td>" + sollHtml(z) + "</td><td>" + h(toleranzText(tolVon(z))) + "</td>" + "<td></td>".repeat(TEILE) + "<td>" + h(z.pm) + "</td></tr>").join("");
     const html = "<style>" + STIL + "</style><style>.pbp{font-family:Arial,sans-serif;color:#111;font-size:10pt}.pbp h1{font-size:15pt;margin:0 0 6px;color:#003884}.pbp .pbp-kf{display:grid;grid-template-columns:repeat(4,1fr);gap:3px 12px;margin-bottom:8px}.pbp .pbp-kf small{color:#666;display:block;font-size:8pt}.pbp table{width:100%;border-collapse:collapse}.pbp th,.pbp td{border:1px solid #999;padding:2px 4px;text-align:left;font-size:9pt;height:7mm}.pbp th{background:#e8eef6}.pbp tr.ab td{background:#f3f3f3;font-weight:700}</style>"
       + briefkopf() + "<div class='inhalt pbp'><h1>" + h(titel) + "</h1><div class='pbp-kf'>" + kf + "</div><table><thead><tr><th>Nr.</th><th>Soll</th><th>Toleranz</th>"
-      + [...Array(TEILE)].map((_, i) => "<th>Teil " + (i + 1) + "</th>").join("") + "<th>Prüfmittel</th></tr></thead><tbody>" + reihen + "</tbody></table></div>";
+      + [...Array(TEILE)].map((_, i) => "<th>Teil " + (i + 1) + "</th>").join("") + "<th>Prüfmittel/Hinweis</th></tr></thead><tbody>" + reihen + "</tbody></table></div>";
     try {
       const { blattPdf } = await import("./achtdPdf.js");
       const blob = await blattPdf(html, titel);
@@ -559,6 +608,7 @@ function VorlageLeer({ v, zurueck }) {
   );
   const extra = (
     <>
+      <ZeichnungKnopf hoco={v.hoco} />
       <button type="button" className="knopf knopf--klein" id="pb-vorlage-drucken" onClick={drucken}>Drucken</button>
       {teilweise.length ? <span className="pb-rot klein" id="pb-vorlage-teilweise">⚠ Zum Teil nicht lesbar: {teilweise.join("; ")}. Fehlende Masse direkt im Blatt ergänzen.</span> : null}
       <span className="klein" id="pb-vorlage-stand">{hatMasse && !geaendert ? "✓ In den Stammdaten gespeichert" : hatMasse ? "In den Stammdaten stehen " + stamm.zeilen.length + " Zeilen" : "Noch nicht in den Stammdaten"}</span>
@@ -620,8 +670,9 @@ function Protokoll({ p, zurueck }) {
     if (!w.visum) { alt.meldung("Bitte das Visum eintragen.", "warn"); return; }
     // Nicht jedes Mass ist bei jeder Prüfung dran (z. B. nach Eloxieren oder
     // Schleifen erst bei Zwischen- oder Endkontrolle): leere Felder sind
-    // nur bei AQL eine Frage wert (seit 1.826.0, Wunsch Patrick)
-    if (e.offen && art === "aql") {
+    // nur bei AQL und der echten Endkontrolle eine Frage wert, nie bei der
+    // Zwischenkontrolle (seit 1.887.2, Wunsch Patrick: „erst bei end“)
+    if (e.offen && (art === "aql" || (art === "endkontrolle" && !istZwischen(w.kopf)))) {
       const ok = await alt.nachfragen({ titel: "Noch leere Felder", text: e.offen + " Felder sind noch leer. Trotzdem abschliessen?", bestaetigen: "Abschliessen" });
       if (!ok) return;
     }
@@ -675,21 +726,23 @@ function Protokoll({ p, zurueck }) {
   // Ältere Protokolle mit schon eingetragenen Werten brauchen sie nicht.
   const braucheCheck = art === "erstteil" && !zu && !(w.kopf.checkliste || {}).am && !(e.gut + e.schlecht);
   if (braucheCheck) return <Checkliste w={w} hoco={hoco} schreibt={schreibt} zurueck={zurueck}
-    quittieren={(c) => { const n = { ...w, kopf: { ...w.kopf, checkliste: c } }; setW(n); speichern(n); }} />;
+    quittieren={(c) => { const n = { ...w, kopf: { ...w.kopf, checkliste: c } }; setW(n); speichern(n); }}
+    kopfNeu={(k) => { const n = { ...w, kopf: { ...w.kopf, ...k } }; setW(n); speichern(n); }} />;
   return (
     <div className="pb pb-blattseite" data-pbprotokolloffen={w.id}>
       <div className="pb-kopfzeile pb-werkzeug">
         <button type="button" className="knopf knopf--klein" data-esc-zurueck onClick={zurueck}>← Prüfberichte</button>
         <span className="klein" id="pb-stand">{stand}</span>
         <span className="pst-platz" />
-        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(hoco)}>Prüfmasse {hoco}</button>
+        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(hoco)}>Stammdaten</button>
+        <ZeichnungKnopf hoco={hoco} />
         <button type="button" className="knopf knopf--klein" id="pb-drucken" onClick={drucken}>🖨 Drucken</button>
         {darf() ? <button type="button" className="knopf knopf--klein knopf--gefahr-leise" id="pb-loeschen" onClick={loeschen}>Löschen</button> : null}
       </div>
 
       <div className="pb-blatt hell-bleibt" id="pb-blatt">
         <div className="rkpdf pb-briefkopf" dangerouslySetInnerHTML={{ __html: "<style>" + STIL + "</style>" + briefkopf() }} />
-        <h2 className="pb-blatt__titel">Prüfprotokoll · {artName(w.kopf).name}</h2>
+        <h2 className="pb-blatt__titel">Prüfprotokoll</h2>
         {art === "endkontrolle" ? (
           <div className="pb-kontrolle" id="pb-kontrolle">
             <b>Art der Kontrolle</b>
@@ -704,7 +757,7 @@ function Protokoll({ p, zurueck }) {
         <div className="pb-felder">
           <label className={!String(w.fa_nr || "").trim() ? "pb-pflicht" : ""}>FA Nr.<input value={w.fa_nr || ""} disabled={!schreibt} onChange={(x) => setzen("fa_nr", x.target.value)} /></label>
           {art === "aql" ? <AqlKopf k={w.kopf} schreibt={schreibt} setzen={kopfSetzen} werte={w.werte} /> : null}
-          <label className="pb-felder__rechts">Maschine<input value={w.kopf.maschine || ""} disabled={!schreibt} onChange={(x) => kopfSetzen("maschine", x.target.value)} /></label>
+          <label className="pb-felder__rechts">Maschine<MaschineWahl wert={w.kopf.maschine || ""} schreibt={schreibt} setzen={(v) => kopfSetzen("maschine", v)} /></label>
         </div>
 
         {art === "aql" ? <AqlTabelle zeilen={zeilen} w={w} schreibt={schreibt} aendern={aendern} />
@@ -779,11 +832,27 @@ async function ausbuchen(w, hoco) {
     const { error: fs } = await alt.db.rpc("pruefmittel_schrank_lesen");
     const ohneRpc = !!fs;
     if (ohneRpc && !alt.istAdmin()) return;
-    let pm = (await pruefmittelAlleLaden()).filter((p) => (!p.ort_art || p.ort_art === "schrank") && (p.status || "aktiv") === "aktiv");
-    if (!pm.length && ohneRpc) pm = (await schrankLaden()).data;
+    // Seit 1.891.0 auch gesperrte (Wunsch Patrick 27. November 2026: „wird jetzt ausgebucht,
+    // muss aber bald zur Kontrolle“). Zuerst wird ein gutes Mittel gesucht; nur wenn keines
+    // passt, ein gesperrtes oder fälliges, und dann kommt die Meldung.
+    let pm = (await pruefmittelAlleLaden()).filter((p) => (!p.ort_art || p.ort_art === "schrank") && ["aktiv", "gesperrt"].includes(p.status || "aktiv"));
+    if (!pm.length && ohneRpc) pm = (await schrankLaden()).data.filter((p) => (p.status || "aktiv") !== "weg");
     if (!pm || !pm.length) return;
+    // Prüfdaten (Intervall, letzte Prüfung) für alle lesbar über sql/pruefmittel-ausbuchen-gesperrt.sql
+    const { data: stand } = await alt.db.rpc("pruefmittel_pruefstand_lesen");
+    const standVon = new Map((stand || []).map((x) => [x.id, x]));
+    pm = pm.map((p) => ({ ...p, ...(standVon.get(p.id) || {}), id: p.id }));
+    const schlecht = (p) => (p.status || "aktiv") === "gesperrt" || istFaellig({ ...p, status: "aktiv" });
+    const gut = pm.filter((p) => !schlecht(p));
+    // für die Suche gelten gesperrte als aktiv, sonst übergeht pruefmittelFuer sie
+    const rest = pm.filter(schlecht).map((p) => ({ ...p, status: "aktiv", _vorher: p.status || "aktiv" }));
     const ids = new Set();
-    lehren.forEach((l) => { const x = pruefmittelFuer(l, pm.filter((p) => !ids.has(p.id)), hoco)[0]; if (x) ids.add(x.id); });
+    const kritisch = [];
+    lehren.forEach((l) => {
+      let x = pruefmittelFuer(l, gut.filter((p) => !ids.has(p.id)), hoco)[0];
+      if (!x) { x = pruefmittelFuer(l, rest.filter((p) => !ids.has(p.id)), hoco)[0]; if (x) kritisch.push(x); }
+      if (x) ids.add(x.id);
+    });
     if (!ids.size) return;
     const liste = [...ids];
     const vorher = [];
@@ -805,12 +874,29 @@ async function ausbuchen(w, hoco) {
     if (!n) return;
     if (vorher.length) alt.merkeSchritt(n + " Prüfmittel ausgebucht", alt.rueckRein("pruefmittel", vorher));
     alt.meldung(n + " Prüfmittel auf den Auftrag ausgebucht.", "gut");
+    if (kritisch.length) {
+      const namen = kritisch.map((p) => (p.nr ? p.nr + " " : "") + (p.bezeichnung || "") + (p._vorher === "gesperrt" ? " (gesperrt)" : " (fällig)")).join(", ");
+      alt.meldung("Wird jetzt ausgebucht, muss aber bald zur Kontrolle: " + namen, "warn");
+    }
   } catch (e) { /* still: ohne Prüfmittel geht es weiter */ }
 }
 
-function Checkliste({ w, hoco, schreibt, zurueck, quittieren }) {
+function Checkliste({ w, hoco, schreibt, zurueck, quittieren, kopfNeu }) {
   const punkte = useMemo(() => checkPunkte(w.kopf), [w.kopf]);
   const [haken, setHaken] = useState({});
+  // Anpassen (Wunsch Patrick 27. November 2026: „wenn die Liste mit Prüfmittel nicht stimmt,
+  // soll Anpassen kommen, dann der Bericht, man fügt was hinzu und checkt nochmals die Liste“):
+  // öffnet die Masse der Stammdaten; beim Zurückkommen werden Masse und Kopf neu übernommen
+  // und alle Haken zurückgesetzt, damit die Liste nochmals geprüft wird.
+  const [anpassen, setAnpassen] = useState(false);
+  const fertigAngepasst = async () => {
+    setAnpassen(false);
+    try {
+      const st = await stammMitMassen(hoco);
+      if (st && (st.zeilen || []).length) kopfNeu({ zeilen: st.zeilen, vorlage: st.kopf || {} });
+    } catch (f) { alt.meldung("Masse konnten nicht neu gelesen werden: " + fehlerText(f), "warn"); }
+    setHaken({});
+  };
   const alle = punkte.every(([id]) => haken[id]);
   // Welches Prüfmittel der Verwaltung passt zu jeder Lehre? (seit 1.838.0, Wunsch Patrick:
   // „das nr vom prüfmittel dort auch steht … es soll das mittel selber suchen“)
@@ -825,12 +911,14 @@ function Checkliste({ w, hoco, schreibt, zurueck, quittieren }) {
       {t.slice(0, 3).map((p) => "Prüfmittel " + (p.nr || p.bezeichnung) + " · " + pmOrtText(p)).join(" / ")}
       {t.length > 3 ? " … (" + t.length + ")" : ""}</small>;
   };
+  if (anpassen) return <Pruefung hoco={hoco} modus="qs" darf={schreibt} zurueck={fertigAngepasst} zurueckText="← Zurück zur Checkliste" />;
   return (
     <div className="pb pb-blattseite" data-pbcheckliste={w.id}>
       <div className="pb-kopfzeile pb-werkzeug">
         <button type="button" className="knopf knopf--klein" data-esc-zurueck onClick={zurueck}>← Prüfberichte</button>
         <span className="pst-platz" />
-        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(hoco)}>Prüfmasse {hoco}</button>
+        <ZeichnungKnopf hoco={hoco} />
+        <button type="button" className="knopf knopf--klein" onClick={() => stammdatenOeffnen(hoco)}>Stammdaten</button>
       </div>
       <div className="pb-check karte">
         <h2>Erstteilprüfung {hoco}{w.fa_nr ? " · FA " + w.fa_nr : ""}</h2>
@@ -848,6 +936,7 @@ function Checkliste({ w, hoco, schreibt, zurueck, quittieren }) {
         </ul>
         {schreibt ? (
           <div className="pb-check__fuss">
+            <button type="button" className="knopf" id="pb-check-anpassen" title="Masse und Prüfmittel in den Stammdaten ergänzen, danach die Liste nochmals prüfen" onClick={() => setAnpassen(true)}>Anpassen</button>
             <button type="button" className="knopf" onClick={() => setHaken(Object.fromEntries(punkte.map(([id]) => [id, true])))}>Alle abhaken</button>
             <button type="button" className="knopf knopf--haupt" id="pb-check-quittieren" disabled={!alle}
               onClick={() => quittieren({ am: new Date().toISOString(), punkte: punkte.map(([id, t]) => t) })}>✓ Quittieren, weiter zum Protokoll</button>
@@ -865,8 +954,14 @@ function IstFeld({ wert, t, an, setzen, name }) {
 }
 
 function SollZelle({ z }) {
-  const t = toleranz(z.soll);
-  return <><td className="pb-nr">{z.nr}</td><td className="pb-soll" title={t ? "Toleranz " + toleranzText(t) : ""}>{bildVon(z) ? <img className="pb-massbild" src={bildVon(z)} alt="" data-pbbild /> : null}{z.soll}</td></>;
+  const t = tolVon(z);
+  return <><td className="pb-nr">{z.nr}</td><td className="pb-soll" title={t ? "Toleranz " + toleranzText(t) : ""}>{bildVon(z) ? <img className="pb-massbild" src={bildVon(z)} alt="" data-pbbild /> : null}<Gdt t={z.soll} /></td></>;
+}
+
+// Form- und Lagetoleranzen in eigener Symbolschrift, damit alle gleich gross und lesbar sind
+function Gdt({ t }) {
+  const p = gdtTeile(t);
+  return typeof p === "string" ? p : p.map((x) => (typeof x === "string" ? x : <span className="gdt" key={x.k}>{x.gdt}</span>));
 }
 
 // Erstteilprüfung / Endkontrolle: 5 Teile, alle Masse
@@ -886,7 +981,7 @@ function TeileTabelle({ zeilen, w, schreibt, aendern }) {
             : (
               <tr key={z.id}>
                 <SollZelle z={z} />
-                {[...Array(TEILE)].map((_, i) => <td key={i}><IstFeld wert={(w.werte[z.id] || [])[i]} t={toleranz(z.soll)} an={schreibt} name={z.id + "-" + i} setzen={(v) => setze(z.id, i, v)} /></td>)}
+                {[...Array(TEILE)].map((_, i) => <td key={i}><IstFeld wert={(w.werte[z.id] || [])[i]} t={tolVon(z)} an={schreibt} name={z.id + "-" + i} setzen={(v) => setze(z.id, i, v)} /></td>)}
                 <td className="pb-pm">{z.pm}</td>
               </tr>
             ))}
@@ -928,7 +1023,7 @@ function AqlTabelle({ zeilen, w, schreibt, aendern }) {
         <tbody>
           {zeilen.map((z) => {
             if (z.abschnitt) return <tr key={z.id} className="pb-abschnitt"><td colSpan={7}>{z.abschnitt}</td></tr>;
-            const v = w.werte[z.id] || {}, t = toleranz(z.soll);
+            const v = w.werte[z.id] || {}, t = tolVon(z);
             const nio = Number(v.nio) || 0;
             return (
               <tr key={z.id} className={plan && nio > plan.ac ? "pb-zeile--rot" : ""}>
@@ -977,7 +1072,7 @@ function LlTabelle({ zeilen, w, schreibt, aendern }) {
           {masse(zeilen).map((z) => (
             <label key={z.id} className={"pb-wahl" + (auswahl.has(z.id) ? " pb-wahl--an" : "")} data-pbll={z.id}>
               <input type="checkbox" checked={auswahl.has(z.id)} disabled={!schreibt} onChange={() => umschalten(z.id)} />
-              <b>{z.nr}</b> {z.soll} <small>{z.pm}</small>
+              <b>{z.nr}</b> <Gdt t={z.soll} /> <small>{z.pm}</small>
             </label>
           ))}
         </div>
@@ -1009,7 +1104,7 @@ function LlTabelle({ zeilen, w, schreibt, aendern }) {
           {liste.map((z) => (
             <tr key={z.id}>
               <SollZelle z={z} />
-              {proben.map((pr) => <td key={pr.id}><IstFeld wert={(pr.w || {})[z.id]} t={toleranz(z.soll)} an={schreibt} name={z.id + "-" + pr.id}
+              {proben.map((pr) => <td key={pr.id}><IstFeld wert={(pr.w || {})[z.id]} t={tolVon(z)} an={schreibt} name={z.id + "-" + pr.id}
                 setzen={(v) => probeSetzen(pr.id, (p) => ({ ...p, w: { ...(p.w || {}), [z.id]: v } }))} /></td>)}
               <td className="pb-pm">{z.pm}</td>
             </tr>
@@ -1025,7 +1120,7 @@ function LlTabelle({ zeilen, w, schreibt, aendern }) {
 
 // ---------- PDF mit dem Briefkopf ----------
 // Soll im PDF, mit dem Bild des Masses aus dem alten Bericht oder von Hand
-const sollHtml = (z) => (bildVon(z) ? '<img class="pb-massbild" style="max-height:12mm;max-width:45mm;display:block" src="' + h(bildVon(z)) + '" alt="">' : "") + h(z.soll);
+const sollHtml = (z) => (bildVon(z) ? '<img class="pb-massbild" style="max-height:12mm;max-width:45mm;display:block" src="' + h(bildVon(z)) + '" alt="">' : "") + gdtHtml(h(z.soll));
 const h = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 function protokollHtml(w, hoco) {
   const k = w.kopf || {}, art = k.art || "erstteil", v = k.vorlage || {};
@@ -1037,7 +1132,7 @@ function protokollHtml(w, hoco) {
     kopfZ = "<th>Geprüft</th><th>n.i.O.</th><th>Min.</th><th>Max.</th>";
     koerper = zeilen.map((z) => {
       if (z.abschnitt) return "<tr class='ab'><td colspan='7'>" + h(z.abschnitt) + "</td></tr>";
-      const x = w.werte[z.id] || {}, t = toleranz(z.soll);
+      const x = w.werte[z.id] || {}, t = tolVon(z);
       return "<tr><td>" + h(z.nr) + "</td><td>" + sollHtml(z) + "</td><td>" + h(x.geprueft || (plan ? plan.n : "")) + "</td><td"
         + (Number(x.nio) > 0 ? " style='color:#c00;font-weight:700'" : "") + ">" + h(x.nio) + "</td><td" + farbe(x.min, t) + ">" + h(x.min) + "</td><td" + farbe(x.max, t) + ">" + h(x.max) + "</td><td>" + h(z.pm) + "</td></tr>";
     }).join("");
@@ -1045,7 +1140,7 @@ function protokollHtml(w, hoco) {
     const aus = new Set(k.auswahl || []), proben = (w.werte || {}).proben || [];
     kopfZ = proben.map((p) => "<th>" + h(datumText(p.datum)) + "<br>" + h(p.zeit) + "</th>").join("");
     koerper = zeilen.filter((z) => !z.abschnitt && aus.has(z.id)).map((z) => {
-      const t = toleranz(z.soll);
+      const t = tolVon(z);
       return "<tr><td>" + h(z.nr) + "</td><td>" + sollHtml(z) + "</td>"
         + proben.map((p) => "<td" + farbe((p.w || {})[z.id], t) + ">" + h((p.w || {})[z.id]) + "</td>").join("") + "<td>" + h(z.pm) + "</td></tr>";
     }).join("") + "<tr><td colspan='2'>Visum</td>" + proben.map((p) => "<td>" + h(p.visum) + "</td>").join("") + "<td></td></tr>";
@@ -1053,7 +1148,7 @@ function protokollHtml(w, hoco) {
     kopfZ = [...Array(TEILE)].map((_, i) => "<th>Teil " + (i + 1) + "</th>").join("");
     koerper = zeilen.map((z) => {
       if (z.abschnitt) return "<tr class='ab'><td colspan='" + (TEILE + 3) + "'>" + h(z.abschnitt) + "</td></tr>";
-      const t = toleranz(z.soll), a = w.werte[z.id] || [];
+      const t = tolVon(z), a = w.werte[z.id] || [];
       return "<tr><td>" + h(z.nr) + "</td><td>" + sollHtml(z) + "</td>"
         + [...Array(TEILE)].map((_, i) => "<td" + farbe(a[i], t) + ">" + h(a[i]) + "</td>").join("") + "<td>" + h(z.pm) + "</td></tr>";
     }).join("");
@@ -1068,7 +1163,7 @@ function protokollHtml(w, hoco) {
     + ".pbp table{width:100%;border-collapse:collapse}.pbp th,.pbp td{border:1px solid #999;padding:2px 4px;text-align:left;font-size:9pt}.pbp th{background:#e8eef6}.pbp tr.ab td{background:#f3f3f3;font-weight:700}"
     + ".pbp .pbp-fuss{display:flex;gap:24px;margin-top:10px}.pbp .pbp-fuss div{flex:1}</style>"
     + briefkopf() + "<div class='inhalt pbp'>"
-    + "<h1>Prüfprotokoll · " + h(artName(w.kopf).name) + "</h1>"
+    + "<h1>Prüfprotokoll</h1>"
     + "<div class='pbp-kf'>" + felder.filter(([, x]) => x).map(([n, x]) => "<div><small>" + h(n) + "</small>" + h(x) + "</div>").join("") + "</div>"
     + "<table><thead><tr><th>Nr.</th><th>Soll</th>" + kopfZ + "<th>Prüfmittel</th></tr></thead><tbody>" + koerper + "</tbody></table>"
     + "<div class='pbp-fuss'><div><b>Prüf-Entscheid:</b> " + h(entscheidText(w.entscheid)) + "</div><div><b>Datum:</b> " + h(datumText(w.datum)) + "</div><div><b>Visum:</b> " + h(w.visum) + "</div></div>"

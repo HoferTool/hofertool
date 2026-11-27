@@ -17572,3 +17572,363 @@ body.dunkel .pd-vorschlag .pd-zeile--vorschlag { background: #2a2a2a; }
 @media (min-width: 1200px) and (max-height: 760px) {
   .dialog--auftrag .auf-spalte--zeichnung .auf-vorschau { min-height: 150px; }
 }
+
+/* 1.875.0: Bewegungsarten als Häkchen statt Auswahlliste */
+.erp-bew-arten{display:inline-flex;flex-wrap:wrap;gap:4px 12px;align-items:center}
+.erp-bew-arten label{display:inline-flex;gap:4px;align-items:center;white-space:nowrap;cursor:pointer}
+
+/* 1.881.0: Kopf des Test ERP futuristisch mit Hofer-Logo (Wunsch Patrick 27. November 2026) */
+.erp-held { position: relative; overflow: hidden; border-radius: 18px; margin: 0 0 14px; padding: 22px 26px 18px;
+  background: radial-gradient(ellipse at 18% 0%, rgba(80,170,255,.35), transparent 55%), linear-gradient(135deg, #001a3d 0%, #002a63 55%, #003884 100%);
+  box-shadow: 0 10px 30px rgba(0,26,61,.35), inset 0 0 0 1px rgba(120,190,255,.25); color: #fff; isolation: isolate; }
+.erp-held__raster { position: absolute; inset: -40px; z-index: -1; opacity: .35;
+  background-image: linear-gradient(rgba(120,190,255,.25) 1px, transparent 1px), linear-gradient(90deg, rgba(120,190,255,.25) 1px, transparent 1px);
+  background-size: 32px 32px; animation: erp-raster 14s linear infinite;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 40%, #000 70%, transparent); mask-image: linear-gradient(180deg, transparent, #000 40%, #000 70%, transparent); }
+@keyframes erp-raster { to { transform: translate(32px, 32px); } }
+.erp-held__scan { position: absolute; top: 0; bottom: 0; width: 140px; left: -160px; z-index: -1;
+  background: linear-gradient(90deg, transparent, rgba(140,210,255,.22), transparent); animation: erp-scan 6s ease-in-out infinite; }
+@keyframes erp-scan { 0% { left: -160px; } 60%, 100% { left: calc(100% + 20px); } }
+.erp-held__kopf { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+.erp-held__logo { height: 58px; width: auto; filter: drop-shadow(0 0 10px rgba(140,210,255,.75)); animation: erp-logo 4s ease-in-out infinite; }
+@keyframes erp-logo { 50% { filter: drop-shadow(0 0 18px rgba(160,220,255,.95)); } }
+.erp-held__titel { flex: 1; min-width: 220px; padding-left: 22px; border-left: 1px solid rgba(140,210,255,.4); }
+.erp-held .seitentitel { margin: 0; color: #fff !important; font-size: 30px; letter-spacing: .04em; text-shadow: 0 0 16px rgba(120,200,255,.6); }
+.erp-held .erp-schild { background: rgba(255,255,255,.12); color: #bfe4ff !important; border: 1px solid rgba(140,210,255,.55);
+  vertical-align: middle; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.erp-held__unter { margin-top: 4px; font-size: 13px; color: #a9cdf0 !important; letter-spacing: .03em; }
+.erp-held__status { display: flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: #bfe4ff !important;
+  padding: 6px 12px; border-radius: 999px; background: rgba(0,0,0,.2); border: 1px solid rgba(140,210,255,.35); }
+.erp-held__punkt { width: 8px; height: 8px; border-radius: 50%; background: #3df0a0; box-shadow: 0 0 8px #3df0a0; animation: erp-puls 1.8s ease-in-out infinite; }
+@keyframes erp-puls { 50% { opacity: .35; } }
+.erp-held__kacheln { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-top: 18px; }
+.erp-held__kachel { all: unset; box-sizing: border-box; cursor: pointer; padding: 12px 14px; border-radius: 12px; display: flex; flex-direction: column; gap: 2px;
+  background: rgba(255,255,255,.07); border: 1px solid rgba(140,210,255,.28); backdrop-filter: blur(6px);
+  transition: transform .18s ease, background-color .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.erp-held__kachel:hover { transform: translateY(-2px); background: rgba(255,255,255,.13); border-color: rgba(160,220,255,.7); box-shadow: 0 0 18px rgba(100,190,255,.35); }
+.erp-held__kachel:focus-visible { outline: 2px solid #8fd3ff; outline-offset: 2px; }
+.erp-held__kachel.aktiv { border-color: #8fd3ff; box-shadow: 0 0 0 1px #8fd3ff inset, 0 0 18px rgba(100,190,255,.45); }
+.erp-held__zahl { font-size: 26px; font-weight: 700; color: #fff !important; font-variant-numeric: tabular-nums; text-shadow: 0 0 12px rgba(120,200,255,.55); }
+.erp-held__name { font-size: 12px; color: #a9cdf0 !important; letter-spacing: .04em; }
+@media (max-width: 640px) {
+  .erp-held { padding: 16px; }
+  .erp-held__logo { height: 40px; }
+  .erp-held__titel { padding-left: 0; border-left: 0; }
+  .erp-held .seitentitel { font-size: 24px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .erp-held__raster, .erp-held__scan, .erp-held__logo, .erp-held__punkt { animation: none; }
+  .erp-held__scan { display: none; }
+}
+
+/* 1.882.0: Fenster, die schon als eigenes Browserfenster laufen, stehen
+   weiter in der Fensterleiste (Patrick 27. November 2026), sichtbar anders. */
+.fensterleiste__chip--aussen { border-style: dotted; opacity: 0.9; }
+
+/* 1.886.0: Kalkulation im eigenen Fenster statt auf der Seite (Wunsch Patrick 27. November 2026). */
+.kalk-huelle > .dialog, .dialog.kalk-huelle { max-width: none; }
+.kalk-fenster {
+  width: min(1400px, 96vw); max-height: 94vh; overflow: auto;
+  background: var(--karte, #fff); border-radius: 12px; padding: 12px 14px;
+  box-shadow: 0 12px 40px rgba(0, 20, 60, .28);
+}
+body.dunkel .kalk-fenster { background: #1b2430; }
+
+/* 1.888.0: Form- und Lagetoleranzen grösser und gleich gross. Die Zeichen stammen aus
+   verschiedenen Schriften, manche waren winzig; eine eigene Symbolschrift mit fester
+   Breite gibt allen dieselbe Grösse (Wunsch Patrick 27. November 2026). */
+.gdt { font-family: "Segoe UI Symbol", "Apple Symbols", "Cambria Math", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif;
+  font-size: 1.25em; display: inline-block; width: 1.2em; text-align: center; line-height: 1; vertical-align: -0.08em; }
+.pst-soll, .schreibleiste__zeichen, .eba-markier .schreibleiste__zeichen {
+  font-family: Aptos, "Segoe UI", "Segoe UI Symbol", "Apple Symbols", "Cambria Math", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif; }
+
+/* ---------- Gridfinity (seit 1.895.0), Vorsilbe gfn-, weil gf- schon vergeben ist ---------- */
+.gfn-werkzeug { display: flex; flex-direction: column; gap: 14px; }
+.gfn-wahl { display: inline-flex; gap: 4px; padding: 4px; border-radius: 12px;
+  background: var(--linie, #e4e8ee); align-self: flex-start; max-width: 100%; flex-wrap: wrap; }
+.gfn-wahl__knopf { border: none; background: none; font: inherit; font-weight: 600;
+  padding: 9px 18px; border-radius: 9px; cursor: pointer; color: var(--gedaempft); }
+.gfn-wahl__knopf.aktiv { background: var(--flaeche, #fff); color: var(--marke);
+  box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+.gfn-wahl--klein { margin-bottom: 12px; }
+.gfn-wahl--klein .gfn-wahl__knopf { padding: 7px 12px; font-size: .9rem; }
+.gfn-raster { display: grid; grid-template-columns: minmax(260px, 340px) 1fr; gap: 16px; align-items: start; }
+.gfn-einstellungen { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.gfn-gruppe { background: var(--flaeche, #fff); border: 1px solid var(--linie-stark);
+  border-radius: 12px; padding: 12px 14px; }
+.gfn-gruppe h3 { margin: 0 0 10px; font-size: .8rem; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--gedaempft); }
+.gfn-zahl { display: grid; grid-template-columns: 1fr auto; align-items: center;
+  gap: 2px 10px; margin-bottom: 10px; }
+.gfn-zahl__titel { font-weight: 600; }
+.gfn-zahl__reihe { display: inline-flex; align-items: center; gap: 4px; }
+.gfn-zahl__reihe input { width: 58px; text-align: center; font: inherit; padding: 6px 4px;
+  border: 1px solid var(--linie-stark); border-radius: 8px; background: var(--flaeche, #fff);
+  font-variant-numeric: tabular-nums; }
+.gfn-zahl__knopf { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--linie-stark);
+  background: var(--flaeche, #fff); font-size: 1.15rem; line-height: 1; cursor: pointer; color: inherit; }
+.gfn-zahl__knopf:disabled { opacity: .35; cursor: default; }
+.gfn-zahl__einheit { font-size: .85rem; color: var(--gedaempft); min-width: 44px; }
+.gfn-zahl__hinweis { grid-column: 1 / -1; font-size: .8rem; color: var(--gedaempft); margin-top: -2px; }
+.gfn-schalter { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; cursor: pointer; }
+.gfn-schalter input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--marke); }
+.gfn-schalter span { display: flex; flex-direction: column; }
+.gfn-schalter small { color: var(--gedaempft); font-size: .8rem; }
+.gfn-text { font-size: .85rem; color: var(--gedaempft); margin: 4px 0 0; }
+.gfn-vorschau { display: flex; flex-direction: column; gap: 10px; min-width: 0; position: sticky; top: 10px; }
+.gfn-3d { height: min(64vh, 620px); min-height: 300px; border-radius: 14px; overflow: hidden;
+  border: 1px solid var(--linie-stark); background: linear-gradient(#f4f7fa, #dfe6ed); touch-action: none; }
+body.dunkel .gfn-3d { background: linear-gradient(#2b3440, #1b2129); }
+.gfn-fuss { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.gfn-masse { display: flex; flex-direction: column; gap: 2px; font-variant-numeric: tabular-nums; }
+.gfn-warnung { color: #b45309; font-size: .85rem; }
+body.dunkel .gfn-warnung { color: #fbbf24 !important; }
+.gfn-export { display: flex; gap: 8px; }
+@media (max-width: 760px) {
+  .gfn-raster { grid-template-columns: 1fr; }
+  .gfn-vorschau { position: static; order: -1; }
+  .gfn-3d { height: 46vh; }
+}
+/* Prüfmittel/Hinweis wählen im Masse-Blatt (seit 1.897.0) */
+.pst-pm { cursor: pointer; }
+.pmw { width: min(560px, calc(100vw - 32px)); max-width: 100%; }
+.pmw-arten { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 10px; }
+.pmw-suche { width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid #c8d3df; border-radius: 8px; font-size: 15px; margin-bottom: 6px; }
+.pmw-liste { max-height: min(50vh, 380px); overflow-y: auto; border: 1px solid #dfe6ee; border-radius: 8px; padding: 4px; }
+.pmw-zeile { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+.pmw-zeile:hover { background: #eef4fb; }
+.pmw-zeile--an { background: #dcebfb; font-weight: 600; }
+.pmw .feld input { width: 100%; box-sizing: border-box; }
+body.dunkel .pmw-suche { background: #13202c; border-color: #34465a; }
+body.dunkel .pmw-liste { border-color: #34465a; }
+body.dunkel .pmw-zeile:hover { background: #1c2d3d; }
+body.dunkel .pmw-zeile--an { background: #22405e; }
+
+/* 1.898.0: Spaltenkopf antippen sortiert (Test ERP, Kalkulation) */
+th.erp-sortkopf { cursor: pointer; user-select: none; white-space: nowrap; }
+th.erp-sortkopf:hover { text-decoration: underline; }
+th.erp-sortkopf--an { color: #0b5cad; }
+body.dunkel th.erp-sortkopf--an { color: #8cc4ff !important; }
+/* Gridfinity: Magnetmasse eingerückt unter dem Schalter (1.899.0) */
+.gfn-unter { margin: -4px 0 10px 30px; padding-left: 10px; border-left: 2px solid var(--linie-stark); }
+.gfn-export { flex-wrap: wrap; }
+
+/* Gridfinity: Liste der Plattenstücke (1.902.0) */
+.gfn-stueck { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; }
+.gfn-stueck .knopf { padding: 4px 12px; }
+.pmw-vorschlag { margin-left: auto; background: #e3f4e8; color: #17643a; border-radius: 6px; padding: 1px 7px; font-size: 12px; font-weight: 600; }
+body.dunkel .pmw-vorschlag { background: #1d4a30; }
+/* Toleranz im Masse-Blatt von Hand überschreibbar (seit 1.910.0) */
+.pst-tol { width: 100%; box-sizing: border-box; border: 1px solid transparent; background: transparent; font: inherit; padding: 2px 4px; }
+.pst-tol:focus { border-color: #9db4cc; background: #fff; }
+body.dunkel .pst-tol:focus { background: #13202c; }
+/* Knopf Form-/Lagetoleranzen im Masse-Blatt gleich gross wie Ø und ± (Patrick 27. November 2026) */
+.pst-zeichen .formlage > button[data-formlage-auf] { min-height: 40px; padding: 8px 14px; font: inherit; font-size: .9rem; font-weight: 600;
+  color: var(--tinte); background: var(--flaeche); border: 1px solid var(--linie-stark); border-radius: var(--radius); cursor: pointer; }
+.pst-zeichen .formlage > button[data-formlage-auf].an { background: var(--blau-hell, #dcebfb); }
+.pst-zeichen .formlage { display: inline-flex; }
+/* Symbole auch beim Eingeben gross (Patrick 27. November 2026: „sind die Symbole grösser,
+   wenn man sie eingibt?“). Ein Eingabefeld kann einzelne Zeichen nicht anders gestalten,
+   darum eine eigene Schrift nur für diese Zeichen (unicode-range), 145 % grösser. */
+@font-face { font-family: "GdtGross"; src: local("Segoe UI Symbol"), local("Apple Symbols"), local("Cambria Math"), local("Noto Sans Symbols 2"), local("DejaVu Sans");
+  unicode-range: U+23E4-23E5, U+25CB, U+232D, U+2312-2313, U+2225, U+27C2, U+2220, U+2316, U+25CE, U+232F, U+2197, U+2330, U+2AFD; size-adjust: 145%; }
+.pst-soll, .pst-tol, .schreibleiste__zeichen, .eba-markier .schreibleiste__zeichen {
+  font-family: "GdtGross", Aptos, "Segoe UI", "Segoe UI Symbol", "Apple Symbols", "Cambria Math", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif; }
+
+/* Gridfinity: Fächer-Elemente (1.911.0) */
+.gfn-kopf { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.gfn-hinzu { position: relative; }
+.gfn-hinzu__knopf { background: #e8f1fb; color: #1d5fa8; border: 0; border-radius: 8px; padding: 6px 12px; font-weight: 600; cursor: pointer; }
+.gfn-menue { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; background: #fff; border: 1px solid #dde3ea; border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.12); padding: 4px; min-width: 150px; }
+.gfn-menue button { display: flex; gap: 10px; align-items: center; width: 100%; background: none; border: 0; padding: 8px 10px; border-radius: 6px; cursor: pointer; text-align: left; font-size: 15px; }
+.gfn-menue button:hover { background: #f0f4f8; }
+.gfn-liste { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 4px; }
+.gfn-liste button { display: flex; justify-content: space-between; gap: 8px; width: 100%; padding: 6px 10px; border: 1px solid #dde3ea; border-radius: 8px; background: #fff; cursor: pointer; text-align: left; }
+.gfn-liste button span { color: #5b6773; font-size: 13px; }
+.gfn-liste button.aktiv { border-color: #e8b04a; background: #fdf4e3; }
+.gfn-elementknoepfe { display: flex; flex-wrap: wrap; gap: 6px; }
+.gfn-3d canvas { touch-action: none; }
+body.dunkel .gfn-hinzu__knopf { background: #23384f; }
+body.dunkel .gfn-menue, body.dunkel .gfn-liste button { background: #222a33; border-color: #3a4552; }
+body.dunkel .gfn-menue button:hover { background: #2d3743; }
+body.dunkel .gfn-liste button.aktiv { background: #4a3a1c; border-color: #e8b04a; }
+.pst-tolfelder { display: flex; align-items: center; gap: 2px; }
+.pst-tolfelder .pst-tol { min-width: 0; flex: 1; text-align: center; font-size: 12px; }
+.pst-tabelle .pst-c-tol, .pst-blattfenster .pst-c-tol { width: 130px; }
+
+/* 1.914.0: Zustand der Planwand in der Liste der FAs (Test ERP) */
+.erp-pw { white-space: nowrap; font-weight: 600; }
+.erp-pw--laeuft { color: #1b7f3b; }
+.erp-pw--ruesten { color: #b35c00; }
+.erp-pw--geplant { color: #4a5a6a; }
+.erp-pw--fertig { color: #6b7785; font-weight: 400; }
+/* Masse-Blatt ruhiger wie ein Tabellen-Editor (Patrick 27. November 2026: „sieht komisch aus,
+   soll besser aussehen wie bei anderen Editoren“): Platzhalter nur im angetippten Feld,
+   Felder füllen die Zelle, angetipptes Feld mit blauem Rahmen wie in Excel. */
+[data-pstblatt] tbody input:not([type=checkbox])::placeholder { color: transparent; }
+[data-pstblatt] tbody input:not([type=checkbox]):focus::placeholder { color: #9aa7b4; }
+[data-pstblatt] tbody td { padding: 0 !important; }
+[data-pstblatt] tbody td input:not([type=checkbox]) { border: 0; border-radius: 0; background: transparent; padding: 7px 8px; width: 100%; box-sizing: border-box; outline: none; }
+[data-pstblatt] tbody td input:not([type=checkbox]):focus { box-shadow: inset 0 0 0 2px #2f6fd6; background: #fff; }
+[data-pstblatt] tbody tr:hover td { background: #f5f8fc; }
+[data-pstblatt] .pst-tolfelder > span { color: #b5c0cc; }
+[data-pstblatt] .pst-tolfelder .pst-tol { padding: 7px 2px; }
+[data-pstblatt] .pst-c-ll, [data-pstblatt] .pst-c-kn, [data-pstblatt] .pst-c-kopf, [data-pstblatt] .pst-c-nr + td + td { padding: 2px 4px !important; }
+[data-pstblatt] .pst-c-kn .knopf--klein { min-height: 26px; padding: 2px 6px; border-color: transparent; background: transparent; opacity: .45; }
+[data-pstblatt] tr:hover .pst-c-kn .knopf--klein, [data-pstblatt] tr:focus-within .pst-c-kn .knopf--klein { opacity: 1; border-color: var(--linie-stark); }
+body.dunkel [data-pstblatt] tbody td input:not([type=checkbox]):focus { background: #13202c; }
+body.dunkel [data-pstblatt] tbody tr:hover td { background: #1a2836; }
+
+/* Gridfinity: Projekte (1.916.0) */
+.gfn-feld { display: grid; gap: 4px; margin: 6px 0; }
+.gfn-feld span { font-size: 13px; color: #5b6773; }
+.gfn-feld input { padding: 8px 10px; border: 1px solid #c9d2dc; border-radius: 8px; font-size: 16px; min-width: 0; }
+.gfn-projektzeile { display: flex; gap: 4px; }
+.gfn-projektzeile > button:first-child { flex: 1; min-width: 0; }
+.gfn-weg { border: 1px solid #dde3ea; background: #fff; border-radius: 8px; width: 36px; cursor: pointer; color: #b03a2e; }
+body.dunkel .gfn-feld input { background: #222a33; border-color: #3a4552; }
+body.dunkel .gfn-weg { background: #222a33; border-color: #3a4552; }
+/* ---------- 1.917.0: kleine Blase mit Zeichen beim Markieren (markierBlase.js) ---------- */
+.markier-blase { position: fixed; left: 0; top: 0; z-index: 2147483001; display: flex; flex-direction: column; gap: 3px;
+  padding: 3px; border-radius: 9px; background: #fff; border: 1px solid rgba(20, 40, 80, .18);
+  box-shadow: 0 4px 14px rgba(10, 25, 50, .2); max-width: calc(100vw - 8px); animation: markier-blase-rein .12s ease-out; }
+.markier-blase[hidden] { display: none !important; }
+@keyframes markier-blase-rein { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .markier-blase { animation: none; } }
+.markier-blase__reihe { display: flex; gap: 2px; flex-wrap: wrap; }
+.markier-blase__formlage { display: flex; flex-wrap: wrap; gap: 2px; max-width: 260px; padding-top: 3px; border-top: 1px solid #e3e8ef; }
+.markier-blase__formlage[hidden] { display: none; }
+.markier-blase__knopf { min-width: 30px; height: 30px; padding: 0 5px; border-radius: 7px; border: 1px solid transparent;
+  background: none; color: #102040; font: 700 17px/1 Aptos, "Segoe UI", "Segoe UI Symbol", "Apple Symbols", "Cambria Math", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif;
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center; touch-action: manipulation;
+  -webkit-user-select: none; user-select: none; }
+.markier-blase__knopf:hover { background: #e3ebf7; }
+.markier-blase__mehr { font-size: 14px; color: #3a4a66; }
+.markier-blase .gdt-knopf { font-size: 18px; font-weight: 400; }
+/* Finger brauchen grössere Ziele */
+@media (pointer: coarse) { .markier-blase__knopf { min-width: 40px; height: 40px; font-size: 20px; } .markier-blase__formlage { max-width: 300px; } }
+body.pad-offen .markier-blase__knopf { min-width: 44px; height: 44px; font-size: 22px; }
+body.dunkel .markier-blase { background: #1c2533; border-color: rgba(255, 255, 255, .18); }
+body.dunkel .markier-blase__knopf:hover { background: #2a3546; }
+body.dunkel .markier-blase__formlage { border-color: rgba(255, 255, 255, .15); }
+
+/* 1.918.0: Stundensatz einer Maschine, die es nicht mehr gibt */
+.kalk-masch--weg b { color: #8a949e; text-decoration: line-through; }
+.kalk-masch-weg { margin: 10px 0; }
+
+/* 1.920.0: Test ERP → Logistik, Dashboard mit Kacheln (passend zum dunkelblauen Kopf) */
+.logi-kacheln { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin: 4px 0 16px; }
+.logi-kachel { position: relative; overflow: hidden; display: grid; grid-template-columns: auto 1fr; grid-template-areas:
+  "zeichen titel" "zeichen zahl" "text text"; gap: 4px 14px; align-items: center; text-align: left; cursor: pointer;
+  padding: 18px 20px; border: 1px solid #1d4f8f; border-radius: 16px; color: #fff;
+  background: linear-gradient(135deg, #0b2a55 0%, #12407e 55%, #1b5fae 100%);
+  box-shadow: 0 6px 18px rgba(11,42,85,.25); transition: transform .15s ease, box-shadow .15s ease; }
+.logi-kachel::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(circle at 100% 0%, rgba(140,210,255,.28), transparent 55%); }
+.logi-kachel:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(11,42,85,.35); }
+.logi-kachel.aktiv { outline: 3px solid #7cc4ff; outline-offset: 2px; }
+.logi-kachel__zeichen { grid-area: zeichen; font-size: 38px; line-height: 1; filter: drop-shadow(0 0 8px rgba(140,210,255,.6)); }
+.logi-kachel__titel { grid-area: titel; font-weight: 700; font-size: 17px; letter-spacing: .2px; }
+.logi-kachel__zahl { grid-area: zahl; font-size: 14px; opacity: .9; }
+.logi-kachel__zahl b { font-size: 30px; font-weight: 800; margin-right: 4px; color: #bfe3ff; }
+.logi-kachel__warn { position: absolute; top: 12px; right: 12px; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 700;
+  background: #e5484d; color: #fff; }
+.logi-kachel__text { grid-area: text; font-size: 13px; opacity: .8; margin-top: 6px; }
+.logi-funktion__titel { margin: 0 12px 0 0; font-size: 18px; }
+@media (prefers-reduced-motion: reduce) { .logi-kachel { transition: none; } .logi-kachel:hover { transform: none; } }
+
+/* 1.921.0: Arbeitsgang im FA öffnen */
+.erp-ag-zeile { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.erp-ag-zeile .erp-ag { flex: 1; }
+
+/* 1.922.0: Gridfinity, Reiter Schublade: Draufsicht zum Schieben */
+.gfn-oben { width: 100%; height: auto; max-height: 64vh; background: #f4f6f9; border: 1px solid #d6dde6; border-radius: 10px;
+  touch-action: none; -webkit-user-select: none; user-select: none; }
+.gfn-oben__lade { fill: #fff; stroke: #6b7a8c; stroke-width: 1.5; }
+.gfn-oben__feld { fill: #e7ecf2; }
+.gfn-oben__text { fill: #fff; font-weight: 700; pointer-events: none; }
+.gfn-oben__klein { fill: #eef3f8; font-size: 9px; pointer-events: none; }
+.gfn-oben__vorne { fill: #6b7a8c; font-size: 10px; letter-spacing: .1em; }
+body.dunkel .gfn-oben__vorne { fill: #8a98aa; }
+body.dunkel .gfn-oben { background: #141b25; border-color: rgba(255, 255, 255, .15); }
+body.dunkel .gfn-oben__lade { fill: #1c2533; stroke: #8a98aa; }
+body.dunkel .gfn-oben__feld { fill: #2a3546; }
+
+/* 1.923.0: Gridfinity auf einen Bildschirm (Patrick: „dass man alles direkt
+   sieht und nicht nach unten scrollen muss“). Ab Tablet-Breite: Reiter neben
+   dem Titel, Raster so hoch wie der Rest des Bildschirms (--gfn-h misst
+   Werkzeug.jsx), Einstellungen rollen für sich, breit in zwei Spalten,
+   Vorschau füllt die Höhe. Handy bleibt untereinander. */
+@media (min-width: 761px) {
+  .gfn-seite { position: relative; }
+  .gfn-seite > .seitentitel { margin-bottom: 8px; }
+  .gfn-werkzeug > .gfn-wahl { position: absolute; top: 0; right: 0; }
+  .gfn-werkzeug { gap: 0; }
+  .gfn-raster { height: var(--gfn-h, calc(100vh - 160px)); min-height: 460px; align-items: stretch; }
+  .gfn-einstellungen { overflow-y: auto; overscroll-behavior: contain; padding: 0 6px 4px 0; scrollbar-gutter: stable; }
+  .gfn-spalten { display: flex; flex-direction: column; gap: 10px; }
+  .gfn-gruppe { padding: 12px 14px; }
+  .gfn-gruppe h3 { margin-bottom: 6px; }
+  .gfn-zahl { margin-bottom: 4px; }
+  .gfn-vorschau { position: static; min-height: 0; gap: 8px; }
+  .gfn-vorschau > .gfn-wahl--klein { margin-bottom: 0; align-self: flex-start; }
+  .gfn-3d { flex: 1 1 0; height: auto; min-height: 240px; }
+  .gfn-oben { flex: 1 1 0; min-height: 0; max-height: none; height: 100%; }
+}
+/* Breite Bildschirme: Einstellungen in zwei Spalten nebeneinander */
+@media (min-width: 1300px) {
+  .gfn-raster { grid-template-columns: minmax(560px, 640px) 1fr; }
+  .gfn-spalten { display: block; columns: 2; column-gap: 10px; }
+  .gfn-spalten > * { break-inside: avoid; margin-bottom: 10px; }
+}
+@media (min-width: 761px) {
+  .gfn-spalten [data-gf-projekt] .gfn-elementknoepfe .knopf { padding: 6px 12px; font-size: .9rem; }
+}
+/* Einstellungen: Zeilen im Fenster beim Drüberfahren über die Planwand (1.924.0) */
+.planinfo-wahl { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-width: 520px; }
+.planinfo-wahl__zeile { display: flex; align-items: center; gap: 6px; padding: 4px 6px;
+  border: 1px solid var(--linie, #d8dde5); border-radius: 8px; background: var(--flaeche, #fff); }
+.planinfo-wahl__zeile--aus .planinfo-wahl__name span { opacity: .5; }
+.planinfo-wahl__name { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 0; }
+.planinfo-wahl__name input { width: 20px; height: 20px; flex: none; }
+.planinfo-wahl__pfeil { flex: none; width: 36px; height: 36px; border: 1px solid var(--linie, #d8dde5);
+  border-radius: 8px; background: transparent; font-size: 1.05rem; cursor: pointer; color: inherit; }
+.planinfo-wahl__pfeil:disabled { opacity: .3; cursor: default; }
+body.dunkel .planinfo-wahl__zeile { background: rgba(255,255,255,.04); border-color: rgba(255,255,255,.18); }
+body.dunkel .planinfo-wahl__pfeil { border-color: rgba(255,255,255,.25); }
+
+/* 1.925.0: rote Anzeige „überfällig“ in der Zeile der Zahl statt oben rechts über dem Titel */
+.logi-kachel__warn { position: static; display: inline-block; vertical-align: middle; margin-left: 8px; }
+/* 1.926.0: Logistik-Kacheln lassen sich ziehen; beim Ziehen kein Markieren und kein Rollen per Finger */
+.logi-kachel { touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+body.zieh-laeuft .logi-kachel { touch-action: none; cursor: grabbing; }
+/* 1.929.0: Lieferplan Liste, Zeitraum von/bis im Kopf */
+.logi-funktion .feld-inline { display: inline-flex; align-items: center; gap: 6px; margin-right: 10px; font-size: 14px; }
+/* 1.932.0: WBG drucken mit Anzahl je Zeile */
+.logi-wbg-druck { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.logi-wbg-druck b { min-width: 18px; text-align: center; }
+
+
+/* 1.930.0: Einlagen Generator wie Gridfinity auf einen Bildschirm: Leiste
+   oben schmaler, damit der Arbeitsfläche mehr Höhe bleibt */
+@media (min-width: 700px) {
+  .einlagen__leiste { gap: 6px; margin-bottom: 6px; }
+  .einlagen__leiste .knopf { padding: 6px 12px; min-height: 0; font-size: .9rem; }
+}
+
+/* Auftragsfenster ohne rechte Spalte (alles dort ausgeschaltet, 1.931.0) */
+.dialog--auftrag .auf-raster.auf-raster--ohne-rechts { grid-template-columns: minmax(0, 1fr) !important; }
+.planinfo-wahl__zeile:not(:has(.planinfo-wahl__pfeil)) { min-height: 44px; }
+/* 1.934.0: Fälligkeit „auf Abruf“ im Lieferplan */
+.lp-abruf { color: #12407e; font-style: italic; white-space: nowrap; }
+
+/* Formular-Designer im Test ERP (1.936.0): links Einstellungen, rechts
+   Vorschau des A4-Blatts; auf schmalen Geräten untereinander */
+.fd{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.fd-links{flex:1 1 340px;min-width:0;max-width:560px}
+.fd-rechts{flex:1 1 420px;min-width:0;background:#e9e9e9;border-radius:8px;padding:8px}
+.fd-vorschau{width:100%;height:80vh;border:0;background:#fff;display:block}
+.fd-reihe{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin:8px 0}
+.fd-text{margin:10px 0}
+.fd-text textarea{width:100%;box-sizing:border-box;font:inherit;font-size:13px}
+body.dunkel .fd-rechts{background:#444}

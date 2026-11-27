@@ -38,7 +38,8 @@ with sync_playwright() as p:
     pruefe(f.evaluate("document.documentElement.dataset.theme") == "light", "hell wie die App")
     pruefe(f.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()") == "#003884", "Firmenblau als Akzent")
     hoch = pg.evaluate("() => { const r = document.querySelector('iframe.einlagen-rahmen').getBoundingClientRect(); return [r.top, r.bottom, innerHeight]; }")
-    pruefe(hoch[1] <= hoch[2] and hoch[2] - hoch[1] < 40, "Rahmen bis an den unteren Rand: %s" % hoch)
+    # bis an den unteren Rand, nur der Rand der Seite (40 px) bleibt; die Seite selbst rollt nicht (1.930.0)
+    pruefe(hoch[1] <= hoch[2] and hoch[2] - hoch[1] < 48 and pg.evaluate("document.documentElement.scrollHeight <= innerHeight + 1"), "Rahmen bis an den unteren Rand: %s" % hoch)
     # Bedienung im Rahmen zählt gegen das Abmelden nach 5 Minuten
     pg.wait_for_timeout(1200)
     vorher = pg.evaluate("() => +(JSON.parse(localStorage.getItem('hofer.zuletztAktiv') || '{}')[Object.keys(JSON.parse(localStorage.getItem('hofer.zuletztAktiv') || '{}'))[0]] || 0)")

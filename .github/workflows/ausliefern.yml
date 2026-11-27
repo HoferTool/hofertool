@@ -12,6 +12,9 @@
 # Genauso liegt unter .../hofertool/test/ der Zweig TEST (Einrichtblatt
 # in der App, Wunsch Patrick 13. Oktober 2026: „vorbereiten, aber nicht
 # einbauen, will es zuerst testen“), ebenfalls mit echten Daten.
+# Seit 27. November 2026 ist TEST der Zweig claude/project-thread-cvve9p:
+# dieselbe App, aber mit dem eigenen Server api.hofertool.ch statt Supabase
+# Cloud (Wunsch Patrick: zuerst testen, Live bleibt unverändert).
 name: Ausliefern
 
 on:
@@ -20,12 +23,12 @@ on:
   workflow_run:
     workflows: ["Prüfen"]
     types: [completed]
-    branches: [claude/project-thread-8yf89f, claude/project-thread-au2n7k]
+    branches: [claude/project-thread-8yf89f, claude/project-thread-cvve9p]
   workflow_dispatch:
 
 env:
   VORSCHAU: claude/project-thread-8yf89f
-  TEST: claude/project-thread-au2n7k
+  TEST: claude/project-thread-cvve9p
 
 permissions:
   contents: read

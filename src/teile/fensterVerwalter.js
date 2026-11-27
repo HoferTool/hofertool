@@ -17,7 +17,7 @@
 //  „Alle schliessen“, nur am Computer (ab 780 Punkten) und nicht im Pad.
 // =================================================================
 import { alt } from "../bruecke.jsx";
-import { inEigenesFenster } from "./eigenesFenster.js";
+import { inEigenesFenster, eigeneFensterListe, eigeneFensterOffen } from "./eigenesFenster.js";
 
 const ordnung = [];
 let leiste = null;
@@ -128,7 +128,7 @@ document.addEventListener("pointerdown", (e) => {
   // Fenster über den ganzen Bildschirm lassen sich nicht sinnvoll ziehen
   if (r.width >= innerWidth - 4 && r.height >= innerHeight - 4) return;
   const v = verschiebung(f);
-  zug = { h, f, x0: e.clientX, y0: e.clientY, vx: v.x, vy: v.y, r, los: false };
+  zug = { h, f, x0: e.clientX, y0: e.clientY, vx: v.x, vy: v.y, r, los: false, pid: e.pointerId };
 }, true);
 
 // Über den Rand des Browsers hinaus gezogen: das Fenster zieht in ein
@@ -151,8 +151,17 @@ function zuFuer(h) {
   };
 }
 
+// Ohne Pointer Capture meldet der Browser keine Bewegung mehr, sobald die Maus
+// das Fenster verlässt: der Rand wurde bei schnellem Ziehen nie erreicht
+// (Patrick 27. November 2026: „kann die Fenster noch immer nicht aus dem
+// HoferTool heraus bewegen“).
+function fangLos(z) {
+  try { if (z && z.f.hasPointerCapture && z.f.hasPointerCapture(z.pid)) z.f.releasePointerCapture(z.pid); } catch (f) { /* egal */ }
+}
+
 function herausziehen(z, e) {
   const { h, f, x0, y0, r } = z;
+  fangLos(z);
   zug = null;
   document.body.classList.remove("fenster-zieht");
   const griff = { x: x0 - r.left, y: y0 - r.top };
@@ -174,9 +183,10 @@ document.addEventListener("pointermove", (e) => {
     zug.los = true;
     document.body.classList.add("fenster-zieht");
     freiMachen(zug.h);
+    try { zug.f.setPointerCapture(zug.pid); } catch (f) { /* egal */ }
   }
-  const draussen = e.clientX <= 0 || e.clientY <= 0
-    || e.clientX >= innerWidth - 1 || e.clientY >= innerHeight - 1;
+  const draussen = e.clientX <= 3 || e.clientY <= 3
+    || e.clientX >= innerWidth - 4 || e.clientY >= innerHeight - 4;
   if (draussen && herausMoeglich()) { herausziehen(zug, e); e.preventDefault(); return; }
   // Der Titel bleibt immer erreichbar: oben nicht über den Rand,
   // seitlich und unten mindestens 80 Punkte sichtbar
@@ -187,7 +197,13 @@ document.addEventListener("pointermove", (e) => {
   e.preventDefault();
 }, true);
 
-const zugEnde = () => {
+const zugEnde = (e) => {
+  // Losgelassen ausserhalb (die letzte Bewegung kam nicht mehr an)
+  if (zug && zug.los && e && e.type === "pointerup" && herausMoeglich()
+    && (e.clientX < 0 || e.clientY < 0 || e.clientX > innerWidth || e.clientY > innerHeight)) {
+    herausziehen(zug, e); return;
+  }
+  fangLos(zug);
   if (zug && zug.los) {
     document.body.classList.remove("fenster-zieht");
     // Der Klick nach dem Loslassen soll nichts auslösen
@@ -214,7 +230,9 @@ function leisteSichtbar() {
   // Blätter über den ganzen Bildschirm (Masse-Blatt der Prüfung) haben oben
   // ihre eigene Leiste, die Fensterleiste läge sonst über deren Knöpfen
   if (document.querySelector("[data-pstblatt]")) return false;
-  return ordnung.length > 0;
+  // Auch Fenster in einem eigenen Browserfenster zählen (Patrick 27. November
+  // 2026: „sobald es im eigenen Fenster läuft, verschwindet die Fensterübersicht“)
+  return ordnung.length + eigeneFensterListe().length > 0;
 }
 
 function schliessen(h) {
@@ -256,7 +274,14 @@ function leisteJetzt() {
       const alle = e.target.closest("[data-fenster-alle]");
       if (alle) {
         [...ordnung].reverse().forEach(schliessen);
+        eigeneFensterListe().forEach((e) => { try { e.schliessen(); } catch (f) { /* schon zu */ } });
         leisteZeichnen();
+        return;
+      }
+      const ext = e.target.closest("[data-fenster-ext]");
+      if (ext) {
+        const ef = eigeneFensterListe()[Number(ext.dataset.fensterExt)];
+        if (ef) { try { ef.w.focus(); } catch (f) { /* gesperrt */ } }
         return;
       }
       const chip = e.target.closest("[data-fenster-nr]");
@@ -282,6 +307,11 @@ function leisteJetzt() {
     return `<button type="button" class="fensterleiste__chip${aktiv}${frei}" data-fenster-nr="${i}" title="${esc(t)}">`
       + `<span>${esc(t)}</span></button>`;
   }).join("")
+    + eigeneFensterListe().map((e, i) => {
+      const t = e.titel() || "Fenster";
+      return `<button type="button" class="fensterleiste__chip fensterleiste__chip--aussen" data-fenster-ext="${i}" title="${esc(t)} (eigenes Fenster, antippen holt es nach vorne)">`
+        + `<span>⧉ ${esc(t)}</span></button>`;
+    }).join("")
     + `<button type="button" class="fensterleiste__alle" data-fenster-alle title="Alle Fenster schliessen">✕ Alle schliessen</button>`;
   if (leiste.__html !== html) { leiste.innerHTML = html; leiste.__html = html; }
 }
@@ -290,17 +320,56 @@ function esc(t) {
   return String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 }
 
+// Grosse Fenster (Test ERP, Kalkulation) gehen gleich als eigenes Browserfenster
+// auf, nicht erst nach dem Hinausziehen (Wunsch Patrick 27. November 2026:
+// „mach von anfang an einen eigenen tab daraus“). Kleine Rückfragen bleiben in
+// der App. Sperrt der Browser das Fenster, bleibt es still in der App. Im
+// Prüfstand nur mit TEST.eigenesFenster.
+const GROSS_SEL = ":scope > .gf, :scope > .erp-fenster--gross, :scope > .kalk-fenster";
+function gleichHeraus(h) {
+  if (window.TEST && !window.TEST.eigenesFenster) return false;
+  if (!herausMoeglich()) return false;
+  let gross = null;
+  try { gross = h.querySelector(GROSS_SEL); } catch (f) { return false; }
+  if (!gross) return false;
+  const ok = inEigenesFenster(h, zuFuer(h), { titel: titelVon(h) + " – HoferTool", still: true });
+  if (ok) { leisteZeichnen(); return true; }
+  return false;
+}
+
+// Grosse Fenster sind gleich „frei“: kein dunkler Grund, ein Klick daneben
+// schliesst sie nicht, sie bleiben in der Fensterleiste. Vorher ging ein noch
+// nicht verschobenes Fenster beim Klick auf die Seite zu (Patrick 27. November
+// 2026: „wenn ich auf einen anderen Bereich klicke, verschwindet das Fenster
+// und auch die Info, welche Fenster offen sind“). Kleine Rückfragen bleiben,
+// wie sie sind.
+function gleichFrei(h) {
+  requestAnimationFrame(() => {
+    if (!document.body.contains(h) || h.classList.contains("dialog-huelle--frei")) return;
+    const f = h.firstElementChild;
+    if (!f) return;
+    let gross = false;
+    try { gross = !!h.querySelector(GROSS_SEL); } catch (e) { /* alte Browser */ }
+    if (gross || f.getBoundingClientRect().width >= 560) freiMachen(h);
+  });
+}
+
 // ---------- Beobachten ----------
 new MutationObserver((meldungen) => {
   let neu = false;
   meldungen.forEach((m) => {
-    m.addedNodes.forEach((n) => { if (istFenster(n)) { aufnehmen(n); neu = true; } });
+    m.addedNodes.forEach((n) => {
+      if (!istFenster(n)) return;
+      if (gleichHeraus(n)) return;
+      aufnehmen(n); neu = true;
+      gleichFrei(n);
+    });
     m.removedNodes.forEach((n) => { if (ordnung.includes(n)) { entfernen(n); neu = true; } });
   });
   if (neu) leisteZeichnen();
 }).observe(document.body, { childList: true });
 
 // Titel kommen in React oft erst etwas später, Grösse ändert sich
-setInterval(() => { if (ordnung.length || leiste) leisteJetzt(); }, 1000);
+setInterval(() => { if (ordnung.length || leiste || eigeneFensterOffen()) leisteJetzt(); }, 1000);
 addEventListener("resize", leisteZeichnen);
-document.querySelectorAll("body > .dialog-huelle").forEach((h) => { if (istFenster(h)) aufnehmen(h); });
+document.querySelectorAll("body > .dialog-huelle").forEach((h) => { if (istFenster(h)) { aufnehmen(h); gleichFrei(h); } });
