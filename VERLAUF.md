@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.916.0 (27. November 2026)
+
+- Gridfinity: Projekte speichern, öffnen und löschen (Tabelle `gridfinity_projekte`).
+
 ## 1.915.0 (27. November 2026)
 
 - Gridfinity Box: Leiste geht schräg bis auf den Boden (liegt auf wie der Scoop).

@@ -24,6 +24,7 @@ function laden() {
       v: 2,
       art: s.art === "platte" ? "platte" : "box",
       drucker: DRUCKER[s.drucker] ? s.drucker : "x1c",
+      projekt: s.projekt && s.projekt.id ? { id: s.projekt.id, name: String(s.projekt.name || "") } : null,
       // Fassung 2 (1.906.0): Höhe einmal auf die Vorgabe 3 zurück (Patrick)
       box: { ...BOX_VORGABE, ...(s.box || {}), ...(s.v === 2 ? {} : { u: BOX_VORGABE.u }) },
       platte: { ...PLATTE_VORGABE, ...(s.platte || {}) },
@@ -104,6 +105,59 @@ export default function Werkzeug() {
   // Unterteilungen sind eine Vorlage: sie setzen die Elemente neu
   const bRaster = (k) => (v) => { setGewaehlt(-1); setStand((s) => ({ ...s, box: { ...s.box, [k]: v, elemente: null } })); };
   const elementeSetzen = (liste) => setStand((s) => ({ ...s, box: { ...s.box, elemente: liste } }));
+  // ---------- Projekte (seit 1.916.0, Patrick: „mache noch einen Speicher
+  // für Projekte“): Tabelle gridfinity_projekte (sql/gridfinity-projekte.sql),
+  // damit ein Projekt an jedem Gerät wieder aufgeht ----------
+  const [projekte, setProjekte] = useState(null);
+  const [liste, setListe] = useState(false);
+  const projekt = stand.projekt && stand.projekt.id ? stand.projekt : null;
+  const [projektName, setProjektName] = useState(projekt ? projekt.name : "");
+  const tabFehlt = (e) => /gridfinity_projekte/.test(e.message || "") && /exist|schema cache/i.test(e.message || "");
+  async function projekteLaden() {
+    const { data, error } = await alt.db.from("gridfinity_projekte").select("id, name, geaendert_am").order("geaendert_am", { ascending: false }).limit(300);
+    if (error) { setProjekte([]); if (!tabFehlt(error)) alt.meldung("Projekte nicht geladen: " + alt.fehlertext(error), "fehler"); return; }
+    setProjekte(data || []);
+  }
+  useEffect(() => { projekteLaden(); }, []);
+  async function projektSpeichern(alsNeu = false) {
+    const name = projektName.trim() || (stand.art === "box" ? "Box " : "Grundplatte ") + new Date().toLocaleDateString("de-CH");
+    const daten = { art: stand.art, drucker: stand.drucker, box: stand.box, platte: stand.platte };
+    let antwort = null;
+    if (projekt && !alsNeu) antwort = await alt.db.from("gridfinity_projekte").update({ name, daten }).eq("id", projekt.id).select("id, name").maybeSingle();
+    if (!antwort || (!antwort.error && !antwort.data)) antwort = await alt.db.from("gridfinity_projekte").insert({ name, daten }).select("id, name").single();
+    if (antwort.error) {
+      alt.meldung(tabFehlt(antwort.error) ? "Projekte gehen noch nicht: die Tabelle fehlt (sql/gridfinity-projekte.sql)." : "Nicht gespeichert: " + alt.fehlertext(antwort.error), "fehler");
+      return;
+    }
+    setProjektName(antwort.data.name);
+    setStand((s) => ({ ...s, projekt: { id: antwort.data.id, name: antwort.data.name } }));
+    alt.meldung("Projekt „" + antwort.data.name + "“ gespeichert.", "gut");
+    projekteLaden();
+  }
+  async function projektOeffnen(x) {
+    const { data, error } = await alt.db.from("gridfinity_projekte").select("id, name, daten").eq("id", x.id).maybeSingle();
+    if (error || !data) { alt.meldung("Projekt nicht gefunden.", "fehler"); return; }
+    const d = data.daten || {};
+    setGewaehlt(-1); setZug(null); setListe(false); setProjektName(data.name);
+    setStand((s) => ({
+      ...s, v: 2, art: d.art === "platte" ? "platte" : "box", drucker: DRUCKER[d.drucker] ? d.drucker : s.drucker,
+      box: { ...BOX_VORGABE, ...(d.box || {}) }, platte: { ...PLATTE_VORGABE, ...(d.platte || {}) },
+      projekt: { id: data.id, name: data.name },
+    }));
+  }
+  async function projektLoeschen(x) {
+    const ok = await alt.nachfragen({ titel: "Löschen", text: "Projekt „" + x.name + "“ wird gelöscht.", bestaetigen: "Löschen", gefahr: true });
+    if (!ok) return;
+    const { error } = await alt.db.from("gridfinity_projekte").delete().eq("id", x.id);
+    if (error) { alt.meldung("Nicht gelöscht: " + alt.fehlertext(error), "fehler"); return; }
+    if (projekt && projekt.id === x.id) setStand((s) => ({ ...s, projekt: null }));
+    projekteLaden();
+  }
+  function projektNeu() {
+    setGewaehlt(-1); setProjektName("");
+    setStand((s) => ({ ...s, projekt: null, box: { ...BOX_VORGABE }, platte: { ...PLATTE_VORGABE } }));
+  }
+
   const lage = useMemo(() => (stand.art === "box" ? elementeLage(box) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [stand.art, JSON.stringify(box)]);
@@ -249,6 +303,35 @@ export default function Werkzeug() {
 
       <div className="gfn-raster">
         <div className="gfn-einstellungen">
+          <section className="gfn-gruppe" data-gf-projekt>
+            <div className="gfn-kopf">
+              <h3>Projekt</h3>
+              <button type="button" className="gfn-hinzu__knopf" data-gf-projekte-knopf aria-expanded={liste}
+                onClick={() => { setListe((l) => !l); projekteLaden(); }}>Projekte{projekte && projekte.length ? " (" + projekte.length + ")" : ""}</button>
+            </div>
+            <label className="gfn-feld">
+              <span>Name</span>
+              <input value={projektName} data-gf-projektname placeholder="z. B. Schublade Drehbank 3" onChange={(e) => setProjektName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); projektSpeichern(); } }} />
+            </label>
+            <div className="gfn-elementknoepfe">
+              <button type="button" className="knopf knopf--haupt" data-gf-projekt-speichern onClick={() => projektSpeichern()}>{projekt ? "Speichern" : "Als Projekt speichern"}</button>
+              {projekt && <button type="button" className="knopf" data-gf-projekt-kopie onClick={() => projektSpeichern(true)}>Als neues</button>}
+              <button type="button" className="knopf" data-gf-projekt-neu onClick={projektNeu}>Neu</button>
+            </div>
+            {projekt && <p className="gfn-text">Offen: {projekt.name}. Änderungen erst mit „Speichern“ im Projekt.</p>}
+            {liste && <ul className="gfn-liste" data-gf-projektliste>
+              {(projekte || []).map((x) => (
+                <li key={x.id} className="gfn-projektzeile">
+                  <button type="button" data-gf-projekt-oeffnen={x.name} className={projekt && projekt.id === x.id ? "aktiv" : ""} onClick={() => projektOeffnen(x)}>
+                    <b>{x.name}</b><span>{x.geaendert_am ? alt.datumZeitKurz(x.geaendert_am) : ""}</span>
+                  </button>
+                  <button type="button" className="gfn-weg" aria-label={"Projekt " + x.name + " löschen"} data-gf-projekt-loeschen={x.name} onClick={() => projektLoeschen(x)}>✕</button>
+                </li>
+              ))}
+              {projekte && !projekte.length && <li className="gfn-text">Noch keine Projekte gespeichert.</li>}
+            </ul>}
+          </section>
           {/* Drucker zuoberst (Patrick: „nimm die Drucker-Wahl hoch zur Grösse“) */}
           <section className="gfn-gruppe" data-gf-druckerwahl>
               <h3>Drucker</h3>

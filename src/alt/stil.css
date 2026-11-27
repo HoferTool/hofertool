@@ -17778,3 +17778,13 @@ body.dunkel .gfn-liste button.aktiv { background: #4a3a1c; border-color: #e8b04a
 [data-pstblatt] tr:hover .pst-c-kn .knopf--klein, [data-pstblatt] tr:focus-within .pst-c-kn .knopf--klein { opacity: 1; border-color: var(--linie-stark); }
 body.dunkel [data-pstblatt] tbody td input:not([type=checkbox]):focus { background: #13202c; }
 body.dunkel [data-pstblatt] tbody tr:hover td { background: #1a2836; }
+
+/* Gridfinity: Projekte (1.916.0) */
+.gfn-feld { display: grid; gap: 4px; margin: 6px 0; }
+.gfn-feld span { font-size: 13px; color: #5b6773; }
+.gfn-feld input { padding: 8px 10px; border: 1px solid #c9d2dc; border-radius: 8px; font-size: 16px; min-width: 0; }
+.gfn-projektzeile { display: flex; gap: 4px; }
+.gfn-projektzeile > button:first-child { flex: 1; min-width: 0; }
+.gfn-weg { border: 1px solid #dde3ea; background: #fff; border-radius: 8px; width: 36px; cursor: pointer; color: #b03a2e; }
+body.dunkel .gfn-feld input { background: #222a33; border-color: #3a4552; }
+body.dunkel .gfn-weg { background: #222a33; border-color: #3a4552; }

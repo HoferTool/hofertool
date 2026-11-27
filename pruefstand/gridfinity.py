@@ -142,6 +142,19 @@ with sync_playwright() as p:
     pg.locator(".dialog-huelle button:has-text('Löschen')").click(); pg.wait_for_timeout(300)
     pruefe(pg.locator("[data-gf-element]").count() == vorher + 2, "Löschen nach einer Nachfrage")
     pg.screenshot(path=BILD + "/gf-elemente.png")
+    # Projekte (1.916.0): speichern, ändern, wieder öffnen, löschen
+    pg.fill("[data-gf-projektname]", "Prüfbox Elemente"); pg.click("[data-gf-projekt-speichern]"); pg.wait_for_timeout(500)
+    n_el = pg.locator("[data-gf-element]").count()
+    pruefe(any(x.get("name") == "Prüfbox Elemente" for x in pg.evaluate("() => TEST.daten.gridfinity_projekte || []")), "Projekt in der Datenbank gespeichert")
+    pg.click("[data-gf-projekt-neu]"); pg.wait_for_timeout(400)
+    pruefe(pg.locator("[data-gf-element]").count() != n_el, "Neu setzt die Box zurück")
+    pg.click("[data-gf-projekte-knopf]"); pg.wait_for_timeout(400)
+    pg.click("[data-gf-projekt-oeffnen='Prüfbox Elemente']"); pg.wait_for_timeout(500)
+    pruefe(pg.locator("[data-gf-element]").count() == n_el and pg.input_value("[data-gf-projektname]") == "Prüfbox Elemente", "Projekt öffnet mit allen Elementen")
+    pg.click("[data-gf-projekte-knopf]"); pg.wait_for_timeout(300)
+    pg.click("[data-gf-projekt-loeschen='Prüfbox Elemente']"); pg.wait_for_timeout(300)
+    pg.locator(".dialog-huelle button:has-text('Löschen')").click(); pg.wait_for_timeout(500)
+    pruefe(not any(x.get("name") == "Prüfbox Elemente" for x in pg.evaluate("() => TEST.daten.gridfinity_projekte || []")), "Projekt gelöscht nach einer Nachfrage")
 
     pruefe(pg.locator("[data-gf-export='stl'], [data-gf-export='3mf']").count() == 0, "nur noch ein Knopf STL")
 
