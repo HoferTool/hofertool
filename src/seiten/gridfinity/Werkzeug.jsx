@@ -9,6 +9,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { alt } from "../../bruecke.jsx";
 import { useEntwurfZurueck } from "../../teile/lokalZurueck.js";
+import Schublade, { SCHUBLADE_VORGABE, schubladePruefen } from "./Schublade.jsx";
 import {
   BOX_VORGABE, PLATTE_VORGABE, boxPruefen, plattePruefen, boxMasse, platteMasse,
   boxNetz, platteNetz, verbinderNetz, distanzNetz, distanzPlan, distanzDruck, stlBinaer, netzeVereinen, GF,
@@ -45,15 +46,16 @@ function laden() {
     const s = JSON.parse(localStorage.getItem(SPEICHER) || "null");
     if (s && typeof s === "object") return {
       v: 2,
-      art: s.art === "platte" ? "platte" : "box",
+      art: ["platte", "schublade"].includes(s.art) ? s.art : "box",
       drucker: DRUCKER[s.drucker] ? s.drucker : "x1c",
       projekt: s.projekt && s.projekt.id ? { id: s.projekt.id, name: String(s.projekt.name || "") } : null,
       // Fassung 2 (1.906.0): Höhe einmal auf die Vorgabe 3 zurück (Patrick)
       box: { ...BOX_VORGABE, ...(s.box || {}), ...(s.v === 2 ? {} : { u: BOX_VORGABE.u }) },
       platte: { ...PLATTE_VORGABE, ...(s.platte || {}) },
+      schublade: schubladePruefen(s.schublade),
     };
   } catch { /* privates Fenster: Vorgabe */ }
-  return { v: 2, art: "box", drucker: "x1c", box: { ...BOX_VORGABE }, platte: { ...PLATTE_VORGABE } };
+  return { v: 2, art: "box", drucker: "x1c", box: { ...BOX_VORGABE }, platte: { ...PLATTE_VORGABE }, schublade: { ...SCHUBLADE_VORGABE } };
 }
 
 // Name eines Elements in der Liste: „Wand 2“
@@ -143,8 +145,8 @@ export default function Werkzeug() {
   }
   useEffect(() => { projekteLaden(); }, []);
   async function projektSpeichern(alsNeu = false) {
-    const name = projektName.trim() || (stand.art === "box" ? "Box " : "Grundplatte ") + new Date().toLocaleDateString("de-CH");
-    const daten = { art: stand.art, drucker: stand.drucker, box: stand.box, platte: stand.platte };
+    const name = projektName.trim() || ({ box: "Box ", platte: "Grundplatte ", schublade: "Schublade " }[stand.art] || "") + new Date().toLocaleDateString("de-CH");
+    const daten = { art: stand.art, drucker: stand.drucker, box: stand.box, platte: stand.platte, schublade: stand.schublade };
     let antwort = null;
     if (projekt && !alsNeu) antwort = await alt.db.from("gridfinity_projekte").update({ name, daten }).eq("id", projekt.id).select("id, name").maybeSingle();
     if (!antwort || (!antwort.error && !antwort.data)) antwort = await alt.db.from("gridfinity_projekte").insert({ name, daten }).select("id, name").single();
@@ -163,8 +165,9 @@ export default function Werkzeug() {
     const d = data.daten || {};
     setGewaehlt(-1); setZug(null); setListe(false); setProjektName(data.name);
     setStand((s) => ({
-      ...s, v: 2, art: d.art === "platte" ? "platte" : "box", drucker: DRUCKER[d.drucker] ? d.drucker : s.drucker,
+      ...s, v: 2, art: ["platte", "schublade"].includes(d.art) ? d.art : "box", drucker: DRUCKER[d.drucker] ? d.drucker : s.drucker,
       box: { ...BOX_VORGABE, ...(d.box || {}) }, platte: { ...PLATTE_VORGABE, ...(d.platte || {}) },
+      schublade: schubladePruefen(d.schublade),
       projekt: { id: data.id, name: data.name },
     }));
   }
@@ -178,7 +181,20 @@ export default function Werkzeug() {
   }
   function projektNeu() {
     setGewaehlt(-1); setProjektName("");
-    setStand((s) => ({ ...s, projekt: null, box: { ...BOX_VORGABE }, platte: { ...PLATTE_VORGABE } }));
+    setStand((s) => ({ ...s, projekt: null, box: { ...BOX_VORGABE }, platte: { ...PLATTE_VORGABE }, schublade: { ...SCHUBLADE_VORGABE } }));
+  }
+  // Aus dem Reiter Schublade: ein Teil im Reiter Box, die Grundplatte im
+  // Reiter Grundplatte öffnen (dort wird die STL gespeichert)
+  function ausSchublade(w) {
+    setGewaehlt(-1); setZug(null);
+    if (w.art === "platte") {
+      setStand((s) => ({ ...s, art: "platte", platte: { ...s.platte, art: "schublade", breite: w.breite, tiefe: w.tiefe, distanz: true } }));
+      return;
+    }
+    const t = w.teil;
+    const neu = t.box ? { ...BOX_VORGABE, ...t.box, nx: t.nx, ny: t.ny }
+      : { ...BOX_VORGABE, nx: t.nx, ny: t.ny, u: t.u, einlage: t.einlage || null, elemente: t.einlage ? [] : null };
+    setStand((s) => ({ ...s, art: "box", box: neu }));
   }
 
   const lage = useMemo(() => (stand.art === "box" ? elementeLage(box) : null),
@@ -308,6 +324,7 @@ export default function Werkzeug() {
 
   const netz = useMemo(() => {
     try {
+      if (stand.art === "schublade") return null;
       if (stand.art === "box") return boxNetz(box, einlageGeo && box.einlage && einlageGeo.id === box.einlage.id ? einlageGeo : null);
       return geteilt ? stueckeVorschau(platte, teilung) : platteNetz(platte);
     }
@@ -360,18 +377,8 @@ export default function Werkzeug() {
     alt.meldung(`${name}.${format} gespeichert.`, "gut");
   }
 
-  return (
-    <div className="gfn-werkzeug">
-      <div className="gfn-wahl" role="tablist">
-        {[["box", "Box"], ["platte", "Grundplatte"]].map(([w, t]) => (
-          <button key={w} role="tab" aria-selected={stand.art === w} data-gf-art={w}
-            className={"gfn-wahl__knopf" + (stand.art === w ? " aktiv" : "")}
-            onClick={() => setStand((s) => ({ ...s, art: w }))}>{t}</button>
-        ))}
-      </div>
-
-      <div className="gfn-raster">
-        <div className="gfn-einstellungen">
+  // Projekt und Drucker stehen in jedem Reiter zuoberst
+  const kopfTeil = <>
           <section className="gfn-gruppe" data-gf-projekt>
             <div className="gfn-kopf">
               <h3>Projekt</h3>
@@ -413,6 +420,23 @@ export default function Werkzeug() {
               </div>
               <p className="gfn-text">Nutzbar {bett.a} × {bett.b} mm.</p>
           </section>
+  </>;
+
+  return (
+    <div className="gfn-werkzeug">
+      <div className="gfn-wahl" role="tablist">
+        {[["box", "Box"], ["platte", "Grundplatte"], ["schublade", "Schublade"]].map(([w, t]) => (
+          <button key={w} role="tab" aria-selected={stand.art === w} data-gf-art={w}
+            className={"gfn-wahl__knopf" + (stand.art === w ? " aktiv" : "")}
+            onClick={() => setStand((s) => ({ ...s, art: w }))}>{t}</button>
+        ))}
+      </div>
+
+      {stand.art === "schublade" ? <Schublade sch={stand.schublade} kopf={kopfTeil} oeffnen={ausSchublade} Vorschau={Vorschau} Zahl={Zahl}
+        setSch={(v) => setStand((s) => ({ ...s, schublade: v }))} /> :
+      <div className="gfn-raster">
+        <div className="gfn-einstellungen">
+          {kopfTeil}
           {stand.art === "box" ? <>
             <section className="gfn-gruppe">
               <h3>Grösse</h3>
@@ -589,7 +613,7 @@ export default function Werkzeug() {
             </div>
           </div>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

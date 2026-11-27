@@ -772,6 +772,12 @@ export function netzeVereinen(liste) {
   }
   return fertig(n, {});
 }
+// Einfache Klötze (Schublade-Ansicht): [{x0, y0, z0, x1, y1, z1}]
+export function bloeckeNetz(liste) {
+  const n = neuesNetz();
+  for (const q of liste) quader(n, q.x0, q.y0, q.z0, q.x1, q.y1, q.z1);
+  return fertig(n, {});
+}
 export function stlBinaer(netz, name = "gridfinity") {
   const { pos, tri } = netz;
   const anz = tri.length / 3;

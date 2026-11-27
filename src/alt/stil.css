@@ -17815,3 +17815,16 @@ body.dunkel .markier-blase__formlage { border-color: rgba(255, 255, 255, .15); }
 /* 1.918.0: Stundensatz einer Maschine, die es nicht mehr gibt */
 .kalk-masch--weg b { color: #8a949e; text-decoration: line-through; }
 .kalk-masch-weg { margin: 10px 0; }
+
+/* 1.921.0: Gridfinity, Reiter Schublade: Draufsicht zum Schieben */
+.gfn-oben { width: 100%; height: auto; max-height: 64vh; background: #f4f6f9; border: 1px solid #d6dde6; border-radius: 10px;
+  touch-action: none; -webkit-user-select: none; user-select: none; }
+.gfn-oben__lade { fill: #fff; stroke: #6b7a8c; stroke-width: 1.5; }
+.gfn-oben__feld { fill: #e7ecf2; }
+.gfn-oben__text { fill: #fff; font-weight: 700; pointer-events: none; }
+.gfn-oben__klein { fill: #eef3f8; font-size: 9px; pointer-events: none; }
+.gfn-oben__vorne { fill: #6b7a8c; font-size: 10px; letter-spacing: .1em; }
+body.dunkel .gfn-oben__vorne { fill: #8a98aa; }
+body.dunkel .gfn-oben { background: #141b25; border-color: rgba(255, 255, 255, .15); }
+body.dunkel .gfn-oben__lade { fill: #1c2533; stroke: #8a98aa; }
+body.dunkel .gfn-oben__feld { fill: #2a3546; }

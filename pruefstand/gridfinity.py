@@ -178,6 +178,44 @@ with sync_playwright() as p:
 
     pruefe(pg.locator("[data-gf-export='stl'], [data-gf-export='3mf']").count() == 0, "nur noch ein Knopf STL")
 
+    # Schublade layouten (1.921.0): Masse, Raster, Boxen und Einlagen ziehen
+    pg.click("[data-gf-art='schublade']"); pg.wait_for_selector("[data-gf-oben]")
+    pruefe("10 × 7 Felder" in pg.inner_text("[data-gf-sraster]"), "Schublade 430×309 = 10 × 7: " + pg.inner_text("[data-gf-sraster]"))
+    pg.click("[data-gf-shinzu]"); pg.click("[data-gf-sneu='box']"); pg.wait_for_timeout(200)
+    pg.fill("[data-gf='snx']", "2"); pg.press("[data-gf='snx']", "Enter"); pg.wait_for_timeout(200)
+    pg.click("[data-gf-shinzu]"); pg.click("[data-gf-sneu='einlage']"); pg.wait_for_timeout(400)
+    pg.click("[data-gf-swahl-name='Probe-Einlage']"); pg.wait_for_timeout(400)
+    teile = pg.evaluate("() => JSON.parse(localStorage.getItem('hofer.gridfinity')).schublade.teile")
+    pruefe(len(teile) == 2 and teile[0]["nx"] == 2 and teile[1]["typ"] == "einlage" and (teile[1]["nx"], teile[1]["ny"], teile[1]["x"]) == (3, 2, 2),
+           "Box 2×1 und Einlage 3×2 daneben: %s" % [(t["typ"], t["nx"], t["ny"], t["x"], t["y"]) for t in teile])
+    pg.wait_for_timeout(800)   # Strg + Z fasst Änderungen innert 0,7 s zusammen
+    # Box mit der Maus um 4 Felder nach rechts und 2 nach hinten ziehen
+    bx = pg.locator("[data-gf-sblock='Box']").bounding_box()
+    sv = pg.locator("[data-gf-oben]").bounding_box()
+    feld = sv["width"] / 442 * 42
+    pg.mouse.move(bx["x"] + 15, bx["y"] + bx["height"] - 10); pg.mouse.down()
+    for k in range(1, 9): pg.mouse.move(bx["x"] + 15 + k * feld * 0.75, bx["y"] + bx["height"] - 10 - k * feld * 0.25)
+    pg.mouse.up(); pg.wait_for_timeout(300)
+    teile = pg.evaluate("() => JSON.parse(localStorage.getItem('hofer.gridfinity')).schublade.teile")
+    pruefe((teile[0]["x"], teile[0]["y"]) == (6, 2), "Box gezogen auf Feld 6/2: %s" % [(t["x"], t["y"]) for t in teile])
+    pg.keyboard.press("Control+z"); pg.wait_for_timeout(300)
+    teile = pg.evaluate("() => JSON.parse(localStorage.getItem('hofer.gridfinity')).schublade.teile")
+    pruefe(len(teile) == 2 and (teile[0]["x"], teile[0]["y"]) == (0, 0), "Strg + Z holt die Box zurück")
+    pg.screenshot(path=BILD + "/gf-schublade.png")
+    pg.click("[data-gf-sansicht='3d']"); pg.wait_for_selector("[data-gf-3d] canvas", timeout=30000); pg.wait_for_timeout(400)
+    pruefe(pg.locator("[data-gf-schublade] [data-gf-3d] canvas").count() == 1, "3D-Ansicht der Schublade")
+    pg.click("[data-gf-sansicht='oben']")
+    # Projekt mit der Schublade speichern
+    pg.fill("[data-gf-projektname]", "Prüfschublade"); pg.click("[data-gf-projekt-speichern]"); pg.wait_for_timeout(400)
+    pr = [x for x in pg.evaluate("() => TEST.daten.gridfinity_projekte || []") if x.get("name") == "Prüfschublade"]
+    pruefe(pr and pr[0]["daten"]["art"] == "schublade" and len(pr[0]["daten"]["schublade"]["teile"]) == 2, "Schublade im Projekt gespeichert")
+    pg.click("[data-gf-steil='Probe-Einlage']"); pg.click("[data-gf-soeffnen]")
+    pg.wait_for_function("() => /Taschen sind im Boden/.test(document.querySelector('[data-gf-einlage]')?.textContent || '')", timeout=40000)
+    pruefe(pg.locator("[data-gf-art='box'].aktiv").count() == 1 and pg.input_value("[data-gf='nx']") == "3", "Einlage im Reiter Box geöffnet")
+    pg.click("[data-gf-art='schublade']"); pg.click("[data-gf-splatte]"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-gf-art='platte'].aktiv").count() == 1 and "10 × 7 Felder" in pg.inner_text("[data-gf-felder]"), "Grundplatte zur Schublade geöffnet")
+    pg.click("[data-gf-projekt-neu]"); pg.click("[data-gf-art='box']"); pg.wait_for_timeout(300)
+
     # Grundplatte aus Schubladenmass
     pg.click("[data-gf-art='platte']"); pg.click("[data-gf-platte='schublade']")
     pg.fill("[data-gf='breite']", "300"); pg.press("[data-gf='breite']", "Enter")

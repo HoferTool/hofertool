@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.921.0 (27. November 2026)
+
+- Gridfinity: neuer Reiter „Schublade“: Masse eingeben, Boxen und Einlagen auf dem Raster anordnen und ziehen, Draufsicht und 3D, im Projekt gespeichert.
+
 ## 1.919.0 (27. November 2026)
 
 - Gridfinity: gespeicherte Einlage aus dem Einlagen Generator als Inhalt einer Box (Taschen im Boden); Einlagen mit Gridfinity-Füssen immer aufs Raster genormt.
