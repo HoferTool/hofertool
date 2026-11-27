@@ -26,6 +26,7 @@ import { passtWoerter } from "../../teile/Suchfeld.jsx";
 import { useSeitenSuche } from "../../teile/seitenSuche.js";
 import { STIL, briefkopf } from "./achtdBlatt.js";
 import { qsSprung } from "./qsSprung.js";
+import { istFaellig } from "../../daten/pruefmittel.js";
 import Pruefung, { MasseBlatt } from "../../hoco/Pruefung.jsx";
 import { createPortal } from "react-dom";
 import { gdtTeile, gdtHtml } from "../../teile/zeichenListe.js";
@@ -822,11 +823,27 @@ async function ausbuchen(w, hoco) {
     const { error: fs } = await alt.db.rpc("pruefmittel_schrank_lesen");
     const ohneRpc = !!fs;
     if (ohneRpc && !alt.istAdmin()) return;
-    let pm = (await pruefmittelAlleLaden()).filter((p) => (!p.ort_art || p.ort_art === "schrank") && (p.status || "aktiv") === "aktiv");
-    if (!pm.length && ohneRpc) pm = (await schrankLaden()).data;
+    // Seit 1.891.0 auch gesperrte (Wunsch Patrick 27. November 2026: „wird jetzt ausgebucht,
+    // muss aber bald zur Kontrolle“). Zuerst wird ein gutes Mittel gesucht; nur wenn keines
+    // passt, ein gesperrtes oder fälliges, und dann kommt die Meldung.
+    let pm = (await pruefmittelAlleLaden()).filter((p) => (!p.ort_art || p.ort_art === "schrank") && ["aktiv", "gesperrt"].includes(p.status || "aktiv"));
+    if (!pm.length && ohneRpc) pm = (await schrankLaden()).data.filter((p) => (p.status || "aktiv") !== "weg");
     if (!pm || !pm.length) return;
+    // Prüfdaten (Intervall, letzte Prüfung) für alle lesbar über sql/pruefmittel-ausbuchen-gesperrt.sql
+    const { data: stand } = await alt.db.rpc("pruefmittel_pruefstand_lesen");
+    const standVon = new Map((stand || []).map((x) => [x.id, x]));
+    pm = pm.map((p) => ({ ...p, ...(standVon.get(p.id) || {}), id: p.id }));
+    const schlecht = (p) => (p.status || "aktiv") === "gesperrt" || istFaellig({ ...p, status: "aktiv" });
+    const gut = pm.filter((p) => !schlecht(p));
+    // für die Suche gelten gesperrte als aktiv, sonst übergeht pruefmittelFuer sie
+    const rest = pm.filter(schlecht).map((p) => ({ ...p, status: "aktiv", _vorher: p.status || "aktiv" }));
     const ids = new Set();
-    lehren.forEach((l) => { const x = pruefmittelFuer(l, pm.filter((p) => !ids.has(p.id)), hoco)[0]; if (x) ids.add(x.id); });
+    const kritisch = [];
+    lehren.forEach((l) => {
+      let x = pruefmittelFuer(l, gut.filter((p) => !ids.has(p.id)), hoco)[0];
+      if (!x) { x = pruefmittelFuer(l, rest.filter((p) => !ids.has(p.id)), hoco)[0]; if (x) kritisch.push(x); }
+      if (x) ids.add(x.id);
+    });
     if (!ids.size) return;
     const liste = [...ids];
     const vorher = [];
@@ -848,6 +865,10 @@ async function ausbuchen(w, hoco) {
     if (!n) return;
     if (vorher.length) alt.merkeSchritt(n + " Prüfmittel ausgebucht", alt.rueckRein("pruefmittel", vorher));
     alt.meldung(n + " Prüfmittel auf den Auftrag ausgebucht.", "gut");
+    if (kritisch.length) {
+      const namen = kritisch.map((p) => (p.nr ? p.nr + " " : "") + (p.bezeichnung || "") + (p._vorher === "gesperrt" ? " (gesperrt)" : " (fällig)")).join(", ");
+      alt.meldung("Wird jetzt ausgebucht, muss aber bald zur Kontrolle: " + namen, "warn");
+    }
   } catch (e) { /* still: ohne Prüfmittel geht es weiter */ }
 }
 
