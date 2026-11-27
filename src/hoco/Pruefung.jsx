@@ -386,11 +386,13 @@ export function MasseBlatt({ w, hoco, schreibt, zeileSetzen, zeileWeg, zeilenLee
                       {bildVon(z) ? <img className="pst-massbild" src={bildVon(z)} alt="Mass" data-pstbild={z.id}
                         onClick={() => alt.betrachter && alt.betrachter(bildVon(z), "Mass " + (z.nr || ""), false)} /> : null}
                       <input data-pstfokus={z.id} className="pst-soll" value={z.soll || ""} disabled={!schreibt} placeholder={bildVon(z) ? "Soll (frei)" : "z.B. Ø 6.00 ±0.02"}
-                        onFocus={(e) => { sollFeld.current = e.target; }} onPaste={schreibt ? einfuegen(z.id) : undefined}
+                        onFocus={(e) => { sollFeld.current = e.target; }}
                         onChange={(e) => zeileSetzen(z.id, "soll", e.target.value)} />
                       {schreibt ? (laedt === z.id ? <span className="klein">…</span> : bildVon(z)
                         ? <button type="button" className="pst-bildknopf" title="Bild entfernen" data-pstbildweg={z.id} onClick={() => bildWeg(z.id)}>✕</button>
-                        : <button type="button" className="pst-bildknopf" title="Bild des Masses einfügen (oder Strg + V im Feld)" data-pstbildneu={z.id} onClick={() => bildWaehlen(z.id)}>🖼</button>) : null}
+                        : null) : null}
+                      {/* Kein Bild als Mass mehr einfügen (Patrick 27. November 2026: „braucht es nie“);
+                          ältere Bilder aus Excel bleiben sichtbar und lassen sich entfernen. */}
                     </div></td>
                     <td className="pst-c-tol">{(() => { const t = toleranz(z.soll); return t ? toleranzText(t) : "—"; })()}</td>
                     <td><input className="pst-pm" data-pstpm={z.id} readOnly value={z.pm || ""} disabled={!schreibt} placeholder={schreibt ? "wählen …" : ""}

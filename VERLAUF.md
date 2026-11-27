@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.908.1 (27. November 2026)
+
+Masse-Blatt: kein Bild mehr als Mass einfügen (Knopf und Strg + V weg); alte Bilder aus Excel bleiben sichtbar (Patrick: „braucht es nie“).
+
 ## 1.908.0 (27. November 2026)
 
 Stammdaten der HOCO Nr.: die zweite Karte „Prüfmasse“ ist weg; in der Karte Prüfung gibt es den Knopf „Prüfbericht“, der zu QS springt und die Masse als Vorlage zum Bearbeiten öffnet. Der Knopf „Excel-Prüfbericht einlesen“ fällt weg, Excel kommt nur noch über den Ordner (Wunsch Patrick).
