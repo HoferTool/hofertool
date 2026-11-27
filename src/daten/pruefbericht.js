@@ -73,7 +73,7 @@ export function berichtAusExcel(roh) {
     const a = zelle(r, o).trim();
     if (tabStart === null) {
       let gefunden = 0;
-      for (let s = 1; s <= 4 && !gefunden; s++) if (/^(nr|pos)\.?$/i.test(zelle(r, s).trim()) && /soll|mass|merkmal/i.test(zelle(r, s + 1))) gefunden = s;
+      for (let s = 1; s <= 4 && !gefunden; s++) if (/^(nr|pos|#)\.?$/i.test(zelle(r, s).trim()) && /soll|mass|merkmal/i.test(zelle(r, s + 1))) gefunden = s;
       if (gefunden) { tabStart = r; o = gefunden; continue; }
     }
     // Ende der Tabelle: „Prüf-Entscheid“, bei älteren Blättern „Freigabe Maschine …“, „Datum / Visum“ oder „Bemerkungen“
@@ -145,6 +145,8 @@ export function berichtAusExcel(roh) {
     const ist = istSp.map((s) => zelle(r, s));
     const bild = nr ? bildJe[r] : null;
     if (!nr && !soll && !pm) continue;
+    // Zeile „M“ = Material (ältere Blätter mit „#“ statt „Nr.“), steht schon im Kopf
+    if (/^M$/i.test(nr)) continue;
     // „übrige Masse auf Seite 2“ war früher der Hinweis auf die zweite Datei;
     // die Seiten kommen jetzt zusammen, darum fällt er weg (Patrick 26. November 2026)
     if (!nr && /(übrig|restlich|weitere)\S*\s+mass\S*.*seite\s*\d/i.test(soll)) continue;
@@ -213,6 +215,19 @@ export function toleranz(soll) {
   return { min: rund(nenn + Math.min(...ab)), max: rund(nenn + Math.max(...ab)), einheit: grad };
 }
 
+// Toleranz einer Zeile: von Hand eingetragen (z.tol, seit 1.910.0, Patrick 27. November 2026:
+// „dass man es auch eingeben kann, falls es falsch erkannt wurde“), sonst aus dem Soll.
+// Von Hand geht „5.982-5.990“, „≤ 0.02“ bzw. „0.02 max“ oder „6 -0.010/-0.018“.
+export function tolVon(z) {
+  const h = String((z && z.tol) || "").trim();
+  if (h) {
+    const k = /^(≤|<=|max\.?)\s*([\d.,]+)$/i.exec(h);
+    if (k) return { min: null, max: Number(k[2].replace(",", ".")), einheit: "" };
+    return toleranz(h);
+  }
+  return toleranz(z && z.soll);
+}
+
 export function toleranzText(t) {
   if (!t) return "";
   const e = t.einheit || "";
@@ -254,7 +269,7 @@ export function lehrenAus(vorlage) {
     if (LEHRE_RE.test(pm)) {
       const name = pm.replace(/\s*[ØøD]?\s*\d+(?:[.,]\d+)?\s*(\/\s*\d+(?:[.,]\d+)?)?\s*$/, "").trim() || pm;
       let mass = (/(\d+(?:[.,]\d+)?\s*\/\s*\d+(?:[.,]\d+)?)/.exec(pm) || [])[1] || "";
-      const t = toleranz(zl.soll);
+      const t = tolVon(zl);
       // Seit 1.872.0 zählt auch ein Soll wie „M 1.6 2 x“ (mit Leerzeichen) als Gewinde,
       // auch wenn in der Spalte nur „Lehre“ steht (Patrick 26. November 2026).
       if (!mass && (/gewinde/i.test(pm) || /^\s*M\s*\d/i.test(String(zl.soll || "")))) mass = String(zl.soll || "").replace(/\s+\d+\s*x\s*$/i, "").trim().replace(/^M\s+(?=\d)/i, "M");

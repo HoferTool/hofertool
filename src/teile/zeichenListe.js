@@ -69,6 +69,16 @@ const SYMBOL_PUA = {
   0xF0A4: "○", 0xF0B7: "○", 0xF0AE: "↗", 0xF0BD: "∥", 0xF0E0: "◎", 0xF0C4: "⌖",
 };
 export function symbolUmwandeln(text) {
-  return String(text ?? "").replace(/[-]/g, (z) => SYMBOL_PUA[z.charCodeAt(0)] || z)
-    .replace(/∅/g, "Ø");
+  return rahmenText(String(text ?? "").replace(/[\uf020-\uf0ff]/g, (z) => SYMBOL_PUA[z.charCodeAt(0)] || z)
+    .replace(/∅/g, "Ø"));
 }
+// Toleranzrahmen aus der GDT-Schrift alter Berichte, z. B. „{µ~|Ø~0~.~0~2~|A~}“
+// (Patrick 27. November 2026, 10007-0044): Klammern und Tilden weg, Felder mit
+// Leerschlag, also „µ Ø0.02 A“. Das Zeichen vorne ist das Symbol in der Schrift.
+function rahmenText(s) {
+  const m = /^\s*\{(.*)\}\s*$/.exec(s);
+  if (!m || !/[~|]/.test(m[1])) return s;
+  return m[1].split("|").map((f) => f.replace(/~/g, "").trim()).filter(Boolean)
+    .map((f) => RAHMEN_SYMBOL[f] || f).join(" ");
+}
+const RAHMEN_SYMBOL = {};

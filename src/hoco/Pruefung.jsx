@@ -394,7 +394,10 @@ export function MasseBlatt({ w, hoco, schreibt, zeileSetzen, zeileWeg, zeilenLee
                       {/* Kein Bild als Mass mehr einfügen (Patrick 27. November 2026: „braucht es nie“);
                           ältere Bilder aus Excel bleiben sichtbar und lassen sich entfernen. */}
                     </div></td>
-                    <td className="pst-c-tol">{(() => { const t = toleranz(z.soll); return t ? toleranzText(t) : "—"; })()}</td>
+                    <td className="pst-c-tol">{(() => { const t = toleranz(z.soll); const auto = t ? toleranzText(t) : "";
+                      return <input className={"pst-tol" + (z.tol ? " pst-tol--hand" : "")} data-psttol={z.id} value={z.tol || ""} disabled={!schreibt}
+                        placeholder={auto || "—"} title={z.tol ? "Von Hand eingetragen (leer = wieder aus dem Soll" + (auto ? ": " + auto : "") + ")" : "Aus dem Soll gerechnet. Falls falsch: hier überschreiben, z. B. 5.982-5.990 oder ≤ 0.02"}
+                        onChange={(e) => zeileSetzen(z.id, "tol", e.target.value)} />; })()}</td>
                     <td><input className="pst-pm" data-pstpm={z.id} readOnly value={z.pm || ""} disabled={!schreibt} placeholder={schreibt ? "wählen …" : ""}
                       title="Antippen: Prüfmittel, Prüfstifte oder Hinweis wählen"
                       onClick={() => pmFenster(z)} onKeyDown={(e) => { if (e.key === " " || e.key === "F2") { e.preventDefault(); pmFenster(z); } else enter(i)(e); }} /></td>

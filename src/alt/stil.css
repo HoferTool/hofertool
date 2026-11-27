@@ -17718,3 +17718,20 @@ body.dunkel th.erp-sortkopf--an { color: #8cc4ff !important; }
 .gfn-stueck .knopf { padding: 4px 12px; }
 .pmw-vorschlag { margin-left: auto; background: #e3f4e8; color: #17643a; border-radius: 6px; padding: 1px 7px; font-size: 12px; font-weight: 600; }
 body.dunkel .pmw-vorschlag { background: #1d4a30; }
+/* Toleranz im Masse-Blatt von Hand überschreibbar (seit 1.910.0) */
+.pst-tol { width: 100%; box-sizing: border-box; border: 1px solid transparent; background: transparent; font: inherit; padding: 2px 4px; }
+.pst-tol:focus { border-color: #9db4cc; background: #fff; }
+.pst-tol--hand { color: #8a4b00; font-weight: 600; }
+body.dunkel .pst-tol:focus { background: #13202c; }
+/* Knopf Form-/Lagetoleranzen im Masse-Blatt gleich gross wie Ø und ± (Patrick 27. November 2026) */
+.pst-zeichen .formlage > button[data-formlage-auf] { min-height: 40px; padding: 8px 14px; font: inherit; font-size: .9rem; font-weight: 600;
+  color: var(--tinte); background: var(--flaeche); border: 1px solid var(--linie-stark); border-radius: var(--radius); cursor: pointer; }
+.pst-zeichen .formlage > button[data-formlage-auf].an { background: var(--blau-hell, #dcebfb); }
+.pst-zeichen .formlage { display: inline-flex; }
+/* Symbole auch beim Eingeben gross (Patrick 27. November 2026: „sind die Symbole grösser,
+   wenn man sie eingibt?“). Ein Eingabefeld kann einzelne Zeichen nicht anders gestalten,
+   darum eine eigene Schrift nur für diese Zeichen (unicode-range), 145 % grösser. */
+@font-face { font-family: "GdtGross"; src: local("Segoe UI Symbol"), local("Apple Symbols"), local("Cambria Math"), local("Noto Sans Symbols 2"), local("DejaVu Sans");
+  unicode-range: U+23E4-23E5, U+25CB, U+232D, U+2312-2313, U+2225, U+27C2, U+2220, U+2316, U+25CE, U+232F, U+2197, U+2330, U+2AFD; size-adjust: 145%; }
+.pst-soll, .pst-tol, .schreibleiste__zeichen, .eba-markier .schreibleiste__zeichen {
+  font-family: "GdtGross", Aptos, "Segoe UI", "Segoe UI Symbol", "Apple Symbols", "Cambria Math", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif; }

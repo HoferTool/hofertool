@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.910.0 (27. November 2026)
+
+QS: Excel-Berichte mit „#“ statt „Nr.“ werden gelesen (Zeile M = Material übersprungen); Toleranzrahmen aus der GDT-Schrift wie „{µ~|Ø~0~.~0~2~|A~}“ werden zu „µ Ø0.02 A“. Masse-Blatt: Toleranz von Hand überschreibbar (z.tol, gilt für Auswertung und Vorschläge); Knopf Form/Lage gleich gross wie Ø und ±; Symbole auch in Eingabefeldern grösser (Schrift GdtGross mit size-adjust).
+
 ## 1.909.0 (27. November 2026)
 
 Test ERP: Reiter Fertigung zeigt gleich alle FAs (neuste oben), mit Häkchen je Stand (offen, in Arbeit, teilweise fertig, fertig, abgeschlossen, storniert; storniert anfangs aus), die Suche grenzt weiter ein (Wunsch Patrick). Dazu 23 offene Fremdleistungen aus dem Gewatec-Export als Bestellungen (`sql/erp-fremdleistungen-gewatec.sql`, eingespielt): die erste Übernahme nahm nur Positionen mit offener Menge, bei Fremdleistungen steht die Liefermenge im Gewatec aber gleich der Menge.

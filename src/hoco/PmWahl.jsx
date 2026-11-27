@@ -9,7 +9,7 @@
 // =================================================================
 import { useEffect, useMemo, useState } from "react";
 import { wertFenster } from "../teile/Dialoge.jsx";
-import { pruefmittelAlleLaden, pruefmittelFuer, toleranz } from "../daten/pruefbericht.js";
+import { pruefmittelAlleLaden, pruefmittelFuer, tolVon } from "../daten/pruefbericht.js";
 
 const LEHRE = /lehr|dorn|ring|rachen|gewinde|kaliber/i;
 const zahlen = (t) => (String(t || "").match(/\d+(?:[.,]\d+)?/g) || []).map((x) => Number(x.replace(",", ".")));
@@ -40,7 +40,7 @@ function Wahl({ z, hoco, fertig }) {
     // Vorschläge nach dem Soll (Patrick 27. November 2026: „warum keine Grenzlehrdorne oder
     // sonstiges vorgeschlagen“): Lehren, deren Masse die Grenzen oder das Nennmass treffen,
     // stehen zuoberst, danach die übrigen Lehren, erst dann Messmittel.
-    const t = toleranz(z.soll);
+    const t = tolVon(z);
     const nenn = zahlen(String(z.soll || "").replace(/^\s*Ø\s*/, ""))[0];
     const wert = (p) => {
       if (p.id === id) return 1000;
