@@ -190,7 +190,7 @@ export function vorlageAus(berichte) {
 // Gibt { min, max, einheit } oder null (ohne Mass, nur Gewinde, Material …)
 const NUR_MAX = /^(ra|rz|rmax|rundlauf|planlauf|gesamtlauf|position|ebenheit|parallel\w*|rechtwink\w*|koaxial\w*|konzentr\w*|symmetrie|geradheit|rundheit|zylindr\w*|kb)\b/i;
 export function toleranz(soll) {
-  let s = String(soll || "").trim().replace(/^Ø\s*/, "").replace(/\s*x\s*45°\s*$/i, "")
+  let s = symbolUmwandeln(soll).trim().replace(/^Ø\s*/, "").replace(/\s*x\s*45°\s*$/i, "")
     .replace(/\s+\d+\s*x\s*$/i, "").trim();
   if (!s || /^M\s*\d/i.test(s)) return null;
   const grad = /°/.test(s) ? "°" : "";
@@ -495,7 +495,9 @@ export async function stammLaden(hoco) {
 // früher abgelegten Excel-Vorlagen (Ordner oder von Hand vor 1.779.0)
 export async function stammMitMassen(hoco) {
   const st = await stammLaden(hoco).catch((f) => { if (fehltTabelle(f)) return null; throw f; });
-  if (st && (st.zeilen || []).length) return { ...st, zeilen: nachProdAbsaetze(st.zeilen), aus: "stamm" };
+  // gespeicherte Masse mit Fehlern des alten Tools (Tilden, ú…û) beim Laden bereinigen
+  const sauber = (z) => (z && typeof z.soll === "string" && /~|⌀/.test(z.soll) ? { ...z, soll: symbolUmwandeln(z.soll) } : z);
+  if (st && (st.zeilen || []).length) return { ...st, zeilen: nachProdAbsaetze(st.zeilen.map(sauber)), aus: "stamm" };
   const dateien = await dateienLaden(hoco).catch(() => []);
   if (!dateien.length) return st ? { ...st, aus: "stamm" } : null;
   try {

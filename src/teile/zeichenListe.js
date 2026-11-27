@@ -42,7 +42,8 @@ const GDT_RE = new RegExp("[" + [...GDT_SET].join("").replace(/[\]\\^-]/g, "\\$&
 
 // Für React: Text mit den Symbolen in <span class="gdt">.
 export function gdtTeile(text) {
-  const s = String(text ?? "");
+  // Fehler des alten Tools (Tilden, Rahmen-Zeichen) auch bei schon gespeicherten Massen bereinigen
+  const s = symbolUmwandeln(text);
   if (!GDT_RE.test(s)) return s;
   GDT_RE.lastIndex = 0;
   const teile = [];
@@ -58,7 +59,7 @@ export function gdtTeile(text) {
 
 // Für HTML (PDF): schon maskierter Text, die Symbole in <span class="gdt">.
 export function gdtHtml(htmlText) {
-  return String(htmlText ?? "").replace(GDT_RE, (z) => '<span class="gdt">' + z + "</span>");
+  return symbolUmwandeln(htmlText).replace(GDT_RE, (z) => '<span class="gdt">' + z + "</span>");
 }
 
 // Alte Excel-Berichte schrieben die Symbole mit Symbolschriften (Symbol,
@@ -76,9 +77,13 @@ export function symbolUmwandeln(text) {
 // (Patrick 27. November 2026, 10007-0044): Klammern und Tilden weg, Felder mit
 // Leerschlag, also „µ Ø0.02 A“. Das Zeichen vorne ist das Symbol in der Schrift.
 function rahmenText(s) {
-  const m = /^\s*\{(.*)\}\s*$/.exec(s);
-  if (!m || !/[~|]/.test(m[1])) return s;
-  return m[1].split("|").map((f) => f.replace(/~/g, "").trim()).filter(Boolean)
+  s = s.replace(/⌀/g, "Ø");
+  // Das alte Tool trennte jedes Zeichen mit „~“ und setzte Rahmen-Zeichen davor und danach
+  // („ú⌀~2~3~.~5~ ~+~0~.~0~3~û“, „{µ~|Ø~0~.~0~2~|A~}“; Patrick 27. November 2026: „versuche
+  // solche Sachen zu fixen, das ist schon ein Fehler vom alten Tool“).
+  if ((s.match(/~/g) || []).length < 2) return s;
+  const innen = s.trim().replace(/^[{\[úù]+/, "").replace(/[}\]ûü]+$/, "");
+  return innen.split("|").map((f) => f.replace(/~/g, "").replace(/\s+/g, " ").trim()).filter(Boolean)
     .map((f) => RAHMEN_SYMBOL[f] || f).join(" ");
 }
 // µ steht in der alten GDT-Schrift für Koaxialität (Patrick 27. November 2026, Mass 8 von 10007-0044)

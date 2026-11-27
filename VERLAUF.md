@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.914.1 (27. November 2026)
+
+Masse-Blatt ruhiger wie ein Tabellen-Editor (Platzhalter nur im angetippten Feld, blauer Rahmen, Knöpfe blass bis man über die Zeile fährt). Fehler des alten Tools wie „ú⌀~2~3~.~5~ ~+~0~.~0~3~û“ werden beim Lesen, Anzeigen und Rechnen zu „Ø23.5 +0.03“ bereinigt, auch bei schon gespeicherten Massen.
+
 ## 1.914.0 (27. November 2026)
 
 Test ERP: die Liste der FAs hat die Spalte „Planwand“ mit dem Zeichen und Zustand wie auf dem Balken (○ Geplant, 🔧 Rüsten, ▶ Läuft, ✔ Fertig) und der Maschine (`planwandZelle` in `Belege.jsx`; Wunsch Patrick).
