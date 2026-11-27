@@ -2,7 +2,7 @@ import json
 # Test ERP (1.672.0, Wunsch Patrick 20. November 2026): nur mit Vermerk
 # erpSehen, Kalkulation steht als Reiter im ERP statt im Menü. Ganzer
 # Ablauf: Bestellung → Wareneingang, Auftrag → FA → Material → Fertig →
-# Lieferschein (nur gleicher Index) → Rechnung → Fibu → Rückverfolgung.
+# Lieferschein (nur gleicher Index) → Rechnung → Fibu.
 import time, os
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -181,11 +181,8 @@ with sync_playwright() as p:
     pg.wait_for_timeout(600)
     pruefe(all((b.get("daten") or {}).get("fibu_am") for b in tabelle(pg, "erp_belege") if b["typ"] in ("rechnung", "gutschrift")), "fibu_am gesetzt")
 
-    # Rückverfolgung der FA-Charge bis zum Rohmaterial und Kunden
-    pg.click("[data-erp-reiter='rueck']"); pg.locator(".erp-suche").fill(fa[0]["nr"]); pg.wait_for_timeout(400)
-    spur = pg.inner_text("[data-erp-spur='%s']" % fa[0]["nr"])
-    pruefe("X8CrNiS18-9" in spur and "Muster AG" in spur and "WE-20260001-" in spur, "Spur zeigt Material-Charge und Kunde")
-    pg.screenshot(path=BILD + "/erp-rueck.png")
+    # Reiter Rückverfolgung gibt es seit 1.888.0 nicht mehr
+    pruefe(pg.locator("[data-erp-reiter='rueck']").count() == 0, "kein Reiter Rückverfolgung")
 
     # Kalkulation im ERP
     pg.click("[data-erp-reiter='kalk']"); pg.wait_for_timeout(800)
