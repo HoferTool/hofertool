@@ -24,14 +24,34 @@ export const pmText = (p) => [p.bezeichnung || p.typ || "", p.nennmass || p.mass
 const zeile = (p) => (p.nr ? p.nr + " · " : "") + pmText(p) + (p.status === "gesperrt" ? " (gesperrt)" : p.status === "weg" ? " (ausgeschieden)" : "");
 const passt = (p, s) => !s || s.toLowerCase().split(/\s+/).every((w) => ((p.nr || "") + " " + pmText(p) + " " + (p.hoco || "")).toLowerCase().includes(w));
 
+// Passende Mittel nach Name im Feld (z. B. Hinweis „Grenzlehrdorn“) und Mass, ähnlich gesucht
+// (Patrick 27. November 2026: „wenn Grenzlehrdorn als Hinweis drin ist, soll mit dem Mass
+// zusammen das richtige Prüfmittel aus der Verwaltung herausgesucht werden“)
+function vorschlaege(liste, z, hoco) {
+  if (!liste) return [];
+  const t = tolVon(z);
+  const mass = t && t.min !== null && t.max !== Infinity ? t.min + " / " + t.max : "";
+  try {
+    return pruefmittelFuer({ name: z.pm_art === "pruefmittel" ? "" : z.pm || "Lehre", soll: z.soll, mass },
+      liste.map((p) => ({ ...p, status: "aktiv" })), hoco).map((p) => p.id);
+  } catch (_) { return []; }
+}
+const LEHRE_NAME = /lehr|dorn|ring|rachen|kaliber/i;
+
 function Wahl({ z, hoco, fertig }) {
-  const [art, setArt] = useState(z.pm_art || (z.pm && STIFT.test(z.pm) ? "stift" : z.pm_id ? "pruefmittel" : z.pm ? "hinweis" : "pruefmittel"));
+  const lehreHinweis = !z.pm_id && z.pm && LEHRE_NAME.test(z.pm) && !STIFT.test(z.pm);
+  const [art, setArt] = useState(lehreHinweis ? "pruefmittel" : z.pm_art || (z.pm && STIFT.test(z.pm) ? "stift" : z.pm_id ? "pruefmittel" : z.pm ? "hinweis" : "pruefmittel"));
   const [hinweis, setHinweis] = useState(z.pm_art === "hinweis" || !z.pm_art ? z.pm || "" : "");
   const [liste, setListe] = useState(null);
   const [suche, setSuche] = useState("");
   const [id, setId] = useState(z.pm_id || null);
   const [ids, setIds] = useState(new Set(z.pm_ids || []));
-  useEffect(() => { let weg = false; laden().then((l) => { if (!weg) setListe(l); }); return () => { weg = true; }; }, []);
+  useEffect(() => { let weg = false; laden().then((l) => {
+    if (weg) return;
+    setListe(l);
+    // Steht nur „Grenzlehrdorn“ o. ä. als Text da, das passende Mittel gleich vorwählen
+    if (lehreHinweis) { const v = vorschlaege(l, z, hoco)[0]; if (v) setId(v); }
+  }); return () => { weg = true; }; }, []);
   // Vorschläge: was nach Soll und HOCO Nr. passt, steht zuoberst
   const mittel = useMemo(() => {
     if (!liste) return [];
@@ -39,7 +59,7 @@ function Wahl({ z, hoco, fertig }) {
     // nicht alle Sachen von der Verwaltung auswählen“); vorher nur 80 und ohne Stifte
     const alle = liste;
     let vor = [];
-    try { vor = pruefmittelFuer({ name: z.pm || "Lehre", soll: z.soll, mass: "" }, alle.map((p) => ({ ...p, status: "aktiv" })), hoco).map((p) => p.id); } catch (_) { /* ohne Vorschlag */ }
+    vor = vorschlaege(liste, z, hoco);
     // Vorschläge nach dem Soll (Patrick 27. November 2026: „warum keine Grenzlehrdorne oder
     // sonstiges vorgeschlagen“): Lehren, deren Masse die Grenzen oder das Nennmass treffen,
     // stehen zuoberst, danach die übrigen Lehren, erst dann Messmittel.

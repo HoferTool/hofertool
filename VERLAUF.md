@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.914.2 (27. November 2026)
+
+Prüfmittel suchen: Grenzlehrdorne der Verwaltung im Format „5.028 / 5.034“ werden erkannt; aus dem Soll wird ähnlich gesucht (Spiel 0.002 statt 0.001), auch Lehrringe und Rachenlehren. Steht nur „Grenzlehrdorn“ o. ä. als Hinweis, öffnet das Fenster auf Prüfmittel mit dem passenden Mittel vorgewählt; Checkliste und Ausbuchen finden es ebenso.
+
 ## 1.914.1 (27. November 2026)
 
 Masse-Blatt ruhiger wie ein Tabellen-Editor (Platzhalter nur im angetippten Feld, blauer Rahmen, Knöpfe blass bis man über die Zeile fährt). Fehler des alten Tools wie „ú⌀~2~3~.~5~ ~+~0~.~0~3~û“ werden beim Lesen, Anzeigen und Rechnen zu „Ø23.5 +0.03“ bereinigt, auch bei schon gespeicherten Massen.
