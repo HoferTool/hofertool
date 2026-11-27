@@ -87,7 +87,7 @@ function ArtikelFenster({ start, aussen, a0, was, zu }) {
   const a = id ? d.artikelMap.get(id) || a0 : null;
   const [w, setW] = useState(() => formAus(a0, was.art, was));
   const [basis, setBasis] = useState(() => JSON.stringify(formAus(a0, was.art, was)));
-  const [reiter, setReiter] = useState(was.reiter || "artikel");
+  const [reiter, setReiter] = useState(was.reiter === "bewegungen" ? "lager" : (was.reiter || "artikel"));
   const [laeuft, setLaeuft] = useState(false);
   const hofer = w.art === "hofer";
   const geaendert = JSON.stringify(w) !== basis;
@@ -200,7 +200,7 @@ function ArtikelFenster({ start, aussen, a0, was, zu }) {
   </>;
 
   const reiterListe = [["artikel", "Artikel"], hofer && ["verkauf", "Verkauf"], hofer && ["arbeitsplan", "Arbeitsplan"],
-    ["lager", "Lager"], ["bewegungen", "Bewegungen"], ["belege", "Belege"], ["dokumente", "Dokumente"]];
+    ["lager", "Lager"], ["belege", "Belege"], ["dokumente", "Dokumente"]];
 
   return (
     <GFenster titel={titel} kopf={kopf} bild={hofer && a && a.nr ? <ZeichnungVorschau nr={a.nr} titel={titel} /> : <BildFlaeche text={hofer ? "Zeichnung" : "Bild"} />} reiter={reiterListe}
@@ -236,7 +236,6 @@ function ArtikelFenster({ start, aussen, a0, was, zu }) {
       {reiter === "arbeitsplan" && <ArbeitsplanReiter w={w} setW={setW} set={set} roh={roh} />}
 
       {reiter === "lager" && <LagerReiter d={d} a={a} neu={() => frisch()} aussen={aussen} />}
-      {reiter === "bewegungen" && (a ? <BewegungListe d={d} artikelId={a.id} aussen={aussen} /> : <p className="klein">Erst speichern.</p>)}
       {reiter === "belege" && <BelegeReiter d={d} a={a} aussen={aussen} />}
 
       {reiter === "dokumente" && <div className="erp-artfenster__rechts gf-doku">
