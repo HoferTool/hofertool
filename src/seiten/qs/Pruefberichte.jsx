@@ -342,6 +342,9 @@ function MasseAuf({ zeichnen }) {
 // ---------- Übersicht: was ansteht und die zuletzt bearbeiteten ----------
 function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
   const [suche, setSuche] = useState(pbZustand.suche);
+  // „Weitere anzeigen“ wie in den anderen Listen: je 30 mehr (Wunsch Patrick 27. November 2026)
+  const [anzahl, setAnzahl] = useState(30);
+  const [letzteAnzahl, setLetzteAnzahl] = useState(30);
   const [legt, setLegt] = useState(false);
   // Je Spalte ein eigenes Suchfeld (seit 1.839.0, Patrick: „bei allen separat“)
   // Die Suche bleibt seit 1.843.1 nicht über das Neuladen stehen: ein vergessener
@@ -368,7 +371,7 @@ function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
   const liste = [...daten.protokolle]
     .sort((a, b) => String(b.geaendert_am || b.erstellt_am).localeCompare(String(a.geaendert_am || a.erstellt_am)))
     .filter((p) => passtWoerter(suche, [p.hoco_nr, p.fa_nr, artName(p.kopf).name, p.visum, ((p.kopf || {}).vorlage || {}).bezeichnung]));
-  const zeigen = suche ? liste.slice(0, 200) : liste.slice(0, 30);
+  const zeigen = suche ? liste.slice(0, 200) : liste.slice(0, anzahl);
 
   const loeschen = async (p) => { if (await protokollLoeschen(p)) neu(); };
 
@@ -402,7 +405,7 @@ function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
   const letzte = [...jeIndex.values()]
     .filter((x) => passtWoerter(suche, [x.hoco, x.idx, x.d.name]))
     .sort((a, b) => String(b.zeit).localeCompare(String(a.zeit)) || String(a.hoco).localeCompare(String(b.hoco)));
-  const letzteZeigen = suche ? letzte.slice(0, 200) : letzte.slice(0, 30);
+  const letzteZeigen = suche ? letzte.slice(0, 200) : letzte.slice(0, letzteAnzahl);
   // Das Excel selbst zeigt die App nie: daraus wird eine leere Vorlage (seit 1.823.0)
   const vorlageAnsehen = (x) => { pbZustand.vorlage = { hoco: x.hoco, idx: x.idx, dateien: x.dateien }; zeichnen(); };
 
@@ -476,7 +479,8 @@ function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
             </tbody>
           </table>
         )}
-        {!suche && liste.length > zeigen.length ? <p className="klein">Die letzten {zeigen.length} von {liste.length}. Ältere findest du mit der Suche.</p> : null}
+        {!suche && liste.length > zeigen.length ? <div className="bs-mehr pb-mehr"><span className="klein">Die letzten {zeigen.length} von {alt.zahlText(liste.length)}.</span>
+          <button type="button" className="knopf" id="pb-mehr" onClick={() => setAnzahl((n) => n + 30)}>Weitere anzeigen ({Math.min(30, liste.length - zeigen.length)} weitere)</button></div> : null}
       </section>
 
       {(daten.dateien || []).length ? (
@@ -502,7 +506,8 @@ function Uebersicht({ daten, neu, oeffnen, zeichnen }) {
               </tbody>
             </table>
           )}
-          {!suche && letzte.length > letzteZeigen.length ? <p className="klein">Die neusten {letzteZeigen.length} von {letzte.length}. Ältere findest du mit der Suche.</p> : null}
+          {!suche && letzte.length > letzteZeigen.length ? <div className="bs-mehr pb-mehr"><span className="klein">Die neusten {letzteZeigen.length} von {alt.zahlText(letzte.length)}.</span>
+            <button type="button" className="knopf" id="pb-letzte-mehr" onClick={() => setLetzteAnzahl((n) => n + 30)}>Weitere anzeigen ({Math.min(30, letzte.length - letzteZeigen.length)} weitere)</button></div> : null}
         </section>
       ) : null}
     </div>

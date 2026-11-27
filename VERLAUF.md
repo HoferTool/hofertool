@@ -2,6 +2,10 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.941.0 (27. November 2026)
+
+QS → Prüfberichte: „Weitere anzeigen“ unter den Listen (je 30 mehr) statt nur Hinweis auf die Suche. Test pb_mehr.py.
+
 ## 1.940.1 (27. November 2026)
 
 - Test ERP: Lieferplan zeigt bei Abruf nur noch „auf Abruf“ ohne „(bis …)“-Text; Häkchen weg lässt das Datum leer zum Eintragen.
