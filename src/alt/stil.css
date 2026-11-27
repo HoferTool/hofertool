@@ -17620,3 +17620,7 @@ body.dunkel .pd-vorschlag .pd-zeile--vorschlag { background: #2a2a2a; }
   .erp-held__raster, .erp-held__scan, .erp-held__logo, .erp-held__punkt { animation: none; }
   .erp-held__scan { display: none; }
 }
+
+/* 1.882.0: Fenster, die schon als eigenes Browserfenster laufen, stehen
+   weiter in der Fensterleiste (Patrick 27. November 2026), sichtbar anders. */
+.fensterleiste__chip--aussen { border-style: dotted; opacity: 0.9; }

@@ -17,7 +17,7 @@
 //  „Alle schliessen“, nur am Computer (ab 780 Punkten) und nicht im Pad.
 // =================================================================
 import { alt } from "../bruecke.jsx";
-import { inEigenesFenster } from "./eigenesFenster.js";
+import { inEigenesFenster, eigeneFensterListe, eigeneFensterOffen } from "./eigenesFenster.js";
 
 const ordnung = [];
 let leiste = null;
@@ -230,7 +230,9 @@ function leisteSichtbar() {
   // Blätter über den ganzen Bildschirm (Masse-Blatt der Prüfung) haben oben
   // ihre eigene Leiste, die Fensterleiste läge sonst über deren Knöpfen
   if (document.querySelector("[data-pstblatt]")) return false;
-  return ordnung.length > 0;
+  // Auch Fenster in einem eigenen Browserfenster zählen (Patrick 27. November
+  // 2026: „sobald es im eigenen Fenster läuft, verschwindet die Fensterübersicht“)
+  return ordnung.length + eigeneFensterListe().length > 0;
 }
 
 function schliessen(h) {
@@ -272,7 +274,14 @@ function leisteJetzt() {
       const alle = e.target.closest("[data-fenster-alle]");
       if (alle) {
         [...ordnung].reverse().forEach(schliessen);
+        eigeneFensterListe().forEach((e) => { try { e.schliessen(); } catch (f) { /* schon zu */ } });
         leisteZeichnen();
+        return;
+      }
+      const ext = e.target.closest("[data-fenster-ext]");
+      if (ext) {
+        const ef = eigeneFensterListe()[Number(ext.dataset.fensterExt)];
+        if (ef) { try { ef.w.focus(); } catch (f) { /* gesperrt */ } }
         return;
       }
       const chip = e.target.closest("[data-fenster-nr]");
@@ -298,6 +307,11 @@ function leisteJetzt() {
     return `<button type="button" class="fensterleiste__chip${aktiv}${frei}" data-fenster-nr="${i}" title="${esc(t)}">`
       + `<span>${esc(t)}</span></button>`;
   }).join("")
+    + eigeneFensterListe().map((e, i) => {
+      const t = e.titel() || "Fenster";
+      return `<button type="button" class="fensterleiste__chip fensterleiste__chip--aussen" data-fenster-ext="${i}" title="${esc(t)} (eigenes Fenster, antippen holt es nach vorne)">`
+        + `<span>⧉ ${esc(t)}</span></button>`;
+    }).join("")
     + `<button type="button" class="fensterleiste__alle" data-fenster-alle title="Alle Fenster schliessen">✕ Alle schliessen</button>`;
   if (leiste.__html !== html) { leiste.innerHTML = html; leiste.__html = html; }
 }
@@ -317,6 +331,6 @@ new MutationObserver((meldungen) => {
 }).observe(document.body, { childList: true });
 
 // Titel kommen in React oft erst etwas später, Grösse ändert sich
-setInterval(() => { if (ordnung.length || leiste) leisteJetzt(); }, 1000);
+setInterval(() => { if (ordnung.length || leiste || eigeneFensterOffen()) leisteJetzt(); }, 1000);
 addEventListener("resize", leisteZeichnen);
 document.querySelectorAll("body > .dialog-huelle").forEach((h) => { if (istFenster(h)) aufnehmen(h); });

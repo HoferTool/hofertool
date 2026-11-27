@@ -75,6 +75,7 @@ export function stileUebertragen(d) {
 }
 
 export const eigeneFensterOffen = () => offen.size > 0;
+export const eigeneFensterListe = () => [...offen];
 
 // Beim Abmelden und vor dem Neuladen: alles zu
 export function eigeneFensterZu() {
@@ -173,7 +174,12 @@ export function inEigenesFenster(huelle, zu, { titel, lage, still } = {}) {
   neue.observe(document.body, { childList: true });
 
   let fertig = false;
+  // w, huelle und der Titel stehen am Eintrag, damit die Fensterleiste
+  // auch Fenster zeigen kann, die in einem eigenen Browserfenster laufen
   const eintrag = {
+    w,
+    huelle,
+    titel: () => { try { return d.title || titel || ""; } catch (f) { return titel || ""; } },
     schliessen: () => {
       if (fertig) return;
       fertig = true;
