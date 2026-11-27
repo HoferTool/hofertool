@@ -101,7 +101,7 @@ function planwandZelle(b) {
 // geht zum Lieferanten, oder aus dem Gewatec als Fremdleistung übernommen
 const BE_ARTEN = [["roh", "Rohmaterial"], ["za", "ZA extern"], ["andere", "Andere"]];
 let beArten = BE_ARTEN.map(([w]) => w);
-function bestellArt(d, b) {
+export function bestellArt(d, b) {
   const pos = d.posJe.get(b.id) || [];
   const arten = pos.map((p) => (d.artikelMap.get(p.artikel_id) || {}).art);
   if ((b.daten || {}).fremdleistung || arten.includes("hofer")) return "za";
@@ -1095,7 +1095,7 @@ function LieferscheinFenster({ d, b, zu, fertig, nurPos }) {
   );
 }
 
-function EingangFenster({ d, b, zu, fertig }) {
+export function EingangFenster({ d, b, zu, fertig }) {
   const pos = (d.posJe.get(b.id) || []).filter((p) => p.artikel_id);
   const [w, setW] = useState(() => pos.map((p) => {
     const offen = Math.max(0, zahl(p.menge) - gebucht(d, p.id, "eingang"));

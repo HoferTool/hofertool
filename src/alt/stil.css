@@ -17815,3 +17815,24 @@ body.dunkel .markier-blase__formlage { border-color: rgba(255, 255, 255, .15); }
 /* 1.918.0: Stundensatz einer Maschine, die es nicht mehr gibt */
 .kalk-masch--weg b { color: #8a949e; text-decoration: line-through; }
 .kalk-masch-weg { margin: 10px 0; }
+
+/* 1.920.0: Test ERP → Logistik, Dashboard mit Kacheln (passend zum dunkelblauen Kopf) */
+.logi-kacheln { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin: 4px 0 16px; }
+.logi-kachel { position: relative; overflow: hidden; display: grid; grid-template-columns: auto 1fr; grid-template-areas:
+  "zeichen titel" "zeichen zahl" "text text"; gap: 4px 14px; align-items: center; text-align: left; cursor: pointer;
+  padding: 18px 20px; border: 1px solid #1d4f8f; border-radius: 16px; color: #fff;
+  background: linear-gradient(135deg, #0b2a55 0%, #12407e 55%, #1b5fae 100%);
+  box-shadow: 0 6px 18px rgba(11,42,85,.25); transition: transform .15s ease, box-shadow .15s ease; }
+.logi-kachel::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(circle at 100% 0%, rgba(140,210,255,.28), transparent 55%); }
+.logi-kachel:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(11,42,85,.35); }
+.logi-kachel.aktiv { outline: 3px solid #7cc4ff; outline-offset: 2px; }
+.logi-kachel__zeichen { grid-area: zeichen; font-size: 38px; line-height: 1; filter: drop-shadow(0 0 8px rgba(140,210,255,.6)); }
+.logi-kachel__titel { grid-area: titel; font-weight: 700; font-size: 17px; letter-spacing: .2px; }
+.logi-kachel__zahl { grid-area: zahl; font-size: 14px; opacity: .9; }
+.logi-kachel__zahl b { font-size: 30px; font-weight: 800; margin-right: 4px; color: #bfe3ff; }
+.logi-kachel__warn { position: absolute; top: 12px; right: 12px; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 700;
+  background: #e5484d; color: #fff; }
+.logi-kachel__text { grid-area: text; font-size: 13px; opacity: .8; margin-top: 6px; }
+.logi-funktion__titel { margin: 0 12px 0 0; font-size: 18px; }
+@media (prefers-reduced-motion: reduce) { .logi-kachel { transition: none; } .logi-kachel:hover { transform: none; } }

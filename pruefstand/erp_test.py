@@ -212,6 +212,12 @@ with sync_playwright() as p:
     pruefe(n_roh <= n_be, "nur Rohmaterial: %s von %s" % (n_roh, n_be))
     pg.evaluate("TEST.erpAlle = true")
 
+    # Logistik: Kachel Wareneingang ZA extern (seit 1.920.0)
+    pg.click("[data-erp-reiter='logistik']"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-logi-kachel='we-za']").count() == 1 and pg.locator("[data-logi-funktion='we-za']").count() == 1,
+           "Logistik mit Kachel und Liste Wareneingang ZA extern")
+    pg.screenshot(path=BILD + "/erp-logistik.png")
+
     # Spaltenkopf antippen sortiert (seit 1.898.0): Hofer-Artikel nach Index auf- und absteigend
     pg.click("[data-erp-reiter='stamm']"); pg.wait_for_timeout(300)
     pg.click("[data-erp-stamm='artikel']"); pg.wait_for_timeout(300)
