@@ -25,11 +25,17 @@ async function laden() {
   // Parks zuerst: ohne ihre Namen weiss parkErlaubt nicht, welcher Park
   // zu Kurz- oder Langdrehern gehört
   await alt.ladeParks(false);
-  const [maschinen, laufend] = await Promise.all([alt.ladeMaschinen(false), alt.ladeLaufendeAuftraege()]);
+  const [alleMaschinen, laufend] = await Promise.all([alt.ladeMaschinen(false), alt.ladeLaufendeAuftraege()]);
+  // Maschinen der externen Firma (Zurbrügg) sehen hier nur Externe, wie im
+  // Pad Mode (Wunsch Patrick 27. November 2026: „soll dort nicht aufgelistet
+  // sein bei uns, nur extern“)
+  const maschinen = alleMaschinen.filter((m) => !alt.padParkVerborgen(m.park_id));
   let meldungen = [], fehlt = false;
   try { meldungen = await qsMeldungenLaden(); }
   catch (f) { if (tabelleFehlt(f)) fehlt = true; else throw f; }
   const meine = new Set(maschinen.map((m) => m.id));
+  const extern = new Set(alleMaschinen.filter((m) => alt.padParkVerborgen(m.park_id)).map((m) => m.id));
+  meldungen = meldungen.filter((me) => !extern.has(me.machine_id));
   if (!alt.istAdmin()) meldungen = meldungen.filter((me) => meine.has(me.machine_id));
   const zeilen = maschinen.filter((m) => laufend[m.id]).sort(nachNummer)
     .map((m) => ({ m, j: laufend[m.id] }));
