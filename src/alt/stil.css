@@ -17641,3 +17641,51 @@ body.dunkel .kalk-fenster { background: #1b2430; }
   font-size: 1.25em; display: inline-block; width: 1.2em; text-align: center; line-height: 1; vertical-align: -0.08em; }
 .pst-soll, .schreibleiste__zeichen, .eba-markier .schreibleiste__zeichen {
   font-family: Aptos, "Segoe UI", "Segoe UI Symbol", "Apple Symbols", "Cambria Math", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif; }
+
+/* ---------- Gridfinity (seit 1.895.0), Vorsilbe gfn-, weil gf- schon vergeben ist ---------- */
+.gfn-werkzeug { display: flex; flex-direction: column; gap: 14px; }
+.gfn-wahl { display: inline-flex; gap: 4px; padding: 4px; border-radius: 12px;
+  background: var(--linie, #e4e8ee); align-self: flex-start; max-width: 100%; flex-wrap: wrap; }
+.gfn-wahl__knopf { border: none; background: none; font: inherit; font-weight: 600;
+  padding: 9px 18px; border-radius: 9px; cursor: pointer; color: var(--gedaempft); }
+.gfn-wahl__knopf.aktiv { background: var(--flaeche, #fff); color: var(--marke);
+  box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+.gfn-wahl--klein { margin-bottom: 12px; }
+.gfn-wahl--klein .gfn-wahl__knopf { padding: 7px 12px; font-size: .9rem; }
+.gfn-raster { display: grid; grid-template-columns: minmax(260px, 340px) 1fr; gap: 16px; align-items: start; }
+.gfn-einstellungen { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.gfn-gruppe { background: var(--flaeche, #fff); border: 1px solid var(--linie-stark);
+  border-radius: 12px; padding: 12px 14px; }
+.gfn-gruppe h3 { margin: 0 0 10px; font-size: .8rem; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--gedaempft); }
+.gfn-zahl { display: grid; grid-template-columns: 1fr auto; align-items: center;
+  gap: 2px 10px; margin-bottom: 10px; }
+.gfn-zahl__titel { font-weight: 600; }
+.gfn-zahl__reihe { display: inline-flex; align-items: center; gap: 4px; }
+.gfn-zahl__reihe input { width: 58px; text-align: center; font: inherit; padding: 6px 4px;
+  border: 1px solid var(--linie-stark); border-radius: 8px; background: var(--flaeche, #fff);
+  font-variant-numeric: tabular-nums; }
+.gfn-zahl__knopf { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--linie-stark);
+  background: var(--flaeche, #fff); font-size: 1.15rem; line-height: 1; cursor: pointer; color: inherit; }
+.gfn-zahl__knopf:disabled { opacity: .35; cursor: default; }
+.gfn-zahl__einheit { font-size: .85rem; color: var(--gedaempft); min-width: 44px; }
+.gfn-zahl__hinweis { grid-column: 1 / -1; font-size: .8rem; color: var(--gedaempft); margin-top: -2px; }
+.gfn-schalter { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; cursor: pointer; }
+.gfn-schalter input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--marke); }
+.gfn-schalter span { display: flex; flex-direction: column; }
+.gfn-schalter small { color: var(--gedaempft); font-size: .8rem; }
+.gfn-text { font-size: .85rem; color: var(--gedaempft); margin: 4px 0 0; }
+.gfn-vorschau { display: flex; flex-direction: column; gap: 10px; min-width: 0; position: sticky; top: 10px; }
+.gfn-3d { height: min(64vh, 620px); min-height: 300px; border-radius: 14px; overflow: hidden;
+  border: 1px solid var(--linie-stark); background: linear-gradient(#f4f7fa, #dfe6ed); touch-action: none; }
+body.dunkel .gfn-3d { background: linear-gradient(#2b3440, #1b2129); }
+.gfn-fuss { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.gfn-masse { display: flex; flex-direction: column; gap: 2px; font-variant-numeric: tabular-nums; }
+.gfn-warnung { color: #b45309; font-size: .85rem; }
+body.dunkel .gfn-warnung { color: #fbbf24 !important; }
+.gfn-export { display: flex; gap: 8px; }
+@media (max-width: 760px) {
+  .gfn-raster { grid-template-columns: 1fr; }
+  .gfn-vorschau { position: static; order: -1; }
+  .gfn-3d { height: 46vh; }
+}

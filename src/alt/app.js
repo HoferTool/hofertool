@@ -25,6 +25,7 @@ import QmAlternativ from "../seiten/QmAlternativ.jsx";
 import "../seiten/Kalender.jsx";
 import Einlagen from "../seiten/Einlagen.jsx";
 import Modell3d from "../seiten/Modell3d.jsx";
+import Gridfinity from "../seiten/Gridfinity.jsx";
 import Hofer2dTo3d from "../seiten/Hofer2dTo3d.jsx";
 import MaschinenSeite, { maschinenZurueck } from "../seiten/Maschinen.jsx";
 import Bildschirme from "../seiten/Bildschirme.jsx";
@@ -178,7 +179,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.894.0";
+const APP_VERSION = "1.896.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3365,7 +3366,9 @@ function seiteSichtbar(pfad) {
   // Konten nur für HOFERTIME (seit 1.626.0) sehen nur ihre Zeiten
   if (profil && profil.nur_zeit) return pfad === "zeit";
   // Das Dienstkonto braucht keine Material-Seite
-  if ((pfad === "material" || pfad === "maschinen" || pfad === "statistik" || pfad === "kalender" || pfad === "einlagen" || pfad === "hofer2dto3d" || pfad === "modell3d" || pfad === "qs") && meineRolle() === "dienst") return false;
+  if ((pfad === "material" || pfad === "maschinen" || pfad === "statistik" || pfad === "kalender" || pfad === "einlagen" || pfad === "hofer2dto3d" || pfad === "modell3d" || pfad === "gridfinity" || pfad === "qs") && meineRolle() === "dienst") return false;
+  // Gridfinity (seit 1.895.0) nicht für Externe
+  if (pfad === "gridfinity" && istExtern()) return false;
   if (pfad === "infoboard" || pfad === "pausenraum") return infoboardSichtbar();
   if (pfad === "bildschirme") return SEITEN.some((s) => s.gruppe === "bildschirme" && seiteSichtbar(s.pfad));
   if (pfad === "startneu") return istAdmin() && !istExtern();
@@ -11019,6 +11022,10 @@ SYM.hofer2dto3d = svg('<path d="M3 4h7v12H3z"/><path d="M5 7.5h3M5 10.5h3"/>'
 SYM.modell3d = svg('<path d="M12 3l7 4v8l-7 4-7-4V7z"/><path d="M5 7l7 4 7-4M12 11v8"/>'
   + '<path d="M2.5 13.5a9.5 4 0 0 0 4 4"/>');
 
+// Gridfinity: Box auf dem 42-mm-Raster
+SYM.gridfinity = svg('<path d="M3 15h18M3 19h18M7 15v4M12 15v4M17 15v4"/>'
+  + '<path d="M6 13V6.5a1.5 1.5 0 0 1 1.5-1.5h9A1.5 1.5 0 0 1 18 6.5V13"/><path d="M9 8.5h6"/>');
+
 SYM.temp = svg('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'
   + '<path d="M12 16v-5"/><path d="M9.5 13.5L12 11l2.5 2.5"/>');
 
@@ -11212,6 +11219,8 @@ const SEITEN = [
   { pfad: "einlagen",     titel: "Einlagen Generator", zeichen: SYM.einlagen, zeige: reactSeite(Einlagen) },
   // 3D-Viewer für SketchUp-Exporte (seit 1.797.0, Wunsch Patrick 25. November 2026)
   { pfad: "modell3d",     titel: "3D-Viewer", zeichen: SYM.modell3d, zeige: reactSeite(Modell3d) },
+  // Boxen und Grundplatten nach Gridfinity (seit 1.895.0, Wunsch Patrick 27. November 2026)
+  { pfad: "gridfinity",   titel: "Gridfinity", zeichen: SYM.gridfinity, zeige: reactSeite(Gridfinity) },
   // Reihen lernen als 3D-Snowboard-Spiel, nur für Patrick (seit 1.546.0)
   { pfad: "reihen",       titel: "Hofer + Co Zahlensprint", zeichen: SYM.reihen, zeige: reactSeite(Reihen) },
   // Alle Bildschirme unter einem Punkt im Menü (seit 1.315.0, Wunsch Patrick
@@ -11244,6 +11253,7 @@ const NEUER_LOOK_MENUE = {
   hofer2dto3d: { gruppe: "hilfsprogramme", titel: "2D → 3D" },
   einlagen: { gruppe: "hilfsprogramme" },
   modell3d: { gruppe: "hilfsprogramme" },
+  gridfinity: { gruppe: "hilfsprogramme" },
   // Zahlensprint (nur mit Vermerk reihenSehen) unter Hilfsprogramme (seit 1.786.0)
   reihen: { gruppe: "hilfsprogramme" },
   bildschirme: { gruppe: "hilfsprogramme" },

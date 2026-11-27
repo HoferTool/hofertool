@@ -3,9 +3,17 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
-## 1.894.0 (27. November 2026)
+## 1.896.0 (27. November 2026)
 
 Test ERP: Reiter Rückverfolgung entfernt (Wunsch Patrick: „den Reiter Rückverfolgung kannst du entfernen“); `Rueckverfolgung` in `Belege.jsx` bleibt unbenutzt. Dazu aus 1.887.0: Kopf der Startseite ohne Kacheln, grosse Fenster gehen gleich frei auf.
+## 1.895.0 (27. November 2026)
+
+Neues Hilfsprogramm Gridfinity (`#/gridfinity`): Boxen (Grösse in Feldern, Höhe in 7-mm-Einheiten, Fächer, Stapelrand, Beschriftungsleiste, Magnetlöcher) und Grundplatten (Anzahl Felder oder passend zur Schublade, Magnetlöcher) mit 3D-Vorschau, Export 3MF und STL. Nicht für Externe. Prüfstand `gridfinity.py`.
+
+## 1.894.0 (27. November 2026)
+
+QS → Erstteilprüfung: Checkliste mit Knopf „Anpassen“; er öffnet die Masse der Stammdaten, beim Zurückkommen werden Masse und Prüfmittel neu übernommen und alle Haken zurückgesetzt (Wunsch Patrick: „anpassen kommen, dann der Bericht … und checkt nochmals die Liste“).
+
 ## 1.893.0 (27. November 2026)
 
 Pad Mode: Ist auf Startbild, Parks, Typen oder Maschinen Platz übrig, werden die Kacheln grösser, bis sie den freien Platz füllen, ohne Rollen (Wunsch Patrick: „diese felder dürfen schon etwas grösser sein“). `src/pad/einpassen.js` wählt dafür die Spaltenzahl, bei der die Kacheln am grössten werden (letzte Reihe höchstens eine weniger), höchstens 2,6-fach; am Handy unverändert. Prüfstand `pad_kacheln_gross.py`.
