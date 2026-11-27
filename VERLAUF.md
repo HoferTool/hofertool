@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.897.0 (27. November 2026)
+
+Test ERP und Kalkulation: in allen Listen sortiert ein Tipp auf den Spaltenkopf nach dieser Spalte (aufsteigend ▲, nochmals absteigend ▼, ein dritter Tipp zurück), Zahlen und Daten richtig als Zahl bzw. Datum, Leere hinten (`src/teile/sortieren.js`, `Tabelle`/`SortKopf` in `teile.jsx`, `GTabelle`; Wunsch Patrick: „in allen Suchfenstern nach Spalte sortieren“). Die Kalkulationen sortieren alle Treffer, die übrigen Listen die gezeigten Zeilen.
+
 ## 1.896.0 (27. November 2026)
 
 Test ERP: Reiter Rückverfolgung entfernt (Wunsch Patrick: „den Reiter Rückverfolgung kannst du entfernen“); `Rueckverfolgung` in `Belege.jsx` bleibt unbenutzt. Dazu aus 1.887.0: Kopf der Startseite ohne Kacheln, grosse Fenster gehen gleich frei auf.

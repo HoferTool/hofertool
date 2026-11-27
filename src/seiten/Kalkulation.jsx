@@ -21,6 +21,7 @@ import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { materialZerlegen, werkstoffGenau } from "../daten/material.js";
 import { naechsteNummer, nummernLaden } from "../daten/erp.js";
 import { artikelAusKalkulation } from "./erp/KalkTab.jsx";
+import { useSortierung, sortiert, sortPfeil } from "../teile/sortieren.js";
 import {
   z, chf, stundensatz, staffelRechnen, leereKalkulation, kalkulationenLaden, kalkulationLaden, kalkVorschau, maschinenLaden,
   kalkulationSpeichern, maschineSpeichern, BEISPIEL_MASCHINEN, beispielKalkulation, START_MASCHINEN, startArbeitsplan, kostenstelleFuer, WAEHRUNGEN, kursHolen, PREISEINHEITEN, peWert, peText, EXTERN_NEBEN, FGK_DREHEN, SPEZ_GEWICHT, PREIS_JE_STAFFEL, preisInStaffeln, adresseVon, adresseZeilen, MAT_FORMEN,
@@ -179,6 +180,16 @@ function Liste({ liste, maschinen, oeffnen, neu, saetze }) {
     const text = [k.nr, k.kunde, k.artikel, ...Object.values(kopf)].filter((x) => typeof x === "string").join(" ").toLowerCase();
     return woerter.every((w) => text.includes(w));
   });
+  // Spaltenkopf antippen sortiert alle Treffer, nicht nur die gezeigten 200 (seit 1.897.0)
+  const [sort, sortKlick] = useSortierung();
+  const kalkSortText = (k, i) => {
+    const v = k.vorschau || {};
+    return i === 0 ? k.nr || "" : i === 1 ? k.kunde || "" : i === 2 ? (k.artikel || "") + " " + ((k.kopf && k.kopf.bezeichnung) || "")
+      : i === 3 ? String((v.mengen || [])[0] ?? "") : i === 4 ? (v.preis != null ? String(v.preis) : "")
+      : k.geaendert_am ? String(Date.parse(k.geaendert_am) || "") : "";
+  };
+  const reihe = sortiert(gefunden, sort, kalkSortText);
+  const KOPF = [["Nr."], ["Kunde"], ["Artikel"], ["Staffeln"], ["Preis", "rechts"], ["Geändert"]];
 
   async function anlegen(beispiel) {
     setLaeuft(true);
@@ -219,9 +230,10 @@ function Liste({ liste, maschinen, oeffnen, neu, saetze }) {
              !liste ? <p className="hinweis laedt" id="kalk-laedt">Kalkulationen werden geladen …</p> :
              !gefunden.length ? <p className="hinweis" id="kalk-nichts">Keine Kalkulation gefunden.</p> :
             <table className="tabelle kalk-liste">
-              <thead><tr><th>Nr.</th><th>Kunde</th><th>Artikel</th><th>Staffeln</th><th className="rechts">Preis</th><th>Geändert</th></tr></thead>
+              <thead><tr>{KOPF.map(([t, kl], i) => <th key={t} className={(kl ? kl + " " : "") + "erp-sortkopf" + (sort && sort.spalte === i ? " erp-sortkopf--an" : "")}
+                data-erp-sort={i} title="Antippen sortiert" onClick={() => sortKlick(i)}>{t}{sortPfeil(sort, i)}</th>)}</tr></thead>
               <tbody>
-                {gefunden.slice(0, 200).map((k) => {
+                {reihe.slice(0, 200).map((k) => {
                   const v = k.vorschau || {};
                   return (
                     // Die Klassen je Zelle braucht das Handy: dort wird jede Zeile ein Kärtchen (seit 1.237.1)

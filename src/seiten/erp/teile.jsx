@@ -1,5 +1,6 @@
 // Test ERP: gemeinsame Bausteine (Formularfenster, Listen in Formularen, Druckblatt)
 import { useState } from "react";
+import { useSortierung, sortiert, zellText, sortPfeil } from "../../teile/sortieren.js";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { briefBlatt } from "../../teile/briefkopf.js";
@@ -139,19 +140,33 @@ function Formular({ titel, felder, wert, speichern, loeschen, zu, breit, gross }
 }
 
 // Tabelle mit Kopf; zeilen: [{ key, zellen: [...], klick }]
+// Ein Tipp auf den Spaltenkopf sortiert (seit 1.897.0, src/teile/sortieren.js);
+// z.sort[i] gibt bei Bedarf einen eigenen Sortierwert für Spalte i.
 export function Tabelle({ kopf, zeilen, leer }) {
+  const [sort, sortKlick] = useSortierung();
   if (!zeilen.length) return <div className="karte karte--hinweis"><p>{leer || "Noch keine Einträge."}</p></div>;
+  const reihe = sortiert(zeilen, sort, sortText);
   return (
     <div className="erp-tabelle-huelle">
       <table className="erp-tabelle">
-        <thead><tr>{kopf.map((k, i) => <th key={i}>{k}</th>)}</tr></thead>
-        <tbody>{zeilen.map((z) => (
+        <thead><tr>{kopf.map((k, i) => <SortKopf key={i} k={k} i={i} sort={sort} klick={sortKlick} />)}</tr></thead>
+        <tbody>{reihe.map((z) => (
           <tr key={z.key} className={(z.klick ? "erp-klick" : "") + (z.klasse ? " " + z.klasse : "")}
             onClick={z.klick} data-erp-zeile={z.key}>
             {z.zellen.map((c, i) => <td key={i}>{c}</td>)}</tr>))}</tbody>
       </table>
     </div>
   );
+}
+
+// Text einer Zelle zum Sortieren
+export const sortText = (z, i) => (z.sort && z.sort[i] != null ? String(z.sort[i]) : zellText(z.zellen[i]));
+
+// Spaltenkopf zum Antippen; ohne Titel (z. B. Häkchen-Spalte) nicht sortierbar
+export function SortKopf({ k, i, sort, klick, className }) {
+  if (!zellText(k).trim()) return <th className={className}>{k}</th>;
+  return <th className={(className ? className + " " : "") + "erp-sortkopf" + (sort && sort.spalte === i ? " erp-sortkopf--an" : "")}
+    data-erp-sort={i} title="Antippen sortiert" onClick={() => klick(i)}>{k}{sortPfeil(sort, i)}</th>;
 }
 
 export function Suche({ wert, setzen, platzhalter, fokus }) {

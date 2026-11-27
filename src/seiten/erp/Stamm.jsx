@@ -9,6 +9,8 @@
 // klicken und es zeigt dann logische Schnittstellen“).
 import { createContext, useContext, useRef, useState, useEffect } from "react";
 import { speichernFragen } from "../../teile/Dialoge.jsx";
+import { useSortierung, sortiert } from "../../teile/sortieren.js";
+import { SortKopf, sortText } from "./teile.jsx";
 
 const MenueKontext = createContext(null);
 
@@ -114,14 +116,17 @@ export function Gruppe({ titel, children, klasse }) {
 }
 
 // Kleine Tabelle in einem Reiter, Zeilen anwählbar
+// Spaltenkopf antippen sortiert (seit 1.897.0)
 export function GTabelle({ kopf, zeilen, leer, wahl, setWahl, rechts }) {
+  const [sort, sortKlick] = useSortierung();
+  const reihe = sortiert(zeilen, sort, sortText);
   return (
     <div className="gf-tab-huelle">
       <table className="gf-tab">
-        <thead><tr>{kopf.map((k, i) => <th key={i} className={rechts && rechts.includes(i) ? "rechts" : ""}>{k}</th>)}</tr></thead>
+        <thead><tr>{kopf.map((k, i) => <SortKopf key={i} k={k} i={i} sort={sort} klick={sortKlick} className={rechts && rechts.includes(i) ? "rechts" : ""} />)}</tr></thead>
         <tbody>
           {!zeilen.length && <tr><td colSpan={kopf.length} className="gf-tab__leer">{leer || "Keine Einträge."}</td></tr>}
-          {zeilen.map((z) => (
+          {reihe.map((z) => (
             <tr key={z.key} className={(wahl === z.key ? "gewaehlt " : "") + (z.klasse || "") + (z.klick || setWahl ? " erp-klick" : "")}
               data-erp-zeile={z.key}
               onClick={() => { if (setWahl) setWahl(z.key); if (z.klick && !setWahl) z.klick(); }}

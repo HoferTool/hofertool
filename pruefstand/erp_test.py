@@ -182,6 +182,21 @@ with sync_playwright() as p:
     # Reiter Rückverfolgung gibt es seit 1.888.0 nicht mehr
     pruefe(pg.locator("[data-erp-reiter='rueck']").count() == 0, "kein Reiter Rückverfolgung")
 
+    # Spaltenkopf antippen sortiert (seit 1.897.0): Hofer-Artikel nach Index auf- und absteigend
+    pg.click("[data-erp-reiter='stamm']"); pg.wait_for_timeout(300)
+    pg.click("[data-erp-stamm='artikel']"); pg.wait_for_timeout(300)
+    def spalte1():
+        return pg.evaluate("""() => [...document.querySelectorAll('.erp-tabelle tbody tr')].map(t => (t.cells[1]||{}).innerText.trim())""")
+    kopf = pg.locator(".erp-tabelle th[data-erp-sort='1']").first
+    if kopf.count():
+        kopf.click(); pg.wait_for_timeout(150); auf = spalte1()
+        kopf.click(); pg.wait_for_timeout(150); ab = spalte1()
+        pruefe(len(auf) >= 2 and auf == sorted(auf) and ab == list(reversed(auf)) and "▼" in kopf.inner_text(),
+               "Sortieren nach Spalte: %s / %s" % (auf, ab))
+        kopf.click()
+    else:
+        pruefe(False, "Sortierkopf in der Liste fehlt")
+
     # Kalkulation im ERP
     pg.click("[data-erp-reiter='kalk']"); pg.wait_for_timeout(800)
     pruefe(pg.locator("#kalk-leer").count() == 1 and pg.locator(".kalk-liste__zeile").count() == 0, "Kalkulationen erst mit Suchbegriff")

@@ -17689,3 +17689,9 @@ body.dunkel .gfn-warnung { color: #fbbf24 !important; }
   .gfn-vorschau { position: static; order: -1; }
   .gfn-3d { height: 46vh; }
 }
+
+/* 1.897.0: Spaltenkopf antippen sortiert (Test ERP, Kalkulation) */
+th.erp-sortkopf { cursor: pointer; user-select: none; white-space: nowrap; }
+th.erp-sortkopf:hover { text-decoration: underline; }
+th.erp-sortkopf--an { color: #0b5cad; }
+body.dunkel th.erp-sortkopf--an { color: #8cc4ff !important; }
