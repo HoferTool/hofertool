@@ -17,7 +17,7 @@ Diese Datei wird in **jede** Sitzung geladen. Sie war auf rund 600 KB angewachse
 - **Live:** https://hofertool.github.io/hofertool/ (GitHub Pages aus `HoferTool/hofertool`, Branch `main`, Ablauf `.github/workflows/ausliefern.yml` baut bei jedem Push auf `main` nach `dist/`).
 - **Vorschau:** …/vorschau/ (Zweig `claude/project-thread-8yf89f`, Design „Präzision“), **Test:** …/test/ (Zweig `claude/project-thread-au2n7k`), beide mit echten Daten; `sw.js` lässt `/vorschau/` und `/test/` in Ruhe.
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`, Aufbau in **DATENBANK.md**.
-- **Stand:** Version 1.889.0 (Konstante `APP_VERSION` in `src/alt/app.js`). Am 9. Oktober 2026 von 111.127.0 auf 1.0.0 zurückgesetzt; „seit 111.x“ meint die alte Zählung.
+- **Stand:** Version 1.890.0 (Konstante `APP_VERSION` in `src/alt/app.js`). Am 9. Oktober 2026 von 111.127.0 auf 1.0.0 zurückgesetzt; „seit 111.x“ meint die alte Zählung.
 
 ## Mit wem du arbeitest
 

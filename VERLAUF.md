@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.890.0 (27. November 2026)
+
+QS → Prüfprotokoll: Maschine ist eine Auswahlliste aller Maschinen statt Freitext; ein alter Freitext-Wert bleibt als Eintrag stehen (Wunsch Patrick: „maschine soll dropdown menu sein“).
+
 ## 1.889.0 (27. November 2026)
 
 QS → Prüfberichte: Knopf „Prüfmasse“ ersetzt durch „Stammdaten“, der die HOCO-Stammdaten öffnet; dort stehen jetzt auch Kopf, Masse-Blatt, Excel-Import und Lehren (Wunsch Patrick: „dort stammdaten knopf das man es gleich dort ändert“).
