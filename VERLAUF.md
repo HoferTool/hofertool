@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.889.0 (27. November 2026)
+
+Neues Hilfsprogramm Gridfinity (`#/gridfinity`): Boxen (Grösse in Feldern, Höhe in 7-mm-Einheiten, Fächer, Stapelrand, Beschriftungsleiste, Magnetlöcher) und Grundplatten (Anzahl Felder oder passend zur Schublade, Magnetlöcher) mit 3D-Vorschau, Export 3MF und STL. Nicht für Externe. Prüfstand `gridfinity.py`.
+
 ## 1.886.1
 
 Test ERP: Im Kopf der Startseite fällt die Kachel „Rechnungen … offen“ weg, eine Rechnung ist nach der Rechnungsstellung erledigt (Wunsch Patrick 27. November 2026). Der Reiter Rechnungen bleibt.
