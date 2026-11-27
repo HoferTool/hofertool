@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.886.0 (27. November 2026)
+
+Kalkulation: eine geöffnete Kalkulation geht im eigenen Fenster auf (verschiebbar, über den Rand hinaus ein eigenes Browserfenster), Schliessen fragt bei Ungespeichertem; Inhalt per Portal in `div.kalk-fenster` (Wunsch Patrick 27. November 2026).
+
 ## 1.884.0 (27. November 2026)
 
 Prüfberichte: Knopf „📄 Zeichnung“ in Protokoll, Checkliste und Vorlage öffnet die Zeichnung zur HOCO Nr. zum Nachschauen, nicht für Externe (Wunsch Patrick 27. November 2026).

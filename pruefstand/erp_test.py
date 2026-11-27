@@ -205,8 +205,8 @@ with sync_playwright() as p:
            "Preisliste aus Kalkulation: %s" % pl)
     pruefe((a.get("daten") or {}).get("rohmaterial_id") == "r1", "Rohmaterial zugewiesen: %s" % a.get("daten"))
     # Nochmals übernehmen: Artikel besteht, Fenster fragt nach Index, Preisliste, Arbeitsplan
-    pg.click("#kalk-erp-uebernehmen"); pg.wait_for_selector(".dialog-huelle")
-    pruefe("gibt es schon" in pg.inner_text(".dialog-huelle"), "Fragt beim bestehenden Artikel nach")
+    pg.click("#kalk-erp-uebernehmen"); pg.wait_for_selector(".dialog-huelle:not(.kalk-huelle)")
+    pruefe("gibt es schon" in pg.inner_text(".dialog-huelle:not(.kalk-huelle)"), "Fragt beim bestehenden Artikel nach")
     pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
     pg.click("#kalk-zurueck"); pg.wait_for_selector("tr[data-kalk='kk2']")
     pg.click("tr[data-kalk='kk2']"); pg.wait_for_selector("#kalk-erp-uebernehmen")

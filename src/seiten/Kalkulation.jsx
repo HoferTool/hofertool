@@ -10,12 +10,14 @@
 //  Vermerk kalkulationSehen am Konto, auch in der Datenbank.
 // =================================================================
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { alt, useDaten, useGemerkt } from "../bruecke.jsx";
 import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import { ZiehListe } from "../teile/ZiehListe.jsx";
 import { useSeitenSuche } from "../teile/seitenSuche.js";
 import { teilMerken } from "../teile/wiederherstellen.js";
 import { auswahlDialog } from "../teile/Dialoge.jsx";
+import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { materialZerlegen, werkstoffGenau } from "../daten/material.js";
 import { naechsteNummer, nummernLaden } from "../daten/erp.js";
 import { artikelAusKalkulation } from "./erp/KalkTab.jsx";
@@ -60,10 +62,52 @@ export default function Kalkulation({ auffrischen }) {
   useGemerkt(gemerkt, { offen, saetze });
   const liste = useDaten(kalkulationenLaden, [auffrischen]);
   const masch = useDaten(maschinenLaden, [auffrischen]);
+  const zuRef = useRef(null);
+  const zuFenster = useRef(null);
+  const [fensterEl, setFensterEl] = useState(null);
+  const listeRef = useRef(liste);
+  listeRef.current = liste;
+  // Seit 1.886.0 geht eine Kalkulation als Fenster auf (Wunsch Patrick 27. November 2026):
+  // so lässt es sich verschieben und mit dem Fensterverwalter als eigenes Browserfenster
+  // auf einen anderen Bildschirm ziehen. Jeder Weg zum Schliessen (X, Escape, daneben
+  // tippen, Fensterleiste, eigenes Fenster) fragt vorher nach Ungespeichertem.
+  useEffect(() => {
+    if (!offen || !masch.daten) return undefined;
+    const id = offen;
+    let fertig = false;
+    let zu = null;
+    const pruefenZu = async () => { if (fertig) return; if (await verlassenOk()) zu && zu(); };
+    // Das Fenster hat eine eigene React-Wurzel, die nur einmal zeichnet. Der Inhalt kommt
+    // darum als Portal von hier, damit Maschinen und Liste frisch bleiben.
+    zu = fensterOeffnen((z) => {
+      zuFenster.current = z;
+      return <div className="kalk-fenster" ref={(el) => { if (el) setFensterEl(el); }} />;
+    }, () => { fertig = true; zuRef.current = null; zuFenster.current = null; setFensterEl(null); setOffen((v) => (v === id ? null : v)); listeRef.current.neu(); }, "kalk-huelle");
+    const h = [...document.querySelectorAll(".dialog-huelle.kalk-huelle")].pop();
+    const taste = (e) => {
+      if (e.key !== "Escape" || e.defaultPrevented || !h || !h.isConnected) return;
+      const alle = [...document.querySelectorAll("body > .dialog-huelle")];
+      if (alle[alle.length - 1] !== h) return;
+      e.preventDefault(); e.stopImmediatePropagation(); pruefenZu();
+    };
+    const daneben = (e) => { if (e.target === h) { e.stopImmediatePropagation(); if (e.type === "click") pruefenZu(); } };
+    if (h) {
+      h.__hoferZu = pruefenZu;
+      h.addEventListener("pointerdown", daneben, true);
+      h.addEventListener("click", daneben, true);
+    }
+    window.addEventListener("keydown", taste, true);
+    zuRef.current = pruefenZu;
+    return () => {
+      window.removeEventListener("keydown", taste, true);
+      if (h) { h.removeEventListener("pointerdown", daneben, true); h.removeEventListener("click", daneben, true); }
+      if (!fertig) { fertig = true; zu(); }
+    };
+  }, [offen, !!masch.daten]);
 
   zurueckFn = () => {
     if (saetze) { setSaetze(false); return true; }
-    if (offen) { verlassenOk().then((ok) => { if (ok) { setOffen(null); liste.neu(); } }); return true; }
+    if (offen && zuRef.current) { zuRef.current(); return true; }
     return false;
   };
   useEffect(() => () => { zurueckFn = null; }, []);
@@ -86,14 +130,20 @@ export default function Kalkulation({ auffrischen }) {
   }
 
   if (saetze) {
-    return <Stundensaetze maschinen={masch.daten} neu={masch.neu} zurueck={() => setSaetze(false)} />;
+    return <>{offen && fensterEl ? createPortal(<Offen key={offen} id={offen} maschinen={masch.daten}
+      zurueck={() => zuFenster.current && zuFenster.current()} neu={liste.neu}
+      oeffnen={(n) => { if (zuFenster.current) zuFenster.current(); setTimeout(() => setOffen(n)); }}
+      liste={liste.daten || []} />, fensterEl) : null}
+      <Stundensaetze maschinen={masch.daten} neu={masch.neu} zurueck={() => setSaetze(false)} /></>;
   }
-  if (offen) {
-    return <Offen key={offen} id={offen} maschinen={masch.daten}
-      zurueck={() => { setOffen(null); liste.neu(); }} neu={liste.neu} oeffnen={setOffen} liste={liste.daten || []} />;
-  }
-  return <Liste liste={liste.daten} maschinen={masch.daten} oeffnen={setOffen}
-    neu={() => { liste.neu(); masch.neu(); }} saetze={() => setSaetze(true)} />;
+  const fensterInhalt = offen && fensterEl ? createPortal(
+    <Offen key={offen} id={offen} maschinen={masch.daten}
+      zurueck={() => zuFenster.current && zuFenster.current()} neu={liste.neu}
+      oeffnen={(n) => { if (zuFenster.current) zuFenster.current(); setTimeout(() => setOffen(n)); }}
+      liste={liste.daten || []} />, fensterEl) : null;
+  return <>{fensterInhalt}<Liste liste={liste.daten} maschinen={masch.daten}
+    oeffnen={async (n) => { if (offen && !(await verlassenOk())) return; setOffen(n); }}
+    neu={() => { liste.neu(); masch.neu(); }} saetze={() => setSaetze(true)} /></>;
 }
 
 // Die Liste hat nur Kopf und Vorschau (über 7'000 Kalkulationen aus WinKalk),
