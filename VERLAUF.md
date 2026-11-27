@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.886.1
+
+Test ERP: Im Kopf der Startseite fällt die Kachel „Rechnungen … offen“ weg, eine Rechnung ist nach der Rechnungsstellung erledigt (Wunsch Patrick 27. November 2026). Der Reiter Rechnungen bleibt.
+
 ## 1.886.0 (27. November 2026)
 
 Kalkulation: eine geöffnete Kalkulation geht im eigenen Fenster auf (verschiebbar, über den Rand hinaus ein eigenes Browserfenster), Schliessen fragt bei Ungespeichertem; Inhalt per Portal in `div.kalk-fenster` (Wunsch Patrick 27. November 2026).

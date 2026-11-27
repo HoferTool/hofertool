@@ -68,7 +68,8 @@ export default function ErpInhalt({ auffrischen }) {
 // importierten Belegen schnell bleibt.
 const KACHELN = [
   ["auftrag", "Aufträge"], ["fertigung", "Fertigung"], ["bestellung", "Bestellungen"],
-  ["lieferschein", "Lieferscheine"], ["rechnung", "Rechnungen"],
+  // Rechnungen ohne Kachel: nach Rechnungsstellung ist es fertig, offen zählt nicht (Wunsch Patrick 27. November 2026).
+  ["lieferschein", "Lieferscheine"],
 ];
 function ErpHeld({ d, reiter, setReiter }) {
   const offen = {};
