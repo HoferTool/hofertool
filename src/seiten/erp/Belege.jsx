@@ -8,7 +8,7 @@
 import { useState, useRef, useEffect } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
-import { Feld, Tabelle, Suche, passt, tun, belegDrucken, abDrucken, lsDrucken, LagerEingabe, lagerStart, lagerAus, ohneSuche, sucheLeer } from "./teile.jsx";
+import { Feld, Tabelle, Suche, passt, tun, formular, belegDrucken, abDrucken, lsDrucken, LagerEingabe, lagerStart, lagerAus, ohneSuche, sucheLeer } from "./teile.jsx";
 import {
   allesLaden, einfuegen, aendern, loeschen, naechsteBelegNr, BELEGTYP, MWST, zahl, chf, mengeText, artikelText,
   partnerText, datumText, terminText, bestand, buchen, gebucht, folgePositionen, belegSumme, chargeVerfolgen, fibuText,
@@ -16,7 +16,7 @@ import {
 } from "../../daten/erp.js";
 import { GFenster, KF, GTabelle, schliessenFragen } from "./Stamm.jsx";
 import { partnerFensterOeffnen } from "./PartnerFenster.jsx";
-import { artikelFensterOeffnen } from "./ArtikelFenster.jsx";
+import { artikelFensterOeffnen, AG_FORM } from "./ArtikelFenster.jsx";
 import { cockpitOeffnen } from "./Cockpit.jsx";
 
 const heute = () => new Date().toISOString().slice(0, 10);
@@ -923,15 +923,30 @@ function Arbeitsgaenge({ d, b, frisch }) {
     const r = await tun(() => aendern("erp_belege", b.id, { daten: { ...b.daten, ap: neu } }));
     if (r !== null) frisch();
   };
+  // Position öffnen wie im Artikelfenster (seit 1.921.0, Patrick 27. November 2026: „ich kann die
+  // Arbeitsplan-Positionen nicht öffnen“); Änderungen gelten nur für diesen FA
+  const oeffnen = (i) => {
+    const x = ap[i];
+    formular({ titel: "Arbeitsgang " + (x.pos || (i + 1) * 10) + " · FA " + b.nr, felder: AG_FORM, breit: true,
+      wert: { ...x, code: x.code || x.ag_code || "" },
+      speichern: async (w) => {
+        const neu = ap.map((y, j) => (j === i ? { ...y, ...w } : y));
+        await aendern("erp_belege", b.id, { daten: { ...b.daten, ap: neu } });
+        frisch();
+      } });
+  };
   return (
     <fieldset className="erp-liste erp-feld--breit"><legend>Arbeitsplan</legend>
       {ap.map((x, i) => (
-        <label key={i} className="feld-haken erp-ag" data-erp-ag={i}>
-          <input type="checkbox" checked={!!x.erledigt_am} onChange={(e) => haken(i, e.target.checked)} />
-          <span><b>{x.pos || (i + 1) * 10}</b> {x.bez}{x.maschine ? " · " + x.maschine : ""}{x.te ? " · te " + x.te + " s" : ""}
-            {x.extern ? " · extern" : ""}{x.pruef ? " · " + x.pruef : ""}
-            {x.erledigt_am && <small> · erledigt {datumText(x.erledigt_am)}</small>}</span>
-        </label>))}
+        <div key={i} className="erp-ag-zeile">
+          <label className="feld-haken erp-ag" data-erp-ag={i}>
+            <input type="checkbox" checked={!!x.erledigt_am} onChange={(e) => haken(i, e.target.checked)} />
+            <span><b>{x.pos || (i + 1) * 10}</b> {x.bez}{x.maschine ? " · " + x.maschine : ""}{x.te ? " · Stückzeit " + x.te + " s" : ""}
+              {x.ruest ? " · Rüsten " + x.ruest + " h" : ""}{x.extern ? " · extern" : ""}{x.pruef ? " · " + x.pruef : ""}
+              {x.erledigt_am && <small> · erledigt {datumText(x.erledigt_am)}</small>}</span>
+          </label>
+          <button type="button" className="knopf knopf--klein" data-erp-ag-oeffnen={i} onClick={() => oeffnen(i)}>Öffnen</button>
+        </div>))}
     </fieldset>
   );
 }

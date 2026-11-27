@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.921.0 (27. November 2026)
+
+- Test ERP: Arbeitsgänge im Fertigungsauftrag lassen sich mit „Öffnen“ ansehen und ändern (Arbeitsplatz, Stückzeit, Rüstzeit, Extern, Hinweis), gespeichert im FA (`daten.ap`); die Zeile zeigt Stückzeit und Rüsten.
+
 ## 1.920.0 (27. November 2026)
 
 Test ERP: neuer Reiter „Logistik“ mit Dashboard aus Kacheln (dunkelblau wie der Kopf, Zahl offen, rotes Schild überfällig). Erste Kachel „Wareneingang ZA extern“: offene Positionen der Bestellungen ZA extern nach Fälligkeit, Zeile antippen bucht den Wareneingang (`EingangFenster`), Nr. öffnet die Bestellung (`src/seiten/erp/Logistik.jsx`; Wunsch Patrick).

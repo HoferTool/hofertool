@@ -461,7 +461,7 @@ function NotizMitBildern({ w, setW, set }) {
 // Arbeitsplan wie im Gewatec: oben Material und Bedarf, darunter die
 // Arbeitsgänge als Tabelle, bearbeitet je Arbeitsgang in einem Fenster.
 // Nur die Felder, die wir brauchen (Patrick: „wir verwenden nicht alles“).
-const AG_FORM = [
+export const AG_FORM = [
   { name: "code", label: "AG-Code", platzhalter: "z.B. DREH" },
   { name: "bez", label: "Beschreibung", typ: "textarea", zeilen: 3, breit: true },
   { name: "maschine", label: "Arbeitsplatz (Betriebsmittel, extern: Lieferant)", breit: true },
@@ -475,7 +475,9 @@ function ArbeitsplanReiter({ w, setW, set, roh }) {
   const ap = w.arbeitsplan;
   const setAp = (neu) => setW((v) => ({ ...v, arbeitsplan: neu }));
   const bearbeiten = (i, vorlage) => {
-    const x = i == null ? vorlage : ap[i];
+    const x0 = i == null ? vorlage : ap[i];
+    // Aus dem Gewatec übernommene Arbeitspläne haben den AG-Code in ag_code
+    const x = x0 && !x0.code && x0.ag_code ? { ...x0, code: x0.ag_code } : x0;
     formular({ titel: i == null ? (x.extern ? "Neuer Arbeitsgang extern" : "Neuer Arbeitsgang intern") : "Arbeitsgang " + ((i + 1) * 10),
       felder: AG_FORM, wert: x, breit: true,
       speichern: (neuW) => {
@@ -510,7 +512,7 @@ function ArbeitsplanReiter({ w, setW, set, roh }) {
         eintraege={ap.map((x, i) => ({ key: x._k, inhalt:
           <div className={"erp-ap__zeile erp-klick" + (wahl === i ? " gewaehlt" : "")} data-erp-zeile={i}
             onClick={() => setWahl(i)} onDoubleClick={() => bearbeiten(i)}>
-            <span>{(i + 1) * 10}</span><span>{x.extern ? "E" : "I"}</span><span>{x.code || ""}</span><span>{x.bez || ""}</span>
+            <span>{(i + 1) * 10}</span><span>{x.extern ? "E" : "I"}</span><span>{x.code || x.ag_code || ""}</span><span>{x.bez || ""}</span>
             <span>{x.maschine || ""}</span><span className="rechts">{x.te || ""}</span><span className="rechts">{x.ruest || ""}</span>
           </div> }))} />
     </div>

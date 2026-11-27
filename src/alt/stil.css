@@ -17836,3 +17836,7 @@ body.dunkel .markier-blase__formlage { border-color: rgba(255, 255, 255, .15); }
 .logi-kachel__text { grid-area: text; font-size: 13px; opacity: .8; margin-top: 6px; }
 .logi-funktion__titel { margin: 0 12px 0 0; font-size: 18px; }
 @media (prefers-reduced-motion: reduce) { .logi-kachel { transition: none; } .logi-kachel:hover { transform: none; } }
+
+/* 1.921.0: Arbeitsgang im FA öffnen */
+.erp-ag-zeile { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.erp-ag-zeile .erp-ag { flex: 1; }
