@@ -430,26 +430,38 @@ export function platteNetz(eingabe) {
 // Seit 1.902.0 einzelne Klötze statt langer Leisten (Patrick: „die
 // Distanzhalter wird man so nicht drucken können, mach einzelne Elemente“):
 // je Randfeld ein Klotz, 40 mm lang, mittig zum Feld, jeder ein eigenes Teil.
+// Seit 1.903.0 nur noch Winkel an den vier Ecken (Patrick: „müssen nicht
+// über die ganze Länge sein, es reicht an den Ecken“): jeder Winkel hat
+// zwei Schenkel, 40 mm über die Plattenecke hinaus, so dick wie der Spalt.
+// Ist ein Spalt unter 1 mm, bleibt nur der andere Schenkel.
 const KLOTZ_L = 40;
 export function distanzTeile(eingabe) {
   const p = plattePruefen(eingabe);
   const m = platteMasse(p);
   if (p.art !== "schublade" || !p.distanz) return [];
-  const t = [];
-  // 0.2 mm Luft zwischen Klotz und Platte, damit alles leicht hineingeht
-  const gx = m.gx - 0.2, gy = m.gy - 0.2, h = KLOTZ_L / 2;
-  if (gx >= 1) for (const sx of [-1, 1]) for (let j = 0; j < m.ny; j++) {
-    const x0 = sx < 0 ? -m.innenB / 2 : m.innenB / 2 - gx, yc = (j - (m.ny - 1) / 2) * GF.raster;
-    t.push({ x0, x1: x0 + gx, y0: yc - h, y1: yc + h, lang: KLOTZ_L, breit: gx });
+  // 0.2 mm Luft zwischen Winkel und Platte, damit alles leicht hineingeht
+  const gx = m.gx - 0.2, gy = m.gy - 0.2;
+  if (gx < 1 && gy < 1) return [];
+  const B = m.innenB / 2, T = m.innenT / 2, t = [];
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
+    // in der Ecke (-B, -T) gerechnet, dann gespiegelt
+    const roh = [];
+    if (gx >= 1) roh.push([0, 0, gx, Math.max(gy, 0) + KLOTZ_L]);      // Schenkel an der Seite
+    // 0.05 versetzt, damit die zwei Quader keine Kante teilen (sonst nicht dicht)
+    if (gy >= 1) roh.push([gx >= 1 ? 0.05 : 0, 0, Math.max(gx, 0) + KLOTZ_L, gy]); // Schenkel vorne/hinten
+    const quader = roh.map(([a, b, c, d]) => {
+      const xa = sx < 0 ? -B + a : B - c, xb = sx < 0 ? -B + c : B - a;
+      const ya = sy < 0 ? -T + b : T - d, yb = sy < 0 ? -T + d : T - b;
+      return [xa, ya, xb, yb];
+    });
+    t.push({ quader, h: m.H, gx: gx >= 1 ? gx : 0, gy: gy >= 1 ? gy : 0, schenkel: KLOTZ_L });
   }
-  if (gy >= 1) for (const sy of [-1, 1]) for (let i = 0; i < m.nx; i++) {
-    const y0 = sy < 0 ? -m.innenT / 2 : m.innenT / 2 - gy, xc = (i - (m.nx - 1) / 2) * GF.raster;
-    t.push({ x0: xc - h, x1: xc + h, y0, y1: y0 + gy, lang: KLOTZ_L, breit: gy });
-  }
-  return t.map((s) => ({ ...s, h: m.H }));
+  return t;
 }
+const umriss = (s) => [Math.min(...s.quader.map((q) => q[0])), Math.min(...s.quader.map((q) => q[1])),
+  Math.max(...s.quader.map((q) => q[2])), Math.max(...s.quader.map((q) => q[3]))];
 // An ihrem Platz in der Schublade, als ein Netz (für die Vorschau)
-// t (Aufteilung): Klötze rücken mit dem Stück daneben mit, wie in stueckeVorschau
+// t (Aufteilung): Winkel rücken mit dem Stück daneben mit, wie in stueckeVorschau
 export function distanzNetz(eingabe, t = null) {
   const teile = distanzTeile(eingabe);
   if (!teile.length) return null;
@@ -463,25 +475,23 @@ export function distanzNetz(eingabe, t = null) {
   };
   const n = neuesNetz();
   for (const s of teile) {
-    const dx = verschub((s.x0 + s.x1) / 2, nx, t ? t.xs : []), dy = verschub((s.y0 + s.y1) / 2, ny, t ? t.ys : []);
-    quader(n, s.x0 + dx, s.y0 + dy, 0, s.x1 + dx, s.y1 + dy, s.h);
+    const [x0, y0, x1, y1] = umriss(s);
+    const dx = verschub((x0 + x1) / 2, nx, t ? t.xs : []), dy = verschub((y0 + y1) / 2, ny, t ? t.ys : []);
+    // Schenkel als zwei sich überlappende Quader (Slicer vereinigt)
+    for (const q of s.quader) quader(n, q[0] + dx, q[1] + dy, 0, q[2] + dx, q[3] + dy, s.h);
   }
   return fertig(n, { distanz: true, anzahl: teile.length });
 }
-// Zum Drucken: jeder Klotz ein eigenes Netz, in Reihen nebeneinander
+// Zum Drucken: jeder Winkel ein eigenes Netz, nebeneinander mit 5 mm Abstand
 export function distanzDruck(eingabe) {
-  const teile = distanzTeile(eingabe);
-  const netze = [];
-  const proReihe = 5;
-  let y = 0;
-  teile.forEach((s, k) => {
-    const sp = k % proReihe;
-    if (sp === 0 && k) y += Math.max(...teile.slice(k - proReihe, k).map((u) => u.breit)) + 5;
+  let x = 0;
+  return distanzTeile(eingabe).map((s) => {
+    const [x0, y0, x1] = umriss(s);
     const n = neuesNetz();
-    quader(n, sp * (KLOTZ_L + 5), y, 0, sp * (KLOTZ_L + 5) + s.lang, y + s.breit, s.h);
-    netze.push(fertig(n, {}));
+    for (const q of s.quader) quader(n, q[0] - x0 + x, q[1] - y0, 0, q[2] - x0 + x, q[3] - y0, s.h);
+    x += x1 - x0 + 5;
+    return fertig(n, {});
   });
-  return netze;
 }
 
 // =================================================================

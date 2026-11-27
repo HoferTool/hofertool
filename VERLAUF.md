@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.903.0 (27. November 2026)
+
+- Gridfinity: Distanzstücke nur noch als vier lose Eckwinkel statt Klötze rundum.
+
 ## 1.902.0 (27. November 2026)
 
 - Gridfinity: Distanzstücke als einzelne lose Klötze (40 mm je Randfeld) in eigener Gruppe und eigener Datei; Drucker wählbar (X1 Carbon, H2D Pro), zu grosse Grundplatten werden nach nutzbarer Bettfläche in Stücke geteilt, mit Klammern verbunden; Prüfstand erweitert.

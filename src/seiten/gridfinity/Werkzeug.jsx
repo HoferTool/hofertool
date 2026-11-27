@@ -30,12 +30,6 @@ function laden() {
   return { art: "box", drucker: "x1c", box: { ...BOX_VORGABE }, platte: { ...PLATTE_VORGABE } };
 }
 
-// Gleiche Distanzstücke zusammenfassen: „4 × 154,3 × 4,6 mm“
-function gruppiert(teile) {
-  const g = new Map();
-  for (const t of teile) { const k = mm(t.lang) + " × " + mm(t.breit) + " mm"; g.set(k, (g.get(k) || 0) + 1); }
-  return [...g].map(([k, n]) => n + " Stück " + k).join(", ");
-}
 const mm = (x) => (Math.round(x * 10) / 10).toString().replace(".", ",");
 
 // Zahl mit − und + daneben: auf dem iPad leichter als Tippen
@@ -227,7 +221,7 @@ export default function Werkzeug() {
               <h3>Distanzstücke</h3>
               <Schalter titel="Distanzstücke machen" name="distanz" an={platte.distanz} setzen={p("distanz")} text="Lose Klötze füllen den Rest der Schublade, nicht mit der Platte verbunden. Die Platte wird dafür ohne Rand gemacht." />
               {platte.distanz && <p className="gfn-text" data-gf-distanz>{distanzTeile(platte).length
-                ? <>{distanzTeile(platte).length} lose Klötze: {gruppiert(distanzTeile(platte))}, Höhe {mm(pm.H)} mm. Eigene Datei, jeder Klotz ein eigenes Teil.</>
+                ? <>{distanzTeile(platte).length} lose Winkel für die Ecken, Schenkel {distanzTeile(platte)[0].schenkel} mm lang, {[distanzTeile(platte)[0].gx, distanzTeile(platte)[0].gy].filter((x) => x).map(mm).join(" / ")} mm dick, Höhe {mm(pm.H)} mm. Eigene Datei, jeder Winkel ein eigenes Teil.</>
                 : <>Kein Distanzstück nötig, der Rest ist kleiner als 1 mm.</>}</p>}
               {platte.distanz && distanzTeile(platte).length > 0 &&
                 <button className="knopf" data-gf-export="distanz" onClick={() => speichern("3mf", "distanz")}>Distanzstücke 3MF</button>}

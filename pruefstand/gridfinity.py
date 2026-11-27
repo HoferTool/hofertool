@@ -101,13 +101,13 @@ with sync_playwright() as p:
     pg.fill("[data-gf='tiefe']", "309"); pg.press("[data-gf='tiefe']", "Enter")
     pg.click("[data-gf='distanz']"); pg.wait_for_timeout(400)
     t = pg.inner_text("[data-gf-felder]") + " | " + pg.inner_text("[data-gf-distanz]")
-    pruefe("10 × 7 Felder (420 × 294 mm)" in t and "34 lose Klötze" in t and "14 Stück 40 × 4,6 mm" in t and "20 Stück 40 × 7,1 mm" in t, "Distanzstücke: " + t)
+    pruefe("10 × 7 Felder (420 × 294 mm)" in t and "4 lose Winkel" in t and "4,6 / 7,1 mm dick" in t, "Distanzstücke: " + t)
     with pg.expect_download() as d: pg.click("[data-gf-export='distanz']")
     z = zipfile.ZipFile(d.value.path()); m = z.read("3D/3dmodel.model").decode()
     obj = re.findall(r"<object .*?</object>", m)
     zu = all(kanten_geschlossen([tuple(int(x) for x in t) for t in re.findall(r'<triangle v1="(\d+)" v2="(\d+)" v3="(\d+)"', o)]) == 0 for o in obj)
     vd = [tuple(float(x) for x in t) for t in re.findall(r'<vertex x="([-\d.e]+)" y="([-\d.e]+)" z="([-\d.e]+)"', m)]
-    pruefe(len(obj) == 34 and zu and masse(vd)[0] < 250 and masse(vd)[2] == 4.4, "34 einzelne Klötze %s, %s" % (masse(vd), d.value.suggested_filename))
+    pruefe(len(obj) == 4 and zu and masse(vd)[0] < 250 and masse(vd)[2] == 4.4, "4 einzelne Eckwinkel %s, %s" % (masse(vd), d.value.suggested_filename))
     # X1 Carbon: 10 × 7 wird 2 × 5×4 und 2 × 5×3
     t = pg.inner_text("[data-gf-stuecke]")
     pruefe("4 Stücke" in t and "2 × 5 × 4 Felder" in t and "2 × 5 × 3 Felder" in t and "17 Klammern" in t, "Aufteilung X1C: " + t)
