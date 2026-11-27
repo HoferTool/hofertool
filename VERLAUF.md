@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.915.1 (27. November 2026)
+
+Qualitätssicherung → Ausschussmeldungen: Maschinen und Meldungen der externen Firma (Zurbrügg) sehen nur noch Externe, wie im Pad Mode (`padParkVerborgen`, Wunsch Patrick 27. November 2026).
+
 ## 1.915.0 (27. November 2026)
 
 - Gridfinity Box: Leiste geht schräg bis auf den Boden (liegt auf wie der Scoop).
