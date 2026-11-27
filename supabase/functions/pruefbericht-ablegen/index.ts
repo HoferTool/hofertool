@@ -35,7 +35,8 @@ Deno.serve(async (req) => {
   const typ = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
   const up = await db.storage.from("zeichnungen").upload(pfad, daten, { contentType: typ, upsert: false });
   if (up.error) return antwort({ fehler: up.error.message }, 500);
-  const url = db.storage.from("zeichnungen").getPublicUrl(pfad).data.publicUrl;
+  const url = db.storage.from("zeichnungen").getPublicUrl(pfad).data.publicUrl
+    .replace(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_PUBLIC_URL") ?? Deno.env.get("SUPABASE_URL") ?? "");
   const r = await db.from("pruefbericht_dateien").insert({
     hoco_nr: t.data.hoco_nr, name, url, ablage: pfad, seite: t.data.seite, quelle: "hand",
     kennung: "claude:" + name, geaendert: new Date().toISOString(), erstellt_von: null,

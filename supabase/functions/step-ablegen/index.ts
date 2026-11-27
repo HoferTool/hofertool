@@ -36,7 +36,8 @@ Deno.serve(async (req) => {
   const pfad = "2dto3d/" + t.data.eintrag + "/" + Date.now().toString(36) + "-" + name.replace(/\s+/g, "_");
   const up = await db.storage.from("zeichnungen").upload(pfad, daten, { contentType: "application/step", upsert: false });
   if (up.error) return antwort({ fehler: up.error.message }, 500);
-  const url = db.storage.from("zeichnungen").getPublicUrl(pfad).data.publicUrl;
+  const url = db.storage.from("zeichnungen").getPublicUrl(pfad).data.publicUrl
+    .replace(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_PUBLIC_URL") ?? Deno.env.get("SUPABASE_URL") ?? "");
   const r = await db.from("zeichnung_3d").update({
     step_url: url, step_pfad: pfad, step_name: name, step_groesse: daten.length, status: "fertig",
   }).eq("id", t.data.eintrag);
