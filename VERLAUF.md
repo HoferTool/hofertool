@@ -6,6 +6,9 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 ## 1.913.0 (27. November 2026)
 
 Test ERP: Reiter Bestellungen zeigt gleich alle Bestellungen (neuste oben) mit Häkchen Rohmaterial / ZA extern / Andere (ZA extern = Hofer-Artikel in der Bestellung oder Fremdleistung aus dem Gewatec, `bestellArt` in `Belege.jsx`; Wunsch Patrick).
+## 1.912.1 (27. November 2026)
+
+Prüfmittel-Fenster zeigt alle Mittel der Verwaltung (vorher nur 80, ohne Stifte und Ausgeschiedene), mit Anzahl.
 
 ## 1.912.0 (27. November 2026)
 
