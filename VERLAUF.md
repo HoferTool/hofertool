@@ -3,9 +3,21 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.916.0 (27. November 2026)
+
+Kleine Blase beim Markieren wie die Minisymbolleiste in Word (Wunsch Patrick): markiert man in einem gewöhnlichen Textfeld etwas, erscheint daneben eine Blase mit Ø ± ° ≤ ≥ × und aufklappbar ⌖▾ den Form- und Lagetoleranzen; ein Tipp ersetzt das Markierte. Nur beim Markieren, nicht beim Antippen. Felder mit Format behalten ihre Schreibleiste mit Farben. `src/teile/markierBlase.js`, CSS-Block „1.916.0“, Prüfstand `markier_blase.py`.
+
+## 1.915.1 (27. November 2026)
+
+Qualitätssicherung → Ausschussmeldungen: Maschinen und Meldungen der externen Firma (Zurbrügg) sehen nur noch Externe, wie im Pad Mode (`padParkVerborgen`, Wunsch Patrick 27. November 2026).
+
 ## 1.915.0 (27. November 2026)
 
-Kleine Blase beim Markieren wie die Minisymbolleiste in Word (Wunsch Patrick): markiert man in einem gewöhnlichen Textfeld etwas, erscheint daneben eine Blase mit Ø ± ° ≤ ≥ × und aufklappbar ⌖▾ den Form- und Lagetoleranzen; ein Tipp ersetzt das Markierte. Nur beim Markieren, nicht beim Antippen. Felder mit Format behalten ihre Schreibleiste mit Farben. `src/teile/markierBlase.js`, CSS-Block „1.915.0“, Prüfstand `markier_blase.py`.
+- Gridfinity Box: Leiste geht schräg bis auf den Boden (liegt auf wie der Scoop).
+
+## 1.914.2 (27. November 2026)
+
+Prüfmittel suchen: Grenzlehrdorne der Verwaltung im Format „5.028 / 5.034“ werden erkannt; aus dem Soll wird ähnlich gesucht (Spiel 0.002 statt 0.001), auch Lehrringe und Rachenlehren. Steht nur „Grenzlehrdorn“ o. ä. als Hinweis, öffnet das Fenster auf Prüfmittel mit dem passenden Mittel vorgewählt; Checkliste und Ausbuchen finden es ebenso.
 
 ## 1.914.1 (27. November 2026)
 

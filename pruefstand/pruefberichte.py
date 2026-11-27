@@ -185,6 +185,13 @@ with sync_playwright() as p:
     pg.locator("[data-pstpm]").nth(2).click(); pg.wait_for_selector("[data-pmwahl]")
     pg.click("[data-pmwart=hinweis]"); pg.fill("[data-pmwhinweis]", "Sichtprüfung"); pg.click("[data-pmwok]"); pg.wait_for_timeout(200)
     pruefe(pg.locator("[data-pstpm]").nth(2).input_value() == "Sichtprüfung", "Hinweis gesetzt")
+    # Hinweis „Grenzlehrdorn“ + Soll: das passende Mittel wird gleich vorgewählt
+    pg.locator(".pst-soll").nth(4).fill("Ø5.5 ±0.05")
+    pg.locator("[data-pstpm]").nth(4).click(); pg.wait_for_selector("[data-pmwahl]")
+    pg.click("[data-pmwart=hinweis]"); pg.fill("[data-pmwhinweis]", "Grenzlehrdorn"); pg.click("[data-pmwok]"); pg.wait_for_timeout(200)
+    pg.locator("[data-pstpm]").nth(4).click(); pg.wait_for_selector("[data-pmwid='PM-9']"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-pmwid='PM-9']").is_checked(), "Grenzlehrdorn aus Hinweis und Mass gefunden")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(200)
     pg.locator("[data-pstpm]").nth(3).click(); pg.wait_for_selector("[data-pmwahl]"); pg.keyboard.press("Escape"); pg.wait_for_timeout(200)
     pruefe(pg.locator("[data-pmwahl]").count() == 0 and pg.locator("[data-pstblatt]").count() == 1, "Escape schliesst nur das kleine Fenster")
     for i in range(18):

@@ -66,7 +66,7 @@ function feldVon(el) {
 export function schreibleisteAnbinden(d) {
   if (!d || d.__schreibleiste) return;
   d.__schreibleiste = true;
-  // seit 1.915.0: kleine Blase mit Zeichen beim Markieren in reinen Textfeldern
+  // seit 1.916.0: kleine Blase mit Zeichen beim Markieren in reinen Textfeldern
   markierBlaseAnbinden(d);
   const w = d.defaultView;
   let leiste = null, feld = null, format = false, gemerkt = null, plan = 0, zahlFeld = null;

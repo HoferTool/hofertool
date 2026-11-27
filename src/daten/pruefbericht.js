@@ -316,6 +316,10 @@ function gewindeVon(t) {
 }
 function grenzenPm(p) {
   const s = String(p.nennmass || p.mass || "").trim();
+  // „5.028 / 5.034“: Gut- und Ausschussmass direkt (Patrick 27. November 2026: Grenzlehrdorne
+  // in der Verwaltung stehen oft so und wurden darum nie gefunden)
+  const gm = /^Ø?\s*(\d+[.,]\d+)\s*[\/–]\s*(\d+[.,]\d+)\b/.exec(s);
+  if (gm && n(gm[2]) > n(gm[1]) && n(gm[2]) - n(gm[1]) < 1) return { min: n(gm[1]), max: n(gm[2]) };
   const m = /^Ø?\s*(\d+(?:[.,]\d+)?)\s*(?:[A-Za-z]{1,2}\d{1,2})?\s*(.*)$/.exec(s);
   if (!m) return null;
   const nenn = n(m[1]);
@@ -333,7 +337,8 @@ function grenzenLehre(lehre) {
     return { min: n(m[1]), max: n(m[2]), spiel: 0.5 * Math.pow(10, -stellen) + 0.0006 };
   }
   const t = toleranz(lehre.soll);
-  return t && t.min !== null ? { min: t.min, max: t.max, spiel: 0.0011 } : null;
+  // aus dem Soll gerechnet: ähnlich statt genau gleich (Patrick: „ähnlich suchen“)
+  return t && t.min !== null ? { min: t.min, max: t.max, spiel: 0.0021 } : null;
 }
 const istStift = (p) => STIFT_RE.test((p.typ || "") + " " + (p.bezeichnung || ""));
 
@@ -362,7 +367,7 @@ export function pruefmittelFuer(lehre, liste, hoco) {
       // „M5“ in der Lehre passt zu „M5“ und „M5x0.8“ (Regelgewinde)
       return pg === gew || (!/x/.test(gew) && pg.split("x")[0] === gew);
     }
-    if (g && /lehrdorn|grenzdorn/i.test(art) && !/gewinde/i.test(art)) {
+    if (g && /lehrdorn|grenzdorn|lehrring|grenzring|rachenlehre|kontrollring/i.test(art) && !/gewinde/i.test(art)) {
       const pg = grenzenPm(p);
       if (pg) return Math.abs(pg.min - g.min) <= g.spiel && Math.abs(pg.max - g.max) <= g.spiel;
     }

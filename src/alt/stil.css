@@ -17779,7 +17779,7 @@ body.dunkel .gfn-liste button.aktiv { background: #4a3a1c; border-color: #e8b04a
 body.dunkel [data-pstblatt] tbody td input:not([type=checkbox]):focus { background: #13202c; }
 body.dunkel [data-pstblatt] tbody tr:hover td { background: #1a2836; }
 
-/* ---------- 1.915.0: kleine Blase mit Zeichen beim Markieren (markierBlase.js) ---------- */
+/* ---------- 1.916.0: kleine Blase mit Zeichen beim Markieren (markierBlase.js) ---------- */
 .markier-blase { position: fixed; left: 0; top: 0; z-index: 2147483001; display: flex; flex-direction: column; gap: 3px;
   padding: 3px; border-radius: 9px; background: #fff; border: 1px solid rgba(20, 40, 80, .18);
   box-shadow: 0 4px 14px rgba(10, 25, 50, .2); max-width: calc(100vw - 8px); animation: markier-blase-rein .12s ease-out; }
