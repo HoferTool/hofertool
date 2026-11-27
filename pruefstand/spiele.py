@@ -19,6 +19,9 @@ with sync_playwright() as p:
     # Werktag 10 Uhr, sonst zeigt die Anzeige nachts und sonntags die Hühner
     heute = datetime.now()
     pg.clock.set_system_time(datetime(heute.year, heute.month, heute.day, 10, 0) + timedelta(days=(2 - heute.weekday()) % 7))
+    # Das Zuklappen nach 2 Minuten (ZU_MS) auf 1 Sekunde verkürzen, damit
+    # der Test sieht, dass ein Spiel trotzdem offen bleibt (1.935.2)
+    pg.add_init_script("(() => { const st = window.setTimeout; window.setTimeout = (f, ms, ...r) => st(f, ms > 100000 && ms <= 120000 ? 1000 : ms, ...r); })()")
     pf = []; pg.on("pageerror", lambda e: pf.append(str(e)[:200]))
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FAKE))
     for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
@@ -109,6 +112,9 @@ with sync_playwright() as p:
     lager = pg.evaluate("""() => { const s = [...document.querySelectorAll('span')].find(e => e.textContent.startsWith('Lager') && e.querySelector('b'));
       return s ? parseInt(s.querySelector('b').textContent) : 1; }""")
     pruefe(nach == eier - 1 or lager > 1, "Drehteil geschossen: %d → %d (Lager %d)" % (eier, nach, lager))
+    # Ein Spiel geht nicht von selbst zu und hält Neuladen und Schoner fern
+    pg.wait_for_timeout(2500)
+    pruefe(pg.locator(".ib-voll [data-ib='gross'][data-spiel-offen]").count() == 1, "Spiel bleibt offen bis Schliessen")
     pg.click("[data-ib='gross-zu']"); pg.wait_for_timeout(300)
     pruefe(pg.locator(".ib-voll [data-ib='gross']").count() == 0, "Schliessen schliesst die Spiele")
     pruefe(not pf, "keine Seitenfehler: %s" % pf)
