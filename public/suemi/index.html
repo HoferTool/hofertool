@@ -669,7 +669,8 @@ function vAnmelden() {
 }
 
 function passt(b) {
-  if (S.filter !== "alle" && b.status !== S.filter) return false;
+  if (S.filter === "meine") { if (b.person !== D.ich || b.status === "erledigt") return false; }
+  else if (S.filter !== "alle" && b.status !== S.filter) return false;
   const w = S.suche.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const text = [b.material, b.artikelnr, komText(b), b.person, mengeText(b)].join(" ").toLowerCase();
   return w.every((x) => text.includes(x));
@@ -681,7 +682,7 @@ function vListe() {
   return `${kopf()}${titel("Bestellungen", false, `<button class="knopf klein" data-a="neu">${sym("plus", 18)}Neue Bestellung</button>`)}
   <main class="inhalt">
     <label class="suche">${sym("suche", 20)}<input id="suche" type="search" placeholder="Nach Material, Artikel Nr., Kommission oder Person suchen …" value="${esc(S.suche)}"></label>
-    <div class="filter">${f("alle", "Alle")}${f("offen", "Offen")}${f("bearbeitung", "In Bearbeitung")}${f("erledigt", "Erledigt")}</div>
+    <div class="filter">${f("alle", "Alle")}${D.ich ? f("meine", "Meine") : ""}${f("offen", "Offen")}${f("bearbeitung", "In Bearbeitung")}${f("erledigt", "Erledigt")}</div>
     <div id="karten" class="karten">${karten(sortiert())}</div>
   </main>`;
 }
@@ -922,14 +923,14 @@ function vEinstellungen() {
     <div class="chips">${werte.map((w, i) => `<span class="chip">${esc(w)}<button data-a="lweg" data-l="${art}" data-w="${i}" aria-label="Entfernen">${sym("x", 14)}</button></span>`).join("")}</div>
     <div class="neu-zeile"><input id="neu-${art}" data-neu="${art}" placeholder="Neu hinzufügen"><button class="knopf klein" data-a="ldazu" data-l="${art}">${sym("plus", 18)}</button></div></div>`;
   return `${kopf()}${titel("Einstellungen", false)}<main class="inhalt einst">
-    ${(() => { const p = person(D.ich), meine = D.bestellungen.filter((b) => b.person === D.ich && b.status !== "erledigt"), geb = geburtstag(p?.geburtstag);
+    ${(() => { const p = person(D.ich), geb = geburtstag(p?.geburtstag);
       return `<section><h2>${sym("person", 20)}Mein Profil</h2>
       <div class="profil-karte">${ava(D.ich, 72)}<h2>${esc(D.ich || "Nicht angemeldet")}</h2>
         <p>${esc([p?.funktion, p?.abteilung].filter(Boolean).join(" · ") || "Funktion und Abteilung noch leer")}</p>
         ${p?.geburtstag ? `<p class="text-leise">${sym("kuchen", 14)} ${datum(p.geburtstag)} · ${gebText(geb)}</p>` : ""}
         ${p ? `<button class="knopf grau" data-a="person" data-w="${p.id}" style="width:auto;margin:6px auto 0">${sym("stift", 18)}Profil bearbeiten</button>` : ""}</div>
-      ${meine.length ? `<div class="gruppe-titel">Muss ich bestellen <i class="zahl">${meine.length}</i></div><div class="karten">${karten(meine)}</div>` : ""}</section>`; })()}
-    <button class="knopf zweit team-knopf" data-a="mitarbeitende">${sym("leute", 20)}Mitarbeitende / Team</button>
+      </section>`; })()}
+    <section><h2>${sym("leute", 20)}Team</h2><div class="liste-kasten"><button class="zeile-verw" data-a="mitarbeitende"><span>Mitarbeitende verwalten</span><small>${D.leute.length} Personen</small>${sym("rechts", 18)}</button></div></section>
     <section><h2>${sym("schloss", 20)}Admin</h2>
       <p class="text-leise">Alle sehen die Einstellungen. Die Darstellung stellt jede Person für sich ein, alles andere ändert nur der Admin.</p>
       <label class="feld"><div class="fi"><label>Admin ist</label><select id="adminwahl" ${istAdmin() ? "" : "disabled"}>${D.leute.map((p) => `<option value="${p.id}" ${p.id === D.admin ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select></div></label></section>
