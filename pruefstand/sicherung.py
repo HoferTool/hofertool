@@ -44,7 +44,7 @@ TEST.ablage = { 'zeichnungen/dok/a.pdf': '%PDF-1.4 a', 'zeichnungen/dok/ü b.pdf
   'zeichnungen/dok/z1.pdf': '%PDF-1.4 z1', 'zeichnungen/dok/z2.pdf': '%PDF-1.4 z2', 'zeichnungen/dok/blatt ü.xlsx': 'XLSX',
   'zeichnungen/dok/vorlage.xlsx': 'XLSX', 'zeichnungen/zeichnung/alt.pdf': '%PDF-1.4 alt', 'zeichnungen/wbg/wz.html': '<html>',
   'zeichnungen/maschinen/m1/hb.pdf': '%PDF-1.4 hb', 'zeichnungen/maschinen/m1/notiz.pdf': '%PDF-1.4 notiz' };
-const A = 'https://lzhqwbxfwqamauntehof.supabase.co/storage/v1/object/public/zeichnungen/';
+const A = 'https://api.hofertool.ch/storage/v1/object/public/zeichnungen/';
 TEST.rpc.sicherung_lesen = () => [
   { t: 'jobs', nr: 2, zeilen: [{ id: 'j1', job_number: '10844-0049', plan_note: 'Notiz mit „Umlaut“ ä', drawing_url: A + 'dok/z1.pdf', wbg_url: A + 'dok/weg.pdf' }, { id: 'j2', job_number: '10007-0381' }] },
   { t: 'app_config', nr: 1, zeilen: [{ schluessel: 'x', wert: '1' }] },

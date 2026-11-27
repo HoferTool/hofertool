@@ -50,8 +50,8 @@ $ErrorActionPreference = "Stop"
 $QUELLE = "https://raw.githubusercontent.com/HoferTool/hofertool/main/skripte"
 # Adresse und öffentlicher Schlüssel der App, stehen auch im Code der
 # Website und sind nicht geheim
-$U   = "https://lzhqwbxfwqamauntehof.supabase.co"
-$KEY = "sb_publishable_MLN71MehUtWldj_GVLDBvw_OCJODSCW"
+$U   = "https://api.hofertool.ch"
+$KEY = "sb_publishable_tgAGlp5VcFbqcLqUVjVZga_k0TwzsYy"
 $POOL = "C:\Hofer\Pool"
 
 function Titel([string]$t) { Write-Host ""; Write-Host "== $t ==" -ForegroundColor Cyan }

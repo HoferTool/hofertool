@@ -26,8 +26,8 @@ $protDatei  = Join-Path $ordnerHier "solarlog.log"
 
 # Adresse und öffentlicher Schlüssel der App (stehen auch im Code der
 # Website, sind also nicht geheim). In den Einstellungen überschreibbar.
-$U   = "https://lzhqwbxfwqamauntehof.supabase.co"
-$KEY = "sb_publishable_MLN71MehUtWldj_GVLDBvw_OCJODSCW"
+$U   = "https://api.hofertool.ch"
+$KEY = "sb_publishable_tgAGlp5VcFbqcLqUVjVZga_k0TwzsYy"
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 

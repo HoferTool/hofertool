@@ -34,8 +34,8 @@
 param([switch]$Einrichten, [switch]$Probe)
 
 $ErrorActionPreference = "Stop"
-$U   = "https://lzhqwbxfwqamauntehof.supabase.co"
-$KEY = "sb_publishable_MLN71MehUtWldj_GVLDBvw_OCJODSCW"
+$U   = "https://api.hofertool.ch"
+$KEY = "sb_publishable_tgAGlp5VcFbqcLqUVjVZga_k0TwzsYy"
 $BOARD = "haupt"
 $ZIEL = "C:\Hofer\InfoboardFenster"
 $protDatei = Join-Path $ZIEL "infoboard-fenster.log"

@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 
-const ADRESSE = "https://lzhqwbxfwqamauntehof.supabase.co/functions/v1/zeit-wlan";
+const ADRESSE = "https://api.hofertool.ch/functions/v1/zeit-wlan";
 
 async function kopieren(text) {
   try { await navigator.clipboard.writeText(text); alt.meldung("Kopiert.", "gut"); }

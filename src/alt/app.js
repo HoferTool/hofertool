@@ -124,8 +124,8 @@ function startFehler(text) {
 //  Einstellungen
 // -----------------------------------------------------------------
 
-const SUPABASE_URL = "https://lzhqwbxfwqamauntehof.supabase.co";
-const SUPABASE_KEY = "sb_publishable_MLN71MehUtWldj_GVLDBvw_OCJODSCW";
+const SUPABASE_URL = "https://api.hofertool.ch";
+const SUPABASE_KEY = "sb_publishable_tgAGlp5VcFbqcLqUVjVZga_k0TwzsYy";
 const APP_NAME = "Hofer + Co.";
 const APP_UNTERTITEL = "HOFER TOOL";
 // Wer sich nur mit dem Namen anmeldet, bekommt diese Endung angehängt.
@@ -179,7 +179,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.943.0";
+const APP_VERSION = "1.944.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
