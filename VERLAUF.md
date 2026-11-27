@@ -2,6 +2,10 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.944.1 (27. November 2026)
+
+- Test ERP: Folgebelege (etwa ein Lieferschein) aus einem Auftrag im eigenen Browserfenster öffnen sich wieder richtig; vorher ging ein leeres Fenster auf, weil das Auftragsfenster den Lieferschein zu sich zurückholte (`eigenesFenster.js`). Prüfstand `erp_folge_fenster.py`.
+
 ## 1.943.0 (27. November 2026)
 
 QS → Masse-Blatt: obere Leiste dunkel wie beim EB (Titel links, Knöpfe rechts), Zeilenknöpfe neben dem Blatt gut sichtbar (auf schmalen Bildschirmen beim Antippen in der Zeile), Spalte AQL neben LL (mit Häkchen kommen nur diese Masse ins AQL-Protokoll, ohne Häkchen alle), Knopf Vorschau.

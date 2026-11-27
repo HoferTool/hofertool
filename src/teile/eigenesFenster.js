@@ -165,6 +165,11 @@ export function inEigenesFenster(huelle, zu, { titel, lage, still } = {}) {
     if (!d.hasFocus() && !(hier > dort)) return;
     meldungen.forEach((m) => m.addedNodes.forEach((n) => {
       if (n.nodeType !== 1 || !n.classList || !n.classList.contains("dialog-huelle")) return;
+      // Ein grosses Fenster hat der Fensterverwalter schon in ein eigenes
+      // Browserfenster gesetzt: nicht wieder hierher holen. Sonst blieb das
+      // neue Browserfenster leer (Patrick 27. November 2026: Folgebelege
+      // im Auftrag öffnen „ein leeres Fenster“)
+      if (n.parentNode !== document.body || n.classList.contains("dialog-huelle--eigen")) return;
       eintrittBeenden(n);
       d.body.appendChild(n);
       try { w.focus(); } catch (f) { /* dann eben ohne */ }
