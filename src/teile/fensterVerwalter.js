@@ -337,6 +337,23 @@ function gleichHeraus(h) {
   return false;
 }
 
+// Grosse Fenster sind gleich „frei“: kein dunkler Grund, ein Klick daneben
+// schliesst sie nicht, sie bleiben in der Fensterleiste. Vorher ging ein noch
+// nicht verschobenes Fenster beim Klick auf die Seite zu (Patrick 27. November
+// 2026: „wenn ich auf einen anderen Bereich klicke, verschwindet das Fenster
+// und auch die Info, welche Fenster offen sind“). Kleine Rückfragen bleiben,
+// wie sie sind.
+function gleichFrei(h) {
+  requestAnimationFrame(() => {
+    if (!document.body.contains(h) || h.classList.contains("dialog-huelle--frei")) return;
+    const f = h.firstElementChild;
+    if (!f) return;
+    let gross = false;
+    try { gross = !!h.querySelector(GROSS_SEL); } catch (e) { /* alte Browser */ }
+    if (gross || f.getBoundingClientRect().width >= 560) freiMachen(h);
+  });
+}
+
 // ---------- Beobachten ----------
 new MutationObserver((meldungen) => {
   let neu = false;
@@ -345,6 +362,7 @@ new MutationObserver((meldungen) => {
       if (!istFenster(n)) return;
       if (gleichHeraus(n)) return;
       aufnehmen(n); neu = true;
+      gleichFrei(n);
     });
     m.removedNodes.forEach((n) => { if (ordnung.includes(n)) { entfernen(n); neu = true; } });
   });
@@ -354,4 +372,4 @@ new MutationObserver((meldungen) => {
 // Titel kommen in React oft erst etwas später, Grösse ändert sich
 setInterval(() => { if (ordnung.length || leiste || eigeneFensterOffen()) leisteJetzt(); }, 1000);
 addEventListener("resize", leisteZeichnen);
-document.querySelectorAll("body > .dialog-huelle").forEach((h) => { if (istFenster(h)) aufnehmen(h); });
+document.querySelectorAll("body > .dialog-huelle").forEach((h) => { if (istFenster(h)) { aufnehmen(h); gleichFrei(h); } });

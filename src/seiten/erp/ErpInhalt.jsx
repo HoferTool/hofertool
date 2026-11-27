@@ -29,7 +29,7 @@ export default function ErpInhalt({ auffrischen }) {
   useEffect(() => { const f = () => neu(); window.addEventListener("hofer-erp-neu", f); return () => window.removeEventListener("hofer-erp-neu", f); }, [neu]);
   return (
     <div className="erp">
-      <ErpHeld d={d} reiter={reiter} setReiter={setReiter} />
+      <ErpHeld />
       <div className="reiter">
         {REITER.map(([w, t]) => <button key={w} className={"reiter__knopf" + (reiter === w ? " aktiv" : "")} data-erp-reiter={w}
           onClick={() => setReiter(w)}>{t}</button>)}
@@ -62,21 +62,10 @@ export default function ErpInhalt({ auffrischen }) {
 }
 
 // Kopf der Seite: dunkles Hofer-Blau mit Raster, Lichtlinie und leuchtendem
-// Logo, darunter Glas-Kacheln mit offenen Belegen je Art (Wunsch Patrick
-// 27. November 2026: „cooler, mit Hofer-Logo und etwas futuristisch“).
-// Gezählt wird nur nach Status, nicht über belegStand, damit es bei vielen
-// importierten Belegen schnell bleibt.
-const KACHELN = [
-  ["auftrag", "Aufträge"], ["fertigung", "Fertigung"], ["bestellung", "Bestellungen"],
-  // Rechnungen ohne Kachel: nach Rechnungsstellung ist es fertig, offen zählt nicht (Wunsch Patrick 27. November 2026).
-  ["lieferschein", "Lieferscheine"],
-];
-function ErpHeld({ d, reiter, setReiter }) {
-  const offen = {};
-  if (d) for (const b of d.belege) {
-    if (b.status === "storniert" || b.status === "abgeschlossen") continue;
-    offen[b.typ] = (offen[b.typ] || 0) + 1;
-  }
+// Logo (Wunsch Patrick 27. November 2026: „cooler, mit Hofer-Logo und etwas
+// futuristisch“). Die Kacheln darunter sind seit 1.887.0 weg (Patrick:
+// „vergiss die Startkacheln, brauchen wir nicht“).
+function ErpHeld() {
   const heute = new Date().toLocaleDateString("de-CH", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   return (
     <div className="erp-held" data-erp-held="">
@@ -89,17 +78,6 @@ function ErpHeld({ d, reiter, setReiter }) {
           <div className="erp-held__unter">Hofer + Co Präzisionsdrehteile · {heute}</div>
         </div>
         <div className="erp-held__status"><span className="erp-held__punkt" />System online</div>
-      </div>
-      <div className="erp-held__kacheln">
-        {KACHELN.map(([t, n]) => <button key={t} type="button" data-erp-kachel={t}
-          className={"erp-held__kachel" + (reiter === t ? " aktiv" : "")} onClick={() => setReiter(t)}>
-          <span className="erp-held__zahl">{d ? (offen[t] || 0).toLocaleString("de-CH").replace(/[’\u2019]/g, "'") : "–"}</span>
-          <span className="erp-held__name">{n} offen</span>
-        </button>)}
-        <button type="button" data-erp-kachel="stamm" className={"erp-held__kachel" + (reiter === "stamm" ? " aktiv" : "")} onClick={() => setReiter("stamm")}>
-          <span className="erp-held__zahl">{d ? d.artikel.length.toLocaleString("de-CH").replace(/[’\u2019]/g, "'") : "–"}</span>
-          <span className="erp-held__name">Artikel</span>
-        </button>
       </div>
     </div>
   );
