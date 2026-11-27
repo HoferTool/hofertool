@@ -17884,6 +17884,27 @@ body.dunkel .gfn-oben__feld { fill: #2a3546; }
 @media (min-width: 761px) {
   .gfn-spalten [data-gf-projekt] .gfn-elementknoepfe .knopf { padding: 6px 12px; font-size: .9rem; }
 }
+/* Einstellungen: Zeilen im Fenster beim Drüberfahren über die Planwand (1.924.0) */
+.planinfo-wahl { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-width: 520px; }
+.planinfo-wahl__zeile { display: flex; align-items: center; gap: 6px; padding: 4px 6px;
+  border: 1px solid var(--linie, #d8dde5); border-radius: 8px; background: var(--flaeche, #fff); }
+.planinfo-wahl__zeile--aus .planinfo-wahl__name span { opacity: .5; }
+.planinfo-wahl__name { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 0; }
+.planinfo-wahl__name input { width: 20px; height: 20px; flex: none; }
+.planinfo-wahl__pfeil { flex: none; width: 36px; height: 36px; border: 1px solid var(--linie, #d8dde5);
+  border-radius: 8px; background: transparent; font-size: 1.05rem; cursor: pointer; color: inherit; }
+.planinfo-wahl__pfeil:disabled { opacity: .3; cursor: default; }
+body.dunkel .planinfo-wahl__zeile { background: rgba(255,255,255,.04); border-color: rgba(255,255,255,.18); }
+body.dunkel .planinfo-wahl__pfeil { border-color: rgba(255,255,255,.25); }
+
+/* 1.925.0: rote Anzeige „überfällig“ in der Zeile der Zahl statt oben rechts über dem Titel */
+.logi-kachel__warn { position: static; display: inline-block; vertical-align: middle; margin-left: 8px; }
+/* 1.926.0: Logistik-Kacheln lassen sich ziehen; beim Ziehen kein Markieren und kein Rollen per Finger */
+.logi-kachel { touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+body.zieh-laeuft .logi-kachel { touch-action: none; cursor: grabbing; }
+/* 1.929.0: Lieferplan Liste, Zeitraum von/bis im Kopf */
+.logi-funktion .feld-inline { display: inline-flex; align-items: center; gap: 6px; margin-right: 10px; font-size: 14px; }
+
 
 /* 1.930.0: Einlagen Generator wie Gridfinity auf einen Bildschirm: Leiste
    oben schmaler, damit der Arbeitsfläche mehr Höhe bleibt */

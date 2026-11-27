@@ -88,7 +88,7 @@ let faStaende = FA_STAENDE.filter((w) => w !== "storniert");
 // Zustand des Auftrags auf der Planwand mit demselben Zeichen wie auf dem Balken
 // (○ Geplant, 🔧 Rüsten, ▶ Läuft, ✔ Fertig) und Maschine (seit 1.914.0, Wunsch Patrick
 // 27. November 2026: „in der Liste der FAs den Status und auch das Symbol“)
-function planwandZelle(b) {
+export function planwandZelle(b) {
   const pw = (b.daten || {}).planwand;
   if (!pw || !pw.stand) return "";
   const z = (alt.PLANSTATUS || {})[pw.stand] || { name: pw.stand, zeichen: "" };
@@ -607,7 +607,7 @@ function Positionen({ d, kopf, pos, setPos, bearbeiten, b, aussen, frisch, start
   );
 }
 
-function geliefert(d, p) {
+export function geliefert(d, p) {
   return folgePositionen(d, p.id, "lieferschein").reduce((s, x) => s + zahl(x.menge), 0);
 }
 
@@ -896,7 +896,7 @@ function LieferplanFenster({ d, aussen, b, p, frisch, zu }) {
   );
 }
 
-function naechsterAbruf(d, p) {
+export function naechsterAbruf(d, p) {
   let kum = 0;
   const g = geliefert(d, p);
   for (const x of p.daten.abrufe || []) { kum += zahl(x.menge); if (kum > g + 1e-9) return kum - g; }
@@ -942,7 +942,7 @@ function Arbeitsgaenge({ d, b, frisch }) {
           <label className="feld-haken erp-ag" data-erp-ag={i}>
             <input type="checkbox" checked={!!x.erledigt_am} onChange={(e) => haken(i, e.target.checked)} />
             <span><b>{x.pos || (i + 1) * 10}</b> {x.bez}{x.maschine ? " · " + x.maschine : ""}{x.te ? " · Stückzeit " + x.te + " s" : ""}
-              {x.ruest ? " · Rüsten " + x.ruest + " h" : ""}{x.extern ? " · extern" : ""}{x.pruef ? " · " + x.pruef : ""}
+              {x.ruest ? " · Rüsten " + x.ruest + " h" : ""}{x.extern ? " · extern" : ""}{x.pauschal ? " · Pauschal " + x.pauschal + " " + (x.pauschal_einheit || "") : ""}{x.pruef ? " · " + x.pruef : ""}
               {x.erledigt_am && <small> · erledigt {datumText(x.erledigt_am)}</small>}</span>
           </label>
           <button type="button" className="knopf knopf--klein" data-erp-ag-oeffnen={i} onClick={() => oeffnen(i)}>Öffnen</button>
@@ -1044,12 +1044,12 @@ async function faErstellen(d, b, aussen) {
 
 // Bestand eines Artikels als Auswahl. Nur genau dieser Artikel samt Index:
 // Bestand mit Index A kann einen Auftrag mit Index B nie beliefern.
-function chargenWahl(d, artikelId, idx) {
+export function chargenWahl(d, artikelId, idx) {
   return bestand(d, artikelId).filter((e) => e.menge > 0 && (idx == null || e.idx === idx))
     .map((e) => [e.charge + "|" + (e.lager_id || ""), "Charge " + e.charge + " · " + lagerText(d, e.lager_id) + " · " + mengeText(e.menge), e]);
 }
 
-function LieferscheinFenster({ d, b, zu, fertig, nurPos }) {
+export function LieferscheinFenster({ d, b, zu, fertig, nurPos }) {
   // Aus einer Position: nur diese; aus dem Kopf: alle zur Auswahl
   const pos = (d.posJe.get(b.id) || []).filter((p) => p.artikel_id && (!nurPos || p.id === nurPos));
   const [w, setW] = useState(() => pos.map((p) => {
@@ -1190,7 +1190,7 @@ function MaterialFenster({ d, b, zu, fertig }) {
   );
 }
 
-function FertigFenster({ d, b, zu, fertig }) {
+export function FertigFenster({ d, b, zu, fertig }) {
   const p = (d.posJe.get(b.id) || [])[0];
   const a = p && d.artikelMap.get(p.artikel_id);
   const offen = p ? Math.max(0, zahl(p.menge) - gebucht(d, p.id, "fertig")) : 0;

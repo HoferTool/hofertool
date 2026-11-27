@@ -123,6 +123,7 @@ with sync_playwright() as p:
     # Arbeitsgang im FA öffnen und ändern (seit 1.921.0)
     oben(pg).locator("[data-erp-ag-oeffnen='0']").click(); pg.wait_for_selector(".dialog input[data-erp-feld='maschine']")
     dlg = pg.locator(".dialog:has(input[data-erp-feld='maschine'])").last
+    pruefe(dlg.locator("[data-erp-feld='pauschal']").count() == 1, "Arbeitsgang mit Feld Pauschalzeit (seit 1.925.0)")
     dlg.locator("input[data-erp-feld='maschine']").fill("125"); dlg.locator("[data-erp-speichern]").click(); pg.wait_for_timeout(800)
     fa = [b for b in tabelle(pg, "erp_belege") if b["typ"] == "fertigung"]
     pruefe(fa[0]["daten"]["ap"][0].get("maschine") == "125" and bool(fa[0]["daten"]["ap"][0].get("erledigt_am")), "Arbeitsgang im FA geöffnet und geändert: %s" % fa[0]["daten"]["ap"][0])
@@ -220,9 +221,74 @@ with sync_playwright() as p:
 
     # Logistik: Kachel Wareneingang ZA extern (seit 1.920.0)
     pg.click("[data-erp-reiter='logistik']"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-logi-funktion]").count() == 0, "Logistik: beim Öffnen unten noch nichts (seit 1.929.0)")
+    pg.click("[data-logi-kachel='we-za']"); pg.wait_for_timeout(300)
     pruefe(pg.locator("[data-logi-kachel='we-za']").count() == 1 and pg.locator("[data-logi-funktion='we-za']").count() == 1,
            "Logistik mit Kachel und Liste Wareneingang ZA extern")
     pg.screenshot(path=BILD + "/erp-logistik.png")
+    # Kachel ZA extern anlegen (seit 1.925.0): externer Arbeitsgang im offenen FA wird zur Bestellung beim Lieferanten
+    pg.evaluate("""() => { const fa = TEST.daten.erp_belege.find(b => b.typ === 'fertigung');
+      fa.status = 'offen'; fa.daten = { ...fa.daten, ap: [...fa.daten.ap, { pos: 30, bez: 'Härten', code: 'HAERT', extern: true, lieferant_nr: '70001', pauschal: 5, pauschal_einheit: 'Tag' }] };
+      fa.daten.planwand = { job_id: 'jwbg', maschine: '124', stand: 'laeuft' };
+      const au = TEST.daten.erp_belege.filter(b => b.typ === 'auftrag').map(b => b.id);
+      const t = new Date(); t.setDate(t.getDate() + 3);
+      TEST.daten.erp_positionen.filter(q => au.includes(q.beleg_id)).forEach(q => { q.termin = t.toISOString().slice(0, 10); q.daten = { ...(q.daten || {}), abrufe: [] }; q.menge = Number(q.menge) + 100; });
+      TEST.daten.jobs = TEST.daten.jobs || []; TEST.daten.jobs.push({ id: 'jwbg', wbg_url: 'https://example.invalid/wbg.pdf' });
+      TEST.daten.production_records = TEST.daten.production_records || []; TEST.daten.production_records.push({ id: 'pr1', job_id: 'jwbg', quantity: 1234, record_date: '2026-11-27' });
+      TEST.daten.erp_positionen.filter(q => q.beleg_id === fa.id).forEach(q => { q.menge = Number(q.menge) + 50; });
+      const a = TEST.daten.erp_artikel.find(x => x.id === 'a1'); a.arbeitsplan = [...(a.arbeitsplan || []), { pos: 90, bez: 'Härten', code: 'HAERT', extern: true, lieferant_nr: '70001', pauschal: 5 }]; }""")
+    pg.evaluate("location.hash='#/'"); pg.wait_for_timeout(500)
+    pg.evaluate("location.hash='#/erp'"); pg.wait_for_selector("[data-erp-reiter='logistik']"); pg.wait_for_timeout(500)
+    pg.click("[data-erp-reiter='logistik']"); pg.wait_for_timeout(500)
+    pg.click("[data-logi-kachel='za-neu']"); pg.wait_for_timeout(300)
+    z = pg.locator("[data-logi-funktion='za-neu'] .erp-tabelle tbody tr")
+    pruefe(z.count() == 1 and "Stahl AG" in z.first.inner_text() and "HAERT" in z.first.inner_text(), "ZA extern anlegen: offener externer Arbeitsgang mit Lieferant")
+    z.first.click(); pg.wait_for_timeout(600)
+    pruefe(oben(pg).count() == 1 and "Stahl AG" in oben(pg).inner_text(), "neue Bestellung ZA extern vorausgefüllt")
+    pg.screenshot(path=BILD + "/erp-za-neu.png")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    if pg.locator(".dialog-huelle [data-ja]").count(): pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(300)
+    # Kacheln ziehen (seit 1.926.0): ZA extern anlegen vor Wareneingang
+    q = pg.locator("[data-logi-kachel='za-neu']").bounding_box(); w = pg.locator("[data-logi-kachel='we-za']").bounding_box()
+    pg.mouse.move(q["x"] + 30, q["y"] + 30); pg.mouse.down(); pg.mouse.move(q["x"] + 10, q["y"] + 20, steps=3)
+    pg.mouse.move(w["x"] + 30, w["y"] + 30, steps=8); pg.mouse.up(); pg.wait_for_timeout(300)
+    reihe = pg.evaluate("[...document.querySelectorAll('[data-logi-kachel]')].map(k => k.dataset.logiKachel)")
+    pruefe(reihe[:2] == ["za-neu", "we-za"] and pg.locator("[data-logi-funktion='za-neu']").count() == 1, "Kacheln verschoben, Ziehen öffnet nichts: %s" % reihe)
+    # Kachel WBG drucken (seit 1.928.0)
+    pg.click("[data-logi-kachel='wbg']"); pg.wait_for_timeout(800)
+    z = pg.locator("[data-logi-funktion='wbg'] .erp-tabelle tbody tr")
+    pruefe(z.count() == 1 and "vorhanden" in z.first.inner_text() and pg.locator("[data-logi-wbg-drucken]").count() == 1, "WBG drucken: FA mit WBG und Knopf Drucken")
+    # Kachel Lieferschein anlegen (seit 1.928.0)
+    pg.click("[data-logi-kachel='ls-neu']"); pg.wait_for_timeout(300)
+    pg.locator("[data-logi-ls-alle] input").check(); pg.wait_for_timeout(200)
+    n_ls = pg.locator("[data-logi-funktion='ls-neu'] .erp-tabelle tbody tr").count()
+    pruefe(pg.locator("[data-logi-funktion='ls-neu']").count() == 1, "Lieferschein anlegen: Liste da (%s Positionen mit Häkchen „auch ohne Bestand“)" % n_ls)
+    pg.click("[data-logi-kachel='fa']"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-logi-funktion='fa'] [data-erp-fa-stand]").count() >= 4, "FA Übersicht mit Häkchen je Stand")
+    # Kachel Lieferplan Liste (seit 1.929.0)
+    pg.click("[data-logi-kachel='lieferplan']"); pg.wait_for_timeout(300)
+    n_lp = pg.locator("[data-logi-funktion='lieferplan'] .erp-tabelle tbody tr").count()
+    with pg.expect_popup() as pop:
+        pg.click("[data-logi-lp-drucken]")
+    blatt = pop.value; blatt.wait_for_load_state()
+    txt = blatt.content()
+    pruefe(n_lp >= 1 and "Offene Lieferungen" in txt and "Rüstmenge" in txt and "landscape" in txt, "Lieferplan Liste: %s Fälligkeiten, Blatt quer zum Drucken" % n_lp)
+    blatt.close()
+    # Kachel Fertigung einlagern (seit 1.927.0)
+    pg.click("[data-logi-kachel='einlagern']"); pg.wait_for_timeout(300)
+    z = pg.locator("[data-logi-funktion='einlagern'] .erp-tabelle tbody tr")
+    pg.wait_for_timeout(500)
+    pruefe(z.count() >= 1 and "1'234" in z.first.inner_text() and "Läuft" in z.first.inner_text(), "Fertigung einlagern: offener FA mit Stand, Planwand und Stückzahl: %s" % (z.first.inner_text() if z.count() else ""))
+    z.first.click(); pg.wait_for_timeout(800)
+    pruefe(pg.locator(".dialog:has-text('ertig')").count() >= 1, "Fertigmeldung geht auf")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    if pg.locator(".dialog-huelle [data-ja]").count(): pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(300)
+    # Ohne FA über den Arbeitsplan des Artikels
+    pg.click("[data-logi-kachel='za-neu']"); pg.wait_for_timeout(300)
+    pg.click("[data-logi-za-ap]"); pg.wait_for_selector("[data-logi-ap-fenster] input")
+    pg.fill("[data-logi-ap-fenster] input", "10007"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-logi-ap-fenster] .erp-tabelle tbody tr").count() >= 1, "ZA extern über den Arbeitsplan: Artikel mit externem Arbeitsgang")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
 
     # Spaltenkopf antippen sortiert (seit 1.898.0): Hofer-Artikel nach Index auf- und absteigend
     pg.click("[data-erp-reiter='stamm']"); pg.wait_for_timeout(300)

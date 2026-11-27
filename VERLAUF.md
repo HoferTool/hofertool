@@ -3,6 +3,39 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.930.0 (27. November 2026)
+
+- Einlagen Generator im Aufbau wie Gridfinity: Einstellungen links, Arbeitsfläche rechts über die ganze Höhe, die Seite rollt nicht mehr.
+
+## 1.929.0 (27. November 2026)
+
+- Test ERP → Logistik: Kachel „Lieferplan Liste“ (fällige Lieferungen im Zeitraum von/bis aus den Lieferplänen, nach Kunde und Termin, Geliefertes abgezogen, Lagerort und Lagerbestand; „Drucken“ als Blatt „Offene Lieferungen“ quer wie das Gewatec-Blatt mit Spalten Rüstmenge und Verpackung zum Ausfüllen).
+- Beim Wechsel in den Reiter Logistik ist unten nichts offen (nur nach Neuladen kommt die letzte Kachel wieder).
+- „Fertigung einlagern“ zeigt Stand und Planwand wie im Reiter Fertigung und die aktuelle Stückzahl (letzter Zählerstand aus `production_records`).
+
+## 1.928.0 (27. November 2026)
+
+- Test ERP → Logistik: drei neue Kacheln. „WBG drucken“ (offene FAs mit Planwand-Auftrag, WBG aus `jobs.wbg_url`, Knopf „Drucken“ schickt sie über den Pool-Rechner an den Drucker Spedition, Zeile antippen zeigt sie an). „Lieferschein anlegen“ (offene Auftragspositionen nach Fälligkeit aus dem Lieferplan, mit Bestand, Antippen öffnet den Lieferschein für diese Position, Häkchen „Auch ohne Lagerbestand“). „FA Übersicht“ (Liste wie im Reiter Fertigung).
+
+## 1.927.0 (27. November 2026)
+
+- Test ERP → Logistik: Kachel „Fertigung einlagern“ mit den offenen FAs (noch nicht ganz fertig gemeldet), laufende und rüstende Planwand-Aufträge zuerst; Antippen öffnet die Fertigmeldung (Menge, Lagerart, Platz).
+
+## 1.926.0 (27. November 2026)
+
+- Test ERP → Logistik: Kacheln lassen sich mit Maus oder Finger verschieben (ab 8 Punkten Bewegung, Antippen öffnet weiter); Reihenfolge je Person in der Einstellung `erpLogistikReihe`.
+
+## 1.925.0 (27. November 2026)
+
+- Test ERP → Logistik: neue Kachel „ZA extern anlegen“. Listet die externen Arbeitsgänge offener FAs ohne Bestellung; Antippen öffnet eine neue Bestellung ZA extern, ausgefüllt mit Lieferant, Artikel, Menge und Termin (heute + Pauschalzeit), verknüpft über `daten.fa_id`/`ag_pos`. Ohne FA im Einzelfall über den Arbeitsplan des Artikels (`ZaAusArbeitsplan`).
+- Arbeitsgang-Fenster mit Pauschalzeit und Einheit (`pauschal`, `pauschal_einheit`); Artikel-Arbeitsplan zeigt bei extern die Pauschalzeit.
+- Rote Anzeige „überfällig“ steht in der Zeile der Zahl und verdeckt den Titel nicht mehr.
+- `sql/erp-arbeitsplan-gewatec-details.sql`: Maschine, Stückzeit, Rüstzeit, Lieferant und Pauschalzeit aus dem Gewatec-Export 4 in Artikel und FAs (nur leere Felder).
+
+## 1.924.0 (27. November 2026)
+
+- Planwand: Was im Fenster beim Drüberfahren über einen Auftrag steht, wählt jede Person selbst (Einstellungen → Allgemein → „Planwand: Fenster beim Drüberfahren“): Häkchen je Zeile, Reihenfolge mit ↑ ↓, „Wie am Anfang“. Gespeichert am Konto (`planInfoFelder`, Komma-Liste, „-“ = nichts), ohne Wahl wie bisher. Externe haben die Wahl nicht (Entscheid Patrick 27. November 2026). Liste `PLAN_INFO_FELDER` in `app.js`, Test `pruefstand/planinfo_wahl.py`.
+
 ## 1.923.0 (27. November 2026)
 
 - Gridfinity passt auf einen Bildschirm: Reiter neben dem Titel, Vorschau so hoch wie der Bildschirm, Einstellungen rollen für sich, auf breiten Bildschirmen in zwei Spalten.
