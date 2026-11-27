@@ -230,6 +230,30 @@ async function protokollLoeschen(p) {
 
 // =================================================================
 const JOB_SPALTEN = "id, fa_nr, job_number, plan_status, target_quantity, machine_id, planned_from, ended_at, material_bez, material_dm";
+// Maschine als Auswahlliste statt Freitext (Wunsch Patrick 27. November 2026:
+// „maschine soll dropdown menu sein“). Die Liste wird einmal je Sitzung geladen;
+// ein alter Freitext-Wert bleibt als eigener Eintrag sichtbar, damit nichts verloren geht.
+let maschinenVorrat = null;
+function MaschineWahl({ wert, schreibt, setzen }) {
+  const [liste, setListe] = useState(maschinenVorrat || []);
+  useEffect(() => {
+    if (maschinenVorrat) return;
+    let weg = false;
+    alt.db.from("machines").select("id, name, machine_number").then((r) => {
+      const n = [...new Set((r.data || []).map((m) => m.name).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b, "de", { numeric: true }));
+      maschinenVorrat = n;
+      if (!weg) setListe(n);
+    }, () => {});
+    return () => { weg = true; };
+  }, []);
+  const namen = wert && !liste.includes(wert) ? [wert, ...liste] : liste;
+  return <select data-pbmaschinewahl value={wert} disabled={!schreibt} onChange={(x) => setzen(x.target.value)}>
+    <option value="">– wählen –</option>
+    {namen.map((n) => <option key={n} value={n}>{n}</option>)}
+  </select>;
+}
+
 export default function Pruefberichte() {
   if (qsSprung.masse) { pbZustand.masse = qsSprung.masse; qsSprung.masse = null; }
   const [, setF] = useState(0);
@@ -723,7 +747,7 @@ function Protokoll({ p, zurueck }) {
         <div className="pb-felder">
           <label className={!String(w.fa_nr || "").trim() ? "pb-pflicht" : ""}>FA Nr.<input value={w.fa_nr || ""} disabled={!schreibt} onChange={(x) => setzen("fa_nr", x.target.value)} /></label>
           {art === "aql" ? <AqlKopf k={w.kopf} schreibt={schreibt} setzen={kopfSetzen} werte={w.werte} /> : null}
-          <label className="pb-felder__rechts">Maschine<input value={w.kopf.maschine || ""} disabled={!schreibt} onChange={(x) => kopfSetzen("maschine", x.target.value)} /></label>
+          <label className="pb-felder__rechts">Maschine<MaschineWahl wert={w.kopf.maschine || ""} schreibt={schreibt} setzen={(v) => kopfSetzen("maschine", v)} /></label>
         </div>
 
         {art === "aql" ? <AqlTabelle zeilen={zeilen} w={w} schreibt={schreibt} aendern={aendern} />

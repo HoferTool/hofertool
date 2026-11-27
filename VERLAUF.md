@@ -3,6 +3,10 @@
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
 
+## 1.890.0 (27. November 2026)
+
+QS → Prüfprotokoll: Maschine ist eine Auswahlliste aller Maschinen statt Freitext; ein alter Freitext-Wert bleibt als Eintrag stehen (Wunsch Patrick: „maschine soll dropdown menu sein“).
+
 ## 1.889.0 (27. November 2026)
 
 QS → Prüfberichte: Knopf „Prüfmasse“ ersetzt durch „Stammdaten“, der die HOCO-Stammdaten öffnet; dort stehen jetzt auch Kopf, Masse-Blatt, Excel-Import und Lehren (Wunsch Patrick: „dort stammdaten knopf das man es gleich dort ändert“).
@@ -1131,4 +1135,4 @@ Planwand mit Ziehen, Verlängern, Nachrücken und Lücke schliessen · Produktio
 - **1.524.0** (13. November 2026): Planer und Material-Lieferanten zeigen das Logo des Lieferanten (Symbol der Website wie in Bestellungen, sonst die Anfangsbuchstaben); je Lieferant neue Felder „Website“ und „Eigenes Logo“, ohne Website nimmt die App eine Adresse oder Mail-Domain aus der Bemerkung (`lieferantLogoDaten` in `src/daten/planer.js`).
 - **1.522.0** (13. November 2026): Knopf „Vollbild“ oben auf der Planwand (vier Ecken, nur am Computer, nicht für Externe) öffnet die Planwand in einem eigenen Tab ohne Kopfzeile und Menü (`#/planwand/vollbild`, `src/planwand/vollbildTab.js`); der erste Klick schaltet echtes Vollbild ein, Escape fragt „Vollbild schliessen?“, Enter schliesst den Tab. Prüfstand `planwand_vollbild.py`.
 - **1.521.0** (13. November 2026): Planer nicht mehr im Pad Mode, sondern als eigener Tab über den Knopf neben Symbole auf der Planwand (nur Admins); neue Todos mit Schieber „Nur für mich“ (Vorgabe) oder „Alle Admins“ (`sql/planer-todos-fuer.sql`, eingespielt).
-- 1.889.1 (27.11.2026): Umfragen bleiben zugeklappt (am Konto und Gerät gemerkt, auch nach Neuladen).
+- 1.890.1 (27.11.2026): Umfragen bleiben zugeklappt (am Konto und Gerät gemerkt, auch nach Neuladen).
