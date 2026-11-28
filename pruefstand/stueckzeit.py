@@ -153,7 +153,9 @@ with sync_playwright() as p:
     text = pg.inner_text("#hoco-fensterinhalt")
     for w in ["Produktionsanlage", "Einrichtblatt", "Stückzeit", "38 s", "Länge", "7,5 mm"]:
         if w.lower() not in text.lower(): fehler.append("HOCO ohne " + w)
-    for w in ["Gelaufen auf", "Artikelbezeichnung", "Geheimteil", "Einrichtblätter"]:
+    # Seit 1.938.0 stehen Artikel und Zeichnung wieder oben in den Stammdaten
+    # (Wunsch Patrick 27. November 2026), darum darf „Geheimteil“ dort stehen
+    for w in ["Gelaufen auf", "Artikelbezeichnung", "Einrichtblätter"]:
         if w in text: fehler.append("HOCO zeigt noch " + w)
     pg.screenshot(path="stueckzeit-hoco.png", full_page=True)
     br.close()

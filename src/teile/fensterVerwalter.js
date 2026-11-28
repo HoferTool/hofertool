@@ -230,6 +230,10 @@ function leisteSichtbar() {
   // Blätter über den ganzen Bildschirm (Masse-Blatt der Prüfung) haben oben
   // ihre eigene Leiste, die Fensterleiste läge sonst über deren Knöpfen
   if (document.querySelector("[data-pstblatt]")) return false;
+  // Gleiches beim Einrichtblatt über den ganzen Bildschirm: mit breiterer
+  // Schrift (Windows) lag die Leiste über „Von anderem Blatt übernehmen“
+  // und fing den Klick ab (1.944.2)
+  if (document.querySelector(".eba-fenster")) return false;
   // Auch Fenster in einem eigenen Browserfenster zählen (Patrick 27. November
   // 2026: „sobald es im eigenen Fenster läuft, verschwindet die Fensterübersicht“)
   return ordnung.length + eigeneFensterListe().length > 0;

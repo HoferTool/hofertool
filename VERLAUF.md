@@ -2,6 +2,11 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.944.2 (28. November 2026)
+
+- Einrichtblatt in der App: Die Fensterleiste oben bleibt weg, solange das Einrichtblatt über den ganzen Bildschirm offen ist. Mit breiterer Schrift lag sie über „Von anderem Blatt übernehmen“ und fing den Klick ab (`fensterVerwalter.js`); so fielen in der Nacht die Prüfstand-Tests `einrichtblatt_app`, `eb_von_anderem` und `eb_platz_wechsel` auf GitHub durch.
+- Prüfstand an gewollte Änderungen angepasst: `farben` (Ecobrass orange, Messing braun seit 1.885.0), `stueckzeit` und `enter_eindeutig` (Artikel und Zeichnung stehen seit 1.938.0 in den Stammdaten). Auf GitHub wird `poppler-utils` für `formulare_gewatec` mitinstalliert.
+
 ## 1.944.1 (27. November 2026)
 
 - Test ERP: Folgebelege (etwa ein Lieferschein) aus einem Auftrag im eigenen Browserfenster öffnen sich wieder richtig; vorher ging ein leeres Fenster auf, weil das Auftragsfenster den Lieferschein zu sich zurückholte (`eigenesFenster.js`). Prüfstand `erp_folge_fenster.py`.

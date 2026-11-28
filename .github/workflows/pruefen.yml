@@ -32,7 +32,8 @@ jobs:
           python-version: "3.12"
       - run: npm ci
       - run: npm run build
-      - run: pip install playwright pillow && python -m playwright install --with-deps chromium
+      # poppler-utils (pdftoppm, pdfinfo, pdftotext) braucht formulare_gewatec
+      - run: pip install playwright pillow && python -m playwright install --with-deps chromium && sudo apt-get install -y poppler-utils
       - name: Prüfstand
         working-directory: pruefstand
         run: python alle_tests.py | tee ergebnis.txt && grep -q "^\([0-9]*\) von \1 Prüfungen ohne Fehler" ergebnis.txt
