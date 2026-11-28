@@ -20,6 +20,9 @@ TEST.daten.erp_artikel = [];
 for (let i = 0; i < 1200; i++) TEST.daten.erp_artikel.push({ id: 'w' + String(i).padStart(5, '0'), art: 'werkzeug', nr: 'WZ' + i, aktiv: true, daten: {} });
 TEST.daten.erp_artikel.push({ id: 'z-hofer', art: 'hofer', nr: '10332-0706', kunde_id: 'k1', idx: '02', bezeichnung: 'Ring Gear', aktiv: true, daten: {},
   arbeitsplan: [{ pos: 10, bez: 'Drehen', maschine: 'SW-20', te: 42, ruest: 3 }, { pos: 20, bez: 'Härten', extern: true, lieferant_nr: '70005', maschine: 'Härterei AG' }] });
+TEST.daten.erp_partner.push({ id: 'k7', art: 'kunde', nr: '10007', name: 'Faulhaber SA', aktiv: true, daten: {} });
+TEST.daten.erp_artikel.push({ id: 'z-7a', art: 'hofer', nr: '10007-0588', kunde_id: 'k7', aktiv: true, daten: {}, arbeitsplan: [] },
+  { id: 'z-7b', art: 'hofer', nr: '10007-9012', kunde_id: 'k7', aktiv: true, daten: {}, arbeitsplan: [] });
 TEST.daten.kalkulationen = [
   { id: 'kk3', nr: '20260013', kunde: 'Gysin AG', artikel: '10332-0712', geaendert_am: '2026-09-01T08:00:00Z',
     daten: { kopf: { artikel: '10332-0712', kunde: 'Gysin AG', kundencode: '10332' }, ags: [] } },
@@ -89,6 +92,10 @@ with sync_playwright() as p:
     pg.fill("#kalk-artikel", ""); pg.fill("#kalk-kundecode", "10332"); pg.wait_for_timeout(300); pg.press("#kalk-kundecode", "Tab"); pg.wait_for_timeout(300)
     t = pg.locator("#kalk-hoechste").inner_text() if pg.locator("#kalk-hoechste").count() else ""
     pruefe("10332-0712" in t and "10332-0713" in t and "Kalkulation 20260013" in t, "höchste Nr. des Kunden und nächste frei: %s" % t)
+    pg.fill("#kalk-kundecode", "10007"); pg.wait_for_timeout(300); pg.press("#kalk-kundecode", "Tab"); pg.wait_for_timeout(300)
+    t7 = pg.locator("#kalk-hoechste").inner_text() if pg.locator("#kalk-hoechste").count() else ""
+    pruefe("10007-0588" in t7 and "10007-0589" in t7 and "9012" not in t7, "10007 ohne 9000er Spezialartikel: %s" % t7)
+    pg.fill("#kalk-kundecode", "10332"); pg.wait_for_timeout(300); pg.press("#kalk-kundecode", "Tab"); pg.wait_for_timeout(300)
     pg.click("#kalk-naechste"); pg.wait_for_timeout(300)
     pruefe(pg.input_value("#kalk-artikel") == "10332-0713", "nächste Nr. übernommen")
     # Kopfdaten: Kunde und Anschrift rechts unten, Dokumente (1.948.0)

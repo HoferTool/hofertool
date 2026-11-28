@@ -1769,6 +1769,9 @@ function angebotZeilen(rechnung) {
 
 // Höchste Artikel-Nr. (Muster Kunden-Nr.-laufende Nr., z. B. 10332-0706) eines
 // Kunden in den Stammdaten und in den übrigen Kalkulationen, dazu die nächste
+// Nummernbereiche, die nicht zählen: bei 10007 waren die 9000er Spezialartikel
+// (Patrick 28. November 2026: „vergiss bei 10007 die 9000er Nummern“)
+const NR_AUSNAHMEN = { 10007: (lauf) => lauf >= 9000 && lauf <= 9999 };
 function artikelZaehler(kopf, hofer, liste, eigeneId) {
   const code = String(kopf.kundencode || "").trim();
   const kid = kopf.kunde_id;
@@ -1777,6 +1780,7 @@ function artikelZaehler(kopf, hofer, liste, eigeneId) {
   const treffer = [];
   const nimm = (nr, wo) => {
     const m = /^(\d{4,6})-(\d{1,5})$/.exec(String(nr || "").trim());
+    if (m && NR_AUSNAHMEN[m[1]] && NR_AUSNAHMEN[m[1]](Number(m[2]))) return;
     if (m && (!code || m[1] === code)) treffer.push({ nr: m[0], vor: m[1], lauf: Number(m[2]), stellen: m[2].length, wo });
   };
   for (const a of hofer) {

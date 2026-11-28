@@ -2,6 +2,10 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.948.3 (28. November 2026)
+
+- Kalkulation, nächste Artikel-Nr.: beim Kunden 10007 zählen die 9000er Nummern (Spezialartikel) nicht (`NR_AUSNAHMEN`).
+
 ## 1.948.2 (28. November 2026)
 
 - Kalkulation: Kunde und Adresse kommen immer aus dem Kundenstamm (über den Kunden-Code). Alte Kalkulationen mit eigener Adresskopie zeigen beim Öffnen still die Adresse aus dem Stamm; die Felder sind dann nur dort änderbar (Zusatz bleibt frei, wenn der Stamm keinen hat). Angebot und Sammelangebot drucken diese Adresse.
