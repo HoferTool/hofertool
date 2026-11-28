@@ -117,6 +117,9 @@ with sync_playwright() as p:
     # Fertigungslose nur in der Tabelle je Staffel, nicht mehr als Liste über den Arbeitsgängen (1.237.2)
     pruefe(pg.locator("#kalk-lose").count() == 0, "keine Liste Fertigungslose über den Arbeitsgängen")
     pruefe("Fertigungslose" in pg.locator("[data-ag='4']").inner_text(), "Fertigungslose beim externen AG")
+    # Mit Staffeln nur noch die Tabelle je Staffel, kein Kostensatz oben (1.954.0)
+    pruefe(pg.locator("#kalk-ag-ext-4").count() == 0 and pg.input_value("#kalk-ag-s0-extern-4") == "0.30", "Kostensatz nur je Staffel")
+    pg.locator("[data-ag='4']").screenshot(path=BILD + "/kalk-extern.png")
     # Externer Kostensatz je Staffel
     pg.fill("#kalk-ag-s1-extern-4", "0.44"); pg.wait_for_timeout(300)
     b4 = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()

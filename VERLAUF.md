@@ -2,6 +2,9 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.954.0 (28. November 2026)
+- Kalkulation, externer Arbeitsgang: Kostensatz und Nebenkosten je Stück nur noch einmal in einer Tabelle mit einer Spalte je Staffel, daneben „CHF pauschal“ und „Verrechnen“. Ohne Staffeln wie bisher die Felder beim Arbeitsgang.
+
 ## 1.953.0 (28. November 2026)
 - Kalkulation, externer Arbeitsgang: in der Tabelle je Staffel jetzt auch Rüst-, Werkzeug-, Verpackungs-, Transportkosten und Oberflächenprotokoll je Stück je Staffel (leer = Wert oben); Kostensatz zeigt seine Einheit (je Stk, je 100 Stk, je kg).
 

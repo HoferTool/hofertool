@@ -1083,6 +1083,7 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
   };
   // Jeder Arbeitsgang braucht einen festen Schlüssel fürs Ziehen
   const ags = k.ags.map((a, i) => (a.key ? a : { ...a, key: "ag" + i }));
+  const mitStaffeln = k.staffeln.some((q) => z(q.menge) > 0);
 
   return (
     <>
@@ -1104,6 +1105,8 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
           const f = (name) => ({ wert: a[name], setzen: (w) => setze("ags." + i + "." + name, w) });
           const offen = auf.has(a.key);
           const ext = a.art === "extern";
+          // Satz der ersten Staffel für die Kopfzeile, sonst der alte Satz beim Arbeitsgang
+          const satz1 = ext ? ((((k.staffeln.find((q) => z(q.menge) > 0) || {}).ag || {})[a.key] || {}).extern || a.extern) : "";
           const mm = !ext && maschinen.find((q) => q.id === a.masch);
           const ruest = [a.erst, a.folge].filter((x) => String(x || "").trim()).join(" / ");
           return { key: a.key, inhalt:
@@ -1128,7 +1131,7 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
                     }
                   }} />
                 <span className="kalk-ag__ort">{ext ? <><i>Extern</i> {a.lieferant || ""}</> : (mm ? mm.name : <i>keine Maschine</i>)}</span>
-                <span className="kalk-ag__zahl">{ext ? (a.extern ? chf(z(a.extern), 2) + " /" + ({ stk: "Stk", "100stk": "100", "1000stk": "1000", kg: "kg" }[a.je || "stk"]) : "") : (a.te || "")}</span>
+                <span className="kalk-ag__zahl">{ext ? (satz1 ? chf(z(satz1), 2) + " /" + ({ stk: "Stk", "100stk": "100", "1000stk": "1000", kg: "kg" }[a.je || "stk"]) : "") : (a.te || "")}</span>
                 <span className="kalk-ag__zahl">{ext ? "" : ruest}</span>
                 <span className="kalk-ag__zahl">{ext || !String(a.fgk || "").trim() ? "" : a.fgk + " %"}</span>
                 <b className="kalk-ag__summe" title={"Kosten je " + peText(pe) + " bei der ersten Staffel"}>{r ? chf(r.kosten / r0.menge * pe, 4) : "–"}</b>
@@ -1146,7 +1149,8 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
                           <option value="1000stk">1000 Stk</option><option value="kg">kg</option>
                         </select>
                       </label>
-                      <F label="Kostensatz" einheit="CHF" id={"kalk-ag-ext-" + i} {...f("extern")} />
+                      {/* Mit Staffeln steht der Kostensatz nur noch in der Tabelle je Staffel (Wunsch Patrick 28. November 2026) */}
+                      {!mitStaffeln && <F label="Kostensatz" einheit="CHF" id={"kalk-ag-ext-" + i} {...f("extern")} />}
                       <F label="Gewicht je Stück" einheit="kg" id={"kalk-ag-kg-" + i} {...f("kgStk")}
                         platz={r ? chf(r.kgStk, 4) : ""} hinweis="Leer = Materialeinsatz je Stück" />
                     </div>
@@ -1155,7 +1159,7 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
                       <F label="bis" einheit="kg" id={"kalk-ag-postenbis-" + i} {...f("postenBis")}
                         hinweis="Postensatz statt Kostensatz bis zu diesem Gewicht, leer = immer" />
                     </div>
-                    <table className="kalk-extern__neben">
+                    {mitStaffeln ? <ExternJeStaffel a={a} i={i} k={k} setK={setK} setze={setze} rechnung={rechnung} /> : <table className="kalk-extern__neben">
                       <thead><tr><th></th><th>CHF je Stk</th><th>CHF pauschal</th><th></th></tr></thead>
                       <tbody>{EXTERN_NEBEN.map(([n, titel, verr]) => (
                         <tr key={n}><td>{titel}</td>
@@ -1167,8 +1171,7 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
                           <td>{verr && <label className="kalk-haken"><input type="checkbox" id={"kalk-ag-" + n + "v-" + i}
                             checked={a[n + "Verr"] !== false} onChange={(e) => setze("ags." + i + "." + n + "Verr", e.target.checked)} /> Verrechnen</label>}</td>
                         </tr>))}</tbody>
-                    </table>
-                    <ExternJeStaffel a={a} i={i} k={k} setK={setK} rechnung={rechnung} />
+                    </table>}
                   </div>
                 : <div className="kalk-reihe">
                     <label className="feld kalk-feld"><span>Maschine</span>
@@ -1320,34 +1323,42 @@ function JeStaffel({ a, i, k, setK, maschinen, rechnung }) {
   );
 }
 
-// Externer Arbeitsgang wie im Gewatec: Kostensatz je Staffel (leer = Satz
-// oben), darunter Gewicht und Einzelkosten je Staffel
-function ExternJeStaffel({ a, i, k, setK, rechnung }) {
+// Externer Arbeitsgang: alle Kosten in einer Tabelle mit einer Spalte je
+// Staffel, so wie man den Lieferanten anfragt (Wunsch Patrick 28. November
+// 2026: „jetzt gebe ich es einmal oben ein und unten nochmal pro Staffel“).
+// Die Werte stehen je Staffel in staffeln[j].ag[key]; ein alter Wert beim
+// Arbeitsgang gilt weiter für die Staffeln ohne eigenen Wert.
+function ExternJeStaffel({ a, i, k, setK, setze, rechnung }) {
   const idx = k.staffeln.map((s, j) => (z(s.menge) > 0 ? j : -1)).filter((j) => j >= 0);
   if (!idx.length) return null;
-  const setzen = (j, wert, feld = "extern") => setK((x) => ({ ...x, staffeln: x.staffeln.map((s, n) => (n !== j ? s
+  const setzen = (j, wert, feld) => setK((x) => ({ ...x, staffeln: x.staffeln.map((s, n) => (n !== j ? s
     : { ...s, ag: { ...(s.ag || {}), [a.key]: { ...((s.ag || {})[a.key] || {}), [feld]: wert } } })) }));
   const jeText = a.je === "kg" ? "je kg" : a.je === "100stk" ? "je 100 Stk" : a.je === "1000stk" ? "je 1000 Stk" : "je Stk";
   const sp = idx.map((j, n) => ({ j, r: rechnung[n] && rechnung[n].ags[i], menge: rechnung[n] ? rechnung[n].menge : 0,
     eigen: ((k.staffeln[j].ag || {})[a.key]) || {} }));
   const pe = peWert(k.preis.pe);
+  const wert = (eigen, feld) => (String(eigen[feld] ?? "").trim() ? eigen[feld] : a[feld] || "");
+  const zelle = (feld, idTeil) => sp.map(({ j, eigen }) => (
+    <td key={j} className="rechts"><input className="kalk-zelle" type="text" inputMode="decimal" id={"kalk-ag-s" + j + "-" + idTeil + "-" + i}
+      value={wert(eigen, feld)} onChange={(e) => setzen(j, e.target.value, feld)} /></td>));
   return (
     <div className="kalk-jestaffel kalk-rolle">
-      <table className="kalk-tab">
+      <table className="kalk-tab kalk-extern__staffeln">
         <tbody>
-          <tr className="kalk-fett"><td>Stückzahl</td>{sp.map(({ j, menge }) => <td key={j} className="rechts">{chf(menge, 0)}</td>)}</tr>
-          <tr><td>Fertigungslose</td>{sp.map(({ j }, n) => <td key={j} className="rechts">{rechnung[n] ? rechnung[n].lose : "–"}</td>)}</tr>
-          <tr className="kalk-blass"><td>Gewicht <span className="kalk-einheit">kg</span></td>{sp.map(({ j, r }) => <td key={j} className="rechts">{r ? chf(r.gewicht, 2) : "–"}</td>)}</tr>
-          <tr><td>Kostensatz <span className="kalk-einheit">CHF {jeText}</span></td>{sp.map(({ j, eigen }) => (
-            <td key={j} className="rechts"><input className="kalk-zelle" type="text" inputMode="decimal" id={"kalk-ag-s" + j + "-extern-" + i}
-              placeholder={a.extern || ""} value={eigen.extern || ""} onChange={(e) => setzen(j, e.target.value)} /></td>))}</tr>
-          {/* Nebenkosten je Stück je Staffel, leer = Wert oben (Wunsch Patrick 28. November 2026) */}
-          {EXTERN_NEBEN.map(([nb, titel]) => (
-            <tr key={nb}><td>{titel} <span className="kalk-einheit">CHF je Stk</span></td>{sp.map(({ j, eigen }) => (
-              <td key={j} className="rechts"><input className="kalk-zelle" type="text" inputMode="decimal" id={"kalk-ag-s" + j + "-" + nb + "stk-" + i}
-                placeholder={a[nb + "Stk"] || ""} value={eigen[nb + "Stk"] || ""} onChange={(e) => setzen(j, e.target.value, nb + "Stk")} /></td>))}</tr>))}
+          <tr className="kalk-fett"><td>Stückzahl</td>{sp.map(({ j, menge }) => <td key={j} className="rechts">{chf(menge, 0)}</td>)}
+            <td className="rechts">CHF pauschal</td><td></td></tr>
+          <tr><td>Kostensatz <span className="kalk-einheit">CHF {jeText}</span></td>{zelle("extern", "extern")}<td></td><td></td></tr>
+          {EXTERN_NEBEN.map(([nb, titel, verr]) => (
+            <tr key={nb}><td>{titel} <span className="kalk-einheit">CHF je Stk</span></td>{zelle(nb + "Stk", nb + "stk")}
+              <td className="rechts"><input className="kalk-zelle" type="text" inputMode="decimal" id={"kalk-ag-" + nb + "p-" + i}
+                value={(nb === "ruest" && a.ruestPausch == null ? a.externRuest : a[nb + "Pausch"]) || ""}
+                onChange={(e) => setze("ags." + i + "." + nb + "Pausch", e.target.value)} /></td>
+              <td>{verr && <label className="kalk-haken"><input type="checkbox" id={"kalk-ag-" + nb + "v-" + i}
+                checked={a[nb + "Verr"] !== false} onChange={(e) => setze("ags." + i + "." + nb + "Verr", e.target.checked)} /> Verrechnen</label>}</td></tr>))}
+          <tr><td>Fertigungslose</td>{sp.map(({ j }, n) => <td key={j} className="rechts">{rechnung[n] ? rechnung[n].lose : "–"}</td>)}<td></td><td></td></tr>
+          <tr className="kalk-blass"><td>Gewicht <span className="kalk-einheit">kg</span></td>{sp.map(({ j, r }) => <td key={j} className="rechts">{r ? chf(r.gewicht, 2) : "–"}</td>)}<td></td><td></td></tr>
           <tr className="kalk-fett kalk-hervor"><td>Einzelkosten <span className="kalk-einheit">CHF/{peText(pe)}</span></td>{sp.map(({ j, r }) => (
-            <td key={j} className="rechts">{r ? chf(r.einzel * pe, 4) + (r.posten ? " (Posten)" : "") : "–"}</td>))}</tr>
+            <td key={j} className="rechts">{r ? chf(r.einzel * pe, 4) + (r.posten ? " (Posten)" : "") : "–"}</td>))}<td></td><td></td></tr>
         </tbody>
       </table>
     </div>
