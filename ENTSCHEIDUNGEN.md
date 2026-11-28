@@ -236,3 +236,4 @@ Das Repository ist **öffentlich**, weil GitHub Pages das kostenlos so verlangt.
 
 - **Liste anzeigen** (seit 1.950.0, Wunsch Patrick 28. November 2026): jede Liste im Test ERP und die Kalkulationsliste hat neben der Suche das Häkchen „Liste anzeigen“; ohne Suchbegriff zeigt es alles, höchste Nr. zuoberst. Das Häkchen wird je Person und je Liste gemerkt.
 - **Kalkulation Zusatzinfo und Notizen** (seit 1.950.0, Wunsch Patrick 28. November 2026): „Zusatzinfo“ im Kopf erscheint im Angebot beim Teil, „Notizen“ sind intern und erscheinen nie im Angebot.
+- **Rohmaterial aus der Kalkulation** (seit 1.951.0, Wunsch Patrick 28. November 2026, ersetzt die Regel vom 21. November „nur Text“): fehlt beim Übernehmen der Rohmaterial-Artikel, fragt die App, ob er angelegt werden soll; Nein lässt das Material als Text stehen.

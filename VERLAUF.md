@@ -2,6 +2,9 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.951.0 (28. November 2026)
+- Kalkulation → „Artikel und Arbeitsplan übernehmen“: fehlt das Material in den Stammdaten als Rohmaterial-Artikel, fragt die App, ob es angelegt werden soll (Ja legt es an, Einheit kg, und weist es dem Artikel zu; Nein lässt es als Text).
+
 ## 1.950.0 (28. November 2026)
 - „Liste anzeigen“ überall im Test ERP (Belege, Kunden, Lieferanten, Artikel, Lager, ZA aus Arbeitsplan) und in der Kalkulation; das Häkchen wird je Person und je Liste gemerkt (`useListeAnzeigen` in `src/seiten/erp/teile.jsx`, Einstellung `listeAnzeigen.<liste>`).
 - Kalkulation: im Kopf neue Felder „Zusatzinfo (im Angebot)“ (`kopf.zusatzinfo`, steht im Angebot beim Teil, auch im Sammelangebot) und „Notizen (intern)“ (`kopf.notizen`, nie im Angebot).

@@ -332,12 +332,25 @@ with sync_playwright() as p:
     pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
     pg.click("#kalk-zurueck"); pg.wait_for_selector("tr[data-kalk='kk2']")
     pg.click("tr[data-kalk='kk2']"); pg.wait_for_selector("#kalk-erp-uebernehmen")
-    pg.click("#kalk-erp-uebernehmen"); pg.wait_for_timeout(1200)
-    pg.click("#kalk-zurueck"); pg.wait_for_timeout(500)
+    # Fehlendes Rohmaterial: App fragt, ob es angelegt werden soll (1.951.0); zuerst Nein
+    pg.click("#kalk-erp-uebernehmen"); pg.wait_for_selector(".dialog-huelle:not(.kalk-huelle) [data-nein]")
+    dlg = pg.inner_text(".dialog-huelle:not(.kalk-huelle)")
+    pruefe("Rohmaterial anlegen" in dlg and "CuZn39Pb3 rd 8" in dlg, "Fragt nach fehlendem Rohmaterial: %s" % dlg[:120])
+    pg.click(".dialog-huelle:not(.kalk-huelle) [data-nein]"); pg.wait_for_timeout(1200)
     a2 = [x for x in tabelle(pg, "erp_artikel") if x["nr"] == "10007-0591"]
     pruefe(len(a2) == 1 and not (a2[0]["daten"] or {}).get("rohmaterial_id") and a2[0]["daten"]["material"] == "CuZn39Pb3 rd 8"
            and not [x for x in tabelle(pg, "erp_artikel") if x["art"] == "rohmaterial" and "CuZn" in x["nr"]],
            "Fehlendes Rohmaterial nur als Text, nicht angelegt")
+    # Nochmals übernehmen und diesmal Ja: Rohmaterial wird angelegt und zugewiesen
+    pg.click("#kalk-erp-uebernehmen"); pg.wait_for_selector(".dialog-huelle:not(.kalk-huelle) [data-ja]")
+    pg.click(".dialog-huelle:not(.kalk-huelle) [data-ja]"); pg.wait_for_timeout(500)
+    pg.wait_for_selector(".dialog-huelle:not(.kalk-huelle) [data-ja]")
+    pruefe("Rohmaterial anlegen" in pg.inner_text(".dialog-huelle:not(.kalk-huelle)"), "Frage auch beim bestehenden Artikel")
+    pg.click(".dialog-huelle:not(.kalk-huelle) [data-ja]"); pg.wait_for_timeout(1200)
+    rn = [x for x in tabelle(pg, "erp_artikel") if x["art"] == "rohmaterial" and x["nr"] == "CuZn39Pb3 rd 8"]
+    a2 = [x for x in tabelle(pg, "erp_artikel") if x["nr"] == "10007-0591"]
+    pruefe(len(rn) == 1 and a2 and (a2[0]["daten"] or {}).get("rohmaterial_id") == rn[0]["id"], "Rohmaterial angelegt und zugewiesen: %s" % rn)
+    pg.click("#kalk-zurueck"); pg.wait_for_timeout(500)
     # Reihenfolge der Reiter: Kalkulation, Artikel, Rest
     pruefe(pg.locator("[data-erp-reiter]").first.get_attribute("data-erp-reiter") == "kalk"
            and pg.locator("[data-erp-reiter]").nth(1).get_attribute("data-erp-reiter") == "artikel", "Reiter: Kalkulation zuerst")

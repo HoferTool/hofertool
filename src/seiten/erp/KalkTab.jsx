@@ -80,6 +80,16 @@ export async function artikelAusKalkulation(k, maschinen) {
     if (!w) return null;
     teile = w;
   }
+  // Rohmaterial fehlt in den Stammdaten: fragen, ob es angelegt werden soll
+  // (Wunsch Patrick 28. November 2026, löst die Regel vom 21. November ab,
+  // nach der nur der Text stehen blieb). Nein lässt es beim Text.
+  let rohNeu = false;
+  if (matBez && !roh && await alt.nachfragen({ titel: "Rohmaterial anlegen?",
+    text: "Das Material „" + matBez + "“ gibt es in den Stammdaten noch nicht als Rohmaterial-Artikel. Soll es angelegt und dem Artikel zugewiesen werden?",
+    bestaetigen: "Anlegen", abbrechen: "Nein, nur als Text" })) {
+    roh = await einfuegen("erp_artikel", { art: "rohmaterial", nr: matBez, idx: "", bezeichnung: matBez, einheit: "kg", aktiv: true });
+    matDaten.rohmaterial_id = roh.id; rohNeu = true;
+  }
   const zeile = { ...grund };
   let daten = { ...((da && da.daten) || {}), ...matDaten };
   if (teile.idx) { zeile.idx = idx; if (da) daten = { ...indexVerlauf(da, idx, "aus Kalkulation " + k.nr), ...matDaten }; }
@@ -93,5 +103,6 @@ export async function artikelAusKalkulation(k, maschinen) {
     .filter(Boolean);
   return (da ? "Artikel " + nr + " aktualisiert" : "Neuer Artikel " + nr) + (was.length ? ": " + was.join(", ") : "")
     + (kunde ? "" : " (Kunde nicht gefunden, im Artikel setzen)")
+    + (rohNeu ? ". Rohmaterial „" + matBez + "“ neu angelegt" : "")
     + (matBez && !roh ? ". Rohmaterial „" + matBez + "“ gibt es noch nicht als Artikel, es steht nur als Text" : "") + ".";
 }
