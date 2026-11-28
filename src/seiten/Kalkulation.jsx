@@ -809,10 +809,10 @@ function Kopf({ k, setze, setK, nr, setNr, maschinen, liste, eigeneId }) {
   );
 }
 
-// Dokumente der Kalkulation (k.dokumente [{ art: "anfrage" | "zeichnung", name,
+// Dokumente der Kalkulation (k.dokumente [{ art: "anfrage" | "zeichnung" | "diverses", name,
 // pfad, url, typ }]) in der Ablage zeichnungen/erp/kalkulation/. Hineinziehen
 // oder „+ Datei“; antippen zeigt sie im Betrachter.
-const DOK_ARTEN = [["anfrage", "Kundenanfrage"], ["zeichnung", "Zeichnung"]];
+const DOK_ARTEN = [["anfrage", "Kundenanfrage"], ["zeichnung", "Zeichnung"], ["diverses", "Diverses"]];
 function KalkDokumente({ k, setK }) {
   const [laedt, setLaedt] = useState("");
   const [ueber, setUeber] = useState("");

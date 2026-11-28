@@ -112,6 +112,12 @@ with sync_playwright() as p:
       for (const art of ['dragenter', 'dragover', 'drop']) z.dispatchEvent(new DragEvent(art, { bubbles: true, cancelable: true, dataTransfer: dt })); }""")
     pg.wait_for_timeout(800)
     pruefe(pg.locator("[data-kalk-dok='zeichnung'] [data-kalk-dok-ansehen]").count() == 1, "Zeichnung hineingezogen")
+    # Feld Diverses (1.952.0)
+    pg.evaluate("""() => { const dt = new DataTransfer(); dt.items.add(new File(['x'], 'Notiz.pdf', { type: 'application/pdf' }));
+      const z = document.querySelector("[data-kalk-dok='diverses']");
+      for (const art of ['dragenter', 'dragover', 'drop']) z.dispatchEvent(new DragEvent(art, { bubbles: true, cancelable: true, dataTransfer: dt })); }""")
+    pg.wait_for_timeout(800)
+    pruefe(pg.locator("[data-kalk-dok='diverses'] [data-kalk-dok-ansehen]").count() == 1, "Diverses hineingezogen")
     up = pg.evaluate("TEST.protokoll.filter((x) => x.art === 'upload').map((x) => x.pfad)")
     pruefe(any(u.startswith("erp/kalkulation/anfrage-") for u in up), "in die Ablage hochgeladen: %s" % up)
     pg.locator("[data-kalk-dok='anfrage'] [data-kalk-dok-ansehen]").click(); pg.wait_for_timeout(600)

@@ -2,6 +2,9 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.952.0 (28. November 2026)
+- Kalkulation, Dokumente: neues Feld „Diverses“ zum Hineinziehen, neben Kundenanfrage und Zeichnung.
+
 ## 1.951.0 (28. November 2026)
 - Kalkulation → „Artikel und Arbeitsplan übernehmen“: fehlt das Material in den Stammdaten als Rohmaterial-Artikel, fragt die App, ob es angelegt werden soll (Ja legt es an, Einheit kg, und weist es dem Artikel zu; Nein lässt es als Text).
 
