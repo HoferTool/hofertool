@@ -130,3 +130,11 @@ In der Publikation `supabase_realtime`: `jobs`, `vacations`, Chat-Tabellen. Die 
 Ablagen: `zeichnungen` (öffentlich — Zeichnungen, WBG, Einrichtblätter, Dokumentenpool unter `dok/`), `profilbilder`, `chat`, `temp` (nicht öffentlich, Temp-Ordner je Person unter `<Konto-Kennung>/`, nur die Person selbst liest und ändert, `sql/temp-ordner.sql`; Server-Funktion `temp-aufraeumen` löscht nach 24 Stunden; nicht in der Sicherung), `notizbuecher` (öffentlich, zufällige Namen `JJJJ/….jpg|pdf` — Bilder und PDFs der Notizbücher; beim Entfernen von der Seite bleiben die Dateien liegen, damit Rückgängig sie zurückholen kann).
 
 - `gridfinity_projekte` (seit 1.916.0): gespeicherte Projekte des Gridfinity-Werkzeugs, `name`, `daten` jsonb, Stempel wie `einlagen`; `sql/gridfinity-projekte.sql`.
+
+## Sicherung auf dem eigenen Server (HOF-CHSO-LNX01)
+
+- Nächtliche Datenbank-Sicherung: `/etc/cron.d/sb-backup` → `/usr/local/bin/sb-backup.sh` (pg_dumpall, gzip) nach `/opt/supabase-backups`, 14 Tage. Die VM läuft in UTC: 02:30 UTC = 03:30 Schweizer Zeit. Enthält nur die Datenbank, nicht die Ablage.
+- Kopie nach aussen (seit 28. November 2026): `/opt/supabase/sicherung-kopie.sh`, täglich 03:15 UTC (04:15 Schweizer Zeit). Bindet `\\HOF-CHSO-APP01\Gewatecp` nur für die Kopie ein, legt die neueste DB-Sicherung nach `Sicherung HoferTool\LNX01\db` (30 Tage) und spiegelt die Ablage (`/opt/supabase/volumes/storage`) nach `…\LNX01\storage` (Gelöschtes bleibt dort). Log `/var/log/sicherung-kopie.log`.
+- Zugangsdaten in `/root/.smb-hofertool` (chmod 600, Domäne HOFERCO, zurzeit Konto programmierung1). Neu setzen mit `sudo /opt/supabase/sicherung-kopie-einrichten.sh` (fragt Domäne, Benutzer, Passwort, macht eine Probekopie, schaltet erst dann den Zeitplan ein). Besser später ein Dienstkonto ohne Passwortablauf.
+- Die App-Sicherung im Browser (Planwand-PC) läuft weiter in denselben Ordner (`Hofer-Sicherung-*.zip`), die VM-Kopie fasst diese nicht an.
+- Offen: LNX01 in den Acronis-Plan „VM's Cloud-Si…“ auf HOF-CHSO-HYP01 aufnehmen.
