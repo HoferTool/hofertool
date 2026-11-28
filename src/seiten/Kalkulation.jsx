@@ -19,7 +19,7 @@ import { teilMerken } from "../teile/wiederherstellen.js";
 import { auswahlDialog } from "../teile/Dialoge.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { materialZerlegen, werkstoffGenau } from "../daten/material.js";
-import { naechsteNummer, nummernLaden } from "../daten/erp.js";
+import { naechsteNummer, nummernLaden, seitenweise } from "../daten/erp.js";
 import { artikelAusKalkulation } from "./erp/KalkTab.jsx";
 import { useSortierung, sortiert, sortPfeil } from "../teile/sortieren.js";
 import {
@@ -352,7 +352,7 @@ function Bearbeiten({ eintrag, maschinen, zurueck, neu, oeffnen, liste }) {
       <Reiter reiter={REITER} aktiv={reiter} waehlen={setReiter} merkmal="kalk-reiter" />
       <Uebergang key={reiter}>
         <div id="kalk-inhalt">
-          <Inhalt k={k} setze={setze} setK={setK} nr={nr} setNr={setNr} maschinen={maschinen} rechnung={rechnung} winkalk={eintrag.winkalk} />
+          <Inhalt k={k} setze={setze} setK={setK} nr={nr} setNr={setNr} maschinen={maschinen} rechnung={rechnung} winkalk={eintrag.winkalk} liste={liste} eigeneId={eintrag.id} />
         </div>
       </Uebergang>
      </div>
@@ -458,9 +458,13 @@ function useErpStamm() {
     let weg = false;
     (async () => {
       try {
+        // Seitenweise: der Server gibt höchstens 1'000 Zeilen je Abfrage. Mit
+        // .limit(20000) fehlten so die meisten der über 2'000 Hofer-Artikel, und
+        // ein bestehender Artikel wurde nicht gefunden (Patrick 28. November 2026)
+        const ok = (data) => ({ data });
         const [p, a, b] = await Promise.all([
-          alt.db.from("erp_partner").select("id, art, nr, name, aktiv, daten").in("art", ["kunde", "lieferant"]).limit(10000),
-          alt.db.from("erp_artikel").select("id, art, nr, idx, bezeichnung, zeichnung, kunde_id, aktiv, daten").limit(20000),
+          seitenweise("erp_partner", "id, art, nr, name, aktiv, daten", (q) => q.in("art", ["kunde", "lieferant"])).then(ok, (error) => ({ error })),
+          seitenweise("erp_artikel", "id, art, nr, idx, bezeichnung, zeichnung, kunde_id, aktiv, daten, arbeitsplan").then(ok, (error) => ({ error })),
           alt.db.from("erp_bedingungen").select("id, art, code, text").limit(500)]);
         const alle = p && !p.error && Array.isArray(p.data) ? p.data.filter((x) => x.aktiv !== false) : [];
         const neu = {
@@ -531,7 +535,7 @@ function partnerBedingungen(p, bed) {
   return aus;
 }
 
-function Kopf({ k, setze, setK, nr, setNr }) {
+function Kopf({ k, setze, setK, nr, setNr, maschinen, liste, eigeneId }) {
   const f = (name) => ({ wert: k.kopf[name], setzen: (w) => setze("kopf." + name, w) });
   // Adresse in einzelnen Feldern; ein alter Block `adresse` wird beim ersten
   // Ändern in die Felder übernommen und fällt dann weg
@@ -592,9 +596,28 @@ function Kopf({ k, setze, setK, nr, setNr }) {
     if (a) { if (a.id !== k.kopf.artikel_id) { artikelSetzen(a); return; } setze("kopf.artikel", w); return; }
     setK((x) => { const kopf = { ...x.kopf, artikel: w }; if (kopf.artikel_id) delete kopf.artikel_id; return { ...x, kopf }; });
   };
+  // Auch Artikel, die es nur in früheren Kalkulationen gibt, werden
+  // vorgeschlagen (Wunsch Patrick 28. November 2026: „bestehende Artikel aus
+  // den Stammdaten oder Kalkulationen soll er erkennen“)
+  const kalkArtikel = kalkArtikelListe(liste, hofer, eigeneId);
   const artikelWahl = useWahl(stammTreffer(hofer, k.kopf.artikel, (a) => [a.nr, a.idx, a.bezeichnung, a.zeichnung, (a.daten || {}).ident])
-    .map((a) => ({ id: a.id, titel: a.nr + (a.idx ? " Ind. " + a.idx : ""), unter: [a.bezeichnung, a.zeichnung].filter(Boolean).join(" · "), a })),
-  (t) => artikelSetzen(t.a));
+    .map((a) => ({ id: a.id, titel: a.nr + (a.idx ? " Ind. " + a.idx : ""), unter: [a.bezeichnung, a.zeichnung].filter(Boolean).join(" · "), a }))
+    .concat(stammTreffer(kalkArtikel, k.kopf.artikel, (x) => [x.nr, x.kopf.bezeichnung, x.kopf.zeichnung, x.kopf.ident], 5)
+      .map((x) => ({ id: "kk-" + x.nr, titel: x.nr + (x.kopf.index ? " Ind. " + x.kopf.index : ""),
+        unter: ["aus Kalkulation " + (x.kalkNr || ""), x.kopf.bezeichnung].filter(Boolean).join(" · "), kk: x }))),
+  (t) => (t.a ? artikelSetzen(t.a) : kalkArtikelSetzen(t.kk)));
+  // Artikel aus einer früheren Kalkulation: Code sofort, Bezeichnung, Zeichnung,
+  // Index und Ident aus deren Kopf (die Liste hat ihn meist schon, sonst nachladen)
+  const kalkArtikelSetzen = async (kk) => {
+    const setzeKopf = (q) => setK((x) => {
+      const kopf = { ...x.kopf, artikel: kk.nr, bezeichnung: q.bezeichnung || "", zeichnung: q.zeichnung || "", index: q.index || "", ident: q.ident || "" };
+      delete kopf.artikel_id;
+      return { ...x, kopf };
+    });
+    setzeKopf(kk.kopf || {});
+    if (kk.kopf && (kk.kopf.bezeichnung || kk.kopf.zeichnung)) return;
+    try { const e = await kalkulationLaden(kk.id); if (e && e.daten && e.daten.kopf) setzeKopf(e.daten.kopf); } catch (f) { /* bleibt beim Code */ }
+  };
   // Ist der Artikel-Code eine bekannte HOCO Nr., kommt das Material des
   // jüngsten Auftrags von selbst, solange noch keins eingetragen ist
   // (Wunsch Patrick 27. Oktober 2026)
@@ -643,6 +666,44 @@ function Kopf({ k, setze, setK, nr, setNr }) {
     }, 600);
     return () => { weg = true; clearTimeout(zeit); };
   }, [artikel, laengeLeer]);
+  // Bestehender Artikel erkannt: zeigen, welche Kalkulationen es schon gibt,
+  // und fragen, ob ein bestehender Arbeitsplan übernommen werden soll (Wunsch
+  // Patrick 28. November 2026). Gefragt wird nur, wenn der Artikel-Code
+  // während der Arbeit wechselt, nicht schon beim Öffnen einer Kalkulation.
+  const code = artikel.toLowerCase();
+  const stammA = code ? hofer.find((x) => String(x.nr || "").trim().toLowerCase() === code) : null;
+  const stammAp = stammA && Array.isArray(stammA.arbeitsplan) ? stammA.arbeitsplan.filter((g) => g && (g.bez || g.maschine)) : [];
+  const fruehere = code ? (liste || []).filter((x) => x.id !== eigeneId && String(x.artikel || "").trim().toLowerCase() === code) : [];
+  const gefragtFuer = useRef(artikel);
+  const apFragen = async () => {
+    const opt = [];
+    if (stammAp.length) opt.push({ wert: "stamm", text: "Arbeitsplan aus den Stammdaten (" + stammAp.length + " Arbeitsgänge)" });
+    fruehere.slice(0, 10).forEach((x) => opt.push({ wert: "k:" + x.id,
+      text: "Aus Kalkulation " + (x.nr || "ohne Nr.") + (x.kunde ? " · " + x.kunde : "") + (x.geaendert_am ? " · " + datumText(String(x.geaendert_am).slice(0, 10)) : "") }));
+    if (!opt.length) return;
+    opt.push({ wert: "nein", text: "Nein, Arbeitsplan selbst erfassen" });
+    const w = await auswahlDialog("Bestehenden Arbeitsplan übernehmen?", opt,
+      "Den Artikel " + artikel + " gibt es schon." + (k.ags.length ? " Die " + k.ags.length + " Arbeitsgänge dieser Kalkulation werden dabei ersetzt." : ""), true);
+    if (!w || w === "nein") return;
+    let ags = null;
+    if (w === "stamm") ags = agsAusArbeitsplan(stammAp, maschinen || [], stamm.lieferanten);
+    else {
+      try {
+        const e = await kalkulationLaden(w.slice(2));
+        ags = ((e && e.daten && e.daten.ags) || []).map((g) => ({ ...structuredClone(g), key: schluessel() }));
+      } catch (f) { alt.meldung("Kalkulation konnte nicht geladen werden: " + alt.fehlertext(f), "fehler"); return; }
+    }
+    if (!ags) return;
+    setK((x) => ({ ...x, ags }));
+    alt.meldung(ags.length + " Arbeitsgänge übernommen. Bitte im Reiter Arbeitsgänge prüfen.", "gut");
+  };
+  useEffect(() => {
+    if (!artikel || gefragtFuer.current === artikel) return;
+    if (!stammAp.length && !fruehere.length) return;
+    gefragtFuer.current = artikel;
+    apFragen();
+  }, [artikel, stammAp.length, fruehere.length]);
+
   return (
     <div className="kalk-zwei">
       <section className="karte">
@@ -657,6 +718,17 @@ function Kopf({ k, setze, setK, nr, setNr }) {
         <F label="Ort" id="kalk-adr-ort" text {...a("ort")} />
         <F label="Artikel-Code" id="kalk-artikel" text platz={hofer.length ? "HOCO Nr. oder Bezeichnung tippen" : undefined} wahl={artikelWahl} wert={k.kopf.artikel} setzen={artikelCodeSetzen} />
         {matHinweis && <p className="hinweis" id="kalk-mat-hinweis">{matHinweis}</p>}
+        {(stammA || fruehere.length > 0) && <div className="hinweis kalk-artikel-da" id="kalk-artikel-da">
+          {stammA && <p>Artikel {stammA.nr}{stammA.idx ? " Ind. " + stammA.idx : ""} ist in den Stammdaten
+            {stammAp.length ? ", Arbeitsplan mit " + stammAp.length + " Arbeitsgängen" : ", ohne Arbeitsplan"}.</p>}
+          {fruehere.length > 0 && <><p>{fruehere.length === 1 ? "Schon 1 Kalkulation" : "Schon " + fruehere.length + " Kalkulationen"} mit diesem Artikel:</p>
+            <ul className="kalk-artikel-da__liste">{fruehere.slice(0, 20).map((x) => (
+              <li key={x.id} data-kalk-frueher={x.id}><b>{x.nr || "ohne Nr."}</b>{x.kunde ? " · " + x.kunde : ""}
+                {x.geaendert_am ? " · " + datumText(String(x.geaendert_am).slice(0, 10)) : ""}
+                {x.vorschau && x.vorschau.preis != null ? " · " + chf(x.vorschau.preis) + " " + (x.vorschau.waehrung || "CHF") + (x.vorschau.pe > 1 ? " / " + x.vorschau.pe + " Stk" : "") : ""}</li>))}
+            </ul></>}
+          {(stammAp.length > 0 || fruehere.length > 0) && <button type="button" className="knopf knopf--klein" id="kalk-ap-uebernehmen" onClick={apFragen}>Arbeitsplan übernehmen …</button>}
+        </div>}
         <F label="Zeichnung" id="kalk-zeichnung" text {...f("zeichnung")} />
         <F label="Kunden Ident-Nr." id="kalk-ident" text {...f("ident")} />
         <F label="Index" id="kalk-index" text {...f("index")} />
@@ -664,6 +736,8 @@ function Kopf({ k, setze, setK, nr, setNr }) {
       </section>
       <section className="karte">
         <h2>Anfrage und Bearbeitung</h2>
+        {/* Anfragenummer des Kunden (Wunsch Patrick 28. November 2026) */}
+        <F label="Anfrage-Nr." id="kalk-anfrage-nr" text {...f("anfrage_nr")} />
         <F label="Anfrage vom" id="kalk-anfrage" typ="date" {...f("anfrage")} />
         <F label="Ihr Zeichen" id="kalk-zeichen" text {...f("zeichen")} />
       </section>
@@ -1340,7 +1414,7 @@ function Angebot({ k, setze, nr, rechnung }) {
             </div>
           <div className="kalk-blatt__an">{[k.kopf.kunde, ...adresseZeilen(k.kopf)].filter(Boolean).join("\n")}</div>
         </div>
-        {k.kopf.anfrage && <p><b>Ihre Anfrage vom {datumText(k.kopf.anfrage)}</b></p>}
+        {(k.kopf.anfrage || k.kopf.anfrage_nr) && <p><b>Ihre Anfrage{k.kopf.anfrage_nr ? " Nr. " + k.kopf.anfrage_nr : ""}{k.kopf.anfrage ? " vom " + datumText(k.kopf.anfrage) : ""}</b></p>}
         <dl className="kalk-blatt__teil">
           <dt>Bezeichnung</dt><dd>{k.kopf.bezeichnung}</dd>
           <dt>Werkstoff</dt><dd>{k.material.bez}</dd>
@@ -1500,4 +1574,36 @@ function MaschineKarte({ m, offen, umschalten, neu }) {
       </div>}
     </section>
   );
+}
+
+// Artikel-Codes aus früheren Kalkulationen, die es (noch) nicht in den
+// Stammdaten gibt; je Code die jüngste Kalkulation (Liste ist neu zuerst)
+function kalkArtikelListe(liste, hofer, eigeneId) {
+  const imStamm = new Set(hofer.map((a) => String(a.nr || "").trim().toLowerCase()));
+  const je = new Map();
+  for (const x of liste || []) {
+    const nr = String(x.artikel || "").trim();
+    const n = nr.toLowerCase();
+    if (!nr || x.id === eigeneId || imStamm.has(n) || je.has(n)) continue;
+    je.set(n, { nr, kopf: x.kopf || {}, kalkNr: x.nr, id: x.id });
+  }
+  return [...je.values()];
+}
+
+// Arbeitsplan eines Hofer-Artikels (Stammdaten) als Arbeitsgänge der
+// Kalkulation: Maschine über den Namen der Stundensätze, extern mit Lieferant
+function agsAusArbeitsplan(ap, maschinen, lieferanten) {
+  const norm = (x) => String(x || "").trim().toLowerCase();
+  return ap.map((g) => {
+    const key = schluessel();
+    if (g.extern || g.lieferant_nr) {
+      const l = (lieferanten || []).find((p) => g.lieferant_nr && String(p.nr) === String(g.lieferant_nr))
+        || (lieferanten || []).find((p) => norm(p.name) && norm(p.name) === norm(g.maschine));
+      return { key, bez: g.bez || "", art: "extern", je: "stk", extern: "", ruestPausch: "",
+        lieferant: l ? l.name : g.maschine || "", ...(l ? { lieferant_id: l.id, lieferant_nr: l.nr } : {}) };
+    }
+    const m = maschinen.find((x) => norm(x.name) && norm(x.name) === norm(g.maschine));
+    return { key, bez: g.bez || "", art: "intern", masch: m ? m.id : "", te: g.te != null && g.te !== "" ? String(g.te) : "",
+      erst: g.ruest != null && g.ruest !== "" ? String(g.ruest) : "", folge: "", fgk: "" };
+  });
 }

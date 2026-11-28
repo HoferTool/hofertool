@@ -88,6 +88,20 @@ async function alleZeilen(t) {
   return alle;
 }
 
+// Für andere Seiten (Kalkulation): eine Tabelle seitenweise mit eigener
+// Spaltenauswahl, weil der Server nie mehr als 1'000 Zeilen auf einmal gibt
+export async function seitenweise(t, spalten, filter) {
+  const alle = [];
+  for (let ab = 0; ab < 200000; ab += SEITE) {
+    let q = alt.db.from(t).select(spalten || "*");
+    if (filter) q = filter(q);
+    const teil = pruefen(await alt.zeitlimit(q.order("id").range(ab, ab + SEITE - 1), 15000, t)) || [];
+    alle.push(...teil);
+    if (teil.length < SEITE) break;
+  }
+  return alle;
+}
+
 export async function allesLaden() {
   const teile = await Promise.all(TABELLEN.map((t) => alleZeilen(t)));
   const d = {};
