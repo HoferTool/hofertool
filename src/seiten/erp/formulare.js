@@ -618,7 +618,9 @@ function angebotDruckenBlatt({ k, nr, zeilen, adresse, datumText: dt, teile, sam
     const q = kk.kopf || {};
     const zeichnung = (q.zeichnung || "") + (q.index ? " / Index: " + q.index : "");
     return det([["Bezeichnung", q.bezeichnung, true], ["Werkstoff", (kk.material || {}).bez, true], ["Artikel-Code", q.artikel, true],
-      ["Ident - Nr.", q.ident || " ", true], ["Zeichnung", zeichnung, true]], 89, 12);
+      ["Ident - Nr.", q.ident || " ", true], ["Zeichnung", zeichnung, true]], 89, 12)
+      // Zusatzinfo aus dem Kopf der Kalkulation; die Notizen bleiben intern
+      + (String(q.zusatzinfo || "").trim() ? "<p class='kalk-zusatzinfo' style='white-space:pre-line;margin:6pt 0 0'>" + esc(String(q.zusatzinfo).trim()) + "</p>" : "");
   };
   // pos: beim Sammelangebot steht die Nummer der Position nur in der ersten
   // Staffelzeile, sonst wie bisher 1, 2, 3 je Staffel

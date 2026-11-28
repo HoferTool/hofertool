@@ -2,6 +2,10 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.950.0 (28. November 2026)
+- „Liste anzeigen“ überall im Test ERP (Belege, Kunden, Lieferanten, Artikel, Lager, ZA aus Arbeitsplan) und in der Kalkulation; das Häkchen wird je Person und je Liste gemerkt (`useListeAnzeigen` in `src/seiten/erp/teile.jsx`, Einstellung `listeAnzeigen.<liste>`).
+- Kalkulation: im Kopf neue Felder „Zusatzinfo (im Angebot)“ (`kopf.zusatzinfo`, steht im Angebot beim Teil, auch im Sammelangebot) und „Notizen (intern)“ (`kopf.notizen`, nie im Angebot).
+
 ## 1.949.0 (28. November 2026)
 
 - Kalkulation, Liste: Häkchen „Liste anzeigen“ bei der Suche zeigt alle Kalkulationen ohne Suchbegriff, höchste Nr. zuoberst (Spaltenkopf sortiert weiter).

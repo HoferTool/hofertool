@@ -9,7 +9,7 @@ import { useState, useRef, useEffect } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { BESTELLARTEN } from "./formulare.js";
-import { Feld, Tabelle, Suche, passt, tun, formular, belegDrucken, abDrucken, lsDrucken, reDrucken, beDrucken, LagerEingabe, lagerStart, lagerAus, ohneSuche, sucheLeer } from "./teile.jsx";
+import { Feld, Tabelle, Suche, passt, tun, formular, belegDrucken, abDrucken, lsDrucken, reDrucken, beDrucken, LagerEingabe, lagerStart, lagerAus, ohneSuche, sucheLeer, useListeAnzeigen } from "./teile.jsx";
 import {
   allesLaden, einfuegen, aendern, loeschen, naechsteBelegNr, BELEGTYP, MWST, zahl, chf, mengeText, artikelText,
   partnerText, datumText, terminText, bestand, buchen, gebucht, folgePositionen, belegSumme, chargeVerfolgen, fibuText,
@@ -124,7 +124,8 @@ export function BelegListe({ d, neu, typ, ohneNeu, hinweis }) {
   const artUm = (w, an) => setArten((v) => { const n = new Set(v); if (an) n.add(w); else n.delete(w); beArten = [...n]; return n; });
   const t = BELEGTYP[typ];
   // Bestellungen sind wenige: wie Fertigung gleich alle zeigen, gefiltert mit den Häkchen
-  const warten = !mitStand && !mitArt && ohneSuche(suche) && !nurOffen;
+  const [listeAn, listeHaken] = useListeAnzeigen("belege-" + typ);
+  const warten = !mitStand && !mitArt && ohneSuche(suche) && !nurOffen && !listeAn;
   const liste = warten ? [] : d.belege.filter((b) => b.typ === typ).filter((b) => {
     const p = d.partnerMap.get(b.partner_id) || {};
     const pos = (d.posJe.get(b.id) || []).map((x) => artikelText(d.artikelMap.get(x.artikel_id)) + " " + (x.text || "")).join(" ");
@@ -134,7 +135,7 @@ export function BelegListe({ d, neu, typ, ohneNeu, hinweis }) {
     .filter((x) => !mitStand || staende.has(x.stand[0]))
     .filter((x) => !mitArt || arten.has(bestellArt(d, x.b)))
     // Neuste Nr. oben (Fertigung, Bestellungen)
-    .sort((x, y) => (mitStand || mitArt ? String(y.b.nr).localeCompare(String(x.b.nr)) : 0));
+    .sort((x, y) => (mitStand || mitArt || listeAn ? String(y.b.nr).localeCompare(String(x.b.nr)) : 0));
   return (
     <>
       <div className="mat-kopf">
@@ -143,6 +144,7 @@ export function BelegListe({ d, neu, typ, ohneNeu, hinweis }) {
         <Suche wert={suche} setzen={setSuche} platzhalter="Nr., Kunde, Artikel …" fokus />
         {!mitStand && <label className="feld-haken"><input type="checkbox" checked={nurOffen} onChange={(e) => setNurOffen(e.target.checked)} />
           <span>Nur offene</span></label>}
+        {!mitStand && !mitArt && listeHaken}
         {mitArt && BE_ARTEN.map(([w, text]) => <label key={w} className="feld-haken" data-erp-be-art={w}>
           <input type="checkbox" checked={arten.has(w)} onChange={(e) => artUm(w, e.target.checked)} /><span>{text}</span></label>)}
         {mitStand && FA_STAENDE.map((w) => <label key={w} className="feld-haken" data-erp-fa-stand={w}>

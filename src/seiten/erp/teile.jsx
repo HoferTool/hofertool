@@ -180,7 +180,22 @@ export function Suche({ wert, setzen, platzhalter, fokus }) {
 // Im Prüfstand zeigt TEST.erpAlle alles wie vorher, damit die Abläufe nicht
 // überall erst suchen müssen.
 export const ohneSuche = (s) => !(window.TEST && window.TEST.erpAlle) && !String(s || "").trim();
-export const sucheLeer = (was) => "Suchbegriff eintippen, dann erscheinen die " + was + ".";
+export const sucheLeer = (was) => "Suchbegriff eintippen oder „Liste anzeigen“ anhaken, dann erscheinen die " + was + ".";
+
+// Häkchen „Liste anzeigen“: zeigt eine Liste auch ohne Suchbegriff, je Liste
+// und je Person gemerkt (Wunsch Patrick 28. November 2026: „mach das überall
+// so, das Häkchen soll pro Benutzer gemerkt werden“)
+export function useListeAnzeigen(name) {
+  const schluessel = "listeAnzeigen." + name;
+  const [an, setAn] = useState(() => {
+    const w = alt.einstellungWert ? alt.einstellungWert(schluessel, false) : false;
+    return w === true || w === "true" || w === "1";
+  });
+  const setzen = (w) => { setAn(w); if (alt.einstellungSetzenWert) alt.einstellungSetzenWert(schluessel, w ? "1" : "0"); };
+  const haken = <label className="feld-haken" data-liste-anzeigen={name}>
+    <input type="checkbox" checked={an} onChange={(e) => setzen(e.target.checked)} /><span>Liste anzeigen</span></label>;
+  return [an, haken];
+}
 
 export const passt = (suche, text) => {
   const s = suche.trim().toLowerCase();

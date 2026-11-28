@@ -233,3 +233,6 @@ Das Repository ist **öffentlich**, weil GitHub Pages das kostenlos so verlangt.
 - Ausgaben mit echten Personendaten
 
 `skripte/abgleich-einstellungen.json` ist eine **Vorlage** mit Platzhaltern.
+
+- **Liste anzeigen** (seit 1.950.0, Wunsch Patrick 28. November 2026): jede Liste im Test ERP und die Kalkulationsliste hat neben der Suche das Häkchen „Liste anzeigen“; ohne Suchbegriff zeigt es alles, höchste Nr. zuoberst. Das Häkchen wird je Person und je Liste gemerkt.
+- **Kalkulation Zusatzinfo und Notizen** (seit 1.950.0, Wunsch Patrick 28. November 2026): „Zusatzinfo“ im Kopf erscheint im Angebot beim Teil, „Notizen“ sind intern und erscheinen nie im Angebot.

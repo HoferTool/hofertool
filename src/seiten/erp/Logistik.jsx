@@ -9,7 +9,7 @@ import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { teilMerken } from "../../teile/wiederherstellen.js";
 import { useGemerkt } from "../../bruecke.jsx";
-import { Tabelle, Suche, passt } from "./teile.jsx";
+import { Tabelle, Suche, passt, useListeAnzeigen } from "./teile.jsx";
 import { briefBlatt } from "../../teile/briefkopf.js";
 import { poolDruckLaden, poolWbgDrucker, poolDrucken, pdfSeitenAlsJpg } from "../../teile/poolDruck.js";
 import { bestellArt, BelegListe, belegStand, planwandZelle, EingangFenster, FertigFenster, LieferscheinFenster, belegOeffnen, geliefert, chargenWahl } from "./Belege.jsx";
@@ -360,9 +360,11 @@ function ZaAnlegen({ d, neu }) {
 // den Arbeitsplan, wenn kein FA vorhanden ist“): Hofer-Artikel suchen, externen Arbeitsgang wählen
 function ZaAusArbeitsplan({ d, neu, zu }) {
   const [suche, setSuche] = useState("");
+  const [listeAn, listeHaken] = useListeAnzeigen("za-arbeitsplan");
   const z = [];
-  if (suche.trim().length >= 2) {
-    d.artikel.filter((a) => a.art === "hofer" && a.aktiv !== false && passt(suche, [a.nr, a.idx, a.bezeichnung].join(" "))).slice(0, 80).forEach((a) => {
+  if (suche.trim().length >= 2 || listeAn) {
+    d.artikel.filter((a) => a.art === "hofer" && a.aktiv !== false && passt(suche, [a.nr, a.idx, a.bezeichnung].join(" ")))
+      .slice(0, suche.trim().length >= 2 ? 80 : 100000).forEach((a) => {
       (Array.isArray(a.arbeitsplan) ? a.arbeitsplan : []).forEach((ag, i) => {
         if (!ag.extern) return;
         const lief = ag.lieferant_nr ? d.partner.find((x) => x.art === "lieferant" && x.nr === String(ag.lieferant_nr)) : null;
@@ -375,8 +377,9 @@ function ZaAusArbeitsplan({ d, neu, zu }) {
       <h2>ZA extern ohne FA</h2>
       <p className="klein">Hofer-Artikel suchen (mindestens 2 Zeichen), dann den externen Arbeitsgang antippen. Die Menge trägst du in der Bestellung ein.</p>
       <Suche wert={suche} setzen={setSuche} platzhalter="Artikel-Nr. oder Bezeichnung …" fokus />
+      {listeHaken}
       <Tabelle kopf={["Artikel", "Arbeitsgang", "Lieferant", "Pauschal"]}
-        leer={suche.trim().length >= 2 ? "Kein Artikel mit externem Arbeitsgang gefunden." : "Suchbegriff eingeben."}
+        leer={suche.trim().length >= 2 || listeAn ? "Kein Artikel mit externem Arbeitsgang gefunden." : "Suchbegriff eingeben oder „Liste anzeigen“ anhaken."}
         zeilen={z.map((x) => ({ key: x.a.id + "|" + x.pos, klick: () => { zu(); belegOeffnen(d, neu, null, zaVorlage(d, x)); },
           zellen: [artikelText(x.a), x.pos + " " + [x.ag.code || x.ag.ag_code, x.ag.bez].filter(Boolean).join(" "),
             x.lief ? partnerText(x.lief) : (x.ag.maschine || "–"), x.ag.pauschal ? x.ag.pauschal + " " + (x.ag.pauschal_einheit || "") : "–"] }))} />

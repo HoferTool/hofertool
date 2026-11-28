@@ -21,6 +21,7 @@ import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { materialZerlegen, werkstoffGenau } from "../daten/material.js";
 import { naechsteNummer, nummernLaden, seitenweise } from "../daten/erp.js";
 import { artikelAusKalkulation } from "./erp/KalkTab.jsx";
+import { useListeAnzeigen } from "./erp/teile.jsx";
 import { useSortierung, sortiert, sortPfeil } from "../teile/sortieren.js";
 import {
   z, chf, stundensatz, staffelRechnen, leereKalkulation, kalkulationenLaden, kalkulationLaden, kalkVorschau, maschinenLaden,
@@ -173,8 +174,9 @@ function Liste({ liste, maschinen, oeffnen, neu, saetze }) {
   const [suche, setSuche] = useState(gemerkt.suche || "");
   // Häkchen „Liste anzeigen“: alle ohne Suchbegriff, nach Nr. absteigend, damit
   // man die höchste Nummer sieht (Wunsch Patrick 28. November 2026)
-  const [alleZeigen, setAlleZeigen] = useState(!!gemerkt.alleZeigen);
-  useGemerkt(gemerkt, { suche, alleZeigen });
+  // je Person gemerkt wie überall (seit 1.950.0)
+  const [alleZeigen, listeHaken] = useListeAnzeigen("kalkulationen");
+  useGemerkt(gemerkt, { suche });
   const woerter = suche.toLowerCase().split(/\s+/).filter(Boolean);
   // Liste erst mit Suchbegriff (Wunsch Patrick 26. November 2026): die Seite steht
   // sofort da, die über 7'000 Kalkulationen laden still im Hintergrund
@@ -230,7 +232,7 @@ function Liste({ liste, maschinen, oeffnen, neu, saetze }) {
         : <section className="karte kalk-rolle">
             <input type="text" id="kalk-suche" className="kalk-suche" autoFocus value={suche} placeholder="Suchen: Nummer, Kunde, Artikel, Zeichnung, Bezeichnung …"
               onChange={(e) => setSuche(e.target.value)} onKeyDown={(e) => { if (e.key === "Escape" && suche) { e.preventDefault(); setSuche(""); } }} />
-            <label className="kalk-alle"><input type="checkbox" id="kalk-alle" checked={alleZeigen} onChange={(e) => setAlleZeigen(e.target.checked)} /> Liste anzeigen</label>
+            <div className="kalk-alle" id="kalk-alle">{listeHaken}</div>
             {!woerter.length && !alleZeigen ? <p className="hinweis" id="kalk-leer">Suchbegriff eintippen oder „Liste anzeigen“ anhaken, dann erscheinen die Kalkulationen.</p> :
              !liste ? <p className="hinweis laedt" id="kalk-laedt">Kalkulationen werden geladen …</p> :
              !gefunden.length ? <p className="hinweis" id="kalk-nichts">Keine Kalkulation gefunden.</p> :
@@ -777,6 +779,9 @@ function Kopf({ k, setze, setK, nr, setNr, maschinen, liste, eigeneId }) {
         <F label="Kunden Ident-Nr." id="kalk-ident" text {...f("ident")} />
         <F label="Index" id="kalk-index" text {...f("index")} />
         <F label="Teilebezeichnung" id="kalk-bez" text {...f("bezeichnung")} />
+        {/* Zusatzinfo steht im Angebot beim Teil, Notizen bleiben intern (Wunsch Patrick 28. November 2026) */}
+        <F label="Zusatzinfo (im Angebot)" id="kalk-zusatzinfo" text mehrzeilig breit {...f("zusatzinfo")} />
+        <F label="Notizen (intern)" id="kalk-notizen" text mehrzeilig breit hinweis="Erscheint nicht im Angebot." {...f("notizen")} />
       </section>
       <div className="kalk-spalte">
       <section className="karte">

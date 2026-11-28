@@ -2,7 +2,7 @@
 // Prüfmittel, Liefer- und Zahlungsbedingungen, Lager, Arbeitspläne)
 import { useState } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
-import { formular, Tabelle, Suche, passt, tun, Feld, AG_FELDER, ohneSuche, sucheLeer } from "./teile.jsx";
+import { formular, Tabelle, Suche, passt, tun, Feld, AG_FELDER, ohneSuche as ohneSuche0, sucheLeer, useListeAnzeigen } from "./teile.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import {
   einfuegen, aendern, loeschen, naechstePartnerNr, ARTIKELART, HOFER_NR, bestand, mengeText, chf,
@@ -111,6 +111,8 @@ export function partnerBearbeiten(d, neu, art, p) {
 
 function Partner({ d, neu, art }) {
   const [suche, setSuche] = useState("");
+  const [listeAn, listeHaken] = useListeAnzeigen("partner-" + art);
+  const ohneSuche = (s) => ohneSuche0(s) && !listeAn;
   const liste = ohneSuche(suche) ? [] : d.partner.filter((p) => p.art === art).sort((a, b) => a.nr.localeCompare(b.nr))
     .filter((p) => passt(suche, [p.nr, p.name, p.gruppe, JSON.stringify(p.daten)].join(" ")));
   return (
@@ -119,6 +121,7 @@ function Partner({ d, neu, art }) {
         <button className="knopf knopf--haupt" data-erp-neu={art} onClick={() => partnerFensterOeffnen(d, neu, null, art)}>
           + {art === "kunde" ? "Kunde" : "Lieferant"}</button>
         <Suche wert={suche} setzen={setSuche} platzhalter="Nr., Name, Ort, Ansprechpartner …" fokus />
+        {listeHaken}
       </div>
       <Tabelle kopf={["Nr.", "Name", art === "kunde" ? "Kundenart" : "Lieferantenart", "Ort", "Telefon", "E-Mail", "Links"]}
         leer={ohneSuche(suche) ? sucheLeer(art === "kunde" ? "Kunden" : "Lieferanten") : "Keine " + (art === "kunde" ? "Kunden" : "Lieferanten") + " gefunden."}
@@ -224,6 +227,8 @@ export function Artikel({ d, neu }) {
   const [suche, setSuche] = useState("");
   const [anzahl, setAnzahl] = useState(200);
   gemerkt.artArt = art;
+  const [listeAn, listeHaken] = useListeAnzeigen("artikel-" + art);
+  const ohneSuche = (s) => ohneSuche0(s) && !listeAn;
   const best = new Map();
   bestand(d).forEach((e) => best.set(e.artikel_id, (best.get(e.artikel_id) || 0) + e.menge));
   const liste = ohneSuche(suche) ? [] : d.artikel.filter((a) => a.art === art)
@@ -239,6 +244,7 @@ export function Artikel({ d, neu }) {
         <button className="knopf knopf--haupt" data-erp-neu="artikel" onClick={() => artikelFensterOeffnen(d, neu, null, { art })}>+ Artikel</button>
         <button className="knopf" onClick={() => tun(() => ausHoferTool(art, d, neu))}>Aus HoferTool übernehmen</button>
         <Suche wert={suche} setzen={setSuche} platzhalter="Nr., Bezeichnung, Zeichnung, Kunde …" fokus />
+        {listeHaken}
       </div>
       {!ohneSuche(suche) && <p className="klein">{alt.zahlText(liste.length)} Artikel</p>}
       <Tabelle leer={ohneSuche(suche) ? sucheLeer("Artikel") : "Keine Artikel gefunden."} kopf={art === "hofer" ? ["Artikel-Nr.", "Index", "Bezeichnung", "Zeichnung", "Kunde", "Preis", "Bestand", "AP", ""]
@@ -377,6 +383,8 @@ const stammPlaetze = (d) => d.lager.filter((l) => !istHoferLager(l.lagerart));
 const artRang = (l) => { const i = LAGERARTEN.findIndex((a) => a.code === l.lagerart); return i < 0 ? 99 : i; };
 function Lager({ d, neu }) {
   const [suche, setSuche] = useState("");
+  const [listeAn, listeHaken] = useListeAnzeigen("bestand");
+  const ohneSuche = (x) => ohneSuche0(x) && !listeAn;
   const platzBearbeiten = (l) => formular({
     titel: "Lagerplatz" + (l ? " " + l.platz : " neu"),
     wert: l ? { lagerart: l.lagerart, platz: l.platz, bezeichnung: l.bezeichnung || "" } : { lagerart: "RM", platz: "", bezeichnung: "" },
@@ -427,6 +435,7 @@ function Lager({ d, neu }) {
       <div className="mat-kopf">
         <button className="knopf" onClick={korrektur}>Buchung von Hand</button>
         <Suche wert={suche} setzen={setSuche} platzhalter="Artikel, Index, Charge, Platz …" />
+        {listeHaken}
       </div>
       <Tabelle kopf={["Artikel", "Index", "Bezeichnung", "Charge", "Lagerart", "Lagerplatz", "Menge"]} leer={ohneSuche(suche) ? sucheLeer("Bestände") : "Kein Bestand gefunden."}
         zeilen={best.map((e) => {
