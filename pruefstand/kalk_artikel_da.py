@@ -69,6 +69,16 @@ with sync_playwright() as p:
     pg.wait_for_timeout(300)
     pruefe(pg.input_value("#kalk-zeichnung") == "Z-55", "Zeichnung aus früherer Kalkulation: %s" % pg.input_value("#kalk-zeichnung"))
     pruefe(pg.input_value("#kalk-anfrage-nr") == "AN-4711", "Anfrage-Nr. bleibt")
+    # Arbeitsplan im Test ERP gelöscht: neue Kalkulation sieht das sofort (1.946.1)
+    pg.evaluate("() => { TEST.daten.erp_artikel.find((a) => a.id === 'z-hofer').arbeitsplan = []; TEST.daten.kalkulationen = TEST.daten.kalkulationen.filter((k) => k.id !== 'kk1'); }")
+    pg.click("#kalk-zurueck"); pg.wait_for_timeout(400)
+    for w in ["nein", "verwerfen", "ja"]:
+        if pg.locator("button[data-w='%s']" % w).count(): pg.click("button[data-w='%s']" % w); break
+    pg.wait_for_selector("#kalk-neu"); pg.click("#kalk-neu"); pg.wait_for_selector("#kalk-artikel"); pg.wait_for_timeout(1200)
+    pg.fill("#kalk-artikel", "10332-0706"); pg.wait_for_timeout(800)
+    pruefe(pg.locator("button[data-w='stamm']").count() == 0, "gelöschter Arbeitsplan wird nicht mehr angeboten")
+    t = pg.locator("#kalk-artikel-da").inner_text() if pg.locator("#kalk-artikel-da").count() else ""
+    pruefe("ohne Arbeitsplan" in t, "Hinweis: Artikel ohne Arbeitsplan: %s" % t.replace("\n", " | "))
     pruefe(not pf, "keine Seitenfehler: %s" % pf)
     br.close()
 print("Fehler: " + (", ".join(fehler) if fehler else "keine"))

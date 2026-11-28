@@ -2,6 +2,10 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.946.1 (28. November 2026)
+
+- Kalkulation: Stammdaten aus dem Test ERP werden bei jeder geöffneten Kalkulation frisch geholt (sonst höchstens eine Minute alt). Vorher galt ein gelöschter Arbeitsplan bis zum Neuladen der Seite weiter.
+
 ## 1.946.0 (28. November 2026)
 
 - Kalkulation → Angebot: Feld „Sammelangebot“ (Sammelnummer oder Text). Alle Kalkulationen mit demselben Eintrag (Gross-/Kleinschreibung egal) werden mit „Sammelangebot drucken / PDF“ Positionen eines Angebots (je Position Teileangaben und Staffelpreise, nach Kalkulations-Nr.); Kunde, Anfrage und Bedingungen aus der offenen Kalkulation, Sammelnummer im Kopf. Prüfstand `kalk_sammel.py`.

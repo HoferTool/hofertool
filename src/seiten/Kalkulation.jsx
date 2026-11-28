@@ -260,6 +260,9 @@ function Liste({ liste, maschinen, oeffnen, neu, saetze }) {
 function Bearbeiten({ eintrag, maschinen, zurueck, neu, oeffnen, liste }) {
   const [nr, setNr] = useState(eintrag.nr || "");
   const [k, setK] = useState(() => mitVorgaben(eintrag.daten));
+  // Jede geöffnete Kalkulation holt die Stammdaten frisch (gelöschte oder
+  // geänderte Artikel und Arbeitspläne gelten sofort), Reiterwechsel nicht
+  useState(() => { stammZeit = 0; return 0; });
   const [reiter, setReiter] = useState(gemerkt.reiter);
   const [stand, setStand] = useState("gespeichert");
   useGemerkt(gemerkt, { reiter });
@@ -449,13 +452,22 @@ function F({ label, wert, setzen, einheit, id, text, mehrzeilig, hinweis, typ, p
 // in die Kalkulation (Wunsch Patrick 25. November 2026: „bestehende
 // Stammdaten hineinziehen können, wie Kunde, Artikel“). Einmal je Laden der
 // Seite geholt; ohne Leserecht im ERP bleiben die Listen leer und man tippt
-// wie bisher.
+// wie bisher. Seit 1.946.1 frisch geholt, wenn der Vorrat älter als eine
+// Minute ist oder im Test ERP etwas gespeichert wurde: vorher galt ein
+// gelöschter Arbeitsplan bis zum Neuladen der Seite weiter (Patrick 28.
+// November 2026: „sagst du immer noch, dass es den Artikel mit Arbeitsplan gibt“).
 let stammVorrat = null;
+let stammZeit = 0;
+let stammLaedt = null;
+if (typeof window !== "undefined") window.addEventListener("hofer-erp-neu", () => { stammZeit = 0; });
 function useErpStamm() {
   const [st, setSt] = useState(stammVorrat || { partner: [], lieferanten: [], artikel: [], bed: [] });
   useEffect(() => {
-    if (stammVorrat) return undefined;
+    if (stammVorrat && Date.now() - stammZeit < 60000) return undefined;
     let weg = false;
+    if (stammLaedt) { stammLaedt.then(() => { if (!weg && stammVorrat) setSt(stammVorrat); }); return () => { weg = true; }; }
+    let fertig;
+    stammLaedt = new Promise((r) => { fertig = r; });
     (async () => {
       try {
         // Seitenweise: der Server gibt höchstens 1'000 Zeilen je Abfrage. Mit
@@ -473,9 +485,10 @@ function useErpStamm() {
           // Lieferanten für externe Arbeitsgänge (Wunsch Patrick 26. November 2026)
           lieferanten: alle.filter((x) => x.art === "lieferant"),
           artikel: a && !a.error && Array.isArray(a.data) ? a.data.filter((x) => x.aktiv !== false) : [] };
-        stammVorrat = neu;
+        stammVorrat = neu; stammZeit = Date.now();
         if (!weg) setSt(neu);
       } catch (e) { /* ohne Verbindung oder Recht: von Hand tippen */ }
+      stammLaedt = null; fertig();
     })();
     return () => { weg = true; };
   }, []);
