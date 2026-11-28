@@ -273,6 +273,24 @@ function Bearbeiten({ eintrag, maschinen, zurueck, neu, oeffnen, liste }) {
   const basis = useRef(JSON.stringify({ nr, k }));
   const geaendert = JSON.stringify({ nr, k }) !== basis.current;
   const zustand = useRef();
+  // Kunde und Adresse immer aus dem Kundenstamm (Patrick 28. November 2026: „es
+  // muss überall die Adresse sein aus dem Kundenstamm“). Alte Kalkulationen (aus
+  // WinKalk) tragen eine eigene Kopie; beim Öffnen gilt still die aus dem Stamm,
+  // ohne dass die Kalkulation als geändert gilt.
+  const stammB = useErpStamm();
+  const stammAbgeglichen = useRef(false);
+  useEffect(() => {
+    const p = kundeAusStamm(k.kopf, stammB.partner);
+    if (!p) return;
+    const soll = stammKopf(p, k.kopf);
+    if (!Object.keys(soll).some((n) => String(k.kopf[n] || "") !== String(soll[n] || ""))) { stammAbgeglichen.current = true; return; }
+    const still = !stammAbgeglichen.current && JSON.stringify({ nr, k }) === basis.current;
+    stammAbgeglichen.current = true;
+    const kopf = { ...k.kopf, ...soll }; delete kopf.adresse;
+    const neu = { ...k, kopf };
+    if (still) basis.current = JSON.stringify({ nr, k: neu });
+    setK(neu);
+  }, [stammB.partner, k.kopf.kunde_id, k.kopf.kundencode]);
   async function speichern() {
     const jetzt = JSON.stringify({ nr, k });
     setStand("speichert");
@@ -424,13 +442,13 @@ function mitVorgaben(d) {
 }
 
 // Ein Eingabefeld; Zahlen als Text, damit Komma und Apostroph gehen
-function F({ label, wert, setzen, einheit, id, text, mehrzeilig, hinweis, typ, platz, liste, breit, wahl, verlassen }) {
+function F({ label, wert, setzen, einheit, id, text, mehrzeilig, hinweis, typ, platz, liste, breit, wahl, verlassen, gesperrt }) {
   return (
     <label className={"feld kalk-feld" + (breit ? " kalk-feld--breit" : "") + (wahl ? " kalk-feld--wahl" : "")}>
       <span>{label}{einheit ? <em> {einheit}</em> : null}</span>
       {mehrzeilig
         ? <textarea id={id} rows={3} value={wert || ""} onChange={(e) => setzen(e.target.value)} />
-        : <input id={id} type={typ || "text"} inputMode={text || typ ? undefined : "decimal"} value={wert == null ? "" : wert}
+        : <input id={id} type={typ || "text"} inputMode={text || typ ? undefined : "decimal"} value={wert == null ? "" : wert} readOnly={gesperrt || undefined}
             placeholder={platz} list={liste} autoComplete={wahl ? "off" : undefined}
             onFocus={wahl ? () => wahl.auf(true) : undefined} onBlur={wahl || verlassen ? () => { if (wahl) setTimeout(() => wahl.auf(false), 200); if (verlassen) verlassen(); } : undefined}
             onKeyDown={wahl ? (e) => { if (e.key === "Escape" && wahl.offen) { e.preventDefault(); e.stopPropagation(); wahl.auf(false); } } : undefined}
@@ -576,6 +594,7 @@ function Kopf({ k, setze, setK, nr, setNr, maschinen, liste, eigeneId }) {
   const kundeWahl = useWahl(stammTreffer(stamm.partner, k.kopf.kunde, (p) => [p.nr, p.name]).map((p) => ({
     id: p.id, titel: p.name, unter: [p.nr, partnerAdresse(p).ort].filter(Boolean).join(" · "), p })), (t) => kundeSetzen(t.p));
   const hofer = stamm.artikel.filter((x) => x.art === "hofer");
+  const imStamm = kundeAusStamm(k.kopf, stamm.partner);
   const artikelSetzen = (a) => {
     const d = a.daten || {};
     const roh = d.rohmaterial_id ? stamm.artikel.find((x) => x.id === d.rohmaterial_id) : null;
@@ -767,12 +786,13 @@ function Kopf({ k, setze, setK, nr, setNr, maschinen, liste, eigeneId }) {
       {/* Kunde und Anschrift rechts unten: links nur, was man zur Eingabe braucht (Wunsch Patrick 28. November 2026) */}
       <section className="karte">
         <h2>Kunde und Anschrift</h2>
-        <F label="Kunde" id="kalk-kunde" text platz={stamm.partner.length ? "Name oder Nr. tippen, Vorschlag wählen" : undefined} wahl={kundeWahl} {...f("kunde")} />
-        <F label="Zusatz" id="kalk-adr-zusatz" text platz="Abteilung, z. Hd. …" {...a("zusatz")} />
-        <F label="Strasse" id="kalk-adr-strasse" text {...a("strasse")} />
-        <F label="Land" id="kalk-adr-land" text platz="CH" {...a("land")} />
-        <F label="PLZ" id="kalk-adr-plz" text {...a("plz")} />
-        <F label="Ort" id="kalk-adr-ort" text {...a("ort")} />
+        {imStamm && <p className="hinweis" id="kalk-adr-stamm">Aus dem Kundenstamm ({imStamm.nr}). Ändern im Test ERP unter Stammdaten → Kunden.</p>}
+        <F label="Kunde" id="kalk-kunde" text platz={stamm.partner.length ? "Name oder Nr. tippen, Vorschlag wählen" : undefined} wahl={imStamm ? undefined : kundeWahl} gesperrt={!!imStamm} {...f("kunde")} />
+        <F label="Zusatz" id="kalk-adr-zusatz" text platz="Abteilung, z. Hd. …" gesperrt={!!(imStamm && partnerAdresse(imStamm).zusatz)} {...a("zusatz")} />
+        <F label="Strasse" id="kalk-adr-strasse" text gesperrt={!!imStamm} {...a("strasse")} />
+        <F label="Land" id="kalk-adr-land" text platz="CH" gesperrt={!!imStamm} {...a("land")} />
+        <F label="PLZ" id="kalk-adr-plz" text gesperrt={!!imStamm} {...a("plz")} />
+        <F label="Ort" id="kalk-adr-ort" text gesperrt={!!imStamm} {...a("ort")} />
       </section>
       </div>
     </div>
@@ -1773,4 +1793,18 @@ function artikelZaehler(kopf, hofer, liste, eigeneId) {
   treffer.sort((a, b) => b.lauf - a.lauf);
   const h = treffer[0];
   return { nr: h.nr, wo: h.wo, naechste: h.vor + "-" + String(h.lauf + 1).padStart(h.stellen, "0") };
+}
+
+// Kunde der Kalkulation im Kundenstamm: über den Kunden-Code, sonst die
+// gemerkte Verknüpfung. Ein getippter Code ohne Treffer löst nichts aus, damit
+// man ihn frei ändern kann.
+function kundeAusStamm(kopf, partner) {
+  if (!partner || !partner.length) return null;
+  const code = String(kopf.kundencode || "").trim();
+  if (code) return partner.find((p) => String(p.nr) === code) || null;
+  return kopf.kunde_id ? partner.find((p) => p.id === kopf.kunde_id) || null : null;
+}
+function stammKopf(p, kopf) {
+  const ad = partnerAdresse(p);
+  return { kunde: p.name || "", kunde_id: p.id, kundencode: p.nr || "", ...ad, zusatz: ad.zusatz || kopf.zusatz || "" };
 }

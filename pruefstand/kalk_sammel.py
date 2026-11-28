@@ -12,9 +12,9 @@ def pruefe(ok, text):
 SAAT = """
 (TEST.daten.profiles.find(x => x.id === 'u1') || {}).einstellungen = { kalkulationSehen: true };
 TEST.daten.kalk_maschinen = [];
-TEST.daten.erp_artikel = []; TEST.daten.erp_partner = [];
+TEST.daten.erp_artikel = []; TEST.daten.erp_partner = [{ id: 'k1', art: 'kunde', nr: '10332', name: 'Gysin AG', aktiv: true, daten: { adresse: { strasse: 'Stammweg 1', plz: '4500', ort: 'Solothurn', land: 'CH' } } }];
 const kk = (id, nr, art, bez, sammel, preis) => ({ id, nr, kunde: 'Gysin AG', artikel: art, geaendert_am: '2026-11-0' + nr.slice(-1) + 'T08:00:00Z',
-  daten: { kopf: { kunde: 'Gysin AG', artikel: art, bezeichnung: bez, sammel, anfrage_nr: 'AN-9' }, material: { bez: '1.4305' }, ags: [],
+  daten: { kopf: { kunde: 'Gysin Alt', kundencode: '10332', strasse: 'Altweg 9', plz: '9999', ort: 'Altdorf', artikel: art, bezeichnung: bez, sammel, anfrage_nr: 'AN-9' }, material: { bez: '1.4305' }, ags: [],
     preis: { pe: '1', waehrung: 'CHF', rundung: '0.01' }, staffeln: [{ menge: '1000', lose: '1', angebot: preis }] } });
 TEST.daten.kalkulationen = [kk('kk1', '20260021', '10332-0706', 'Ring Gear', '', '3.65'), kk('kk2', '20260022', '10332-0707', 'Sun Gear', 'Gysin Nov', '4.10'),
   kk('kk3', '20260023', '10332-0708', 'Planet', 'andere', '1.00')];
@@ -31,6 +31,11 @@ with sync_playwright() as p:
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
     pg.evaluate("location.hash='#/kalkulation'"); pg.wait_for_selector("#kalk-suche"); pg.fill("#kalk-suche", "20260021"); pg.wait_for_selector("[data-kalk='kk1']"); pg.wait_for_timeout(500)
     pg.click("[data-kalk='kk1']"); pg.wait_for_selector("[data-kalk-reiter='angebot']"); pg.wait_for_timeout(600)
+    # Adresse immer aus dem Kundenstamm (1.948.2), ohne dass die Kalkulation als geändert gilt
+    pg.wait_for_timeout(800)
+    pruefe(pg.input_value("#kalk-adr-strasse") == "Stammweg 1" and pg.input_value("#kalk-kunde") == "Gysin AG", "Adresse und Name aus dem Kundenstamm: %s" % pg.input_value("#kalk-adr-strasse"))
+    pruefe(pg.locator("#kalk-adr-strasse").get_attribute("readonly") is not None, "Adresse nur im Stamm änderbar")
+    pruefe("Nicht gespeichert" not in pg.locator(".kalk-kompakt").inner_text(), "Abgleich zählt nicht als Änderung")
     pg.locator("[data-kalk-reiter='angebot']").click(); pg.wait_for_selector("#kalk-sammel")
     pruefe(pg.locator("#kalk-sammel-pdf").count() == 0, "ohne Sammelnummer kein Sammelangebot")
     pg.fill("#kalk-sammel", "gysin nov"); pg.wait_for_timeout(300)
@@ -44,6 +49,7 @@ with sync_playwright() as p:
     pruefe("Sammelangebot" in h and "gysin nov" in h, "Sammelnummer im Kopf")
     pruefe("Anfrage Nr. AN-9" in h, "Anfrage-Nr. im Angebot")
     pruefe(h.find("Ring Gear") < h.find("Sun Gear"), "Reihenfolge nach Nummer")
+    pruefe("Stammweg 1" in h and "Altweg" not in h, "Angebot mit Adresse aus dem Kundenstamm")
     pruefe(not pf, "keine Seitenfehler: %s" % pf)
     br.close()
 print("Fehler: " + (", ".join(fehler) if fehler else "keine"))
