@@ -236,7 +236,8 @@ export function preisInStaffeln(k) {
 export const AG_JE_STAFFEL = ["laufTag", "te", "erst", "folge", "fgk"];
 // Beim externen Arbeitsgang hat das Gewatec immer einen Kostensatz je Staffel.
 export function agFuerStaffel(ag, staffel, i) {
-  const felder = ag.art === "extern" ? ["extern"] : ag.multi ? AG_JE_STAFFEL : [];
+  // Extern auch die Nebenkosten je Stück je Staffel (Wunsch Patrick 28. November 2026)
+  const felder = ag.art === "extern" ? ["extern", ...EXTERN_NEBEN.map(([n]) => n + "Stk")] : ag.multi ? AG_JE_STAFFEL : [];
   if (!felder.length) return ag;
   const eigen = ((staffel && staffel.ag) || {})[ag.key || "ag" + i] || {};
   const x = { ...ag };

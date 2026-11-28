@@ -2,6 +2,9 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.953.0 (28. November 2026)
+- Kalkulation, externer Arbeitsgang: in der Tabelle je Staffel jetzt auch Rüst-, Werkzeug-, Verpackungs-, Transportkosten und Oberflächenprotokoll je Stück je Staffel (leer = Wert oben); Kostensatz zeigt seine Einheit (je Stk, je 100 Stk, je kg).
+
 ## 1.952.0 (28. November 2026)
 - Kalkulation, Dokumente: neues Feld „Diverses“ zum Hineinziehen, neben Kundenanfrage und Zeichnung.
 

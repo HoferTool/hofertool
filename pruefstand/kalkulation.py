@@ -123,6 +123,12 @@ with sync_playwright() as p:
     pruefe(b4[0] == "3.80" and b4[1] != "3.92", "externer Satz je Staffel: %s" % b4)
     pruefe("0.4400" in pg.locator("[data-ag='4']").inner_text(), "Einzelkosten 0.44 bei Staffel 2")
     pg.fill("#kalk-ag-s1-extern-4", ""); pg.wait_for_timeout(300)
+    # Nebenkosten je Stück je Staffel (1.953.0): nur Staffel 2 ändert sich
+    pg.fill("#kalk-ag-s1-verpstk-4", "0.05"); pg.wait_for_timeout(300)
+    b5 = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()
+    pruefe(b5[0] == "3.80" and b5[1] != b4[1], "Verpackung je Stk je Staffel: %s" % b5)
+    pruefe("0.0500" in pg.locator("[data-ag='4']").inner_text() or "0.05" in pg.input_value("#kalk-ag-s1-verpstk-4"), "Wert je Staffel steht")
+    pg.fill("#kalk-ag-s1-verpstk-4", ""); pg.wait_for_timeout(300)
     # Multimaschinell: Staffel 2 mit halber Stückzeit, Staffel 1 bleibt
     pg.click("[data-ag-auf='1']"); pg.check("#kalk-ag-multi-1")
     pg.fill("#kalk-ag-s1-te-1", "95"); pg.wait_for_timeout(300)

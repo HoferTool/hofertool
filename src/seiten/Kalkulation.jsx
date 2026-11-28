@@ -1325,8 +1325,9 @@ function JeStaffel({ a, i, k, setK, maschinen, rechnung }) {
 function ExternJeStaffel({ a, i, k, setK, rechnung }) {
   const idx = k.staffeln.map((s, j) => (z(s.menge) > 0 ? j : -1)).filter((j) => j >= 0);
   if (!idx.length) return null;
-  const setzen = (j, wert) => setK((x) => ({ ...x, staffeln: x.staffeln.map((s, n) => (n !== j ? s
-    : { ...s, ag: { ...(s.ag || {}), [a.key]: { ...((s.ag || {})[a.key] || {}), extern: wert } } })) }));
+  const setzen = (j, wert, feld = "extern") => setK((x) => ({ ...x, staffeln: x.staffeln.map((s, n) => (n !== j ? s
+    : { ...s, ag: { ...(s.ag || {}), [a.key]: { ...((s.ag || {})[a.key] || {}), [feld]: wert } } })) }));
+  const jeText = a.je === "kg" ? "je kg" : a.je === "100stk" ? "je 100 Stk" : a.je === "1000stk" ? "je 1000 Stk" : "je Stk";
   const sp = idx.map((j, n) => ({ j, r: rechnung[n] && rechnung[n].ags[i], menge: rechnung[n] ? rechnung[n].menge : 0,
     eigen: ((k.staffeln[j].ag || {})[a.key]) || {} }));
   const pe = peWert(k.preis.pe);
@@ -1337,9 +1338,14 @@ function ExternJeStaffel({ a, i, k, setK, rechnung }) {
           <tr className="kalk-fett"><td>Stückzahl</td>{sp.map(({ j, menge }) => <td key={j} className="rechts">{chf(menge, 0)}</td>)}</tr>
           <tr><td>Fertigungslose</td>{sp.map(({ j }, n) => <td key={j} className="rechts">{rechnung[n] ? rechnung[n].lose : "–"}</td>)}</tr>
           <tr className="kalk-blass"><td>Gewicht <span className="kalk-einheit">kg</span></td>{sp.map(({ j, r }) => <td key={j} className="rechts">{r ? chf(r.gewicht, 2) : "–"}</td>)}</tr>
-          <tr><td>Kostensatz <span className="kalk-einheit">CHF</span></td>{sp.map(({ j, eigen }) => (
+          <tr><td>Kostensatz <span className="kalk-einheit">CHF {jeText}</span></td>{sp.map(({ j, eigen }) => (
             <td key={j} className="rechts"><input className="kalk-zelle" type="text" inputMode="decimal" id={"kalk-ag-s" + j + "-extern-" + i}
               placeholder={a.extern || ""} value={eigen.extern || ""} onChange={(e) => setzen(j, e.target.value)} /></td>))}</tr>
+          {/* Nebenkosten je Stück je Staffel, leer = Wert oben (Wunsch Patrick 28. November 2026) */}
+          {EXTERN_NEBEN.map(([nb, titel]) => (
+            <tr key={nb}><td>{titel} <span className="kalk-einheit">CHF je Stk</span></td>{sp.map(({ j, eigen }) => (
+              <td key={j} className="rechts"><input className="kalk-zelle" type="text" inputMode="decimal" id={"kalk-ag-s" + j + "-" + nb + "stk-" + i}
+                placeholder={a[nb + "Stk"] || ""} value={eigen[nb + "Stk"] || ""} onChange={(e) => setzen(j, e.target.value, nb + "Stk")} /></td>))}</tr>))}
           <tr className="kalk-fett kalk-hervor"><td>Einzelkosten <span className="kalk-einheit">CHF/{peText(pe)}</span></td>{sp.map(({ j, r }) => (
             <td key={j} className="rechts">{r ? chf(r.einzel * pe, 4) + (r.posten ? " (Posten)" : "") : "–"}</td>))}</tr>
         </tbody>
