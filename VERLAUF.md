@@ -2,6 +2,10 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.946.0 (28. November 2026)
+
+- Kalkulation → Angebot: Feld „Sammelangebot“ (Sammelnummer oder Text). Alle Kalkulationen mit demselben Eintrag (Gross-/Kleinschreibung egal) werden mit „Sammelangebot drucken / PDF“ Positionen eines Angebots (je Position Teileangaben und Staffelpreise, nach Kalkulations-Nr.); Kunde, Anfrage und Bedingungen aus der offenen Kalkulation, Sammelnummer im Kopf. Prüfstand `kalk_sammel.py`.
+
 ## 1.945.0 (28. November 2026)
 
 - Kalkulation: Der Artikel-Code findet jetzt alle Artikel der Stammdaten (vorher nur die ersten 1'000 Zeilen) und auch Artikel aus früheren Kalkulationen. Bei einem bekannten Artikel fragt die App, ob der Arbeitsplan aus den Stammdaten oder aus einer früheren Kalkulation übernommen werden soll, und zeigt unter dem Artikel-Code die Kalkulationen, die es mit diesem Artikel schon gibt (Knopf „Arbeitsplan übernehmen …“). Neues Feld „Anfrage-Nr.“ bei Anfrage und Bearbeitung, steht im Angebot. Prüfstand `kalk_artikel_da.py`.

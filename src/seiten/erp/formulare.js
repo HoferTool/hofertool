@@ -609,23 +609,38 @@ function beDruckenBlatt(d, b) {
 // =================================================================
 const SP_AN = [42, 51, 8, 42, 102, 6, 59, 20, 151];
 export const angebotDrucken = sicher(angebotDruckenBlatt);
-function angebotDruckenBlatt({ k, nr, zeilen, adresse, datumText: dt }) {
+function angebotDruckenBlatt({ k, nr, zeilen, adresse, datumText: dt, teile, sammel }) {
   const sb = sachbearbeiter();
   const kopf = k.kopf || {};
   platz = { nr: nr || "", datum: dt(new Date().toISOString().slice(0, 10)), name: sb.name, kunde: String(adresse || "").split("\n")[0] };
   const ag = k.angebot || {};
-  const zeichnung = (kopf.zeichnung || "") + (kopf.index ? " / Index: " + kopf.index : "");
-  const teil = det([["Bezeichnung", kopf.bezeichnung, true], ["Werkstoff", (k.material || {}).bez, true], ["Artikel-Code", kopf.artikel, true],
-    ["Ident - Nr.", kopf.ident || " ", true], ["Zeichnung", zeichnung, true]], 89, 12);
-  const preise = "<table class='sp'>" + colgroup(SP_AN)
-    + zeilen.map((r, i) => "<tr style='height:25.5pt'><td>" + (i + 1) + "</td><td class='r'>" + esc(r.menge) + "</td><td></td><td>Stk</td>"
+  const teilVon = (kk) => {
+    const q = kk.kopf || {};
+    const zeichnung = (q.zeichnung || "") + (q.index ? " / Index: " + q.index : "");
+    return det([["Bezeichnung", q.bezeichnung, true], ["Werkstoff", (kk.material || {}).bez, true], ["Artikel-Code", q.artikel, true],
+      ["Ident - Nr.", q.ident || " ", true], ["Zeichnung", zeichnung, true]], 89, 12);
+  };
+  // pos: beim Sammelangebot steht die Nummer der Position nur in der ersten
+  // Staffelzeile, sonst wie bisher 1, 2, 3 je Staffel
+  const preiseVon = (zz, pos) => "<table class='sp'>" + colgroup(SP_AN)
+    + zz.map((r, i) => "<tr style='height:25.5pt'><td>" + (pos ? (i === 0 ? pos : "") : i + 1) + "</td><td class='r'>" + esc(r.menge) + "</td><td></td><td>Stk</td>"
       + "<td class='r'>" + esc(r.preis) + "</td><td></td><td>" + esc(r.waehrung) + "</td><td class='r'>" + esc(r.pe) + "</td><td></td></tr>").join("")
     + "</table>";
-  const inhalt = (kopf.anfrage ? "<p class='b' style='margin:0 0 15pt'>Ihre Anfrage vom " + esc(dt(kopf.anfrage)) + "</p>" : "<div style='height:27pt'></div>")
-    + "<div class='linie'></div><div style='padding:6pt 0 4pt'>" + teil + "</div><div class='linie'></div>"
-    + "<table class='sp sp9' style='margin:2pt 0'>" + colgroup(SP_AN) + "<tr><th>POS</th><th class='r'>MENGE</th><th></th><th>ME</th>"
-    + "<th colspan='3' style='padding-left:44pt'>Preis (exkl. MwSt.)</th><th>PRO</th><th></th></tr></table><div class='linie'></div>"
-    + "<div style='padding-top:3pt'>" + preise + "</div><div class='linie' style='margin-top:4pt'></div>"
+  const kopfZeile = "<table class='sp sp9' style='margin:2pt 0'>" + colgroup(SP_AN) + "<tr><th>POS</th><th class='r'>MENGE</th><th></th><th>ME</th>"
+    + "<th colspan='3' style='padding-left:44pt'>Preis (exkl. MwSt.)</th><th>PRO</th><th></th></tr></table>";
+  const anfrageText = kopf.anfrage || kopf.anfrage_nr
+    ? "Ihre Anfrage" + (kopf.anfrage_nr ? " Nr. " + kopf.anfrage_nr : "") + (kopf.anfrage ? " vom " + dt(kopf.anfrage) : "") : "";
+  // Sammelangebot (Wunsch Patrick 28. November 2026): alle Kalkulationen mit
+  // derselben Sammelnummer als Positionen in einem Angebot
+  const mitte = teile && teile.length
+    ? "<div class='linie'></div>" + kopfZeile + "<div class='linie'></div>"
+      + teile.map((t, i) => "<div style='padding:6pt 0 2pt;break-inside:avoid'>" + teilVon(t.k) + "<div style='padding-top:3pt'>" + preiseVon(t.zeilen, i + 1) + "</div></div>").join("<div class='linie'></div>")
+      + "<div class='linie' style='margin-top:4pt'></div>"
+    : "<div class='linie'></div><div style='padding:6pt 0 4pt'>" + teilVon(k) + "</div><div class='linie'></div>"
+      + kopfZeile + "<div class='linie'></div>"
+      + "<div style='padding-top:3pt'>" + preiseVon(zeilen) + "</div><div class='linie' style='margin-top:4pt'></div>";
+  const inhalt = (anfrageText ? "<p class='b' style='margin:0 0 15pt'>" + esc(anfrageText) + "</p>" : "<div style='height:27pt'></div>")
+    + mitte
     + "<div style='margin-top:30pt'>" + det([["Lieferfrist", ag.lieferzeit], ["Lieferbedingung", ag.lieferbed], ["Versandbedingung", ag.versand], ["Zahlungsbedingung", ag.zahlung]], 89, 12) + "</div>"
     + (ag.gueltig ? "<p style='white-space:pre-line;margin:12pt 0 0'>" + esc(ag.gueltig) + "</p>" : "")
     + absatz(text("an", "schluss"), 7)
@@ -637,7 +652,8 @@ function angebotDruckenBlatt({ k, nr, zeilen, adresse, datumText: dt }) {
       links: [["Angebots-Nr.", nr || "", "wert"], ["Datum", dt(new Date().toISOString().slice(0, 10))], ["Sachbearbeiter", sb.name], ["Telefon", sb.tel],
         ["Telefax", sb.fax], ["E-Mail", sb.mail]],
       adresse: adresse, rechtsX: 291, rechtsOben: 59, rl: 83, rc: 11,
-      rechts: [["Ihr Zeichen", kopf.zeichen], ["Kundennummer", kopf.kundencode], ["Telefon", kopf.telefon], ["Telefax", kopf.fax]],
+      rechts: [["Ihr Zeichen", kopf.zeichen], ["Kundennummer", kopf.kundencode], ["Telefon", kopf.telefon], ["Telefax", kopf.fax],
+        sammel ? ["Sammelangebot", sammel] : null].filter(Boolean),
     },
     inhalt, form: "an",
   });

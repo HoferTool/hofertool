@@ -1376,7 +1376,7 @@ function Ergebnis({ k, rechnung }) {
   );
 }
 
-function Angebot({ k, setze, nr, rechnung }) {
+function Angebot({ k, setze, nr, rechnung, maschinen, liste, eigeneId }) {
   const f = (name) => ({ wert: k.angebot[name], setzen: (w) => setze("angebot." + name, w) });
   const [laeuft, setLaeuft] = useState(false);
   async function pdf() {
@@ -1387,9 +1387,33 @@ function Angebot({ k, setze, nr, rechnung }) {
     try {
       const { angebotDrucken } = await import("./erp/formulare.js");
       angebotDrucken({ k, nr, datumText, adresse: [k.kopf.kunde, ...adresseZeilen(k.kopf)].filter(Boolean).join("\n"),
-        zeilen: rechnung.map((r) => ({ menge: chf(r.menge, 0), preis: chf(r.angebotPe), waehrung: r.waehrung, pe: chf(r.pe || 1, 0) })) });
+        zeilen: angebotZeilen(rechnung) });
     }
     catch (e) { alt.meldung(alt.fehlertext(e), "fehler"); }
+    setLaeuft(false);
+  }
+  // Sammelangebot (Wunsch Patrick 28. November 2026): alle Kalkulationen mit
+  // derselben Sammelnummer bzw. demselben Text werden Positionen eines Angebots.
+  // Kunde, Anfrage und Bedingungen kommen aus dieser Kalkulation, diese selbst
+  // zählt mit ihrem aktuellen (auch ungespeicherten) Stand.
+  const sammel = String(k.kopf.sammel || "").trim();
+  const andere = sammel ? (liste || []).filter((x) => x.id !== eigeneId && String(kopfAusListe(x).sammel || "").trim().toLowerCase() === sammel.toLowerCase()) : [];
+  async function sammelPdf() {
+    setLaeuft(true);
+    try {
+      const teile = [{ k, nr, zeilen: angebotZeilen(rechnung) }];
+      for (const x of andere) {
+        const e = await kalkulationLaden(x.id);
+        if (!e || !e.daten) continue;
+        const kk = mitVorgaben(e.daten);
+        const r = kk.staffeln.filter((st) => z(st.menge) > 0).map((st) => staffelRechnen(kk, st, maschinen || []));
+        teile.push({ k: kk, nr: e.nr, zeilen: angebotZeilen(r) });
+      }
+      teile.sort((a, b) => String(a.nr || "").localeCompare(String(b.nr || "")));
+      const { angebotDrucken } = await import("./erp/formulare.js");
+      angebotDrucken({ k, nr, datumText, adresse: [k.kopf.kunde, ...adresseZeilen(k.kopf)].filter(Boolean).join("\n"),
+        zeilen: angebotZeilen(rechnung), teile, sammel });
+    } catch (e) { alt.meldung(alt.fehlertext(e), "fehler"); }
     setLaeuft(false);
   }
   return (
@@ -1406,6 +1430,15 @@ function Angebot({ k, setze, nr, rechnung }) {
         <F label="Schlusstext" id="kalk-gueltig" mehrzeilig {...f("gueltig")} />
         <button className="knopf knopf--haupt knopf--breit" id="kalk-pdf" disabled={laeuft || !rechnung.length} onClick={pdf}>
           {laeuft ? "Angebot wird erstellt …" : "Angebot drucken / PDF"}</button>
+        <F label="Sammelangebot" id="kalk-sammel" text platz="Sammelnummer oder Text, gleich bei allen Kalkulationen" wert={k.kopf.sammel} setzen={(w) => setze("kopf.sammel", w)} />
+        {sammel && <div className="hinweis" id="kalk-sammel-info">
+          <p>{andere.length ? "Zusammen mit " + andere.length + (andere.length === 1 ? " weiteren Kalkulation" : " weiteren Kalkulationen") + ":"
+            : "Noch keine andere Kalkulation mit „" + sammel + "“. Gespeicherte Kalkulationen mit demselben Eintrag kommen dazu."}</p>
+          {andere.length > 0 && <ul className="kalk-artikel-da__liste">{andere.map((x) => (
+            <li key={x.id} data-kalk-sammel={x.id}><b>{x.nr || "ohne Nr."}</b>{x.artikel ? " · " + x.artikel : ""}{kopfAusListe(x).bezeichnung ? " · " + kopfAusListe(x).bezeichnung : ""}</li>))}</ul>}
+          <button className="knopf knopf--breit" id="kalk-sammel-pdf" disabled={laeuft || !rechnung.length} onClick={sammelPdf}>
+            Sammelangebot drucken / PDF ({andere.length + 1} {andere.length ? "Positionen" : "Position"})</button>
+        </div>}
       </section>
       <section className="karte kalk-blatt" id="kalk-vorschau" aria-label="Vorschau des Angebots">
         <div className="kalk-blatt__band"><b>HOFER + CO</b><span>Hofer+Co Präzisionsdrehteile AG · Alte Bernstrasse 24 · CH-4573 Lohn-Ammannsegg</span></div>
@@ -1585,7 +1618,7 @@ function kalkArtikelListe(liste, hofer, eigeneId) {
     const nr = String(x.artikel || "").trim();
     const n = nr.toLowerCase();
     if (!nr || x.id === eigeneId || imStamm.has(n) || je.has(n)) continue;
-    je.set(n, { nr, kopf: x.kopf || {}, kalkNr: x.nr, id: x.id });
+    je.set(n, { nr, kopf: kopfAusListe(x), kalkNr: x.nr, id: x.id });
   }
   return [...je.values()];
 }
@@ -1606,4 +1639,11 @@ function agsAusArbeitsplan(ap, maschinen, lieferanten) {
     return { key, bez: g.bez || "", art: "intern", masch: m ? m.id : "", te: g.te != null && g.te !== "" ? String(g.te) : "",
       erst: g.ruest != null && g.ruest !== "" ? String(g.ruest) : "", folge: "", fgk: "" };
   });
+}
+
+// Kopf einer Kalkulation aus der Liste (sie holt nur daten->kopf als „kopf“)
+function kopfAusListe(x) { return (x && (x.kopf || (x.daten && x.daten.kopf))) || {}; }
+
+function angebotZeilen(rechnung) {
+  return rechnung.map((r) => ({ menge: chf(r.menge, 0), preis: chf(r.angebotPe), waehrung: r.waehrung, pe: chf(r.pe || 1, 0) }));
 }
