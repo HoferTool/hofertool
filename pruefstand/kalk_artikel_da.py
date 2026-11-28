@@ -22,7 +22,8 @@ TEST.daten.erp_artikel.push({ id: 'z-hofer', art: 'hofer', nr: '10332-0706', kun
   arbeitsplan: [{ pos: 10, bez: 'Drehen', maschine: 'SW-20', te: 42, ruest: 3 }, { pos: 20, bez: 'Härten', extern: true, lieferant_nr: '70005', maschine: 'Härterei AG' }] });
 TEST.daten.erp_partner.push({ id: 'k7', art: 'kunde', nr: '10007', name: 'Faulhaber SA', aktiv: true, daten: {} });
 TEST.daten.erp_artikel.push({ id: 'z-7a', art: 'hofer', nr: '10007-0588', kunde_id: 'k7', aktiv: true, daten: {}, arbeitsplan: [] },
-  { id: 'z-7b', art: 'hofer', nr: '10007-9012', kunde_id: 'k7', aktiv: true, daten: {}, arbeitsplan: [] });
+  { id: 'z-7b', art: 'hofer', nr: '10007-9012', kunde_id: 'k7', aktiv: true, daten: {}, arbeitsplan: [] },
+  { id: 'z-3s', art: 'hofer', nr: '10332-9001', kunde_id: 'k1', aktiv: true, daten: {}, arbeitsplan: [] });
 TEST.daten.kalkulationen = [
   { id: 'kk3', nr: '20260013', kunde: 'Gysin AG', artikel: '10332-0712', geaendert_am: '2026-09-01T08:00:00Z',
     daten: { kopf: { artikel: '10332-0712', kunde: 'Gysin AG', kundencode: '10332' }, ags: [] } },

@@ -2,6 +2,10 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.948.4 (28. November 2026)
+
+- Kalkulation, nächste Artikel-Nr.: die 9000er Nummern (Spezialartikel) zählen bei allen Kunden nicht, nicht nur bei 10007.
+
 ## 1.948.3 (28. November 2026)
 
 - Kalkulation, nächste Artikel-Nr.: beim Kunden 10007 zählen die 9000er Nummern (Spezialartikel) nicht (`NR_AUSNAHMEN`).
