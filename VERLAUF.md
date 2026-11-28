@@ -2,6 +2,10 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.947.0 (28. November 2026)
+
+- Kalkulation, Artikel-Code: Die Frage zum Arbeitsplan kommt erst beim Verlassen des Feldes, nicht schon beim Tippen. Ist ein Kunde gewählt, zeigt das Feld die höchste Artikel-Nr. dieses Kunden aus Stammdaten und Kalkulationen und die nächste freie (Knopf „übernehmen“).
+
 ## 1.946.1 (28. November 2026)
 
 - Kalkulation: Stammdaten aus dem Test ERP werden bei jeder geöffneten Kalkulation frisch geholt (sonst höchstens eine Minute alt). Vorher galt ein gelöschter Arbeitsplan bis zum Neuladen der Seite weiter.

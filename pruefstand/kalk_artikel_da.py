@@ -14,12 +14,15 @@ def pruefe(ok, text):
 SAAT = """
 (TEST.daten.profiles.find(x => x.id === 'u1') || {}).einstellungen = { kalkulationSehen: true };
 TEST.daten.kalk_maschinen = [{ id: 'm1', name: 'SW-20', sort: 1, daten: { modus: 'hand', fix: '50', var: '20', ruest: '60' } }];
-TEST.daten.erp_partner = [{ id: 'l1', art: 'lieferant', nr: '70005', name: 'Härterei AG', aktiv: true, daten: {} }];
+TEST.daten.erp_partner = [{ id: 'l1', art: 'lieferant', nr: '70005', name: 'Härterei AG', aktiv: true, daten: {} },
+  { id: 'k1', art: 'kunde', nr: '10332', name: 'Gysin AG', aktiv: true, daten: {} }];
 TEST.daten.erp_artikel = [];
 for (let i = 0; i < 1200; i++) TEST.daten.erp_artikel.push({ id: 'w' + String(i).padStart(5, '0'), art: 'werkzeug', nr: 'WZ' + i, aktiv: true, daten: {} });
-TEST.daten.erp_artikel.push({ id: 'z-hofer', art: 'hofer', nr: '10332-0706', idx: '02', bezeichnung: 'Ring Gear', aktiv: true, daten: {},
+TEST.daten.erp_artikel.push({ id: 'z-hofer', art: 'hofer', nr: '10332-0706', kunde_id: 'k1', idx: '02', bezeichnung: 'Ring Gear', aktiv: true, daten: {},
   arbeitsplan: [{ pos: 10, bez: 'Drehen', maschine: 'SW-20', te: 42, ruest: 3 }, { pos: 20, bez: 'Härten', extern: true, lieferant_nr: '70005', maschine: 'Härterei AG' }] });
 TEST.daten.kalkulationen = [
+  { id: 'kk3', nr: '20260013', kunde: 'Gysin AG', artikel: '10332-0712', geaendert_am: '2026-09-01T08:00:00Z',
+    daten: { kopf: { artikel: '10332-0712', kunde: 'Gysin AG', kundencode: '10332' }, ags: [] } },
   { id: 'kk1', nr: '20260011', kunde: 'Gysin AG', artikel: '10332-0706', geaendert_am: '2026-10-01T08:00:00Z',
     vorschau: { preis: 3.65, waehrung: 'CHF', pe: 1 },
     daten: { kopf: { artikel: '10332-0706', bezeichnung: 'Ring Gear' }, ags: [{ key: 'a', bez: 'Alt Drehen', art: 'intern', masch: 'm1', te: '50', erst: '2' }] } },
@@ -42,7 +45,9 @@ with sync_playwright() as p:
     pg.fill("#kalk-anfrage-nr", "AN-4711")
     # Artikel aus den Stammdaten, hinter den ersten 1'000 Zeilen
     pg.fill("#kalk-artikel", "10332-0706"); pg.wait_for_timeout(800)
-    pruefe(pg.locator("button[data-w='stamm']").count() == 1, "Frage Arbeitsplan mit Stammdaten-Wahl")
+    pruefe(pg.locator("button[data-w='stamm']").count() == 0, "beim Tippen noch keine Frage (1.946.2)")
+    pg.press("#kalk-artikel", "Tab"); pg.wait_for_timeout(600)
+    pruefe(pg.locator("button[data-w='stamm']").count() == 1, "Frage Arbeitsplan mit Stammdaten-Wahl beim Verlassen")
     pruefe(pg.locator("button[data-w='k:kk1']").count() == 1, "Frage bietet frühere Kalkulation an")
     pg.click("button[data-w='stamm']"); pg.wait_for_timeout(500)
     pruefe(pg.locator("#kalk-artikel-da").count() == 1, "Hinweis bestehender Artikel")
@@ -63,7 +68,8 @@ with sync_playwright() as p:
     pg.fill("#kalk-artikel", "55555"); pg.wait_for_timeout(400)
     v = pg.locator("text=aus Kalkulation 20260012")
     pruefe(v.count() >= 1, "Vorschlag aus früherer Kalkulation")
-    if v.count(): v.first.click(); pg.wait_for_timeout(600)
+    if v.count(): v.first.click(); pg.wait_for_timeout(300)
+    pg.click("#kalk-bez"); pg.wait_for_timeout(600)
     pruefe(pg.locator("button[data-w='k:kk2']").count() == 1, "Frage Arbeitsplan auch bei Artikel nur aus Kalkulation")
     if pg.locator("button[data-w='nein']").count(): pg.click("button[data-w='nein']")
     pg.wait_for_timeout(300)
@@ -75,10 +81,17 @@ with sync_playwright() as p:
     for w in ["nein", "verwerfen", "ja"]:
         if pg.locator("button[data-w='%s']" % w).count(): pg.click("button[data-w='%s']" % w); break
     pg.wait_for_selector("#kalk-neu"); pg.click("#kalk-neu"); pg.wait_for_selector("#kalk-artikel"); pg.wait_for_timeout(1200)
-    pg.fill("#kalk-artikel", "10332-0706"); pg.wait_for_timeout(800)
+    pg.fill("#kalk-artikel", "10332-0706"); pg.press("#kalk-artikel", "Tab"); pg.wait_for_timeout(800)
     pruefe(pg.locator("button[data-w='stamm']").count() == 0, "gelöschter Arbeitsplan wird nicht mehr angeboten")
     t = pg.locator("#kalk-artikel-da").inner_text() if pg.locator("#kalk-artikel-da").count() else ""
     pruefe("ohne Arbeitsplan" in t, "Hinweis: Artikel ohne Arbeitsplan: %s" % t.replace("\n", " | "))
+    # Höchste Artikel-Nr. des Kunden (1.947.0)
+    pg.fill("#kalk-artikel", ""); pg.fill("#kalk-kundecode", "10332"); pg.wait_for_timeout(300)
+    pg.click("#kalk-artikel"); pg.wait_for_timeout(300)
+    t = pg.locator("#kalk-hoechste").inner_text() if pg.locator("#kalk-hoechste").count() else ""
+    pruefe("10332-0712" in t and "10332-0713" in t and "Kalkulation 20260013" in t, "höchste Nr. des Kunden und nächste frei: %s" % t)
+    pg.click("#kalk-naechste"); pg.wait_for_timeout(300)
+    pruefe(pg.input_value("#kalk-artikel") == "10332-0713", "nächste Nr. übernommen")
     pruefe(not pf, "keine Seitenfehler: %s" % pf)
     br.close()
 print("Fehler: " + (", ".join(fehler) if fehler else "keine"))

@@ -424,7 +424,7 @@ function mitVorgaben(d) {
 }
 
 // Ein Eingabefeld; Zahlen als Text, damit Komma und Apostroph gehen
-function F({ label, wert, setzen, einheit, id, text, mehrzeilig, hinweis, typ, platz, liste, breit, wahl }) {
+function F({ label, wert, setzen, einheit, id, text, mehrzeilig, hinweis, typ, platz, liste, breit, wahl, verlassen }) {
   return (
     <label className={"feld kalk-feld" + (breit ? " kalk-feld--breit" : "") + (wahl ? " kalk-feld--wahl" : "")}>
       <span>{label}{einheit ? <em> {einheit}</em> : null}</span>
@@ -432,7 +432,7 @@ function F({ label, wert, setzen, einheit, id, text, mehrzeilig, hinweis, typ, p
         ? <textarea id={id} rows={3} value={wert || ""} onChange={(e) => setzen(e.target.value)} />
         : <input id={id} type={typ || "text"} inputMode={text || typ ? undefined : "decimal"} value={wert == null ? "" : wert}
             placeholder={platz} list={liste} autoComplete={wahl ? "off" : undefined}
-            onFocus={wahl ? () => wahl.auf(true) : undefined} onBlur={wahl ? () => setTimeout(() => wahl.auf(false), 200) : undefined}
+            onFocus={wahl ? () => wahl.auf(true) : undefined} onBlur={wahl || verlassen ? () => { if (wahl) setTimeout(() => wahl.auf(false), 200); if (verlassen) verlassen(); } : undefined}
             onKeyDown={wahl ? (e) => { if (e.key === "Escape" && wahl.offen) { e.preventDefault(); e.stopPropagation(); wahl.auf(false); } } : undefined}
             onChange={(e) => { setzen(e.target.value); if (wahl) wahl.auf(true); }} />}
       {wahl && wahl.offen && wahl.treffer.length > 0 && (
@@ -710,12 +710,20 @@ function Kopf({ k, setze, setK, nr, setNr, maschinen, liste, eigeneId }) {
     setK((x) => ({ ...x, ags }));
     alt.meldung(ags.length + " Arbeitsgänge übernommen. Bitte im Reiter Arbeitsgänge prüfen.", "gut");
   };
-  useEffect(() => {
-    if (!artikel || gefragtFuer.current === artikel) return;
-    if (!stammAp.length && !fruehere.length) return;
-    gefragtFuer.current = artikel;
-    apFragen();
-  }, [artikel, stammAp.length, fruehere.length]);
+  // Gefragt wird erst beim Verlassen des Feldes, nicht schon beim Tippen: sonst
+  // kam bei der ersten Ziffer „1“ gleich die Frage zum Artikel 1 (Wunsch Patrick
+  // 28. November 2026: „erst, wenn ich ins nächste Feld klicke“)
+  // Höchste Artikel-Nr. des gewählten Kunden aus Stammdaten und Kalkulationen,
+  // damit man die nächste freie sieht (Wunsch Patrick 28. November 2026)
+  const hoechste = artikelZaehler(k.kopf, hofer, liste, eigeneId);
+  const frage = useRef(null);
+  frage.current = { artikel, n: stammAp.length + fruehere.length, apFragen };
+  const artikelVerlassen = () => setTimeout(() => {
+    const f = frage.current;
+    if (!f || !f.artikel || gefragtFuer.current === f.artikel || !f.n) return;
+    gefragtFuer.current = f.artikel;
+    f.apFragen();
+  }, 250);
 
   return (
     <div className="kalk-zwei">
@@ -729,7 +737,11 @@ function Kopf({ k, setze, setK, nr, setNr, maschinen, liste, eigeneId }) {
         <F label="Land" id="kalk-adr-land" text platz="CH" {...a("land")} />
         <F label="PLZ" id="kalk-adr-plz" text {...a("plz")} />
         <F label="Ort" id="kalk-adr-ort" text {...a("ort")} />
-        <F label="Artikel-Code" id="kalk-artikel" text platz={hofer.length ? "HOCO Nr. oder Bezeichnung tippen" : undefined} wahl={artikelWahl} wert={k.kopf.artikel} setzen={artikelCodeSetzen} />
+        <F label="Artikel-Code" id="kalk-artikel" text platz={hofer.length ? "HOCO Nr. oder Bezeichnung tippen" : undefined} wahl={artikelWahl} wert={k.kopf.artikel} setzen={artikelCodeSetzen} verlassen={artikelVerlassen} />
+        {hoechste && (artikelWahl.offen || !artikel) && <p className="hinweis" id="kalk-hoechste">
+          {hoechste.nr ? <>Höchste Artikel-Nr. bei {k.kopf.kunde || "diesem Kunden"}: <b>{hoechste.nr}</b> ({hoechste.wo}). </> : <>Noch keine Artikel-Nr. bei {k.kopf.kunde || "diesem Kunden"}. </>}
+          Nächste frei: <b>{hoechste.naechste}</b>{" "}
+          <button type="button" className="knopf knopf--klein" id="kalk-naechste" onMouseDown={(e) => { e.preventDefault(); artikelCodeSetzen(hoechste.naechste); }}>übernehmen</button></p>}
         {matHinweis && <p className="hinweis" id="kalk-mat-hinweis">{matHinweis}</p>}
         {(stammA || fruehere.length > 0) && <div className="hinweis kalk-artikel-da" id="kalk-artikel-da">
           {stammA && <p>Artikel {stammA.nr}{stammA.idx ? " Ind. " + stammA.idx : ""} ist in den Stammdaten
@@ -1659,4 +1671,32 @@ function kopfAusListe(x) { return (x && (x.kopf || (x.daten && x.daten.kopf))) |
 
 function angebotZeilen(rechnung) {
   return rechnung.map((r) => ({ menge: chf(r.menge, 0), preis: chf(r.angebotPe), waehrung: r.waehrung, pe: chf(r.pe || 1, 0) }));
+}
+
+// Höchste Artikel-Nr. (Muster Kunden-Nr.-laufende Nr., z. B. 10332-0706) eines
+// Kunden in den Stammdaten und in den übrigen Kalkulationen, dazu die nächste
+function artikelZaehler(kopf, hofer, liste, eigeneId) {
+  const code = String(kopf.kundencode || "").trim();
+  const kid = kopf.kunde_id;
+  const kname = String(kopf.kunde || "").trim().toLowerCase();
+  if (!code && !kid && !kname) return null;
+  const treffer = [];
+  const nimm = (nr, wo) => {
+    const m = /^(\d{4,6})-(\d{1,5})$/.exec(String(nr || "").trim());
+    if (m && (!code || m[1] === code)) treffer.push({ nr: m[0], vor: m[1], lauf: Number(m[2]), stellen: m[2].length, wo });
+  };
+  for (const a of hofer) {
+    if ((kid && a.kunde_id === kid) || (code && String(a.nr || "").startsWith(code + "-"))) nimm(a.nr, "Stammdaten");
+  }
+  for (const x of liste || []) {
+    if (x.id === eigeneId || !x.artikel) continue;
+    const q = kopfAusListe(x);
+    const passt = (code && (String(q.kundencode || "").trim() === code || String(x.artikel).startsWith(code + "-")))
+      || (kname && String(x.kunde || "").trim().toLowerCase() === kname);
+    if (passt) nimm(x.artikel, "Kalkulation " + (x.nr || ""));
+  }
+  if (!treffer.length) return code ? { nr: "", wo: "", naechste: code + "-0001" } : null;
+  treffer.sort((a, b) => b.lauf - a.lauf);
+  const h = treffer[0];
+  return { nr: h.nr, wo: h.wo, naechste: h.vor + "-" + String(h.lauf + 1).padStart(h.stellen, "0") };
 }
