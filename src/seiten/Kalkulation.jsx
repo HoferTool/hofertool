@@ -785,6 +785,8 @@ function Kopf({ k, setze, setK, nr, setNr, maschinen, liste, eigeneId }) {
 const DOK_ARTEN = [["anfrage", "Kundenanfrage"], ["zeichnung", "Zeichnung"]];
 function KalkDokumente({ k, setK }) {
   const [laedt, setLaedt] = useState("");
+  const [ueber, setUeber] = useState("");
+  const hatDateien = (e) => !!(e.dataTransfer && [...(e.dataTransfer.types || [])].includes("Files"));
   const doks = Array.isArray(k.dokumente) ? k.dokumente : [];
   async function hochladen(art, dateien) {
     if (!dateien.length) return;
@@ -815,7 +817,14 @@ function KalkDokumente({ k, setK }) {
       {DOK_ARTEN.map(([art, titel]) => {
         const liste = doks.filter((d) => d.art === art);
         return (
-          <div key={art} className="kalk-dok" data-kalk-dok={art}>
+          // Eigenes Ablegen je Zeile: der allgemeine Helfer wirkt nur im
+          // Hauptfenster, die Kalkulation läuft aber im eigenen Browserfenster
+          // (Patrick 28. November 2026: „hineinziehen geht nicht“)
+          <div key={art} className={"kalk-dok" + (ueber === art ? " kalk-dok--ueber" : "")} data-kalk-dok={art}
+            onDragEnter={(e) => { if (hatDateien(e)) { e.preventDefault(); setUeber(art); } }}
+            onDragOver={(e) => { if (hatDateien(e)) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; if (ueber !== art) setUeber(art); } }}
+            onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setUeber(""); }}
+            onDrop={(e) => { if (!hatDateien(e)) return; e.preventDefault(); e.stopPropagation(); setUeber(""); hochladen(art, [...e.dataTransfer.files]); }}>
             <span className="kalk-dok__titel">{titel}</span>
             <div className="kalk-dok__liste">
               {liste.map((d) => (

@@ -126,6 +126,12 @@ export function inEigenesFenster(huelle, zu, { titel, lage, still } = {}) {
     if (Date.now() - bewegt > 3000) { bewegt = Date.now(); aktiv(); }
   }, { passive: true });
 
+  // Eine Datei, die neben ein Ablegefeld fällt, öffnet sonst der Browser
+  // anstelle des Fensters, und die Arbeit darin ist weg
+  ["dragover", "drop"].forEach((art) => d.addEventListener(art, (e) => {
+    if (e.dataTransfer && [...(e.dataTransfer.types || [])].includes("Files")) e.preventDefault();
+  }));
+
   // Escape schliesst das oberste Fenster hier drin: eine Rückfrage über
   // ihren Rand (wie ein Klick daneben), sonst das Fenster selbst
   d.addEventListener("keydown", (e) => {

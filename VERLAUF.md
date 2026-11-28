@@ -2,6 +2,10 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.948.1 (28. November 2026)
+
+- Kalkulation: Kundenanfrage und Zeichnung lassen sich jetzt auch hineinziehen, wenn die Kalkulation im eigenen Browserfenster läuft (eigenes Ablegen je Zeile). Eine daneben fallengelassene Datei öffnet das eigene Fenster nicht mehr anstelle seines Inhalts.
+
 ## 1.948.0 (28. November 2026)
 
 - Kalkulation, Kopfdaten: links nur Kalkulation Nr., Kunden-Code und Artikelangaben; Kunde, Zusatz und Anschrift rechts unten im Block „Kunde und Anschrift“. Bei „Anfrage und Bearbeitung“ lassen sich Kundenanfrage und Zeichnung als Dokumente hineinziehen oder wählen (Ablage `zeichnungen/erp/kalkulation/`, `k.dokumente`), antippen zeigt sie im Betrachter.

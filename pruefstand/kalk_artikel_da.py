@@ -98,6 +98,12 @@ with sync_playwright() as p:
     pg.set_input_files("input[data-kalk-dok-datei='anfrage']", files=[{"name": "Anfrage.pdf", "mimeType": "application/pdf", "buffer": b"%PDF-1.4 test"}])
     pg.wait_for_timeout(800)
     pruefe(pg.locator("[data-kalk-dok='anfrage'] [data-kalk-dok-ansehen]").count() == 1, "Kundenanfrage abgelegt")
+    # Hineinziehen auf die Zeile Zeichnung (1.948.1)
+    pg.evaluate("""() => { const dt = new DataTransfer(); dt.items.add(new File(['x'], 'Zeichnung.png', { type: 'image/png' }));
+      const z = document.querySelector("[data-kalk-dok='zeichnung']");
+      for (const art of ['dragenter', 'dragover', 'drop']) z.dispatchEvent(new DragEvent(art, { bubbles: true, cancelable: true, dataTransfer: dt })); }""")
+    pg.wait_for_timeout(800)
+    pruefe(pg.locator("[data-kalk-dok='zeichnung'] [data-kalk-dok-ansehen]").count() == 1, "Zeichnung hineingezogen")
     up = pg.evaluate("TEST.protokoll.filter((x) => x.art === 'upload').map((x) => x.pfad)")
     pruefe(any(u.startswith("erp/kalkulation/anfrage-") for u in up), "in die Ablage hochgeladen: %s" % up)
     pg.locator("[data-kalk-dok='anfrage'] [data-kalk-dok-ansehen]").click(); pg.wait_for_timeout(600)

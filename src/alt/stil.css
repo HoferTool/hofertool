@@ -18031,3 +18031,4 @@ body.dunkel .pst-leiste-knoepfe .formlage__liste button { color: #fff; }
 .kalk-dok__datei { display: inline-flex; max-width: 100%; }
 .kalk-dok__datei > button:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 240px; }
 .kalk-dok__neu { cursor: pointer; border-style: dashed; }
+.kalk-dok--ueber { outline: 2px dashed #0b4a8f; outline-offset: 3px; border-radius: 6px; background: rgba(11, 74, 143, 0.06); }
