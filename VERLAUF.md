@@ -2,6 +2,10 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.948.0 (28. November 2026)
+
+- Kalkulation, Kopfdaten: links nur Kalkulation Nr., Kunden-Code und Artikelangaben; Kunde, Zusatz und Anschrift rechts unten im Block „Kunde und Anschrift“. Bei „Anfrage und Bearbeitung“ lassen sich Kundenanfrage und Zeichnung als Dokumente hineinziehen oder wählen (Ablage `zeichnungen/erp/kalkulation/`, `k.dokumente`), antippen zeigt sie im Betrachter.
+
 ## 1.947.0 (28. November 2026)
 
 - Kalkulation, Artikel-Code: Die Frage zum Arbeitsplan kommt erst beim Verlassen des Feldes, nicht schon beim Tippen. Ist ein Kunde gewählt, zeigt das Feld die höchste Artikel-Nr. dieses Kunden aus Stammdaten und Kalkulationen und die nächste freie (Knopf „übernehmen“).

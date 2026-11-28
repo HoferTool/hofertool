@@ -731,12 +731,7 @@ function Kopf({ k, setze, setK, nr, setNr, maschinen, liste, eigeneId }) {
         <h2>Kunde und Artikel</h2>
         <F label="Kalkulation Nr." id="kalk-nr" text wert={nr} setzen={setNr} />
         <F label="Kunden-Code" id="kalk-kundecode" text platz={stamm.partner.length ? "Kunden-Nr., z. B. 10804" : undefined} wahl={codeWahl} wert={k.kopf.kundencode} setzen={codeSetzen} />
-        <F label="Kunde" id="kalk-kunde" text platz={stamm.partner.length ? "Name oder Nr. tippen, Vorschlag wählen" : undefined} wahl={kundeWahl} {...f("kunde")} />
-        <F label="Zusatz" id="kalk-adr-zusatz" text platz="Abteilung, z. Hd. …" {...a("zusatz")} />
-        <F label="Strasse" id="kalk-adr-strasse" text {...a("strasse")} />
-        <F label="Land" id="kalk-adr-land" text platz="CH" {...a("land")} />
-        <F label="PLZ" id="kalk-adr-plz" text {...a("plz")} />
-        <F label="Ort" id="kalk-adr-ort" text {...a("ort")} />
+        {k.kopf.kunde && <p className="hinweis kalk-kunde-kurz" id="kalk-kunde-kurz">{k.kopf.kunde}{k.kopf.ort ? ", " + k.kopf.ort : ""}</p>}
         <F label="Artikel-Code" id="kalk-artikel" text platz={hofer.length ? "HOCO Nr. oder Bezeichnung tippen" : undefined} wahl={artikelWahl} wert={k.kopf.artikel} setzen={artikelCodeSetzen} verlassen={artikelVerlassen} />
         {hoechste && (artikelWahl.offen || !artikel) && <p className="hinweis" id="kalk-hoechste">
           {hoechste.nr ? <>Höchste Artikel-Nr. bei {k.kopf.kunde || "diesem Kunden"}: <b>{hoechste.nr}</b> ({hoechste.wo}). </> : <>Noch keine Artikel-Nr. bei {k.kopf.kunde || "diesem Kunden"}. </>}
@@ -759,13 +754,83 @@ function Kopf({ k, setze, setK, nr, setNr, maschinen, liste, eigeneId }) {
         <F label="Index" id="kalk-index" text {...f("index")} />
         <F label="Teilebezeichnung" id="kalk-bez" text {...f("bezeichnung")} />
       </section>
+      <div className="kalk-spalte">
       <section className="karte">
         <h2>Anfrage und Bearbeitung</h2>
         {/* Anfragenummer des Kunden (Wunsch Patrick 28. November 2026) */}
         <F label="Anfrage-Nr." id="kalk-anfrage-nr" text {...f("anfrage_nr")} />
         <F label="Anfrage vom" id="kalk-anfrage" typ="date" {...f("anfrage")} />
         <F label="Ihr Zeichen" id="kalk-zeichen" text {...f("zeichen")} />
+        {/* Kundenanfrage und Zeichnung als Dokumente hineinziehen, antippen zeigt sie (Wunsch Patrick 28. November 2026) */}
+        <KalkDokumente k={k} setK={setK} />
       </section>
+      {/* Kunde und Anschrift rechts unten: links nur, was man zur Eingabe braucht (Wunsch Patrick 28. November 2026) */}
+      <section className="karte">
+        <h2>Kunde und Anschrift</h2>
+        <F label="Kunde" id="kalk-kunde" text platz={stamm.partner.length ? "Name oder Nr. tippen, Vorschlag wählen" : undefined} wahl={kundeWahl} {...f("kunde")} />
+        <F label="Zusatz" id="kalk-adr-zusatz" text platz="Abteilung, z. Hd. …" {...a("zusatz")} />
+        <F label="Strasse" id="kalk-adr-strasse" text {...a("strasse")} />
+        <F label="Land" id="kalk-adr-land" text platz="CH" {...a("land")} />
+        <F label="PLZ" id="kalk-adr-plz" text {...a("plz")} />
+        <F label="Ort" id="kalk-adr-ort" text {...a("ort")} />
+      </section>
+      </div>
+    </div>
+  );
+}
+
+// Dokumente der Kalkulation (k.dokumente [{ art: "anfrage" | "zeichnung", name,
+// pfad, url, typ }]) in der Ablage zeichnungen/erp/kalkulation/. Hineinziehen
+// oder „+ Datei“; antippen zeigt sie im Betrachter.
+const DOK_ARTEN = [["anfrage", "Kundenanfrage"], ["zeichnung", "Zeichnung"]];
+function KalkDokumente({ k, setK }) {
+  const [laedt, setLaedt] = useState("");
+  const doks = Array.isArray(k.dokumente) ? k.dokumente : [];
+  async function hochladen(art, dateien) {
+    if (!dateien.length) return;
+    setLaedt(art);
+    try {
+      const neu = [];
+      for (const d of dateien) {
+        const endung = ((d.name || "").match(/\.([a-z0-9]+)$/i) || [, (d.type || "").split("/")[1] || "bin"])[1].toLowerCase();
+        const pfad = "erp/kalkulation/" + art + "-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8) + "." + endung;
+        const r = await alt.zeitlimit(alt.db.storage.from("zeichnungen").upload(pfad, d,
+          { contentType: d.type || "application/octet-stream", upsert: false }), 120000, "Dokument hochladen");
+        if (r.error) throw r.error;
+        neu.push({ art, name: d.name || "Dokument", pfad, typ: d.type || "", url: alt.db.storage.from("zeichnungen").getPublicUrl(pfad).data.publicUrl });
+      }
+      setK((x) => ({ ...x, dokumente: [...(Array.isArray(x.dokumente) ? x.dokumente : []), ...neu] }));
+      alt.meldung(neu.length === 1 ? "Dokument abgelegt. Mit Speichern sichern." : neu.length + " Dokumente abgelegt. Mit Speichern sichern.", "gut");
+    } catch (f) { alt.meldung("Dokument nicht hochgeladen: " + alt.fehlertext(f), "fehler"); }
+    setLaedt("");
+  }
+  const ansehen = (d) => alt.betrachter(d.url, d.name, /pdf/i.test(d.typ || "") || /\.pdf$/i.test(d.name || ""));
+  async function weg(d) {
+    const w = await auswahlDialog("Dokument entfernen?", [{ wert: "ja", text: "Entfernen" }], d.name);
+    if (w !== "ja") return;
+    setK((x) => ({ ...x, dokumente: (x.dokumente || []).filter((y) => y.pfad !== d.pfad) }));
+  }
+  return (
+    <div className="kalk-doks">
+      {DOK_ARTEN.map(([art, titel]) => {
+        const liste = doks.filter((d) => d.art === art);
+        return (
+          <div key={art} className="kalk-dok" data-kalk-dok={art}>
+            <span className="kalk-dok__titel">{titel}</span>
+            <div className="kalk-dok__liste">
+              {liste.map((d) => (
+                <span key={d.pfad} className="kalk-dok__datei">
+                  <button type="button" className="knopf knopf--klein knopf--still" data-kalk-dok-ansehen={d.pfad} title="Ansehen" onClick={() => ansehen(d)}>{/pdf/i.test(d.typ || d.name) ? "📄" : "🖼"} {d.name}</button>
+                  <button type="button" className="knopf knopf--klein knopf--still" title="Entfernen" onClick={() => weg(d)}>✕</button>
+                </span>))}
+              <label className="knopf knopf--klein kalk-dok__neu">
+                {laedt === art ? "Lädt …" : liste.length ? "+ weitere" : "+ Datei hineinziehen oder wählen"}
+                <input type="file" multiple hidden accept=".pdf,image/*,.tif,.tiff" data-kalk-dok-datei={art}
+                  onChange={(e) => { const f = [...(e.target.files || [])]; e.target.value = ""; hochladen(art, f); }} />
+              </label>
+            </div>
+          </div>);
+      })}
     </div>
   );
 }

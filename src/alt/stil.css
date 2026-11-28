@@ -18020,3 +18020,14 @@ body.dunkel [data-pstblatt] .pst-c-kn .knopf--klein { color: #1a2a3a !important;
 body.dunkel .pst-leiste-knoepfe .formlage__liste button { color: #fff; }
 .pst-leiste-knoepfe .formlage__liste button { color: #1d2733; }
 .pst-leiste-knoepfe .knopf.pst-vorschau-an { color: #1d2430 !important; -webkit-text-fill-color: #1d2430; opacity: 1; font-weight: 600; }
+
+/* 1.948.0 Kalkulation Kopfdaten: rechte Spalte mit Anfrage, Dokumenten und Anschrift */
+.kalk-spalte { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.kalk-kunde-kurz { margin: -2px 0 6px; }
+.kalk-doks { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.kalk-dok { display: grid; grid-template-columns: minmax(110px, 1fr) 2fr; gap: 8px; align-items: start; }
+.kalk-dok__titel { font-size: 13px; font-weight: 600; padding-top: 6px; }
+.kalk-dok__liste { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 0; }
+.kalk-dok__datei { display: inline-flex; max-width: 100%; }
+.kalk-dok__datei > button:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 240px; }
+.kalk-dok__neu { cursor: pointer; border-style: dashed; }
