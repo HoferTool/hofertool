@@ -29,7 +29,11 @@ with sync_playwright() as p:
         pg.route(u, lambda r: r.abort())
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
-    pg.evaluate("location.hash='#/kalkulation'"); pg.wait_for_selector("#kalk-suche"); pg.fill("#kalk-suche", "20260021"); pg.wait_for_selector("[data-kalk='kk1']"); pg.wait_for_timeout(500)
+    pg.evaluate("location.hash='#/kalkulation'"); pg.wait_for_selector("#kalk-suche")
+    pg.check("#kalk-alle"); pg.wait_for_timeout(300)
+    nrn = pg.locator(".kalk-liste__nr").all_inner_texts()
+    pruefe(nrn[:3] == ["20260023", "20260022", "20260021"], "Liste anzeigen ohne Suche, höchste Nr. zuoberst (1.949.0): %s" % nrn)
+    pg.uncheck("#kalk-alle"); pg.fill("#kalk-suche", "20260021"); pg.wait_for_selector("[data-kalk='kk1']"); pg.wait_for_timeout(500)
     pg.click("[data-kalk='kk1']"); pg.wait_for_selector("[data-kalk-reiter='angebot']"); pg.wait_for_timeout(600)
     # Adresse immer aus dem Kundenstamm (1.948.2), ohne dass die Kalkulation als geändert gilt
     pg.wait_for_timeout(800)

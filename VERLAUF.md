@@ -2,6 +2,10 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.949.0 (28. November 2026)
+
+- Kalkulation, Liste: Häkchen „Liste anzeigen“ bei der Suche zeigt alle Kalkulationen ohne Suchbegriff, höchste Nr. zuoberst (Spaltenkopf sortiert weiter).
+
 ## 1.948.4 (28. November 2026)
 
 - Kalkulation, nächste Artikel-Nr.: die 9000er Nummern (Spezialartikel) zählen bei allen Kunden nicht, nicht nur bei 10007.

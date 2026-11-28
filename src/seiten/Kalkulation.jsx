@@ -171,11 +171,15 @@ function Liste({ liste, maschinen, oeffnen, neu, saetze }) {
   const [laeuft, setLaeuft] = useState(false);
   // Suche in der Liste (Wunsch Patrick 27. Oktober 2026): alle Wörter müssen irgendwo im Kopf der Kalkulation stehen
   const [suche, setSuche] = useState(gemerkt.suche || "");
-  useGemerkt(gemerkt, { suche });
+  // Häkchen „Liste anzeigen“: alle ohne Suchbegriff, nach Nr. absteigend, damit
+  // man die höchste Nummer sieht (Wunsch Patrick 28. November 2026)
+  const [alleZeigen, setAlleZeigen] = useState(!!gemerkt.alleZeigen);
+  useGemerkt(gemerkt, { suche, alleZeigen });
   const woerter = suche.toLowerCase().split(/\s+/).filter(Boolean);
   // Liste erst mit Suchbegriff (Wunsch Patrick 26. November 2026): die Seite steht
   // sofort da, die über 7'000 Kalkulationen laden still im Hintergrund
-  const gefunden = !woerter.length || !liste ? [] : liste.filter((k) => {
+  const gefunden = !liste ? [] : !woerter.length ? (alleZeigen
+    ? liste.slice().sort((a, b) => String(b.nr || "").localeCompare(String(a.nr || ""), undefined, { numeric: true })) : []) : liste.filter((k) => {
     const kopf = k.kopf || {};
     const text = [k.nr, k.kunde, k.artikel, ...Object.values(kopf)].filter((x) => typeof x === "string").join(" ").toLowerCase();
     return woerter.every((w) => text.includes(w));
@@ -226,7 +230,8 @@ function Liste({ liste, maschinen, oeffnen, neu, saetze }) {
         : <section className="karte kalk-rolle">
             <input type="text" id="kalk-suche" className="kalk-suche" autoFocus value={suche} placeholder="Suchen: Nummer, Kunde, Artikel, Zeichnung, Bezeichnung …"
               onChange={(e) => setSuche(e.target.value)} onKeyDown={(e) => { if (e.key === "Escape" && suche) { e.preventDefault(); setSuche(""); } }} />
-            {!woerter.length ? <p className="hinweis" id="kalk-leer">Suchbegriff eintippen, dann erscheinen die Kalkulationen.</p> :
+            <label className="kalk-alle"><input type="checkbox" id="kalk-alle" checked={alleZeigen} onChange={(e) => setAlleZeigen(e.target.checked)} /> Liste anzeigen</label>
+            {!woerter.length && !alleZeigen ? <p className="hinweis" id="kalk-leer">Suchbegriff eintippen oder „Liste anzeigen“ anhaken, dann erscheinen die Kalkulationen.</p> :
              !liste ? <p className="hinweis laedt" id="kalk-laedt">Kalkulationen werden geladen …</p> :
              !gefunden.length ? <p className="hinweis" id="kalk-nichts">Keine Kalkulation gefunden.</p> :
             <table className="tabelle kalk-liste">
